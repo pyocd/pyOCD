@@ -1,5 +1,13 @@
 *.py[cod]
 
+# Private settings
+private_settings.py
+
+# Eclipse Project Files
+.cproject
+.project
+.pydevproject
+
 # C extensions
 *.so
 
@@ -34,3 +42,4 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+*.bak
