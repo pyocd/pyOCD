@@ -336,8 +336,21 @@ class GDBServer(threading.Thread):
                 if data[idx_begin] == ':':
                     second_colon += 1
                 idx_begin += 1
-                
+
+            #if there's gap between sections, fill it with zeros
+            count = int(data.split(':')[1], 16)
+            if (count != 0 and self.flash_watermark != count):
+                count -= self.flash_watermark
+                while (count):
+                    self.flashData += "\0"
+                    count -= 1
+
             self.flashData += data[idx_begin:len(data) - 3]
+
+            #flash_watermark contains the end of the flash data
+            unescaped_data = self.unescape(self.flashData)
+            self.flash_watermark = len(unescaped_data)
+
             return self.createRSPPacket("OK")
         
         # we need to flash everything
