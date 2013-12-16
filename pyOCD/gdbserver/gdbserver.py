@@ -74,6 +74,7 @@ class GDBServer(threading.Thread):
             self.port = port_urlWSS
         self.packet_size = 2048
         self.flashData = ""
+        self.flash_watermark = 0
         self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
