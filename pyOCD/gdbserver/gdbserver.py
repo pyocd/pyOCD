@@ -371,7 +371,10 @@ class GDBServer(threading.Thread):
                 i += 16
             """
             
-            
+            if (self.target.checkSecurityBits(unescaped_data) == 0):
+                logging.error("Protection bits error, flashing won't execute")
+                return None
+
             logging.info("flashing %d bytes", bytes_to_be_written)
                     
             while len(unescaped_data) > 0:

@@ -22,3 +22,6 @@ class LPC11U24(CortexM):
     def __init__(self, transport):
         CortexM.__init__(self, transport)
         self.auto_increment_page_size = 0x400
+
+    def checkSecurityBits(self, data):
+        return 1
