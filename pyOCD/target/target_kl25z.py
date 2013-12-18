@@ -24,14 +24,14 @@ MDM_CTRL = 0x01000004
 MDM_IDR = 0x010000fc
 
 class KL25Z(CortexM):
-
+    
     def __init__(self, transport):
         CortexM.__init__(self, transport)
         self.auto_increment_page_size = 0x400
-
+        
     def init(self):
         CortexM.init(self, False)
-
+        
         # check for flash security
         val = self.transport.readAP(MDM_IDR)
         if val != 0x001c0020:
@@ -51,7 +51,7 @@ class KL25Z(CortexM):
                 val = self.transport.readAP(MDM_CTRL)
                 if (val == 0):
                     break
-
+                
         logging.info("KL25Z not in secure state")
         self.halt()
         self.setupFPB()
