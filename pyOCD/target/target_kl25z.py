@@ -24,14 +24,14 @@ MDM_CTRL = 0x01000004
 MDM_IDR = 0x010000fc
 
 class KL25Z(CortexM):
-    
+
     def __init__(self, transport):
         CortexM.__init__(self, transport)
         self.auto_increment_page_size = 0x400
-        
+
     def init(self):
         CortexM.init(self, False)
-        
+
         # check for flash security
         val = self.transport.readAP(MDM_IDR)
         if val != 0x001c0020:
@@ -51,23 +51,7 @@ class KL25Z(CortexM):
                 val = self.transport.readAP(MDM_CTRL)
                 if (val == 0):
                     break
-                
+
         logging.info("KL25Z not in secure state")
         self.halt()
         self.setupFPB()
-
-    def checkSecurityBits(self, data):
-        #error if security bits have unexpected values
-        address = 0x400
-        for i in range(12):
-            i += address
-            logging.debug("data[%d] at add 0x%X: 0x%X", i, i, data[i])
-            if (data[i] != 0xff):
-                return 0
-
-        logging.debug("data[%d] at add 0x%X: 0x%X", i+3, i+3, data[i+3])
-        logging.debug("data[%d] at add 0x%X: 0x%X", i+4, i+4, data[i+4])
-        if ((data[i+3] != 0xff) or (data[i+4] != 0xff)):)
-            return 0
-
-        return 1

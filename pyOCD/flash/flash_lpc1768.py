@@ -59,3 +59,6 @@ class Flash_lpc1768(Flash):
     
     def __init__(self, target):
         Flash.__init__(self, target, flash_algo, memoryMapXML)
+
+    def checkSecurityBits(self, data):
+        return 1

@@ -78,6 +78,10 @@ class Flash():
         """
         Flash one page
         """
+
+        if (self.checkSecurityBits(flashPtr, bytes) == 0):
+            return 0
+
         # first transfer in RAM
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
         
@@ -110,7 +114,7 @@ class Flash():
         nb_bytes = 0
         try:
             bytes_read = f.read(1024)
-            while bytes_read:                
+            while bytes_read:
                 bytes_read = unpack(str(len(bytes_read)) + 'B', bytes_read)
                 nb_bytes += len(bytes_read)
                 # page download
