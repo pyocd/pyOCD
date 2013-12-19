@@ -361,8 +361,8 @@ class GDBServer(threading.Thread):
             bytes_to_be_written = len(self.flashData)
 
             """
-            bin = open('bad_bin.txt', "w+")
-
+            bin = open(os.path.join(parentdir, 'res', 'bad_bin.txt'), "w+")
+            
             i = 0
             while (i < bytes_to_be_written):
                 bin.write(str(self.flashData[i:i+16]) + "\n")
