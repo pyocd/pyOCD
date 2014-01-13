@@ -43,3 +43,7 @@ nosetests.xml
 .project
 .pydevproject
 *.bak
+
+# ctags
+tags
+
