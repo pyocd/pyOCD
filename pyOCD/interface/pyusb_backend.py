@@ -22,7 +22,7 @@ try:
     import usb.core
     import usb.util
 except:
-    if os.name == "posix":
+    if os.name == "posix" and not os.uname()[0] == 'Darwin':
         logging.error("PyUSB is required on a Linux Machine")
 
 class PyUSB(Interface):

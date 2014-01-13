@@ -32,8 +32,11 @@ usb_backend = ""
 if os.name == "nt":
     usb_backend = "pywinusb"
 elif os.name == "posix":
-    usb_backend = "pyusb"
-    
+    if os.uname()[0] == 'Darwin':
+        usb_backend = "hidapiusb"
+    else:
+        usb_backend = "pyusb"
+
 mbed_vid = 0x0d28
 mbed_pid = 0x0204
 

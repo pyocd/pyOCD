@@ -15,9 +15,11 @@
  limitations under the License.
 """
 
+from hidapi_backend import HidApiUSB
 from pyusb_backend import PyUSB
 from pywinusb_backend import PyWinUSB
 
-INTERFACE = {'pyusb': PyUSB,
+INTERFACE = {'hidapiusb': HidApiUSB,
+             'pyusb': PyUSB,
              'pywinusb': PyWinUSB
             }
