@@ -147,5 +147,5 @@ class Flash():
         self.target.writeCoreRegister('lr', self.flash_algo['load_address'] + 1)
         return
     
-    def checkSecurityBits(self, data):
+    def checkSecurityBits(self, address, data):
         return 1
