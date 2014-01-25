@@ -113,7 +113,7 @@ try:
     if res != val:
         print "ERROR in READ/WRITE 32"
         
-    print "\r\nREAD16/WRITE316"
+    print "\r\nREAD16/WRITE16"
     val = randrange(0, 0xffff)
     print "write16 0x%X at 0x%X" % (val, addr + 2)
     target.writeMemory(addr + 2, val, 16)
