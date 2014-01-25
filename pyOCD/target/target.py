@@ -18,7 +18,7 @@
 TARGET_RUNNING = (1 << 0)
 TARGET_HALTED = (1 << 1)
 
-class Target():
+class Target(object):
     
     def __init__(self, transport):
         return

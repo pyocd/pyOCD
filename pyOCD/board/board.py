@@ -22,7 +22,7 @@ from pyOCD.flash import FLASH
 
 import logging
 
-class Board():
+class Board(object):
     """
     This class associates a target, a flash, a transport and an interface
     to create a board

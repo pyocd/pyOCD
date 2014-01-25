@@ -127,7 +127,7 @@ def word2byte(data):
     return res
 
 
-class Breakpoint():
+class Breakpoint(object):
     def __init__(self, comp_register_addr):
         self.comp_register_addr = comp_register_addr
         self.enabled = False

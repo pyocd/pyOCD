@@ -25,7 +25,7 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0,parentdir)
 """
 
-class Flash():
+class Flash(object):
     """
     This class is responsible to flash a new binary in a target
     """
@@ -109,7 +109,7 @@ class Flash():
         flashPtr = 0
         nb_bytes = 0
         try:
-            bytes_read = f.read(self.page_size) #1024)
+            bytes_read = f.read(self.page_size)
             while bytes_read:                
                 bytes_read = unpack(str(len(bytes_read)) + 'B', bytes_read)
                 nb_bytes += len(bytes_read)
@@ -121,9 +121,9 @@ class Flash():
                     bin.write(str(list(bytes_read[i:i+16])) + "\n")
                     i += 16
                 """
-                flashPtr += self.page_size #1024
+                flashPtr += self.page_size
     
-                bytes_read = f.read(self.page_size) #1024)
+                bytes_read = f.read(self.page_size)
         finally:
             f.close()
             """

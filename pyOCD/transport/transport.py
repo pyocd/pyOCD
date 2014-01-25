@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-class Transport():
+class Transport(object):
     
     def __init__(self, interface):
         self.interface = interface

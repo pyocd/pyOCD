@@ -20,7 +20,7 @@ try:
 except:
     pass
         
-class GDBWebSocket():
+class GDBWebSocket(object):
     def __init__(self, url):
         self.url = url
         self.wss = None
