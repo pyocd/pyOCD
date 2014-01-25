@@ -216,12 +216,48 @@ class CortexM(Target):
         self.transport.writeMem(addr, value, transfer_size)
         return
     
+    def write32(self, addr, value):
+        """
+        Shorthand to write a 32-bit word.
+        """
+        self.writeMemory(addr, value, 32)
+    
+    def write16(self, addr, value):
+        """
+        Shorthand to write a 16-bit halfword.
+        """
+        self.writeMemory(addr, value, 16)
+    
+    def write8(self, addr, value):
+        """
+        Shorthand to write a byte.
+        """
+        self.writeMemory(addr, value, 8)
+    
     def readMemory(self, addr, transfer_size = 32):
         """
         read a memory location. By default, a word will
         be read
         """
         return self.transport.readMem(addr, transfer_size)
+    
+    def read32(self, addr):
+        """
+        Shorthand to read a 32-bit word.
+        """
+        return self.readMemory(addr, 32)
+    
+    def read16(self, addr):
+        """
+        Shorthand to read a 16-bit halfword.
+        """
+        return self.readMemory(addr, 16)
+    
+    def read8(self, addr):
+        """
+        Shorthand to read a byte.
+        """
+        return self.readMemory(addr, 8)
     
     def readBlockMemoryUnaligned8(self, addr, size):
         """
