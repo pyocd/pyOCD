@@ -22,11 +22,16 @@ from time import sleep
 from board import Board
 from pyOCD.interface import INTERFACE
 
-TARGET_TYPE = {"1010": "lpc1768",
-               "0200": "kl25z",
-               "1040": "lpc11u24",
-               "0300": "lpc800",
-               }
+TARGET_TYPE = {
+                "0200": "kl25z",
+                "0210": "kl05z",
+                "0220": "kl46z",
+                "0230": "k20d50m",
+                "0240": "k64f",
+                "1010": "lpc1768",
+                "1040": "lpc11u24",
+                "0300": "lpc800",
+              }
 
 usb_backend = ""
 if os.name == "nt":

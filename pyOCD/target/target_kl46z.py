@@ -19,7 +19,7 @@ from target_kinetis import Kinetis
 import logging
 
 
-class KL25Z(Kinetis):
+class KL46Z(Kinetis):
     
     def __init__(self, transport):
         Kinetis.__init__(self, transport)

@@ -15,11 +15,13 @@
  limitations under the License.
 """
 
-import argparse, os
+import sys, argparse, os
 from time import sleep
 from random import randrange
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.append(parentdir)
 
 from pyOCD.board import MbedBoard
 
@@ -58,6 +60,9 @@ try:
         addr = 0x10000001
         size = 0x502
     elif target_type == "kl25z":
+        addr = 0x20000001
+        size = 0x502
+    elif target_type == "k64f":
         addr = 0x20000001
         size = 0x502
     elif target_type == "lpc800":
