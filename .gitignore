@@ -46,3 +46,7 @@ nosetests.xml
 
 # ctags
 tags
+
+# Doxygen output
+html
+
