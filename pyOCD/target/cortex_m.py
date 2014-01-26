@@ -19,6 +19,7 @@ from pyOCD.target.target import Target
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
 from pyOCD.transport.cmsis_dap import DP_REG
 import logging
+import struct
 
 # Debug Halting Control and Status Register 
 DHCSR = 0xE000EDF0
@@ -29,10 +30,50 @@ REGWnR = (1 << 16)
 DCRDR = 0xE000EDF8
 # Debug Exception and Monitor Control Register
 DEMCR = 0xE000EDFC
+
 TRACE_ENA = (1 << 24)
 VC_HARDERR = (1 << 9)
 VC_BUSERR = (1 << 8)
 VC_CORERESET = (1 << 0)
+
+# CPUID Register
+CPUID = 0xE000ED00
+
+# CPUID masks
+CPUID_IMPLEMENTER_MASK = 0xff000000
+CPUID_IMPLEMENTER_POS = 24
+CPUID_VARIANT_MASK = 0x00f00000
+CPUID_VARIANT_POS = 20
+CPUID_ARCHITECTURE_MASK = 0x000f0000
+CPUID_ARCHITECTURE_POS = 16
+CPUID_PARTNO_MASK = 0x0000fff0
+CPUID_PARTNO_POS = 4
+CPUID_REVISION_MASK = 0x0000000f
+CPUID_REVISION_POS = 0
+
+CPUID_IMPLEMENTER_ARM = 0x41
+ARMv6M = 0xC
+ARMv7M = 0xF
+
+# CPUID PARTNO values
+ARM_CortexM0 = 0xC20
+ARM_CortexM1 = 0xC21
+ARM_CortexM3 = 0xC23
+ARM_CortexM4 = 0xC24
+ARM_CortexM0p = 0xC60
+
+# User-friendly names for core types.
+CORE_TYPE_NAME = {
+                 ARM_CortexM0 : "Cortex-M0",
+                 ARM_CortexM1 : "Cortex-M1",
+                 ARM_CortexM3 : "Cortex-M3",
+                 ARM_CortexM4 : "Cortex-M4",
+                 ARM_CortexM0p : "Cortex-M0+"
+               }
+
+# Coprocessor Access Control Register
+CPACR = 0xE000ED88
+CPACR_CP10_CP11_MASK = (3 << 20) | (3 << 22)
 
 NVIC_AIRCR = (0xE000ED0C)
 NVIC_AIRCR_VECTKEY = (0x5FA << 16)
@@ -47,11 +88,16 @@ CDBGPWRUPREQ = 0x10000000
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
 
+# DHCSR bit masks
 C_DEBUGEN = (1 << 0)
 C_HALT = (1 << 1)
 C_STEP = (1 << 2)
 C_MASKINTS = (1 << 3)
-C_SNAPSTALL = (1 << 4)
+C_SNAPSTALL = (1 << 5)
+S_REGRDY = (1 << 16)
+S_HALT = (1 << 17)
+S_SLEEP = (1 << 18)
+S_LOCKUP = (1 << 19)
 DBGKEY = (0xA05F << 16)
 
 # FPB (breakpoint)
@@ -59,7 +105,16 @@ FP_CTRL = (0xE0002000)
 FP_CTRL_KEY = (1 << 1)
 FP_COMP0 = (0xE0002008)
 
-CORE_REGISTER = {'r0': 0,
+# Map from register name to DCRSR register index.
+#
+# The CONTROL, FAULTMASK, BASEPRI, and PRIMASK registers are special in that they share the
+# same DCRSR register index and are returned as a single value. In this dict, these registers
+# have negative values to signal to the register read/write functions that special handling
+# is necessary. The values are the byte number containing the register value, plus 1 and then
+# negated. So -1 means a mask of 0xff, -2 is 0xff00, and so on. The actual DCRSR register index
+# for these combined registers has the key of '_special'.
+CORE_REGISTER = {
+                 'r0': 0,
                  'r1': 1,
                  'r2': 2,
                  'r3': 3,
@@ -76,6 +131,46 @@ CORE_REGISTER = {'r0': 0,
                  'lr': 14,
                  'pc': 15,
                  'xpsr': 16,
+                 'msp': 17,
+                 'psp': 18,
+                 '_special': 20,
+                 'control': -4,
+                 'faultmask': -3,
+                 'basepri': -2,
+                 'primask': -1,
+                 'fpscr': 33,
+                 's0': 128,
+                 's1': 129,
+                 's2': 130,
+                 's3': 131,
+                 's4': 132,
+                 's5': 133,
+                 's6': 134,
+                 's7': 135,
+                 's8': 136,
+                 's9': 137,
+                 's10': 138,
+                 's11': 139,
+                 's12': 140,
+                 's13': 141,
+                 's14': 142,
+                 's15': 143,
+                 's16': 144,
+                 's17': 145,
+                 's18': 146,
+                 's19': 147,
+                 's20': 148,
+                 's21': 149,
+                 's22': 150,
+                 's23': 151,
+                 's24': 152,
+                 's25': 153,
+                 's26': 154,
+                 's27': 155,
+                 's28': 156,
+                 's29': 157,
+                 's30': 158,
+                 's31': 159,
                  }
 
 targetXML = "<?xml version=\"1.0\"?>\n" \
@@ -126,6 +221,16 @@ def word2byte(data):
         res.append((x >> 24) & 0xff)  
     return res
 
+## @brief Convert a 32-bit int to an IEEE754 float.
+def int2float(data):
+    d = struct.pack("@L", data)
+    return struct.unpack("@f", d)[0]
+
+## @brief Convert an IEEE754 float to a 32-bit int.
+def float2int(data):
+    d = struct.pack("@f", data)
+    return struct.unpack("@L", d)[0]
+
 
 class Breakpoint(object):
     def __init__(self, comp_register_addr):
@@ -150,10 +255,14 @@ class CortexM(Target):
         self.idcode = 0
         self.breakpoints = []
         self.nb_code = 0
+        self.nb_lit = 0
         self.num_breakpoint_used = 0
         self.nb_lit = 0
         self.fpb_enabled = False
         self.targetXML = targetXML
+        self.arch = 0
+        self.core_type = 0
+        self.has_fpu = False
         return
     
     def init(self, setup_fpb = True):
@@ -176,8 +285,43 @@ class CortexM(Target):
         if setup_fpb:
             self.halt()
             self.setupFPB()
+            self.readCoreType()
+            self.checkForFPU()
+    
+    ## @brief Read the CPUID register and determine core type.
+    def readCoreType(self):
+        # Read CPUID register
+        cpuid = self.read32(CPUID)
+        
+        implementer = (cpuid & CPUID_IMPLEMENTER_MASK) >> CPUID_IMPLEMENTER_POS
+        if implementer != CPUID_IMPLEMENTER_ARM:
+            logging.warning("CPU implementer is not ARM!")
+        
+        self.arch = (cpuid & CPUID_ARCHITECTURE_MASK) >> CPUID_ARCHITECTURE_POS
+        self.core_type = (cpuid & CPUID_PARTNO_MASK) >> CPUID_PARTNO_POS
+        logging.info("CPU core is %s", CORE_TYPE_NAME[self.core_type])
+    
+    ## @brief Determine if a Cortex-M4 has an FPU.
+    #
+    # The core type must have been identified prior to calling this function.
+    def checkForFPU(self):
+        if self.core_type != ARM_CortexM4:
+            self.has_fpu = False
+            return
+        
+        originalCpacr = self.read32(CPACR)
+        cpacr = originalCpacr | CPACR_CP10_CP11_MASK
+        self.write32(CPACR, cpacr)
+        
+        cpacr = self.read32(CPACR)
+        self.has_fpu = (cpacr & CPACR_CP10_CP11_MASK) != 0
+        
+        # Restore previous value.
+        self.write32(CPACR, originalCpacr)
+        
+        if self.has_fpu:
+            logging.info("FPU present")
 
-        return
     
     def setupFPB(self):
         """
@@ -188,7 +332,8 @@ class CortexM(Target):
         # setup FPB (breakpoint)
         fpcr = self.readMemory(FP_CTRL)
         self.nb_code = ((fpcr >> 8) & 0x70) | ((fpcr >> 4) & 0xF)
-        logging.info("%d hardware breakpoints", self.nb_code)
+        self.nb_lit = (fpcr >> 7) & 0xf
+        logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
         for i in range(self.nb_code):
             self.breakpoints.append(Breakpoint(FP_COMP0 + 4*i))
         
@@ -497,15 +642,37 @@ class CortexM(Target):
             except KeyError:
                 logging.error('cannot find %s core register', id)
                 return
-            
-        if (reg < 0) or (reg > len(CORE_REGISTER)):
+        
+        if (reg < 0) and (reg >= -4):
+            specialReg = reg
+            reg = CORE_REGISTER['_special']
+        else:
+            specialReg = 0
+        
+        if reg not in CORE_REGISTER.values():
             logging.error("unknown reg: %d", reg)
+            return
+        elif (reg >= 128) and (not self.has_fpu):
+            logging.error("attempt to read FPU register without FPU")
             return
         
         # write id in DCRSR
         self.writeMemory(DCRSR, reg)
+        
+        # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
+        # we're running so slow compared to the target that it's not necessary.
+        
         # read DCRDR
-        return self.readMemory(DCRDR)
+        val = self.readMemory(DCRDR)
+        
+        # Special handling for registers that are combined into a single DCRSR number.
+        if specialReg:
+            val = (val >> ((-specialReg - 1) * 4)) & 0xff
+        # Convert int to float.
+        elif reg >= 128:
+            val = int2float(val)
+        
+        return val
     
     
     def writeCoreRegister(self, reg, data):
@@ -521,15 +688,35 @@ class CortexM(Target):
                 logging.error('cannot find %s core register', id)
                 return
             
-        if (reg < 0) or (reg > len(CORE_REGISTER)):
+        if (reg < 0) and (reg >= -4):
+            specialReg = reg
+            reg = CORE_REGISTER['_special']
+            
+            # Mask in the new special register value so we don't modify the other register
+            # values that share the same DCRSR number.
+            specialRegValue = self.readCoreRegister(reg)
+            shift = (-specialReg - 1) * 4
+            mask = 0xffffffff ^ (0xff << shift)
+            data = (specialRegValue & mask) | ((data & 0xff) << shift)
+        else:
+            specialReg = 0
+        
+        if reg not in CORE_REGISTER.values():
             logging.error("unknown reg: %d", reg)
             return
+        elif (reg >= 128) and (not self.has_fpu):
+            logging.error("attempt to read FPU register without FPU")
+            return
+        
+        # Convert float to int.
+        if reg >= 128:
+            data = float2int(data)
             
         # write id in DCRSR
         self.writeMemory(DCRDR, data)
-        # read DCRDR
+
+        # write DCRDR
         self.writeMemory(DCRSR, reg | REGWnR)
-        return
     
     
     def setBreakpoint(self, addr):

@@ -18,18 +18,22 @@
 import sys, argparse, os
 from time import sleep
 from random import randrange
+import math
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.append(parentdir)
 
+import pyOCD
 from pyOCD.board import MbedBoard
+from pyOCD.target.cortex_m import float2int
 
 addr = 0
 size = 0
 f = None
 binary_file = "l1_"
 
+board = None
 interface = None
 
 import logging
@@ -87,6 +91,32 @@ try:
     # write initial pc value
     target.writeCoreRegister('pc', pc)
     print "initial pc value rewritten: 0x%X" % target.readCoreRegister('pc')
+    
+    msp = target.readCoreRegister('msp')
+    psp = target.readCoreRegister('psp')
+    print "MSP = 0x%08x; PSP = 0x%08x" % (msp, psp)
+    
+    control = target.readCoreRegister('control')
+    faultmask = target.readCoreRegister('faultmask')
+    basepri = target.readCoreRegister('basepri')
+    primask = target.readCoreRegister('primask')
+    print "CONTROL = 0x%02x; FAULTMASK = 0x%02x; BASEPRI = 0x%02x; PRIMASK = 0x%02x" % (control, faultmask, basepri, primask)
+    
+    target.writeCoreRegister('primask', 1)
+    newPrimask = target.readCoreRegister('primask')
+    print "New PRIMASK = 0x%02x" % newPrimask
+    target.writeCoreRegister('primask', primask)
+    newPrimask = target.readCoreRegister('primask')
+    print "Restored PRIMASK = 0x%02x" % newPrimask
+    
+    s0 = target.readCoreRegister('s0')
+    print "S0 = %g (0x%08x)" % (s0,float2int(s0))
+    target.writeCoreRegister('s0', math.pi)
+    newS0 = target.readCoreRegister('s0')
+    print "New S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+    target.writeCoreRegister('s0', s0)
+    newS0 = target.readCoreRegister('s0')
+    print "Restored S0 = %g (0x%08x)" % (newS0, float2int(newS0))
     
     
     print "\r\n\r\n------ TEST HALT / RESUME ------"
@@ -161,10 +191,7 @@ try:
     flash.flashBinary(binary_file)
 
     target.reset()
-    
-except Exception as e:
-    print "Unknown exception: %s" % e
-    
+        
 finally:
     if board != None:
         board.uninit()

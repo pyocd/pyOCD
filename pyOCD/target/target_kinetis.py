@@ -36,23 +36,24 @@ class Kinetis(CortexM):
         # check for flash security
         val = self.transport.readAP(MDM_IDR)
         if val != self.mdm_idr:
-            logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)" % (self.__class__.__name__, val, self.mdm_idr))
+            logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.__class__.__name__, val, self.mdm_idr)
         self.checkSecurity()
         self.halt()
         self.setupFPB()
+        self.readCoreType()
+        self.checkForFPU()
     
     def checkSecurity(self):
         val = self.transport.readAP(MDM_STATUS)
         if (val & (1 << 2)):
-            logging.warning("%s secure state: will try to unlock via mass erase" % self.__class__.__name__)
+            logging.warning("%s in secure state: will try to unlock via mass erase", self.__class__.__name__)
             if not self.massErase():
-                logging.error("%s: mass erase failed" % self.__class__.__name__)
-                
-        logging.info("%s not in secure state" % self.__class__.__name__)
-    
+                logging.error("%s: mass erase failed", self.__class__.__name__)
+        else:
+            logging.info("%s not in secure state", self.__class__.__name__)
+
+    ## @brief Returns True if mass erase succeeded, False if it failed or is disabled.
     def massErase(self):
-        """Returns True if mass erase succeeded, False if it failed or is disabled."""
-        
         self.transport.assertReset(True)
         
         # Wait until flash is inited.
@@ -83,7 +84,12 @@ class Kinetis(CortexM):
             if (val == 0):
                 break
         
-        return True
+        val = self.transport.readAP(MDM_STATUS)
+        if (val & (1 << 2)) == 0:
+            logging.warning("%s secure state: unlocked successfully", self.__class__.__name__)
+            return True
+        else:
+            return False
     
 
         
