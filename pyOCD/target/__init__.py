@@ -17,8 +17,10 @@
 
 import cortex_m
 import target_kinetis
+import target_kl02z
 import target_kl05z
 import target_kl25z
+import target_kl26z
 import target_kl46z
 import target_k64f
 import target_k20d50m
@@ -29,8 +31,10 @@ import target_lpc1768
 TARGET = {
           'cortex_m': cortex_m.CortexM,
           'target_kinetis': target_kinetis.Kinetis,
+          'target_kl02z': target_kl02z.KL02Z,
           'target_kl05z': target_kl05z.KL05Z,
           'target_kl25z': target_kl25z.KL25Z,
+          'target_kl26z': target_kl26z.KL26Z,
           'target_kl46z': target_kl46z.KL46Z,
           'target_k20d50m': target_k20d50m.K20D50M,
           'target_k64f': target_k64f.K64F,

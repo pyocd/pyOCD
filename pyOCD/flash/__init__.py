@@ -15,8 +15,10 @@
  limitations under the License.
 """
 
+from flash_kl02z import Flash_kl02z
 from flash_kl05z import Flash_kl05z
 from flash_kl25z import Flash_kl25z
+from flash_kl26z import Flash_kl26z
 from flash_kl46z import Flash_kl46z
 from flash_k20d50m import Flash_k20d50m
 from flash_k64f import Flash_k64f
@@ -25,8 +27,10 @@ from flash_lpc11u24 import Flash_lpc11u24
 from flash_lpc1768 import Flash_lpc1768
 
 FLASH = {
+         'flash_kl02z': Flash_kl02z,
          'flash_kl05z': Flash_kl05z,
          'flash_kl25z': Flash_kl25z,
+         'flash_kl26z': Flash_kl26z,
          'flash_kl46z': Flash_kl46z,
          'flash_k20d50m': Flash_k20d50m,
          'flash_k64f': Flash_k64f,

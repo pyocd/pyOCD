@@ -70,16 +70,18 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_program_page' : 0x20000131,
                'begin_stack' : 0x20001000,
                'begin_data' : 0x20002000,
-               'static_base' : 0x200005ec,
+               'static_base' : 0x20000578,
                'page_size' : 4096
               };
 
-memoryMapXML =  "<?xml version=\"1.0\"?>" \
-                "<!DOCTYPE memory-map PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\" \"http://sourceware.org/gdb/gdb-memory-map.dtd\">" \
-                "<memory-map>" \
-                    "<memory type=\"flash\" start=\"0x0\" length=\"0x20000\"> <property name=\"blocksize\">0x400</property></memory>" \
-                    "<memory type=\"ram\" start=\"0x20000000\" length=\"0x3000\"> </memory>" \
-                "</memory-map>"
+memoryMapXML =  """
+<?xml version="1.0"?>
+<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
+<memory-map>
+    <memory type="flash" start="0x0" length="0x100000"> <property name="blocksize">0x1000</property></memory>
+    <memory type="ram" start="0x1ffe0000" length="0x40000"> </memory>
+</memory-map>
+"""
 
 
 class Flash_k64f(Flash):

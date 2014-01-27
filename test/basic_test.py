@@ -109,14 +109,15 @@ try:
     newPrimask = target.readCoreRegister('primask')
     print "Restored PRIMASK = 0x%02x" % newPrimask
     
-    s0 = target.readCoreRegister('s0')
-    print "S0 = %g (0x%08x)" % (s0,float2int(s0))
-    target.writeCoreRegister('s0', math.pi)
-    newS0 = target.readCoreRegister('s0')
-    print "New S0 = %g (0x%08x)" % (newS0, float2int(newS0))
-    target.writeCoreRegister('s0', s0)
-    newS0 = target.readCoreRegister('s0')
-    print "Restored S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+    if target.has_fpu:
+        s0 = target.readCoreRegister('s0')
+        print "S0 = %g (0x%08x)" % (s0,float2int(s0))
+        target.writeCoreRegister('s0', math.pi)
+        newS0 = target.readCoreRegister('s0')
+        print "New S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+        target.writeCoreRegister('s0', s0)
+        newS0 = target.readCoreRegister('s0')
+        print "Restored S0 = %g (0x%08x)" % (newS0, float2int(newS0))
     
     
     print "\r\n\r\n------ TEST HALT / RESUME ------"
