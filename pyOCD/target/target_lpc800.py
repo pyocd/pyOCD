@@ -17,8 +17,18 @@
 
 from cortex_m import CortexM
 
+memoryMapXML =  """
+<?xml version="1.0"?>
+<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
+<memory-map>
+    <memory type="flash" start="0x0" length="0x8000"> <property name="blocksize">0x400</property></memory>
+    <memory type="ram" start="0x10000000" length="0x1000"> </memory>
+</memory-map>
+"""
+
 class LPC800(CortexM):
     
     def __init__(self, transport):
         CortexM.__init__(self, transport)
         self.auto_increment_page_size = 0x400
+        self.memoryMapXML = memoryMapXML

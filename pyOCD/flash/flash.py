@@ -30,7 +30,7 @@ class Flash(object):
     This class is responsible to flash a new binary in a target
     """
     
-    def __init__(self, target, flash_algo, memoryMapXML):
+    def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
         self.end_flash_algo = flash_algo['load_address'] + len(flash_algo)*4
@@ -38,7 +38,6 @@ class Flash(object):
         self.begin_data = flash_algo['begin_data']
         self.static_base = flash_algo['static_base']
         self.page_size = flash_algo['page_size']
-        self.memoryMapXML = memoryMapXML
     
     def init(self):
         """

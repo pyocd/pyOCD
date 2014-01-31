@@ -46,18 +46,7 @@ flash_algo = { 'load_address' : 0x10000000,
                'page_size' : 1024
               };
               
-memoryMapXML =  """
-<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x80000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x10000000" length="0x8000"> </memory>
-    <memory type="ram" start="0x2007C000" length="0x8000"> </memory>
-</memory-map>
-"""
-
-
 class Flash_lpc1768(Flash):
     
     def __init__(self, target):
-        Flash.__init__(self, target, flash_algo, memoryMapXML)
+        Flash.__init__(self, target, flash_algo)

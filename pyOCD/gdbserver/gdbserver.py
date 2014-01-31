@@ -547,7 +547,7 @@ class GDBServer(threading.Thread):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
         xml = ''
         if query == 'memory_map':
-            xml = self.flash.memoryMapXML
+            xml = self.target.memoryMapXML
         elif query == 'read_feature':
             xml = self.target.targetXML
 
