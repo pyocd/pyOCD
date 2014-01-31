@@ -21,8 +21,12 @@ TARGET_HALTED = (1 << 1)
 class Target(object):
     
     def __init__(self, transport):
-        self.memoryMapXML = ""
-        return
+        self.transport = transport
+        self.flash = None
+        self.part_number = ""
+    
+    def setFlash(self, flash):
+        self.flash = flash
         
     def init(self):
         return
@@ -80,7 +84,7 @@ class Target(object):
     
     # GDB functions
     def getTargetXML(self):
-        return
+        return self.targetXML
     
     def getMemoryMapXML(self):
         return self.memoryMapXML

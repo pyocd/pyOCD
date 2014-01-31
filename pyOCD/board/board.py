@@ -35,6 +35,7 @@ class Board(object):
         self.transport = TRANSPORT[transport](self.interface)
         self.target = TARGET[target](self.transport)
         self.flash = FLASH[flash](self.target)
+        self.target.setFlash(self.flash)
         return
     
     def init(self):
@@ -48,8 +49,8 @@ class Board(object):
         
     def uninit(self):
         """
-        Uninitialize the board: inetrface, transport and target.
-        This function resets the target
+        Uninitialize the board: interface, transport and target.
+        This function resumes the target
         """
         logging.debug("uninit board %s", self)
         self.target.resume()

@@ -173,30 +173,6 @@ CORE_REGISTER = {
                  's31': 159,
                  }
 
-targetXML = "<?xml version=\"1.0\"?>\n" \
-            "<!DOCTYPE feature SYSTEM \"gdb-target.dtd\">\n" \
-            "<target>\n" \
-                "<feature name=\"org.gnu.gdb.arm.m-profile\">\n" \
-                    "<reg name=\"r0\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r1\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r2\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r3\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r4\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r5\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r6\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r7\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r8\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r9\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r10\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r11\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"r12\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"sp\" bitsize=\"32\" type=\"data_ptr\"/>\n" \
-                    "<reg name=\"lr\" bitsize=\"32\"/>\n" \
-                    "<reg name=\"pc\" bitsize=\"32\" type=\"code_ptr\"/>\n" \
-                    "<reg name=\"xpsr\" bitsize=\"32\" regnum=\"16\"/>\n" \
-                "</feature>\n" \
-            "</target>\n"
-
 """ 
 convert a byte array into a word array
 """
@@ -248,6 +224,31 @@ class CortexM(Target):
        - read/write core registers
        - set/remove hardware breakpoints
     """
+
+    targetXML = """<?xml version="1.0"?>
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<target>
+    <feature name="org.gnu.gdb.arm.m-profile">
+        <reg name="r0" bitsize="32"/>
+        <reg name="r1" bitsize="32"/>
+        <reg name="r2" bitsize="32"/>
+        <reg name="r3" bitsize="32"/>
+        <reg name="r4" bitsize="32"/>
+        <reg name="r5" bitsize="32"/>
+        <reg name="r6" bitsize="32"/>
+        <reg name="r7" bitsize="32"/>
+        <reg name="r8" bitsize="32"/>
+        <reg name="r9" bitsize="32"/>
+        <reg name="r10" bitsize="32"/>
+        <reg name="r11" bitsize="32"/>
+        <reg name="r12" bitsize="32"/>
+        <reg name="sp" bitsize="32" type="data_ptr"/>
+        <reg name="lr" bitsize="32"/>
+        <reg name="pc" bitsize="32" type="code_ptr"/>
+        <reg name="xpsr" bitsize="32" regnum="16"/>
+    </feature>
+</target>
+"""
     
     def __init__(self, transport):
         self.transport = transport
@@ -259,11 +260,10 @@ class CortexM(Target):
         self.num_breakpoint_used = 0
         self.nb_lit = 0
         self.fpb_enabled = False
-        self.targetXML = targetXML
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
-        return
+        self.part_number = self.__class__.__name__
     
     def init(self, setup_fpb = True):
         """
