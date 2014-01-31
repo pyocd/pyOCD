@@ -26,7 +26,7 @@ MDM_IDR = 0x010000fc
 class Kinetis(CortexM):
     
     def __init__(self, transport):
-        CortexM.__init__(self, transport)
+        super(Kinetis, self).__init__(transport)
         self.auto_increment_page_size = 0x400
         self.mdm_idr = 0
         

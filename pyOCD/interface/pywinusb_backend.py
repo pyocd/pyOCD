@@ -34,6 +34,7 @@ class PyWinUSB(Interface):
     pid = 0
     
     def __init__(self):
+        super(PyWinUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.report = []
         self.rcv_data = []

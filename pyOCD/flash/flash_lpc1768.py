@@ -49,4 +49,4 @@ flash_algo = { 'load_address' : 0x10000000,
 class Flash_lpc1768(Flash):
     
     def __init__(self, target):
-        Flash.__init__(self, target, flash_algo)
+        super(Flash_lpc1768, self).__init__(target, flash_algo)

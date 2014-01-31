@@ -30,7 +30,7 @@ class KL26Z(Kinetis):
 """
     
     def __init__(self, transport):
-        Kinetis.__init__(self, transport)
+        super(KL26Z, self).__init__(transport)
         self.auto_increment_page_size = 0x400
         self.mdm_idr = 0x001c0020
         

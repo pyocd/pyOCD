@@ -54,7 +54,7 @@ class MbedBoard(Board):
         """
         Init the board
         """
-        Board.__init__(self, target, flash, interface, transport)
+        super(MbedBoard, self).__init__(target, flash, interface, transport)
         self.unique_id = ""
         self.target_type = ""
     

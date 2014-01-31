@@ -36,6 +36,7 @@ class PyUSB(Interface):
     pid = 0
 
     def __init__(self):
+        super(PyUSB, self).__init__()
         self.ep_out = None
         self.ep_in = None
         self.dev = None

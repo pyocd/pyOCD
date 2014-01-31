@@ -251,7 +251,8 @@ class CortexM(Target):
 """
     
     def __init__(self, transport):
-        self.transport = transport
+        super(CortexM, self).__init__(transport)
+        
         self.auto_increment_page_size = 0
         self.idcode = 0
         self.breakpoints = []

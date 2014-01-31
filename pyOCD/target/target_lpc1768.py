@@ -30,7 +30,7 @@ class LPC1768(CortexM):
 """
     
     def __init__(self, transport):
-        CortexM.__init__(self, transport)
+        super(LPC1768, self).__init__(transport)
         self.auto_increment_page_size = 0x1000
         
     def reset(self):

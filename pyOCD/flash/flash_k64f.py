@@ -77,5 +77,5 @@ flash_algo = { 'load_address' : 0x20000000,
 class Flash_k64f(Flash):
     
     def __init__(self, target):
-        Flash.__init__(self, target, flash_algo)
+        super(Flash_k64f, self).__init__(target, flash_algo)
     
