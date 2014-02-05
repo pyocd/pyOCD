@@ -30,7 +30,7 @@ TARGET_TYPE = {"1010": "lpc1768",
 
 usb_backend = ""
 if os.name == "nt":
-    usb_backend = "pywinusb"
+    usb_backend = "hidapiusb"
 elif os.name == "posix":
     if os.uname()[0] == 'Darwin':
         usb_backend = "hidapiusb"
