@@ -23,6 +23,7 @@ from board import Board
 from pyOCD.interface import INTERFACE
 
 TARGET_TYPE = {"1010": "lpc1768",
+               "9004": "1pc1768",
                "0200": "kl25z",
                "1040": "lpc11u24",
                "0300": "lpc800",
