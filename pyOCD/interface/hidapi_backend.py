@@ -23,6 +23,9 @@ try:
 except:
     if os.name == "posix" and os.uname()[0] == 'Darwin':
         logging.error("cython-hidapi is required on a Mac OS X Machine")
+    isAvailable = False
+else:
+    isAvailable = True
 
 class HidApiUSB(Interface):
     """
@@ -32,16 +35,15 @@ class HidApiUSB(Interface):
     """
     vid = 0
     pid = 0
+    
+    isAvailable = isAvailable
 
     def __init__(self):
         # Vendor page and usage_id = 2
         self.device = None
-        return
 
     def open(self):
         pass
-#         self.device.set_raw_data_handler(self.rx_handler)
-#         self.device.open()
 
     @staticmethod
     def getAllConnectedInterface(vid, pid):
@@ -76,8 +78,6 @@ class HidApiUSB(Interface):
             new_board.vid = deviceInfo['vendor_id']
             new_board.pid = deviceInfo['product_id']
             new_board.device = dev
-            print new_board
-            print dir(new_board)
 
             boards.append(new_board)
 

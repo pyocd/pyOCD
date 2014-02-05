@@ -24,6 +24,9 @@ try:
 except:
     if os.name == "posix" and not os.uname()[0] == 'Darwin':
         logging.error("PyUSB is required on a Linux Machine")
+    isAvailable = False
+else:
+    isAvailable = True
 
 class PyUSB(Interface):
     """
@@ -34,6 +37,8 @@ class PyUSB(Interface):
     
     vid = 0
     pid = 0
+    
+    isAvailable = isAvailable
 
     def __init__(self):
         self.ep_out = None
