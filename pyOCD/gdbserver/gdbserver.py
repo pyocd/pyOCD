@@ -278,6 +278,16 @@ class GDBServer(threading.Thread):
         self.target.resume()
         self.abstract_socket.setBlocking(0)
         
+        # Try to set break point at hardfault handler to avoid
+        # halting target constantly
+        if (self.target.availableBreakpoint() >= 1):
+            bpSet=True
+            hardfault_handler = self.target.readMemory(4*3)
+            self.target.setBreakpoint(hardfault_handler)
+        else:
+            bpSet=False
+            logging.info("No breakpoint available. Interfere target constantly.")
+        
         val = ''
         
         while True:
@@ -295,9 +305,15 @@ class GDBServer(threading.Thread):
             
             if self.target.getState() == TARGET_HALTED:
                 logging.debug("state halted")
+                ipsr = self.target.readCoreRegister('xpsr')
+                if (ipsr & 0x1f) == 3:
+                    val = "S" + FAULT[3]
+                else:
                 val = 'S05'
                 break
             
+            if not bpSet:
+            # Only do this when no bp available as it slows resume operation
             self.target.halt()
             ipsr = self.target.readCoreRegister('xpsr')
             logging.debug("GDB resume xpsr: 0x%X", ipsr)
@@ -306,6 +322,9 @@ class GDBServer(threading.Thread):
                 break
             self.target.resume()
         
+        if bpSet:
+            self.target.removeBreakpoint(hardfault_handler)
+
         self.abstract_socket.setBlocking(1)
         return self.createRSPPacket(val), 0, 0
     
