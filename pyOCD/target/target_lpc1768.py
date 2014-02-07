@@ -37,4 +37,3 @@ class LPC1768(CortexM):
         # not remap 0x0000-0x0020 to anything but the flash
         self.writeMemory(0x400FC040, 1)
         CortexM.resetStopOnReset(self)
-    

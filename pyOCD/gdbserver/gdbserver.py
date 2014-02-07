@@ -73,7 +73,8 @@ class GDBServer(threading.Thread):
         else:
             self.port = port_urlWSS
         self.packet_size = 2048
-        self.flashData = ""
+        self.flashData = list()
+        self.flash_watermark = 0
         self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -336,37 +337,50 @@ class GDBServer(threading.Thread):
                 if data[idx_begin] == ':':
                     second_colon += 1
                 idx_begin += 1
-                
-            self.flashData += data[idx_begin:len(data) - 3]
+
+            #if there's gap between sections, fill it with zeros
+            count = int(data.split(':')[1], 16)
+            if (count != 0 and self.flash_watermark != count):
+                count -= self.flash_watermark
+                while (count):
+                    self.flashData += [0]
+                    count -= 1
+
+            data_to_unescape = data[idx_begin:len(data) - 3]
+
+            unescaped_data = self.unescape(data_to_unescape)
+            self.flashData += unescaped_data
+            #flash_watermark contains the end of the flash data
+            self.flash_watermark = len(self.flashData)
+
             return self.createRSPPacket("OK")
         
         # we need to flash everything
         elif 'FlashDone' in ops :
             flashPtr = 0
-            
-            unescaped_data = self.unescape(self.flashData)
-            
-            bytes_to_be_written = len(unescaped_data)
-            
+            bytes_to_be_written = len(self.flashData)
+
             """
             bin = open(os.path.join(parentdir, 'res', 'bad_bin.txt'), "w+")
             
             i = 0
             while (i < bytes_to_be_written):
-                bin.write(str(unescaped_data[i:i+16]) + "\n")
+                bin.write(str(self.flashData[i:i+16]) + "\n")
                 i += 16
             """
-            
-            
+
             logging.info("flashing %d bytes", bytes_to_be_written)
-                    
-            while len(unescaped_data) > 0:
-                size_to_write = min(self.flash.page_size, len(unescaped_data))
-                self.flash.programPage(flashPtr, unescaped_data[:size_to_write])
+
+            while len(self.flashData) > 0:
+                size_to_write = min(self.flash.page_size, len(self.flashData))
+                #if 0 is returned from programPage, security check failed
+                if (self.flash.programPage(flashPtr, self.flashData[:size_to_write]) == 0):
+                    logging.error("Protection bits error, flashing has stopped")
+                    return None
                 flashPtr += size_to_write
-                
-                unescaped_data = unescaped_data[size_to_write:]
-                
+
+                self.flashData = self.flashData[size_to_write:]
+
                 # print progress bar
                 sys.stdout.write('\r')
                 i = int((float(flashPtr)/float(bytes_to_be_written))*20.0)
@@ -376,7 +390,7 @@ class GDBServer(threading.Thread):
                 
             sys.stdout.write("\n\r")
             
-            self.flashData = ""
+            self.flashData = []
             
             """
             bin.close()
@@ -582,7 +596,7 @@ class GDBServer(threading.Thread):
             checksum += ord(c)
         checksum = checksum % 256
         checksum = hex(checksum)
-        
+
         if int(checksum[2:], 16) < 0x10:
             resp += '0'
         resp += checksum[2:]
