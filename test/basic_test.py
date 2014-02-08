@@ -15,11 +15,12 @@
  limitations under the License.
 """
 
-import argparse, os
+import argparse, os, sys
 from time import sleep
 from random import randrange
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parentdir)
 
 from pyOCD.board import MbedBoard
 
@@ -29,6 +30,7 @@ f = None
 binary_file = "l1_"
 
 interface = None
+board = None
 
 import logging
 
