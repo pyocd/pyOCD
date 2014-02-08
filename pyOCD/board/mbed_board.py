@@ -20,7 +20,7 @@ import logging, array
 
 from time import sleep
 from board import Board
-from pyOCD.interface import INTERFACE
+from pyOCD.interface import INTERFACE, usb_backend
 
 TARGET_TYPE = {"1010": "lpc1768",
                "9004": "1pc1768",
@@ -29,12 +29,6 @@ TARGET_TYPE = {"1010": "lpc1768",
                "0300": "lpc800",
                }
 
-usb_backend = ""
-if os.name == "nt":
-    usb_backend = "pywinusb"
-elif os.name == "posix":
-    usb_backend = "pyusb"
-    
 mbed_vid = 0x0d28
 mbed_pid = 0x0204
 
