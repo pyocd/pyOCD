@@ -17,7 +17,6 @@
 
 from cortex_m import CortexM
 
-
 class LPC1768(CortexM):
 
     memoryMapXML =  """<?xml version="1.0"?>

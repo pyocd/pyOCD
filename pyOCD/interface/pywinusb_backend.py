@@ -23,6 +23,9 @@ try:
 except:
     if os.name == "nt":
         logging.error("PyWinUSB is required on a Windows Machine")
+    isAvailable = False
+else:
+    isAvailable = True
 
 class PyWinUSB(Interface):
     """
@@ -32,6 +35,8 @@ class PyWinUSB(Interface):
     """
     vid = 0
     pid = 0
+    
+    isAvailable = isAvailable
     
     def __init__(self):
         super(PyWinUSB, self).__init__()
