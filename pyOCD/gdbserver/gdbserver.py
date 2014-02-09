@@ -24,12 +24,6 @@ import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 
-"""
-import os
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0,parentdir)
-"""
-
 SIGINT = (2)
 SIGSEGV = (11)
 SIGILL = (4)
@@ -309,18 +303,18 @@ class GDBServer(threading.Thread):
                 if (ipsr & 0x1f) == 3:
                     val = "S" + FAULT[3]
                 else:
-                val = 'S05'
+                    val = 'S05'
                 break
             
             if not bpSet:
-            # Only do this when no bp available as it slows resume operation
-            self.target.halt()
-            ipsr = self.target.readCoreRegister('xpsr')
-            logging.debug("GDB resume xpsr: 0x%X", ipsr)
-            if (ipsr & 0x1f) == 3:
-                val = "S" + FAULT[3]
-                break
-            self.target.resume()
+                # Only do this when no bp available as it slows resume operation
+                self.target.halt()
+                ipsr = self.target.readCoreRegister('xpsr')
+                logging.debug("GDB resume xpsr: 0x%X", ipsr)
+                if (ipsr & 0x1f) == 3:
+                    val = "S" + FAULT[3]
+                    break
+                self.target.resume()
         
         if bpSet:
             self.target.removeBreakpoint(hardfault_handler)
