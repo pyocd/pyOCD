@@ -105,7 +105,7 @@ class GDBServer(threading.Thread):
     def run(self):
         while True:
             new_command = False
-            data = []
+            data = ""
             logging.info('GDB server started')
             
             self.shutdown_event.clear()
@@ -141,7 +141,7 @@ class GDBServer(threading.Thread):
                         if self.shutdown_event.isSet() or self.detach_event.isSet():
                             break
                         self.abstract_socket.setBlocking(0)
-                        data = self.abstract_socket.read()
+                        data += self.abstract_socket.read()
                         if data.index("$") >= 0 and data.index("#") >= 0:
                             break
                     except (ValueError, socket.error):
