@@ -112,7 +112,7 @@ FP_COMP0 = (0xE0002008)
 # have negative values to signal to the register read/write functions that special handling
 # is necessary. The values are the byte number containing the register value, plus 1 and then
 # negated. So -1 means a mask of 0xff, -2 is 0xff00, and so on. The actual DCRSR register index
-# for these combined registers has the key of '_special'.
+# for these combined registers has the key of 'cfbp'.
 CORE_REGISTER = {
                  'r0': 0,
                  'r1': 1,
@@ -133,7 +133,7 @@ CORE_REGISTER = {
                  'xpsr': 16,
                  'msp': 17,
                  'psp': 18,
-                 '_special': 20,
+                 'cfbp': 20,
                  'control': -4,
                  'faultmask': -3,
                  'basepri': -2,
@@ -639,21 +639,21 @@ class CortexM(Target):
         """
         if isinstance(reg, str):
             try:
-                reg = CORE_REGISTER[reg]
+                reg = CORE_REGISTER[reg.lower()]
             except KeyError:
-                logging.error('cannot find %s core register', id)
+                logging.error('cannot find %s core register', reg)
                 return
         
         if (reg < 0) and (reg >= -4):
             specialReg = reg
-            reg = CORE_REGISTER['_special']
+            reg = CORE_REGISTER['cfbp']
         else:
             specialReg = 0
         
         if reg not in CORE_REGISTER.values():
             logging.error("unknown reg: %d", reg)
             return
-        elif (reg >= 128) and (not self.has_fpu):
+        elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
             logging.error("attempt to read FPU register without FPU")
             return
         
@@ -684,14 +684,14 @@ class CortexM(Target):
         """
         if isinstance(reg, str):
             try:
-                reg = CORE_REGISTER[reg]
+                reg = CORE_REGISTER[reg.lower()]
             except KeyError:
-                logging.error('cannot find %s core register', id)
+                logging.error('cannot find %s core register', reg)
                 return
             
         if (reg < 0) and (reg >= -4):
             specialReg = reg
-            reg = CORE_REGISTER['_special']
+            reg = CORE_REGISTER['cfbp']
             
             # Mask in the new special register value so we don't modify the other register
             # values that share the same DCRSR number.
@@ -705,7 +705,7 @@ class CortexM(Target):
         if reg not in CORE_REGISTER.values():
             logging.error("unknown reg: %d", reg)
             return
-        elif (reg >= 128) and (not self.has_fpu):
+        elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
             logging.error("attempt to read FPU register without FPU")
             return
         
