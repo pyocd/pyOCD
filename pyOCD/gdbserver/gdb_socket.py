@@ -17,7 +17,7 @@
 
 import socket, select
 
-class GDBSocket():
+class GDBSocket(object):
     def __init__(self, port, packet_size):
         self.packet_size = packet_size
         self.s = None

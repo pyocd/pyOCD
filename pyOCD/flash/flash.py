@@ -25,12 +25,12 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0,parentdir)
 """
 
-class Flash():
+class Flash(object):
     """
     This class is responsible to flash a new binary in a target
     """
     
-    def __init__(self, target, flash_algo, memoryMapXML):
+    def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
         self.end_flash_algo = flash_algo['load_address'] + len(flash_algo)*4
@@ -38,7 +38,6 @@ class Flash():
         self.begin_data = flash_algo['begin_data']
         self.static_base = flash_algo['static_base']
         self.page_size = flash_algo['page_size']
-        self.memoryMapXML = memoryMapXML
     
     def init(self):
         """
@@ -113,7 +112,7 @@ class Flash():
         flashPtr = 0
         nb_bytes = 0
         try:
-            bytes_read = f.read(1024)
+            bytes_read = f.read(self.page_size)
             while bytes_read:
                 bytes_read = unpack(str(len(bytes_read)) + 'B', bytes_read)
                 nb_bytes += len(bytes_read)
@@ -125,9 +124,9 @@ class Flash():
                     bin.write(str(list(bytes_read[i:i+16])) + "\n")
                     i += 16
                 """
-                flashPtr += 1024
+                flashPtr += self.page_size
     
-                bytes_read = f.read(1024)
+                bytes_read = f.read(self.page_size)
         finally:
             f.close()
             """

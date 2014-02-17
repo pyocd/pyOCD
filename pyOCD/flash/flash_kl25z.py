@@ -71,6 +71,7 @@ flash_algo = { 'load_address' : 0x20000000,
                                 ],
                'pc_init' : 0x20000020,
                'pc_eraseAll' : 0x20000088,
+               'pc_erase_sector' : 0x200000a0,
                'pc_program_page' : 0x200000be,
                'begin_stack' : 0x20001000,
                'begin_data' : 0x20002000,
@@ -78,18 +79,10 @@ flash_algo = { 'load_address' : 0x20000000,
                'page_size' : 1024
               };
 
-memoryMapXML =  "<?xml version=\"1.0\"?>" \
-                "<!DOCTYPE memory-map PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\" \"http://sourceware.org/gdb/gdb-memory-map.dtd\">" \
-                "<memory-map>" \
-                    "<memory type=\"flash\" start=\"0x0\" length=\"0x20000\"> <property name=\"blocksize\">0x400</property></memory>" \
-                    "<memory type=\"ram\" start=\"0x20000000\" length=\"0x3000\"> </memory>" \
-                "</memory-map>"
-
-
 class Flash_kl25z(Flash):
     
     def __init__(self, target):
-        Flash.__init__(self, target, flash_algo, memoryMapXML)
+        super(Flash_kl25z, self).__init__(target, flash_algo)
 
     def checkSecurityBits(self, address, data):
         #error if security bits have unexpected values

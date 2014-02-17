@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-class Interface:
+class Interface(object):
     
     def __init__(self):
         self.vid = 0

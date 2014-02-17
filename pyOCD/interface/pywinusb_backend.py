@@ -39,6 +39,7 @@ class PyWinUSB(Interface):
     isAvailable = isAvailable
     
     def __init__(self):
+        super(PyWinUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.report = []
         self.rcv_data = []

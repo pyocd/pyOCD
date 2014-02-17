@@ -41,6 +41,7 @@ class PyUSB(Interface):
     isAvailable = isAvailable
 
     def __init__(self):
+        super(PyUSB, self).__init__()
         self.ep_out = None
         self.ep_in = None
         self.dev = None

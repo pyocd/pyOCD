@@ -22,12 +22,19 @@ from time import sleep
 from board import Board
 from pyOCD.interface import INTERFACE, usb_backend
 
-TARGET_TYPE = {"1010": "lpc1768",
-               "9004": "1pc1768",
-               "0200": "kl25z",
-               "1040": "lpc11u24",
-               "0300": "lpc800",
-               }
+TARGET_TYPE = {
+                "0200": "kl25z",
+                "0210": "kl05z",
+                "0220": "kl46z",
+                "0230": "k20d50m",
+                "0240": "k64f",
+                "0250": "kl02z",
+                "0260": "kl26z",
+                "1010": "lpc1768",
+                "9004": "lpc1768",
+                "1040": "lpc11u24",
+                "0300": "lpc800",
+              }
 
 mbed_vid = 0x0d28
 mbed_pid = 0x0204
@@ -42,7 +49,7 @@ class MbedBoard(Board):
         """
         Init the board
         """
-        Board.__init__(self, target, flash, interface, transport)
+        super(MbedBoard, self).__init__(target, flash, interface, transport)
         self.unique_id = ""
         self.target_type = ""
     

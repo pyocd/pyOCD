@@ -541,7 +541,7 @@ class GDBServer(threading.Thread):
             
             elif query[1] == 'memory-map' and query[2] == 'read':
                 data = query[4].split(',')
-                resp = self.handleQueryXML('momery_map', int(data[0], 16), int(data[1].split('#')[0], 16))
+                resp = self.handleQueryXML('memory_map', int(data[0], 16), int(data[1].split('#')[0], 16))
                 return self.createRSPPacket(resp)
                 
             else:
@@ -573,8 +573,8 @@ class GDBServer(threading.Thread):
     def handleQueryXML(self, query, offset, size):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
         xml = ''
-        if query == 'momery_map':
-            xml = self.flash.memoryMapXML
+        if query == 'memory_map':
+            xml = self.target.memoryMapXML
         elif query == 'read_feature':
             xml = self.target.targetXML
 

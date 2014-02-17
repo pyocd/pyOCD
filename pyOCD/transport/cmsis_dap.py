@@ -84,12 +84,11 @@ class CMSIS_DAP(Transport):
     This class implements the CMSIS-DAP protocol
     """
     def __init__(self, interface):
-        self.interface = interface
+        super(CMSIS_DAP, self).__init__(interface)
         self.packet_max_count = 0
         self.packet_max_size = 0
         self.csw = -1
         self.dp_select = -1
-        return
     
     def init(self):
         # init dap IO

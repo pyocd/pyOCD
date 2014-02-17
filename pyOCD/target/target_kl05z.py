@@ -19,18 +19,18 @@ from target_kinetis import Kinetis
 import logging
 
 
-class KL25Z(Kinetis):
+class KL05Z(Kinetis):
 
     memoryMapXML =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 <memory-map>
-    <memory type="flash" start="0x0" length="0x20000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x1ffff000" length="0x4000"> </memory>
+    <memory type="flash" start="0x0" length="0x8000"> <property name="blocksize">0x400</property></memory>
+    <memory type="ram" start="0x1ffffc00" length="0x1000"> </memory>
 </memory-map>
 """
     
     def __init__(self, transport):
-        super(KL25Z, self).__init__(transport)
+        super(KL05Z, self).__init__(transport)
         self.auto_increment_page_size = 0x400
         self.mdm_idr = 0x001c0020
         

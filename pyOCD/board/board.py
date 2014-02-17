@@ -22,7 +22,7 @@ from pyOCD.flash import FLASH
 
 import logging
 
-class Board():
+class Board(object):
     """
     This class associates a target, a flash, a transport and an interface
     to create a board
@@ -35,6 +35,7 @@ class Board():
         self.transport = TRANSPORT[transport](self.interface)
         self.target = TARGET[target](self.transport)
         self.flash = FLASH[flash](self.target)
+        self.target.setFlash(self.flash)
         return
     
     def init(self):
@@ -48,8 +49,8 @@ class Board():
         
     def uninit(self):
         """
-        Uninitialize the board: inetrface, transport and target.
-        This function resets the target
+        Uninitialize the board: interface, transport and target.
+        This function resumes the target
         """
         logging.debug("uninit board %s", self)
         self.target.resume()

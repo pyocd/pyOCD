@@ -19,7 +19,7 @@ from target_kinetis import Kinetis
 import logging
 
 
-class KL25Z(Kinetis):
+class KL26Z(Kinetis):
 
     memoryMapXML =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
@@ -30,7 +30,7 @@ class KL25Z(Kinetis):
 """
     
     def __init__(self, transport):
-        super(KL25Z, self).__init__(transport)
+        super(KL26Z, self).__init__(transport)
         self.auto_increment_page_size = 0x400
         self.mdm_idr = 0x001c0020
         
