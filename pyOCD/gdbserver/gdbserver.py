@@ -506,7 +506,7 @@ class GDBServer(threading.Thread):
             
     def getRegister(self):
         resp = ''
-        for i in range(len(CORE_REGISTER)):
+        for i in range(18):
             reg = self.target.readCoreRegister(i)
             resp += self.intToHexGDB(reg)
             logging.debug("GDB reg: %s = 0x%X", i, reg)
@@ -587,7 +587,7 @@ class GDBServer(threading.Thread):
             return
         
         if size > (self.packet_size - 4):
-            size = self.packet_size - 4 
+            size = self.packet_size - 4
         
         nbBytesAvailable = size_xml - offset
         
