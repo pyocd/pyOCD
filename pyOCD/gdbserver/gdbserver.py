@@ -506,10 +506,13 @@ class GDBServer(threading.Thread):
             
     def getRegister(self):
         resp = ''
-        for i in range(18):
+        for i in sorted(CORE_REGISTER.values()):
+            # only core registers are printed
+            if (i > 20):
+                 break
             reg = self.target.readCoreRegister(i)
             resp += self.intToHexGDB(reg)
-            logging.debug("GDB reg: %s = 0x%X", i, reg)
+            logging.debug("GDB reg: %s = 0x%X", self.target.getRegisterName(i), reg)
         return self.createRSPPacket(resp)
         
     def lastSignal(self):
