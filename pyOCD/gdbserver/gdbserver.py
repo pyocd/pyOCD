@@ -506,10 +506,8 @@ class GDBServer(threading.Thread):
             
     def getRegister(self):
         resp = ''
-        for i in sorted(CORE_REGISTER.values()):
-            # only core registers are printed
-            if (i > 20):
-                 break
+        # only core registers are printed
+        for i in sorted(CORE_REGISTER.values())[4:20]:
             reg = self.target.readCoreRegister(i)
             resp += self.intToHexGDB(reg)
             logging.debug("GDB reg: %s = 0x%X", self.target.getRegisterName(i), reg)
