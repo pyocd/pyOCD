@@ -21,7 +21,7 @@ from pyOCD.transport.cmsis_dap import DP_REG
 import logging
 import struct
 
-# Debug Halting Control and Status Register 
+# Debug Halting Control and Status Register
 DHCSR = 0xE000EDF0
 # Debug Core Register Selector Register
 DCRSR = 0xE000EDF4
@@ -173,7 +173,7 @@ CORE_REGISTER = {
                  's31': 159,
                  }
 
-""" 
+"""
 convert a byte array into a word array
 """
 def byte2word(data):
@@ -182,19 +182,19 @@ def byte2word(data):
         res.append(data[i*4 + 0] << 0  |
                    data[i*4 + 1] << 8  |
                    data[i*4 + 2] << 16 |
-                   data[i*4 + 3] << 24)    
+                   data[i*4 + 3] << 24)
     return res
 
-""" 
+"""
 convert a word array into a byte array
 """
 def word2byte(data):
     res = []
     for x in data:
         res.append((x >> 0) & 0xff)
-        res.append((x >> 8) & 0xff) 
-        res.append((x >> 16) & 0xff) 
-        res.append((x >> 24) & 0xff)  
+        res.append((x >> 8) & 0xff)
+        res.append((x >> 16) & 0xff)
+        res.append((x >> 24) & 0xff)
     return res
 
 ## @brief Convert a 32-bit int to an IEEE754 float.
@@ -776,3 +776,8 @@ class CortexM(Target):
     def getTargetXML(self):
         return self.targetXML, len(self.targetXML)
                 
+
+    def getRegisterName(self, compare_val):
+        for key in CORE_REGISTER:
+            if (compare_val == CORE_REGISTER[key]):
+                return key

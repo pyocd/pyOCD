@@ -506,10 +506,11 @@ class GDBServer(threading.Thread):
             
     def getRegister(self):
         resp = ''
-        for i in range(len(CORE_REGISTER)):
+        # only core registers are printed
+        for i in sorted(CORE_REGISTER.values())[4:20]:
             reg = self.target.readCoreRegister(i)
             resp += self.intToHexGDB(reg)
-            logging.debug("GDB reg: %s = 0x%X", i, reg)
+            logging.debug("GDB reg: %s = 0x%X", self.target.getRegisterName(i), reg)
         return self.createRSPPacket(resp)
         
     def lastSignal(self):
@@ -587,7 +588,7 @@ class GDBServer(threading.Thread):
             return
         
         if size > (self.packet_size - 4):
-            size = self.packet_size - 4 
+            size = self.packet_size - 4
         
         nbBytesAvailable = size_xml - offset
         
