@@ -243,7 +243,7 @@ class GDBServer(threading.Thread):
         
         else:
             logging.error("Unknown RSP packet: %s", msg)
-            return None
+            return self.createRSPPacket("")
         
     def detach(self, data):
         resp = "OK"
@@ -569,7 +569,7 @@ class GDBServer(threading.Thread):
             return self.createRSPPacket(resp)
         
         else:
-            return None
+            return self.createRSPPacket("")
             
     def handleQueryXML(self, query, offset, size):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
