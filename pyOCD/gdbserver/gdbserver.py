@@ -68,7 +68,6 @@ class GDBServer(threading.Thread):
             self.port = port_urlWSS
         self.packet_size = 2048
         self.flashData = list()
-        self.flash_watermark = 0
         self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -243,7 +242,7 @@ class GDBServer(threading.Thread):
         
         else:
             logging.error("Unknown RSP packet: %s", msg)
-            return None
+            return self.createRSPPacket("")
         
     def detach(self, data):
         resp = "OK"
@@ -342,7 +341,8 @@ class GDBServer(threading.Thread):
             return self.createRSPPacket("OK")
         
         elif ops == 'FlashWrite':
-            logging.debug("flash write addr: 0x%s", data.split(':')[1])
+            write_addr = int(data.split(':')[1], 16)
+            logging.debug("flash write addr: 0x%s", write_addr)
             # search for second ':' (beginning of data encoded in the message)
             second_colon = 0
             idx_begin = 0
@@ -351,21 +351,18 @@ class GDBServer(threading.Thread):
                     second_colon += 1
                 idx_begin += 1
 
-            #if there's gap between sections, fill it with zeros
-            count = int(data.split(':')[1], 16)
-            if (count != 0 and self.flash_watermark != count):
-                count -= self.flash_watermark
-                while (count):
-                    self.flashData += [0]
-                    count -= 1
-
-            data_to_unescape = data[idx_begin:len(data) - 3]
-
-            unescaped_data = self.unescape(data_to_unescape)
-            self.flashData += unescaped_data
-            #flash_watermark contains the end of the flash data
-            self.flash_watermark = len(self.flashData)
-
+            # if there's gap between sections, fill it
+            flash_watermark = len(self.flashData)
+            pad_size = write_addr - flash_watermark
+            if pad_size > 0:
+                self.flashData += [0xFF] * pad_size
+            
+            # append the new data if it doesn't overlap existing data
+            if write_addr >= flash_watermark:
+                self.flashData += self.unescape(data[idx_begin:len(data) - 3])
+            else:
+                logging.error("Invalid FlashWrite address %d overlaps current data of size %d", write_addr, flash_watermark)
+                
             return self.createRSPPacket("OK")
         
         # we need to flash everything
@@ -569,7 +566,7 @@ class GDBServer(threading.Thread):
             return self.createRSPPacket(resp)
         
         else:
-            return None
+            return self.createRSPPacket("")
             
     def handleQueryXML(self, query, offset, size):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
