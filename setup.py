@@ -26,7 +26,7 @@ setup(
     license="Apache 2.0",
     classifiers = [
         "Development Status :: 4 - Beta",
-        "License :: Apache 2.0",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
     ],
     packages=["pyOCD", "pyOCD.flash", "pyOCD.gdbserver", "pyOCD.interface", "pyOCD.target", "pyOCD.transport", "pyOCD.board"]
