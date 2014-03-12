@@ -19,7 +19,7 @@ from distutils.core import setup
 
 setup(
     name="pyOCD",
-    version="0.1",
+    version="0.2",
     description="CMSIS-DAP debugger for python",
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
