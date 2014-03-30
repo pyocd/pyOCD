@@ -514,7 +514,12 @@ class GDBServer(threading.Thread):
         
     def lastSignal(self):
         fault = self.target.readCoreRegister('xpsr') & 0xff
-        fault = FAULT[fault]
+        try:
+            fault = FAULT[fault]
+        except:
+            # Values above 16 are for interrupts
+            fault = "17"    # SIGSTOP
+            pass
         logging.debug("GDB lastSignal: %s", fault)
         return self.createRSPPacket('S' + fault)
             
