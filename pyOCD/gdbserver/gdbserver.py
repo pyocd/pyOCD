@@ -298,8 +298,9 @@ class GDBServer(threading.Thread):
             
             if self.target.getState() == TARGET_HALTED:
                 logging.debug("state halted")
-                ipsr = self.target.readCoreRegister('xpsr')
-                if (ipsr & 0x1f) == 3:
+                xpsr = self.target.readCoreRegister('xpsr')
+                # Get IPSR value from XPSR
+                if (xpsr & 0x1f) == 3:
                     val = "S" + FAULT[3]
                 else:
                     val = 'S05'
@@ -308,9 +309,10 @@ class GDBServer(threading.Thread):
             if not bpSet:
                 # Only do this when no bp available as it slows resume operation
                 self.target.halt()
-                ipsr = self.target.readCoreRegister('xpsr')
-                logging.debug("GDB resume xpsr: 0x%X", ipsr)
-                if (ipsr & 0x1f) == 3:
+                xpsr = self.target.readCoreRegister('xpsr')
+                logging.debug("GDB resume xpsr: 0x%X", xpsr)
+                # Get IPSR value from XPSR
+                if (xpsr & 0x1f) == 3:
                     val = "S" + FAULT[3]
                     break
                 self.target.resume()
