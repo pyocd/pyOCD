@@ -93,7 +93,11 @@ class MbedBoard(Board):
                 u_id_ = mbed.read()
                 try:
                     target_type = array.array('B', [i for i in u_id_[2:6]]).tostring()
-                    target_type = TARGET_TYPE[target_type]
+                    if (target_type not in TARGET_TYPE):
+                        logging.info("Unsupported target found: %s" % target_type)
+                        continue
+                    else:
+                        target_type = TARGET_TYPE[target_type]
                     new_mbed = MbedBoard("target_" + target_type, "flash_" + target_type, mbed, transport)
                     new_mbed.target_type = target_type
                     new_mbed.unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
