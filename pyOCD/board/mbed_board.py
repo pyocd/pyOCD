@@ -70,7 +70,38 @@ class MbedBoard(Board):
         Return info on the board
         """
         return Board.getInfo(self) + " [" + self.target_type + "]"
-
+    
+    @staticmethod
+    def listConnectedBoards(transport = "cmsis_dap"):
+        """
+        List the connected board info
+        """        
+        all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
+        index = 0
+        if all_mbeds != []:
+            for mbed in all_mbeds:
+                mbed.write([0x80])
+                u_id_ = mbed.read()
+                try:
+                    target_type = array.array('B', [i for i in u_id_[2:6]]).tostring()
+                    if (target_type not in TARGET_TYPE):
+                        logging.info("Unsupported target found: %s" % target_type)
+                        continue
+                    else:
+                        target_type = TARGET_TYPE[target_type]
+                    new_mbed = MbedBoard("target_" + target_type, "flash_" + target_type, mbed, transport)
+                    new_mbed.target_type = target_type
+                    new_mbed.unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
+                    #logging.info("new board id detected: %s", new_mbed.unique_id)
+                    print "%d => %s" % (index, new_mbed.getInfo().encode('ascii', 'ignore'))
+                    mbed.close()
+                    index += 1
+                except Exception as e:
+                    print "received exception: %s" % e
+                    mbed.close()
+        else:
+            print "No available boards is connected"
+        
     @staticmethod
     def getAllConnectedBoards(transport = "cmsis_dap", close = False, blocking = True):
         """
@@ -117,7 +148,7 @@ class MbedBoard(Board):
                 first = False
     
     @staticmethod
-    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False):
+    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False, board_name = None):
         """
         Allow you to select a board among all boards connected
         """
@@ -127,18 +158,36 @@ class MbedBoard(Board):
             return None
         
         index = 0
+        print "id => usbinfo | boardname"
         for mbed in all_mbeds:
-            print "%d => %s" % (index, mbed.getInfo())
+            print "%d => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'))
             index += 1
         
         if len(all_mbeds) == 1:
-            all_mbeds[0].init()
-            return all_mbeds[0]
-        
+            if board_name != None:
+                if all_mbeds[0].getInfo().find(board_name) != -1:
+                    all_mbeds[0].init()
+                    return all_mbeds[0]
+                else:
+                    print "The board you want to connect isn't the board now connected"
+            else:
+                all_mbeds[0].init()
+                return all_mbeds[0]
+            
         try:
             ch = 0
-            if not return_first:
+            if board_name != None:
+                for mbed in all_mbeds:
+                    if mbed.getInfo().find(board_name) != -1:
+                        mbed.init()
+                        return mbed
+                    else:
+                        mbed.interface.close()
+                print "The board you want to connect isn't the board now connected"
+                return None
+            elif not return_first:
                 while True:
+                    print "input id num to choice your board want to connect"
                     ch = sys.stdin.readline()
                     sys.stdin.flush()
                     if (int(ch) < 0) or (int(ch) >= len(all_mbeds)):

@@ -19,18 +19,28 @@ import logging
 
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
+from optparse import OptionParser
 
 logging.basicConfig(level=logging.INFO)
 
-try:
-    board_selected = MbedBoard.chooseBoard()
-    if board_selected != None:
-        gdb = GDBServer(board_selected, 3333)
-        while gdb.isAlive():
-            gdb.join(timeout = 0.5)
+parser = OptionParser()
+parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
+parser.add_option("-b", "--board", dest = "board_name", default = None, help = "Write the board name you want to connect")
+parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
+(option, args) = parser.parse_args()
 
-except KeyboardInterrupt:
-    gdb.stop()
-except Exception as e:
-    print "uncaught exception: %s" % e
-    gdb.stop()
+if option.list_all == True:
+    MbedBoard.listConnectedBoards()
+else:
+    try:
+        board_selected = MbedBoard.chooseBoard(board_name = option.board_name)
+        if board_selected != None:
+            gdb = GDBServer(board_selected, int(option.port_number))
+            while gdb.isAlive():
+                gdb.join(timeout = 0.5)
+
+    except KeyboardInterrupt:
+        gdb.stop()
+    except Exception as e:
+        print "uncaught exception: %s" % e
+        gdb.stop()
