@@ -38,7 +38,7 @@ parser = OptionParser()
 parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
 parser.add_option("-b", "--board", dest = "board_id", default = None, help = "Write the board id you want to connect")
 parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
-parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output" )
+parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
 (option, args) = parser.parse_args()
 
 gdb = None
