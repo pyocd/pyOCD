@@ -92,7 +92,7 @@ class MbedBoard(Board):
                     new_mbed = MbedBoard("target_" + target_type, "flash_" + target_type, mbed, transport)
                     new_mbed.target_type = target_type
                     new_mbed.unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
-                    #logging.info("new board id detected: %s", new_mbed.unique_id)
+                    logging.info("new board id detected: %s", new_mbed.unique_id)
                     print "%d => %s" % (index, new_mbed.getInfo().encode('ascii', 'ignore'))
                     mbed.close()
                     index += 1

@@ -55,12 +55,12 @@ class PyUSB(Interface):
         # find all devices matching the vid/pid specified
         all_devices = usb.core.find(find_all=True, idVendor=vid, idProduct=pid)
         
-        if all_devices is None:
+        if all_devices == []:
             logging.debug("No device connected")
             return None
         
         boards = []
-        
+        logging.debug(all_devices)
         # iterate on all devices found
         for board in all_devices:
             intf_number = 0
