@@ -165,7 +165,8 @@ class MbedBoard(Board):
         
         if len(all_mbeds) == 1:
             if board_name != None:
-                if all_mbeds[0].getInfo().find(board_name) != -1:
+                print "The unique id is %s" % (all_mbeds[0].unique_id)
+                if all_mbeds[0].unique_id == (board_name):
                     all_mbeds[0].init()
                     return all_mbeds[0]
                 else:
@@ -178,12 +179,12 @@ class MbedBoard(Board):
             ch = 0
             if board_name != None:
                 for mbed in all_mbeds:
-                    if mbed.getInfo().find(board_name) != -1:
+                    if mbed.unique_id == (board_name):
                         mbed.init()
                         return mbed
                     else:
                         mbed.interface.close()
-                print "The board you want to connect isn't the board now connected"
+                print "The board you want to connect isn't the boards now connected"
                 return None
             elif not return_first:
                 while True:
