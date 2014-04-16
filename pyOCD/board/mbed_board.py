@@ -78,7 +78,7 @@ class MbedBoard(Board):
         """        
         all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
         index = 0
-        if all_mbeds != []:
+        if (all_mbeds != []) & (all_mbeds != None):
             for mbed in all_mbeds:
                 mbed.write([0x80])
                 u_id_ = mbed.read()
