@@ -116,7 +116,7 @@ class MbedBoard(Board):
                 if (first == True):
                     logging.info("Waiting for a USB device connected")
                     first = False
-                sleep(0.2)
+                sleep(1)
                 
             mbed_boards = []
             for mbed in all_mbeds:

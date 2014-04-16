@@ -16,6 +16,7 @@
 """
 
 import logging
+import traceback
 
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
@@ -29,6 +30,7 @@ parser.add_option("-b", "--board", dest = "board_name", default = None, help = "
 parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
 (option, args) = parser.parse_args()
 
+gdb = None
 if option.list_all == True:
     MbedBoard.listConnectedBoards()
 else:
@@ -40,7 +42,10 @@ else:
                 gdb.join(timeout = 0.5)
 
     except KeyboardInterrupt:
-        gdb.stop()
+        if gdb != None:
+            gdb.stop()
     except Exception as e:
         print "uncaught exception: %s" % e
-        gdb.stop()
+        traceback.print_exc()
+        if gdb != None:
+            gdb.stop()
