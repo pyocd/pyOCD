@@ -171,6 +171,7 @@ class MbedBoard(Board):
                     return all_mbeds[0]
                 else:
                     print "The board you want to connect isn't the board now connected"
+                    return None
             else:
                 all_mbeds[0].init()
                 return all_mbeds[0]
