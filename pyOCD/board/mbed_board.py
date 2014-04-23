@@ -117,7 +117,7 @@ class MbedBoard(Board):
                 first = False
     
     @staticmethod
-    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False):
+    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False, board_id = None):
         """
         Allow you to select a board among all boards connected
         """
@@ -132,12 +132,29 @@ class MbedBoard(Board):
             index += 1
         
         if len(all_mbeds) == 1:
-            all_mbeds[0].init()
-            return all_mbeds[0]
+            if board_id != None:
+                if all_mbeds[0].unique_id == (board_id):
+                    all_mbeds[0].init()
+                    return all_mbeds[0]
+                else:
+                    print "The board you want to connect isn't the board now connected"
+                    return None
+            else:
+                all_mbeds[0].init()
+                return all_mbeds[0]
         
         try:
             ch = 0
-            if not return_first:
+            if board_name != None:
+                for mbed in all_mbeds:
+                    if mbed.unique_id == (board_id):
+                        mbed.init()
+                        return mbed
+                    else:
+                        mbed.interface.close()
+                print "The board you want to connect isn't the boards now connected"
+                return None
+            elif not return_first:
                 while True:
                     ch = sys.stdin.readline()
                     sys.stdin.flush()
