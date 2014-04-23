@@ -77,6 +77,7 @@ class GDBServer(threading.Thread):
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
+        self.setDaemon(True)
         self.start()
     
     def restart(self):
