@@ -22,6 +22,7 @@ from pyOCD.board import MbedBoard
 
 logging.basicConfig(level=logging.INFO)
 
+gdb = None
 try:
     board_selected = MbedBoard.chooseBoard()
     if board_selected != None:
@@ -30,7 +31,8 @@ try:
             gdb.join(timeout = 0.5)
 
 except KeyboardInterrupt:
-    gdb.stop()
+    if gdb != None
+        gdb.shutdown_event.set()
 except Exception as e:
     print "uncaught exception: %s" % e
     gdb.stop()
