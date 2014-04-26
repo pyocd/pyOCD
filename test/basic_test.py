@@ -68,6 +68,9 @@ try:
     elif target_type == "k64f":
         addr = 0x20000001
         size = 0x502
+    elif target_type == "k22f":
+        addr = 0x20000001
+        size = 0x502
     elif target_type == "k20d50m":
         addr = 0x20000001
         size = 0x502

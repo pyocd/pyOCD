@@ -21,6 +21,7 @@ from flash_kl25z import Flash_kl25z
 from flash_kl26z import Flash_kl26z
 from flash_kl46z import Flash_kl46z
 from flash_k20d50m import Flash_k20d50m
+from flash_k22f import Flash_k22f
 from flash_k64f import Flash_k64f
 from flash_lpc800 import Flash_lpc800
 from flash_lpc11u24 import Flash_lpc11u24
@@ -33,6 +34,7 @@ FLASH = {
          'flash_kl26z': Flash_kl26z,
          'flash_kl46z': Flash_kl46z,
          'flash_k20d50m': Flash_k20d50m,
+         'flash_k22f': Flash_k22f,
          'flash_k64f': Flash_k64f,
          'flash_lpc800': Flash_lpc800,
          'flash_lpc11u24': Flash_lpc11u24,
