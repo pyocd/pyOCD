@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from flash import Flash
+from flash_kinetis import Flash_Kinetis
 
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -57,7 +57,7 @@ flash_algo = { 'load_address' : 0x20000000,
                'page_size' : 4096
               };
 
-class Flash_k64f(Flash):
+class Flash_k64f(Flash_Kinetis):
     
     def __init__(self, target):
         super(Flash_k64f, self).__init__(target, flash_algo)

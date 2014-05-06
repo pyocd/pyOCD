@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from flash import Flash
+from flash_kinetis import Flash_Kinetis
 
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -68,8 +68,9 @@ flash_algo = { 'load_address' : 0x20000000,
                'page_size' : 1024
               };
 
-class Flash_kl46z(Flash):
+# @brief Flash algorithm for Kinetis L-series devices.
+class Flash_klxx(Flash_Kinetis):
     
     def __init__(self, target):
-        super(Flash_kl46z, self).__init__(target, flash_algo)
-    
+        super(Flash_klxx, self).__init__(target, flash_algo)
+
