@@ -55,7 +55,7 @@ class PyUSB(Interface):
         # find all devices matching the vid/pid specified
         all_devices = usb.core.find(find_all=True, idVendor=vid, idProduct=pid)
         
-        if all_devices == []:
+        if not all_devices:
             logging.debug("No device connected")
             return None
         
