@@ -141,7 +141,17 @@ class MbedBoard(Board):
                     print "The board you want to connect isn't the board now connected"
                     return None
             else:
-                all_mbeds[0].init()
+                try:
+                    all_mbeds[0].init()
+                except Exception as e:
+                    try:
+                        print e
+                    except:
+                        pass
+                    finally:
+                        all_mbeds[0].interface.close()
+                        raise e
+
                 return all_mbeds[0]
         
         try:
