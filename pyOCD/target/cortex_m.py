@@ -216,7 +216,7 @@ class Breakpoint(object):
 
 
 class CortexM(Target):
-    
+
     """
     This class has basic functions to access a Cortex M core:
        - init
@@ -249,10 +249,10 @@ class CortexM(Target):
     </feature>
 </target>
 """
-    
+
     def __init__(self, transport):
         super(CortexM, self).__init__(transport)
-        
+
         self.auto_increment_page_size = 0
         self.idcode = 0
         self.breakpoints = []
@@ -265,7 +265,7 @@ class CortexM(Target):
         self.core_type = 0
         self.has_fpu = False
         self.part_number = self.__class__.__name__
-    
+
     def init(self, setup_fpb = True):
         """
         Cortex M initialization
@@ -279,7 +279,7 @@ class CortexM(Target):
             r = self.transport.readDP(DP_REG['CTRL_STAT'])
             if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
                 break
-        
+
         self.transport.writeDP(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
         self.transport.writeDP(DP_REG['SELECT'], 0)
 
@@ -288,20 +288,20 @@ class CortexM(Target):
             self.setupFPB()
             self.readCoreType()
             self.checkForFPU()
-    
+
     ## @brief Read the CPUID register and determine core type.
     def readCoreType(self):
         # Read CPUID register
         cpuid = self.read32(CPUID)
-        
+
         implementer = (cpuid & CPUID_IMPLEMENTER_MASK) >> CPUID_IMPLEMENTER_POS
         if implementer != CPUID_IMPLEMENTER_ARM:
             logging.warning("CPU implementer is not ARM!")
-        
+
         self.arch = (cpuid & CPUID_ARCHITECTURE_MASK) >> CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CPUID_PARTNO_MASK) >> CPUID_PARTNO_POS
         logging.info("CPU core is %s", CORE_TYPE_NAME[self.core_type])
-    
+
     ## @brief Determine if a Cortex-M4 has an FPU.
     #
     # The core type must have been identified prior to calling this function.
@@ -309,21 +309,21 @@ class CortexM(Target):
         if self.core_type != ARM_CortexM4:
             self.has_fpu = False
             return
-        
+
         originalCpacr = self.read32(CPACR)
         cpacr = originalCpacr | CPACR_CP10_CP11_MASK
         self.write32(CPACR, cpacr)
-        
+
         cpacr = self.read32(CPACR)
         self.has_fpu = (cpacr & CPACR_CP10_CP11_MASK) != 0
-        
+
         # Restore previous value.
         self.write32(CPACR, originalCpacr)
-        
+
         if self.has_fpu:
             logging.info("FPU present")
 
-    
+
     def setupFPB(self):
         """
         Reads the number of hardware breakpoints available on the core
@@ -337,12 +337,12 @@ class CortexM(Target):
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
         for i in range(self.nb_code):
             self.breakpoints.append(Breakpoint(FP_COMP0 + 4*i))
-        
+
         # disable FPB (will be enabled on first bp set)
         self.disableFPB()
         for bp in self.breakpoints:
             self.writeMemory(bp.comp_register_addr, 0)
-    
+
     def info(self, request):
         return self.transport.info(request)
 
@@ -353,7 +353,7 @@ class CortexM(Target):
         if self.idcode == 0:
             self.idcode = self.transport.readDP(DP_REG['IDCODE'])
         return self.idcode
-    
+
     def writeMemory(self, addr, value, transfer_size = 32):
         """
         write a memory location.
@@ -361,57 +361,57 @@ class CortexM(Target):
         """
         self.transport.writeMem(addr, value, transfer_size)
         return
-    
+
     def write32(self, addr, value):
         """
         Shorthand to write a 32-bit word.
         """
         self.writeMemory(addr, value, 32)
-    
+
     def write16(self, addr, value):
         """
         Shorthand to write a 16-bit halfword.
         """
         self.writeMemory(addr, value, 16)
-    
+
     def write8(self, addr, value):
         """
         Shorthand to write a byte.
         """
         self.writeMemory(addr, value, 8)
-    
+
     def readMemory(self, addr, transfer_size = 32):
         """
         read a memory location. By default, a word will
         be read
         """
         return self.transport.readMem(addr, transfer_size)
-    
+
     def read32(self, addr):
         """
         Shorthand to read a 32-bit word.
         """
         return self.readMemory(addr, 32)
-    
+
     def read16(self, addr):
         """
         Shorthand to read a 16-bit halfword.
         """
         return self.readMemory(addr, 16)
-    
+
     def read8(self, addr):
         """
         Shorthand to read a byte.
         """
         return self.readMemory(addr, 8)
-    
+
     def readBlockMemoryUnaligned8(self, addr, size):
         """
         read a block of unaligned bytes in memory. Returns
         an array of byte values
         """
         res = []
-        
+
         # try to read 8bits data
         if (size > 0) and (addr & 0x01):
             mem = self.readMemory(addr, 8)
@@ -419,7 +419,7 @@ class CortexM(Target):
             res.append(mem)
             size -= 1
             addr += 1
-            
+
         # try to read 16bits data
         if (size > 1) and (addr & 0x02):
             mem = self.readMemory(addr, 16)
@@ -428,7 +428,7 @@ class CortexM(Target):
             res.append((mem >> 8) & 0xff)
             size -= 2
             addr += 2
-        
+
         # try to read aligned block of 32bits
         if (size >= 4):
             logging.debug("read blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
@@ -436,7 +436,7 @@ class CortexM(Target):
             res += word2byte(mem)
             size -= 4*len(mem)
             addr += 4*len(mem)
-        
+
         if (size > 1):
             mem = self.readMemory(addr, 16)
             logging.debug("get 2 bytes at %s: 0x%X", hex(addr), mem)
@@ -444,24 +444,24 @@ class CortexM(Target):
             res.append((mem >> 8) & 0xff)
             size -= 2
             addr += 2
-            
+
         if (size > 0):
             mem = self.readMemory(addr, 8)
             logging.debug("get 1 byte remaining at %s: 0x%X", hex(addr), mem)
             res.append(mem)
             size -= 1
             addr += 1
-            
+
         return res
-    
-    
+
+
     def writeBlockMemoryUnaligned8(self, addr, data):
         """
         write a block of unaligned bytes in memory.
         """
         size = len(data)
         idx = 0
-        
+
         #try to write 8 bits data
         if (size > 0) and (addr & 0x01):
             logging.debug("write 1 byte at 0x%X: 0x%X", addr, data[idx])
@@ -469,7 +469,7 @@ class CortexM(Target):
             size -= 1
             addr += 1
             idx += 1
-        
+
         # try to write 16 bits data
         if (size > 1) and (addr & 0x02):
             logging.debug("write 2 bytes at 0x%X: 0x%X", addr, data[idx] | (data[idx+1] << 8))
@@ -477,7 +477,7 @@ class CortexM(Target):
             size -= 2
             addr += 2
             idx += 2
-            
+
         # write aligned block of 32 bits
         if (size >= 4):
             logging.debug("write blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
@@ -486,7 +486,7 @@ class CortexM(Target):
             addr += size & ~0x03
             idx += size & ~0x03
             size -= size & ~0x03
-        
+
         # try to write 16 bits data
         if (size > 1):
             logging.debug("write 2 bytes at 0x%X: 0x%X", addr, data[idx] | (data[idx+1] << 8))
@@ -494,7 +494,7 @@ class CortexM(Target):
             size -= 2
             addr += 2
             idx += 2
-            
+
         #try to write 8 bits data
         if (size > 0):
             logging.debug("write 1 byte at 0x%X: 0x%X", addr, data[idx])
@@ -502,9 +502,9 @@ class CortexM(Target):
             size -= 1
             addr += 1
             idx += 1
-            
+
         return
-    
+
     def writeBlockMemoryAligned32(self, addr, data):
         """
         write a block of aligned words in memory.
@@ -519,7 +519,7 @@ class CortexM(Target):
             size -= n/4
             addr += n
         return
-    
+
     def readBlockMemoryAligned32(self, addr, size):
         """
         read a block of aligned words in memory. Returns
@@ -534,14 +534,14 @@ class CortexM(Target):
             size -= n/4
             addr += n
         return resp
-    
+
     def halt(self):
         """
         halt the core
         """
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
         return
-    
+
     def step(self):
         """
         perform an instruction level step
@@ -552,14 +552,14 @@ class CortexM(Target):
         if self.maybeSkipBreakpoint() is None:
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
         return
-    
+
     def reset(self):
         """
         reset a core. After a call to this function, the core
         is running
         """
         self.transport.reset()
-        
+
     def resetStopOnReset(self):
         """
         perform a reset and stop the core on the reset handler
@@ -567,24 +567,24 @@ class CortexM(Target):
         logging.debug("reset stop on Reset")
         # read address of reset handler
         reset_handler = self.readMemory(4)
-        
+
         # reset and halt the target
         self.transport.reset()
         self.halt()
-        
+
         # set a breakpoint to the reset handler and reset the target
         self.setBreakpoint(reset_handler)
         self.transport.reset()
-        
+
         # wait until the bp is reached
         while (self.getState() == TARGET_RUNNING):
             pass
-        
+
         # remove the breakpoint
         self.removeBreakpoint(reset_handler)
-        
+
         logging.debug("stopped on reset handler: 0x%X", reset_handler)
-        
+
     def setTargetState(self, state):
         if state == "PROGRAM":
             self.reset()
@@ -594,14 +594,14 @@ class CortexM(Target):
             while self.getState() == TARGET_RUNNING:
                 pass
             self.writeMemory(DEMCR, 0)
-            
-    
+
+
     def getState(self):
         dhcsr = self.readMemory(DHCSR)
         if dhcsr & (C_STEP | C_HALT):
             return TARGET_HALTED
         return TARGET_RUNNING
-    
+
     def resume(self):
         """
         resume the execution
@@ -612,7 +612,7 @@ class CortexM(Target):
         self.maybeSkipBreakpoint()
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
         return
-    
+
     def maybeSkipBreakpoint(self):
         pc = self.readCoreRegister('pc')
         bp = self.findBreakpoint(pc)
@@ -624,13 +624,13 @@ class CortexM(Target):
             logging.debug('step over breakpoint: now pc0x%X', self.readCoreRegister('pc'))
             return bp
         return None
-    
+
     def findBreakpoint(self, addr):
         for bp in self.breakpoints:
             if bp.enabled and bp.addr == addr:
                 return bp
         return None
-    
+
     def readCoreRegister(self, reg):
         """
         read a core register (r0 .. r16).
@@ -643,39 +643,39 @@ class CortexM(Target):
             except KeyError:
                 logging.error('cannot find %s core register', reg)
                 return
-        
+
         if (reg < 0) and (reg >= -4):
             specialReg = reg
             reg = CORE_REGISTER['cfbp']
         else:
             specialReg = 0
-        
+
         if reg not in CORE_REGISTER.values():
             logging.error("unknown reg: %d", reg)
             return
         elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
             logging.error("attempt to read FPU register without FPU")
             return
-        
+
         # write id in DCRSR
         self.writeMemory(DCRSR, reg)
-        
+
         # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
         # we're running so slow compared to the target that it's not necessary.
-        
+
         # read DCRDR
         val = self.readMemory(DCRDR)
-        
+
         # Special handling for registers that are combined into a single DCRSR number.
         if specialReg:
             val = (val >> ((-specialReg - 1) * 4)) & 0xff
         # Convert int to float.
         elif reg >= 128:
             val = int2float(val)
-        
+
         return val
-    
-    
+
+
     def writeCoreRegister(self, reg, data):
         """
         write a core register (r0 .. r16)
@@ -688,11 +688,11 @@ class CortexM(Target):
             except KeyError:
                 logging.error('cannot find %s core register', reg)
                 return
-            
+
         if (reg < 0) and (reg >= -4):
             specialReg = reg
             reg = CORE_REGISTER['cfbp']
-            
+
             # Mask in the new special register value so we don't modify the other register
             # values that share the same DCRSR number.
             specialRegValue = self.readCoreRegister(reg)
@@ -701,36 +701,36 @@ class CortexM(Target):
             data = (specialRegValue & mask) | ((data & 0xff) << shift)
         else:
             specialReg = 0
-        
+
         if reg not in CORE_REGISTER.values():
             logging.error("unknown reg: %d", reg)
             return
         elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
             logging.error("attempt to read FPU register without FPU")
             return
-        
+
         # Convert float to int.
         if reg >= 128:
             data = float2int(data)
-            
+
         # write id in DCRSR
         self.writeMemory(DCRDR, data)
 
         # write DCRDR
         self.writeMemory(DCRSR, reg | REGWnR)
-    
-    
+
+
     def setBreakpoint(self, addr):
         """
         set a hardware breakpoint at a specific location in flash
         """
         if self.fpb_enabled is False:
             self.enableFPB()
-            
+
         if self.availableBreakpoint() == 0:
             logging.error('No more available breakpoint!!, dropped bp at 0x%X', addr)
             return False
-        
+
         for bp in self.breakpoints:
             if not bp.enabled:
                 bp.enabled = True
@@ -742,23 +742,23 @@ class CortexM(Target):
                 self.num_breakpoint_used += 1
                 return True
         return False
-    
-    
+
+
     def availableBreakpoint(self):
         return len(self.breakpoints) - self.num_breakpoint_used
-    
+
     def enableFPB(self):
         self.writeMemory(FP_CTRL, FP_CTRL_KEY | 1)
         self.fpb_enabled = True
         logging.debug('fpb has been enabled')
         return
-    
+
     def disableFPB(self):
         self.writeMemory(FP_CTRL, FP_CTRL_KEY | 0)
         self.fpb_enabled = False
         logging.debug('fpb has been disabled')
         return
-    
+
     def removeBreakpoint(self, addr):
         """
         remove a hardware breakpoint at a specific location in flash
@@ -771,11 +771,11 @@ class CortexM(Target):
                 self.num_breakpoint_used -= 1
                 return
         return
-    
+
     # GDB functions
     def getTargetXML(self):
         return self.targetXML, len(self.targetXML)
-                
+
 
     def getRegisterName(self, compare_val):
         for key in CORE_REGISTER:
