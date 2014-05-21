@@ -21,7 +21,6 @@ sys.path.insert(0, parentdir)
 
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
-from optparse import OptionParser
 
 import logging
 logging.basicConfig(level=logging.INFO)

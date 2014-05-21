@@ -60,7 +60,7 @@ class PyUSB(Interface):
             return None
         
         boards = []
-        logging.debug(all_devices)
+
         # iterate on all devices found
         for board in all_devices:
             intf_number = 0

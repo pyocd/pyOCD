@@ -28,11 +28,8 @@ LEVELS={'debug':logging.DEBUG,
         'error':logging.ERROR,
         'critical':logging.CRITICAL 
         }
-version = 'v0.2.1'
-commit_hashid = '61512b73c0cb8373519aaf67bbd17b2ab625ef18'
 
-print "Welcome to the PyOCD Beta Version %s!!" % (version)
-print "This improvement version is based on the pyocd master branch on https://github.com/mbedmicro/pyOCD, and the commit hash id is %s" % (commit_hashid)
+print "Welcome to the PyOCD GDB Server Beta Version " 
 
 parser = OptionParser()
 parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
