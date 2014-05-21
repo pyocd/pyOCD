@@ -50,8 +50,3 @@ tags
 # Doxygen output
 html
 
-# self scripts
-build_script.sh
-
-#test_folder
-/test/testinstall
