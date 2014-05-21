@@ -45,7 +45,7 @@ if option.list_all == True:
     MbedBoard.listConnectedBoards()
 else:
     try:
-        board_selected = MbedBoard.chooseBoard(board_name = option.board_id)
+        board_selected = MbedBoard.chooseBoard(board_id = option.board_id)
         if board_selected != None:
             try:
                 gdb = GDBServer(board_selected, int(option.port_number))
