@@ -177,7 +177,7 @@ class MbedBoard(Board):
         
         try:
             ch = 0
-            if board_name != None:
+            if board_id != None:
                 for mbed in all_mbeds:
                     if mbed.unique_id == (board_id):
                         mbed.init()
