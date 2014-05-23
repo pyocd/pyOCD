@@ -62,6 +62,11 @@ A series of tests are on the test directory:
   * reset the target
   * flash a binary
 * gdb_test.py: launch a gdbserver
+* gdb_server: an enhanced version of gdbserver which provides the following options:
+  * "-p", "--port", help = "Write the port number that GDB server will open"
+  * "-b", "--board", help = "Write the board id you want to connect"
+  * "-l", "--list", help = "List all the connected board"
+  * "-d", "--debug", help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical"
 
 ### Hello World example
 ```python
