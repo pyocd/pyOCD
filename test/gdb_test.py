@@ -15,11 +15,14 @@
  limitations under the License.
 """
 
-import logging
+import argparse, os, sys
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parentdir)
 
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 
+import logging
 logging.basicConfig(level=logging.INFO)
 
 gdb = None
@@ -31,7 +34,7 @@ try:
             gdb.join(timeout = 0.5)
 
 except KeyboardInterrupt:
-    if gdb != None
+    if gdb != None:
         gdb.shutdown_event.set()
 except Exception as e:
     print "uncaught exception: %s" % e

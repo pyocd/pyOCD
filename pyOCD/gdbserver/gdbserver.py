@@ -106,7 +106,7 @@ class GDBServer(threading.Thread):
         while True:
             new_command = False
             data = ""
-            logging.info('GDB server started')
+            logging.info('GDB server started at port:%d',self.port)
             
             self.shutdown_event.clear()
             self.detach_event.clear()
