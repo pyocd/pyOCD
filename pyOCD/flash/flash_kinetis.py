@@ -20,7 +20,7 @@ import logging
 
 # @brief Base flash algorithm class for Freescale Kinetis devices.
 class Flash_Kinetis(Flash):
-    
+
     # @brief Check security bytes.
     #
     # Check Flash Configuration Field bytes at address 0x400-0x40f to ensure that flash security
@@ -55,11 +55,11 @@ class Flash_Kinetis(Flash):
                 logging.debug("FCF[%d] at addr 0x%X: 0x%X", i, i, data[i])
                 if (data[i] != 0xff):
                     return 0
-            
+
             # FOPT must not be 0x00, any other value is acceptable.
             if data[0xd] == 0x00:
                 return 0
-            
+
             logging.debug("FCF[%d] at addr 0x%X: 0x%X", i+3, i+3, data[i+3])
             logging.debug("FCF[%d] at addr 0x%X: 0x%X", i+4, i+4, data[i+4])
             if ((data[0xe] != 0xff) or (data[0xf] != 0xff)):
