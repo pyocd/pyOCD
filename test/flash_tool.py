@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
  Copyright (c) 2006-2013 ARM Limited
@@ -29,6 +30,7 @@ from pyOCD.board import MbedBoard
 interface = None
 board = None
 
+# Kinetis FCF byte array to disable flash security.
 fcf = [0xff] * 12
 fcf += [0xfe, 0xff, 0xff, 0xff]
 
@@ -36,8 +38,15 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-parser = argparse.ArgumentParser(description='A CMSIS-DAP python debugger')
+parser = argparse.ArgumentParser(description='Flash utility')
+parser.add_argument("-e", "--erase", action="store_true", default=False, help="Erase all flash.")
+parser.add_argument("-u", "--unlock", action="store_true", default=False, help="Unlock device.")
+parser.add_argument('-f', dest="file", help='Program binary file')
 args = parser.parse_args()
+
+# if not args.erase and not args.unlock and not args.file:
+#     print "Error: No operation selection"
+#     sys.exit(1)
 
 try:
 
@@ -52,11 +61,20 @@ try:
     print "\r\n\r\n------ GET Unique ID ------"
     print "Unique ID: %s" % board.getUniqueID()
 
-    print "Permanently unlocking chip..."
-    print "Writing FCF = %s" % repr(fcf)
-    flash.init()
-    flash.eraseAll()
-    flash.programPage(0x400, fcf)
+    if args.file:
+        flash.flashBinary(args.file)
+    elif args.erase or args.unlock:
+        # Init flash algorithm.
+        flash.init()
+
+        # Erase all of flash.
+        print "Erasing entire flash array..."
+        flash.eraseAll()
+
+        if args.unlock:
+            print "Unlocking chip..."
+            print "Writing FCF = %s" % repr(fcf)
+            flash.programPage(0x400, fcf)
 
 #     target.reset()
 
