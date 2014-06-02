@@ -199,13 +199,13 @@ def word2byte(data):
 
 ## @brief Convert a 32-bit int to an IEEE754 float.
 def int2float(data):
-    d = struct.pack("@L", data)
+    d = struct.pack("@I", data)
     return struct.unpack("@f", d)[0]
 
 ## @brief Convert an IEEE754 float to a 32-bit int.
 def float2int(data):
     d = struct.pack("@f", data)
-    return struct.unpack("@L", d)[0]
+    return struct.unpack("@I", d)[0]
 
 
 class Breakpoint(object):
