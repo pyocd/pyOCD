@@ -572,7 +572,29 @@ class GDBServer(threading.Thread):
         elif 'Symbol' in query[0]:
             resp = "OK"
             return self.createRSPPacket(resp)
-        
+
+        elif query[0].startswith('Rcmd,'):
+            cmd = self.hexDecode(query[0][5:].split('#')[0])
+            logging.debug('Remote command: %s', cmd)
+
+            safecmd = {
+                'reset' : 'Reset target',
+                'halt'  : 'Alt target',
+                'help'  : 'Display this help',
+            }
+            if cmd == 'help':
+                resp = ''
+                for k,v in safecmd.items():
+                    resp += '%s\t%s\n' % (k,v)
+                resp = self.hexEncode(resp)
+            elif cmd in safecmd:
+                tmp = eval ('self.target.%s()' % (cmd, ))
+                logging.debug(tmp)
+                resp = "OK"
+            else:
+                resp = ''
+            return self.createRSPPacket(resp)
+
         else:
             return self.createRSPPacket("")
             
@@ -625,3 +647,10 @@ class GDBServer(threading.Thread):
     
     def ack(self):
         self.abstract_socket.write("+")
+
+    def hexDecode(self, cmd):
+        return ''.join([ chr(int(cmd[i:i+2], 16)) for i in range(0, len(cmd), 2)])
+
+    def hexEncode(self, string):
+        return ''.join(['%02x' % ord(i) for i in string])
+
