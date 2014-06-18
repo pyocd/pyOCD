@@ -55,8 +55,7 @@ else:
                 logging.error("Port number error!")
     except KeyboardInterrupt:
         if gdb != None:
-            gdb.shutdown_event.set()
-            #gdb.stop()       
+            gdb.stop()
     except Exception as e:
         print "uncaught exception: %s" % e
         traceback.print_exc()

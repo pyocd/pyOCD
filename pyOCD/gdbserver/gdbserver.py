@@ -286,6 +286,8 @@ class GDBServer(threading.Thread):
         
         while True:
             sleep(0.01)
+            if self.shutdown_event.isSet():
+                return self.createRSPPacket(val), 0, 0
             
             try:
                 data = self.abstract_socket.read()
