@@ -243,7 +243,7 @@ class GDBServer(threading.Thread):
         
         else:
             logging.error("Unknown RSP packet: %s", msg)
-            return self.createRSPPacket("")
+            return self.createRSPPacket(""), 1, 0
         
     def detach(self, data):
         resp = "OK"
