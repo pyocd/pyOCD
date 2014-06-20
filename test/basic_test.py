@@ -74,6 +74,10 @@ try:
     elif target_type == "lpc800":
         addr = 0x10000001
         size = 0x502
+    elif target_type == "nrf51822":
+        addr = 0x20000001
+        size = 0x502
+    
     
     target = board.target
     transport = board.transport
