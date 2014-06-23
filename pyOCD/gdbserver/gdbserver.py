@@ -580,21 +580,46 @@ class GDBServer(threading.Thread):
             logging.debug('Remote command: %s', cmd)
 
             safecmd = {
-                'reset' : 'Reset target',
-                'halt'  : 'Alt target',
-                'help'  : 'Display this help',
+                'reset' : ['Reset target', 0x1],
+                'halt'  : ['Halt target', 0x2],
+                'help'  : ['Display this help', 0x4],
             }
+            resultMask = 0x00
             if cmd == 'help':
                 resp = ''
                 for k,v in safecmd.items():
                     resp += '%s\t%s\n' % (k,v)
                 resp = self.hexEncode(resp)
-            elif cmd in safecmd:
-                tmp = eval ('self.target.%s()' % (cmd, ))
-                logging.debug(tmp)
-                resp = "OK"
             else:
-                resp = ''
+                cmdList = cmd.split(' ')
+                #check whether all the cmds is valid cmd for monitor
+                for cmd_sub in cmdList:
+                    if not cmd_sub in safecmd:
+                        #error cmd for monitor, just return directly
+                        resp = ''
+                        return self.createRSPPacket(resp)
+                    else:
+                        resultMask = resultMask | safecmd[cmd_sub][1]
+                #if it's a single cmd, just launch it!
+                if len(cmdList) == 1:
+                    tmp = eval ('self.target.%s()' % cmd_sub)
+                    logging.debug(tmp)
+                    resp = "OK"
+                else:
+                    #101 for help reset, so output reset cmd help information
+                    if resultMask == 0x5:
+                        resp = 'Reset the target\n'
+                        resp = self.hexEncode(resp)
+                    #110 for help halt, so output halt cmd help information
+                    elif resultMask == 0x6:
+                        resp = 'Halt the target\n'
+                        resp = self.hexEncode(resp)
+                    #011 for reset halt cmd, so launch self.target.resetStopOnReset()
+                    elif resultMask == 0x3:
+                        resp = "OK"
+                        self.target.resetStopOnReset()
+                    else:
+                        resp = ''
             return self.createRSPPacket(resp)
 
         else:
