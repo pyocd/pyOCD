@@ -17,10 +17,12 @@
 
 import logging
 import traceback
+import pyOCD.board.mbed_board
 
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from optparse import OptionParser
+from optparse import OptionGroup
 
 LEVELS={'debug':logging.DEBUG,
         'info':logging.INFO,
@@ -30,8 +32,13 @@ LEVELS={'debug':logging.DEBUG,
         }
 
 print "Welcome to the PyOCD GDB Server Beta Version " 
+supportted_list = ''
+for (k,v) in pyOCD.board.mbed_board.TARGET_TYPE.items():
+    supportted_list += v + ' '
 
 parser = OptionParser()
+group = OptionGroup(parser, "Supportted Mbed Platform",supportted_list )
+parser.add_option_group(group)
 parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
 parser.add_option("-b", "--board", dest = "board_id", default = None, help = "Write the board id you want to connect")
 parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
