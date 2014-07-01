@@ -19,17 +19,12 @@ from pyOCD.target.target import TARGET_RUNNING
 import logging
 from struct import unpack
 from time import time
-"""
-import os,sys
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0,parentdir)
-"""
 
 class Flash(object):
     """
     This class is responsible to flash a new binary in a target
     """
-    
+
     def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
@@ -38,41 +33,41 @@ class Flash(object):
         self.begin_data = flash_algo['begin_data']
         self.static_base = flash_algo['static_base']
         self.page_size = flash_algo['page_size']
-    
+
     def init(self):
         """
         Download the flash algorithm in RAM
         """
         self.target.halt()
         self.target.setTargetState("PROGRAM")
-        
+
         # download flash algo in RAM
         self.target.writeBlockMemoryAligned32(self.flash_algo['load_address'], self.flash_algo['instructions'])
-        
+
         # update core register to execute the init subroutine
         self.updateCoreRegister(0, 0, 0, 0, self.flash_algo['pc_init'])
         # resume and wait until the breakpoint is hit
         self.target.resume()
         while(self.target.getState() == TARGET_RUNNING):
             pass
-        
+
         return
-    
+
     def eraseAll(self):
         """
         Erase all the flash
         """
-        
+
         # update core register to execute the eraseAll subroutine
         self.updateCoreRegister(0, 0, 0, 0, self.flash_algo['pc_eraseAll'])
-        
+
         # resume and wait until the breakpoint is hit
         self.target.resume()
         while(self.target.getState() == TARGET_RUNNING):
             pass
-        
+
         return
-    
+
     def programPage(self, flashPtr, bytes):
         """
         Flash one page
@@ -83,32 +78,32 @@ class Flash(object):
 
         # first transfer in RAM
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
-        
+
         # update core register to execute the program_page subroutine
         self.updateCoreRegister(flashPtr, self.page_size, self.begin_data, 0, self.flash_algo['pc_program_page'])
-        
+
         # resume and wait until the breakpoint is hit
         self.target.resume()
         while(self.target.getState() == TARGET_RUNNING):
             pass
         return
-    
+
     def flashBinary(self, path_file):
         """
         Flash a binary
         """
         f = open(path_file, "rb")
-        
+
         start = time()
         self.init()
         logging.debug("flash init OK: pc: 0x%X", self.target.readCoreRegister('pc'))
         self.eraseAll()
         logging.debug("eraseAll OK: pc: 0x%X", self.target.readCoreRegister('pc'))
-    
+
         """
         bin = open(os.path.join(parentdir, 'res', 'good_bin.txt'), "w+")
         """
-        
+
         flashPtr = 0
         nb_bytes = 0
         try:
@@ -125,7 +120,7 @@ class Flash(object):
                     i += 16
                 """
                 flashPtr += self.page_size
-    
+
                 bytes_read = f.read(self.page_size)
         finally:
             f.close()
@@ -134,7 +129,7 @@ class Flash(object):
             """
         end = time()
         logging.info("%f kbytes flashed in %f seconds ===> %f kbytes/s" %(nb_bytes/1000, end-start, nb_bytes/(1000*(end - start))))
-    
+
     def updateCoreRegister(self, r0, r1, r2, r3, pc):
         self.target.writeCoreRegister('pc', pc)
         self.target.writeCoreRegister('r0', r0)
@@ -145,6 +140,6 @@ class Flash(object):
         self.target.writeCoreRegister('sp', self.begin_stack)
         self.target.writeCoreRegister('lr', self.flash_algo['load_address'] + 1)
         return
-    
+
     def checkSecurityBits(self, address, data):
         return 1

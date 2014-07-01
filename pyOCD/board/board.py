@@ -53,9 +53,17 @@ class Board(object):
         This function resumes the target
         """
         logging.debug("uninit board %s", self)
-        self.target.resume()
-        self.transport.uninit()
-        self.interface.close()
+        try:
+            self.target.resume()
+            self.transport.uninit()
+        except Exception as e:
+            try:
+                print e
+            except:
+                pass
+            finally:
+                self.interface.close()
+                raise e
     
     def getInfo(self):
         return self.interface.getInfo()
