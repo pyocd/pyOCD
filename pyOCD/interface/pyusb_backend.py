@@ -104,7 +104,8 @@ class PyUSB(Interface):
                                              )
             product_name = usb.util.get_string(board, 256, 2)
             vendor_name = usb.util.get_string(board, 256, 1)
-            if ep_out is None or ep_in is None:
+            """If there is no EP for OUT then we can use CTRL EP"""
+            if ep_in is None: #ep_out is None or
                 logging.error('Endpoints not found')
                 return None
             
@@ -125,7 +126,9 @@ class PyUSB(Interface):
         write data on the OUT endpoint associated to the HID interface
         """
         if self.ep_out is None:
-            raise ValueError('EP_OUT endpoint is NULL')
+            self.dev.ctrl_transfer(0x21,0x9,0x200,0x3,data)
+            return
+            #raise ValueError('EP_OUT endpoint is NULL')
         
         self.ep_out.write(data)
         #logging.debug('sent: %s', data)
