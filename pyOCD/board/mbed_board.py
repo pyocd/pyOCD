@@ -27,6 +27,7 @@ TARGET_TYPE = {
                 "0210": "kl05z",
                 "0220": "kl46z",
                 "0230": "k20d50m",
+                "0231": "k22f",
                 "0240": "k64f",
                 "0250": "kl02z",
                 "0260": "kl26z",
@@ -173,7 +174,17 @@ class MbedBoard(Board):
                     print "The board you want to connect isn't the board now connected"
                     return None
             else:
-                all_mbeds[0].init()
+                try:
+                    all_mbeds[0].init()
+                except Exception as e:
+                    try:
+                        print e
+                    except:
+                        pass
+                    finally:
+                        all_mbeds[0].interface.close()
+                        raise e
+
                 return all_mbeds[0]
         
         try:

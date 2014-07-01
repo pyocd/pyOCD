@@ -16,49 +16,49 @@
 """
 
 class Transport(object):
-    
+
     def __init__(self, interface):
         self.interface = interface
         return
-    
+
     def init(self):
         return
-    
+
     def uninit(self):
         return
-    
+
     def info(self, request):
         return
-    
+
     def readDP(self, addr):
         return
-    
+
     def writeDP(self, addr, data):
         return
-    
+
     def writeAP(self, addr, data):
         return
-    
+
     def readAP(self, addr):
         return
-    
+
     def writeMem(self, addr, data, transfer_size = 32):
         return
-    
+
     def readMem(self, addr, transfer_size = 32):
         return
-    
+
     def writeBlock32(self, addr, data):
         return
-    
+
     def readBlock32(self, addr, data):
         return
-    
+
     def assertReset(self, asserted):
         return
-    
+
     def getUniqueID(self):
         return
-    
+
     def reset(self):
         return
