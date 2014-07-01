@@ -80,7 +80,7 @@ class Flash(object):
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        self.updateCoreRegister(flashPtr, len(bytes), self.begin_data, 0, self.flash_algo['pc_program_page'])
+        self.updateCoreRegister(flashPtr, self.page_size, self.begin_data, 0, self.flash_algo['pc_program_page'])
 
         # resume and wait until the breakpoint is hit
         self.target.resume()
