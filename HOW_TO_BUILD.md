@@ -1,7 +1,7 @@
 How to Build PyOCD into Single Executable File
 ==============================================
 This manual provides a step-by-step guide on how to ‘build PyOCD’ on Windows 7 32bit or Ubuntu 10.04.
-PyOCD is an open source GDB server written in Python and maintained by PyOCD community, it depends on several libraries like pyusb under Linux, and pywinusb under Windows. Pyinstaller was chosen to bundle it into a single executable file, so that the PyOCD executable produced can be run on any computer, whether python and the related library are present or not on the system.
+PyOCD is an open source GDB server library written in Python and maintained by PyOCD community, it depends on several libraries like pyusb under Linux, and pywinusb under Windows. Pyinstaller was chosen to bundle it into a single executable file, so that the PyOCD executable produced can be run on any computer, whether python and the related library are present or not on the system.
 
 Build PyOCD on Ubuntu 10.04
 ---------------------------
