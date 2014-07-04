@@ -50,6 +50,10 @@ Installation
 $ cd /path-to-pyOCD/
 $ python setup.py install
 ```
+
+Build Binary
+------------
+We now provide a manual HOW_TO_BUILD.md in root folder to explain how to build PyOCD into single executable gdb server program.
     
 Examples
 --------
