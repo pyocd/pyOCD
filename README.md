@@ -51,10 +51,13 @@ $ cd /path-to-pyOCD/
 $ python setup.py install
 ```
 
-Build Binary
-------------
-We now provide a manual HOW_TO_BUILD.md in root folder to explain how to build PyOCD into single executable gdb server program.
-    
+Standalone GDB Server
+---------------------
+<p>PyOCD now provide a manual HOW_TO_BUILD.md in root folder to explain how to build PyOCD into single executable gdb server program.</p>
+* [GCC ARM Toolchain](https://launchpad.net/gcc-arm-embedded) also provided a pre-build version of PyOCD gdb server at [Misc tools related to gcc arm embedded tool chain](https://launchpad.net/gcc-arm-embedded-misc/pyocd-binary/20140707)
+
+
+
 Examples
 --------
 ### Tests
