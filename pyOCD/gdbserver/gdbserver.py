@@ -91,6 +91,7 @@ class GDBServer(threading.Thread):
                 pass
             logging.info("GDB server thread killed")
         self.board.uninit()
+        self.board.interface.close()
         
     def setBoard(self, board, stop = True):
         self.lock.acquire()
