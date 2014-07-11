@@ -74,14 +74,18 @@ try:
     elif target_type == "k20d50m":
         addr = 0x20000001
         size = 0x502
+    elif target_type == "kl46z":
+        addr = 0x20000001
+        size = 0x502
     elif target_type == "lpc800":
         addr = 0x10000001
         size = 0x502
     elif target_type == "nrf51822":
         addr = 0x20000001
         size = 0x502
-    
-    
+    else:
+        raise Exception("A board is not supported by this test script.")
+
     target = board.target
     transport = board.transport
     flash = board.flash
