@@ -34,7 +34,7 @@ TARGET_TYPE = {
                 "1010": "lpc1768",
                 "9004": "lpc1768",
                 "1040": "lpc11u24",
-                "0300": "lpc800",
+                "1050": "lpc800",
                 "1070": "nrf51822",
               }
 
@@ -77,7 +77,7 @@ class MbedBoard(Board):
     def listConnectedBoards(transport = "cmsis_dap"):
         """
         List the connected board info
-        """        
+        """
         all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
         index = 0
         if (all_mbeds != []) & (all_mbeds != None):
