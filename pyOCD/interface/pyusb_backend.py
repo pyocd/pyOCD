@@ -35,8 +35,9 @@ class PyUSB(Interface):
         - write/read an endpoint
     """
     
-    vid = 0
-    pid = 0
+    vid         = 0
+    pid         = 0
+    intf_number = 0
     
     isAvailable = isAvailable
 
@@ -115,6 +116,7 @@ class PyUSB(Interface):
             new_board.dev = board
             new_board.vid = vid
             new_board.pid = pid
+            new_board.intf_number = intf_number
             new_board.product_name = product_name
             new_board.vendor_name = vendor_name
             boards.append(new_board)
@@ -126,7 +128,11 @@ class PyUSB(Interface):
         write data on the OUT endpoint associated to the HID interface
         """
         if self.ep_out is None:
-            self.dev.ctrl_transfer(0x21,0x9,0x200,0x3,data)
+            bmRequestType = 0x21              #Host to device request of type Class of Recipient Interface
+            bmRequest     = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
+            wValue        = 0x200             #Issuing an OUT report
+            wIndex        = self.intf_number  #mBed Board interface number for HID
+            self.dev.ctrl_transfer(bmRequestType,bmRequest,wValue,wIndex,data)
             return
             #raise ValueError('EP_OUT endpoint is NULL')
         
