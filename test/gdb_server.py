@@ -32,17 +32,18 @@ LEVELS={'debug':logging.DEBUG,
         }
 
 print "Welcome to the PyOCD GDB Server Beta Version " 
-supportted_list = ''
+supported_list = ''
 for (k,v) in pyOCD.board.mbed_board.TARGET_TYPE.items():
-    supportted_list += v + ' '
+    supported_list += v + ' '
 
 parser = OptionParser()
-group = OptionGroup(parser, "Supportted Mbed Platform",supportted_list )
+group = OptionGroup(parser, "Supported Mbed Platform",supported_list )
 parser.add_option_group(group)
 parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
 parser.add_option("-b", "--board", dest = "board_id", default = None, help = "Write the board id you want to connect")
 parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
 parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
+parser.add_option("-t", "--target", dest = "target_override", default = None, help = "Override target to debug" )
 (option, args) = parser.parse_args()
 
 gdb = None
@@ -52,7 +53,7 @@ if option.list_all == True:
     MbedBoard.listConnectedBoards()
 else:
     try:
-        board_selected = MbedBoard.chooseBoard(board_id = option.board_id)
+        board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
         if board_selected != None:
             try:
                 gdb = GDBServer(board_selected, int(option.port_number))
