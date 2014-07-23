@@ -56,14 +56,8 @@ class Board(object):
         try:
             self.target.resume()
             self.transport.uninit()
-        except Exception as e:
-            try:
-                print e
-            except:
-                pass
-            finally:
-                self.interface.close()
-                raise e
+        finally:
+            self.interface.close()
     
     def getInfo(self):
         return self.interface.getInfo()
