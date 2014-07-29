@@ -190,15 +190,15 @@ class CMSIS_DAP(Transport):
         return True
 
     def writeAP(self, addr, data):
+        ap_sel = addr & 0xff000000
+        bank_sel = addr & APBANKSEL
+        self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
+
         if addr == AP_REG['CSW']:
             if data == self.csw:
                 return
             self.csw = data
 
-        ap_sel = addr & 0xff000000
-        bank_sel = addr & APBANKSEL
-
-        self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
         dapTransfer(self.interface, 1, [WRITE | AP_ACC | (addr & 0x0c)], [data])
         return True
 
