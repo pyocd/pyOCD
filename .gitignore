@@ -50,3 +50,6 @@ tags
 # Doxygen output
 html
 
+#PyCharm project files
+.idea
+
