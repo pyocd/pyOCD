@@ -568,8 +568,7 @@ class CortexM(Target):
         # read address of reset handler
         reset_handler = self.readMemory(4)
 
-        # reset and halt the target
-        self.transport.reset()
+        # halt the target
         self.halt()
 
         # set a breakpoint to the reset handler and reset the target
@@ -587,8 +586,8 @@ class CortexM(Target):
 
     def setTargetState(self, state):
         if state == "PROGRAM":
-            self.reset()
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+            self.resetStopOnReset()
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
             self.writeMemory(DEMCR, VC_CORERESET)
             self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
             while self.getState() == TARGET_RUNNING:

@@ -338,7 +338,7 @@ class GDBServer(threading.Thread):
         
     def flashOp(self, data):
         ops = data.split(':')[0]
-        #logging.debug("flash op: %s", ops)
+        logging.debug("flash op: %s", ops)
         
         if ops == 'FlashErase':
             self.flash.init()
