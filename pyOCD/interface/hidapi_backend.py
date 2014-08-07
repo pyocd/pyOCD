@@ -35,7 +35,7 @@ class HidApiUSB(Interface):
     """
     vid = 0
     pid = 0
-    
+
     isAvailable = isAvailable
 
     def __init__(self):
@@ -78,6 +78,7 @@ class HidApiUSB(Interface):
             new_board.vid = deviceInfo['vendor_id']
             new_board.pid = deviceInfo['product_id']
             new_board.device = dev
+            dev.open(vid, pid)
 
             boards.append(new_board)
 
