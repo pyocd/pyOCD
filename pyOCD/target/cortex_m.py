@@ -573,7 +573,7 @@ class CortexM(Target):
 
         # set a breakpoint to the reset handler and reset the target
         self.setBreakpoint(reset_handler)
-        self.transport.reset()
+        self.reset()
 
         # wait until the bp is reached
         while (self.getState() == TARGET_RUNNING):
