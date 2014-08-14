@@ -34,32 +34,7 @@ class NRF51822(CortexM):
     
     def reset(self):
         # halt processor
-        self.halt()
-        #Regular reset will kick NRF out of DBG mode
-        #self.writeMemory(0x40000544, 1)
-        #reset
-        #CortexM.reset(self)
-        
+        self.halt()        
         #Soft Reset will keep NRF in debug mode
         self.writeMemory(0xe000ed0c, 0x05FA0000 | 0x00000004)
-    
-    def resetStopOnReset(self):        
-        #CortexM.resetStopOnReset(self)
-        # read address of reset handler
-        reset_handler = self.readMemory(4)
-        
-        # reset and halt the target
-        self.reset()
-        self.halt()
-        
-        # set a breakpoint to the reset handler and reset the target
-        self.setBreakpoint(reset_handler)
-        self.reset()
-        
-        # wait until the bp is reached
-        while (self.getState() == TARGET_RUNNING):
-            pass
-        
-        # remove the breakpoint
-        self.removeBreakpoint(reset_handler)
 
