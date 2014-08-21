@@ -78,7 +78,10 @@ class HidApiUSB(Interface):
             new_board.vid = deviceInfo['vendor_id']
             new_board.pid = deviceInfo['product_id']
             new_board.device = dev
-            dev.open(vid, pid)
+            try:
+                dev.open(vid, pid)
+            except AttributeError:
+                pass
 
             boards.append(new_board)
 
