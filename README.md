@@ -40,8 +40,14 @@ $ cd /path-to-pyusb/
 $ sudo python setup.py install
 ```
 
-* Mac:
-    So far Mac OS X is not supported
+
+* Mac: [hidapi](https://github.com/signal11/hidapi), [cython-hidapi](https://github.com/gbishop/cython-hidapi)
+```
+$ brew install hidapi
+$ git clone https://github.com/gbishop/cython-hidapi.git
+$ cd cython-hidapi
+$ sudo python setup.py install
+```
     
     
 Installation
