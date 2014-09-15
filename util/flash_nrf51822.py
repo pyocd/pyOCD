@@ -72,12 +72,22 @@ def flashHex(target, filename):
     end = time()
     print("%f kbytes flashed in %f seconds ===> %f kbytes/s" %(nbytes/1000, end-start, nbytes/(1000*(end - start))))
 
-def flashBin(target, filename, offset=0x14000):
+def flashBin(target, filename, erase=False, offset=0x16000, skip=0x00):
     '''
     flash a binary file to nRF51822 with offset
     '''
     f = open(filename, "rb")
+    f.seek(skip, 0)
+
     start = time()
+
+    if (erase):
+        target.halt()
+        logging.info("Erase All")
+        target.writeMemory(NVMC_CONFIG, 2)
+        target.writeMemory(NVMC_ERASEALL, 1)
+        while target.readMemory(NVMC_READY) == 0:
+            pass
     
     target.halt()
     while target.readMemory(NVMC_READY) == 0:
@@ -96,12 +106,13 @@ def flashBin(target, filename, offset=0x14000):
         while bytes_read:
             bytes_read = unpack(str(len(bytes_read)) + 'B', bytes_read)
             nb_bytes += len(bytes_read)
-            
-            logging.info("Erase page: 0x%X", address)
-            target.writeMemory(NVMC_CONFIG, 2)
-            target.writeMemory(NVMC_ERASEPAGE, address)
-            while target.readMemory(NVMC_READY) == 0:
-                pass
+
+            if (not erase):
+                logging.info("Erase page: 0x%X", address)
+                target.writeMemory(NVMC_CONFIG, 2)
+                target.writeMemory(NVMC_ERASEPAGE, address)
+                while target.readMemory(NVMC_READY) == 0:
+                    pass
 
             target.writeMemory(NVMC_CONFIG, 1)
             while target.readMemory(NVMC_READY) == 0:
@@ -136,8 +147,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="flash nrf51822")
     parser.add_argument("-v", "--verbose", action="count", default=0)
     parser.add_argument("-i", "--ihex", help="a ihex file")
+    parser.add_argument("-e", "--erase", action="count", help="erase flash before write")
     parser.add_argument("-b", "--bin", help="a binary file")
-    parser.add_argument("-o", "--offset", help="with -b option, a binary will be flashed with an offset (default: 0x14000)")
+    parser.add_argument("-o", "--offset", help="with -b option, a binary will be flashed with an offset (default: 0x16000)")
+    parser.add_argument("-s", "--skip", help="with -b option skip first N bytes")
+    parser.add_argument("-id", "--board_id", help="connect to board by board id, use -l to list all connected boards")
+    parser.add_argument("-l", "--list", action="count", help="list all connected boards")
+
     args = parser.parse_args()
     
     if args.verbose == 2:
@@ -145,16 +161,25 @@ if __name__ == "__main__":
     elif args.verbose == 1:
         logging.basicConfig(level=logging.INFO)
     
+    if (args.list):
+        print MbedBoard.listConnectedBoards()
+        sys.exit(0)
+
     adapter = None
     try:
-        interfaces = INTERFACE[usb_backend].getAllConnectedInterface(VID, PID)
-        if interfaces == None:
-            print "Not find a mbed interface"
-            sys.exit(1)
+        adapter = None
+        if (args.board_id):
+            adapter = MbedBoard.chooseBoard(board_id = args.board_id)
+        else:
+            interfaces = INTERFACE[usb_backend].getAllConnectedInterface(VID, PID)
+            if interfaces == None:
+                print "Not find a mbed interface"
+                sys.exit(1)
             
-        # Use the first one
-        first_interface = interfaces[0]
-        adapter = MbedBoard("target_lpc1768", "flash_lpc1768", first_interface)
+            # Use the first one
+            first_interface = interfaces[0]
+            adapter = MbedBoard("target_nrf51822", "flash_nrf51822", first_interface)
+
         adapter.init()
         target = adapter.target
         target.halt()
@@ -163,17 +188,22 @@ if __name__ == "__main__":
             print 'flash hex file - %s to nrf51822' % args.ihex
             flashHex(target, args.ihex)
         
-        offset = 0x14000
+        offset = 0x16000
         if args.offset:
-            offset = args.offset
-            
+            offset = int(args.offset, 16)
+
+        skip = 0x00
+        if args.skip:
+            skip = int(args.skip, 16)
+
         if args.bin:
             print 'flash binary file - %s to nrf51822' % args.bin
-            flashBin(target, args.bin, offset)
+            flashBin(target, args.bin, args.erase, offset, skip)
 
         sleep(1)
-        target.reset()
-        
+        target.resetStopOnReset()
+        target.resume()
+
     finally:
         if adapter != None:
             adapter.uninit()

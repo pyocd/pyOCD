@@ -58,15 +58,11 @@ class HidApiUSB(Interface):
             logging.debug("No Mbed device connected")
             return
 
-        # Reduce list to one item since cython-hidapi currently doesn't let us pass the
-        # serial number into hid.device ctor.
-        devices = [devices[0]]
-
         boards = []
 
         for deviceInfo in devices:
             try:
-                dev = hid.device(vid, pid)
+                dev = hid.device(vendor_id=vid, product_id=pid, path = deviceInfo['path'])
             except IOError:
                 logging.debug("Failed to open Mbed device")
                 return
