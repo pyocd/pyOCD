@@ -48,8 +48,8 @@ class NRF51822(CortexM):
         # read address of reset handler
         reset_handler = self.readMemory(4)
         
-        # reset and halt the target
-        self.reset()
+        # halt the target
+        #self.reset()
         self.halt()
         
         # set a breakpoint to the reset handler and reset the target
