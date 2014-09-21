@@ -18,12 +18,27 @@
 from flash import Flash
 import logging
 
+# Kinetis security values and addresses
+SECURITY_START = 0x400
+SECURITY_SIZE = 16
+FPROT_ADDR = 0x408
+FPROT_ADDR_END = 0x40c
+FPROT_SIZE = 4
+FSEC_ADDR = 0x40c
+FSEC_VAL = 0xFE
+FOPT_ADDR = 0x40d
+FOPT_VAL = 0xFF
+FEPROT_ADDR = 0x40e
+FEPROT_VAL = 0xFF
+FDPROT_ADDR = 0x40f
+FDPROT_VAL = 0xFF
+
 # @brief Base flash algorithm class for Freescale Kinetis devices.
 class Flash_Kinetis(Flash):
 
     # @brief Check security bytes.
     #
-    # Check Flash Configuration Field bytes at address 0x400-0x40f to ensure that flash security
+    # Override Flash Configuration Field bytes at address 0x400-0x40f to ensure that flash security
     # won't be enabled. If flash security is enabled, then the chip is inaccessible via SWD.
     #
     # FCF bytes:
@@ -38,31 +53,47 @@ class Flash_Kinetis(Flash):
     # [0xe]=EEPROM protection bytes (FlexNVM devices only)
     # [0xf]=data flash protection bytes (FlexNVM devices only)
     #
-    # This function checks that:
-    # - 0x0-0xb==0xff
+    # This function enforces that:
+    # - 0x8-0xb==0xff
     # - 0xe-0xf==0xff
     # - FSEC=0xfe
     #
     # FOPT can be set to any value except 0x00.
     #
-    # @retval 0 The security check failed. In other words, security would be enabled and the chip
-    #       locked from debugging if these bytes were written.
-    # @retval 1 Security check passed.
-    def checkSecurityBits(self, address, data):
-        #error if security bits have unexpected values
-        if (address == 0x400):
-            for i in range(12):
-                logging.debug("FCF[%d] at addr 0x%X: 0x%X", i, i, data[i])
-                if (data[i] != 0xff):
-                    return 0
+    # @retval Data with modified security bits
+    def overrideSecurityBits(self, address, data):
+        # Check if the data passed in contains the security bits
+        if (address <= SECURITY_START and address + len(data) >= SECURITY_START + SECURITY_SIZE):
+
+            # convert data to a list so it can be modified
+            data = list(data)
+
+            # FPROT must be 0xff (erase protection disabled)
+            for i in range(FPROT_ADDR, FPROT_ADDR_END):
+                if (data[i - address] != 0xff):
+                    data[i - address] = 0xff
+                    logging.debug("FCF[%d] at addr 0x%X changed to 0x%X", i - FPROT_ADDR, i, data[i - address])
+
+            # FSEC must be 0xff
+            if data[FSEC_ADDR - address] != FSEC_VAL:
+                data[FSEC_ADDR - address] = FSEC_VAL
+                logging.debug("FSEC at addr 0x%X changed to 0x%X", FSEC_ADDR, FSEC_VAL)
 
             # FOPT must not be 0x00, any other value is acceptable.
-            if data[0xd] == 0x00:
-                return 0
+            if data[FOPT_ADDR - address] == 0x00:
+                logging.debug("FOPT is restricted value 0x00")
 
-            logging.debug("FCF[%d] at addr 0x%X: 0x%X", i+3, i+3, data[i+3])
-            logging.debug("FCF[%d] at addr 0x%X: 0x%X", i+4, i+4, data[i+4])
-            if ((data[0xe] != 0xff) or (data[0xf] != 0xff)):
-                return 0
+            # FEPROT must be 0xff
+            if data[FEPROT_ADDR - address] != FEPROT_VAL:
+                data[FEPROT_ADDR - address] = FEPROT_VAL
+                logging.debug("FEPROT at addr 0x%X changed to 0x%X", FEPROT_ADDR, FEPROT_VAL)
 
-        return 1
+            # FDPROT must be 0xff
+            if data[FDPROT_ADDR - address] != FDPROT_VAL:
+                data[FDPROT_ADDR - address] = FDPROT_VAL
+                logging.debug("FDPROT at addr 0x%X changed to 0x%X", FDPROT_ADDR, FDPROT_VAL)
+
+            # convert back to tuple
+            data = tuple(data)
+
+        return data
