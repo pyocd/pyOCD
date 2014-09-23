@@ -47,14 +47,15 @@ class Board(object):
         self.transport.init()
         self.target.init()
         
-    def uninit(self):
+    def uninit(self, resume = True ):
         """
         Uninitialize the board: interface, transport and target.
         This function resumes the target
         """
         logging.debug("uninit board %s", self)
         try:
-            self.target.resume()
+            if resume:
+                self.target.resume()
             self.transport.uninit()
         finally:
             self.interface.close()

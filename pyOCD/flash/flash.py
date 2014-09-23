@@ -73,8 +73,8 @@ class Flash(object):
         Flash one page
         """
 
-        if (self.checkSecurityBits(flashPtr, bytes) == 0):
-            return 0
+        # prevent security settings from locking the device
+        bytes = self.overrideSecurityBits(flashPtr, bytes)
 
         # first transfer in RAM
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
@@ -141,5 +141,5 @@ class Flash(object):
         self.target.writeCoreRegister('lr', self.flash_algo['load_address'] + 1)
         return
 
-    def checkSecurityBits(self, address, data):
-        return 1
+    def overrideSecurityBits(self, address, data):
+        return data

@@ -553,14 +553,17 @@ class CortexM(Target):
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
         return
 
-    def reset(self):
+    def reset(self, software_reset = False):
         """
         reset a core. After a call to this function, the core
         is running
         """
-        self.transport.reset()
+        if software_reset:
+            self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
+        else:
+            self.transport.reset()
 
-    def resetStopOnReset(self):
+    def resetStopOnReset(self, software_reset = False):
         """
         perform a reset and stop the core on the reset handler
         """
@@ -573,7 +576,7 @@ class CortexM(Target):
 
         # set a breakpoint to the reset handler and reset the target
         self.setBreakpoint(reset_handler)
-        self.transport.reset()
+        self.reset(software_reset)
 
         # wait until the bp is reached
         while (self.getState() == TARGET_RUNNING):
