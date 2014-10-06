@@ -22,6 +22,9 @@ NVMC_READY      = 0x4001E400
 NVMC_CONFIG     = 0x4001E504
 NVMC_ERASEPAGE  = 0x4001E508
 
+# Erase enable
+NVMC_CONFIG_EEN = (0x01 << 1) 
+
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
                                 0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
@@ -52,7 +55,7 @@ class Flash_nrf51822(Flash):
         """
 
         logging.info("Flash_nrf51822: Erase page: 0x%X", flashPtr)
-        self.target.writeMemory(NVMC_CONFIG, 2)
+        self.target.writeMemory(NVMC_CONFIG, NVMC_CONFIG_EEN)
         while self.target.readMemory(NVMC_READY) == 0:
             pass
         self.target.writeMemory(NVMC_ERASEPAGE, flashPtr)

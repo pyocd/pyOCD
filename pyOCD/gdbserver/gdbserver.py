@@ -639,15 +639,15 @@ class GDBServer(threading.Thread):
                     resp = "OK"
                 else:
                     #10000001 for help reset, so output reset cmd help information
-                    if resultMask == 0x5:
+                    if resultMask == 0x81:
                         resp = 'Reset the target\n'
                         resp = self.hexEncode(resp)
                     #10000010 for help halt, so output halt cmd help information
-                    elif resultMask == 0x6:
+                    elif resultMask == 0x82:
                         resp = 'Halt the target\n'
                         resp = self.hexEncode(resp)
                     #10000100 for help resume, so output resume cmd help information
-                    elif resultMask == 0x6:
+                    elif resultMask == 0x84:
                         resp = 'Resume the target\n'
                         resp = self.hexEncode(resp)
                     #11 for reset halt cmd, so launch self.target.resetStopOnReset()

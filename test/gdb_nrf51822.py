@@ -46,10 +46,10 @@ parser.add_option("-l", "--list", action = "store_true", dest = "list_all", defa
 parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
 parser.add_option("-t", "--target", dest = "target_override", default = None, help = "Override target to debug" )
 parser.add_option("-n", "--nobreak", dest = "no_break_at_hardfault", action="count", help = "Disable breakpoint at hardfault handler. Required for nrf51 chip with SoftDevice based application." )
-parser.add_option("-o", "--protect", dest = "flash_protect_offset", default = False, help = "Protect N (hexidecimal) first bytes of flash (for example SoftDevice on nrf51 chip). " )
+parser.add_option("-o", "--offset", dest = "flash_offset", default = False, help = "Skip N (hexidecimal) first bytes of flash (for example SoftDevice on nrf51 chip). " )
 (option, args) = parser.parse_args()
-if (option.flash_protect_offset):
-    option.flash_protect_offset = int(option.flash_protect_offset, 16)
+if (option.flash_offset):
+    option.flash_offset = int(option.flash_offset, 16)
 
 gdb = None
 level = LEVELS.get(option.debug_level, logging.NOTSET)
@@ -61,7 +61,7 @@ else:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
         if board_selected != None:
             try:
-                gdb = GDBServer(board_selected, int(option.port_number), {'flash_protect_offset' : option.flash_protect_offset, 'no_break_at_hardfault' : option.no_break_at_hardfault})
+                gdb = GDBServer(board_selected, int(option.port_number), {'flash_offset' : option.flash_offset, 'no_break_at_hardfault' : option.no_break_at_hardfault})
                 while gdb.isAlive():
                     gdb.join(timeout = 0.5)
             except ValueError:
