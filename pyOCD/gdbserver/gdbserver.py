@@ -54,7 +54,7 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, board, port_urlWSS):
+    def __init__(self, board, port_urlWSS, options):
         threading.Thread.__init__(self)
         self.board = board
         self.target = board.target
@@ -66,6 +66,14 @@ class GDBServer(threading.Thread):
             self.wss_server = port_urlWSS
         else:
             self.port = port_urlWSS
+        if 'flash_protect_offset' in options:
+            self.flash_protect_offset = options['flash_protect_offset']
+        else:
+            self.flash_protect_offset = 0
+        if 'no_break_at_hardfault' in options:
+            self.break_at_hardfault = not bool(options['no_break_at_hardfault'])
+        else:
+            self.break_at_hardfault = True
         self.packet_size = 2048
         self.flashData = list()
         self.conn = None
@@ -106,6 +114,8 @@ class GDBServer(threading.Thread):
         while True:
             new_command = False
             data = ""
+            if self.flash_protect_offset:
+                logging.debug("Protect first " + hex(self.flash_protect_offset) + " bytes in flash")
             logging.info('GDB server started at port:%d',self.port)
             
             self.shutdown_event.clear()
@@ -269,18 +279,21 @@ class GDBServer(threading.Thread):
             
     def resume(self):
         self.ack()
-        self.target.resume()
         self.abstract_socket.setBlocking(0)
         
         # Try to set break point at hardfault handler to avoid
         # halting target constantly
-        if (self.target.availableBreakpoint() >= 1):
+        if not self.break_at_hardfault:
+            bpSet=False
+        elif (self.target.availableBreakpoint() >= 1):
             bpSet=True
             hardfault_handler = self.target.readMemory(4*3)
             self.target.setBreakpoint(hardfault_handler)
         else:
             bpSet=False
             logging.info("No breakpoint available. Interfere target constantly.")
+
+        self.target.resume()
         
         val = ''
         
@@ -299,17 +312,20 @@ class GDBServer(threading.Thread):
             except:
                 pass
             
-            if self.target.getState() == TARGET_HALTED:
-                logging.debug("state halted")
-                xpsr = self.target.readCoreRegister('xpsr')
-                # Get IPSR value from XPSR
-                if (xpsr & 0x1f) == 3:
-                    val = "S" + FAULT[3]
-                else:
-                    val = 'S05'
-                break
-            
-            if not bpSet:
+            try:
+                if self.target.getState() == TARGET_HALTED:
+                    logging.debug("state halted")
+                    xpsr = self.target.readCoreRegister('xpsr')
+                    # Get IPSR value from XPSR
+                    if (xpsr & 0x1f) == 3:
+                        val = "S" + FAULT[3]
+                    else:
+                        val = 'S05'
+                    break
+            except:
+                logging.debug('Target is unavailable temporary.')
+
+            if (not bpSet) and self.break_at_hardfault:
                 # Only do this when no bp available as it slows resume operation
                 self.target.halt()
                 xpsr = self.target.readCoreRegister('xpsr')
@@ -320,7 +336,7 @@ class GDBServer(threading.Thread):
                     break
                 self.target.resume()
         
-        if bpSet:
+        if bpSet and self.break_at_hardfault:
             self.target.removeBreakpoint(hardfault_handler)
 
         self.abstract_socket.setBlocking(1)
@@ -342,7 +358,11 @@ class GDBServer(threading.Thread):
         
         if ops == 'FlashErase':
             self.flash.init()
-            self.flash.eraseAll()
+            if self.flash_protect_offset > 0:
+                logging.info("Skip FlashErase and preserve first "+hex(self.flash_protect_offset) + " bytes in flash")
+            else:
+                self.flash.eraseAll()
+
             return self.createRSPPacket("OK")
         
         elif ops == 'FlashWrite':
@@ -385,9 +405,20 @@ class GDBServer(threading.Thread):
             """
 
             logging.info("flashing %d bytes", bytes_to_be_written)
+            if self.flash_protect_offset:
+                logging.info("Skip " + hex(self.flash_protect_offset) + " bytes.")
+                flashPtr = self.flash_protect_offset
+                self.flashData = self.flashData[flashPtr:]
+                logging.info("application flashing %d bytes", len(self.flashData) - self.flash_protect_offset)
 
             while len(self.flashData) > 0:
                 size_to_write = min(self.flash.page_size, len(self.flashData))
+                
+                #Erase Page if flash has not been erased
+                if self.flash_protect_offset:
+                    self.flash.erasePage(flashPtr)
+
+                #ProgramPage
                 #if 0 is returned from programPage, security check failed
                 if (self.flash.programPage(flashPtr, self.flashData[:size_to_write]) == 0):
                     logging.error("Protection bits error, flashing has stopped")
@@ -582,7 +613,8 @@ class GDBServer(threading.Thread):
             safecmd = {
                 'reset' : ['Reset target', 0x1],
                 'halt'  : ['Halt target', 0x2],
-                'help'  : ['Display this help', 0x4],
+                'resume': ['Resume target', 0x4],
+                'help'  : ['Display this help', 0x80],
             }
             resultMask = 0x00
             if cmd == 'help':
@@ -606,18 +638,27 @@ class GDBServer(threading.Thread):
                     logging.debug(tmp)
                     resp = "OK"
                 else:
-                    #101 for help reset, so output reset cmd help information
+                    #10000001 for help reset, so output reset cmd help information
                     if resultMask == 0x5:
                         resp = 'Reset the target\n'
                         resp = self.hexEncode(resp)
-                    #110 for help halt, so output halt cmd help information
+                    #10000010 for help halt, so output halt cmd help information
                     elif resultMask == 0x6:
                         resp = 'Halt the target\n'
                         resp = self.hexEncode(resp)
-                    #011 for reset halt cmd, so launch self.target.resetStopOnReset()
+                    #10000100 for help resume, so output resume cmd help information
+                    elif resultMask == 0x6:
+                        resp = 'Resume the target\n'
+                        resp = self.hexEncode(resp)
+                    #11 for reset halt cmd, so launch self.target.resetStopOnReset()
                     elif resultMask == 0x3:
                         resp = "OK"
                         self.target.resetStopOnReset()
+                    #111 for reset halt resume cmd, so launch self.target.resetStopOnReset() and self.target.resume()
+                    elif resultMask == 0x7:
+                        resp = "OK"
+                        self.target.resetStopOnReset()
+                        self.target.resume()
                     else:
                         resp = ''
             return self.createRSPPacket(resp)

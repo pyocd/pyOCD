@@ -16,6 +16,11 @@
 """
 
 from flash import Flash
+import logging
+
+NVMC_READY      = 0x4001E400
+NVMC_CONFIG     = 0x4001E504
+NVMC_ERASEPAGE  = 0x4001E508
 
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -33,10 +38,24 @@ flash_algo = { 'load_address' : 0x20000000,
                'begin_data'       : 0x20000200,
                'begin_stack'      : 0x20001000,
                'static_base'      : 0x20000170,
-               'page_size'        : 512
+               'page_size'        : 1024
               };
               
 class Flash_nrf51822(Flash):
     
     def __init__(self, target):
         super(Flash_nrf51822, self).__init__(target, flash_algo)
+
+    def erasePage(self, flashPtr):
+        """
+        Erase one page
+        """
+
+        logging.info("Flash_nrf51822: Erase page: 0x%X", flashPtr)
+        self.target.writeMemory(NVMC_CONFIG, 2)
+        while self.target.readMemory(NVMC_READY) == 0:
+            pass
+        self.target.writeMemory(NVMC_ERASEPAGE, flashPtr)
+
+        while self.target.readMemory(NVMC_READY) == 0:
+            pass
