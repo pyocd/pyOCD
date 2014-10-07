@@ -40,11 +40,16 @@ parser = OptionParser()
 group = OptionGroup(parser, "Supported Mbed Platform",supported_list )
 parser.add_option_group(group)
 parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
+parser.add_option("-c", "--cmd-port", dest = "cmd_port", default = 4444, help = "Command port number. pyOCD doesn't open command port but it's required to be compatible with OpenOCD and Eclipse.")
 parser.add_option("-b", "--board", dest = "board_id", default = None, help = "Write the board id you want to connect")
 parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
 parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
 parser.add_option("-t", "--target", dest = "target_override", default = None, help = "Override target to debug" )
+parser.add_option("-n", "--nobreak", dest = "break_at_hardfault", default = True, action="store_false", help = "Disable breakpoint at hardfault handler. Required for nrf51 chip with SoftDevice based application." )
+parser.add_option("-o", "--offset", dest = "flash_offset", default = False, help = "Skip N (hexidecimal) first bytes of flash (for example SoftDevice on nrf51 chip). " )
 (option, args) = parser.parse_args()
+if (option.flash_offset):
+    option.flash_offset = int(option.flash_offset, 16)
 
 gdb = None
 level = LEVELS.get(option.debug_level, logging.NOTSET)
@@ -56,7 +61,7 @@ else:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
         if board_selected != None:
             try:
-                gdb = GDBServer(board_selected, int(option.port_number))
+                gdb = GDBServer(board_selected, int(option.port_number), {'flash_offset' : option.flash_offset, 'break_at_hardfault' : option.break_at_hardfault})
                 while gdb.isAlive():
                     gdb.join(timeout = 0.5)
             except ValueError:

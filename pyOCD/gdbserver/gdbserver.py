@@ -54,7 +54,7 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, board, port_urlWSS, options):
+    def __init__(self, board, port_urlWSS, options = {}):
         threading.Thread.__init__(self)
         self.board = board
         self.target = board.target
@@ -66,14 +66,8 @@ class GDBServer(threading.Thread):
             self.wss_server = port_urlWSS
         else:
             self.port = port_urlWSS
-        if 'flash_protect_offset' in options:
-            self.flash_protect_offset = options['flash_protect_offset']
-        else:
-            self.flash_protect_offset = 0
-        if 'no_break_at_hardfault' in options:
-            self.break_at_hardfault = not bool(options['no_break_at_hardfault'])
-        else:
-            self.break_at_hardfault = True
+        self.flash_offset = options.get('flash_offset', 0)
+        self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
         self.packet_size = 2048
         self.flashData = list()
         self.conn = None
@@ -114,8 +108,8 @@ class GDBServer(threading.Thread):
         while True:
             new_command = False
             data = ""
-            if self.flash_protect_offset:
-                logging.debug("Protect first " + hex(self.flash_protect_offset) + " bytes in flash")
+            if self.flash_offset:
+                logging.debug("Skip first " + hex(self.flash_offset) + " bytes in flash")
             logging.info('GDB server started at port:%d',self.port)
             
             self.shutdown_event.clear()
@@ -358,8 +352,8 @@ class GDBServer(threading.Thread):
         
         if ops == 'FlashErase':
             self.flash.init()
-            if self.flash_protect_offset > 0:
-                logging.info("Skip FlashErase and preserve first "+hex(self.flash_protect_offset) + " bytes in flash")
+            if self.flash_offset > 0:
+                logging.info("Skip first "+hex(self.flash_offset) + " bytes in flash")
             else:
                 self.flash.eraseAll()
 
@@ -405,17 +399,17 @@ class GDBServer(threading.Thread):
             """
 
             logging.info("flashing %d bytes", bytes_to_be_written)
-            if self.flash_protect_offset:
-                logging.info("Skip " + hex(self.flash_protect_offset) + " bytes.")
-                flashPtr = self.flash_protect_offset
+            if self.flash_offset:
+                logging.info("Skip " + hex(self.flash_offset) + " bytes.")
+                flashPtr = self.flash_offset
                 self.flashData = self.flashData[flashPtr:]
-                logging.info("application flashing %d bytes", len(self.flashData) - self.flash_protect_offset)
+                logging.info("application flashing %d bytes", len(self.flashData) - self.flash_offset)
 
             while len(self.flashData) > 0:
                 size_to_write = min(self.flash.page_size, len(self.flashData))
                 
                 #Erase Page if flash has not been erased
-                if self.flash_protect_offset:
+                if self.flash_offset:
                     self.flash.erasePage(flashPtr)
 
                 #ProgramPage
