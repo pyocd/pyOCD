@@ -66,7 +66,7 @@ class GDBServer(threading.Thread):
             self.wss_server = port_urlWSS
         else:
             self.port = port_urlWSS
-        self.flash_offset = options.get('flash_offset', 0)
+        self.skip_bytes = options.get('skip_bytes', 0)
         self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
         self.packet_size = 2048
         self.flashData = list()
@@ -108,8 +108,8 @@ class GDBServer(threading.Thread):
         while True:
             new_command = False
             data = ""
-            if self.flash_offset:
-                logging.debug("Skip first " + hex(self.flash_offset) + " bytes in flash")
+            if self.skip_bytes:
+                logging.debug("Skip first " + hex(self.skip_bytes) + " bytes in flash")
             logging.info('GDB server started at port:%d',self.port)
             
             self.shutdown_event.clear()
@@ -352,8 +352,8 @@ class GDBServer(threading.Thread):
         
         if ops == 'FlashErase':
             self.flash.init()
-            if self.flash_offset > 0:
-                logging.info("Skip first "+hex(self.flash_offset) + " bytes in flash")
+            if self.skip_bytes > 0:
+                logging.info("Skip first "+hex(self.skip_bytes) + " bytes in flash")
             else:
                 self.flash.eraseAll()
 
@@ -399,17 +399,17 @@ class GDBServer(threading.Thread):
             """
 
             logging.info("flashing %d bytes", bytes_to_be_written)
-            if self.flash_offset:
-                logging.info("Skip " + hex(self.flash_offset) + " bytes.")
-                flashPtr = self.flash_offset
+            if self.skip_bytes:
+                logging.info("Skip " + hex(self.skip_bytes) + " bytes.")
+                flashPtr = self.skip_bytes
                 self.flashData = self.flashData[flashPtr:]
-                logging.info("application flashing %d bytes", len(self.flashData) - self.flash_offset)
+                logging.info("application flashing %d bytes", len(self.flashData) - self.skip_bytes)
 
             while len(self.flashData) > 0:
                 size_to_write = min(self.flash.page_size, len(self.flashData))
                 
                 #Erase Page if flash has not been erased
-                if self.flash_offset:
+                if self.skip_bytes:
                     self.flash.erasePage(flashPtr)
 
                 #ProgramPage
