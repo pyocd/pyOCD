@@ -15,8 +15,13 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM
+from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_MASKINTS, C_STEP, DEMCR, VC_CORERESET, NVIC_AIRCR, NVIC_AIRCR_VECTKEY, NVIC_AIRCR_SYSRESETREQ
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
+import logging
+
+# NRF51 specific registers
+RESET = 0x40000544
+RESET_ENABLE = (1 << 0)
 
 class NRF51822(CortexM):
 
@@ -31,30 +36,63 @@ class NRF51822(CortexM):
     def __init__(self, transport):
         super(NRF51822, self).__init__(transport)
         self.auto_increment_page_size = 0x400
-    
+
+    def step(self):
+        """
+        perform an instruction level step
+        Mask interrupts on nrf51 due to SoftDevice background interrupts.
+        Without this GDB client can't step through the code.
+        """
+        if self.getState() != TARGET_HALTED:
+            logging.debug('cannot step: target not halted')
+            return
+        if self.maybeSkipBreakpoint() is None:
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
+        return
+
     def reset(self):
-        # halt processor
-        self.halt()
+        """
+        reset a core. After a call to this function, the core
+        is running
+        """
+        # For some reason hardware reset prevent normal operation.
+        self.resetStopResume()
+
+    def resetStopResume(self):
+        """
+        reset a core. After a call to this function, the core
+        is running
+        """
+        self.resetStopOnReset()
+        self.resume()
+
+    def resetn(self):
+        """
+        reset a core. After a call to this function, the core
+        is running
+        """
         #Regular reset will kick NRF out of DBG mode
-        #self.writeMemory(0x40000544, 1)
+        logging.debug("target_nrf518.reset: enable reset pin")
+        self.writeMemory(RESET, RESET_ENABLE)
         #reset
-        #CortexM.reset(self)
-        
-        #Soft Reset will keep NRF in debug mode
-        self.writeMemory(0xe000ed0c, 0x05FA0000 | 0x00000004)
-    
-    def resetStopOnReset(self):        
-        #CortexM.resetStopOnReset(self)
+        logging.debug("target_nrf518.reset: trigger nRST pin")
+        CortexM.reset(self)
+
+    def resetStopOnReset(self):
+        """
+        perform a reset and stop the core on the reset handler
+        """
         # read address of reset handler
         reset_handler = self.readMemory(4)
-        
-        # reset and halt the target
-        self.reset()
+
+        # halt on reset the target
         self.halt()
-        
         # set a breakpoint to the reset handler and reset the target
         self.setBreakpoint(reset_handler)
-        self.reset()
+
+        #Soft Reset will keep NRF in debug mode
+        self.writeMemory(DEMCR, VC_CORERESET)
+        self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
         
         # wait until the bp is reached
         while (self.getState() == TARGET_RUNNING):
