@@ -68,6 +68,21 @@ class Flash(object):
 
         return
 
+    def erasePage(self, flashPtr):
+        """
+        Erase one page
+        """
+
+        # update core register to execute the erasePage subroutine
+        self.updateCoreRegister(flashPtr, 0, 0, 0, self.flash_algo['pc_erase_sector'])
+
+        # resume and wait until the breakpoint is hit
+        self.target.resume()
+        while(self.target.getState() == TARGET_RUNNING):
+            pass
+
+        return
+
     def programPage(self, flashPtr, bytes):
         """
         Flash one page
