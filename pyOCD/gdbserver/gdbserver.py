@@ -66,10 +66,10 @@ class GDBServer(threading.Thread):
             self.wss_server = port_urlWSS
         else:
             self.port = port_urlWSS
-        self.skip_bytes = options.get('skip_bytes', 0)
         self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
         self.packet_size = 2048
         self.flashData = list()
+        self.flashOffset = None
         self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -108,8 +108,6 @@ class GDBServer(threading.Thread):
         while True:
             new_command = False
             data = ""
-            if self.skip_bytes:
-                logging.debug("Skip first " + hex(self.skip_bytes) + " bytes in flash")
             logging.info('GDB server started at port:%d',self.port)
             
             self.shutdown_event.clear()
@@ -351,17 +349,11 @@ class GDBServer(threading.Thread):
         logging.debug("flash op: %s", ops)
         
         if ops == 'FlashErase':
-            self.flash.init()
-            if self.skip_bytes > 0:
-                logging.info("Skip first "+hex(self.skip_bytes) + " bytes in flash")
-            else:
-                self.flash.eraseAll()
-
             return self.createRSPPacket("OK")
         
         elif ops == 'FlashWrite':
             write_addr = int(data.split(':')[1], 16)
-            logging.debug("flash write addr: 0x%s", write_addr)
+            logging.debug("flash write addr: 0x%x", write_addr)
             # search for second ':' (beginning of data encoded in the message)
             second_colon = 0
             idx_begin = 0
@@ -370,8 +362,13 @@ class GDBServer(threading.Thread):
                     second_colon += 1
                 idx_begin += 1
 
+            # determine the address to start flashing
+            if self.flashOffset == None:
+                # flash offset must be a multiple of the page size
+                self.flashOffset = write_addr - ( write_addr % self.flash.page_size )
+
             # if there's gap between sections, fill it
-            flash_watermark = len(self.flashData)
+            flash_watermark = len(self.flashData) + self.flashOffset
             pad_size = write_addr - flash_watermark
             if pad_size > 0:
                 self.flashData += [0xFF] * pad_size
@@ -386,44 +383,34 @@ class GDBServer(threading.Thread):
         
         # we need to flash everything
         elif 'FlashDone' in ops :
-            flashPtr = 0
             bytes_to_be_written = len(self.flashData)
-
-            """
-            bin = open(os.path.join(parentdir, 'res', 'bad_bin.txt'), "w+")
+            flashPtr = self.flashOffset
             
-            i = 0
-            while (i < bytes_to_be_written):
-                bin.write(str(self.flashData[i:i+16]) + "\n")
-                i += 16
-            """
+            self.flash.init()
 
-            logging.info("flashing %d bytes", bytes_to_be_written)
-            if self.skip_bytes:
-                logging.info("Skip " + hex(self.skip_bytes) + " bytes.")
-                flashPtr = self.skip_bytes
-                self.flashData = self.flashData[flashPtr:]
-                logging.info("application flashing %d bytes", len(self.flashData) - self.skip_bytes)
+            # use mass erase if the address starts at 0
+            mass_erase = flashPtr == 0
+            if mass_erase:
+                logging.debug("Erasing entire flash")
+                self.flash.eraseAll()
 
             while len(self.flashData) > 0:
                 size_to_write = min(self.flash.page_size, len(self.flashData))
                 
                 #Erase Page if flash has not been erased
-                if self.skip_bytes:
+                if not mass_erase:
+                    logging.debug("Erasing page 0x%x", flashPtr)
                     self.flash.erasePage(flashPtr)
 
                 #ProgramPage
-                #if 0 is returned from programPage, security check failed
-                if (self.flash.programPage(flashPtr, self.flashData[:size_to_write]) == 0):
-                    logging.error("Protection bits error, flashing has stopped")
-                    return None
+                self.flash.programPage(flashPtr, self.flashData[:size_to_write])
                 flashPtr += size_to_write
 
                 self.flashData = self.flashData[size_to_write:]
 
                 # print progress bar
                 sys.stdout.write('\r')
-                i = int((float(flashPtr)/float(bytes_to_be_written))*20.0)
+                i = int((float(flashPtr - self.flashOffset)/float(bytes_to_be_written))*20.0)
                 # the exact output you're looking for:
                 sys.stdout.write("[%-20s] %d%%" % ('='*i, 5*i))
                 sys.stdout.flush()
@@ -431,11 +418,8 @@ class GDBServer(threading.Thread):
             sys.stdout.write("\n\r")
             
             self.flashData = []
-            
-            """
-            bin.close()
-            """
-            
+            self.flashOffset = None
+
             # reset and stop on reset handler
             self.target.resetStopOnReset()
             

@@ -46,10 +46,7 @@ parser.add_option("-l", "--list", action = "store_true", dest = "list_all", defa
 parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
 parser.add_option("-t", "--target", dest = "target_override", default = None, help = "Override target to debug" )
 parser.add_option("-n", "--nobreak", dest = "break_at_hardfault", default = True, action="store_false", help = "Disable breakpoint at hardfault handler. Required for nrf51 chip with SoftDevice based application." )
-parser.add_option("-s", "--skip", dest = "skip_bytes", default = False, help = "Skip N (hexidecimal) first bytes of flash (for example SoftDevice on nrf51 chip). " )
 (option, args) = parser.parse_args()
-if (option.skip_bytes):
-    option.skip_bytes = int(option.skip_bytes, 16)
 
 gdb = None
 level = LEVELS.get(option.debug_level, logging.NOTSET)
@@ -61,7 +58,7 @@ else:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
         if board_selected != None:
             try:
-                gdb = GDBServer(board_selected, int(option.port_number), {'skip_bytes' : option.skip_bytes, 'break_at_hardfault' : option.break_at_hardfault})
+                gdb = GDBServer(board_selected, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault})
                 while gdb.isAlive():
                     gdb.join(timeout = 0.5)
             except ValueError:
