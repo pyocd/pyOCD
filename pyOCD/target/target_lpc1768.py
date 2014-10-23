@@ -32,14 +32,14 @@ class LPC1768(CortexM):
         super(LPC1768, self).__init__(transport)
         self.auto_increment_page_size = 0x1000
         
-    def reset(self):
+    def reset(self, software_reset = False):
         # halt processor
         self.halt()
         # not remap 0x0000-0x0020 to anything but the flash
         self.writeMemory(0x400FC040, 1)
         CortexM.reset(self)
         
-    def resetStopOnReset(self):
+    def resetStopOnReset(self, software_reset = False):
         # halt processor
         self.halt()
         # not remap 0x0000-0x0020 to anything but the flash
