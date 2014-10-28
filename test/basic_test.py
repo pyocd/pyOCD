@@ -59,30 +59,39 @@ try:
     if target_type == "lpc1768":
         addr = 0x10000001
         size = 0x1102
+        addr_flash = 0x10000
     elif target_type == "lpc11u24":
         addr = 0x10000001
         size = 0x502
+        addr_flash = 0x4000
     elif target_type == "kl25z":
         addr = 0x20000001
         size = 0x502
+        addr_flash = 0x10000
     elif target_type == "k64f":
         addr = 0x20000001
         size = 0x502
+        addr_flash = 0x10000
     elif target_type == "k22f":
         addr = 0x20000001
         size = 0x502
+        addr_flash = 0x10000
     elif target_type == "k20d50m":
         addr = 0x20000001
         size = 0x502
+        addr_flash = 0x10000
     elif target_type == "kl46z":
         addr = 0x20000001
         size = 0x502
+        addr_flash = 0x10000
     elif target_type == "lpc800":
         addr = 0x10000001
         size = 0x502
+        addr_flash = 0x4000
     elif target_type == "nrf51822":
         addr = 0x20000001
         size = 0x502
+        addr_flash = 0x20000
     else:
         raise Exception("A board is not supported by this test script.")
 
@@ -200,6 +209,22 @@ try:
         target.step()
         print "pc: 0x%X" % target.readCoreRegister('pc')
         
+    print "\r\n\r\n------ TEST PROGRAM/ERASE PAGE ------"
+    # Fill 3 pages with 0x55
+    fill = [0x55] * flash.page_size
+    flash.init()
+    for i in range(0, 3):
+        flash.erasePage(addr_flash + flash.page_size * i)
+        flash.programPage( addr_flash + flash.page_size * i, fill )
+    # Erase the middle page
+    flash.erasePage(addr_flash + flash.page_size)
+    # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
+    data = target.readBlockMemoryUnaligned8(addr_flash, flash.page_size * 3)
+    expected = fill + [0xFF] * flash.page_size + fill
+    if data == expected:
+        print "TEST PASSED"
+    else:
+        print "TEST FAILED"
         
     print "\r\n\r\n----- FLASH NEW BINARY -----"
     flash.flashBinary(binary_file)

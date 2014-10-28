@@ -51,6 +51,11 @@ class Flash(object):
         while(self.target.getState() == TARGET_RUNNING):
             pass
 
+        # check the return code
+        result = self.target.readCoreRegister('r0')
+        if result != 0:
+            logging.error('eraseAll error: %i', result)
+
         return
 
     def eraseAll(self):
@@ -65,6 +70,31 @@ class Flash(object):
         self.target.resume()
         while(self.target.getState() == TARGET_RUNNING):
             pass
+
+        # check the return code
+        result = self.target.readCoreRegister('r0')
+        if result != 0:
+            logging.error('eraseAll error: %i', result)
+
+        return
+
+    def erasePage(self, flashPtr):
+        """
+        Erase one page
+        """
+
+        # update core register to execute the erasePage subroutine
+        self.updateCoreRegister(flashPtr, 0, 0, 0, self.flash_algo['pc_erase_sector'])
+
+        # resume and wait until the breakpoint is hit
+        self.target.resume()
+        while(self.target.getState() == TARGET_RUNNING):
+            pass
+
+        # check the return code
+        result = self.target.readCoreRegister('r0')
+        if result != 0:
+            logging.error('erasePage error: %i', result)
 
         return
 
@@ -86,6 +116,12 @@ class Flash(object):
         self.target.resume()
         while(self.target.getState() == TARGET_RUNNING):
             pass
+
+        # check the return code
+        result = self.target.readCoreRegister('r0')
+        if result != 0:
+            logging.error('programPage error: %i', result)
+
         return
 
     def flashBinary(self, path_file):
