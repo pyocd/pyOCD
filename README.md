@@ -1,7 +1,7 @@
 pyOCD
 =====
-pyOCD is an Open Source python library or programming and debugging 
-ARM Cortex-M microcontrollers using CMSIS-DAP.
+pyOCD is an Open Source python 2.7 based library for programming and debugging 
+ARM Cortex-M microcontrollers using CMSIS-DAP. Linux, OSX and Windows are supported.
 
 You can use the following interfaces:
 
@@ -13,6 +13,7 @@ You can use the following interfaces:
   * set/remove hardware breakpoints
   * flash new binary
   * reset
+
 2. From a GDB client, you have all the features provided by gdb:
   * load a .elf file
   * read/write memory
@@ -21,20 +22,22 @@ You can use the following interfaces:
   * high level stepping
   * ...
 
-Dependencies
+Installation
 ------------
-pyOCD relies on external libraries:
+
+### Pre-Install 
+pyOCD relies on external USB libraries:
 
 * Windows: [pyWinUSB](https://github.com/rene-aguirre/pywinusb):
 
-```
+```Shell
 $ cd /path-to-pywinusb/
 $ python setup.py install
 ```
 
 * Linux: [pyUSB](https://github.com/walac/pyusb):
 
-```
+```Shell
 $ sudo apt-get install python libusb-1.0-0-dev
 $ cd /path-to-pyusb/
 $ sudo python setup.py install
@@ -42,19 +45,22 @@ $ sudo python setup.py install
 
 
 * Mac: [hidapi](https://github.com/signal11/hidapi), [cython-hidapi](https://github.com/gbishop/cython-hidapi)
-```
+```Shell
 $ brew install hidapi
 $ git clone https://github.com/gbishop/cython-hidapi.git
 $ cd cython-hidapi
 $ sudo python setup.py install
 ```
-    
-    
-Installation
-------------
-```
+
+### Install pyOCD
+Clone pyOCD somewhere then run the install script.
+```Shell
 $ cd /path-to-pyOCD/
 $ python setup.py install
+```
+Test the installation of pyOCD by running the basic test with an mbed enabled board connected to the computer. The basic_test.py will perform a series of tests on the board and leave it with a blinky program running.
+```Shell
+$ python2.7 pyOCD/test/basic_test.py
 ```
 
 Standalone GDB Server
@@ -67,8 +73,8 @@ Standalone GDB Server
 Examples
 --------
 ### Tests
-A series of tests are on the test directory:
-* basic_test.py: simple test that checks:
+A series of tests are provided in the test directory:
+* basic_test.py: a simple test that checks:
   * read/write core registers
   * read/write memory
   * stop/resume/step the execution
@@ -81,7 +87,8 @@ A series of tests are on the test directory:
   * "-l", "--list", help = "List all the connected board"
   * "-d", "--debug", help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical"
 
-### Hello World example
+
+### Hello World example code
 ```python
 from pyOCD.board import MbedBoard
 
@@ -118,7 +125,7 @@ print "pc: 0x%X" % target.readCoreRegister("pc")
 board.uninit()
 ```
 
-###GDB server example
+### GDB server example
 Python:
 ```python
 from pyOCD.gdbserver import GDBServer
