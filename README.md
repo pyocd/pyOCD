@@ -73,6 +73,7 @@ A series of tests are on the test directory:
   * read/write memory
   * stop/resume/step the execution
   * reset the target
+  * erase pages
   * flash a binary
 * gdb_test.py: launch a gdbserver
 * gdb_server.py: an enhanced version of gdbserver which provides the following options:
@@ -80,6 +81,8 @@ A series of tests are on the test directory:
   * "-b", "--board", help = "Write the board id you want to connect"
   * "-l", "--list", help = "List all the connected board"
   * "-d", "--debug", help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical"
+  * "-t", "--target", help = "Override target to debug"
+  * "-n", "--nobreak", help = "Disable breakpoint at hardfault handler. Required for nrf51 chip with SoftDevice based application."
 
 ### Hello World example
 ```python

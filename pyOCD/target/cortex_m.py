@@ -568,35 +568,25 @@ class CortexM(Target):
         perform a reset and stop the core on the reset handler
         """
         logging.debug("reset stop on Reset")
-        # read address of reset handler
-        reset_handler = self.readMemory(4)
 
         # halt the target
         self.halt()
 
-        # set a breakpoint to the reset handler and reset the target
-        self.setBreakpoint(reset_handler)
+        # enable the vector catch
+        self.writeMemory(DEMCR, VC_CORERESET)
+
         self.reset(software_reset)
 
-        # wait until the bp is reached
+        # wait until the unit resets
         while (self.getState() == TARGET_RUNNING):
             pass
 
-        # remove the breakpoint
-        self.removeBreakpoint(reset_handler)
-
-        logging.debug("stopped on reset handler: 0x%X", reset_handler)
+        # disable vector catch
+        self.writeMemory(DEMCR, 0)
 
     def setTargetState(self, state):
         if state == "PROGRAM":
-            self.resetStopOnReset()
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
-            self.writeMemory(DEMCR, VC_CORERESET)
-            self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
-            while self.getState() == TARGET_RUNNING:
-                pass
-            self.writeMemory(DEMCR, 0)
-
+            self.resetStopOnReset(software_reset = True)
 
     def getState(self):
         dhcsr = self.readMemory(DHCSR)
