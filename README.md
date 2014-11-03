@@ -49,7 +49,7 @@ $ sudo python setup.py install
 $ brew install hidapi
 $ git clone https://github.com/gbishop/cython-hidapi.git
 $ cd cython-hidapi
-$ sudo python setup.py install
+$ sudo python setup-mac.py install
 ```
 
 ### Install pyOCD
