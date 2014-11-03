@@ -50,7 +50,7 @@ class NRF51822(CortexM):
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
         return
 
-    def reset(self):
+    def reset(self, software_reset = False):
         """
         reset a core. After a call to this function, the core
         is running
@@ -78,7 +78,7 @@ class NRF51822(CortexM):
         logging.debug("target_nrf518.reset: trigger nRST pin")
         CortexM.reset(self)
 
-    def resetStopOnReset(self):
+    def resetStopOnReset(self, software_reset = False):
         """
         perform a reset and stop the core on the reset handler
         """

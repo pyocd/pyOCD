@@ -46,7 +46,7 @@ class STM32F103RC(CortexM):
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
         return
 
-    def reset(self):
+    def reset(self, software_reset = False):
         """
         reset a core. After a call to this function, the core
         is running
@@ -62,7 +62,7 @@ class STM32F103RC(CortexM):
         self.resetStopOnReset()
         self.resume()
 
-    def resetStopOnReset(self):
+    def resetStopOnReset(self, software_reset = False):
         """
         perform a reset and stop the core on the reset handler
         """
