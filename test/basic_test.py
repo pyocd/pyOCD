@@ -43,9 +43,7 @@ parser = argparse.ArgumentParser(description='A CMSIS-DAP python debugger')
 parser.add_argument('-f', help='binary file', dest = "file")
 args = parser.parse_args()
 
-try:
-
-    board = MbedBoard.chooseBoard()
+with MbedBoard.chooseBoard() as board:
     target_type = board.getTargetType()
     
     if args.file is None:
@@ -230,7 +228,3 @@ try:
     flash.flashBinary(binary_file)
 
     target.reset()
-        
-finally:
-    if board != None:
-        board.uninit()
