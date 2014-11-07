@@ -29,5 +29,6 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
     ],
+    use_2to3=True,
     packages=["pyOCD", "pyOCD.flash", "pyOCD.gdbserver", "pyOCD.interface", "pyOCD.target", "pyOCD.transport", "pyOCD.board"]
 )
