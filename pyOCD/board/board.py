@@ -67,7 +67,11 @@ class Board(object):
         logging.debug("uninit board %s", self)
         try:
             if resume:
-                self.target.resume()
+                try:
+                    self.target.resume()
+                except:
+                    logging.error("exception during uninit")
+                    pass
             self.transport.uninit()
         finally:
             self.interface.close()
