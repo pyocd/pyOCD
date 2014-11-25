@@ -36,7 +36,15 @@ class Board(object):
         self.target = TARGET[target](self.transport)
         self.flash = FLASH[flash](self.target)
         self.target.setFlash(self.flash)
+        self.closed = False
         return
+        
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, type, value, traceback):
+        self.uninit()
+        return False
     
     def init(self):
         """
@@ -52,10 +60,18 @@ class Board(object):
         Uninitialize the board: interface, transport and target.
         This function resumes the target
         """
+        if self.closed:
+            return
+        self.closed = True
+            
         logging.debug("uninit board %s", self)
         try:
             if resume:
-                self.target.resume()
+                try:
+                    self.target.resume()
+                except:
+                    logging.error("exception during uninit")
+                    pass
             self.transport.uninit()
         finally:
             self.interface.close()
