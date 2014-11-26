@@ -16,7 +16,7 @@
 """
 
 from cmsis_dap_core import dapTransferBlock, dapWriteAbort, dapSWJPins, dapConnect, dapDisconnect, dapTransfer, dapSWJSequence, dapSWDConfigure, dapSWJClock, dapTransferConfigure, dapInfo
-from transport import Transport
+from transport import Transport, TransferError
 import logging
 from time import sleep
 
@@ -127,16 +127,26 @@ class CMSIS_DAP(Transport):
         elif transfer_size == 16:
             data = data << ((addr & 0x02) << 3)
 
-        dapTransfer(self.interface, 2, [WRITE | AP_ACC | AP_REG['TAR'],
-                                        WRITE | AP_ACC | AP_REG['DRW']],
-                                       [addr, data])
+        try:
+            dapTransfer(self.interface, 2, [WRITE | AP_ACC | AP_REG['TAR'],
+                                            WRITE | AP_ACC | AP_REG['DRW']],
+                                           [addr, data])
+        except TransferError:
+            # Clear STICKYERR flag
+            self.writeDP(0x0, (1 << 2))
+            raise
 
     def readMem(self, addr, transfer_size = 32):
         self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
 
-        resp = dapTransfer(self.interface, 2, [WRITE | AP_ACC | AP_REG['TAR'],
-                                               READ | AP_ACC | AP_REG['DRW']],
-                                              [addr])
+        try:
+            resp = dapTransfer(self.interface, 2, [WRITE | AP_ACC | AP_REG['TAR'],
+                                                   READ | AP_ACC | AP_REG['DRW']],
+                                                  [addr])
+        except TransferError:
+            # Clear STICKYERR flag
+            self.writeDP(0x0, (1 << 2))
+            raise
 
         res =   (resp[0] << 0)  | \
                 (resp[1] << 8)  | \
@@ -155,7 +165,12 @@ class CMSIS_DAP(Transport):
         # put address in TAR
         self.writeAP(AP_REG['CSW'], CSW_VALUE | CSW_SIZE32)
         self.writeAP(AP_REG['TAR'], addr)
-        dapTransferBlock(self.interface, len(data), WRITE | AP_ACC | AP_REG['DRW'], data)
+        try:
+            dapTransferBlock(self.interface, len(data), WRITE | AP_ACC | AP_REG['DRW'], data)
+        except TransferError:
+            # Clear STICKYERR flag
+            self.writeDP(0x0, (1 << 2))
+            raise
         return
 
     # read aligned word (the size is in words)
@@ -164,7 +179,12 @@ class CMSIS_DAP(Transport):
         self.writeAP(AP_REG['CSW'], CSW_VALUE | CSW_SIZE32)
         self.writeAP(AP_REG['TAR'], addr)
         data = []
-        resp = dapTransferBlock(self.interface, size, READ | AP_ACC | AP_REG['DRW'])
+        try:
+            resp = dapTransferBlock(self.interface, size, READ | AP_ACC | AP_REG['DRW'])
+        except TransferError:
+            # Clear STICKYERR flag
+            self.writeDP(0x0, (1 << 2))
+            raise
         for i in range(len(resp)/4):
             data.append( (resp[i*4 + 0] << 0)   | \
                          (resp[i*4 + 1] << 8)   | \
