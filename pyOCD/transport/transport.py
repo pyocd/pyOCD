@@ -15,6 +15,9 @@
  limitations under the License.
 """
 
+class TransferError(ValueError):
+    pass
+
 class Transport(object):
 
     def __init__(self, interface):

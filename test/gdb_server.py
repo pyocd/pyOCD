@@ -56,13 +56,10 @@ if option.list_all == True:
 else:
     try:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
-        if board_selected != None:
-            try:
-                gdb = GDBServer(board_selected, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault})
-                while gdb.isAlive():
-                    gdb.join(timeout = 0.5)
-            except ValueError:
-                logging.error("Port number error!")
+        with board_selected as board:
+            gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault})
+            while gdb.isAlive():
+                gdb.join(timeout = 0.5)
     except KeyboardInterrupt:
         if gdb != None:
             gdb.stop()

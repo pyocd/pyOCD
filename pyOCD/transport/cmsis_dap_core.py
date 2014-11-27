@@ -17,6 +17,7 @@
 
 import logging
 import array
+from transport import TransferError
 
 COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_LED': 0x01,
@@ -61,6 +62,11 @@ DAP_JTAG_POR = 2
 
 DAP_OK = 0
 DAP_ERROR = 0xff
+
+# Responses to DAP_Transfer and DAP_TransferBlock
+DAP_TRANSFER_OK = 1
+DAP_TRANSFER_WAIT = 2
+DAP_TRANSFER_FAULT = 4
 
 MAX_PACKET_SIZE = 0x0E
 
@@ -202,8 +208,10 @@ def dapTransfer(interface, count, request, data = [0], dap_index = 0):
     
     if resp[1] != count:
         raise ValueError('Transfer not completed')
-    
-    if resp[2] != 0x01:
+
+    if resp[2] != DAP_TRANSFER_OK:
+        if resp[2] == DAP_TRANSFER_FAULT:
+            raise TransferError()
         raise ValueError('SWD Fault')
         
     return resp[3:3+count_write*4]
@@ -233,7 +241,12 @@ def dapTransferBlock(interface, count, request, data = [0], dap_index = 0):
     
         # we then read
         tmp = interface.read()
-        if tmp[0] != COMMAND_ID['DAP_TRANSFER_BLOCK'] or tmp[3] != 0x01:
+        if tmp[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
+            raise ValueError('DAP_TRANSFER_BLOCK response error')
+
+        if tmp[3] != DAP_TRANSFER_OK:
+            if tmp[3] == DAP_TRANSFER_FAULT:
+                raise TransferError()
             raise ValueError('DAP_TRANSFER_BLOCK response error')
         size_transfer = tmp[1] | (tmp[2] << 8)
         resp.extend(tmp[4:4+size_transfer*4])

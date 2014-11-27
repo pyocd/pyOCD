@@ -18,6 +18,7 @@
 import logging, threading, socket
 from pyOCD.target.cortex_m import CORE_REGISTER
 from pyOCD.target.target import TARGET_HALTED
+from pyOCD.transport import TransferError
 from struct import unpack
 from time import sleep
 import sys
@@ -455,15 +456,17 @@ class GDBServer(threading.Thread):
         length = split[1]
         length = int(length[:len(length)-3],16)
         
-        val = ''
-        
-        mem = self.target.readBlockMemoryUnaligned8(addr, length)
-        for x in mem:
-            if x >= 0x10:
-                val += hex(x)[2:4]
-            else:
-                val += '0' + hex(x)[2:3]
-            
+        try:
+            val = ''
+            mem = self.target.readBlockMemoryUnaligned8(addr, length)
+            for x in mem:
+                if x >= 0x10:
+                    val += hex(x)[2:4]
+                else:
+                    val += '0' + hex(x)[2:3]
+        except TransferError:
+            logging.debug("getMemory failed at 0x%x" % addr)
+            val = 'E01' #EPERM
         return self.createRSPPacket(val)
     
     def writeMemory(self, data):
@@ -481,10 +484,15 @@ class GDBServer(threading.Thread):
         data = data[idx_begin:len(data) - 3]
         data = self.unescape(data)
         
-        if length > 0:
-            self.target.writeBlockMemoryUnaligned8(addr, data)
+        try:
+            if length > 0:
+                self.target.writeBlockMemoryUnaligned8(addr, data)
+            resp = "OK"
+        except TransferError:
+            logging.debug("writeMemory failed at 0x%x" % addr)
+            resp = 'E01' #EPERM
         
-        return self.createRSPPacket("OK")
+        return self.createRSPPacket(resp)
         
     def readRegister(self, data):
         num = int(data.split('#')[0], 16)
