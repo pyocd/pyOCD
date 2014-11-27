@@ -18,6 +18,10 @@
 TARGET_RUNNING = (1 << 0)
 TARGET_HALTED = (1 << 1)
 
+WATCHPOINT_READ = 1
+WATCHPOINT_WRITE = 2
+WATCHPOINT_READ_WRITE = 3
+
 class Target(object):
     
     def __init__(self, transport):
@@ -76,6 +80,12 @@ class Target(object):
     def removeBreakpoint(self, addr):
         return
     
+    def setWatchpoint(addr, size, type):
+        return
+
+    def removeWatchpoint(addr, size, type):
+        return
+
     def reset(self):
         return
     

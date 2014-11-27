@@ -16,7 +16,7 @@
 """
 
 from pyOCD.target.target import Target
-from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
+from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from pyOCD.transport.cmsis_dap import DP_REG
 import logging
 import struct
@@ -31,7 +31,7 @@ DCRDR = 0xE000EDF8
 # Debug Exception and Monitor Control Register
 DEMCR = 0xE000EDFC
 
-TRACE_ENA = (1 << 24)
+TRACE_ENA = (1 << 24) # DWTENA in armv6 architecture reference manual
 VC_HARDERR = (1 << 9)
 VC_BUSERR = (1 << 8)
 VC_CORERESET = (1 << 0)
@@ -104,6 +104,21 @@ DBGKEY = (0xA05F << 16)
 FP_CTRL = (0xE0002000)
 FP_CTRL_KEY = (1 << 1)
 FP_COMP0 = (0xE0002008)
+
+# DWT (data watchpoint & trace)
+DWT_CTRL = 0xE0001000
+DWT_COMP_BASE = 0xE0001020
+DWT_MASK_OFFSET = 4
+DWT_FUNCTION_OFFSET = 8
+DWT_COMP_BLOCK_SIZE = 0x10
+WATCH_TYPE_TO_FUNCT = {
+                        WATCHPOINT_READ: 5,
+                        WATCHPOINT_WRITE: 6,
+                        WATCHPOINT_READ_WRITE: 7
+                        }
+# Only sizes that are powers of 2 are supported
+# Breakpoint size = MASK**2
+WATCH_SIZE_TO_MASK = dict((2**i, i) for i in range(0,32))
 
 # Map from register name to DCRSR register index.
 #
@@ -201,7 +216,6 @@ def word2byte(data):
 def int2float(data):
     d = struct.pack("@I", data)
     return struct.unpack("@f", d)[0]
-
 ## @brief Convert an IEEE754 float to a 32-bit int.
 def float2int(data):
     d = struct.pack("@f", data)
@@ -213,6 +227,14 @@ class Breakpoint(object):
         self.comp_register_addr = comp_register_addr
         self.enabled = False
         self.addr = 0
+
+
+class Watchpoint():
+    def __init__(self, comp_register_addr):
+        self.comp_register_addr = comp_register_addr
+        self.addr = 0
+        self.size = 0
+        self.func = 0
 
 
 class CortexM(Target):
@@ -261,12 +283,15 @@ class CortexM(Target):
         self.num_breakpoint_used = 0
         self.nb_lit = 0
         self.fpb_enabled = False
+        self.watchpoints = []
+        self.watchpoint_used = 0
+        self.dwt_configured = False
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
         self.part_number = self.__class__.__name__
 
-    def init(self, setup_fpb = True):
+    def init(self, setup_fpb = True, setup_dwt = True):
         """
         Cortex M initialization
         """
@@ -288,6 +313,10 @@ class CortexM(Target):
             self.setupFPB()
             self.readCoreType()
             self.checkForFPU()
+
+        if setup_dwt:
+            self.halt()
+            self.setupDWT()
 
     ## @brief Read the CPUID register and determine core type.
     def readCoreType(self):
@@ -342,6 +371,21 @@ class CortexM(Target):
         self.disableFPB()
         for bp in self.breakpoints:
             self.writeMemory(bp.comp_register_addr, 0)
+
+    def setupDWT(self):
+        """
+        Reads the number of hardware watchpoints available on the core
+        and makes sure that they are all disabled and ready for future
+        use
+        """
+        self.writeMemory(DEMCR, TRACE_ENA)
+        dwt_ctrl = self.readMemory(DWT_CTRL)
+        watchpoint_count = (dwt_ctrl >> 28) & 0xF
+        logging.info("%d hardware watchpoints", watchpoint_count)
+        for i in range(watchpoint_count):
+            self.watchpoints.append(Watchpoint(DWT_COMP_BASE + DWT_COMP_BLOCK_SIZE*i))
+            self.writeMemory(DWT_COMP_BASE + DWT_COMP_BLOCK_SIZE*i + DWT_FUNCTION_OFFSET, 0)
+        self.dwt_configured = True
 
     def info(self, request):
         return self.transport.info(request)
@@ -573,7 +617,7 @@ class CortexM(Target):
         self.halt()
 
         # enable the vector catch
-        self.writeMemory(DEMCR, VC_CORERESET)
+        self.writeMemory(DEMCR, VC_CORERESET | TRACE_ENA)
 
         self.reset(software_reset)
 
@@ -582,7 +626,7 @@ class CortexM(Target):
             pass
 
         # disable vector catch
-        self.writeMemory(DEMCR, 0)
+        self.writeMemory(DEMCR, TRACE_ENA)
 
     def setTargetState(self, state):
         if state == "PROGRAM":
@@ -762,6 +806,64 @@ class CortexM(Target):
                 bp.addr = addr
                 self.num_breakpoint_used -= 1
                 return
+        return
+
+    def findWatchpoint(self, addr, size, type):
+        for watch in self.watchpoints:
+            if watch.addr == addr and watch.size == size and watch.func == WATCH_TYPE_TO_FUNCT[type]:
+                return watch
+        return None
+
+    def setWatchpoint(self, addr, size, type):
+        """
+        set a hardware watchpoint
+        """
+        if self.dwt_configured is False:
+            self.setupDWT()
+
+        watch = self.findWatchpoint(addr, size, type)
+        if watch != None:
+            return True
+
+        if type not in WATCH_TYPE_TO_FUNCT:
+            logging.error("Invalid watchpoint type %i", type)
+            return False
+
+        for watch in self.watchpoints:
+            if watch.func == 0:
+                watch.addr = addr
+                watch.func = WATCH_TYPE_TO_FUNCT[type]
+                watch.size = size
+
+                if size not in WATCH_SIZE_TO_MASK:
+                    logging.error('Watchpoint of size %d not supported by device', size)
+                    return False
+
+                mask = WATCH_SIZE_TO_MASK[size]
+                self.writeMemory(watch.comp_register_addr + DWT_MASK_OFFSET, mask)
+                if self.readMemory(watch.comp_register_addr + DWT_MASK_OFFSET) != mask:
+                    logging.error('Watchpoint of size %d not supported by device', size)
+                    return False
+
+                self.writeMemory(watch.comp_register_addr, addr)
+                self.writeMemory(watch.comp_register_addr + DWT_FUNCTION_OFFSET, watch.func)
+                self.watchpoint_used += 1
+                return True
+
+        logging.error('No more available watchpoint!!, dropped watch at 0x%X', addr)
+        return False
+
+    def removeWatchpoint(self, addr, size, type):
+        """
+        remove a hardware watchpoint
+        """
+        watch = self.findWatchpoint(addr, size, type)
+        if watch is None:
+            return
+
+        watch.func = 0
+        self.writeMemory(watch.comp_register_addr + DWT_FUNCTION_OFFSET, 0)
+        self.watchpoint_used -= 1
         return
 
     # GDB functions
