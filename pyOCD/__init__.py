@@ -23,3 +23,4 @@ import target
 import transport
 import utility
 
+from .__pkginfo__ import __version__

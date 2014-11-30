@@ -14,31 +14,28 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import sys
+
 from setuptools import setup, find_packages
+import sys
 
-install_requires = []
-if sys.platform.startswith('linux'):
-    install_requires.extend([
-        'pyusb',
-    ])
-elif sys.platform.startswith('win'):
-    install_requires.extend([
-        'pywinusb',
-    ])
-elif sys.platform.startswith('darwin'):
-    install_requires.extend([
-        'hidapi',
-    ])
+exec(open('pyOCD/__pkginfo__.py').read())
 
+install_requires = dict(
+    win32=['pyWinUSB'],
+    linux2=['pyUSB'],
+    darwin=['hidapi']
+)
 
 setup(
     name="pyOCD",
-    version="0.4.2",
+    version=__version__,
     description="CMSIS-DAP debugger for Python",
+    long_description=open('README.md', 'Ur').read(),
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
+    url='https://github.com/mbedmicro/pyOCD',
     license="Apache 2.0",
+    install_requires=install_requires[sys.platform],
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
@@ -51,7 +48,6 @@ setup(
             'pyocd-tool = pyOCD.tools.pyocd:main',
         ],
     },
-    install_requires=install_requires,
     use_2to3=True,
     packages=find_packages(),
     include_package_data=True,  # include files from MANIFEST.in
