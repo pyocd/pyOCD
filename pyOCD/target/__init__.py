@@ -30,6 +30,7 @@ import target_lpc11u24
 import target_lpc1768
 import target_nrf51822
 import target_stm32f103rc
+import target_stm32f051
 
 TARGET = {
           'cortex_m': cortex_m.CortexM,
@@ -47,4 +48,5 @@ TARGET = {
           'target_lpc1768': target_lpc1768.LPC1768,
           'target_nrf51822': target_nrf51822.NRF51822,
           'target_stm32f103rc': target_stm32f103rc.STM32F103RC,
+          'target_stm32f051': target_stm32f051.STM32F051,          
          }

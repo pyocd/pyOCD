@@ -16,31 +16,48 @@
 """
 
 from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_MASKINTS, C_STEP, DEMCR, VC_CORERESET, NVIC_AIRCR, NVIC_AIRCR_VECTKEY, NVIC_AIRCR_SYSRESETREQ
+from cortex_m import C_HALT
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
 import logging
 
-DBGMCU_CR = 0xE0042004
-#0111 1110 0011 1111 1111 1111 0000 0000
-DBGMCU_VAL = 0x7E3FFF00
+#DBGMCU clock
+RCC_APB2ENR_CR = 0x40021018
+RCC_APB2ENR_DBGMCU = 0x00400000
 
-class STM32F103RC(CortexM):
+DBGMCU_CR = 0x40015804
+DBGMCU_APB1_CR = 0x40015808
+DBGMCU_APB2_CR = 0x4001580C
+
+#0000 0000 0000 0000 0000 0000 0000 0100
+#BGMCU_CR_VAL = 0x00000000 
+
+#0000 0010 0010 0000 0001 1101 0011 0011
+DBGMCU_APB1_VAL = 0x02201D33
+
+#0000 0000 0000 0111 0000 1000 0000 0000
+DBGMCU_APB2_VAL = 0x00070800
+
+
+
+class STM32F051(CortexM):
 
     memoryMapXML =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 <memory-map>
-    <memory type="flash" start="0x08000000" length="0x80000"> <property name="blocksize">0x800</property></memory>
-    <memory type="ram" start="0x20000000" length="0x10000"> </memory>
+    <memory type="flash" start="0x08000000" length="0x10000"> <property name="blocksize">0x400</property></memory>
+    <memory type="ram" start="0x20000000" length="0x2000"> </memory>
 </memory-map>
 """
     
     def __init__(self, transport):
-        super(STM32F103RC, self).__init__(transport)
-        self.auto_increment_page_size = 0x800
+        super(STM32F051, self).__init__(transport)
+        self.auto_increment_page_size = 0x400
 
     def init(self):
-    	logging.debug('stm32f103rc init')
+        logging.debug('stm32f051 init')
         CortexM.init(self)
-        self.writeMemory(DBGMCU_CR, DBGMCU_VAL);
-
-
-
+        enclock = self.readMemory(RCC_APB2ENR_CR)
+        enclock |= RCC_APB2ENR_DBGMCU
+        self.writeMemory(RCC_APB2ENR_CR, enclock);
+        self.writeMemory(DBGMCU_APB1_CR, DBGMCU_APB1_VAL);
+        self.writeMemory(DBGMCU_APB2_CR, DBGMCU_APB2_VAL);
