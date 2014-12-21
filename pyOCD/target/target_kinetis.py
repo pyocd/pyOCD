@@ -43,7 +43,7 @@ class Kinetis(CortexM):
         self.mdm_idr = 0
         
     def init(self):
-        CortexM.init(self, False)
+        CortexM.init(self, False, False)
         
         # check for flash security
         val = self.transport.readAP(MDM_IDR)
@@ -93,6 +93,7 @@ class Kinetis(CortexM):
             raise Exception("Target failed to stay halted during init sequence")
 
         self.setupFPB()
+        self.setupDWT()
         self.readCoreType()
         self.checkForFPU()
 
