@@ -39,8 +39,8 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_erase_sector'  : 0x2000009B,
                'pc_program_page'  : 0x200000F7,
                'static_base'      : 0x200001A0,               
-               'begin_data'       : 0x20000C00,
-               'begin_stack'      : 0x20001C00,
+               'begin_data'       : 0x20000400,
+               'begin_stack'      : 0x20000C00,
                'page_size'        : 1024
               };
 
