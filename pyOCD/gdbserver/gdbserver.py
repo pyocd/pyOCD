@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-        
+
 import logging, threading, socket
-from pyOCD.target.cortex_m import CORE_REGISTER
 from pyOCD.target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from pyOCD.transport import TransferError
 from struct import unpack
@@ -211,14 +210,14 @@ class GDBServer(threading.Thread):
             return self.lastSignal(), 1, 0
         
         elif msg[1] == 'g':
-            return self.getRegister(), 1, 0
-        
-        elif msg[1] == 'p':
-            return self.readRegister(msg[2:]), 1, 0
-        
+            return self.getRegisters(), 1, 0
+
+        elif msg[1] == 'G':
+            return self.setRegisters(msg[2:]), 1, 0
+
         elif msg[1] == 'P':
             return self.writeRegister(msg[2:]), 1, 0
-        
+
         elif msg[1] == 'm':
             return self.getMemory(msg[2:]), 1, 0
         
@@ -512,45 +511,20 @@ class GDBServer(threading.Thread):
             resp = 'E01' #EPERM
         
         return self.createRSPPacket(resp)
-        
-    def readRegister(self, data):
-        num = int(data.split('#')[0], 16)
-        reg = self.target.readCoreRegister(num)
-        logging.debug("GDB: read reg %d: 0x%X", num, reg)
-        val = self.intToHexGDB(reg)
-        return self.createRSPPacket(val)
-    
+
     def writeRegister(self, data):
-        num = int(data.split('=')[0], 16)
+        reg = int(data.split('=')[0], 16)
         val = data.split('=')[1].split('#')[0]
-        val = val[6:8] + val[4:6] + val[2:4] + val[0:2]
-        logging.debug("GDB: write reg %d: 0x%X", num, int(val, 16))
-        self.target.writeCoreRegister(num, int(val, 16))
+        self.target.setRegister(reg, val)
         return self.createRSPPacket("OK")
-    
-    def intToHexGDB(self, val):
-        val = hex(int(val))[2:]
-        size = len(val)
-        r = ''
-        for i in range(8-size):
-            r += '0'
-        r += str(val)
-        
-        resp = ''
-        for i in range(4):
-            resp += r[8 - 2*i - 2: 8 - 2*i]
-        
-        return resp
-            
-    def getRegister(self):
-        resp = ''
-        # only core registers are printed
-        for i in sorted(CORE_REGISTER.values())[4:20]:
-            reg = self.target.readCoreRegister(i)
-            resp += self.intToHexGDB(reg)
-            logging.debug("GDB reg: %s = 0x%X", self.target.getRegisterName(i), reg)
-        return self.createRSPPacket(resp)
-        
+
+    def getRegisters(self):
+        return self.createRSPPacket(self.target.getRegisterContext())
+
+    def setRegisters(self, data):
+        self.target.setRegisterContext(data)
+        return self.createRSPPacket("OK")
+
     def lastSignal(self):
         fault = self.target.readCoreRegister('xpsr') & 0xff
         try:
