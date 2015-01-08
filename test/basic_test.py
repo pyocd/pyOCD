@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -90,6 +90,10 @@ with MbedBoard.chooseBoard() as board:
         addr = 0x20000001
         size = 0x502
         addr_flash = 0x20000
+    elif target_type == "lpc4330":
+        addr = 0x10000001
+        size = 0x1102
+        addr_flash = 0x14010000
     else:
         raise Exception("A board is not supported by this test script.")
 

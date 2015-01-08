@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -38,6 +38,8 @@ TARGET_TYPE = {
                 "1070": "nrf51822",
                 "1080": "stm32f103rc",
                 "1090": "stm32f051",
+                "1600": "lpc4330",
+                "1605": "lpc4330",
               }
 
 mbed_vid = 0x0d28

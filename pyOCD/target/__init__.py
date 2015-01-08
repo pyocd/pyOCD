@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import target_k20d50m
 import target_lpc800
 import target_lpc11u24
 import target_lpc1768
+import target_lpc4330
 import target_nrf51822
 import target_stm32f103rc
 import target_stm32f051
@@ -46,6 +47,7 @@ TARGET = {
           'target_lpc800': target_lpc800.LPC800,
           'target_lpc11u24': target_lpc11u24.LPC11U24,
           'target_lpc1768': target_lpc1768.LPC1768,
+          'target_lpc4330': target_lpc4330.LPC4330,
           'target_nrf51822': target_nrf51822.NRF51822,
           'target_stm32f103rc': target_stm32f103rc.STM32F103RC,
           'target_stm32f051': target_stm32f051.STM32F051,          
