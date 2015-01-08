@@ -143,6 +143,7 @@ class GDBServer(threading.Thread):
                     if (new_command == True):
                         new_command = False
                         break
+                    sleep(0.1)
                     try:
                         if self.shutdown_event.isSet() or self.detach_event.isSet():
                             break
@@ -301,7 +302,7 @@ class GDBServer(threading.Thread):
         val = ''
         
         while True:
-            sleep(0.01)
+            sleep(0.1)
             if self.shutdown_event.isSet():
                 return self.createRSPPacket(val), 0, 0
             
