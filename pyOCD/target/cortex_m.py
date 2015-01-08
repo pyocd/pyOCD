@@ -593,8 +593,7 @@ class CortexM(Target):
         if self.getState() != TARGET_HALTED:
             logging.debug('cannot step: target not halted')
             return
-        if self.maybeSkipBreakpoint() is None:
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
+        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
         return
 
     def reset(self, software_reset = False):
@@ -645,21 +644,8 @@ class CortexM(Target):
         if self.getState() != TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
-        self.maybeSkipBreakpoint()
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
         return
-
-    def maybeSkipBreakpoint(self):
-        pc = self.readCoreRegister('pc')
-        bp = self.findBreakpoint(pc)
-        if bp is not None:
-            logging.debug('skip/resume breakpoint: pc 0x%X', pc)
-            self.removeBreakpoint(pc)
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
-            self.setBreakpoint(pc)
-            logging.debug('step over breakpoint: now pc0x%X', self.readCoreRegister('pc'))
-            return bp
-        return None
 
     def findBreakpoint(self, addr):
         for bp in self.breakpoints:

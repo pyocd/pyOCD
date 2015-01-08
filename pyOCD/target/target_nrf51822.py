@@ -46,8 +46,7 @@ class NRF51822(CortexM):
         if self.getState() != TARGET_HALTED:
             logging.debug('cannot step: target not halted')
             return
-        if self.maybeSkipBreakpoint() is None:
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
+        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
         return
 
     def reset(self, software_reset = False):
