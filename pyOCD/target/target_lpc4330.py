@@ -33,6 +33,10 @@ class LPC4330(CortexM):
     def __init__(self, transport):
         super(LPC4330, self).__init__(transport)
         self.auto_increment_page_size = 0x400
+        self.ignoreReset = False
+
+    def setFlash(self, flash):
+        self.flash = flash
 
     def reset(self, software_reset = False):
         # Always use software reset for LPC4330 since the hardware version
@@ -40,6 +44,25 @@ class LPC4330(CortexM):
         CortexM.reset(self, True)
 
     def resetStopOnReset(self, software_reset = False):
+        if self.ignoreReset:
+            return
+
+        # Set core up to run some code in RAM that is guaranteed to be valid
+        # since FLASH could be corrupted and that is what user is trying to fix.
+        self.writeMemory(0x10000000, 0x10087ff0)    # Initial SP
+        self.writeMemory(0x10000004, 0x1000000d)    # Reset Handler
+        self.writeMemory(0x10000008, 0x1000000d)    # Hard Fault Handler
+        self.writeMemory(0x1000000c, 0xe7fee7fe)    # Infinite loop
+        self.writeMemory(0x40043100, 0x10000000)    # Shadow 0x0 to RAM
+
         # Always use software reset for LPC4330 since the hardware version
         # will reset the DAP.
         CortexM.resetStopOnReset(self, True)
+
+        # Map shadow memory to SPIFI FLASH
+        self.writeMemory(0x40043100, 0x80000000)
+
+        # The LPC4330 flash init routine can be used to remount FLASH.
+        self.ignoreReset = True
+        self.flash.init()
+        self.ignoreReset = False

@@ -313,3 +313,27 @@ class Flash_lpc4330(Flash):
 
     def __init__(self, target):
         super(Flash_lpc4330, self).__init__(target, flash_algo)
+        self.target.setFlash(self)
+        self.ignoringEraseAll = False
+
+    def init(self):
+        Flash.init(self)
+        self.ignoringEraseAll = False
+
+    def eraseAll(self):
+        """
+        This LPC4330 FLASH algorithm doesn't properly support eraseAll
+        so ignore.  Can just erase a page at a time in programPage instead.
+        """
+        self.ignoringEraseAll = True
+        return
+
+    def programPage(self, flashPtr, bytes):
+        """
+        Will need to first erasePage if we had to ignore a previous eraseAll
+        call.
+        """
+        if self.ignoringEraseAll:
+            Flash.erasePage(self, flashPtr)
+        Flash.programPage(self, flashPtr, bytes)
+        return
