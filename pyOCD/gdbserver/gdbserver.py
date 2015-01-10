@@ -629,7 +629,7 @@ class GDBServer(threading.Thread):
         if query == 'memory_map':
             xml = self.target.memoryMapXML
         elif query == 'read_feature':
-            xml = self.target.targetXML
+            xml = self.target.getTargetXML()
 
         size_xml = len(xml)
         

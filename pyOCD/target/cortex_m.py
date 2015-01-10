@@ -353,7 +353,6 @@ class CortexM(Target):
         self.core_type = 0
         self.has_fpu = False
         self.part_number = self.__class__.__name__
-        self.targetXML = self.targetCoreXML
 
     def init(self, setup_fpb = True, setup_dwt = True):
         """
@@ -377,8 +376,6 @@ class CortexM(Target):
             self.setupFPB()
             self.readCoreType()
             self.checkForFPU()
-            if self.has_fpu:
-                self.targetXML = self.targetFpuXML
 
         if setup_dwt:
             self.halt()
@@ -984,7 +981,10 @@ class CortexM(Target):
 
     # GDB functions
     def getTargetXML(self):
-        return self.targetXML, len(self.targetXML)
+        if self.has_fpu:
+            return self.targetFpuXML
+        else:
+            return self.targetCoreXML
 
 
     def getRegisterName(self, compare_val):

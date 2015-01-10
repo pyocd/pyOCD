@@ -94,7 +94,7 @@ class Target(object):
     
     # GDB functions
     def getTargetXML(self):
-        return self.targetXML
+        return ''
     
     def getMemoryMapXML(self):
         return self.memoryMapXML
