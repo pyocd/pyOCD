@@ -68,6 +68,7 @@ class GDBServer(threading.Thread):
         else:
             self.port = port_urlWSS
         self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
+        self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.packet_size = 2048
         self.flashData = list()
         self.flashOffset = None
@@ -356,7 +357,7 @@ class GDBServer(threading.Thread):
     
     def step(self):
         self.ack()
-        self.target.step()
+        self.target.step(not self.step_into_interrupt)
         return self.createRSPPacket("S05"), 0, 0
     
     def halt(self):

@@ -37,18 +37,6 @@ class NRF51822(CortexM):
         super(NRF51822, self).__init__(transport)
         self.auto_increment_page_size = 0x400
 
-    def step(self):
-        """
-        perform an instruction level step
-        Mask interrupts on nrf51 due to SoftDevice background interrupts.
-        Without this GDB client can't step through the code.
-        """
-        if self.getState() != TARGET_HALTED:
-            logging.debug('cannot step: target not halted')
-            return
-        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
-        return
-
     def reset(self, software_reset = False):
         """
         reset a core. After a call to this function, the core

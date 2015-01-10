@@ -586,14 +586,40 @@ class CortexM(Target):
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
         return
 
-    def step(self):
+    def step(self, disable_interrupts = True):
         """
-        perform an instruction level step
+        perform an instruction level step.  This function preserves the previous 
+        interrupt mask state
         """
-        if self.getState() != TARGET_HALTED:
+        # Was 'if self.getState() != TARGET_HALTED:'
+        # but now value of dhcsr is saved
+        dhcsr = self.readMemory(DHCSR)
+        if not (dhcsr & (C_STEP | C_HALT)):
             logging.debug('cannot step: target not halted')
             return
-        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
+
+        # Save previous interrupt mask state
+        interrupts_masked = (C_MASKINTS & dhcsr) != 0
+
+        # Mask interrupts - C_HALT must be set when changing to C_MASKINTS
+        if not interrupts_masked and disable_interrupts:
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT | C_MASKINTS)
+
+        # Single step using current C_MASKINTS setting
+        if disable_interrupts or interrupts_masked:
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
+        else:
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
+
+        # Wait for halt to auto set (This should be done before the first read)
+        while not self.readMemory(DHCSR) & C_HALT:
+            pass
+
+        # Restore interrupt mask state
+        if not interrupts_masked and disable_interrupts:
+            # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT )
+
         return
 
     def reset(self, software_reset = False):
