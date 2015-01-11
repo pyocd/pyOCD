@@ -37,21 +37,15 @@ class NRF51822(CortexM):
         super(NRF51822, self).__init__(transport)
         self.auto_increment_page_size = 0x400
 
-    def reset(self, software_reset = False):
+    def reset(self, software_reset = True):
         """
         reset a core. After a call to this function, the core
         is running
         """
-        # For some reason hardware reset prevent normal operation.
-        self.resetStopResume()
-
-    def resetStopResume(self):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        self.resetStopOnReset()
-        self.resume()
+        # Keep call to CortexM version of reset but make the default a
+        # software reset since a hardware reset does not work when 
+        # debugging is enabled
+        CortexM.reset(self, software_reset)
 
     def resetn(self):
         """
@@ -65,26 +59,11 @@ class NRF51822(CortexM):
         logging.debug("target_nrf518.reset: trigger nRST pin")
         CortexM.reset(self)
 
-    def resetStopOnReset(self, software_reset = False):
+    def resetStopOnReset(self, software_reset = True):
         """
         perform a reset and stop the core on the reset handler
         """
-        # read address of reset handler
-        reset_handler = self.readMemory(4)
-
-        # halt on reset the target
-        self.halt()
-        # set a breakpoint to the reset handler and reset the target
-        self.setBreakpoint(reset_handler)
-
-        #Soft Reset will keep NRF in debug mode
-        self.writeMemory(DEMCR, VC_CORERESET)
-        self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
-        
-        # wait until the bp is reached
-        while (self.getState() == TARGET_RUNNING):
-            pass
-        
-        # remove the breakpoint
-        self.removeBreakpoint(reset_handler)
-
+        # Keep call to CortexM version of resetStopOnReset but make 
+        # the default a software reset since a hardware reset does 
+        # not work when debugging is enabled
+        CortexM.resetStopOnReset(self, software_reset)

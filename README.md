@@ -88,7 +88,9 @@ A series of tests are provided in the test directory:
   * "-l", "--list", help = "List all the connected board"
   * "-d", "--debug", help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical"
   * "-t", "--target", help = "Override target to debug"
-  * "-n", "--nobreak", help = "Disable breakpoint at hardfault handler. Required for nrf51 chip with SoftDevice based application."
+  * "-n", "--nobreak", help = "Disable halt at hardfault handler."
+  * "-r", "--reset-break", help = "Halt the target when reset."
+  * "-s", "--step-int", help = "Allow single stepping to step into interrupts."
 
 
 ### Hello World example code

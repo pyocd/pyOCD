@@ -32,7 +32,7 @@ DCRDR = 0xE000EDF8
 DEMCR = 0xE000EDFC
 
 TRACE_ENA = (1 << 24) # DWTENA in armv6 architecture reference manual
-VC_HARDERR = (1 << 9)
+VC_HARDERR = (1 << 10)
 VC_BUSERR = (1 << 8)
 VC_CORERESET = (1 << 0)
 
@@ -378,7 +378,9 @@ class CortexM(Target):
         and makes sure that they are all disabled and ready for future
         use
         """
-        self.writeMemory(DEMCR, TRACE_ENA)
+        demcr = self.readMemory(DEMCR)
+        demcr = demcr | TRACE_ENA
+        self.writeMemory(DEMCR, demcr)
         dwt_ctrl = self.readMemory(DWT_CTRL)
         watchpoint_count = (dwt_ctrl >> 28) & 0xF
         logging.info("%d hardware watchpoints", watchpoint_count)
@@ -641,8 +643,11 @@ class CortexM(Target):
         # halt the target
         self.halt()
 
+        # Save DEMCR
+        demcr = self.readMemory(DEMCR)
+
         # enable the vector catch
-        self.writeMemory(DEMCR, VC_CORERESET | TRACE_ENA)
+        self.writeMemory(DEMCR, demcr | VC_CORERESET)
 
         self.reset(software_reset)
 
@@ -650,8 +655,8 @@ class CortexM(Target):
         while (self.getState() == TARGET_RUNNING):
             pass
 
-        # disable vector catch
-        self.writeMemory(DEMCR, TRACE_ENA)
+        # restore vector catch setting
+        self.writeMemory(DEMCR, demcr)
 
     def setTargetState(self, state):
         if state == "PROGRAM":
@@ -887,3 +892,19 @@ class CortexM(Target):
         for key in CORE_REGISTER:
             if (compare_val == CORE_REGISTER[key]):
                 return key
+
+    def setVectorCatchFault(self, enable):
+        demcr = self.readMemory(DEMCR)
+        if enable:
+            demcr = demcr | VC_HARDERR
+        else:
+            demcr = demcr & ~VC_HARDERR
+        self.writeMemory(DEMCR, demcr)
+
+    def setVectorCatchReset(self, enable):
+        demcr = self.readMemory(DEMCR)
+        if enable:
+            demcr = demcr | VC_CORERESET
+        else:
+            demcr = demcr & ~VC_CORERESET
+        self.writeMemory(DEMCR, demcr)
