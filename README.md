@@ -91,6 +91,7 @@ A series of tests are provided in the test directory:
   * "-n", "--nobreak", help = "Disable halt at hardfault handler."
   * "-r", "--reset-break", help = "Halt the target when reset."
   * "-s", "--step-int", help = "Allow single stepping to step into interrupts."
+  * "-f", "--frequency", help = "SWD clock frequency in Hz."
 
 
 ### Hello World example code

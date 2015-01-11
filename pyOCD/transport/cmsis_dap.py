@@ -90,11 +90,11 @@ class CMSIS_DAP(Transport):
         self.csw = -1
         self.dp_select = -1
 
-    def init(self):
+    def init(self, frequency = 1000000):
         # init dap IO
         dapConnect(self.interface)
-        # set clock freq at 1000000Hz
-        dapSWJClock(self.interface)
+        # set clock frequency
+        dapSWJClock(self.interface, frequency)
         # configure transfer
         dapTransferConfigure(self.interface)
         # configure swd protocol

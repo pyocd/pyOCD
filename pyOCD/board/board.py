@@ -27,7 +27,7 @@ class Board(object):
     This class associates a target, a flash, a transport and an interface
     to create a board
     """
-    def __init__(self, target, flash, interface, transport = "cmsis_dap"):
+    def __init__(self, target, flash, interface, transport = "cmsis_dap", frequency = 1000000):
         if isinstance(interface, str) == False:
             self.interface = interface
         else:
@@ -36,6 +36,7 @@ class Board(object):
         self.target = TARGET[target](self.transport)
         self.flash = FLASH[flash](self.target)
         self.target.setFlash(self.flash)
+        self.debug_clock_frequency = frequency
         self.closed = False
         return
         
@@ -52,7 +53,7 @@ class Board(object):
         """
         logging.debug("init board %s", self)
         self.interface.init()
-        self.transport.init()
+        self.transport.init(self.debug_clock_frequency)
         self.target.init()
         
     def uninit(self, resume = True ):
