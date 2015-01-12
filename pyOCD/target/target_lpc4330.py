@@ -66,3 +66,9 @@ class LPC4330(CortexM):
         self.ignoreReset = True
         self.flash.init()
         self.ignoreReset = False
+
+        # Set SP and PC based on interrupt vector in SPIFI_FLASH
+        sp = self.readMemory(0x14000000)
+        pc = self.readMemory(0x14000004)
+        self.writeCoreRegisterRaw('sp', sp)
+        self.writeCoreRegisterRaw('pc', pc)
