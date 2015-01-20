@@ -68,6 +68,10 @@ class GDBServer(threading.Thread):
         else:
             self.port = port_urlWSS
         self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
+        self.board.target.setVectorCatchFault(self.break_at_hardfault)
+        self.break_on_reset = options.get('break_on_reset', False)
+        self.board.target.setVectorCatchReset(self.break_on_reset)
+        self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.packet_size = 2048
         self.flashData = list()
         self.flashOffset = None
@@ -292,18 +296,6 @@ class GDBServer(threading.Thread):
     def resume(self):
         self.ack()
         self.abstract_socket.setBlocking(0)
-        
-        # Try to set break point at hardfault handler to avoid
-        # halting target constantly
-        if not self.break_at_hardfault:
-            bpSet=False
-        elif (self.target.availableBreakpoint() >= 1):
-            bpSet=True
-            hardfault_handler = self.target.readMemory(4*3)
-            self.target.setBreakpoint(hardfault_handler)
-        else:
-            bpSet=False
-            logging.info("No breakpoint available. Interfere target constantly.")
 
         self.target.resume()
         
@@ -337,26 +329,12 @@ class GDBServer(threading.Thread):
             except:
                 logging.debug('Target is unavailable temporary.')
 
-            if (not bpSet) and self.break_at_hardfault:
-                # Only do this when no bp available as it slows resume operation
-                self.target.halt()
-                xpsr = self.target.readCoreRegister('xpsr')
-                logging.debug("GDB resume xpsr: 0x%X", xpsr)
-                # Get IPSR value from XPSR
-                if (xpsr & 0x1f) == 3:
-                    val = "S" + FAULT[3]
-                    break
-                self.target.resume()
-        
-        if bpSet and self.break_at_hardfault:
-            self.target.removeBreakpoint(hardfault_handler)
-
         self.abstract_socket.setBlocking(1)
         return self.createRSPPacket(val), 0, 0
     
     def step(self):
         self.ack()
-        self.target.step()
+        self.target.step(not self.step_into_interrupt)
         return self.createRSPPacket("S05"), 0, 0
     
     def halt(self):

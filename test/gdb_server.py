@@ -45,7 +45,9 @@ parser.add_option("-b", "--board", dest = "board_id", default = None, help = "Wr
 parser.add_option("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all the connected board")
 parser.add_option("-d", "--debug", dest = "debug_level", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
 parser.add_option("-t", "--target", dest = "target_override", default = None, help = "Override target to debug" )
-parser.add_option("-n", "--nobreak", dest = "break_at_hardfault", default = True, action="store_false", help = "Disable breakpoint at hardfault handler. Required for nrf51 chip with SoftDevice based application." )
+parser.add_option("-n", "--nobreak", dest = "break_at_hardfault", default = True, action="store_false", help = "Disable halt at hardfault handler." )
+parser.add_option("-r", "--reset-break", dest = "break_on_reset", default = False, action="store_true", help = "Halt the target when reset." )
+parser.add_option("-s", "--step-int", dest = "step_into_interrupt", default = False, action="store_true", help = "Allow single stepping to step into interrupts." )
 (option, args) = parser.parse_args()
 
 gdb = None
@@ -57,7 +59,8 @@ else:
     try:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
         with board_selected as board:
-            gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault})
+            gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault, 
+                'step_into_interrupt' : option.step_into_interrupt, 'break_on_reset' : option.break_on_reset })
             while gdb.isAlive():
                 gdb.join(timeout = 0.5)
     except KeyboardInterrupt:

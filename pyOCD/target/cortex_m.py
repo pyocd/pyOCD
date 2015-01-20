@@ -32,7 +32,7 @@ DCRDR = 0xE000EDF8
 DEMCR = 0xE000EDFC
 
 TRACE_ENA = (1 << 24) # DWTENA in armv6 architecture reference manual
-VC_HARDERR = (1 << 9)
+VC_HARDERR = (1 << 10)
 VC_BUSERR = (1 << 8)
 VC_CORERESET = (1 << 0)
 
@@ -378,7 +378,9 @@ class CortexM(Target):
         and makes sure that they are all disabled and ready for future
         use
         """
-        self.writeMemory(DEMCR, TRACE_ENA)
+        demcr = self.readMemory(DEMCR)
+        demcr = demcr | TRACE_ENA
+        self.writeMemory(DEMCR, demcr)
         dwt_ctrl = self.readMemory(DWT_CTRL)
         watchpoint_count = (dwt_ctrl >> 28) & 0xF
         logging.info("%d hardware watchpoints", watchpoint_count)
@@ -586,15 +588,40 @@ class CortexM(Target):
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
         return
 
-    def step(self):
+    def step(self, disable_interrupts = True):
         """
-        perform an instruction level step
+        perform an instruction level step.  This function preserves the previous 
+        interrupt mask state
         """
-        if self.getState() != TARGET_HALTED:
+        # Was 'if self.getState() != TARGET_HALTED:'
+        # but now value of dhcsr is saved
+        dhcsr = self.readMemory(DHCSR)
+        if not (dhcsr & (C_STEP | C_HALT)):
             logging.debug('cannot step: target not halted')
             return
-        if self.maybeSkipBreakpoint() is None:
+
+        # Save previous interrupt mask state
+        interrupts_masked = (C_MASKINTS & dhcsr) != 0
+
+        # Mask interrupts - C_HALT must be set when changing to C_MASKINTS
+        if not interrupts_masked and disable_interrupts:
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT | C_MASKINTS)
+
+        # Single step using current C_MASKINTS setting
+        if disable_interrupts or interrupts_masked:
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
+        else:
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
+
+        # Wait for halt to auto set (This should be done before the first read)
+        while not self.readMemory(DHCSR) & C_HALT:
+            pass
+
+        # Restore interrupt mask state
+        if not interrupts_masked and disable_interrupts:
+            # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT )
+
         return
 
     def reset(self, software_reset = False):
@@ -616,8 +643,11 @@ class CortexM(Target):
         # halt the target
         self.halt()
 
+        # Save DEMCR
+        demcr = self.readMemory(DEMCR)
+
         # enable the vector catch
-        self.writeMemory(DEMCR, VC_CORERESET | TRACE_ENA)
+        self.writeMemory(DEMCR, demcr | VC_CORERESET)
 
         self.reset(software_reset)
 
@@ -625,8 +655,8 @@ class CortexM(Target):
         while (self.getState() == TARGET_RUNNING):
             pass
 
-        # disable vector catch
-        self.writeMemory(DEMCR, TRACE_ENA)
+        # restore vector catch setting
+        self.writeMemory(DEMCR, demcr)
 
     def setTargetState(self, state):
         if state == "PROGRAM":
@@ -645,21 +675,8 @@ class CortexM(Target):
         if self.getState() != TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
-        self.maybeSkipBreakpoint()
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
         return
-
-    def maybeSkipBreakpoint(self):
-        pc = self.readCoreRegister('pc')
-        bp = self.findBreakpoint(pc)
-        if bp is not None:
-            logging.debug('skip/resume breakpoint: pc 0x%X', pc)
-            self.removeBreakpoint(pc)
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
-            self.setBreakpoint(pc)
-            logging.debug('step over breakpoint: now pc0x%X', self.readCoreRegister('pc'))
-            return bp
-        return None
 
     def findBreakpoint(self, addr):
         for bp in self.breakpoints:
@@ -875,3 +892,19 @@ class CortexM(Target):
         for key in CORE_REGISTER:
             if (compare_val == CORE_REGISTER[key]):
                 return key
+
+    def setVectorCatchFault(self, enable):
+        demcr = self.readMemory(DEMCR)
+        if enable:
+            demcr = demcr | VC_HARDERR
+        else:
+            demcr = demcr & ~VC_HARDERR
+        self.writeMemory(DEMCR, demcr)
+
+    def setVectorCatchReset(self, enable):
+        demcr = self.readMemory(DEMCR)
+        if enable:
+            demcr = demcr | VC_CORERESET
+        else:
+            demcr = demcr & ~VC_CORERESET
+        self.writeMemory(DEMCR, demcr)
