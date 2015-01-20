@@ -23,10 +23,10 @@ flash_algo = { 'load_address' : 0x10000000,
                         0x4770ba40, 0x4770bac0, 0xb5104935, 0x22004449, 0x604a600a, 0x608a4a33, 0x32fff04f, 0x220860ca,
                         0x4931610a, 0x60084449, 0x48304931, 0x49316708, 0x600820f3, 0x610820d3, 0x608860c8, 0x20136048,
                         0x48276148, 0x4448230c, 0x210322c0, 0xf0003880, 0x2800fb23, 0x2001d000, 0x2000bd10, 0x48204770,
-                        0x44482100, 0xf1a06001, 0x68890180, 0x491d6041, 0x21206081, 0x46016101, 0xf0013880, 0x491ab890,
+                        0x44482100, 0xf1a06001, 0x68890180, 0x491d6041, 0x21046081, 0x46016101, 0xf0013880, 0x491ab890,
                         0x4449b510, 0x1a416809, 0x44484815, 0xf44f6001, 0x60415180, 0x60814913, 0x61012120, 0x38804601,
                         0xf87df001, 0xd0002800, 0xbd102001, 0x4a0e4613, 0x444ab510, 0x1a826812, 0x44484809, 0x2100e9c0,
-                        0x60814908, 0x60c12100, 0x61012120, 0x46194602, 0xf0003880, 0x2800ff3e, 0x2001d000, 0xbd10,
+                        0x60814908, 0x60c12100, 0x61012108, 0x46194602, 0xf0003880, 0x2800ff3e, 0x2001d000, 0xbd10,
                         0x88, 0x10080000, 0x4, 0x1000800, 0x40050000, 0x4008618c, 0x604849f9, 0xc800480,
                         0x2801d006, 0x2802d008, 0x2803d008, 0x6948d008, 0x79269ca, 0x4770d4fc, 0xe7f97d08, 0xe7f78a88,
                         0x7d0a8a88, 0x4002ea40, 0xb510e7f2, 0x1400f44f, 0x5141eb04, 0x6000ea41, 0x4002ea40, 0xbd104318,
@@ -314,26 +314,3 @@ class Flash_lpc4330(Flash):
     def __init__(self, target):
         super(Flash_lpc4330, self).__init__(target, flash_algo)
         self.target.setFlash(self)
-        self.ignoringEraseAll = False
-
-    def init(self):
-        Flash.init(self)
-        self.ignoringEraseAll = False
-
-    def eraseAll(self):
-        """
-        This LPC4330 FLASH algorithm doesn't properly support eraseAll
-        so ignore.  Can just erase a page at a time in programPage instead.
-        """
-        self.ignoringEraseAll = True
-        return
-
-    def programPage(self, flashPtr, bytes):
-        """
-        Will need to first erasePage if we had to ignore a previous eraseAll
-        call.
-        """
-        if self.ignoringEraseAll:
-            Flash.erasePage(self, flashPtr)
-        Flash.programPage(self, flashPtr, bytes)
-        return
