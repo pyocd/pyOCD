@@ -107,3 +107,6 @@ class Target(object):
 
     def setRegister(self, reg, data):
         return
+
+    def getTResponse(self, gdbInterrupt = False):
+        return ''

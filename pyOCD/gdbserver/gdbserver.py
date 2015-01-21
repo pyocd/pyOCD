@@ -24,31 +24,6 @@ import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 
-SIGINT = (2)
-SIGSEGV = (11)
-SIGILL = (4)
-SIGSTOP = (17)
-SIGTRAP = (5)
-SIGBUS = (10)
-
-FAULT = {0: "17", #SIGSTOP
-         1: "17",
-         2: "02", #SIGINT
-         3: "11", #SIGSEGV
-         4: "11",
-         5: "10", #SIGBUS
-         6: "04", #SIGILL
-         7: "17",
-         8: "17",
-         9: "17",
-         10: "17",
-         11: "17",
-         12: "17",
-         13: "17",
-         14: "17",
-         15: "17",
-         }
-
 class GDBServer(threading.Thread):
     """
     This class start a GDB server listening a gdb connection on a specific port.
@@ -220,8 +195,8 @@ class GDBServer(threading.Thread):
             return self.createRSPPacket(''), 1, 0
         
         elif msg[1] == '?':
-            return self.lastSignal(), 1, 0
-        
+            return self.createRSPPacket(self.target.getTResponse()), 1, 0
+
         elif msg[1] == 'g':
             return self.getRegisters(), 1, 0
 
@@ -324,38 +299,33 @@ class GDBServer(threading.Thread):
                 data = self.abstract_socket.read()
                 if (data[0] == '\x03'):
                     self.target.halt()
-                    val = 'S05'
+                    val = self.target.getTResponse(True)
                     logging.debug("receive CTRL-C")
                     break
             except:
                 pass
-            
+
             try:
                 if self.target.getState() == TARGET_HALTED:
                     logging.debug("state halted")
-                    xpsr = self.target.readCoreRegister('xpsr')
-                    # Get IPSR value from XPSR
-                    if (xpsr & 0x1f) == 3:
-                        val = "S" + FAULT[3]
-                    else:
-                        val = 'S05'
+                    val = self.target.getTResponse()
                     break
             except:
                 logging.debug('Target is unavailable temporary.')
 
         self.abstract_socket.setBlocking(1)
         return self.createRSPPacket(val), 0, 0
-    
+
     def step(self):
         self.ack()
         self.target.step(not self.step_into_interrupt)
-        return self.createRSPPacket("S05"), 0, 0
-    
+        return self.createRSPPacket(self.target.getTResponse()), 0, 0
+
     def halt(self):
         self.ack()
         self.target.halt()
-        return self.createRSPPacket("S05"), 0, 0
-        
+        return self.createRSPPacket(self.target.getTResponse()), 0, 0
+
     def flashOp(self, data):
         ops = data.split(':')[0]
         logging.debug("flash op: %s", ops)
@@ -518,21 +488,10 @@ class GDBServer(threading.Thread):
         self.target.setRegisterContext(data)
         return self.createRSPPacket("OK")
 
-    def lastSignal(self):
-        fault = self.target.readCoreRegister('xpsr') & 0xff
-        try:
-            fault = FAULT[fault]
-        except:
-            # Values above 16 are for interrupts
-            fault = "17"    # SIGSTOP
-            pass
-        logging.debug("GDB lastSignal: %s", fault)
-        return self.createRSPPacket('S' + fault)
-            
     def handleQuery(self, msg):
         query = msg.split(':')
         logging.debug('GDB received query: %s', query)
-        
+
         if query is None:
             logging.error('GDB received query packet malformed')
             return None

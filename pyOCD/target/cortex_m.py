@@ -18,9 +18,15 @@
 from pyOCD.target.target import Target
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from pyOCD.transport.cmsis_dap import DP_REG
+import pyOCD.gdbserver.signals
 import logging
 import struct
 
+# Debug Fault Status Register
+DFSR = 0xE000ED30
+DFSR_DWTTRAP = (1 << 2)
+DFSR_BKPT = (1 << 1)
+DFSR_HALTED = (1 << 0)
 # Debug Halting Control and Status Register
 DHCSR = 0xE000EDF0
 # Debug Core Register Selector Register
@@ -119,6 +125,20 @@ WATCH_TYPE_TO_FUNCT = {
 # Only sizes that are powers of 2 are supported
 # Breakpoint size = MASK**2
 WATCH_SIZE_TO_MASK = dict((2**i, i) for i in range(0,32))
+
+
+# Maps the fault code found in the IPSR to a GDB signal value.
+FAULT = [
+            pyOCD.gdbserver.signals.SIGSTOP,
+            pyOCD.gdbserver.signals.SIGSTOP,    # Reset
+            pyOCD.gdbserver.signals.SIGINT,     # NMI
+            pyOCD.gdbserver.signals.SIGSEGV,    # HardFault
+            pyOCD.gdbserver.signals.SIGSEGV,    # MemManage
+            pyOCD.gdbserver.signals.SIGBUS,     # BusFault
+            pyOCD.gdbserver.signals.SIGILL,     # UsageFault
+                                                # The rest are not faults
+         ]
+
 
 # Map from register name to DCRSR register index.
 #
@@ -663,6 +683,8 @@ class CortexM(Target):
             logging.debug('cannot step: target not halted')
             return
 
+        self.clearDebugCauseBits()
+
         # Save previous interrupt mask state
         interrupts_masked = (C_MASKINTS & dhcsr) != 0
 
@@ -686,6 +708,9 @@ class CortexM(Target):
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT )
 
         return
+
+    def clearDebugCauseBits(self):
+        self.writeMemory(DFSR, DFSR_DWTTRAP | DFSR_BKPT | DFSR_HALTED)
 
     def reset(self, software_reset = False):
         """
@@ -738,6 +763,7 @@ class CortexM(Target):
         if self.getState() != TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
+        self.clearDebugCauseBits()
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
         return
 
@@ -987,11 +1013,6 @@ class CortexM(Target):
             return self.targetCoreXML
 
 
-    def getRegisterName(self, compare_val):
-        for key in CORE_REGISTER:
-            if (compare_val == CORE_REGISTER[key]):
-                return key
-
     def getRegisterContext(self):
         """
         return hexadecimal dump of registers as expected by GDB
@@ -1079,3 +1100,58 @@ class CortexM(Target):
             self.writeCoreRegisterRaw(evenRegName, evenValue)
             logging.debug("GDB: write reg %s: 0x%X", oddRegName, oddValue)
             self.writeCoreRegisterRaw(oddRegName, oddValue)
+
+    def getTResponse(self, gdbInterrupt = False):
+        """
+        Returns a GDB T response string.  This includes:
+            The signal encountered.
+            The current value of the important registers (sp, lr, pc).
+        """
+        if gdbInterrupt:
+            response = 'T' + self.intToHex2(pyOCD.gdbserver.signals.SIGINT)
+        else:
+            response = 'T' + self.intToHex2(self.getSignalValue())
+
+        # Append fp(r7), sp(r13), lr(r14), pc(r15)
+        response += self.getRegIndexValuePair(7)
+        response += self.getRegIndexValuePair(13)
+        response += self.getRegIndexValuePair(14)
+        response += self.getRegIndexValuePair(15)
+
+        return response
+
+    def getSignalValue(self):
+        if self.isDebugTrap():
+            return pyOCD.gdbserver.signals.SIGTRAP
+
+        fault = self.readCoreRegister('xpsr') & 0xff
+        try:
+            signal = FAULT[fault]
+        except:
+            # If not a fault then default to SIGSTOP
+            signal = pyOCD.gdbserver.signals.SIGSTOP
+        logging.debug("GDB lastSignal: %d", signal)
+        return signal
+
+    def isDebugTrap(self):
+        debugEvents = self.readMemory(DFSR) & (DFSR_DWTTRAP | DFSR_BKPT | DFSR_HALTED)
+        return debugEvents != 0
+
+    def getRegIndexValuePair(self, regIndex):
+        """
+        Returns a string like NN:MMMMMMMM for the T response string.
+            NN is the index of the register to follow
+            MMMMMMMM is the value of the register
+        """
+        regName = self.coreRegisters[regIndex]
+        return self.intToHex2(regIndex) + ':' + self.intToHex8(self.readCoreRegisterRaw(regName)) + ';'
+
+    def intToHex2(self, val):
+        """
+        create 2-digit hexadecimal string from 8-bit value
+        """
+        val = hex(int(val))[2:]
+        if len(val) < 2:
+            return '0' + val
+        else:
+            return val
