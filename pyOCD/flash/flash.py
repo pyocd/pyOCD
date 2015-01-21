@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class Flash(object):
         # check the return code
         result = self.target.readCoreRegister('r0')
         if result != 0:
-            logging.error('eraseAll error: %i', result)
+            logging.error('init error: %i', result)
 
         return
 

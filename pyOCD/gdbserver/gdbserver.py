@@ -19,7 +19,7 @@ import logging, threading, socket
 from pyOCD.target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from pyOCD.transport import TransferError
 from struct import unpack
-from time import sleep
+from time import sleep, time
 import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
@@ -109,6 +109,7 @@ class GDBServer(threading.Thread):
         return
         
     def run(self):
+        self.timeOfLastPacket = time()
         while True:
             new_command = False
             data = ""
@@ -143,6 +144,12 @@ class GDBServer(threading.Thread):
                     if (new_command == True):
                         new_command = False
                         break
+
+                    # Reduce CPU usage by sleep()ing once we know that the
+                    # debugger doesn't have a queue of commands that we should
+                    # execute as quickly as possible.
+                    if time() - self.timeOfLastPacket > 0.5:
+                        sleep(0.1)
                     try:
                         if self.shutdown_event.isSet() or self.detach_event.isSet():
                             break
@@ -191,7 +198,9 @@ class GDBServer(threading.Thread):
                         self.abstract_socket.close()
                         self.lock.release()
                         break
-                    
+
+                    self.timeOfLastPacket = time()
+
                 self.lock.release()
         
         
@@ -299,12 +308,16 @@ class GDBServer(threading.Thread):
         self.target.resume()
         
         val = ''
-        
+
+        self.timeOfLastPacket = time()
         while True:
-            sleep(0.01)
             if self.shutdown_event.isSet():
                 return self.createRSPPacket(val), 0, 0
-            
+
+            # Introduce a delay between non-blocking socket reads once we know
+            # that the CPU isn't going to halt quickly.
+            if time() - self.timeOfLastPacket > 0.5:
+                sleep(0.1)
             try:
                 data = self.abstract_socket.read()
                 if (data[0] == '\x03'):
