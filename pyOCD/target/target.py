@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -94,7 +94,16 @@ class Target(object):
     
     # GDB functions
     def getTargetXML(self):
-        return self.targetXML
+        return ''
     
     def getMemoryMapXML(self):
         return self.memoryMapXML
+
+    def getRegisterContext(self):
+        return ''
+
+    def setRegisterContext(self, data):
+        return
+
+    def setRegister(self, reg, data):
+        return
