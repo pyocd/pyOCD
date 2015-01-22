@@ -273,7 +273,9 @@ class GDBServer(threading.Thread):
         addr = int(split[1], 16)
 
         # handle hardware breakpoint Z1/z1
-        if data[1] == '1':
+        # and software breakpoint Z0/z0
+        if data[1] == '1' or data[1] == '0':
+            #TODO - add support for real software breakpoints
             if data[0] == 'Z':
                 if self.target.setBreakpoint(addr) == False:
                     return self.createRSPPacket('E01') #EPERM
