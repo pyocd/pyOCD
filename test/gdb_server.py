@@ -48,6 +48,7 @@ parser.add_option("-t", "--target", dest = "target_override", default = None, he
 parser.add_option("-n", "--nobreak", dest = "break_at_hardfault", default = True, action="store_false", help = "Disable halt at hardfault handler." )
 parser.add_option("-r", "--reset-break", dest = "break_on_reset", default = False, action="store_true", help = "Halt the target when reset." )
 parser.add_option("-s", "--step-int", dest = "step_into_interrupt", default = False, action="store_true", help = "Allow single stepping to step into interrupts." )
+parser.add_option("-f", "--frequency", dest = "debug_clock_frequency", default = 1000000, type="int", help = "SWD clock frequency in Hz." )
 (option, args) = parser.parse_args()
 
 gdb = None
@@ -57,7 +58,7 @@ if option.list_all == True:
     MbedBoard.listConnectedBoards()
 else:
     try:
-        board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override)
+        board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override, frequency = option.debug_clock_frequency)
         with board_selected as board:
             gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault, 
                 'step_into_interrupt' : option.step_into_interrupt, 'break_on_reset' : option.break_on_reset })
