@@ -1064,11 +1064,18 @@ class CortexM(Target):
             return
         elif reg < len(self.coreRegisters):
             regName = self.coreRegisters[reg]
-        elif (reg - len(self.coreRegisters)) < len(self.fpuRegisters):
-            regName = self.fpuRegisters[reg - len(self.coreRegisters)]
-        else:
-            return
-
-        value = self.hex8ToInt(data)
-        logging.debug("GDB: write reg %s: 0x%X", regName, value)
-        self.writeCoreRegisterRaw(regName, value)
+            value = self.hex8ToInt(data)
+            logging.debug("GDB: write reg %s: 0x%X", regName, value)
+            self.writeCoreRegisterRaw(regName, value)
+        elif (reg - len(self.coreRegisters)) < len(self.fpuRegisters) / 2:
+            # GDB passes in offset to 64-bit d* register but writeCoreRegisterRaw()
+            # just supports writing of the two separate 32-bit s* components.
+            fpuRegOffset = (reg - len(self.coreRegisters)) * 2
+            evenRegName = self.fpuRegisters[fpuRegOffset]
+            oddRegName = self.fpuRegisters[fpuRegOffset + 1]
+            evenValue = self.hex8ToInt(data)
+            oddValue = self.hex8ToInt(data[8:])
+            logging.debug("GDB: write reg %s: 0x%X", evenRegName, evenValue)
+            self.writeCoreRegisterRaw(evenRegName, evenValue)
+            logging.debug("GDB: write reg %s: 0x%X", oddRegName, oddValue)
+            self.writeCoreRegisterRaw(oddRegName, oddValue)
