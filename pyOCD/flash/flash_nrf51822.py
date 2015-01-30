@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class Flash_nrf51822(Flash):
         Erase one page
         """
 
-        logging.info("Flash_nrf51822: Erase page: 0x%X", flashPtr)
+        logging.debug("Flash_nrf51822: Erase page: 0x%X", flashPtr)
         self.target.writeMemory(NVMC_CONFIG, NVMC_CONFIG_EEN)
         while self.target.readMemory(NVMC_READY) == 0:
             pass
