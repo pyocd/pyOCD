@@ -374,46 +374,28 @@ class GDBServer(threading.Thread):
         
         # we need to flash everything
         elif 'FlashDone' in ops :
-            bytes_to_be_written = len(self.flashData)
-            flashPtr = self.flashOffset
-            
-            self.flash.init()
 
-            # use mass erase if the address starts at 0
-            mass_erase = flashPtr == 0
-            if mass_erase:
-                logging.debug("Erasing entire flash")
-                self.flash.eraseAll()
-
-            while len(self.flashData) > 0:
-                size_to_write = min(self.flash.page_size, len(self.flashData))
+            def print_progress(progress):
+                # Reset state on 0.0
+                if progress == 0.0:
+                    print_progress.done = False
                 
-                #Erase Page if flash has not been erased
-                if not mass_erase:
-                    logging.debug("Erasing page 0x%x", flashPtr)
-                    self.flash.erasePage(flashPtr)
-
-                #ProgramPage
-                self.flash.programPage(flashPtr, self.flashData[:size_to_write])
-                flashPtr += size_to_write
-
-                self.flashData = self.flashData[size_to_write:]
-
                 # print progress bar
-                sys.stdout.write('\r')
-                i = int((float(flashPtr - self.flashOffset)/float(bytes_to_be_written))*20.0)
-                # the exact output you're looking for:
-                sys.stdout.write("[%-20s] %d%%" % ('='*i, 5*i))
-                sys.stdout.flush()
+                if not print_progress.done:
+                    sys.stdout.write('\r')
+                    i = int(progress*20.0)
+                    sys.stdout.write("[%-20s] %3d%%" % ('='*i, round(progress * 100)))
                 
-            sys.stdout.write("\n\r")
-            
+                # Finish on 1.0
+                if progress >= 1.0:
+                    if not print_progress.done:
+                        print_progress.done = True
+                        sys.stdout.write("\n")
+
+            self.flash.flashBlock(self.flashOffset, self.flashData, progress_cb = print_progress)
+            sys.stdout.write("\r\n")
             self.flashData = []
             self.flashOffset = None
-
-            # reset and stop on reset handler
-            self.target.resetStopOnReset()
-            
             return self.createRSPPacket("OK")
         
         elif 'Cont' in ops:

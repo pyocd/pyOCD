@@ -19,6 +19,18 @@ from pyOCD.target.target import TARGET_RUNNING
 import logging
 from struct import unpack
 from time import time
+from flash_builder import FLASH_PAGE_ERASE, FLASH_CHIP_ERASE, FlashBuilder
+
+DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
+DEFAULT_PAGE_ERASE_WEIGHT   = 0.048
+DEFAULT_CHIP_ERASE_WEIGHT   = 0.174
+
+class PageInfo(object):
+
+    def __init__(self):
+        self.erase_weight = None        # Time it takes to erase a page
+        self.program_weight = None      # Time it takes to program a page (Not including data transfer time)
+        self.size = None                # Size of page
 
 class Flash(object):
     """
@@ -124,46 +136,48 @@ class Flash(object):
 
         return
 
-    def flashBinary(self, path_file, flashPtr = 0x0000000):
+    def getPageInfo(self, addr):
+        """
+        Get info about the page that contains this address
+
+        Override this function if variable page sizes are supported
+        """
+        info = PageInfo()
+        info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
+        info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
+        info.size = self.flash_algo['page_size']
+        return info
+
+    def getEraseWeight(self):
+        return DEFAULT_CHIP_ERASE_WEIGHT
+
+    def getFlashBuilder(self, flash_start = 0):
+        return FlashBuilder(self, flash_start)
+
+    def flashBlock(self, addr, data, smart_flash = True, chip_erase = None, progress_cb = None, flash_start = 0):
+        """
+        Flash a block of data
+        """
+        start = time()
+
+        fb = FlashBuilder(self, flash_start)
+        fb.addData(addr, data)
+        operation = fb.program(chip_erase, progress_cb, smart_flash)
+
+        end = time()
+        logging.debug("%f kbytes flashed in %f seconds ===> %f kbytes/s" %(len(data)/1024, end-start, len(data)/(1024*(end - start))))
+        return operation
+
+    def flashBinary(self, path_file, flashPtr = 0x0000000, flashBase = 0x00000000, smart_flash = True, chip_erase = None, progress_cb = None):
         """
         Flash a binary
         """
         f = open(path_file, "rb")
 
-        start = time()
-        self.init()
-        logging.debug("flash init OK: pc: 0x%X", self.target.readCoreRegister('pc'))
-        self.eraseAll()
-        logging.debug("eraseAll OK: pc: 0x%X", self.target.readCoreRegister('pc'))
-
-        """
-        bin = open(os.path.join(parentdir, 'res', 'good_bin.txt'), "w+")
-        """
-
-        nb_bytes = 0
-        try:
-            bytes_read = f.read(self.page_size)
-            while bytes_read:
-                bytes_read = unpack(str(len(bytes_read)) + 'B', bytes_read)
-                nb_bytes += len(bytes_read)
-                # page download
-                self.programPage(flashPtr, bytes_read)
-                """
-                i = 0
-                while (i < len(bytes_read)):
-                    bin.write(str(list(bytes_read[i:i+16])) + "\n")
-                    i += 16
-                """
-                flashPtr += self.page_size
-
-                bytes_read = f.read(self.page_size)
-        finally:
-            f.close()
-            """
-            bin.close()
-            """
-        end = time()
-        logging.info("%f kbytes flashed in %f seconds ===> %f kbytes/s" %(nb_bytes/1000, end-start, nb_bytes/(1000*(end - start))))
+        with open(path_file, "rb") as f:
+            data = f.read()
+        data = unpack(str(len(data)) + 'B', data)
+        self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb, flash_start = flashBase)
 
     def updateCoreRegister(self, r0, r1, r2, r3, pc):
         self.target.writeCoreRegister('pc', pc)
