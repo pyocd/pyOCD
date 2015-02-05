@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -45,14 +45,16 @@ args = parser.parse_args()
 
 with MbedBoard.chooseBoard() as board:
     target_type = board.getTargetType()
-    
+
     if args.file is None:
         binary_file += target_type + ".bin"
         binary_file = os.path.join(parentdir, 'binaries', binary_file)
     else:
         binary_file = args.file
-    
+
     print "binary file: %s" % binary_file
+
+    addr_bin = 0x00000000
 
     if target_type == "lpc1768":
         addr = 0x10000001
@@ -90,6 +92,11 @@ with MbedBoard.chooseBoard() as board:
         addr = 0x20000001
         size = 0x502
         addr_flash = 0x20000
+    elif target_type == "lpc4330":
+        addr = 0x10000001
+        size = 0x1102
+        addr_flash = 0x14010000
+        addr_bin = 0x14000000
     else:
         raise Exception("A board is not supported by this test script.")
 
@@ -225,6 +232,6 @@ with MbedBoard.chooseBoard() as board:
         print "TEST FAILED"
         
     print "\r\n\r\n----- FLASH NEW BINARY -----"
-    flash.flashBinary(binary_file)
+    flash.flashBinary(binary_file, addr_bin)
 
     target.reset()

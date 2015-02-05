@@ -124,7 +124,7 @@ class Flash(object):
 
         return
 
-    def flashBinary(self, path_file):
+    def flashBinary(self, path_file, flashPtr = 0x0000000):
         """
         Flash a binary
         """
@@ -140,7 +140,6 @@ class Flash(object):
         bin = open(os.path.join(parentdir, 'res', 'good_bin.txt'), "w+")
         """
 
-        flashPtr = 0
         nb_bytes = 0
         try:
             bytes_read = f.read(self.page_size)
