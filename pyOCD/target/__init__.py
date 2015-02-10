@@ -32,6 +32,8 @@ import target_lpc4330
 import target_nrf51822
 import target_stm32f103rc
 import target_stm32f051
+import target_maxwsnenv
+import target_max32600mbed
 
 TARGET = {
           'cortex_m': cortex_m.CortexM,
@@ -50,5 +52,7 @@ TARGET = {
           'lpc4330': target_lpc4330.LPC4330,
           'nrf51822': target_nrf51822.NRF51822,
           'stm32f103rc': target_stm32f103rc.STM32F103RC,
-          'stm32f051': target_stm32f051.STM32F051,          
+          'stm32f051': target_stm32f051.STM32F051,
+          'maxwsnenv': target_maxwsnenv.MAXWSNENV,
+          'max32600mbed': target_max32600mbed.MAX32600MBED,
          }

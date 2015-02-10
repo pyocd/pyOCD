@@ -90,6 +90,14 @@ def basic_test(board_id, file):
             size = 0x1102
             addr_flash = 0x14010000
             addr_bin = 0x14000000
+        elif target_type == "maxwsnenv":
+            addr = 0x20000001
+            size = 0x502
+            addr_flash = 0x10000
+        elif target_type == "max32600mbed":
+            addr = 0x20000001
+            size = 0x502
+            addr_flash = 0x10000
         else:
             raise Exception("A board is not supported by this test script.")
 

@@ -26,6 +26,8 @@ from flash_lpc4330 import Flash_lpc4330
 from flash_nrf51822 import Flash_nrf51822
 from flash_stm32f103rc import Flash_stm32f103rc
 from flash_stm32f051 import Flash_stm32f051
+from flash_maxwsnenv import Flash_maxwsnenv
+from flash_max32600mbed import Flash_max32600mbed
 
 FLASH = {
          'kl02z': Flash_klxx,
@@ -42,5 +44,7 @@ FLASH = {
          'lpc4330':  Flash_lpc4330,
          'nrf51822': Flash_nrf51822,
          'stm32f103rc': Flash_stm32f103rc,
-         'stm32f051': Flash_stm32f051,         
+         'stm32f051': Flash_stm32f051,
+         'maxwsnenv': Flash_maxwsnenv,
+         'max32600mbed': Flash_max32600mbed,
          }
