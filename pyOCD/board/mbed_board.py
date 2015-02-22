@@ -233,3 +233,9 @@ class MbedBoard(Board):
             for mbed in all_mbeds:
                 mbed.interface.close()
             raise
+
+    def getPacketCount(self):
+        """
+        Return the number of commands the remote device's buffer can hold.
+        """
+        return self.transport.info('PACKET_COUNT')

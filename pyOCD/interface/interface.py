@@ -22,6 +22,7 @@ class Interface(object):
         self.pid = 0
         self.vendor_name = ""
         self.product_name = ""
+        self.packet_count = 1
         return
     
     def init(self):
@@ -39,6 +40,13 @@ class Interface(object):
                str(hex(self.vid)) + ", " + \
                str(hex(self.pid)) + ")"
     
+    def setPacketCount(self, count):
+        # Unless overridden the packet count cannot be changed
+        return
+
+    def getPacketCount(self):
+        return self.packet_count
+
     def close(self):
         return
     
