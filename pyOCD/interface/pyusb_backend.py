@@ -16,7 +16,7 @@
 """
 
 from interface import Interface
-import logging, os
+import logging, os, threading
 
 try:
     import usb.core
@@ -46,7 +46,23 @@ class PyUSB(Interface):
         self.ep_out = None
         self.ep_in = None
         self.dev = None
+        self.closed = False
+        self.rcv_data = []
+        self.read_sem = threading.Semaphore(0)
     
+    def start_rx(self):
+        self.thread = threading.Thread(target = self.rx_task)
+        self.thread.daemon = True
+        self.thread.start()
+    
+    def rx_task(self):
+        while not self.closed:
+            self.read_sem.acquire()
+            if not self.closed:
+                # Timeouts appear to corrupt data occasionally.  Because of this the 
+                # timeout is set to infinite.
+                self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, -1))
+
     @staticmethod
     def getAllConnectedInterface(vid, pid):
         """
@@ -119,6 +135,7 @@ class PyUSB(Interface):
             new_board.intf_number = intf_number
             new_board.product_name = product_name
             new_board.vendor_name = vendor_name
+            new_board.start_rx()
             boards.append(new_board)
             
         return boards
@@ -127,6 +144,11 @@ class PyUSB(Interface):
         """
         write data on the OUT endpoint associated to the HID interface
         """
+        for _ in range(64 - len(data)):
+           data.append(0)
+
+        self.read_sem.release()
+        
         if self.ep_out is None:
             bmRequestType = 0x21              #Host to device request of type Class of Recipient Interface
             bmRequest     = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
@@ -141,13 +163,24 @@ class PyUSB(Interface):
         return
         
         
-    def read(self, timeout = -1):
+    def read(self):
         """
         read data on the IN endpoint associated to the HID interface
         """
-        if self.ep_in is None:
-            raise ValueError('EP_IN endpoint is NULL')
-        
-        data = self.ep_in.read(self.ep_in.wMaxPacketSize, timeout)
-        #logging.debug('received: %s', data)
-        return data
+        while len(self.rcv_data) == 0:
+            pass
+        return self.rcv_data.pop(0)
+
+    def setPacketCount(self, count):
+        # No interface level restrictions on count
+        self.packet_count = count
+
+    def close(self):
+        """
+        close the interface
+        """
+        logging.debug("closing interface")
+        self.closed = True
+        self.read_sem.release()
+        self.thread.join()
+        usb.util.dispose_resources(self.dev)
