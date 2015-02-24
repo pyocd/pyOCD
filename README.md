@@ -92,6 +92,7 @@ A series of tests are provided in the test directory:
   * "-r", "--reset-break", help = "Halt the target when reset."
   * "-s", "--step-int", help = "Allow single stepping to step into interrupts."
   * "-f", "--frequency", help = "SWD clock frequency in Hz."
+  * "-o", "--persist", help = "Keep GDB server running even after remote has detached."
 
 
 ### Hello World example code

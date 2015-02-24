@@ -46,6 +46,7 @@ class GDBServer(threading.Thread):
         self.break_on_reset = options.get('break_on_reset', False)
         self.board.target.setVectorCatchReset(self.break_on_reset)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
+        self.persist = options.get('persist', False)
         self.packet_size = 2048
         self.flashData = list()
         self.flashOffset = None
@@ -172,7 +173,10 @@ class GDBServer(threading.Thread):
                     if detach:
                         self.abstract_socket.close()
                         self.lock.release()
-                        break
+                        if self.persist:
+                            break
+                        else:
+                            return
 
                     self.timeOfLastPacket = time()
 
@@ -240,6 +244,11 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(resp)
     
     def kill(self):
+        # Keep target halted and leave vector catches if in persistent mode.
+        if not self.persist:
+            self.board.target.setVectorCatchFault(False)
+            self.board.target.setVectorCatchReset(False)
+            self.board.target.resume()
         return self.createRSPPacket("")
         
     def breakpoint(self, data):
