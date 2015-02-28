@@ -37,7 +37,7 @@ class LPC1768(CortexM):
         self.halt()
         # not remap 0x0000-0x0020 to anything but the flash
         self.writeMemory(0x400FC040, 1)
-        CortexM.reset(self)
+        CortexM.reset(self, False)
         
     def resetStopOnReset(self, software_reset = False):
         # halt processor

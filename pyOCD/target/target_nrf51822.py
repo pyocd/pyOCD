@@ -37,16 +37,6 @@ class NRF51822(CortexM):
         super(NRF51822, self).__init__(transport)
         self.auto_increment_page_size = 0x400
 
-    def reset(self, software_reset = True):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        # Keep call to CortexM version of reset but make the default a
-        # software reset since a hardware reset does not work when 
-        # debugging is enabled
-        CortexM.reset(self, software_reset)
-
     def resetn(self):
         """
         reset a core. After a call to this function, the core
@@ -58,12 +48,3 @@ class NRF51822(CortexM):
         #reset
         logging.debug("target_nrf518.reset: trigger nRST pin")
         CortexM.reset(self)
-
-    def resetStopOnReset(self, software_reset = True):
-        """
-        perform a reset and stop the core on the reset handler
-        """
-        # Keep call to CortexM version of resetStopOnReset but make 
-        # the default a software reset since a hardware reset does 
-        # not work when debugging is enabled
-        CortexM.resetStopOnReset(self, software_reset)
