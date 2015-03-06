@@ -65,3 +65,6 @@ class Transport(object):
 
     def reset(self):
         return
+
+    def setClock(self):
+        return

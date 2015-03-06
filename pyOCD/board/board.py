@@ -53,6 +53,12 @@ class Board(object):
         """
         logging.debug("init board %s", self)
         self.interface.init()
+        packet_count = self.getPacketCount()
+        logging.info("board allows %i concurrent packets", packet_count)
+        if packet_count < 1:
+            logging.error('packet count of %i outside of expected range', packet_count)
+            packet_count = 1
+        self.interface.setPacketCount(packet_count)
         self.transport.init(self.debug_clock_frequency)
         self.target.init()
         
@@ -79,3 +85,9 @@ class Board(object):
     
     def getInfo(self):
         return self.interface.getInfo()
+
+    def getPacketCount(self):
+        """
+        Return the number of commands the remote device's buffer can hold.
+        """
+        return 1

@@ -245,4 +245,5 @@ class CMSIS_DAP(Transport):
         else:
             dapSWJPins(self.interface, 0x80, 'nRESET')
 
-
+    def setClock(self, frequency):
+        dapSWJClock(self.interface, frequency)

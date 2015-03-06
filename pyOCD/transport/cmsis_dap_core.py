@@ -83,12 +83,14 @@ def dapInfo(interface, id_):
     if resp[1] == 0:
         return
     
-    if resp[1] == 1:
-        return resp[2]
-    
-    if resp[1] == 2:
-        return (resp[3] << 8) | resp[2]
-    
+    # Integer values
+    if id_ in ('CAPABILITIES', 'PACKET_COUNT', 'PACKET_SIZE'):
+        if resp[1] == 1:
+            return resp[2]
+        if resp[1] == 2:
+            return (resp[3] << 8) | resp[2]
+
+    # String values
     x = array.array('B', [i for i in resp[2:2+resp[1]]])
 
     return x.tostring()
@@ -218,38 +220,46 @@ def dapTransfer(interface, count, request, data = [0], dap_index = 0):
 
 def dapTransferBlock(interface, count, request, data = [0], dap_index = 0):
     packet_count = count
+    max_pending_reads = interface.getPacketCount()
+    reads_pending = 0
     nb = 0
     resp = []
     # we send successfully several packets if the size is bigger than MAX_PACKET_COUNT
-    while packet_count > 0:
-        cmd = []
-        cmd.append(COMMAND_ID['DAP_TRANSFER_BLOCK'])
-        cmd.append(dap_index)
-        packet_written = min(packet_count, MAX_PACKET_SIZE)
-        cmd.append(packet_written & 0xff)
-        cmd.append((packet_written >> 8) & 0xff)
-        cmd.append(request)
-        if not (request & ((1 << 1))):
-            for i in range(packet_written):
-                cmd.append(data[i + nb*MAX_PACKET_SIZE] & 0xff)
-                cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 8) & 0xff)
-                cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 16) & 0xff)
-                cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 24) & 0xff)
-        interface.write(cmd)
-        packet_count = packet_count - MAX_PACKET_SIZE
-        nb = nb + 1
-    
-        # we then read
-        tmp = interface.read()
-        if tmp[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
-            raise ValueError('DAP_TRANSFER_BLOCK response error')
+    while packet_count > 0 or reads_pending > 0:
+        # Make sure the transmit buffer stays saturated
+        while packet_count > 0 and reads_pending < max_pending_reads:
+            cmd = []
+            cmd.append(COMMAND_ID['DAP_TRANSFER_BLOCK'])
+            cmd.append(dap_index)
+            packet_written = min(packet_count, MAX_PACKET_SIZE)
+            cmd.append(packet_written & 0xff)
+            cmd.append((packet_written >> 8) & 0xff)
+            cmd.append(request)
+            if not (request & ((1 << 1))):
+                for i in range(packet_written):
+                    cmd.append(data[i + nb*MAX_PACKET_SIZE] & 0xff)
+                    cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 8) & 0xff)
+                    cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 16) & 0xff)
+                    cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 24) & 0xff)
+            interface.write(cmd)
+            packet_count = packet_count - MAX_PACKET_SIZE
+            nb = nb + 1
+            reads_pending = reads_pending + 1
 
-        if tmp[3] != DAP_TRANSFER_OK:
-            if tmp[3] == DAP_TRANSFER_FAULT:
-                raise TransferError()
-            raise ValueError('DAP_TRANSFER_BLOCK response error')
-        size_transfer = tmp[1] | (tmp[2] << 8)
-        resp.extend(tmp[4:4+size_transfer*4])
+        # Read data
+        if reads_pending > 0:
+            # we then read
+            tmp = interface.read()
+            if tmp[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
+                raise ValueError('DAP_TRANSFER_BLOCK response error')
+
+            if tmp[3] != DAP_TRANSFER_OK:
+                if tmp[3] == DAP_TRANSFER_FAULT:
+                    raise TransferError()
+                raise ValueError('DAP_TRANSFER_BLOCK response error')
+            size_transfer = tmp[1] | (tmp[2] << 8)
+            resp.extend(tmp[4:4+size_transfer*4])
+            reads_pending = reads_pending - 1
         
     return resp
     
