@@ -123,6 +123,22 @@ class CMSIS_DAP(Transport):
             self.writeDP(DP_REG['CTRL_STAT'], STICKYERR | STICKCMP | STICKORUN)
         return
 
+    def reinit(self):
+        # clear internal state
+        self.csw = -1
+        self.dp_select = -1
+        if (self.mode == DAP_MODE_SWD):
+            # switch from jtag to swd
+            JTAG2SWD(self.interface)
+            # clear abort err
+            dapWriteAbort(self.interface, 0x1e);
+        elif (self.mode == DAP_MODE_JTAG):
+            # Test logic reset, run test idle
+            dapSWJSequence(self.interface, [0x1F])
+            # clear errors
+            self.writeDP(DP_REG['CTRL_STAT'], STICKYERR | STICKCMP | STICKORUN)
+        return
+
     def uninit(self):
         dapDisconnect(self.interface)
         return
