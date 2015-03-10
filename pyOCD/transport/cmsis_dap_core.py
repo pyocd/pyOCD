@@ -34,6 +34,9 @@ COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_SWJ_CLOCK': 0x11,
               'DAP_SWJ_SEQUENCE': 0x12,
               'DAP_SWD_CONFIGURE': 0x13,
+              'DAP_JTAG_SEQUENCE': 0x14,
+              'DAP_JTAG_CONFIGURE': 0x15,
+              'DAP_JTAG_IDCODE': 0x16,
               }
 
 ID_INFO = {'VENDOR_ID': 0x01,
@@ -335,4 +338,54 @@ def dapSWJSequence(interface, data):
         raise ValueError('DAP SWJ Sequence failed')
         
     return resp[1]
-    
+
+def dapJTAGSequence(interface, info, tdi):
+    cmd = []
+    cmd.append(COMMAND_ID['DAP_JTAG_SEQUENCE'])
+    cmd.append(1)
+    cmd.append(info)
+    cmd.append(tdi)
+    interface.write(cmd)
+
+    resp = interface.read()
+    if resp[0] != COMMAND_ID['DAP_JTAG_SEQUENCE']:
+        raise ValueError('DAP_JTAG_SEQUENCE response error')
+
+    if resp[1] != DAP_OK:
+        raise ValueError('DAP JTAG Sequence failed')
+
+    return resp[2]
+
+def dapJTAGConfigure(interface, irlen, dev_num = 1):
+    cmd = []
+    cmd.append(COMMAND_ID['DAP_JTAG_CONFIGURE'])
+    cmd.append(dev_num)
+    cmd.append(irlen)
+    interface.write(cmd)
+
+    resp = interface.read()
+    if resp[0] != COMMAND_ID['DAP_JTAG_CONFIGURE']:
+        raise ValueError('DAP_JTAG_CONFIGURE response error')
+
+    if resp[1] != DAP_OK:
+        raise ValueError('DAP JTAG Configure failed')
+
+    return resp[2:]
+
+def dapJTAGIDCode(interface, index = 0):
+    cmd = []
+    cmd.append(COMMAND_ID['DAP_JTAG_IDCODE'])
+    cmd.append(index)
+    interface.write(cmd)
+
+    resp = interface.read()
+    if resp[0] != COMMAND_ID['DAP_JTAG_IDCODE']:
+        raise ValueError('DAP_JTAG_IDCODE response error')
+
+    if resp[1] != DAP_OK:
+        raise ValueError('DAP JTAG ID code failed')
+
+    return  (resp[2] << 0)  | \
+            (resp[3] << 8)  | \
+            (resp[4] << 16) | \
+            (resp[5] << 24)
