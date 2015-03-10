@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from cmsis_dap_core import dapTransferBlock, dapWriteAbort, dapSWJPins, dapConnect, dapDisconnect, dapTransfer, dapSWJSequence, dapSWDConfigure, dapSWJClock, dapTransferConfigure, dapInfo
+from cmsis_dap_core import dapTransferBlock, dapWriteAbort, dapSWJPins, dapConnect, dapDisconnect, dapTransfer, dapSWJSequence, dapSWDConfigure, dapSWJClock, dapTransferConfigure, dapInfo, dapJTAGIDCode, dapJTAGConfigure
 from transport import Transport, TransferError
 import logging
 from time import sleep
@@ -65,6 +65,14 @@ TRANSFER_SIZE = {8: CSW_SIZE8,
                  32: CSW_SIZE32
                  }
 
+# Response values to DAP_Connect command
+DAP_MODE_SWD = 1
+DAP_MODE_JTAG = 2
+
+# DP Control / Status Register bit definitions
+CTRLSTAT_STICKYORUN = 0x00000002
+CTRLSTAT_STICKYCMP = 0x00000010
+CTRLSTAT_STICKYERR = 0x00000020
 
 def JTAG2SWD(interface):
     data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
@@ -91,20 +99,30 @@ class CMSIS_DAP(Transport):
         self.dp_select = -1
 
     def init(self, frequency = 1000000):
-        # init dap IO
-        dapConnect(self.interface)
+        # connect to DAP, check for SWD or JTAG
+        self.mode = dapConnect(self.interface)
         # set clock frequency
         dapSWJClock(self.interface, frequency)
         # configure transfer
         dapTransferConfigure(self.interface)
-        # configure swd protocol
-        dapSWDConfigure(self.interface)
-        # switch from jtag to swd
-        JTAG2SWD(self.interface)
-        # read ID code
-        logging.info('IDCODE: 0x%X', self.readDP(DP_REG['IDCODE']))
-        # clear abort err
-        dapWriteAbort(self.interface, 0x1e);
+        if (self.mode == DAP_MODE_SWD):
+            # configure swd protocol
+            dapSWDConfigure(self.interface)
+            # switch from jtag to swd
+            JTAG2SWD(self.interface)
+            # read ID code
+            logging.info('IDCODE: 0x%X', self.readDP(DP_REG['IDCODE']))
+            # clear errors
+            dapWriteAbort(self.interface, 0x1e);
+        elif (self.mode == DAP_MODE_JTAG):
+            # configure jtag protocol
+            dapJTAGConfigure(self.interface, 4)
+            # Test logic reset, run test idle
+            dapSWJSequence(self.interface, [0x1F])
+            # read ID code
+            logging.info('IDCODE: 0x%X', dapJTAGIDCode(self.interface))
+            # clear errors
+            self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
         return
 
     def uninit(self):
@@ -119,6 +137,12 @@ class CMSIS_DAP(Transport):
             logging.error('request %s not supported', request)
         return resp
 
+    def clearStickyErr(self):
+        if (self.mode == DAP_MODE_SWD):
+            self.writeDP(0x0, (1 << 2))
+        elif (self.mode == DAP_MODE_JTAG):
+            self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR)
+
     def writeMem(self, addr, data, transfer_size = 32):
         self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
 
@@ -132,8 +156,7 @@ class CMSIS_DAP(Transport):
                                             WRITE | AP_ACC | AP_REG['DRW']],
                                            [addr, data])
         except TransferError:
-            # Clear STICKYERR flag
-            self.writeDP(0x0, (1 << 2))
+            self.clearStickyErr()
             raise
 
     def readMem(self, addr, transfer_size = 32):
@@ -144,8 +167,7 @@ class CMSIS_DAP(Transport):
                                                    READ | AP_ACC | AP_REG['DRW']],
                                                   [addr])
         except TransferError:
-            # Clear STICKYERR flag
-            self.writeDP(0x0, (1 << 2))
+            self.clearStickyErr()
             raise
 
         res =   (resp[0] << 0)  | \
@@ -168,8 +190,7 @@ class CMSIS_DAP(Transport):
         try:
             dapTransferBlock(self.interface, len(data), WRITE | AP_ACC | AP_REG['DRW'], data)
         except TransferError:
-            # Clear STICKYERR flag
-            self.writeDP(0x0, (1 << 2))
+            self.clearStickyErr()
             raise
         return
 
@@ -182,8 +203,7 @@ class CMSIS_DAP(Transport):
         try:
             resp = dapTransferBlock(self.interface, size, READ | AP_ACC | AP_REG['DRW'])
         except TransferError:
-            # Clear STICKYERR flag
-            self.writeDP(0x0, (1 << 2))
+            self.clearStickyErr()
             raise
         for i in range(len(resp)/4):
             data.append( (resp[i*4 + 0] << 0)   | \
