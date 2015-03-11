@@ -65,12 +65,14 @@ TRANSFER_SIZE = {8: CSW_SIZE8,
                  32: CSW_SIZE32
                  }
 
+# Response values to DAP_Connect command
 DAP_MODE_SWD = 1
 DAP_MODE_JTAG = 2
 
-STICKORUN = 0x00000002
-STICKCMP = 0x00000010
-STICKYERR = 0x00000020
+# DP Control / Status Register bit definitions
+CTRLSTAT_STICKORUN = 0x00000002
+CTRLSTAT_STICKYCMP = 0x00000010
+CTRLSTAT_STICKYERR = 0x00000020
 
 def JTAG2SWD(interface):
     data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
@@ -120,7 +122,7 @@ class CMSIS_DAP(Transport):
             # read ID code
             logging.info('IDCODE: 0x%X', dapJTAGIDCode(self.interface))
             # clear errors
-            self.writeDP(DP_REG['CTRL_STAT'], STICKYERR | STICKCMP | STICKORUN)
+            self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKORUN)
         return
 
     def reinit(self):
@@ -136,7 +138,7 @@ class CMSIS_DAP(Transport):
             # Test logic reset, run test idle
             dapSWJSequence(self.interface, [0x1F])
             # clear errors
-            self.writeDP(DP_REG['CTRL_STAT'], STICKYERR | STICKCMP | STICKORUN)
+            self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKORUN)
         return
 
     def uninit(self):
@@ -155,7 +157,7 @@ class CMSIS_DAP(Transport):
         if (self.mode == DAP_MODE_SWD):
             self.writeDP(0x0, (1 << 2))
         elif (self.mode == DAP_MODE_JTAG):
-            self.writeDP(DP_REG['CTRL_STAT'], STICKYERR)
+            self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR)
 
     def writeMem(self, addr, data, transfer_size = 32):
         self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
