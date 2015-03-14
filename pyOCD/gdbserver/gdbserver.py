@@ -560,15 +560,17 @@ class GDBServer(threading.Thread):
             if cmd == 'help':
                 resp = ''
                 for k,v in safecmd.items():
-                    resp += '%s\t%s\n' % (k,v)
+                    resp += '%s\t%s\n' % (k,v[0])
                 resp = self.hexEncode(resp)
             else:
                 cmdList = cmd.split(' ')
                 #check whether all the cmds is valid cmd for monitor
                 for cmd_sub in cmdList:
                     if not cmd_sub in safecmd:
-                        #error cmd for monitor, just return directly
-                        resp = ''
+                        #error cmd for monitor
+                        logging.warning("Invalid mon command '%s'", cmd)
+                        resp = 'Invalid Command: "%s"\n' % cmd
+                        resp = self.hexEncode(resp)
                         return self.createRSPPacket(resp)
                     else:
                         resultMask = resultMask | safecmd[cmd_sub][1]
@@ -600,7 +602,9 @@ class GDBServer(threading.Thread):
                         self.target.resetStopOnReset()
                         self.target.resume()
                     else:
-                        resp = ''
+                        logging.warning("Invalid mon command '%s'", cmd)
+                        resp = 'Invalid Command: "%s"\n' % cmd
+                        resp = self.hexEncode(resp)
             return self.createRSPPacket(resp)
 
         else:
