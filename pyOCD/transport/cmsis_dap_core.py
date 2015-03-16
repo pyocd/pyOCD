@@ -224,6 +224,9 @@ def dapTransferBlock(interface, count, request, data = [0], dap_index = 0):
     reads_pending = 0
     nb = 0
     resp = []
+    error_transfer = False
+    error_response = False
+
     # we send successfully several packets if the size is bigger than MAX_PACKET_COUNT
     while packet_count > 0 or reads_pending > 0:
         # Make sure the transmit buffer stays saturated
@@ -251,16 +254,30 @@ def dapTransferBlock(interface, count, request, data = [0], dap_index = 0):
             # we then read
             tmp = interface.read()
             if tmp[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
-                raise ValueError('DAP_TRANSFER_BLOCK response error')
+                # Error occurred - abort further writes
+                # but make sure to finish reading remaining packets
+                packet_count = 0
+                error_response = True
 
             if tmp[3] != DAP_TRANSFER_OK:
+                # Error occurred - abort further writes
+                # but make sure to finish reading remaining packets
+                packet_count = 0
                 if tmp[3] == DAP_TRANSFER_FAULT:
-                    raise TransferError()
-                raise ValueError('DAP_TRANSFER_BLOCK response error')
+                    error_transfer = True
+                else:
+                    error_response = True
+
             size_transfer = tmp[1] | (tmp[2] << 8)
             resp.extend(tmp[4:4+size_transfer*4])
             reads_pending = reads_pending - 1
-        
+
+    # Raise pending errors
+    if error_response:
+        raise ValueError('DAP_TRANSFER_BLOCK response error')
+    elif error_transfer:
+        raise TransferError()
+
     return resp
     
 def dapSWJClock(interface, clock = 1000000):

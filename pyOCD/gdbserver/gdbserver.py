@@ -46,6 +46,7 @@ class GDBServer(threading.Thread):
         self.break_on_reset = options.get('break_on_reset', False)
         self.board.target.setVectorCatchReset(self.break_on_reset)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
+        self.persist = options.get('persist', False)
         self.packet_size = 2048
         self.flashData = list()
         self.flashOffset = None
@@ -172,7 +173,10 @@ class GDBServer(threading.Thread):
                     if detach:
                         self.abstract_socket.close()
                         self.lock.release()
-                        break
+                        if self.persist:
+                            break
+                        else:
+                            return
 
                     self.timeOfLastPacket = time()
 
@@ -240,6 +244,11 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(resp)
     
     def kill(self):
+        # Keep target halted and leave vector catches if in persistent mode.
+        if not self.persist:
+            self.board.target.setVectorCatchFault(False)
+            self.board.target.setVectorCatchReset(False)
+            self.board.target.resume()
         return self.createRSPPacket("")
         
     def breakpoint(self, data):
@@ -551,15 +560,17 @@ class GDBServer(threading.Thread):
             if cmd == 'help':
                 resp = ''
                 for k,v in safecmd.items():
-                    resp += '%s\t%s\n' % (k,v)
+                    resp += '%s\t%s\n' % (k,v[0])
                 resp = self.hexEncode(resp)
             else:
                 cmdList = cmd.split(' ')
                 #check whether all the cmds is valid cmd for monitor
                 for cmd_sub in cmdList:
                     if not cmd_sub in safecmd:
-                        #error cmd for monitor, just return directly
-                        resp = ''
+                        #error cmd for monitor
+                        logging.warning("Invalid mon command '%s'", cmd)
+                        resp = 'Invalid Command: "%s"\n' % cmd
+                        resp = self.hexEncode(resp)
                         return self.createRSPPacket(resp)
                     else:
                         resultMask = resultMask | safecmd[cmd_sub][1]
@@ -591,7 +602,9 @@ class GDBServer(threading.Thread):
                         self.target.resetStopOnReset()
                         self.target.resume()
                     else:
-                        resp = ''
+                        logging.warning("Invalid mon command '%s'", cmd)
+                        resp = 'Invalid Command: "%s"\n' % cmd
+                        resp = self.hexEncode(resp)
             return self.createRSPPacket(resp)
 
         else:

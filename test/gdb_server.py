@@ -49,6 +49,7 @@ parser.add_option("-n", "--nobreak", dest = "break_at_hardfault", default = True
 parser.add_option("-r", "--reset-break", dest = "break_on_reset", default = False, action="store_true", help = "Halt the target when reset." )
 parser.add_option("-s", "--step-int", dest = "step_into_interrupt", default = False, action="store_true", help = "Allow single stepping to step into interrupts." )
 parser.add_option("-f", "--frequency", dest = "debug_clock_frequency", default = 1000000, type="int", help = "SWD clock frequency in Hz." )
+parser.add_option("-o", "--persist", dest = "persist", default = False, action="store_true", help = "Keep GDB server running even after remote has detached.")
 (option, args) = parser.parse_args()
 
 gdb = None
@@ -61,7 +62,8 @@ else:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override, frequency = option.debug_clock_frequency)
         with board_selected as board:
             gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault, 
-                'step_into_interrupt' : option.step_into_interrupt, 'break_on_reset' : option.break_on_reset })
+                'step_into_interrupt' : option.step_into_interrupt, 'break_on_reset' : option.break_on_reset,
+                'persist' : option.persist})
             while gdb.isAlive():
                 gdb.join(timeout = 0.5)
     except KeyboardInterrupt:

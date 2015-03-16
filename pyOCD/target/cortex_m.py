@@ -712,17 +712,21 @@ class CortexM(Target):
     def clearDebugCauseBits(self):
         self.writeMemory(DFSR, DFSR_DWTTRAP | DFSR_BKPT | DFSR_HALTED)
 
-    def reset(self, software_reset = False):
+    def reset(self, software_reset = None):
         """
         reset a core. After a call to this function, the core
         is running
         """
+        if software_reset == None:
+            # Default to software reset if nothing is specified
+            software_reset = True
+        
         if software_reset:
             self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
         else:
             self.transport.reset()
 
-    def resetStopOnReset(self, software_reset = False):
+    def resetStopOnReset(self, software_reset = None):
         """
         perform a reset and stop the core on the reset handler
         """
@@ -748,7 +752,7 @@ class CortexM(Target):
 
     def setTargetState(self, state):
         if state == "PROGRAM":
-            self.resetStopOnReset(software_reset = True)
+            self.resetStopOnReset(True)
 
     def getState(self):
         dhcsr = self.readMemory(DHCSR)

@@ -36,14 +36,24 @@ flash_algo = { 'load_address' : 0x10000000,
                                 ],
                'pc_init' : 0x1000003d,
                'pc_eraseAll' : 0x1000006b,
+               'pc_erase_sector' : 0x100000ab,
                'pc_program_page' : 0x100000ed,
                'begin_data' : 0x100001c4,
                'begin_stack' : 0x10001000,
                'static_base' : 0x1000019c,
-               'page_size' : 1024
+               'page_size' : 0x1000
               };
               
 class Flash_lpc11u24(Flash):
     
     def __init__(self, target):
         super(Flash_lpc11u24, self).__init__(target, flash_algo)
+
+    # TODO - temporary until flash algo is rebuilt with 4K page program size
+    def programPage(self, flashPtr, bytes):
+        write_size = 1024
+        self.page_size = write_size # temporarily override page size
+        for i in range(0, 4):
+            data = bytes[i * write_size : (i + 1) * write_size]
+            Flash.programPage(self, flashPtr + i * write_size, data)
+        self.page_size = flash_algo['page_size'] # restore page size
