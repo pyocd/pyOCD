@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2012-2013 ARM Limited
+ Copyright (c) 2012-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from distutils.core import setup
 
 setup(
     name="pyOCD",
-    version="0.3",
+    version="0.3.1",
     description="CMSIS-DAP debugger for Python",
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
