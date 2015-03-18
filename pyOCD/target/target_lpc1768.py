@@ -28,22 +28,21 @@ class LPC1768(CortexM):
     <memory type="ram" start="0x2007C000" length="0x8000"> </memory>
 </memory-map>
 """
-    
+
     def __init__(self, transport):
         super(LPC1768, self).__init__(transport)
         self.auto_increment_page_size = 0x1000
-        
+
     def reset(self, software_reset = False):
-        # halt processor
-        self.halt()
-        # not remap 0x0000-0x0020 to anything but the flash
-        self.writeMemory(0x400FC040, 1)
         CortexM.reset(self, False)
-        
-    def resetStopOnReset(self, software_reset = False):
-        # halt processor
-        self.halt()
-        # not remap 0x0000-0x0020 to anything but the flash
-        self.writeMemory(0x400FC040, 1)
+
+    def resetStopOnReset(self, software_reset = False, map_to_user = True):
         CortexM.resetStopOnReset(self)
-    
+
+        # Remap to use flash and set SP and SP accordingly
+        if map_to_user:
+            self.writeMemory(0x400FC040, 1)
+            sp = self.readMemory(0x0)
+            pc = self.readMemory(0x4)
+            self.writeCoreRegisterRaw('sp', sp)
+            self.writeCoreRegisterRaw('pc', pc)
