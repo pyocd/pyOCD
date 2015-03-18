@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ class LPC1768(CortexM):
     memoryMapXML =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 <memory-map>
-    <memory type="flash" start="0x0" length="0x80000"> <property name="blocksize">0x400</property></memory>
+    <memory type="flash" start="0x0" length="0x10000"> <property name="blocksize">0x1000</property></memory>
+    <memory type="flash" start="0x10000" length="0x70000"> <property name="blocksize">0x8000</property></memory>
     <memory type="ram" start="0x10000000" length="0x8000"> </memory>
     <memory type="ram" start="0x2007C000" length="0x8000"> </memory>
 </memory-map>

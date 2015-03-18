@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -52,8 +52,6 @@ class Flash_lpc11u24(Flash):
     # TODO - temporary until flash algo is rebuilt with 4K page program size
     def programPage(self, flashPtr, bytes):
         write_size = 1024
-        self.page_size = write_size # temporarily override page size
         for i in range(0, 4):
             data = bytes[i * write_size : (i + 1) * write_size]
             Flash.programPage(self, flashPtr + i * write_size, data)
-        self.page_size = flash_algo['page_size'] # restore page size
