@@ -488,7 +488,10 @@ class CortexM(Target):
         write a memory location.
         By default the transfer size is a word
         """
-        self.transport.writeMem(addr, value, transfer_size)
+        try:
+            self.transport.writeMem(addr, value, transfer_size)
+        except:
+            self.handleMemoryError()
         return
 
     def write32(self, addr, value):
@@ -514,7 +517,11 @@ class CortexM(Target):
         read a memory location. By default, a word will
         be read
         """
-        return self.transport.readMem(addr, transfer_size)
+        try:
+            return self.transport.readMem(addr, transfer_size)
+        except:
+            self.handleMemoryError()
+            return 0
 
     def read32(self, addr):
         """
@@ -643,7 +650,10 @@ class CortexM(Target):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            self.transport.writeBlock32(addr, data[:n/4])
+            try:
+                self.transport.writeBlock32(addr, data[:n/4])
+            except:
+                self.handleMemoryError()
             data = data[n/4:]
             size -= n/4
             addr += n
@@ -659,7 +669,10 @@ class CortexM(Target):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            resp += self.transport.readBlock32(addr, n/4)
+            try:
+                resp += self.transport.readBlock32(addr, n/4)
+            except:
+                self.handleMemoryError()
             size -= n/4
             addr += n
         return resp
@@ -1159,3 +1172,7 @@ class CortexM(Target):
             return '0' + val
         else:
             return val
+
+    def handleMemoryError(self):
+            self.transport.reinit()
+            self.init()
