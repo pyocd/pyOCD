@@ -22,7 +22,7 @@ from time import sleep
 from board import Board
 from pyOCD.interface import INTERFACE, usb_backend
 
-TARGET_TYPE = {
+BOARD_ID_TO_TARGET = {
                 "0200": "kl25z",
                 "0210": "kl05z",
                 "0220": "kl46z",
@@ -53,13 +53,25 @@ class MbedBoard(Board):
     Particularly, this class allows you to dynamically determine
     the type of all boards connected based on the id board
     """
-    def __init__(self, target, flash, interface, transport = "cmsis_dap", frequency = 1000000):
+    def __init__(self, interface, board_id, unique_id, target = None, transport = "cmsis_dap", frequency = 1000000):
         """
         Init the board
         """
-        super(MbedBoard, self).__init__(target, flash, interface, transport, frequency)
-        self.unique_id = ""
-        self.target_type = ""
+        # Set the native target if there is one
+        self.native_target = None
+        if board_id in BOARD_ID_TO_TARGET:
+            self.native_target = BOARD_ID_TO_TARGET[board_id]
+
+        # Unless overridden use the native target
+        if target is None:
+            target = self.native_target
+
+        if target is None:
+            raise Exception("Unknown board target")
+
+        super(MbedBoard, self).__init__(target, target, interface, transport, frequency)
+        self.unique_id = unique_id
+        self.target_type = target
     
     def getUniqueID(self):
         """
@@ -84,31 +96,14 @@ class MbedBoard(Board):
         """
         List the connected board info
         """
-        all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
+        all_mbeds = MbedBoard.getAllConnectedBoards(close = True, blocking = False)
         index = 0
-        if (all_mbeds != []) & (all_mbeds != None):
+        if len(all_mbeds) > 0:
             for mbed in all_mbeds:
-                mbed.write([0x80])
-                u_id_ = mbed.read()
-                try:
-                    target_type = array.array('B', [i for i in u_id_[2:6]]).tostring()
-                    if (target_type not in TARGET_TYPE):
-                        logging.info("Unsupported target found: %s" % target_type)
-                        continue
-                    else:
-                        target_type = TARGET_TYPE[target_type]
-                    new_mbed = MbedBoard("target_" + target_type, "flash_" + target_type, mbed, transport)
-                    new_mbed.target_type = target_type
-                    new_mbed.unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
-                    logging.info("new board id detected: %s", new_mbed.unique_id)
-                    print "%d => %s boardId => %s" % (index, new_mbed.getInfo().encode('ascii', 'ignore'), new_mbed.unique_id)
-                    mbed.close()
-                    index += 1
-                except:
-                    mbed.close()
-                    raise
+                print("%d => %s boardId => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'), mbed.unique_id))
+                index += 1
         else:
-            print "No available boards is connected"
+            print("No available boards are connected")
         
     @staticmethod
     def getAllConnectedBoards(transport = "cmsis_dap", close = False, blocking = True, 
@@ -119,33 +114,45 @@ class MbedBoard(Board):
         first = True
         while True:
             while True:
+                if not first:
+                    # Don't eat up all the cpu if an unsupported board is connected.
+                    # Sleep before getting connected interfaces.  This way if a keyboard
+                    # exception comes in there will be no resources to close
+                    sleep(0.2)
+            
                 all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
-                if all_mbeds != None or not blocking:
+                if all_mbeds == None:
+                    all_mbeds = []
+                
+                if not blocking:
+                    # No blocking so break from loop
                     break
+                
+                if len(all_mbeds) > 0:
+                    # A board has been found so break from loop
+                    break
+
                 if (first == True):
                     logging.info("Waiting for a USB device connected")
                     first = False
-                sleep(0.2)
                 
             mbed_boards = []
             for mbed in all_mbeds:
                 try:
                     mbed.write([0x80])
                     u_id_ = mbed.read()
-                    if target_override:
-                        target_type = target_override
-                    else:
-                        target_type = array.array('B', [i for i in u_id_[2:6]]).tostring()
-                        if (target_type not in TARGET_TYPE):
-                            logging.info("Unsupported target found: %s" % target_type)
+                    board_id = array.array('B', [i for i in u_id_[2:6]]).tostring()
+                    unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
+                    if board_id not in BOARD_ID_TO_TARGET:
+                        logging.info("Unsupported board found: %s" % board_id)
+                        if target_override is None:
+                            # TODO - if no board can be determined treat this as a generic cortex-m device
+                            logging.info("Target could not be determined.  Specify target manually to use board")
+                            mbed.close()
                             continue
-                        else:
-                            target_type = TARGET_TYPE[target_type]
-                        
-                    new_mbed = MbedBoard("target_" + target_type, "flash_" + target_type, mbed, transport, frequency)
-                    new_mbed.target_type = target_type
-                    new_mbed.unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
-                    logging.info("new board id detected: %s", new_mbed.unique_id)
+
+                    new_mbed = MbedBoard(mbed, board_id, unique_id, target_override, transport, frequency)
+                    logging.info("new board id detected: %s", unique_id)
                     mbed_boards.append(new_mbed)
                     if close:
                         mbed.close()
@@ -168,71 +175,69 @@ class MbedBoard(Board):
         """
         all_mbeds = MbedBoard.getAllConnectedBoards(transport, False, blocking, target_override, frequency)
         
-        if all_mbeds == None:
-            return None
-        
-        index = 0
-        print "id => usbinfo | boardname"
-        for mbed in all_mbeds:
-            print "%d => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'))
-            index += 1
-        
-        if len(all_mbeds) == 1:
-            if board_id != None:
-                if all_mbeds[0].unique_id == (board_id):
-                    all_mbeds[0].init()
-                    return all_mbeds[0]
+        # If a board ID is specified close all other boards
+        if board_id != None:
+            new_mbed_list = []
+            for mbed in all_mbeds:
+                if mbed.unique_id == (board_id):    
+                    new_mbed_list.append(mbed)
                 else:
-                    print "The board you want to connect isn't the board now connected"
-                    return None
+                    mbed.interface.close()
+            assert len(new_mbed_list) <= 1
+            all_mbeds = new_mbed_list
+
+        # Return if no boards are connected
+        if all_mbeds == None or len(all_mbeds)  <= 0:
+            if board_id is None:
+                print("No connected boards")
             else:
-                try:
-                    all_mbeds[0].init()
-                except:
-                    all_mbeds[0].interface.close()
-                    raise
-                return all_mbeds[0]
+                print("Board %s is not connected" % board_id)
+            return None # No boards to close so it is safe to return
+            
+        # Select first board and close others if True
+        if return_first:
+            for i in range(1, len(all_mbeds)):
+                all_mbeds[i].interface.close()
+            all_mbeds = all_mbeds[0:1]
         
-        try:
-            ch = 0
-            if board_id != None:
-                for mbed in all_mbeds:
-                    if mbed.unique_id == (board_id):
-                        mbed.init()
-                        return mbed
-                    else:
-                        mbed.interface.close()
-                print "The board you want to connect isn't the boards now connected"
-                return None
-            elif not return_first:
-                while True:
-                    print "input id num to choice your board want to connect"
-                    line = sys.stdin.readline()
-                    valid = False
-                    try:
-                        ch = int(line)
-                        valid = 0 <= ch < len(all_mbeds)
-                    except ValueError:
-                        pass
-                    if not valid:
-                        logging.info("BAD CHOICE: %s", line)
-                        index = 0
-                        for mbed in all_mbeds:
-                            print "%d => %s" % ( index, mbed.getInfo())
-                            index += 1
-                    else:
-                        break
+        # Ask use to select boards if there is more than 1 left
+        if len(all_mbeds) > 1:
+            index = 0
+            print "id => usbinfo | boardname"
+            for mbed in all_mbeds:
+                print "%d => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'))
+                index += 1
+            while True:
+                print "input id num to choice your board want to connect"
+                line = sys.stdin.readline()
+                valid = False
+                try:
+                    ch = int(line)
+                    valid = 0 <= ch < len(all_mbeds)
+                except ValueError:
+                    pass
+                if not valid:
+                    logging.info("BAD CHOICE: %s", line)
+                    index = 0
+                    for mbed in all_mbeds:
+                        print "%d => %s" % ( index, mbed.getInfo())
+                        index += 1
+                else:
+                    break
             # close all others mbed connected
             for mbed in all_mbeds:
-                if mbed != all_mbeds[int(ch)]:
+                if mbed != all_mbeds[ch]:
                     mbed.interface.close()
-        
-            all_mbeds[int(ch)].init()
-            return all_mbeds[int(ch)]
+            all_mbeds = all_mbeds[ch:ch+1]
+            
+        assert len(all_mbeds) == 1
+        mbed = all_mbeds[0]
+        try:
+            mbed.init()
         except:
-            for mbed in all_mbeds:
-                mbed.interface.close()
+            mbed.interface.close()
             raise
+        return mbed
 
     def getPacketCount(self):
         """
