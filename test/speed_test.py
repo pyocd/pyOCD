@@ -80,6 +80,11 @@ def speed_test(board_id):
             ram_size = 0x20000
             rom_start = 0x00000000
             rom_size = 0x80000
+        elif target_type == "k64f":
+            ram_start = 0x1FFF0000
+            ram_size = 0x40000
+            rom_start = 0x00000000
+            rom_size = 0x100000
         elif target_type == "lpc11u24":
             ram_start = 0x10000000
             ram_size = 0x2000
@@ -90,6 +95,11 @@ def speed_test(board_id):
             ram_size = 0x8000
             rom_start = 0x00000000
             rom_size = 0x80000
+        elif target_type == "lpc800":
+            ram_start = 0x10000000
+            ram_size = 0x1000
+            rom_start = 0x00000000
+            rom_size = 0x4000
         elif target_type == "lpc4330":
             ram_start = 0x10000000
             ram_size = 0x20000
