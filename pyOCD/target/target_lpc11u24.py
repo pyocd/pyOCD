@@ -31,3 +31,13 @@ class LPC11U24(CortexM):
         super(LPC11U24, self).__init__(transport)
         self.auto_increment_page_size = 0x400
 
+    def resetStopOnReset(self, software_reset = None, map_to_user = True):
+        CortexM.resetStopOnReset(self, software_reset)
+
+        # Remap to use flash and set SP and SP accordingly
+        if map_to_user:
+            self.writeMemory(0x40048000, 0x2, 32)
+            sp = self.readMemory(0x0)
+            pc = self.readMemory(0x4)
+            self.writeCoreRegisterRaw('sp', sp)
+            self.writeCoreRegisterRaw('pc', pc)
