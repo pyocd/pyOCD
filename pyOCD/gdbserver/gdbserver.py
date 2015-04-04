@@ -48,8 +48,7 @@ class GDBServer(threading.Thread):
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
         self.packet_size = 2048
-        self.flashData = list()
-        self.flashOffset = None
+        self.flashBuilder = None
         self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -353,22 +352,13 @@ class GDBServer(threading.Thread):
                     second_colon += 1
                 idx_begin += 1
 
-            # determine the address to start flashing
-            if self.flashOffset == None:
-                # flash offset must be a multiple of the page size
-                self.flashOffset = write_addr - ( write_addr % self.flash.page_size )
+            # Get flash builder if there isn't one already
+            if self.flashBuilder == None:
+                self.flashBuilder = self.flash.getFlashBuilder()
 
-            # if there's gap between sections, fill it
-            flash_watermark = len(self.flashData) + self.flashOffset
-            pad_size = write_addr - flash_watermark
-            if pad_size > 0:
-                self.flashData += [0xFF] * pad_size
+            # Add data to flash builder
+            self.flashBuilder.addData(write_addr, self.unescape(data[idx_begin:len(data) - 3]))
             
-            # append the new data if it doesn't overlap existing data
-            if write_addr >= flash_watermark:
-                self.flashData += self.unescape(data[idx_begin:len(data) - 3])
-            else:
-                logging.error("Invalid FlashWrite address %d overlaps current data of size %d", write_addr, flash_watermark)
                 
             return self.createRSPPacket("OK")
         
@@ -392,10 +382,8 @@ class GDBServer(threading.Thread):
                         print_progress.done = True
                         sys.stdout.write("\n")
 
-            self.flash.flashBlock(self.flashOffset, self.flashData, progress_cb = print_progress)
+            self.flashBuilder.program(progress_cb = print_progress)
             sys.stdout.write("\r\n")
-            self.flashData = []
-            self.flashOffset = None
             return self.createRSPPacket("OK")
         
         elif 'Cont' in ops:
