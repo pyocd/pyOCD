@@ -177,7 +177,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     size = len(data)
 
     print "\r\n\r\n------ Test Basic Page Erase ------"
-    operation = flash.flashBlock(addr, data, False, False, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(addr, data, False, False, progress_cb = print_progress)
     data_flashed = target.readBlockMemoryUnaligned8(addr, size)
     if same(data_flashed, data) and operation is FLASH_PAGE_ERASE:
         print("TEST PASSED")
@@ -187,7 +187,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     test_count += 1
 
     print "\r\n\r\n------ Test Basic Chip Erase ------"
-    operation = flash.flashBlock(addr, data, False, True, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(addr, data, False, True, progress_cb = print_progress)
     data_flashed = target.readBlockMemoryUnaligned8(addr, size)
     if same(data_flashed, data) and operation is FLASH_CHIP_ERASE:
         print("TEST PASSED")
@@ -197,7 +197,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     test_count += 1
 
     print "\r\n\r\n------ Test Smart Page Erase ------"
-    operation = flash.flashBlock(addr, data, True, False, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(addr, data, True, False, progress_cb = print_progress)
     data_flashed = target.readBlockMemoryUnaligned8(addr, size)
     if same(data_flashed, data) and operation is FLASH_PAGE_ERASE:
         print("TEST PASSED")
@@ -207,7 +207,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     test_count += 1
 
     print "\r\n\r\n------ Test Smart Chip Erase ------"
-    operation = flash.flashBlock(addr, data, True, True, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(addr, data, True, True, progress_cb = print_progress)
     data_flashed = target.readBlockMemoryUnaligned8(addr, size)
     if same(data_flashed, data) and operation is FLASH_CHIP_ERASE:
         print("TEST PASSED")
@@ -219,7 +219,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     print "\r\n\r\n------ Test Offset Write ------"
     new_data = [0x55] * board.flash.page_size * 2
     addr = rom_start + rom_size / 2
-    operation = flash.flashBlock(addr, new_data, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(addr, new_data, progress_cb = print_progress)
     data_flashed = target.readBlockMemoryUnaligned8(addr, len(new_data))
     if same(data_flashed, new_data) and operation is FLASH_PAGE_ERASE:
         print("TEST PASSED")
@@ -231,7 +231,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     print "\r\n\r\n------ Test Multiple Block Writes ------"
     more_data = [0x33] * board.flash.page_size * 2
     addr = (rom_start + rom_size / 2) + 1 #cover multiple pages
-    fb = flash.getFlashBuilder(rom_start)
+    fb = flash.getFlashBuilder()
     fb.addData(rom_start, data)
     fb.addData(addr, more_data)
     fb.program(progress_cb = print_progress)
@@ -248,7 +248,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     test_pass = False
     new_data = [0x33] * board.flash.page_size
     addr = (rom_start + rom_size / 2) #cover multiple pages
-    fb = flash.getFlashBuilder(rom_start)
+    fb = flash.getFlashBuilder()
     fb.addData(addr, new_data)
     try:
         fb.addData(addr + 1, new_data)
@@ -264,7 +264,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
 
     print "\r\n\r\n------ Test Empty Block Write ------"
     # Freebee if nothing asserts
-    fb = flash.getFlashBuilder(rom_start)
+    fb = flash.getFlashBuilder()
     fb.program()
     print("TEST PASSED")
     test_pass_count += 1
@@ -273,8 +273,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     print "\r\n\r\n------ Test Missing Progress Callback ------"
     # Freebee if nothing asserts
     addr = rom_start
-    flash.flashBlock(rom_start, data, False, flash_start = rom_start)
-    flash.flashBlock(rom_start, data, True, flash_start = rom_start)
+    flash.flashBlock(rom_start, data, True)
     print("TEST PASSED")
     test_pass_count += 1
     test_count += 1
@@ -286,7 +285,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     print "\r\n\r\n------ Test Chip Erase Decision ------"
     new_data = list(data)
     new_data.extend([0xff] * unused) # Pad with 0xFF
-    operation = flash.flashBlock(0, new_data, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(0, new_data, progress_cb = print_progress)
     if operation == FLASH_CHIP_ERASE:
         print("TEST PASSED")
         test_pass_count += 1
@@ -297,7 +296,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     print "\r\n\r\n------ Test Chip Erase Decision 2 ------"
     new_data = list(data)
     new_data.extend([0x00] * unused) # Pad with 0x00
-    operation = flash.flashBlock(0, new_data, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(0, new_data, progress_cb = print_progress)
     if operation == FLASH_CHIP_ERASE:
         print("TEST PASSED")
         test_pass_count += 1
@@ -308,7 +307,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     print "\r\n\r\n------ Test Page Erase Decision ------"
     new_data = list(data)
     new_data.extend([0x00] * unused) # Pad with 0x00
-    operation = flash.flashBlock(0, new_data, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(0, new_data, progress_cb = print_progress)
     if operation == FLASH_PAGE_ERASE:
         print("TEST PASSED")
         test_pass_count += 1
@@ -322,7 +321,7 @@ with MbedBoard.chooseBoard(frequency=1000000) as board:
     size_differ = unused - size_same
     new_data.extend([0x00] * size_same) # Pad 5/6 with 0x00 and 1/6 with 0xFF
     new_data.extend([0x55] * size_differ)
-    operation = flash.flashBlock(0, new_data, progress_cb = print_progress, flash_start = rom_start)
+    operation = flash.flashBlock(0, new_data, progress_cb = print_progress)
     if operation == FLASH_PAGE_ERASE:
         print("TEST PASSED")
         test_pass_count += 1

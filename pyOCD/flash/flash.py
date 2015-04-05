@@ -32,6 +32,12 @@ class PageInfo(object):
         self.program_weight = None      # Time it takes to program a page (Not including data transfer time)
         self.size = None                # Size of page
 
+class FlashInfo(object):
+
+    def __init__(self):
+        self.rom_start = None           # Starting address of ROM
+        self.erase_weight = None        # Time it takes to perform a chip erase
+
 class Flash(object):
     """
     This class is responsible to flash a new binary in a target
@@ -148,18 +154,27 @@ class Flash(object):
         info.size = self.flash_algo['page_size']
         return info
 
-    def getEraseWeight(self):
-        return DEFAULT_CHIP_ERASE_WEIGHT
+    def getFlashInfo(self):
+        """
+        Get info about the flash
 
-    def getFlashBuilder(self, flash_start = 0):
-        return FlashBuilder(self, flash_start)
+        Override this function to return differnt values
+        """
+        info = FlashInfo()
+        info.rom_start = 0
+        info.erase_weight = DEFAULT_CHIP_ERASE_WEIGHT
+        return info
 
-    def flashBlock(self, addr, data, smart_flash = True, chip_erase = None, progress_cb = None, flash_start = 0):
+    def getFlashBuilder(self):
+        return FlashBuilder(self, self.getFlashInfo().rom_start)
+
+    def flashBlock(self, addr, data, smart_flash = True, chip_erase = None, progress_cb = None):
         """
         Flash a block of data
         """
         start = time()
 
+        flash_start = self.getFlashInfo().rom_start
         fb = FlashBuilder(self, flash_start)
         fb.addData(addr, data)
         operation = fb.program(chip_erase, progress_cb, smart_flash)
@@ -168,7 +183,7 @@ class Flash(object):
         logging.debug("%f kbytes flashed in %f seconds ===> %f kbytes/s" %(len(data)/1024, end-start, len(data)/(1024*(end - start))))
         return operation
 
-    def flashBinary(self, path_file, flashPtr = 0x0000000, flashBase = 0x00000000, smart_flash = True, chip_erase = None, progress_cb = None):
+    def flashBinary(self, path_file, flashPtr = 0x0000000, smart_flash = True, chip_erase = None, progress_cb = None):
         """
         Flash a binary
         """
@@ -177,7 +192,7 @@ class Flash(object):
         with open(path_file, "rb") as f:
             data = f.read()
         data = unpack(str(len(data)) + 'B', data)
-        self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb, flash_start = flashBase)
+        self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb)
 
     def updateCoreRegister(self, r0, r1, r2, r3, pc):
         self.target.writeCoreRegister('pc', pc)

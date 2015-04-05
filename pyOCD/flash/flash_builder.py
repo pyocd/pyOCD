@@ -224,7 +224,7 @@ class FlashBuilder(object):
         """
         chip_erase_count = 0
         chip_erase_weight = 0
-        chip_erase_weight += self.flash.getEraseWeight()
+        chip_erase_weight += self.flash.getFlashInfo().erase_weight
         for page in self.page_list:
             if page.erased is None:
                 page.erased = _erased(page.data)
@@ -285,7 +285,7 @@ class FlashBuilder(object):
         progress_cb(0.0)
         progress = 0
         self.flash.eraseAll()
-        progress += self.flash.getEraseWeight()
+        progress += self.flash.getFlashInfo().erase_weight
         for page in self.page_list:
             if not page.erased:
                 self.flash.programPage(page.addr, page.data)

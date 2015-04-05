@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from flash import Flash
+from flash import Flash, DEFAULT_CHIP_ERASE_WEIGHT
 
 flash_algo = { 'load_address' : 0x10000000,
                'instructions' : [
@@ -314,3 +314,9 @@ class Flash_lpc4330(Flash):
     def __init__(self, target):
         super(Flash_lpc4330, self).__init__(target, flash_algo)
         self.target.setFlash(self)
+
+    def getFlashInfo(self):
+        info = FlashInfo()
+        info.rom_start = 0x14000000
+        info.erase_weight = DEFAULT_CHIP_ERASE_WEIGHT
+        return info
