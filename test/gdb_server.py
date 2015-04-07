@@ -33,11 +33,11 @@ LEVELS={'debug':logging.DEBUG,
 
 print "Welcome to the PyOCD GDB Server Beta Version " 
 supported_list = ''
-for (k,v) in pyOCD.board.mbed_board.TARGET_TYPE.items():
-    supported_list += v + ' '
+for (k,v) in pyOCD.target.TARGET.items():
+    supported_list += k + ' '
 
 parser = OptionParser()
-group = OptionGroup(parser, "Supported Mbed Platform",supported_list )
+group = OptionGroup(parser, "Supported Targets",supported_list )
 parser.add_option_group(group)
 parser.add_option("-p", "--port", dest = "port_number", default = 3333, help = "Write the port number that GDB server will open")
 parser.add_option("-c", "--cmd-port", dest = "cmd_port", default = 4444, help = "Command port number. pyOCD doesn't open command port but it's required to be compatible with OpenOCD and Eclipse.")

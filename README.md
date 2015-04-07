@@ -69,6 +69,19 @@ Standalone GDB Server
 [GCC ARM Toolchain](https://launchpad.net/gcc-arm-embedded) also provided a pre-build version of pyOCD gdb server at [Misc tools related to gcc arm embedded tool chain](https://launchpad.net/gcc-arm-embedded-misc/pyocd-binary)
 
 
+### Recommended GDB and IDE setup
+The GDB server works well with Eclipse and the GNU ARM Eclipse OpenOCD plug-in.
+To view register the Embedded System Register Viewer plugin can be used.
+These can be installed from inside eclipse using the following links:
+GNU ARM Eclipse:  http://gnuarmeclipse.sourceforge.net/updates
+Embedded System Register Viewer: http://embsysregview.sourceforge.net/update
+
+The pyOCD gdb server executable will run as a drop in place replacement for 
+OpenOCD.  If a supported mbed development board is being debugged the target
+does not need to be specified, as pyOCD will automatically determine this.  
+If an external processor is being debugged then "-t [processor]" must
+be added to the command line.  For more information on setup see [this post for OpenOCD](http://gnuarmeclipse.livius.net/blog/openocd-debugging/)
+
 
 Examples
 --------
