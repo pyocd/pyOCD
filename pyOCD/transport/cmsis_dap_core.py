@@ -37,6 +37,7 @@ COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_JTAG_SEQUENCE': 0x14,
               'DAP_JTAG_CONFIGURE': 0x15,
               'DAP_JTAG_IDCODE': 0x16,
+              'DAP_VENDOR0': 0x80,
               }
 
 ID_INFO = {'VENDOR_ID': 0x01,
@@ -406,3 +407,13 @@ def dapJTAGIDCode(interface, index = 0):
             (resp[3] << 8)  | \
             (resp[4] << 16) | \
             (resp[5] << 24)
+
+def dapVendor(interface, index):
+    cmd = []
+    cmd.append(COMMAND_ID['DAP_VENDOR0'] + index)
+    interface.write(cmd)
+
+    resp = interface.read()
+
+    if resp[0] != COMMAND_ID['DAP_VENDOR0'] + index:
+        raise ValueError('DAP_VENDOR response error')

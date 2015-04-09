@@ -42,6 +42,8 @@ BOARD_ID_TO_TARGET = {
                 "1090": "stm32f051",
                 "1600": "lpc4330",
                 "1605": "lpc4330",
+                "0400": "maxwsnenv",
+                "0405": "max32600mbed",
               }
 
 mbed_vid = 0x0d28
