@@ -130,7 +130,7 @@ class GDBServer(threading.Thread):
                         if self.shutdown_event.isSet() or self.detach_event.isSet():
                             break
                         self.abstract_socket.setBlocking(0)
-                        data += self.abstract_socket.read()
+                        data += self.abstract_socket.read().decode()
                         if data.index("$") >= 0 and data.index("#") >= 0:
                             break
                     except (ValueError, socket.error):
@@ -157,10 +157,10 @@ class GDBServer(threading.Thread):
                         if ack:
                             resp = "+" + resp
                         # send resp
-                        self.abstract_socket.write(resp)
+                        self.abstract_socket.write(resp.encode())
                         # wait a '+' from the client
                         try:
-                            data = self.abstract_socket.read()
+                            data = self.abstract_socket.read().decode()
                             if data[0] != '+':
                                 logging.debug('gdb client has not ack!')
                             else:
@@ -305,7 +305,7 @@ class GDBServer(threading.Thread):
             if time() - self.timeOfLastPacket > 0.5:
                 sleep(0.1)
             try:
-                data = self.abstract_socket.read()
+                data = self.abstract_socket.read().decode()
                 if (data[0] == '\x03'):
                     self.target.halt()
                     val = self.target.getTResponse(True)
@@ -658,7 +658,7 @@ class GDBServer(threading.Thread):
         return resp
     
     def ack(self):
-        self.abstract_socket.write("+")
+        self.abstract_socket.write(b"+")
 
     def hexDecode(self, cmd):
         return ''.join([ chr(int(cmd[i:i+2], 16)) for i in range(0, len(cmd), 2)])
