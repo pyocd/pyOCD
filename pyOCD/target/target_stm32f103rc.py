@@ -38,7 +38,7 @@ class STM32F103RC(CortexM):
         self.auto_increment_page_size = 0x800
 
     def init(self):
-    	logging.debug('stm32f103rc init')
+        logging.debug('stm32f103rc init')
         CortexM.init(self)
         self.writeMemory(DBGMCU_CR, DBGMCU_VAL);
 
