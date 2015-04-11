@@ -19,6 +19,7 @@ from pyOCD.target.target import TARGET_RUNNING
 import logging
 from struct import unpack
 from time import time
+from binascii import crc32
 
 # Type of flash operation
 FLASH_PAGE_ERASE = 1
@@ -185,6 +186,8 @@ class FlashBuilder(object):
             elif chip_erase is True:
                 logging.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x', addr, flash_start)
 
+        self.flash.init()
+
         chip_erase_count, chip_erase_program_time = self._compute_chip_erase_pages_and_weight()
         page_erase_min_program_time = self._compute_page_erase_pages_weight_min()
 
@@ -196,7 +199,10 @@ class FlashBuilder(object):
         # If chip erase isn't True then analyze the flash
         if chip_erase != True:
             start = time()
-            sector_erase_count, page_program_time = self._quick_compute_page_erase_pages_and_weight()
+            if self.flash.getFlashInfo().crc_supported:
+                sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_crc32()
+            else:
+                sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_sector_read()
             stop = time()
             logging.debug("Analyze time: %f" % (stop-start))
 
@@ -207,9 +213,12 @@ class FlashBuilder(object):
             chip_erase = chip_erase_program_time < page_program_time
 
         if chip_erase:
-            return self._chip_erase_program(progress_cb)
+            flash_operation = self._chip_erase_program(progress_cb)
         else:
-            return self._page_erase_program(progress_cb)
+            flash_operation = self._page_erase_program(progress_cb)
+
+        self.flash.target.resetStopOnReset()
+        return flash_operation
 
     def _mark_all_pages_for_programming(self):
         for page in self.page_list:
@@ -241,7 +250,7 @@ class FlashBuilder(object):
             page_erase_min_weight += page.getVerifyWeight()
         return page_erase_min_weight
 
-    def _quick_compute_page_erase_pages_and_weight(self):
+    def _compute_page_erase_pages_and_weight_sector_read(self):
         """
         Estimate how many pages are the same.
 
@@ -253,7 +262,6 @@ class FlashBuilder(object):
         page_erase_count = 0
         page_erase_weight = 0
         for page in self.page_list:
-
             # Analyze pages that haven't been analyzed yet
             if page.same is None:
                 size = min(PAGE_ESTIMATE_SIZE, len(page.data))
@@ -262,6 +270,8 @@ class FlashBuilder(object):
                 if page_same is False:
                     page.same = False
 
+        # Put together page and time estimate
+        for page in self.page_list:
             if page.same is False:
                 page_erase_count += 1
                 page_erase_weight += page.getEraseProgramWeight()
@@ -271,6 +281,58 @@ class FlashBuilder(object):
             elif page.same is True:
                 # Page is confirmed to be the same so no programming weight
                 pass
+
+        self.page_erase_count = page_erase_count
+        self.page_erase_weight = page_erase_weight
+        return page_erase_count, page_erase_weight
+
+    def _compute_page_erase_pages_and_weight_crc32(self, assume_estimate_correct=False):
+        """
+        Estimate how many pages are the same.
+
+        Quickly estimate how many pages are the same.  These estimates are used
+        by page_erase_program so it is recommended to call this before beginning programming
+        This is done automatically by smart_program.
+        """
+        # Build list of all the pages that need to be analyzed
+        sector_list = []
+        page_list = []
+        for page in self.page_list:
+            if page.same is None:
+                # Add sector to computeCrcs
+                sector_list.append((page.addr, page.size))
+                page_list.append(page)
+                # Compute CRC of data (Padded with 0xFF)
+                data = list(page.data)
+                pad_size = page.size - len(page.data)
+                if pad_size > 0:
+                    data.extend([0xFF] * pad_size)
+                page.crc = crc32(bytearray(data)) & 0xFFFFFFFF
+
+        # Analyze pages
+        page_erase_count = 0
+        page_erase_weight = 0
+        if len(page_list) > 0:
+            crc_list = self.flash.computeCrcs(sector_list)
+            for page, crc in zip(page_list, crc_list):
+                page_same = page.crc == crc
+                if assume_estimate_correct:
+                    page.same = page_same
+                elif page_same is False:
+                    page.same = False
+
+        # Put together page and time estimate
+        for page in self.page_list:
+            if page.same is False:
+                page_erase_count += 1
+                page_erase_weight += page.getEraseProgramWeight()
+            elif page.same is None:
+                # Page is probably the same but must be read to confirm
+                page_erase_weight += page.getVerifyWeight()
+            elif page.same is True:
+                # Page is confirmed to be the same so no programming weight
+                pass
+
         self.page_erase_count = page_erase_count
         self.page_erase_weight = page_erase_weight
         return page_erase_count, page_erase_weight
@@ -281,7 +343,6 @@ class FlashBuilder(object):
         """
         logging.debug("Smart chip erase")
         logging.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
-        self.flash.init()
         progress_cb(0.0)
         progress = 0
         self.flash.eraseAll()
@@ -292,7 +353,6 @@ class FlashBuilder(object):
                 progress += page.getProgramWeight()
                 progress_cb(float(progress) / float(self.chip_erase_weight))
         progress_cb(1.0)
-        self.flash.target.resetStopOnReset()
         return FLASH_CHIP_ERASE
 
     def _page_erase_program(self, progress_cb = _stub_progress):
@@ -303,7 +363,6 @@ class FlashBuilder(object):
         actual_page_erase_weight = 0
         progress = 0
 
-        self.flash.init()
         progress_cb(0.0)
 
         for page in self.page_list:
@@ -330,7 +389,6 @@ class FlashBuilder(object):
                 progress_cb(float(progress) / float(self.page_erase_weight))
 
         progress_cb(1.0)
-        self.flash.target.resetStopOnReset()
 
         logging.debug("Estimated page erase count: %i", self.page_erase_count)
         logging.debug("Actual page erase count: %i", actual_page_erase_count)

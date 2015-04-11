@@ -41,7 +41,8 @@ flash_algo = { 'load_address' : 0x10000000,
                'begin_data' : 0x100001c4,
                'begin_stack' : 0x10001000,
                'static_base' : 0x1000019c,
-               'page_size' : 0x1000
+               'page_size' : 0x1000,
+               'analyzer_supported' : False
               };
               
 class Flash_lpc11u24(Flash):

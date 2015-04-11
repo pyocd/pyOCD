@@ -47,10 +47,12 @@ flash_algo = { 'load_address' : 0x10000000,
                'pc_eraseAll' : 0x100000e1,
                'pc_erase_sector' : 0x10000123,
                'pc_program_page' : 0x10000169,
-               'begin_data' : 0x2007c000,
+               'begin_data' : 0x2007c000,       # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
                'begin_stack' : 0x10001000,
                'static_base' : 0x10000214,
-               'page_size' : 0x8000
+               'page_size' : 0x8000,
+               'analyzer_supported' : True,
+               'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600
               };
 
 class Flash_lpc1768(Flash):

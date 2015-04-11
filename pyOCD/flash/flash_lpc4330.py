@@ -303,10 +303,12 @@ flash_algo = { 'load_address' : 0x10000000,
                'pc_eraseAll'     : 0x1000007F,
                'pc_erase_sector' : 0x1000009F,
                'pc_program_page' : 0x100000CD,
-               'begin_data'      : 0x10004000,
+               'begin_data'      : 0x10004000,  # Analyzer uses a max of 128 KB data (32,768 pages * 4 bytes / page)
                'begin_stack'     : 0x10008000,
                'static_base'     : 0x10002240,
-               'page_size'       : 2048
+               'page_size'       : 2048,
+               'analyzer_supported' : False,    # Analyzer works, but would fail if a full ROM analysis was performed since there is not enough ram
+               'analyzer_address' : 0x10005000  # Analyzer 0x10005000..0x10005600
               };
 
 class Flash_lpc4330(Flash):
