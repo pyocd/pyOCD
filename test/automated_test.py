@@ -28,7 +28,7 @@ from test_util import TestResult, Test, Logger
 
 from basic_test import basic_test
 from speed_test import SpeedTest
-#from flash_test import flash_test
+from flash_test import FlashTest
 
 
 if __name__ == "__main__":
@@ -48,8 +48,7 @@ if __name__ == "__main__":
     test = Test("Basic Test", lambda board: basic_test(board, None))
     test_list.append(test)
     test_list.append(SpeedTest())
-    #test = Test("Flash Test", flash_test)
-    #test_list.append(test)
+    test_list.append(FlashTest())
 
     # Put together list of boards to test
     board_list = MbedBoard.getAllConnectedBoards(close = True, blocking = False)
