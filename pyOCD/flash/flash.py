@@ -236,16 +236,11 @@ class Flash(object):
         """
         Flash a block of data
         """
-        start = time()
-
         flash_start = self.getFlashInfo().rom_start
         fb = FlashBuilder(self, flash_start)
         fb.addData(addr, data)
-        operation = fb.program(chip_erase, progress_cb, smart_flash)
-
-        end = time()
-        logging.debug("%f kbytes flashed in %f seconds ===> %f kbytes/s" %(len(data)/1024, end-start, len(data)/(1024*(end - start))))
-        return operation
+        info = fb.program(chip_erase, progress_cb, smart_flash)
+        return info
 
     def flashBinary(self, path_file, flashPtr = 0x0000000, smart_flash = True, chip_erase = None, progress_cb = None):
         """
