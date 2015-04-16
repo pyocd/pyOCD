@@ -39,6 +39,7 @@ class HidApiUSB(Interface):
     isAvailable = isAvailable
 
     def __init__(self):
+        super(HidApiUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.device = None
 
