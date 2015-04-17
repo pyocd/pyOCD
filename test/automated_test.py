@@ -35,7 +35,8 @@ if __name__ == "__main__":
     log_file = "automated_test_result.txt"
 
     # Setup logging
-    os.remove(log_file)
+    if os.path.exists(log_file):
+        os.remove(log_file)
     logger = Logger(log_file)
     sys.stdout = logger
     sys.stderr = logger
