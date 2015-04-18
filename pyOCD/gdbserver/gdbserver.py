@@ -476,8 +476,11 @@ class GDBServer(threading.Thread):
             return None
         
         if query[0] == 'Supported':
-            resp = "qXfer:memory-map:read+;qXfer:features:read+;PacketSize="
-            resp += hex(self.packet_size)[2:]
+            features = ['qXfer:features:read+']
+            features.append('PacketSize=' + hex(self.packet_size)[2:])
+            if hasattr(self.target, 'memoryMapXML'):
+                features.append('qXfer:memory-map:read+')
+            resp = ';'.join(features)
             return self.createRSPPacket(resp)
             
         elif query[0] == 'Xfer':
