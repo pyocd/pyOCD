@@ -51,7 +51,6 @@ class STM32F051(CortexM):
     
     def __init__(self, transport):
         super(STM32F051, self).__init__(transport)
-        self.auto_increment_page_size = 0x400
 
     def init(self):
         logging.debug('stm32f051 init')

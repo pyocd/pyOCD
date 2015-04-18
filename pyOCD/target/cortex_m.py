@@ -17,7 +17,7 @@
 
 from pyOCD.target.target import Target
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
-from pyOCD.transport.cmsis_dap import DP_REG
+from pyOCD.transport.cmsis_dap import DP_REG, AP_REG
 import pyOCD.gdbserver.signals
 import logging
 import struct
@@ -93,6 +93,14 @@ CDBGPWRUPREQ = 0x10000000
 
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
+
+AHB_IDR_TO_WRAP_SIZE = {
+    0x24770011 : 0x1000,    # Used on m4 & m3 - Documented in arm_cortexm4_processor_trm_100166_0001_00_en.pdf
+                            #                   and arm_cortexm3_processor_trm_100165_0201_00_en.pdf
+    0x44770001 : 0x400,     # Used on m1 - Documented in DDI0413D_cortexm1_r1p0_trm.pdf
+    0x4770031 : 0x400,      # Used on m0+? at least on KL25Z, KL46, LPC812
+    0x4770021 : 0x400,      # Used on m0? used on nrf51, lpc11u24
+    }
 
 # DHCSR bit masks
 C_DEBUGEN = (1 << 0)
@@ -358,7 +366,6 @@ class CortexM(Target):
     def __init__(self, transport):
         super(CortexM, self).__init__(transport)
 
-        self.auto_increment_page_size = 0
         self.idcode = 0
         self.breakpoints = []
         self.nb_code = 0
@@ -390,6 +397,17 @@ class CortexM(Target):
 
         self.transport.writeDP(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
         self.transport.writeDP(DP_REG['SELECT'], 0)
+        
+        ahb_idr = self.transport.readAP(AP_REG['IDR'])
+        if ahb_idr in AHB_IDR_TO_WRAP_SIZE:
+            self.auto_increment_page_size = AHB_IDR_TO_WRAP_SIZE[ahb_idr]
+        else:
+            # If unknown use the smallest size supported by all targets.
+            # A size smaller than the supported size will decrease performance
+            # due to the extra address writes, but will not create any 
+            # read/write errors.
+            auto_increment_page_size = 0x400
+            logging.warning("Unknown AHB IDR: 0x%x" % ahb_idr)
 
         if setup_fpb:
             self.halt()

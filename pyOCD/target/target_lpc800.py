@@ -30,7 +30,6 @@ class LPC800(CortexM):
     
     def __init__(self, transport):
         super(LPC800, self).__init__(transport)
-        self.auto_increment_page_size = 0x400
 
     def resetStopOnReset(self, software_reset = None, map_to_user = True):
         CortexM.resetStopOnReset(self, software_reset)
