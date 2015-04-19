@@ -578,6 +578,12 @@ class GDBServer(threading.Thread):
                         logging.warning("Invalid mon command '%s'", cmd)
                         resp = 'Invalid Command: "%s"\n' % cmd
                         resp = self.hexEncode(resp)
+
+                if self.target.getState() != TARGET_HALTED:
+                    logging.error("Remote command left target running!")
+                    logging.error("Forcing target to halt")
+                    self.target.halt()
+
             return self.createRSPPacket(resp)
 
         else:

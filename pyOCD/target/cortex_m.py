@@ -698,7 +698,7 @@ class CortexM(Target):
         # but now value of dhcsr is saved
         dhcsr = self.readMemory(DHCSR)
         if not (dhcsr & (C_STEP | C_HALT)):
-            logging.debug('cannot step: target not halted')
+            logging.error('cannot step: target not halted')
             return
 
         self.clearDebugCauseBits()
