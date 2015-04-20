@@ -16,6 +16,9 @@
 """
 
 from flash_kinetis import Flash_Kinetis
+from pyOCD.target.target_kl25z import KL25Z
+from pyOCD.target.target_kl26z import KL26Z
+from pyOCD.target.target_kl46z import KL46Z
 
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -74,14 +77,21 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_erase_sector' : 0x2000006F,
                'pc_program_page' : 0x2000009F,
                'begin_stack' : 0x20000800,
-               'begin_data' : 0x20000a00,
+               'begin_data' : 0x20000a00,       # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page) 
+                                                # Note: 128 pages on KL25 and KL26, 256 pages on KL46
                'static_base' : 0x20000000 + 0x20 + 0x5E8,
-               'page_size' : 1024
+               'page_size' : 1024,
+               'analyzer_supported' : False     # Not enough space on KL02 and KL05
               };
 
 # @brief Flash algorithm for Kinetis L-series devices.
 class Flash_klxx(Flash_Kinetis):
 
     def __init__(self, target):
-        super(Flash_klxx, self).__init__(target, flash_algo)
+        algo = flash_algo
+        if isinstance(target, KL25Z) or isinstance(target, KL26Z) or isinstance(target, KL46Z):
+            algo = dict(algo)
+            algo['analyzer_supported'] = True
+            algo['analyzer_address'] = 0x1ffff000  # Analyzer 0x1ffff000..0x1ffff600
+        super(Flash_klxx, self).__init__(target, algo)
 

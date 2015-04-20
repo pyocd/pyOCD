@@ -48,8 +48,7 @@ class GDBServer(threading.Thread):
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
         self.packet_size = 2048
-        self.flashData = list()
-        self.flashOffset = None
+        self.flashBuilder = None
         self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -353,67 +352,38 @@ class GDBServer(threading.Thread):
                     second_colon += 1
                 idx_begin += 1
 
-            # determine the address to start flashing
-            if self.flashOffset == None:
-                # flash offset must be a multiple of the page size
-                self.flashOffset = write_addr - ( write_addr % self.flash.page_size )
+            # Get flash builder if there isn't one already
+            if self.flashBuilder == None:
+                self.flashBuilder = self.flash.getFlashBuilder()
 
-            # if there's gap between sections, fill it
-            flash_watermark = len(self.flashData) + self.flashOffset
-            pad_size = write_addr - flash_watermark
-            if pad_size > 0:
-                self.flashData += [0xFF] * pad_size
+            # Add data to flash builder
+            self.flashBuilder.addData(write_addr, self.unescape(data[idx_begin:len(data) - 3]))
             
-            # append the new data if it doesn't overlap existing data
-            if write_addr >= flash_watermark:
-                self.flashData += self.unescape(data[idx_begin:len(data) - 3])
-            else:
-                logging.error("Invalid FlashWrite address %d overlaps current data of size %d", write_addr, flash_watermark)
                 
             return self.createRSPPacket("OK")
         
         # we need to flash everything
         elif 'FlashDone' in ops :
-            bytes_to_be_written = len(self.flashData)
-            flashPtr = self.flashOffset
-            
-            self.flash.init()
 
-            # use mass erase if the address starts at 0
-            mass_erase = flashPtr == 0
-            if mass_erase:
-                logging.debug("Erasing entire flash")
-                self.flash.eraseAll()
-
-            while len(self.flashData) > 0:
-                size_to_write = min(self.flash.page_size, len(self.flashData))
+            def print_progress(progress):
+                # Reset state on 0.0
+                if progress == 0.0:
+                    print_progress.done = False
                 
-                #Erase Page if flash has not been erased
-                if not mass_erase:
-                    logging.debug("Erasing page 0x%x", flashPtr)
-                    self.flash.erasePage(flashPtr)
-
-                #ProgramPage
-                self.flash.programPage(flashPtr, self.flashData[:size_to_write])
-                flashPtr += size_to_write
-
-                self.flashData = self.flashData[size_to_write:]
-
                 # print progress bar
-                sys.stdout.write('\r')
-                i = int((float(flashPtr - self.flashOffset)/float(bytes_to_be_written))*20.0)
-                # the exact output you're looking for:
-                sys.stdout.write("[%-20s] %d%%" % ('='*i, 5*i))
-                sys.stdout.flush()
+                if not print_progress.done:
+                    sys.stdout.write('\r')
+                    i = int(progress*20.0)
+                    sys.stdout.write("[%-20s] %3d%%" % ('='*i, round(progress * 100)))
                 
-            sys.stdout.write("\n\r")
-            
-            self.flashData = []
-            self.flashOffset = None
+                # Finish on 1.0
+                if progress >= 1.0:
+                    if not print_progress.done:
+                        print_progress.done = True
+                        sys.stdout.write("\n")
 
-            # reset and stop on reset handler
-            self.target.resetStopOnReset()
-            
+            self.flashBuilder.program(progress_cb = print_progress)
+            sys.stdout.write("\r\n")
             return self.createRSPPacket("OK")
         
         elif 'Cont' in ops:

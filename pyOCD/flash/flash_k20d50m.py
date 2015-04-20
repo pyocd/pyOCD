@@ -62,9 +62,11 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_erase_sector' : 0x2000007D,
                'pc_program_page' : 0x200000AB,
                'begin_stack' : 0x20000c00,
-               'begin_data' : 0x20001c00,
+               'begin_data' : 0x20001c00,       # Analyzer uses a max of 512 B data (128 pages * 4 bytes / page)
                'static_base' : 0x20000000 + 0x20 + 0x468,
-               'page_size' : 1024
+               'page_size' : 1024,
+               'analyzer_supported' : True,
+               'analyzer_address' : 0x1fffe000  # Analyzer 0x1fffe000..0x1fffe600
               };
 
 class Flash_k20d50m(Flash_Kinetis):

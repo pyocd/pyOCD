@@ -15,7 +15,13 @@
  limitations under the License.
 """
 
-from flash import Flash
+from flash import Flash, PageInfo, DEFAULT_PAGE_PROGRAM_WEIGHT, DEFAULT_PAGE_ERASE_WEIGHT
+
+LARGE_PAGE_START_ADDR = 0x10000
+SMALL_PAGE_SIZE = 0x1000
+LARGE_PAGE_SIZE = 0x8000
+LARGE_TO_SMALL_RATIO = LARGE_PAGE_SIZE / SMALL_PAGE_SIZE
+WRITE_SIZE = 1024
 
 flash_algo = { 'load_address' : 0x10000000,
                'instructions' : [
@@ -41,10 +47,12 @@ flash_algo = { 'load_address' : 0x10000000,
                'pc_eraseAll' : 0x100000e1,
                'pc_erase_sector' : 0x10000123,
                'pc_program_page' : 0x10000169,
-               'begin_data' : 0x2007c000,
+               'begin_data' : 0x2007c000,       # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
                'begin_stack' : 0x10001000,
                'static_base' : 0x10000214,
-               'page_size' : 0x8000
+               'page_size' : 0x8000,
+               'analyzer_supported' : True,
+               'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600
               };
 
 class Flash_lpc1768(Flash):
@@ -53,15 +61,28 @@ class Flash_lpc1768(Flash):
         super(Flash_lpc1768, self).__init__(target, flash_algo)
 
     def erasePage(self, flashPtr):
-        if flashPtr < 0x10000:
-            erase_size = 0x1000
-        else:
-            erase_size = 0x8000
-        for i in range(0, 0x8000 / erase_size):
-            Flash.erasePage(self, flashPtr + i * erase_size)
+        Flash.erasePage(self, flashPtr)
 
     def programPage(self, flashPtr, bytes):
-        write_size = 1024
-        for i in range(0, 32):
-            data = bytes[i * write_size : (i + 1) * write_size]
-            Flash.programPage(self, flashPtr + i * write_size, data)
+        if flashPtr < LARGE_PAGE_START_ADDR:
+            assert len(bytes) <= SMALL_PAGE_SIZE
+        else:
+            assert len(bytes) <= LARGE_PAGE_SIZE
+
+        pages = (len(bytes) + WRITE_SIZE - 1) // WRITE_SIZE
+
+        for i in range(0, pages):
+            data = bytes[i * WRITE_SIZE : (i + 1) * WRITE_SIZE]
+            Flash.programPage(self, flashPtr + i * WRITE_SIZE, data)
+
+    def getPageInfo(self, addr):
+        info = PageInfo()
+        if addr < LARGE_PAGE_START_ADDR:
+            info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
+            info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
+            info.size = SMALL_PAGE_SIZE
+        else:
+            info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT * LARGE_TO_SMALL_RATIO
+            info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT * LARGE_TO_SMALL_RATIO
+            info.size = LARGE_PAGE_SIZE
+        return info
