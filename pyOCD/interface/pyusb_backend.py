@@ -88,9 +88,9 @@ class PyUSB(Interface):
             
             # iterate on all interfaces:
             #    - if we found a HID interface -> CMSIS-DAP
-            for interface in config:
-                if interface.bInterfaceClass == 0x03:
-                    intf_number = interface.bInterfaceNumber
+            for intf in config:
+                if intf.bInterfaceClass == 0x03:
+                    intf_number = intf.bInterfaceNumber
                     found = True
                     break
             
@@ -103,22 +103,8 @@ class PyUSB(Interface):
             except Exception as e:
                 print e
                 pass
-        
-            intf = usb.util.find_descriptor(config, bInterfaceNumber = intf_number)
-            ep_out = usb.util.find_descriptor(intf,
-                                              # match the first OUT endpoint
-                                              custom_match = \
-                                              lambda e: \
-                                              usb.util.endpoint_direction(e.bEndpointAddress) == \
-                                              usb.util.ENDPOINT_OUT
-                                              )
-            ep_in = usb.util.find_descriptor(intf,
-                                             # match the first IN endpoint
-                                             custom_match = \
-                                             lambda e: \
-                                             usb.util.endpoint_direction(e.bEndpointAddress) == \
-                                             usb.util.ENDPOINT_IN
-                                             )
+            
+            ep_in, ep_out = intf.endpoints()
             product_name = usb.util.get_string(board, 256, 2)
             vendor_name = usb.util.get_string(board, 256, 1)
             """If there is no EP for OUT then we can use CTRL EP"""
