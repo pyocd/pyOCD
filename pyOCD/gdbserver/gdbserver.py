@@ -384,6 +384,11 @@ class GDBServer(threading.Thread):
 
             self.flashBuilder.program(progress_cb = print_progress)
             sys.stdout.write("\r\n")
+
+            # Set flash builder to None so that on the next flash command a new
+            # object is used.
+            self.flashBuilder = None
+
             return self.createRSPPacket("OK")
         
         elif 'Cont' in ops:
