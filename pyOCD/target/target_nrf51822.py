@@ -35,7 +35,6 @@ class NRF51822(CortexM):
     
     def __init__(self, transport):
         super(NRF51822, self).__init__(transport)
-        self.auto_increment_page_size = 0x400
 
     def resetn(self):
         """

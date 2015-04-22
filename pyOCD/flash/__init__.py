@@ -15,6 +15,7 @@
  limitations under the License.
 """
 
+from flash_cortex_m import Flash_cortex_m
 from flash_klxx import Flash_klxx
 from flash_k20d50m import Flash_k20d50m
 from flash_k22f import Flash_k22f
@@ -30,6 +31,7 @@ from flash_maxwsnenv import Flash_maxwsnenv
 from flash_max32600mbed import Flash_max32600mbed
 
 FLASH = {
+         'cortex_m' : Flash_cortex_m,
          'kl02z': Flash_klxx,
          'kl05z': Flash_klxx,
          'kl25z': Flash_klxx,

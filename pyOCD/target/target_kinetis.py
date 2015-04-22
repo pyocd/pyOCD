@@ -39,11 +39,10 @@ class Kinetis(CortexM):
     
     def __init__(self, transport):
         super(Kinetis, self).__init__(transport)
-        self.auto_increment_page_size = 0x400
         self.mdm_idr = 0
         
     def init(self):
-        CortexM.init(self, False, False)
+        CortexM.init(self, initial_setup=True, bus_accessible=False)
         
         # check for flash security
         val = self.transport.readAP(MDM_IDR)
@@ -92,10 +91,7 @@ class Kinetis(CortexM):
         if self.getState() == TARGET_RUNNING:
             raise Exception("Target failed to stay halted during init sequence")
 
-        self.setupFPB()
-        self.setupDWT()
-        self.readCoreType()
-        self.checkForFPU()
+        CortexM.init(self, initial_setup=False, bus_accessible=True)
 
     def isLocked(self):
         val = self.transport.readAP(MDM_STATUS)

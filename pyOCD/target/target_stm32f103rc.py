@@ -35,7 +35,6 @@ class STM32F103RC(CortexM):
     
     def __init__(self, transport):
         super(STM32F103RC, self).__init__(transport)
-        self.auto_increment_page_size = 0x800
 
     def init(self):
     	logging.debug('stm32f103rc init')

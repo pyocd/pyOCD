@@ -33,7 +33,6 @@ class MAX32600MBED(CortexM):
 
     def __init__(self, transport):
         super(MAX32600MBED, self).__init__(transport)
-        self.auto_increment_page_size = 0x800
 
     def readIDCode(self):
         """

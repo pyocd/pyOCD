@@ -38,7 +38,7 @@ analyzer = (
     0x40534023, 0xc7083601, 0xd1d2428e, 0x2b004663, 0x4663d01f, 0x46b4009e, 0x24ff2701, 0x44844d11,
     0x1c3a447d, 0x88418803, 0x4351409a, 0xd0122a00, 0x22011856, 0x780b4252, 0x40533101, 0x009b4023,
     0x0a12595b, 0x42b1405a, 0x43d2d1f5, 0x4560c004, 0x2000d1e7, 0x2200bdf0, 0x46c0e7f8, 0x000000b6,
-    0xedb88320, 0x00000044, 
+    0xedb88320, 0x00000044,
     )
 
 def _msb( n ):
@@ -70,11 +70,18 @@ class Flash(object):
     def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
-        self.end_flash_algo = flash_algo['load_address'] + len(flash_algo)*4
-        self.begin_stack = flash_algo['begin_stack']
-        self.begin_data = flash_algo['begin_data']
-        self.static_base = flash_algo['static_base']
-        self.page_size = flash_algo['page_size']
+        if flash_algo is not None:
+            self.end_flash_algo = flash_algo['load_address'] + len(flash_algo)*4
+            self.begin_stack = flash_algo['begin_stack']
+            self.begin_data = flash_algo['begin_data']
+            self.static_base = flash_algo['static_base']
+            self.page_size = flash_algo['page_size']
+        else:
+            self.end_flash_algo = None
+            self.begin_stack = None
+            self.begin_data = None
+            self.static_base = None
+            self.page_size = None
 
     def init(self):
         """

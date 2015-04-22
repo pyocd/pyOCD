@@ -33,7 +33,6 @@ class MAXWSNENV(CortexM):
 
     def __init__(self, transport):
         super(MAXWSNENV, self).__init__(transport)
-        self.auto_increment_page_size = 0x800
 
     def readIDCode(self):
         """

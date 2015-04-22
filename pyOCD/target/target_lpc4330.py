@@ -32,7 +32,6 @@ class LPC4330(CortexM):
     
     def __init__(self, transport):
         super(LPC4330, self).__init__(transport)
-        self.auto_increment_page_size = 0x400
         self.ignoreReset = False
 
     def setFlash(self, flash):

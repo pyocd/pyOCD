@@ -31,6 +31,5 @@ class K64F(Kinetis):
     
     def __init__(self, transport):
         super(K64F, self).__init__(transport)
-        self.auto_increment_page_size = 0x400
         self.mdm_idr = 0x001c0000
         

@@ -28,7 +28,8 @@ DP_REG = {'IDCODE' : 0x00,
           }
 AP_REG = {'CSW' : 0x00,
           'TAR' : 0x04,
-          'DRW' : 0x0C
+          'DRW' : 0x0C,
+          'IDR' : 0xFC
           }
 
 IDCODE = 0 << 2
