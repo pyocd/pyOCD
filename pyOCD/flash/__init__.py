@@ -43,6 +43,7 @@ FLASH = {
          'lpc800': Flash_lpc800,
          'lpc11u24': Flash_lpc11u24,
          'lpc1768':  Flash_lpc1768,
+         'lpc4088':  Flash_cortex_m,
          'lpc4330':  Flash_lpc4330,
          'nrf51822': Flash_nrf51822,
          'stm32f103rc': Flash_stm32f103rc,
