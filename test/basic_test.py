@@ -40,8 +40,7 @@ def basic_test(board_id, file):
         target_type = board.getTargetType()
 
         if file is None:
-            binary_file += target_type + ".bin"
-            binary_file = os.path.join(parentdir, 'binaries', binary_file)
+            binary_file = os.path.join(parentdir, 'binaries', board.getTestBinary())
         else:
             binary_file = file
 

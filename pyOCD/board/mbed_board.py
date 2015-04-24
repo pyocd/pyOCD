@@ -22,28 +22,35 @@ from time import sleep
 from board import Board
 from pyOCD.interface import INTERFACE, usb_backend
 
-BOARD_ID_TO_TARGET = {
-                "0200": "kl25z",
-                "0210": "kl05z",
-                "0220": "kl46z",
-                "0230": "k20d50m",
-                "0231": "k22f",
-                "0240": "k64f",
-                "0250": "kl02z",
-                "0260": "kl26z",
-                "1010": "lpc1768",
-                "9004": "lpc1768",
-                "1040": "lpc11u24",
-                "1050": "lpc800",
-                "1070": "nrf51822",
-                "9009": "nrf51822",
-                "9012": "nrf51822",
-                "1080": "stm32f103rc",
-                "1090": "stm32f051",
-                "1600": "lpc4330",
-                "1605": "lpc4330",
-                "0400": "maxwsnenv",
-                "0405": "max32600mbed",
+class BoardInfo(object):
+    def __init__(self, name, target, binary):
+        self.name = name
+        self.target = target
+        self.binary = binary
+
+BOARD_ID_TO_INFO = {
+                        #           Board Name              Target              Test Binary
+                "0200": BoardInfo(  "FRDM-KL25Z",           "kl25z",            "l1_kl25z.bin"          ),
+                "0210": BoardInfo(  "FRDM-KL05Z",           "kl05z",            "l1_kl05z.bin",         ),
+                "0220": BoardInfo(  "FRDM-KL46z",           "kl46z",            "l1_kl46z.bin",         ),
+                "0230": BoardInfo(  "FRDM-K20D50M",         "k20d50m",          "l1_k20d50m.bin",       ),
+                "0231": BoardInfo(  "FRDM-K22F",            "k22f",             "l1_k22f.bin",          ),
+                "0240": BoardInfo(  "FRDM-K64F",            "k64f",             "l1_k64f.bin",          ),
+                "0250": BoardInfo(  "FRDM-KL02Z",           "kl02z",            "l1_kl02z.bin",         ),
+                "0260": BoardInfo(  "FRDM-KL26Z",           "kl26z",            "l1_kl26z.bin",         ),
+                "1010": BoardInfo(  "mbed NXP LPC1768",     "lpc1768",          "l1_lpc1768.bin",       ),
+                "9004": BoardInfo(  "Arch Pro",             "lpc1768",          "l1_lpc1768.bin",       ),
+                "1040": BoardInfo(  "mbed NXP LPC11U24",    "lpc11u24",         "l1_lpc11u24.bin",      ),
+                "1050": BoardInfo(  "NXP LPC800-MAX",       "lpc800",           "l1_lpc800.bin",        ),
+                "1070": BoardInfo(  "nRF51822-mKIT",        "nrf51822",         "l1_nrf51822.bin",      ),
+                "9009": BoardInfo(  "Arch BLE",             "nrf51822",         "l1_nrf51822.bin",      ),
+                "9012": BoardInfo(  "Seeed Tiny BLE",       "nrf51822",         "l1_nrf51822.bin",      ),
+                "1080": BoardInfo(  "DT01 + MB2001",        "stm32f103rc",      "l1_stm32f103rc.bin",   ),
+                "1090": BoardInfo(  "DT01 + MB00xx",        "stm32f051",        "l1_stm32f051.bin",     ),
+                "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
+                "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
+                "0400": BoardInfo(  "maxwsnenv",            "maxwsnenv",        "l1_maxwsnenv.bin",     ),
+                "0405": BoardInfo(  "max32600mbed",         "max32600mbed",     "l1_max32600mbed.bin",  ),
               }
 
 mbed_vid = 0x0d28
@@ -59,10 +66,14 @@ class MbedBoard(Board):
         """
         Init the board
         """
-        # Set the native target if there is one
+        self.name = None
         self.native_target = None
-        if board_id in BOARD_ID_TO_TARGET:
-            self.native_target = BOARD_ID_TO_TARGET[board_id]
+        self.test_binary = None
+        if board_id in BOARD_ID_TO_INFO:
+            board_info = BOARD_ID_TO_INFO[board_id]
+            self.name = board_info.name
+            self.native_target = board_info.target
+            self.test_binary = board_info.binary
 
         # Unless overridden use the native target
         if target is None:
@@ -86,7 +97,19 @@ class MbedBoard(Board):
         Return the type of the board
         """
         return self.target_type
-    
+
+    def getTestBinary(self):
+        """
+        Return name of test binary file
+        """
+        return self.test_binary
+
+    def getBoardName(self):
+        """
+        Return board name
+        """
+        return self.board_name
+
     def getInfo(self):
         """
         Return info on the board
@@ -145,7 +168,7 @@ class MbedBoard(Board):
                     u_id_ = mbed.read()
                     board_id = array.array('B', [i for i in u_id_[2:6]]).tostring()
                     unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
-                    if board_id not in BOARD_ID_TO_TARGET:
+                    if board_id not in BOARD_ID_TO_INFO:
                         logging.info("Unsupported board found: %s" % board_id)
                         if target_override is None:
                             # TODO - if no board can be determined treat this as a generic cortex-m device
