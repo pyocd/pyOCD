@@ -96,14 +96,9 @@ class Flash(object):
             self.target.writeBlockMemoryAligned32(self.flash_algo['analyzer_address'], analyzer)
 
         # update core register to execute the init subroutine
-        self.updateCoreRegister(0, 0, 0, 0, self.flash_algo['pc_init'])
-        # resume and wait until the breakpoint is hit
-        self.target.resume()
-        while(self.target.getState() == TARGET_RUNNING):
-            pass
+        result = self.callFunction(self.flash_algo['pc_init'], 0, 0, 0, 0)
 
         # check the return code
-        result = self.target.readCoreRegister('r0')
         if result != 0:
             logging.error('init error: %i', result)
 
@@ -128,12 +123,7 @@ class Flash(object):
         self.target.writeBlockMemoryAligned32(self.begin_data, data)
 
         # update core register to execute the subroutine
-        self.updateCoreRegister(self.begin_data, len(data), 0, 0, self.flash_algo['analyzer_address'])
-
-        # resume and wait until the breakpoint is hit
-        self.target.resume()
-        while(self.target.getState() == TARGET_RUNNING):
-            pass
+        result = self.callFunction(self.flash_algo['analyzer_address'], self.begin_data, len(data), 0, 0)
 
         # Read back the CRCs for each section
         data = self.target.readBlockMemoryAligned32(self.begin_data, len(data))
@@ -145,15 +135,9 @@ class Flash(object):
         """
 
         # update core register to execute the eraseAll subroutine
-        self.updateCoreRegister(0, 0, 0, 0, self.flash_algo['pc_eraseAll'])
-
-        # resume and wait until the breakpoint is hit
-        self.target.resume()
-        while(self.target.getState() == TARGET_RUNNING):
-            pass
+        result = self.callFunction(self.flash_algo['pc_eraseAll'], 0, 0, 0, 0)
 
         # check the return code
-        result = self.target.readCoreRegister('r0')
         if result != 0:
             logging.error('eraseAll error: %i', result)
 
@@ -165,15 +149,9 @@ class Flash(object):
         """
 
         # update core register to execute the erasePage subroutine
-        self.updateCoreRegister(flashPtr, 0, 0, 0, self.flash_algo['pc_erase_sector'])
-
-        # resume and wait until the breakpoint is hit
-        self.target.resume()
-        while(self.target.getState() == TARGET_RUNNING):
-            pass
+        result = self.callFunction(self.flash_algo['pc_erase_sector'], flashPtr, 0, 0, 0)
 
         # check the return code
-        result = self.target.readCoreRegister('r0')
         if result != 0:
             logging.error('erasePage error: %i', result)
 
@@ -191,15 +169,9 @@ class Flash(object):
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        self.updateCoreRegister(flashPtr, self.page_size, self.begin_data, 0, self.flash_algo['pc_program_page'])
-
-        # resume and wait until the breakpoint is hit
-        self.target.resume()
-        while(self.target.getState() == TARGET_RUNNING):
-            pass
+        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, self.page_size, self.begin_data, 0)
 
         # check the return code
-        result = self.target.readCoreRegister('r0')
         if result != 0:
             logging.error('programPage error: %i', result)
 
@@ -253,7 +225,7 @@ class Flash(object):
         data = unpack(str(len(data)) + 'B', data)
         self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb)
 
-    def updateCoreRegister(self, r0, r1, r2, r3, pc):
+    def callFunction(self, pc, r0, r1, r2, r3):
         self.target.writeCoreRegister('pc', pc)
         self.target.writeCoreRegister('r0', r0)
         self.target.writeCoreRegister('r1', r1)
@@ -262,7 +234,15 @@ class Flash(object):
         self.target.writeCoreRegister('r9', self.static_base)
         self.target.writeCoreRegister('sp', self.begin_stack)
         self.target.writeCoreRegister('lr', self.flash_algo['load_address'] + 1)
-        return
+        
+        # resume and wait until the breakpoint is hit
+        self.target.resume()
+        while(self.target.getState() == TARGET_RUNNING):
+            pass
+        
+        result = self.target.readCoreRegister('r0')
+        
+        return result
 
     def overrideSecurityBits(self, address, data):
         return data
