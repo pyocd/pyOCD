@@ -96,7 +96,7 @@ class Flash(object):
             self.target.writeBlockMemoryAligned32(self.flash_algo['analyzer_address'], analyzer)
 
         # update core register to execute the init subroutine
-        result = self.callFunction(self.flash_algo['pc_init'], 0, 0, 0, 0)
+        result = self.callFunction(self.flash_algo['pc_init'], fp=self.static_base, sp=self.begin_stack)
 
         # check the return code
         if result != 0:
@@ -123,7 +123,7 @@ class Flash(object):
         self.target.writeBlockMemoryAligned32(self.begin_data, data)
 
         # update core register to execute the subroutine
-        result = self.callFunction(self.flash_algo['analyzer_address'], self.begin_data, len(data), 0, 0)
+        result = self.callFunction(self.flash_algo['analyzer_address'], self.begin_data, len(data))
 
         # Read back the CRCs for each section
         data = self.target.readBlockMemoryAligned32(self.begin_data, len(data))
@@ -135,7 +135,7 @@ class Flash(object):
         """
 
         # update core register to execute the eraseAll subroutine
-        result = self.callFunction(self.flash_algo['pc_eraseAll'], 0, 0, 0, 0)
+        result = self.callFunction(self.flash_algo['pc_eraseAll'])
 
         # check the return code
         if result != 0:
@@ -149,7 +149,7 @@ class Flash(object):
         """
 
         # update core register to execute the erasePage subroutine
-        result = self.callFunction(self.flash_algo['pc_erase_sector'], flashPtr, 0, 0, 0)
+        result = self.callFunction(self.flash_algo['pc_erase_sector'], flashPtr)
 
         # check the return code
         if result != 0:
@@ -169,7 +169,7 @@ class Flash(object):
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, self.page_size, self.begin_data, 0)
+        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, self.page_size, self.begin_data)
 
         # check the return code
         if result != 0:
@@ -225,14 +225,20 @@ class Flash(object):
         data = unpack(str(len(data)) + 'B', data)
         self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb)
 
-    def callFunction(self, pc, r0, r1, r2, r3):
+    def callFunction(self, pc, r0=None, r1=None, r2=None, r3=None, fp=None, sp=None):
         self.target.writeCoreRegister('pc', pc)
-        self.target.writeCoreRegister('r0', r0)
-        self.target.writeCoreRegister('r1', r1)
-        self.target.writeCoreRegister('r2', r2)
-        self.target.writeCoreRegister('r3', r3)
-        self.target.writeCoreRegister('r9', self.static_base)
-        self.target.writeCoreRegister('sp', self.begin_stack)
+        if r0 is not None:
+            self.target.writeCoreRegister('r0', r0)
+        if r1 is not None:
+            self.target.writeCoreRegister('r1', r1)
+        if r2 is not None:
+            self.target.writeCoreRegister('r2', r2)
+        if r3 is not None:
+            self.target.writeCoreRegister('r3', r3)
+        if fp is not None:
+            self.target.writeCoreRegister('r9', fp)
+        if sp is not None:
+            self.target.writeCoreRegister('sp', sp)
         self.target.writeCoreRegister('lr', self.flash_algo['load_address'] + 1)
         
         # resume and wait until the breakpoint is hit
