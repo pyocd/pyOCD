@@ -191,9 +191,7 @@ def flash_test(board_id):
                         print("Progress went backwards during flash")
         print_progress.prev_progress = 0
 
-        binary_file = "l1_"
-        binary_file += target_type + ".bin"
-        binary_file = os.path.join(parentdir, 'binaries', binary_file)
+        binary_file = os.path.join(parentdir, 'binaries', board.getTestBinary())
         with open(binary_file, "rb") as f:
             data = f.read()
         data = struct.unpack("%iB" % len(data), data)
