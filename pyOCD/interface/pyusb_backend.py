@@ -133,7 +133,12 @@ class PyUSB(Interface):
         """
         write data on the OUT endpoint associated to the HID interface
         """
-        for _ in range(64 - len(data)):
+
+        report_size = 64
+        if self.ep_out:
+            report_size = self.ep_out.wMaxPacketSize
+
+        for _ in range(report_size - len(data)):
            data.append(0)
 
         self.read_sem.release()
