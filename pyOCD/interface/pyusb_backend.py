@@ -101,7 +101,13 @@ class PyUSB(Interface):
             except Exception as e:
                 print e
             
-            ep_in, ep_out = interface.endpoints()
+            ep_in, ep_out = None, None
+            for ep in interface:
+                if ep.bEndpointAddress & 0x80:
+                    ep_in = ep
+                else:
+                    ep_out = ep
+
             product_name = usb.util.get_string(board, 256, 2)
             vendor_name = usb.util.get_string(board, 256, 1)
             """If there is no EP for OUT then we can use CTRL EP"""
