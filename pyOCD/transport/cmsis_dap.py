@@ -16,7 +16,7 @@
 """
 
 from cmsis_dap_core import dapTransferBlock, dapWriteAbort, dapSWJPins, dapConnect, dapDisconnect, dapTransfer, dapSWJSequence, dapSWDConfigure, dapSWJClock, dapTransferConfigure, dapInfo, dapJTAGIDCode, dapJTAGConfigure
-from transport import Transport, TransferError
+from transport import Transport, TransferError, READ_START, READ_NOW, READ_END
 import logging
 from time import sleep
 
@@ -75,6 +75,8 @@ CTRLSTAT_STICKYORUN = 0x00000002
 CTRLSTAT_STICKYCMP = 0x00000010
 CTRLSTAT_STICKYERR = 0x00000020
 
+COMMANDS_PER_DAP_TRANSFER = 12
+
 def JTAG2SWD(interface):
     data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
     dapSWJSequence(interface, data)
@@ -98,8 +100,14 @@ class CMSIS_DAP(Transport):
         self.packet_max_size = 0
         self.csw = -1
         self.dp_select = -1
+        self.deferred_transfer = False
+        self.request_list = []
+        self.data_list = []
+        self.data_read_list = []
 
     def init(self, frequency = 1000000):
+        # Flush to be safe
+        self.flush()
         # connect to DAP, check for SWD or JTAG
         self.mode = dapConnect(self.interface)
         # set clock frequency
@@ -127,10 +135,12 @@ class CMSIS_DAP(Transport):
         return
 
     def uninit(self):
+        self.flush()
         dapDisconnect(self.interface)
         return
 
     def info(self, request):
+        self.flush()
         resp = None
         try:
             resp = dapInfo(self.interface, request)
@@ -152,35 +162,38 @@ class CMSIS_DAP(Transport):
         elif transfer_size == 16:
             data = data << ((addr & 0x02) << 3)
 
-        try:
-            dapTransfer(self.interface, 2, [WRITE | AP_ACC | AP_REG['TAR'],
-                                            WRITE | AP_ACC | AP_REG['DRW']],
-                                           [addr, data])
-        except TransferError:
-            self.clearStickyErr()
-            raise
+        self._write(WRITE | AP_ACC | AP_REG['TAR'], addr)
+        self._write(WRITE | AP_ACC | AP_REG['DRW'], data)
 
-    def readMem(self, addr, transfer_size = 32):
-        self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
 
-        try:
-            resp = dapTransfer(self.interface, 2, [WRITE | AP_ACC | AP_REG['TAR'],
-                                                   READ | AP_ACC | AP_REG['DRW']],
-                                                  [addr])
-        except TransferError:
-            self.clearStickyErr()
-            raise
+    def readMem(self, addr, transfer_size = 32, mode = READ_NOW):
+        res = None
+        if mode in (READ_START, READ_NOW):
+            self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
+            self._write(WRITE | AP_ACC | AP_REG['TAR'], addr)
+            self._write(READ | AP_ACC | AP_REG['DRW'])
 
-        res =   (resp[0] << 0)  | \
-                (resp[1] << 8)  | \
-                (resp[2] << 16) | \
-                (resp[3] << 24)
+        if mode in (READ_NOW, READ_END):
+            resp = self._read()
+            res =   (resp[0] << 0)  | \
+                    (resp[1] << 8)  | \
+                    (resp[2] << 16) | \
+                    (resp[3] << 24)
 
-        if transfer_size == 8:
-            res = (res >> ((addr & 0x03) << 3) & 0xff)
-        elif transfer_size == 16:
-            res = (res >> ((addr & 0x02) << 3) & 0xffff)
+            # All READ_STARTs must have been finished with READ_END before using READ_NOW
+            assert (mode != READ_NOW) or (len(self.data_read_list) == 0)
 
+            if transfer_size == 8:
+                res = (res >> ((addr & 0x03) << 3) & 0xff)
+            elif transfer_size == 16:
+                res = (res >> ((addr & 0x02) << 3) & 0xffff)
+
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
         return res
 
     # write aligned word ("data" are words)
@@ -189,11 +202,13 @@ class CMSIS_DAP(Transport):
         self.writeAP(AP_REG['CSW'], CSW_VALUE | CSW_SIZE32)
         self.writeAP(AP_REG['TAR'], addr)
         try:
-            dapTransferBlock(self.interface, len(data), WRITE | AP_ACC | AP_REG['DRW'], data)
+            self._transferBlock(len(data), WRITE | AP_ACC | AP_REG['DRW'], data)
         except TransferError:
             self.clearStickyErr()
             raise
-        return
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
 
     # read aligned word (the size is in words)
     def readBlock32(self, addr, size):
@@ -202,7 +217,7 @@ class CMSIS_DAP(Transport):
         self.writeAP(AP_REG['TAR'], addr)
         data = []
         try:
-            resp = dapTransferBlock(self.interface, size, READ | AP_ACC | AP_REG['DRW'])
+            resp = self._transferBlock(size, READ | AP_ACC | AP_REG['DRW'])
         except TransferError:
             self.clearStickyErr()
             raise
@@ -211,15 +226,31 @@ class CMSIS_DAP(Transport):
                          (resp[i*4 + 1] << 8)   | \
                          (resp[i*4 + 2] << 16)  | \
                          (resp[i*4 + 3] << 24))
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
         return data
 
 
-    def readDP(self, addr):
-        resp = dapTransfer(self.interface, 1, [READ | DP_ACC | (addr & 0x0c)])
-        return  (resp[0] << 0)  | \
-                (resp[1] << 8)  | \
-                (resp[2] << 16) | \
-                (resp[3] << 24)
+    def readDP(self, addr, mode = READ_NOW):
+        res = None
+        if mode in (READ_START, READ_NOW):
+            self._write(READ | DP_ACC | (addr & 0x0c))
+
+        if mode in (READ_NOW, READ_END):
+            resp = self._read()
+            res =   (resp[0] << 0)  | \
+                    (resp[1] << 8)  | \
+                    (resp[2] << 16) | \
+                    (resp[3] << 24)
+
+            # All READ_STARTs must have been finished with READ_END before using READ_NOW
+            assert (mode != READ_NOW) or (len(self.data_read_list) == 0)
+
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
+        return res
 
     def writeDP(self, addr, data):
         if addr == DP_REG['SELECT']:
@@ -227,7 +258,11 @@ class CMSIS_DAP(Transport):
                 return
             self.dp_select = data
 
-        dapTransfer(self.interface, 1, [WRITE | DP_ACC | (addr & 0x0c)], [data])
+        self._write(WRITE | DP_ACC | (addr & 0x0c), data)
+
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
         return True
 
     def writeAP(self, addr, data):
@@ -240,31 +275,126 @@ class CMSIS_DAP(Transport):
                 return
             self.csw = data
 
-        dapTransfer(self.interface, 1, [WRITE | AP_ACC | (addr & 0x0c)], [data])
+        self._write(WRITE | AP_ACC | (addr & 0x0c), data)
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
+
         return True
 
-    def readAP(self, addr):
-        ap_sel = addr & 0xff000000
-        bank_sel = addr & APBANKSEL
+    def readAP(self, addr, mode = READ_NOW):
+        res = None
+        if mode in (READ_START, READ_NOW):
+            ap_sel = addr & 0xff000000
+            bank_sel = addr & APBANKSEL
 
-        self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
-        resp = dapTransfer(self.interface, 1, [READ | AP_ACC | (addr & 0x0c)])
-        return  (resp[0] << 0)  | \
-                (resp[1] << 8)  | \
-                (resp[2] << 16) | \
-                (resp[3] << 24)
+            self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
+            self._write(READ | AP_ACC | (addr & 0x0c))
 
+        if mode in (READ_NOW, READ_END):
+            resp = self._read()
+            res =   (resp[0] << 0)  | \
+                    (resp[1] << 8)  | \
+                    (resp[2] << 16) | \
+                    (resp[3] << 24)
+
+            # All READ_STARTs must have been finished with READ_END before using READ_NOW
+            assert (mode != READ_NOW) or (len(self.data_read_list) == 0)
+
+        # If not in deferred mode flush after calls to _read or _write
+        if not self.deferred_transfer:
+            self.flush()
+
+        return res
     def reset(self):
+        self.flush()
         dapSWJPins(self.interface, 0, 'nRESET')
         sleep(0.1)
         dapSWJPins(self.interface, 0x80, 'nRESET')
         sleep(0.1)
 
     def assertReset(self, asserted):
+        self.flush()
         if asserted:
             dapSWJPins(self.interface, 0, 'nRESET')
         else:
             dapSWJPins(self.interface, 0x80, 'nRESET')
 
     def setClock(self, frequency):
+        self.flush()
         dapSWJClock(self.interface, frequency)
+
+    def setDeferredTransfer(self, enable):
+        """
+        Allow transfers to be delayed and buffered
+
+        By default deferred transfers are turned off.  All reads and
+        writes will be completed by the time the function returns.
+
+        When enabled packets are buffered and sent all at once, which
+        increases speed.  When memory is written to, the transfer
+        might take place immediately, or might take place on a future
+        memory write.  This means that an invalid write could cause an
+        exception to occur on a later, unrelated write.  To guarantee
+        that previous writes are complete call the flush() function.
+
+        The behaviour of read operations is determined by the modes 
+        READ_START, READ_NOW and READ_END.  The option READ_NOW is the
+        default and will cause the read to flush all previous writes,
+        and read the data immediately.  To improve performance, multiple
+        reads can be made using READ_START and finished later with READ_NOW.
+        This allows the reads to be buffered and sent at once.  Note - All
+        READ_ENDs must be called before a call using READ_NOW can be made.
+        """
+        if self.deferred_transfer and not enable:
+            self.flush()
+        self.deferred_transfer = enable
+
+    def flush(self):
+        """
+        Flush out all commands
+        """
+        transfer_count = len(self.request_list)
+        if transfer_count > 0:
+            assert transfer_count <= COMMANDS_PER_DAP_TRANSFER
+            try:
+                data = dapTransfer(self.interface, transfer_count, self.request_list, self.data_list)
+                self.data_read_list.extend(data)
+            except TransferError:
+                # Dump any pending commands
+                self.request_list = []
+                self.data_list = []
+                # Dump any data read
+                self.data_read_list = []
+                # Invalidate cached registers
+                self.csw = -1
+                self.dp_select = -1
+                # Clear error
+                self.clearStickyErr()
+                raise
+            self.request_list = []
+            self.data_list = []
+
+    def _write(self, request, data = 0):
+        """
+        Write a single command
+        """
+        self.request_list.append(request)
+        self.data_list.append(data)
+        transfer_count = len(self.request_list)
+        if (transfer_count >= COMMANDS_PER_DAP_TRANSFER):
+            self.flush()
+
+    def _read(self):
+        """
+        Read the response from a single command
+        """
+        if len(self.data_read_list) < 4:
+            self.flush()
+        data = self.data_read_list[0:4]
+        self.data_read_list = self.data_read_list[4:]
+        return data
+
+    def _transferBlock(self, count, request, data = [0]):
+        self.flush()
+        return dapTransferBlock(self.interface, count, request, data)

@@ -175,6 +175,7 @@ def flash_test(board_id):
         interface = board.interface
 
         transport.setClock(test_clock)
+        transport.setDeferredTransfer(True)
 
         test_pass_count = 0
         test_count = 0

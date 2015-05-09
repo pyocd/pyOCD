@@ -64,9 +64,11 @@ def same(d1, d2):
     return True
 
 def test_function(board, function):
+    board.transport.flush()
     start = time()
     for i in range(0, TEST_COUNT):
         function()
+        board.transport.flush()
     stop = time()
     return (stop-start) / float(TEST_COUNT)
 
@@ -147,6 +149,7 @@ def cortex_test(board_id):
         interface = board.interface
 
         transport.setClock(test_clock)
+        transport.setDeferredTransfer(True)
 
         test_pass_count = 0
         test_count = 0
@@ -218,6 +221,7 @@ def cortex_test(board_id):
         memory_access_pass = True
         try:
             target.readBlockMemoryUnaligned8(addr_invalid, 0x1000)
+            target.flush()
             # If no exception is thrown the tests fails
             memory_access_pass = False
         except TransferError:
@@ -225,6 +229,7 @@ def cortex_test(board_id):
 
         try:
             target.readBlockMemoryUnaligned8(addr_invalid + 1, 0x1000)
+            target.flush()
             # If no exception is thrown the tests fails
             memory_access_pass = False
         except TransferError:
@@ -233,6 +238,7 @@ def cortex_test(board_id):
         data = [0x00] * 0x1000
         try:
             target.writeBlockMemoryUnaligned8(addr_invalid, data)
+            target.flush()
             # If no exception is thrown the tests fails
             memory_access_pass = False
         except TransferError:
@@ -241,6 +247,7 @@ def cortex_test(board_id):
         data = [0x00] * 0x1000
         try:
             target.writeBlockMemoryUnaligned8(addr_invalid + 1, data)
+            target.flush()
             # If no exception is thrown the tests fails
             memory_access_pass = False
         except TransferError:

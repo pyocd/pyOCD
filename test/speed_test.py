@@ -146,6 +146,7 @@ def speed_test(board_id):
         result = SpeedTestResult()
 
         transport.setClock(test_clock)
+        transport.setDeferredTransfer(True)
 
         print "\r\n\r\n------ TEST USB TRANSFER SPEED ------"
         max_packets = interface.getPacketCount()

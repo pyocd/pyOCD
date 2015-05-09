@@ -502,6 +502,9 @@ class CortexM(Target):
     def info(self, request):
         return self.transport.info(request)
 
+    def flush(self):
+        self.transport.flush()
+
     def readIDCode(self):
         """
         return the IDCODE of the core
@@ -696,6 +699,7 @@ class CortexM(Target):
         halt the core
         """
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
+        self.flush()
         return
 
     def step(self, disable_interrupts = True):
@@ -734,6 +738,7 @@ class CortexM(Target):
             # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT )
 
+        self.flush()
         return
 
     def clearDebugCauseBits(self):
@@ -750,6 +755,8 @@ class CortexM(Target):
         
         if software_reset:
             self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
+            # Without a flush a transfer error can occur
+            self.flush()
         else:
             self.transport.reset()
 
@@ -796,6 +803,7 @@ class CortexM(Target):
             return
         self.clearDebugCauseBits()
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+        self.flush()
         return
 
     def findBreakpoint(self, addr):

@@ -61,6 +61,8 @@ else:
     try:
         board_selected = MbedBoard.chooseBoard(board_id = option.board_id, target_override = option.target_override, frequency = option.debug_clock_frequency)
         with board_selected as board:
+            # Boost speed with deferred transfers
+            board.transport.setDeferredTransfer(True)
             gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault, 
                 'step_into_interrupt' : option.step_into_interrupt, 'break_on_reset' : option.break_on_reset,
                 'persist' : option.persist})
