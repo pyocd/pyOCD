@@ -226,20 +226,32 @@ class Flash(object):
         self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb)
 
     def callFunction(self, pc, r0=None, r1=None, r2=None, r3=None, fp=None, sp=None):
-        self.target.writeCoreRegister('pc', pc)
+        reg_list = []
+        data_list = []
+
+        reg_list.append('pc')
+        data_list.append(pc)
         if r0 is not None:
-            self.target.writeCoreRegister('r0', r0)
+            reg_list.append('r0')
+            data_list.append(r0)
         if r1 is not None:
-            self.target.writeCoreRegister('r1', r1)
+            reg_list.append('r1')
+            data_list.append(r1)
         if r2 is not None:
-            self.target.writeCoreRegister('r2', r2)
+            reg_list.append('r2')
+            data_list.append(r2)
         if r3 is not None:
-            self.target.writeCoreRegister('r3', r3)
+            reg_list.append('r3')
+            data_list.append(r3)
         if fp is not None:
-            self.target.writeCoreRegister('r9', fp)
+            reg_list.append('r9')
+            data_list.append(fp)
         if sp is not None:
-            self.target.writeCoreRegister('sp', sp)
-        self.target.writeCoreRegister('lr', self.flash_algo['load_address'] + 1)
+            reg_list.append('sp')
+            data_list.append(sp)
+        reg_list.append('lr')
+        data_list.append(self.flash_algo['load_address'] + 1)
+        self.target.writeCoreRegistersRaw(reg_list, data_list)
         
         # resume and wait until the breakpoint is hit
         self.target.resume()
