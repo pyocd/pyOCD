@@ -33,6 +33,7 @@ class KL28x(Kinetis):
 <memory-map>
     <memory type="flash" start="0x0" length="0x80000"> <property name="blocksize">0x800</property></memory>
     <memory type="ram" start="0x1fff8000" length="0x20000"> </memory>
+    <memory type="ram" start="0x40100000" length="0x800"> </memory>
 </memory-map>
 """
 
