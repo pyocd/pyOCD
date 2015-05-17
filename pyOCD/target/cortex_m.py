@@ -99,8 +99,9 @@ AHB_IDR_TO_WRAP_SIZE = {
     0x24770011 : 0x1000,    # Used on m4 & m3 - Documented in arm_cortexm4_processor_trm_100166_0001_00_en.pdf
                             #                   and arm_cortexm3_processor_trm_100165_0201_00_en.pdf
     0x44770001 : 0x400,     # Used on m1 - Documented in DDI0413D_cortexm1_r1p0_trm.pdf
-    0x4770031 : 0x400,      # Used on m0+? at least on KL25Z, KL46, LPC812
-    0x4770021 : 0x400,      # Used on m0? used on nrf51, lpc11u24
+    0x04770031 : 0x400,     # Used on m0+? at least on KL25Z, KL46, LPC812
+    0x04770021 : 0x400,     # Used on m0? used on nrf51, lpc11u24
+    0x74770001 : 0x400,     # Used on m0+ on KL28Z
     }
 
 # DHCSR bit masks
