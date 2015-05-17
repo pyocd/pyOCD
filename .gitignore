@@ -53,3 +53,5 @@ html
 #PyCharm project files
 .idea
 
+automated_test_result.txt
+
