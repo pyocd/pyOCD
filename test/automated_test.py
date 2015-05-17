@@ -22,7 +22,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.target.cortex_m import float2int
+from pyOCD.utility.conversion import float2int
 import logging
 from test_util import TestResult, Test, Logger
 
