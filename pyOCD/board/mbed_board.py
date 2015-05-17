@@ -132,7 +132,7 @@ class MbedBoard(Board):
             print("No available boards are connected")
         
     @staticmethod
-    def getAllConnectedBoards(transport = "cmsis_dap", close = False, blocking = True, 
+    def getAllConnectedBoards(transport = "cmsis_dap", close = False, blocking = True,
                                 target_override = None, frequency = 1000000):
         """
         Return an array of all mbed boards connected
@@ -195,7 +195,7 @@ class MbedBoard(Board):
                 first = False
     
     @staticmethod
-    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False, board_id = None, target_override = None, frequency = 1000000):
+    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False, board_id = None, target_override = None, frequency = 1000000, init_board = True):
         """
         Allow you to select a board among all boards connected
         """
@@ -258,11 +258,12 @@ class MbedBoard(Board):
             
         assert len(all_mbeds) == 1
         mbed = all_mbeds[0]
-        try:
-            mbed.init()
-        except:
-            mbed.interface.close()
-            raise
+        if init_board:
+            try:
+                mbed.init()
+            except:
+                mbed.interface.close()
+                raise
         return mbed
 
     def getPacketCount(self):

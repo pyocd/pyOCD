@@ -26,6 +26,10 @@ class Logger(object):
         self.terminal.write(message)
         self.log.write(message)
 
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
 class TestResult(object):
 
     def __init__(self, test_board, test, result):
