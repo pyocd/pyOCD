@@ -16,11 +16,12 @@
 """
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from pyOCD.target.target import Target
-from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
-from pyOCD.transport.cmsis_dap import DP_REG, AP_REG
-from pyOCD.transport.transport import READ_START, READ_NOW, READ_END
-import pyOCD.gdbserver.signals
+from .target import Target
+from .target import TARGET_RUNNING, TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
+from ..transport.cmsis_dap import DP_REG, AP_REG
+from ..transport.transport import READ_START, READ_NOW, READ_END
+from ..gdbserver import signals
+from ..utility import conversion
 import logging
 import struct
 
@@ -140,13 +141,13 @@ WATCH_SIZE_TO_MASK = dict((2**i, i) for i in range(0,32))
 
 # Maps the fault code found in the IPSR to a GDB signal value.
 FAULT = [
-            pyOCD.gdbserver.signals.SIGSTOP,
-            pyOCD.gdbserver.signals.SIGSTOP,    # Reset
-            pyOCD.gdbserver.signals.SIGINT,     # NMI
-            pyOCD.gdbserver.signals.SIGSEGV,    # HardFault
-            pyOCD.gdbserver.signals.SIGSEGV,    # MemManage
-            pyOCD.gdbserver.signals.SIGBUS,     # BusFault
-            pyOCD.gdbserver.signals.SIGILL,     # UsageFault
+            signals.SIGSTOP,
+            signals.SIGSTOP,    # Reset
+            signals.SIGINT,     # NMI
+            signals.SIGSEGV,    # HardFault
+            signals.SIGSEGV,    # MemManage
+            signals.SIGBUS,     # BusFault
+            signals.SIGILL,     # UsageFault
                                                 # The rest are not faults
          ]
 
@@ -218,40 +219,6 @@ CORE_REGISTER = {
                  's30': 0x5e,
                  's31': 0x5f,
                  }
-
-"""
-convert a byte array into a word array
-"""
-def byte2word(data):
-    res = []
-    for i in range(len(data)/4):
-        res.append(data[i*4 + 0] << 0  |
-                   data[i*4 + 1] << 8  |
-                   data[i*4 + 2] << 16 |
-                   data[i*4 + 3] << 24)
-    return res
-
-"""
-convert a word array into a byte array
-"""
-def word2byte(data):
-    res = []
-    for x in data:
-        res.append((x >> 0) & 0xff)
-        res.append((x >> 8) & 0xff)
-        res.append((x >> 16) & 0xff)
-        res.append((x >> 24) & 0xff)
-    return res
-
-## @brief Convert a 32-bit int to an IEEE754 float.
-def int2float(data):
-    d = struct.pack("@I", data)
-    return struct.unpack("@f", d)[0]
-## @brief Convert an IEEE754 float to a 32-bit int.
-def float2int(data):
-    d = struct.pack("@f", data)
-    return struct.unpack("@I", d)[0]
-
 
 class Breakpoint(object):
     def __init__(self, comp_register_addr):
@@ -398,7 +365,7 @@ class CortexM(Target):
             else:
                 # If unknown use the smallest size supported by all targets.
                 # A size smaller than the supported size will decrease performance
-                # due to the extra address writes, but will not create any 
+                # due to the extra address writes, but will not create any
                 # read/write errors.
                 auto_increment_page_size = 0x400
                 logging.warning("Unknown AHB IDR: 0x%x" % ahb_idr)
@@ -594,7 +561,7 @@ class CortexM(Target):
         if (size >= 4):
             #logging.debug("read blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
             mem = self.readBlockMemoryAligned32(addr, size/4)
-            res += word2byte(mem)
+            res += conversion.word2byte(mem)
             size -= 4*len(mem)
             addr += 4*len(mem)
 
@@ -642,7 +609,7 @@ class CortexM(Target):
         # write aligned block of 32 bits
         if (size >= 4):
             #logging.debug("write blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
-            data32 = byte2word(data[idx:idx + (size & ~0x03)])
+            data32 = conversion.byte2word(data[idx:idx + (size & ~0x03)])
             self.writeBlockMemoryAligned32(addr, data32)
             addr += size & ~0x03
             idx += size & ~0x03
@@ -706,7 +673,7 @@ class CortexM(Target):
 
     def step(self, disable_interrupts = True):
         """
-        perform an instruction level step.  This function preserves the previous 
+        perform an instruction level step.  This function preserves the previous
         interrupt mask state
         """
         # Was 'if self.getState() != TARGET_HALTED:'
@@ -823,7 +790,7 @@ class CortexM(Target):
         regValue = self.readCoreRegisterRaw(regIndex)
         # Convert int to float.
         if regIndex >= 0x40:
-            regValue = int2float(regValue)
+            regValue = conversion.int2float(regValue)
         return regValue
 
     def registerNameToIndex(self, reg):
@@ -862,9 +829,9 @@ class CortexM(Target):
 
         # Sanity check register values
         for reg in reg_list:
-            if reg not in CORE_REGISTER.values():
+        if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+        elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Begin all reads and writes
@@ -872,11 +839,11 @@ class CortexM(Target):
             if (reg < 0) and (reg >= -4):
                 reg = CORE_REGISTER['cfbp']
 
-            # write id in DCRSR
-            self.writeMemory(DCRSR, reg)
+        # write id in DCRSR
+        self.writeMemory(DCRSR, reg)
 
-            # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
-            # we're running so slow compared to the target that it's not necessary.
+        # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
+        # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
             self.readMemory(DHCSR, mode=READ_START)
@@ -887,10 +854,10 @@ class CortexM(Target):
         for reg in reg_list:
             dhcsr_val = self.readMemory(DHCSR, mode=READ_END)
             assert dhcsr_val & S_REGRDY
-            # read DCRDR
+        # read DCRDR
             val = self.readMemory(DCRDR, mode=READ_END)
 
-            # Special handling for registers that are combined into a single DCRSR number.
+        # Special handling for registers that are combined into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
                 val = (val >> ((-reg - 1) * 8)) & 0xff
 
@@ -906,7 +873,7 @@ class CortexM(Target):
         regIndex = self.registerNameToIndex(reg)
         # Convert float to int.
         if regIndex >= 0x40:
-            data = float2int(data)
+            data = conversion.float2int(data)
         self.writeCoreRegisterRaw(regIndex, data)
 
     def writeCoreRegisterRaw(self, reg, data):
@@ -938,26 +905,26 @@ class CortexM(Target):
 
         # Read special register if it is present in the list
         for reg in reg_list:
-            if (reg < 0) and (reg >= -4):
+        if (reg < 0) and (reg >= -4):
                 specialRegValue = self.readCoreRegister(CORE_REGISTER['cfbp'])
                 break
 
         # Write out registers
         for reg, data in zip(reg_list, data_list):
             if (reg < 0) and (reg >= -4):
-                # Mask in the new special register value so we don't modify the other register
-                # values that share the same DCRSR number.
+            # Mask in the new special register value so we don't modify the other register
+            # values that share the same DCRSR number.
                 shift = (-reg - 1) * 8
-                mask = 0xffffffff ^ (0xff << shift)
-                data = (specialRegValue & mask) | ((data & 0xff) << shift)
+            mask = 0xffffffff ^ (0xff << shift)
+            data = (specialRegValue & mask) | ((data & 0xff) << shift)
                 specialRegValue = data # update special register for other writes that might be in the list
                 reg = CORE_REGISTER['cfbp']
 
-            # write DCRDR
-            self.writeMemory(DCRDR, data)
+        # write DCRDR
+        self.writeMemory(DCRDR, data)
 
-            # write id in DCRSR and flag to start write transfer
-            self.writeMemory(DCRSR, reg | REGWnR)
+        # write id in DCRSR and flag to start write transfer
+        self.writeMemory(DCRSR, reg | REGWnR)
 
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
@@ -1107,25 +1074,8 @@ class CortexM(Target):
         vals = self.readCoreRegistersRaw(reg_num_list)
         #print("Vals: %s" % vals)
         for reg, regValue in zip(self.register_list, vals):
-            resp += self.intToHex8(regValue)
+            resp += conversion.intToHex8(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
-
-        return resp
-
-    def intToHex8(self, val):
-        """
-        create 8-digit hexadecimal string from 32-bit register value
-        """
-        val = hex(int(val))[2:]
-        size = len(val)
-        r = ''
-        for i in range(8-size):
-            r += '0'
-        r += str(val)
-
-        resp = ''
-        for i in range(4):
-            resp += r[8 - 2*i - 2: 8 - 2*i]
 
         return resp
 
@@ -1137,18 +1087,12 @@ class CortexM(Target):
         reg_num_list = []
         reg_data_list = []
         for reg in self.register_list:
-            regValue = self.hex8ToInt(data)
+            regValue = conversion.hex8ToInt(data)
             reg_num_list.append(reg.reg_num)
             reg_data_list.append(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
             data = data[8:]
         self.writeCoreRegistersRaw(reg_num_list, reg_data_list)
-
-    def hex8ToInt(self, data):
-        """
-        build 32-bit register value from little-endian 8-digit hexadecimal string.
-        """
-        return int(data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
 
     def setRegister(self, reg, data):
         """
@@ -1159,7 +1103,7 @@ class CortexM(Target):
             return
         elif reg < len(self.register_list):
             regName = self.register_list[reg].name
-            value = self.hex8ToInt(data)
+            value = conversion.hex8ToInt(data)
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
             self.writeCoreRegisterRaw(regName, value)
 
@@ -1170,9 +1114,9 @@ class CortexM(Target):
             The current value of the important registers (sp, lr, pc).
         """
         if gdbInterrupt:
-            response = 'T' + self.intToHex2(pyOCD.gdbserver.signals.SIGINT)
+            response = 'T' + conversion.intToHex2(signals.SIGINT)
         else:
-            response = 'T' + self.intToHex2(self.getSignalValue())
+            response = 'T' + conversion.intToHex2(self.getSignalValue())
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self.getRegIndexValuePairs([7, 13, 14, 15])
@@ -1181,14 +1125,14 @@ class CortexM(Target):
 
     def getSignalValue(self):
         if self.isDebugTrap():
-            return pyOCD.gdbserver.signals.SIGTRAP
+            return signals.SIGTRAP
 
         fault = self.readCoreRegister('xpsr') & 0xff
         try:
             signal = FAULT[fault]
         except:
             # If not a fault then default to SIGSTOP
-            signal = pyOCD.gdbserver.signals.SIGSTOP
+            signal = signals.SIGSTOP
         logging.debug("GDB lastSignal: %d", signal)
         return signal
 
@@ -1205,15 +1149,6 @@ class CortexM(Target):
         str = ''
         regList = self.readCoreRegistersRaw(regIndexList)
         for regIndex, reg in zip(regIndexList, regList):
-            str += self.intToHex2(regIndex) + ':' + self.intToHex8(reg) + ';'
+            str += conversion.intToHex2(regIndex) + ':' + conversion.intToHex8(reg) + ';'
         return str
 
-    def intToHex2(self, val):
-        """
-        create 2-digit hexadecimal string from 8-bit value
-        """
-        val = hex(int(val))[2:]
-        if len(val) < 2:
-            return '0' + val
-        else:
-            return val
