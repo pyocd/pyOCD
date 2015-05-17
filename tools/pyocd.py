@@ -71,7 +71,10 @@ def dumpHexData(data, startAddress=0, width=8):
                     break
         print
 
-class FlashTool(object):
+class ToolError(Exception):
+    pass
+
+class PyOCDTool(object):
     def __init__(self):
         #logging.basicConfig(level=logging.INFO)
         pass
@@ -116,6 +119,7 @@ class FlashTool(object):
 
     def run(self):
         board = None
+        exitCode = 0
 
         try:
             # Read command-line arguments.
@@ -135,8 +139,6 @@ class FlashTool(object):
                 board.init()
             except Exception, e:
                 print "Exception:", e
-            #target_type = board.getTargetType()
-            #print "Inited"
 
             target = board.target
             transport = board.transport
@@ -156,13 +158,9 @@ class FlashTool(object):
             # Handle a device with flash security enabled.
             didErase = False
             if target.isLocked() and args.action != ACTION_UNLOCK:
-#                 if args.action == ACTION_UNLOCK:
-#                     #print "Target is locked, performing mass erase"
-#                     target.massErase(board)
-#                     didErase = True
-#                 else:
                 print "Target is locked, cannot complete operation. Use --unlock to mass erase and unlock."
 
+            # Handle actions.
             if args.action == ACTION_INFO:
                 print "Unique ID: %s" % board.getUniqueID()
                 print "Core ID:   0x%08x" % target.readIDCode()
@@ -179,6 +177,9 @@ class FlashTool(object):
                 if args.width == 8:
                     data = target.readBlockMemoryUnaligned8(args.read, args.len)
                 elif args.width == 16:
+                    if args.read & 0x1:
+                        raise ToolError("read address 0x%08x is not 16-bit aligned" % args.read)
+
                     byteData = target.readBlockMemoryUnaligned8(args.read, args.len * 2)
                     i = 0
                     data = []
@@ -186,6 +187,9 @@ class FlashTool(object):
                         data.append(byteData[i] | (byteData[i+1] << 8))
                         i += 2
                 elif args.width == 32:
+                    if args.read & 0x3:
+                        raise ToolError("read address 0x%08x is not 32-bit aligned" % args.read)
+
                     data = target.readBlockMemoryAligned32(args.read, args.len / 4)
 
                 # Either print disasm or hex dump of output
@@ -207,13 +211,18 @@ class FlashTool(object):
                 if args.width == 8:
                     target.writeBlockMemoryUnaligned8(args.write, args.data)
                 elif args.width == 16:
+                    if args.write & 0x1:
+                        raise ToolError("write address 0x%08x is not 16-bit aligned" % args.write)
+
                     print "16-bit writes are currently not supported"
                 elif args.width == 32:
+                    if args.write & 0x3:
+                        raise ToolError("write address 0x%08x is not 32-bit aligned" % args.write)
+
                     target.writeBlockMemoryAligned32(args.write, args.data)
             elif args.action == ACTION_PROGRAM:
                 if not os.path.exists(args.file):
-                    print "%s does not exist!" % args.file
-                    return 1
+                    raise ToolError("%s does not exist!" % args.file)
 
                 print "Programming %s into flash..." % args.file
                 flash.flashBinary(args.file)
@@ -225,13 +234,14 @@ class FlashTool(object):
             elif args.action == ACTION_GO:
                 target.resume()
 
-        #     target.reset()
-
+        except ToolError, e:
+            print "Error:", e
+            exitCode = 1
         finally:
             if board != None:
                 board.uninit()
 
-        return 0
+        return exitCode
 
     def dumpRegisters(self, target):
         regs = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7',
@@ -263,4 +273,4 @@ class FlashTool(object):
 
 
 if __name__ == '__main__':
-    sys.exit(FlashTool().run())
+    sys.exit(PyOCDTool().run())

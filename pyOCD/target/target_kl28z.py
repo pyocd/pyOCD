@@ -18,6 +18,7 @@
 from target_kinetis import Kinetis
 import logging
 from cortex_m import (NVIC_AIRCR, NVIC_AIRCR_SYSRESETREQ)
+from ..transport.transport import TransferError
 
 SIM_SDID = 0x40075024
 SIM_SDID_KEYATTR_MASK = 0x70
@@ -70,19 +71,11 @@ class KL28x(Kinetis):
             return self.memoryMapXMLSingle
 
     def reset(self, software_reset = None):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        if software_reset == None:
-            # Default to software reset if nothing is specified
-            software_reset = True
-
-        software_reset = False
-
-        if software_reset:
-            self.writeMemory(NVIC_AIRCR, 0xfa050000 | NVIC_AIRCR_SYSRESETREQ)
-        else:
-            self.transport.reset()
+        try:
+            super(KL28x, self).reset(software_reset)
+        except TransferError:
+            # KL28 causes a SWD transfer fault for the AIRCR write when
+            # it resets. Just ignore this error.
+            pass
 
 
