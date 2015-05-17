@@ -171,13 +171,11 @@ class Kinetis(CortexM):
     def unlockFlash(self):
         logging.info("Unlocking chip...")
 
-        # Init flash algorithm.
-        self.flash.init()
-
         logging.info("Performing mass erase")
         self.massErase()
 
         # Write FCF
         logging.info("Writing FCF = %s" % repr(fcf))
+        self.flash.init()
         self.flash.programPage(FCF_ADDR, fcf)
 
