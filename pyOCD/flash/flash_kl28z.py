@@ -71,8 +71,7 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_erase_sector' : 0x20000071,
                'pc_program_page' : 0x2000009F,
                'begin_stack' : 0x20000800,
-               'begin_data' : 0x20000a00,       # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
-                                                # Note: 128 pages on KL25 and KL26, 256 pages on KL46
+               'begin_data' : 0x20000a00,       # Analyzer uses a max of 2 KB data (512 pages * 4 bytes / page)
                'static_base' : 0x20000000 + 0x20 + 0x594,
                'page_size' : 2048,
                'analyzer_supported' : True,
