@@ -114,7 +114,7 @@ def flash_test(board_id):
             ram_size = 0x4000
             rom_start = 0x00000000
             rom_size = 0x20000
-        if target_type == "kl28t":
+        elif target_type == "kl28z":
             ram_start = 0x1fffa000
             ram_size = 96*1024
             rom_start = 0x00000000

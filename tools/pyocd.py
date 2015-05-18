@@ -87,15 +87,17 @@ class PyOCDTool(object):
         parser.add_argument("-i", "--info", action="store_const", dest='action', const=ACTION_INFO, help="Print device info and status.")
         parser.add_argument("-R", "--reset", action="store_const", dest='action', const=ACTION_RESET, help="Reset target device.")
         parser.add_argument("-H", "--halt", action="store_true", default=False, help="Halt core on reset.")
-        parser.add_argument("-g", "--go", action="store_const", dest='action', const=ACTION_GO, help="Start the core executing code.")
+        parser.add_argument("-g", "--go", action="store_const", dest='action', const=ACTION_GO, help="Resume execution of code.")
         parser.add_argument("-r", "--read", action="store", metavar='ADDR', help="Read and print data.")
-        parser.add_argument('-n', "--len", "--length", action="store", metavar='LENGTH', default="4", help="Length of data.")
+        parser.add_argument('-n', "--len", "--length", action="store", metavar='LENGTH', default="4", help="Length of data to read.")
         parser.add_argument("-w", "--write", action="store", metavar='ADDR', help="Write data to memory.")
         parser.add_argument("-W", "--width", action="store", choices=[8, 16, 32], type=int, default=8, help="Word size for read and write.")
         parser.add_argument('-f', "--flash", dest="file", metavar='FILE', help="Program a binary file into flash.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=0, type=int, help="Set SWD speed in kHz.")
         parser.add_argument('-v', "--verbose", action='store_true', default=False, help="Enable verbose logging.")
         parser.add_argument('-d', "--disasm", action='store_true', default=False, help="Print disassembly.")
+        parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
+        parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
         parser.add_argument("data", nargs='*', help="Data to write using the --write option")
         args = parser.parse_args()
 
@@ -133,7 +135,7 @@ class PyOCDTool(object):
                 MbedBoard.listConnectedBoards()
                 sys.exit(0)
 
-            board = MbedBoard.chooseBoard(init_board=False)
+            board = MbedBoard.chooseBoard(board_id=args.board, target_override=args.target, init_board=False)
             board.target.setAutoUnlock(False)
             try:
                 board.init()
@@ -147,7 +149,7 @@ class PyOCDTool(object):
             # Set specified SWD clock.
             if args.clock > 0:
                 print "Setting SWD clock to %d kHz" % args.clock
-                transport.setClockSpeed(args.clock * 1000)
+                transport.setClock(args.clock * 1000)
 
             # Handle reset action first
             if args.action == ACTION_RESET:
