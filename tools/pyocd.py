@@ -239,7 +239,8 @@ class PyOCDTool(object):
             exitCode = 1
         finally:
             if board != None:
-                board.uninit()
+                # Pass false to prevent target resume.
+                board.uninit(False)
 
         return exitCode
 
