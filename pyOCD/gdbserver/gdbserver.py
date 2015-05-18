@@ -375,7 +375,8 @@ class GDBServer(threading.Thread):
                     sys.stdout.write('\r')
                     i = int(progress*20.0)
                     sys.stdout.write("[%-20s] %3d%%" % ('='*i, round(progress * 100)))
-                
+                    sys.stdout.flush()
+
                 # Finish on 1.0
                 if progress >= 1.0:
                     if not print_progress.done:
