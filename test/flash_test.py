@@ -341,6 +341,17 @@ def flash_test(board_id):
         test_pass_count += 1
         test_count += 1
 
+        # Only run test if the reset handler can be programmed (rom start at address 0)
+        if rom_start == 0:
+            print "\r\n\r\n------ Test Non-Thumb reset handler ------"
+            non_thumb_data = list(data)
+            # Clear bit 0 of 2nd word - reset handler
+            non_thumb_data[4] = non_thumb_data[4] & ~1 
+            flash.flashBlock(rom_start, non_thumb_data)
+            flash.flashBlock(rom_start, data)
+            print("TEST PASSED")
+            test_pass_count += 1
+            test_count += 1
 
         # Note - The decision based tests below are order dependent since they
         # depend on the previous state of the flash

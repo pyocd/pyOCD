@@ -756,6 +756,9 @@ class CortexM(Target):
     def setTargetState(self, state):
         if state == "PROGRAM":
             self.resetStopOnReset(True)
+            # Write the thumb bit in case the reset handler
+            # points to an ARM address
+            self.writeCoreRegister('xpsr', 0x1000000)
 
     def getState(self):
         dhcsr = self.readMemory(DHCSR)
