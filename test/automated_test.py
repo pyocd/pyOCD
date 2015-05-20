@@ -24,10 +24,12 @@ import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.target.cortex_m import float2int
 import logging
+from time import time
 from test_util import TestResult, Test, Logger
 
 from basic_test import basic_test
 from speed_test import SpeedTest
+from cortex_test import CortexTest
 from flash_test import FlashTest
 
 
@@ -49,24 +51,31 @@ if __name__ == "__main__":
     test = Test("Basic Test", lambda board: basic_test(board, None))
     test_list.append(test)
     test_list.append(SpeedTest())
+    test_list.append(CortexTest())
     test_list.append(FlashTest())
 
     # Put together list of boards to test
     board_list = MbedBoard.getAllConnectedBoards(close = True, blocking = False)
 
+    start = time()
     for board in board_list:
         print("--------------------------")
         print("TESTING BOARD %s" % board.getUniqueID())
         print("--------------------------")
         for test in test_list:
+            test_start = time()
             result = test.run(board)
+            test_stop = time()
+            result.time = test_stop - test_start
             result_list.append(result)
+    stop = time()
 
     for test in test_list:
         test.print_perf_info(result_list)
 
     Test.print_results(result_list)
     print("")
+    print("Test Time: %s" % (stop - start))
     if Test.all_tests_pass(result_list):
         print("All tests passed")
     else:

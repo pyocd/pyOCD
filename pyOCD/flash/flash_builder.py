@@ -25,10 +25,21 @@ from binascii import crc32
 FLASH_PAGE_ERASE = 1
 FLASH_CHIP_ERASE = 2
 
+# Type of flash analysis
+FLASH_ANALYSIS_CRC32 = "CRC32"
+FLASH_ANALYSIS_PARTIAL_PAGE_READ = "PAGE_READ"
+
 # Number of bytes in a page to read to quickly determine if the page has the same data
 PAGE_ESTIMATE_SIZE = 32
 PAGE_READ_WEIGHT = 0.3
 DATA_TRANSFER_B_PER_S = 40 * 1000 # ~40KB/s, depends on clock speed, theoretical limit for HID is 56,000 B/s
+
+class ProgrammingInfo(object):
+    def __init__(self):
+        self.program_type = None                # Type of programming performed - FLASH_PAGE_ERASE or FLASH_CHIP_ERASE
+        self.program_time = None                # Total programming time
+        self.analyze_type = None                # Type of flash analysis performed - FLASH_ANALYSIS_CRC32 or FLASH_ANALYSIS_PARTIAL_PAGE_READ
+        self.analyze_time = None                # Time to analyze flash contents
 
 def _same( d1, d2 ):
     assert len(d1) == len(d2)
@@ -88,6 +99,7 @@ class FlashBuilder(object):
         self.flash_start = base_addr
         self.flash_operation_list = []
         self.page_list = []
+        self.perf = ProgrammingInfo()
 
     def addData(self, addr, data):
         """
@@ -131,6 +143,7 @@ class FlashBuilder(object):
         # - lpc4330     -Non 0 base address
         # - nRF51       -UICR location far from flash (address 0x10001000)
         # - LPC1768     -Different sized pages
+        program_start = time()
 
         if progress_cb is None:
             progress_cb = _stub_progress
@@ -198,13 +211,16 @@ class FlashBuilder(object):
 
         # If chip erase isn't True then analyze the flash
         if chip_erase != True:
-            start = time()
+            analyze_start = time()
             if self.flash.getFlashInfo().crc_supported:
                 sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_crc32()
+                self.perf.analyze_type = FLASH_ANALYSIS_CRC32
             else:
                 sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_sector_read()
-            stop = time()
-            logging.debug("Analyze time: %f" % (stop-start))
+                self.perf.analyze_type = FLASH_ANALYSIS_PARTIAL_PAGE_READ
+            analyze_finish = time()
+            self.perf.analyze_time = analyze_finish - analyze_start
+            logging.debug("Analyze time: %f" % (analyze_finish - analyze_start))
 
         # If chip erase hasn't been set then determine fastest method to program
         if chip_erase is None:
@@ -218,7 +234,15 @@ class FlashBuilder(object):
             flash_operation = self._page_erase_program(progress_cb)
 
         self.flash.target.resetStopOnReset()
-        return flash_operation
+
+        program_finish = time()
+        self.perf.program_time = program_finish-program_start
+        self.perf.program_type = flash_operation
+
+        return self.perf
+
+    def getPerformance(self):
+            return self.perf
 
     def _mark_all_pages_for_programming(self):
         for page in self.page_list:

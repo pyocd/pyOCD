@@ -211,15 +211,17 @@ def dapTransfer(interface, count, request, data = [0], dap_index = 0):
     resp = interface.read()
     if resp[0] != COMMAND_ID['DAP_TRANSFER']:
         raise ValueError('DAP_TRANSFER response error')
-    
-    if resp[1] != count:
-        raise ValueError('Transfer not completed')
 
     if resp[2] != DAP_TRANSFER_OK:
         if resp[2] == DAP_TRANSFER_FAULT:
             raise TransferError()
         raise ValueError('SWD Fault')
-        
+
+    # Check for count mismatch after checking for DAP_TRANSFER_FAULT
+    # This allows TransferError to get thrown instead of ValueError
+    if resp[1] != count:
+        raise ValueError('Transfer not completed')
+
     return resp[3:3+count_write*4]
 
 def dapTransferBlock(interface, count, request, data = [0], dap_index = 0):

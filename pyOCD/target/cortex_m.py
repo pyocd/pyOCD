@@ -19,6 +19,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from pyOCD.target.target import Target
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from pyOCD.transport.cmsis_dap import DP_REG, AP_REG
+from pyOCD.transport.transport import READ_START, READ_NOW, READ_END
 import pyOCD.gdbserver.signals
 import logging
 import struct
@@ -502,6 +503,9 @@ class CortexM(Target):
     def info(self, request):
         return self.transport.info(request)
 
+    def flush(self):
+        self.transport.flush()
+
     def readIDCode(self):
         """
         return the IDCODE of the core
@@ -536,12 +540,12 @@ class CortexM(Target):
         """
         self.writeMemory(addr, value, 8)
 
-    def readMemory(self, addr, transfer_size = 32):
+    def readMemory(self, addr, transfer_size = 32, mode = READ_NOW):
         """
         read a memory location. By default, a word will
         be read
         """
-        return self.transport.readMem(addr, transfer_size)
+        return self.transport.readMem(addr, transfer_size, mode)
 
     def read32(self, addr):
         """
@@ -696,6 +700,7 @@ class CortexM(Target):
         halt the core
         """
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
+        self.flush()
         return
 
     def step(self, disable_interrupts = True):
@@ -734,6 +739,7 @@ class CortexM(Target):
             # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
             self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT )
 
+        self.flush()
         return
 
     def clearDebugCauseBits(self):
@@ -750,6 +756,8 @@ class CortexM(Target):
         
         if software_reset:
             self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
+            # Without a flush a transfer error can occur
+            self.flush()
         else:
             self.transport.reset()
 
@@ -796,6 +804,7 @@ class CortexM(Target):
             return
         self.clearDebugCauseBits()
         self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+        self.flush()
         return
 
     def findBreakpoint(self, addr):
@@ -836,35 +845,57 @@ class CortexM(Target):
         If reg is a string, find the number associated to this register
         in the lookup table CORE_REGISTER
         """
-        reg = self.registerNameToIndex(reg)
+        vals = self.readCoreRegistersRaw([reg])
+        return vals[0]
 
-        if (reg < 0) and (reg >= -4):
-            specialReg = reg
-            reg = CORE_REGISTER['cfbp']
-        else:
-            specialReg = 0
+    def readCoreRegistersRaw(self, reg_list):
+        """
+        Read one or more core registers
 
-        if reg not in CORE_REGISTER.values():
-            logging.error("unknown reg: %d", reg)
-            return
-        elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
-            logging.error("attempt to read FPU register without FPU")
-            return
+        Read core registers in reg_list and return a list of values.
+        If any register in reg_list is a string, find the number 
+        associated to this register in the lookup table CORE_REGISTER.
+        """
+        # convert to index only
+        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
 
-        # write id in DCRSR
-        self.writeMemory(DCRSR, reg)
+        # Sanity check register values
+        for reg in reg_list:
+            if reg not in CORE_REGISTER.values():
+                raise ValueError("unknown reg: %d" % reg)
+            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+                raise ValueError("attempt to read FPU register without FPU")
 
-        # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
-        # we're running so slow compared to the target that it's not necessary.
+        # Begin all reads and writes
+        for reg in reg_list:
+            if (reg < 0) and (reg >= -4):
+                reg = CORE_REGISTER['cfbp']
 
-        # read DCRDR
-        val = self.readMemory(DCRDR)
+            # write id in DCRSR
+            self.writeMemory(DCRSR, reg)
 
-        # Special handling for registers that are combined into a single DCRSR number.
-        if specialReg:
-            val = (val >> ((-specialReg - 1) * 8)) & 0xff
+            # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
+            # we're running so slow compared to the target that it's not necessary.
+            # Read it and assert that S_REGRDY is set
 
-        return val
+            self.readMemory(DHCSR, mode=READ_START)
+            self.readMemory(DCRDR, mode=READ_START)
+
+        # Read all results
+        reg_vals = []
+        for reg in reg_list:
+            dhcsr_val = self.readMemory(DHCSR, mode=READ_END)
+            assert dhcsr_val & S_REGRDY
+            # read DCRDR
+            val = self.readMemory(DCRDR, mode=READ_END)
+
+            # Special handling for registers that are combined into a single DCRSR number.
+            if (reg < 0) and (reg >= -4):
+                val = (val >> ((-reg - 1) * 8)) & 0xff
+
+            reg_vals.append(val)
+
+        return reg_vals
 
     def writeCoreRegister(self, reg, data):
         """
@@ -883,33 +914,58 @@ class CortexM(Target):
         If reg is a string, find the number associated to this register
         in the lookup table CORE_REGISTER
         """
-        reg = self.registerNameToIndex(reg)
+        self.writeCoreRegistersRaw([reg], [data])        
 
-        if (reg < 0) and (reg >= -4):
-            specialReg = reg
-            reg = CORE_REGISTER['cfbp']
+    def writeCoreRegistersRaw(self, reg_list, data_list):
+        """
+        Write one or more core registers
 
-            # Mask in the new special register value so we don't modify the other register
-            # values that share the same DCRSR number.
-            specialRegValue = self.readCoreRegister(reg)
-            shift = (-specialReg - 1) * 8
-            mask = 0xffffffff ^ (0xff << shift)
-            data = (specialRegValue & mask) | ((data & 0xff) << shift)
-        else:
-            specialReg = 0
+        Write core registers in reg_list with the associated value in 
+        data_list.  If any register in reg_list is a string, find the number 
+        associated to this register in the lookup table CORE_REGISTER.
+        """
+        assert len(reg_list) == len(data_list)
+        # convert to index only
+        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
 
-        if reg not in CORE_REGISTER.values():
-            logging.error("unknown reg: %d", reg)
-            return
-        elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
-            logging.error("attempt to read FPU register without FPU")
-            return
+        # Sanity check register values
+        for reg in reg_list:
+            if reg not in CORE_REGISTER.values():
+                raise ValueError("unknown reg: %d" % reg)
+            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+                raise ValueError("attempt to write FPU register without FPU")
 
-        # write DCRDR
-        self.writeMemory(DCRDR, data)
+        # Read special register if it is present in the list
+        for reg in reg_list:
+            if (reg < 0) and (reg >= -4):
+                specialRegValue = self.readCoreRegister(CORE_REGISTER['cfbp'])
+                break
 
-        # write id in DCRSR and flag to start write transfer
-        self.writeMemory(DCRSR, reg | REGWnR)
+        # Write out registers
+        for reg, data in zip(reg_list, data_list):
+            if (reg < 0) and (reg >= -4):
+                # Mask in the new special register value so we don't modify the other register
+                # values that share the same DCRSR number.
+                shift = (-reg - 1) * 8
+                mask = 0xffffffff ^ (0xff << shift)
+                data = (specialRegValue & mask) | ((data & 0xff) << shift)
+                specialRegValue = data # update special register for other writes that might be in the list
+                reg = CORE_REGISTER['cfbp']
+
+            # write DCRDR
+            self.writeMemory(DCRDR, data)
+
+            # write id in DCRSR and flag to start write transfer
+            self.writeMemory(DCRSR, reg | REGWnR)
+
+            # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
+            # register write has completed.
+            # Read it and assert that S_REGRDY is set
+            self.readMemory(DHCSR, mode=READ_START)
+
+        for reg in reg_list:
+            dhcsr_val = self.readMemory(DHCSR, mode=READ_END)
+            assert dhcsr_val & S_REGRDY
 
     def setBreakpoint(self, addr):
         """
@@ -1046,8 +1102,10 @@ class CortexM(Target):
         """
         logging.debug("GDB getting register context")
         resp = ''
-        for reg in self.register_list:
-            regValue = self.readCoreRegisterRaw(reg.name)
+        reg_num_list = map(lambda reg:reg.reg_num, self.register_list)
+        vals = self.readCoreRegistersRaw(reg_num_list)
+        #print("Vals: %s" % vals)
+        for reg, regValue in zip(self.register_list, vals):
             resp += self.intToHex8(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
 
@@ -1075,11 +1133,15 @@ class CortexM(Target):
         Set registers from GDB hexadecimal string.
         """
         logging.debug("GDB setting register context")
+        reg_num_list = []
+        reg_data_list = []
         for reg in self.register_list:
             regValue = self.hex8ToInt(data)
-            self.writeCoreRegisterRaw(reg.name, regValue)
+            reg_num_list.append(reg.reg_num)
+            reg_data_list.append(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
             data = data[8:]
+        self.writeCoreRegistersRaw(reg_num_list, reg_data_list)
 
     def hex8ToInt(self, data):
         """
@@ -1112,10 +1174,7 @@ class CortexM(Target):
             response = 'T' + self.intToHex2(self.getSignalValue())
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
-        response += self.getRegIndexValuePair(7)
-        response += self.getRegIndexValuePair(13)
-        response += self.getRegIndexValuePair(14)
-        response += self.getRegIndexValuePair(15)
+        response += self.getRegIndexValuePairs([7, 13, 14, 15])
 
         return response
 
@@ -1136,13 +1195,17 @@ class CortexM(Target):
         debugEvents = self.readMemory(DFSR) & (DFSR_DWTTRAP | DFSR_BKPT | DFSR_HALTED)
         return debugEvents != 0
 
-    def getRegIndexValuePair(self, regIndex):
+    def getRegIndexValuePairs(self, regIndexList):
         """
-        Returns a string like NN:MMMMMMMM for the T response string.
-            NN is the index of the register to follow
-            MMMMMMMM is the value of the register
+        Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
+            for the T response string.  NN is the index of the 
+            register to follow MMMMMMMM is the value of the register.
         """
-        return self.intToHex2(regIndex) + ':' + self.intToHex8(self.readCoreRegisterRaw(regIndex)) + ';'
+        str = ''
+        regList = self.readCoreRegistersRaw(regIndexList)
+        for regIndex, reg in zip(regIndexList, regList):
+            str += self.intToHex2(regIndex) + ':' + self.intToHex8(reg) + ';'
+        return str
 
     def intToHex2(self, val):
         """
