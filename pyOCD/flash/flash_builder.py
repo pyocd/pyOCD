@@ -197,7 +197,7 @@ class FlashBuilder(object):
             if chip_erase is None:
                 chip_erase = False
             elif chip_erase is True:
-                logging.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x', addr, flash_start)
+                logging.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x', self.page_list[0].addr, self.flash_start)
 
         self.flash.init()
 

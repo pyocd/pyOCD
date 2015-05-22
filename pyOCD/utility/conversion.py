@@ -48,7 +48,7 @@ def float2int(data):
     return struct.unpack("@I", d)[0]
 
 ## @brief create 8-digit hexadecimal string from 32-bit register value.
-def intToHex8(self, val):
+def intToHex8(val):
     val = hex(int(val))[2:]
     size = len(val)
     r = ''
@@ -63,11 +63,11 @@ def intToHex8(self, val):
     return resp
 
 ## @brief Build 32-bit register value from little-endian 8-digit hexadecimal string.
-def hex8ToInt(self, data):
+def hex8ToInt(data):
     return int(data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
 
 ## @brief Create 2-digit hexadecimal string from 8-bit value.
-def intToHex2(self, val):
+def intToHex2(val):
     val = hex(int(val))[2:]
     if len(val) < 2:
         return '0' + val
