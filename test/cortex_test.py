@@ -25,7 +25,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.target.cortex_m import float2int
+from pyOCD.utility.conversion import float2int
 from pyOCD.transport import TransferError
 from test_util import Test, TestResult
 import logging
@@ -97,6 +97,10 @@ def cortex_test(board_id):
             size = 0x502
             addr_flash = 0x4000
         elif target_type == "kl25z":
+            addr = 0x20000000
+            size = 0x502
+            addr_flash = 0x10000
+        elif target_type == "kl28z":
             addr = 0x20000000
             size = 0x502
             addr_flash = 0x10000
