@@ -358,7 +358,7 @@ class CortexM(Target):
 
             self.transport.writeDP(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
             self.transport.writeDP(DP_REG['SELECT'], 0)
-            
+
             ahb_idr = self.transport.readAP(AP_REG['IDR'])
             if ahb_idr in AHB_IDR_TO_WRAP_SIZE:
                 self.auto_increment_page_size = AHB_IDR_TO_WRAP_SIZE[ahb_idr]
@@ -721,7 +721,7 @@ class CortexM(Target):
         if software_reset == None:
             # Default to software reset if nothing is specified
             software_reset = True
-        
+
         if software_reset:
             self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
             # Without a flush a transfer error can occur
@@ -821,7 +821,7 @@ class CortexM(Target):
         Read one or more core registers
 
         Read core registers in reg_list and return a list of values.
-        If any register in reg_list is a string, find the number 
+        If any register in reg_list is a string, find the number
         associated to this register in the lookup table CORE_REGISTER.
         """
         # convert to index only
@@ -829,9 +829,9 @@ class CortexM(Target):
 
         # Sanity check register values
         for reg in reg_list:
-        if reg not in CORE_REGISTER.values():
+            if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-        elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Begin all reads and writes
@@ -839,11 +839,11 @@ class CortexM(Target):
             if (reg < 0) and (reg >= -4):
                 reg = CORE_REGISTER['cfbp']
 
-        # write id in DCRSR
-        self.writeMemory(DCRSR, reg)
+            # write id in DCRSR
+            self.writeMemory(DCRSR, reg)
 
-        # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
-        # we're running so slow compared to the target that it's not necessary.
+            # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
+            # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
             self.readMemory(DHCSR, mode=READ_START)
@@ -854,10 +854,10 @@ class CortexM(Target):
         for reg in reg_list:
             dhcsr_val = self.readMemory(DHCSR, mode=READ_END)
             assert dhcsr_val & S_REGRDY
-        # read DCRDR
+            # read DCRDR
             val = self.readMemory(DCRDR, mode=READ_END)
 
-        # Special handling for registers that are combined into a single DCRSR number.
+            # Special handling for registers that are combined into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
                 val = (val >> ((-reg - 1) * 8)) & 0xff
 
@@ -882,14 +882,14 @@ class CortexM(Target):
         If reg is a string, find the number associated to this register
         in the lookup table CORE_REGISTER
         """
-        self.writeCoreRegistersRaw([reg], [data])        
+        self.writeCoreRegistersRaw([reg], [data])
 
     def writeCoreRegistersRaw(self, reg_list, data_list):
         """
         Write one or more core registers
 
-        Write core registers in reg_list with the associated value in 
-        data_list.  If any register in reg_list is a string, find the number 
+        Write core registers in reg_list with the associated value in
+        data_list.  If any register in reg_list is a string, find the number
         associated to this register in the lookup table CORE_REGISTER.
         """
         assert len(reg_list) == len(data_list)
@@ -905,26 +905,26 @@ class CortexM(Target):
 
         # Read special register if it is present in the list
         for reg in reg_list:
-        if (reg < 0) and (reg >= -4):
+            if (reg < 0) and (reg >= -4):
                 specialRegValue = self.readCoreRegister(CORE_REGISTER['cfbp'])
                 break
 
         # Write out registers
         for reg, data in zip(reg_list, data_list):
             if (reg < 0) and (reg >= -4):
-            # Mask in the new special register value so we don't modify the other register
-            # values that share the same DCRSR number.
+                # Mask in the new special register value so we don't modify the other register
+                # values that share the same DCRSR number.
                 shift = (-reg - 1) * 8
-            mask = 0xffffffff ^ (0xff << shift)
-            data = (specialRegValue & mask) | ((data & 0xff) << shift)
+                mask = 0xffffffff ^ (0xff << shift)
+                data = (specialRegValue & mask) | ((data & 0xff) << shift)
                 specialRegValue = data # update special register for other writes that might be in the list
                 reg = CORE_REGISTER['cfbp']
 
-        # write DCRDR
-        self.writeMemory(DCRDR, data)
+            # write DCRDR
+            self.writeMemory(DCRDR, data)
 
-        # write id in DCRSR and flag to start write transfer
-        self.writeMemory(DCRSR, reg | REGWnR)
+            # write id in DCRSR and flag to start write transfer
+            self.writeMemory(DCRSR, reg | REGWnR)
 
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
@@ -1143,7 +1143,7 @@ class CortexM(Target):
     def getRegIndexValuePairs(self, regIndexList):
         """
         Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
-            for the T response string.  NN is the index of the 
+            for the T response string.  NN is the index of the
             register to follow MMMMMMMM is the value of the register.
         """
         str = ''
