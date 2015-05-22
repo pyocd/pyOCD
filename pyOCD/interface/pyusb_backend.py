@@ -59,7 +59,7 @@ class PyUSB(Interface):
         while not self.closed:
             self.read_sem.acquire()
             if not self.closed:
-                # Timeouts appear to corrupt data occasionally.  Because of this the 
+                # Timeouts appear to corrupt data occasionally.  Because of this the
                 # timeout is set to infinite.
                 self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, -1))
 
@@ -108,8 +108,8 @@ class PyUSB(Interface):
                 else:
                     ep_out = ep
 
-            product_name = usb.util.get_string(board, 256, 2)
-            vendor_name = usb.util.get_string(board, 256, 1)
+            product_name = usb.util.get_string(board, 2)
+            vendor_name = usb.util.get_string(board, 1)
             """If there is no EP for OUT then we can use CTRL EP"""
             if not ep_in or not ep_out:
                 logging.error('Endpoints not found')
