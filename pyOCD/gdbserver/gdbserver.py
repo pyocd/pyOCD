@@ -16,8 +16,9 @@
 """
 
 import logging, threading, socket
-from pyOCD.target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
-from pyOCD.transport import TransferError
+from ..target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
+from ..transport import TransferError
+from ..utility.conversion import hexStringToBinary
 from struct import unpack
 from time import sleep, time
 import sys
@@ -191,14 +192,15 @@ class GDBServer(threading.Thread):
         #logging.debug('-->>>>>>>>>>>> GDB rsp packet: %s', msg)
         
         # query command
-        if msg[1] == 'q':
-            return self.handleQuery(msg[2:]), 1, 0
-            
-        elif msg[1] == 'H':
-            return self.createRSPPacket(''), 1, 0
-        
-        elif msg[1] == '?':
+        if msg[1] == '?':
             return self.createRSPPacket(self.target.getTResponse()), 1, 0
+
+        # we don't send immediately the response for C and S commands
+        elif msg[1] == 'C' or msg[1] == 'c':
+            return self.resume()
+
+        elif msg[1] == 'D':
+            return self.detach(msg[1:]), 1, 1
 
         elif msg[1] == 'g':
             return self.getRegisters(), 1, 0
@@ -206,39 +208,45 @@ class GDBServer(threading.Thread):
         elif msg[1] == 'G':
             return self.setRegisters(msg[2:]), 1, 0
 
-        elif msg[1] == 'P':
-            return self.writeRegister(msg[2:]), 1, 0
+        elif msg[1] == 'H':
+            return self.createRSPPacket(''), 1, 0
+
+        elif msg[1] == 'k':
+            return self.kill(), 1, 1
 
         elif msg[1] == 'm':
             return self.getMemory(msg[2:]), 1, 0
-        
-        elif msg[1] == 'X':
-            return self.writeMemory(msg[2:]), 1, 0
-        
-        elif msg[1] == 'v':
-            return self.flashOp(msg[2:]), 1, 0
-        
-        # we don't send immediately the response for C and S commands
-        elif msg[1] == 'C' or msg[1] == 'c':
-            return self.resume()
-        
+
+        elif msg[1] == 'M': # write memory with hex data
+            return self.writeMemoryHex(msg[2:]), 1, 0
+
+        elif msg[1] == 'p':
+            return self.readRegister(msg[2:]), 1, 0
+
+        elif msg[1] == 'P':
+            return self.writeRegister(msg[2:]), 1, 0
+
+        elif msg[1] == 'q':
+            return self.handleQuery(msg[2:]), 1, 0
+
         elif msg[1] == 'S' or msg[1] == 's':
             return self.step()
-        
+
+        elif msg[1] == 'v':
+            return self.flashOp(msg[2:]), 1, 0
+
+        elif msg[1] == 'X': # write memory with binary data
+            return self.writeMemory(msg[2:]), 1, 0
+
         elif msg[1] == 'Z' or msg[1] == 'z':
             return self.breakpoint(msg[1:]), 1, 0
-        
-        elif msg[1] == 'D':
-            return self.detach(msg[1:]), 1, 1
-        
-        elif msg[1] == 'k':
-            return self.kill(), 1, 1
-        
+
         else:
             logging.error("Unknown RSP packet: %s", msg)
             return self.createRSPPacket(""), 1, 0
         
     def detach(self, data):
+        logging.info("Client detached")
         resp = "OK"
         return self.createRSPPacket(resp)
     
@@ -254,6 +262,7 @@ class GDBServer(threading.Thread):
         # handle breakpoint/watchpoint commands
         split = data.split('#')[0].split(',')
         addr = int(split[1], 16)
+        logging.debug("GDB breakpoint %d @ %x" % (int(data[1]), addr))
 
         # handle hardware breakpoint Z1/z1
         # and software breakpoint Z0/z0
@@ -419,9 +428,9 @@ class GDBServer(threading.Thread):
     def getMemory(self, data):
         split = data.split(',')
         addr = int(split[0], 16)
-        length = split[1]
-        length = int(length[:len(length)-3],16)
-        
+        length = split[1].split('#')[0]
+        length = int(length,16)
+
         try:
             val = ''
             mem = self.target.readBlockMemoryUnaligned8(addr, length)
@@ -436,7 +445,27 @@ class GDBServer(threading.Thread):
             logging.debug("getMemory failed at 0x%x" % addr)
             val = 'E01' #EPERM
         return self.createRSPPacket(val)
-    
+
+    def writeMemoryHex(self, data):
+        split = data.split(',')
+        addr = int(split[0], 16)
+
+        split = split[1].split(':')
+        length = int(split[0], 16)
+
+        split = split[1].split('#')
+        data = hexStringToBinary(split[0])
+
+        try:
+            if length > 0:
+                self.target.writeBlockMemoryUnaligned8(addr, data)
+            resp = "OK"
+        except TransferError:
+            logging.debug("writeMemory failed at 0x%x" % addr)
+            resp = 'E01' #EPERM
+
+        return self.createRSPPacket(resp)
+
     def writeMemory(self, data):
         split = data.split(',')
         addr = int(split[0], 16)
@@ -463,6 +492,9 @@ class GDBServer(threading.Thread):
             resp = 'E01' #EPERM
         
         return self.createRSPPacket(resp)
+
+    def readRegister(self, which):
+        return self.createRSPPacket(self.target.gdbGetRegister(which))
 
     def writeRegister(self, data):
         reg = int(data.split('=')[0], 16)

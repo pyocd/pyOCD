@@ -74,4 +74,12 @@ def intToHex2(val):
     else:
         return val
 
+## @brief Convert string of hex bytes to list of integers.
+def hexStringToBinary(data):
+    i = 0
+    result = []
+    while i < len(data):
+        result.append(int(data[i:i+2], 16))
+        i += 2
+    return result
 

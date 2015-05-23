@@ -1107,6 +1107,15 @@ class CortexM(Target):
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
             self.writeCoreRegisterRaw(regName, value)
 
+    def gdbGetRegister(self, reg):
+        resp = ''
+        if reg < len(self.register_list):
+            regName = self.register_list[reg].name
+            regValue = self.readCoreRegisterRaw(regName)
+            resp = conversion.intToHex8(regValue)
+            logging.debug("GDB reg: %s = 0x%X", regName, regValue)
+        return resp
+
     def getTResponse(self, gdbInterrupt = False):
         """
         Returns a GDB T response string.  This includes:
