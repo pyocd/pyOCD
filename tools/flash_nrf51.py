@@ -23,7 +23,7 @@ NVMC_ERASEUIR   = 0x4001E514
 
 def flashHex(target, filename):
     '''
-    flash a hex file to nRF51822
+    flash a hex file to nRF51
     '''
     ihex = IntelHex(filename)
     addresses = ihex.addresses()
@@ -74,7 +74,7 @@ def flashHex(target, filename):
 
 def flashBin(target, filename, erase=False, offset=0x16000, skip=0x00):
     '''
-    flash a binary file to nRF51822 with offset
+    flash a binary file to nRF51 with offset
     '''
     f = open(filename, "rb")
     f.seek(skip, 0)
@@ -144,7 +144,7 @@ def flashBin(target, filename, erase=False, offset=0x16000, skip=0x00):
 
     
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="flash nrf51822")
+    parser = argparse.ArgumentParser(description="flash nrf51")
     parser.add_argument("-v", "--verbose", action="count", default=0)
     parser.add_argument("-i", "--ihex", help="a ihex file")
     parser.add_argument("-e", "--erase", action="count", help="erase flash before write")
@@ -178,14 +178,14 @@ if __name__ == "__main__":
             
             # Use the first one
             first_interface = interfaces[0]
-            adapter = MbedBoard("target_nrf51822", "flash_nrf51822", first_interface)
+            adapter = MbedBoard("target_nrf51", "flash_nrf51", first_interface)
 
         adapter.init()
         target = adapter.target
         target.halt()
 
         if args.ihex:
-            print 'flash hex file - %s to nrf51822' % args.ihex
+            print 'flash hex file - %s to nrf51' % args.ihex
             flashHex(target, args.ihex)
         
         offset = 0x16000
@@ -197,7 +197,7 @@ if __name__ == "__main__":
             skip = int(args.skip, 16)
 
         if args.bin:
-            print 'flash binary file - %s to nrf51822' % args.bin
+            print 'flash binary file - %s to nrf51' % args.bin
             flashBin(target, args.bin, args.erase, offset, skip)
 
         sleep(1)

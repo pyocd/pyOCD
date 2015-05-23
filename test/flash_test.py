@@ -154,7 +154,7 @@ def flash_test(board_id):
             ram_size = 0x1000
             rom_start = 0x00000000
             rom_size = 0x4000
-        elif target_type == "nrf51822":
+        elif target_type == "nrf51":
             ram_start = 0x20000000
             ram_size = 0x4000
             rom_start = 0x00000000

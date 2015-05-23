@@ -46,17 +46,17 @@ flash_algo = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x20002000  # Analyzer 0x20002000..0x20002600
               };
               
-class Flash_nrf51822(Flash):
+class Flash_nrf51(Flash):
     
     def __init__(self, target):
-        super(Flash_nrf51822, self).__init__(target, flash_algo)
+        super(Flash_nrf51, self).__init__(target, flash_algo)
 
     def erasePage(self, flashPtr):
         """
         Erase one page
         """
 
-        logging.debug("Flash_nrf51822: Erase page: 0x%X", flashPtr)
+        logging.debug("Flash_nrf51: Erase page: 0x%X", flashPtr)
         self.target.writeMemory(NVMC_CONFIG, NVMC_CONFIG_EEN)
         while self.target.readMemory(NVMC_READY) == 0:
             pass

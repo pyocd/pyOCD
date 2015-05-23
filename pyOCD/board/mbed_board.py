@@ -43,15 +43,16 @@ BOARD_ID_TO_INFO = {
                 "9004": BoardInfo(  "Arch Pro",             "lpc1768",          "l1_lpc1768.bin",       ),
                 "1040": BoardInfo(  "mbed NXP LPC11U24",    "lpc11u24",         "l1_lpc11u24.bin",      ),
                 "1050": BoardInfo(  "NXP LPC800-MAX",       "lpc800",           "l1_lpc800.bin",        ),
-                "1070": BoardInfo(  "nRF51822-mKIT",        "nrf51822",         "l1_nrf51822.bin",      ),
-                "9009": BoardInfo(  "Arch BLE",             "nrf51822",         "l1_nrf51822.bin",      ),
-                "9012": BoardInfo(  "Seeed Tiny BLE",       "nrf51822",         "l1_nrf51822.bin",      ),
+                "1070": BoardInfo(  "nRF51822-mKIT",        "nrf51",            "l1_nrf51.bin",         ),
+                "9009": BoardInfo(  "Arch BLE",             "nrf51",            "l1_nrf51.bin",         ),
+                "9012": BoardInfo(  "Seeed Tiny BLE",       "nrf51",            "l1_nrf51.bin",         ),
                 "1080": BoardInfo(  "DT01 + MB2001",        "stm32f103rc",      "l1_stm32f103rc.bin",   ),
                 "1090": BoardInfo(  "DT01 + MB00xx",        "stm32f051",        "l1_stm32f051.bin",     ),
                 "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
                 "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
                 "0400": BoardInfo(  "maxwsnenv",            "maxwsnenv",        "l1_maxwsnenv.bin",     ),
                 "0405": BoardInfo(  "max32600mbed",         "max32600mbed",     "l1_max32600mbed.bin",  ),
+                "1100": BoardInfo(  "nRF51-DK",             "nrf51",            "l1_nrf51-dk.bin",      ),
               }
 
 mbed_vid = 0x0d28
