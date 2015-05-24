@@ -50,6 +50,7 @@ parser.add_option("-r", "--reset-break", dest = "break_on_reset", default = Fals
 parser.add_option("-s", "--step-int", dest = "step_into_interrupt", default = False, action="store_true", help = "Allow single stepping to step into interrupts." )
 parser.add_option("-f", "--frequency", dest = "debug_clock_frequency", default = 1000000, type="int", help = "SWD clock frequency in Hz." )
 parser.add_option("-o", "--persist", dest = "persist", default = False, action="store_true", help = "Keep GDB server running even after remote has detached.")
+parser.add_option("-k", "--soft-bkpt-as-hard", dest = "soft_bkpt_as_hard", default = False, action = "store_true", help = "Replace software breakpoints with hardware breakpoints.")
 (option, args) = parser.parse_args()
 
 gdb = None
@@ -65,7 +66,7 @@ else:
             board.transport.setDeferredTransfer(True)
             gdb = GDBServer(board, int(option.port_number), {'break_at_hardfault' : option.break_at_hardfault, 
                 'step_into_interrupt' : option.step_into_interrupt, 'break_on_reset' : option.break_on_reset,
-                'persist' : option.persist})
+                'persist' : option.persist, 'soft_bkpt_as_hard' : option.soft_bkpt_as_hard})
             while gdb.isAlive():
                 gdb.join(timeout = 0.5)
     except KeyboardInterrupt:

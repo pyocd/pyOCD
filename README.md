@@ -106,6 +106,7 @@ A series of tests are provided in the test directory:
   * "-s", "--step-int", help = "Allow single stepping to step into interrupts."
   * "-f", "--frequency", help = "SWD clock frequency in Hz."
   * "-o", "--persist", help = "Keep GDB server running even after remote has detached."
+  * "-k", "--soft-bkpt-as-hard", help = "Replace software breakpoints with hardware breakpoints."
 
 
 ### Hello World example code

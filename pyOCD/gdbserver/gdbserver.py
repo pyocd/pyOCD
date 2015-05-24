@@ -47,6 +47,7 @@ class GDBServer(threading.Thread):
         self.board.target.setVectorCatchReset(self.break_on_reset)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
+        self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
         self.packet_size = 2048
         self.flashBuilder = None
         self.conn = None
@@ -255,10 +256,13 @@ class GDBServer(threading.Thread):
         split = data.split('#')[0].split(',')
         addr = int(split[1], 16)
 
+        if data[1] == '0' and not self.soft_bkpt_as_hard:   
+            # Empty response indicating no support for software breakpoints
+            return self.createRSPPacket("")
+
         # handle hardware breakpoint Z1/z1
         # and software breakpoint Z0/z0
-        if data[1] == '1' or data[1] == '0':
-            #TODO - add support for real software breakpoints
+        if data[1] == '1' or (self.soft_bkpt_as_hard and data[1] == '0'):
             if data[0] == 'Z':
                 if self.target.setBreakpoint(addr) == False:
                     return self.createRSPPacket('E01') #EPERM

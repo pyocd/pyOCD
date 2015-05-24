@@ -945,6 +945,12 @@ class CortexM(Target):
         if self.fpb_enabled is False:
             self.enableFPB()
 
+        if addr >= 0x20000000:
+            # Hardware breakpoints are only supported in the range
+            # 0x00000000 - 0x1fffffff on cortex-m devices
+            logging.error('Breakpoint out of range 0x%X', addr)
+            return False
+
         if self.availableBreakpoint() == 0:
             logging.error('No more available breakpoint!!, dropped bp at 0x%X', addr)
             return False
