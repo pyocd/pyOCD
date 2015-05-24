@@ -1055,6 +1055,9 @@ class CortexM(Target):
             demcr = demcr & ~VC_HARDERR
         self.writeMemory(DEMCR, demcr)
 
+    def getVectorCatchFault(self):
+        return bool(self.readMemory(DEMCR) & VC_HARDERR)
+
     def setVectorCatchReset(self, enable):
         demcr = self.readMemory(DEMCR)
         if enable:
@@ -1062,6 +1065,9 @@ class CortexM(Target):
         else:
             demcr = demcr & ~VC_CORERESET
         self.writeMemory(DEMCR, demcr)
+
+    def getVectorCatchReset(self):
+        return bool(self.readMemory(DEMCR) & VC_CORERESET)
 
     # GDB functions
     def getTargetXML(self):

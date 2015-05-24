@@ -48,6 +48,14 @@ def _msb( n ):
         ndx += 1
     return ndx
 
+def _same(d1, d2):
+    if len(d1) != len(d2):
+        return False
+    for i in range(len(d1)):
+        if d1[i] != d2[i]:
+            return False
+    return True
+
 class PageInfo(object):
 
     def __init__(self):
@@ -70,6 +78,7 @@ class Flash(object):
     def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
+        self.flash_algo_debug = False
         if flash_algo is not None:
             self.end_flash_algo = flash_algo['load_address'] + len(flash_algo)*4
             self.begin_stack = flash_algo['begin_stack']
@@ -90,13 +99,8 @@ class Flash(object):
         self.target.halt()
         self.target.setTargetState("PROGRAM")
 
-        # download flash algo in RAM
-        self.target.writeBlockMemoryAligned32(self.flash_algo['load_address'], self.flash_algo['instructions'])
-        if self.flash_algo['analyzer_supported']:
-            self.target.writeBlockMemoryAligned32(self.flash_algo['analyzer_address'], analyzer)
-
         # update core register to execute the init subroutine
-        result = self.callFunction(self.flash_algo['pc_init'], fp=self.static_base, sp=self.begin_stack)
+        result = self.callFunction(self.flash_algo['pc_init'], init=True)
 
         # check the return code
         if result != 0:
@@ -225,9 +229,21 @@ class Flash(object):
         data = unpack(str(len(data)) + 'B', data)
         self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb)
 
-    def callFunction(self, pc, r0=None, r1=None, r2=None, r3=None, fp=None, sp=None):
+    def callFunction(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):
         reg_list = []
         data_list = []
+
+        if self.flash_algo_debug:
+            vector_catch_enabled = self.target.getVectorCatchFault()
+            reset_catch_enabled = self.target.getVectorCatchReset()
+            self.target.setVectorCatchFault(True)
+            self.target.setVectorCatchReset(True)
+
+        if init:
+            # download flash algo in RAM
+            self.target.writeBlockMemoryAligned32(self.flash_algo['load_address'], self.flash_algo['instructions'])
+            if self.flash_algo['analyzer_supported']:
+                self.target.writeBlockMemoryAligned32(self.flash_algo['analyzer_address'], analyzer)
 
         reg_list.append('pc')
         data_list.append(pc)
@@ -243,24 +259,73 @@ class Flash(object):
         if r3 is not None:
             reg_list.append('r3')
             data_list.append(r3)
-        if fp is not None:
+        if init:
             reg_list.append('r9')
-            data_list.append(fp)
-        if sp is not None:
+            data_list.append(self.static_base)
+        if init:
             reg_list.append('sp')
-            data_list.append(sp)
+            data_list.append(self.begin_stack)
         reg_list.append('lr')
         data_list.append(self.flash_algo['load_address'] + 1)
         self.target.writeCoreRegistersRaw(reg_list, data_list)
-        
+
         # resume and wait until the breakpoint is hit
         self.target.resume()
         while(self.target.getState() == TARGET_RUNNING):
             pass
-        
+
         result = self.target.readCoreRegister('r0')
-        
+
+        if self.flash_algo_debug:
+            analyzer_supported = self.flash_algo['analyzer_supported']
+
+            expected_fp = self.flash_algo['static_base']
+            expected_sp = self.flash_algo['begin_stack']
+            expected_pc = self.flash_algo['load_address']
+            expected_flash_algo = self.flash_algo['instructions']
+            if analyzer_supported:
+                expected_analyzer = analyzer
+            final_fp = self.target.readCoreRegister('r9')
+            final_sp = self.target.readCoreRegister('sp')
+            final_pc = self.target.readCoreRegister('pc')
+            #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+            #final_flash_algo = self.target.readBlockMemoryAligned32(self.flash_algo['load_address'], len(self.flash_algo['instructions']))
+            #if analyzer_supported:
+            #    final_analyzer = self.target.readBlockMemoryAligned32(self.flash_algo['analyzer_address'], len(analyzer))
+
+            error = False
+            if final_fp != expected_fp:
+                # Frame pointer should not change
+                logging.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
+                error = True
+            if final_sp != expected_sp:
+                # Stack pointer should return to original value after function call
+                logging.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
+                error = True
+            if final_pc != expected_pc:
+                # PC should be pointing to breakpoint address
+                logging.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
+                error = True
+            #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+            #if not _same(expected_flash_algo, final_flash_algo):
+            #    logging.error("Flash algorithm overwritten!")
+            #    error = True
+            #if analyzer_supported and not _same(expected_analyzer, final_analyzer):
+            #    logging.error("Analyzer overwritten!")
+            #    error = True
+            assert error == False
+            self.target.setVectorCatchFault(vector_catch_enabled)
+            self.target.setVectorCatchReset(reset_catch_enabled)
+
         return result
+
+    def setFlashAlgoDebug(self, enable):
+        """
+        Turn on extra flash algorithm checking
+
+        When set this will greatly slow down flash algo performance
+        """
+        self.flash_algo_debug = enable
 
     def overrideSecurityBits(self, address, data):
         return data

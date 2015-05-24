@@ -227,6 +227,9 @@ def flash_test(board_id):
         addr = rom_start
         size = len(data)
 
+        # Turn on extra checks for the next 4 tests
+        flash.setFlashAlgoDebug(True)
+
         print "\r\n\r\n------ Test Basic Page Erase ------"
         info = flash.flashBlock(addr, data, False, False, progress_cb = print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, size)
@@ -266,6 +269,8 @@ def flash_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
+
+        flash.setFlashAlgoDebug(False)
 
         print "\r\n\r\n------ Test Basic Page Erase (Entire chip) ------"
         new_data = list(data)
