@@ -18,7 +18,7 @@
 import logging, threading, socket
 from ..target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from ..transport import TransferError
-from ..utility.conversion import hexStringToBinary
+from ..utility.conversion import hexStringToIntList, hexEncode, hexDecode
 from struct import unpack
 from time import sleep, time
 import sys
@@ -454,7 +454,7 @@ class GDBServer(threading.Thread):
         length = int(split[0], 16)
 
         split = split[1].split('#')
-        data = hexStringToBinary(split[0])
+        data = hexStringToIntList(split[0])
 
         try:
             if length > 0:
@@ -562,7 +562,7 @@ class GDBServer(threading.Thread):
             return self.createRSPPacket(resp)
 
         elif query[0].startswith('Rcmd,'):
-            cmd = self.hexDecode(query[0][5:].split('#')[0])
+            cmd = hexDecode(query[0][5:].split('#')[0])
             logging.debug('Remote command: %s', cmd)
 
             safecmd = {
@@ -576,7 +576,7 @@ class GDBServer(threading.Thread):
                 resp = ''
                 for k,v in safecmd.items():
                     resp += '%s\t%s\n' % (k,v[0])
-                resp = self.hexEncode(resp)
+                resp = hexEncode(resp)
             else:
                 cmdList = cmd.split(' ')
                 #check whether all the cmds is valid cmd for monitor
@@ -585,7 +585,7 @@ class GDBServer(threading.Thread):
                         #error cmd for monitor
                         logging.warning("Invalid mon command '%s'", cmd)
                         resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                         return self.createRSPPacket(resp)
                     else:
                         resultMask = resultMask | safecmd[cmd_sub][1]
@@ -598,15 +598,15 @@ class GDBServer(threading.Thread):
                     #10000001 for help reset, so output reset cmd help information
                     if resultMask == 0x81:
                         resp = 'Reset the target\n'
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                     #10000010 for help halt, so output halt cmd help information
                     elif resultMask == 0x82:
                         resp = 'Halt the target\n'
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                     #10000100 for help resume, so output resume cmd help information
                     elif resultMask == 0x84:
                         resp = 'Resume the target\n'
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                     #11 for reset halt cmd, so launch self.target.resetStopOnReset()
                     elif resultMask == 0x3:
                         resp = "OK"
@@ -619,7 +619,7 @@ class GDBServer(threading.Thread):
                     else:
                         logging.warning("Invalid mon command '%s'", cmd)
                         resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
 
                 if self.target.getState() != TARGET_HALTED:
                     logging.error("Remote command left target running!")
@@ -681,9 +681,4 @@ class GDBServer(threading.Thread):
     def ack(self):
         self.abstract_socket.write("+")
 
-    def hexDecode(self, cmd):
-        return ''.join([ chr(int(cmd[i:i+2], 16)) for i in range(0, len(cmd), 2)])
-
-    def hexEncode(self, string):
-        return ''.join(['%02x' % ord(i) for i in string])
 
