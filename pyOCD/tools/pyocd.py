@@ -218,8 +218,13 @@ class PyOCDTool(object):
                 else:
                     dumpHexData(data, args.read, width=args.width)
             elif args.action == ACTION_WRITE:
+                is_flash = self.isFlashWrite(args)
                 if args.width == 8:
-                    target.writeBlockMemoryUnaligned8(args.write, args.data)
+                    if is_flash:
+                        target.flash.init()
+                        target.flash.programPhrase(args.write, args.data)
+                    else:
+                        target.writeBlockMemoryUnaligned8(args.write, args.data)
                 elif args.width == 16:
                     if args.write & 0x1:
                         raise ToolError("write address 0x%08x is not 16-bit aligned" % args.write)
@@ -229,7 +234,11 @@ class PyOCDTool(object):
                     if args.write & 0x3:
                         raise ToolError("write address 0x%08x is not 32-bit aligned" % args.write)
 
-                    target.writeBlockMemoryAligned32(args.write, args.data)
+                    if is_flash:
+                        target.flash.init()
+                        target.flash.programPhrase(args.write, self.wordToByteData(args.data))
+                    else:
+                        target.writeBlockMemoryAligned32(args.write, args.data)
             elif args.action == ACTION_PROGRAM:
                 if not os.path.exists(args.file):
                     raise ToolError("%s does not exist!" % args.file)
@@ -256,6 +265,27 @@ class PyOCDTool(object):
                 board.uninit(False)
 
         return exitCode
+
+    def isFlashWrite(self, args):
+        mem_map = self.board.target.getMemoryMap()
+        region = mem_map.getRegionForAddress(args.write)
+        if (region is None) or (not region.isFlash):
+            return False
+
+        if args.width == 8:
+            l = len(args.data)
+        elif args.width == 16:
+            l = len(args.data)*2
+        elif args.width == 32:
+            l = len(args.data)*4
+
+        return region.containsRange(args.write, length=l)
+
+    def wordToByteData(self, data):
+        result = []
+        for w in data:
+            result.extend([(w & 0xff), (w & 0xff00) >> 8, (w & 0xff0000) >> 16, (w & 0xff000000) >> 24])
+        return result
 
     def dumpRegisters(self, target):
         regs = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7',

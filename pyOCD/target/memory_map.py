@@ -75,6 +75,14 @@ class MemoryRegion(object):
     def isBootMemory(self):
         return self._is_boot_mem
 
+    def containsAddress(self, address):
+        return (address >= self.start) and (address <= self.end)
+
+    def containsRange(self, start, end=None, length=None):
+        if end is None:
+            end = start + length - 1
+        return self.containsAddress(start) and self.containsAddress(end)
+
     def __str__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.blocksize)
 
@@ -119,6 +127,15 @@ class MemoryMap(object):
             if r.isBootMemory:
                 return r
         return None
+
+    def getRegionForAddress(self, address):
+        for r in self._regions:
+            if r.containsAddress(address):
+                return r
+        return None
+
+    def isValidAddress(self, address):
+        return self.regionForAddress(address) is not None
 
     ## @brief Generate GDB memory map XML.
     def getXML(self):

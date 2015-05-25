@@ -37,7 +37,7 @@ class KL28x(Kinetis):
 
     dualMap = MemoryMap(
         FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, isBootMemory=True),
-        RamRegion(name='core1 dmem alias', start=0x1d200000, length=0x40000, blocksize=0x800),
+        RamRegion(name='core1 imem alias', start=0x1d200000, length=0x40000, blocksize=0x800),
         RamRegion(name='core0 ram', start=0x1fffa000, length=0x12000),
         FlashRegion(name='core1 imem', start=0x2d200000, length=0x40000, blocksize=0x800),
         RamRegion(name='core1 dmem', start=0x2d300000, length=0x8000),

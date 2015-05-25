@@ -211,6 +211,26 @@ class Flash(object):
         # transfer the buffer to device RAM
         self.target.writeBlockMemoryUnaligned8(self.page_buffers[bufferNumber], bytes)
 
+    def programPhrase(self, flashPtr, bytes):
+        """
+        Flash one page
+        """
+
+        # prevent security settings from locking the device
+        bytes = self.overrideSecurityBits(flashPtr, bytes)
+
+        # first transfer in RAM
+        self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
+
+        # update core register to execute the program_page subroutine
+        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
+
+        # check the return code
+        if result != 0:
+            logging.error('programPage(0x%x) error: %i', flashPtr, result)
+
+        return
+
     def getPageInfo(self, addr):
         """
         Get info about the page that contains this address
