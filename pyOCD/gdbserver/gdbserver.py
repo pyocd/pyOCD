@@ -25,6 +25,10 @@ import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 
+# Logging options. Set to True to enable.
+LOG_MEM = False # Log memory accesses.
+LOG_ACK = False # Log ack or nak.
+
 class GDBServer(threading.Thread):
     """
     This class start a GDB server listening a gdb connection on a specific port.
@@ -161,10 +165,11 @@ class GDBServer(threading.Thread):
                         # wait a '+' from the client
                         try:
                             data = self.abstract_socket.read()
-                            if data[0] != '+':
-                                logging.debug('gdb client has not ack!')
-                            else:
-                                logging.debug('gdb client has ack!')
+                            if LOG_ACK:
+                                if data[0] != '+':
+                                    logging.debug('gdb client has not ack!')
+                                else:
+                                    logging.debug('gdb client has ack!')
                             if data.index("$") >= 0 and data.index("#") >= 0:
                                 new_command = True
                         except:
@@ -251,6 +256,7 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(resp)
     
     def kill(self):
+        logging.debug("GDB kill")
         # Keep target halted and leave vector catches if in persistent mode.
         if not self.persist:
             self.board.target.setVectorCatchFault(False)
@@ -300,7 +306,8 @@ class GDBServer(threading.Thread):
         self.abstract_socket.setBlocking(0)
 
         self.target.resume()
-        
+        logging.debug("target resumed")
+
         val = ''
 
         self.timeOfLastPacket = time()
@@ -335,6 +342,7 @@ class GDBServer(threading.Thread):
 
     def step(self):
         self.ack()
+        logging.debug("GDB step")
         self.target.step(not self.step_into_interrupt)
         return self.createRSPPacket(self.target.getTResponse()), 0, 0
 
@@ -431,6 +439,9 @@ class GDBServer(threading.Thread):
         length = split[1].split('#')[0]
         length = int(length,16)
 
+        if LOG_MEM:
+            logging.debug("GDB getMem: addr=%x len=%x", addr, length)
+
         try:
             val = ''
             mem = self.target.readBlockMemoryUnaligned8(addr, length)
@@ -456,6 +467,9 @@ class GDBServer(threading.Thread):
         split = split[1].split('#')
         data = hexStringToIntList(split[0])
 
+        if LOG_MEM:
+            logging.debug("GDB writeMemHex: addr=%x len=%x", addr, length)
+
         try:
             if length > 0:
                 self.target.writeBlockMemoryUnaligned8(addr, data)
@@ -470,7 +484,10 @@ class GDBServer(threading.Thread):
         split = data.split(',')
         addr = int(split[0], 16)
         length = int(split[1].split(':')[0], 16)
-        
+
+        if LOG_MEM:
+            logging.debug("GDB writeMem: addr=%x len=%x", addr, length)
+
         idx_begin = 0
         for i in range(len(data)):
             if data[i] == ':':
