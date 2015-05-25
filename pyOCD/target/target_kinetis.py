@@ -165,17 +165,3 @@ class Kinetis(CortexM):
             logging.error("Failed to unlock. MDM status: 0x%x", val)
             return False
 
-    ## @brief Write the unsecure FSEC value to flash.
-    #
-    # This will prevent the device from being secured after the next reset.
-    def unlockFlash(self):
-        logging.info("Unlocking chip...")
-
-        logging.info("Performing mass erase")
-        self.massErase()
-
-        # Write FCF
-        logging.info("Writing FCF = %s" % repr(fcf))
-        self.flash.init()
-        self.flash.programPage(FCF_ADDR, fcf)
-

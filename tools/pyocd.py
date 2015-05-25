@@ -229,10 +229,13 @@ class PyOCDTool(object):
                 print "Programming %s into flash..." % args.file
                 flash.flashBinary(args.file)
             elif args.action == ACTION_ERASE:
+                # TODO: change to be a complete chip erase that doesn't write FSEC to 0xfe.
                 if not didErase:
                     target.massErase()
             elif args.action == ACTION_UNLOCK:
-                target.unlockFlash()
+                # Currently the same as erase.
+                if not didErase:
+                    target.massErase()
             elif args.action == ACTION_GO:
                 target.resume()
 
