@@ -26,7 +26,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.target.cortex_m import float2int
+from pyOCD.utility.conversion import float2int
 from pyOCD.flash.flash import FLASH_PAGE_ERASE, FLASH_CHIP_ERASE
 from test_util import Test, TestResult
 
@@ -114,6 +114,11 @@ def flash_test(board_id):
             ram_size = 0x4000
             rom_start = 0x00000000
             rom_size = 0x20000
+        elif target_type == "kl28z":
+            ram_start = 0x1fffa000
+            ram_size = 96*1024
+            rom_start = 0x00000000
+            rom_size = 512*1024
         elif target_type == "kl46z":
             ram_start = 0x1fffe000
             ram_size = 0x8000
@@ -202,6 +207,7 @@ def flash_test(board_id):
                 sys.stdout.write('\r')
                 i = int(progress*20.0)
                 sys.stdout.write("[%-20s] %3d%%" % ('='*i, round(progress * 100)))
+                sys.stdout.flush()
 
             # Finish on 1.0
             if progress >= 1.0:

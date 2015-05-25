@@ -25,7 +25,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.target.cortex_m import float2int
+from pyOCD.utility.conversion import float2int
 import logging
 
 def basic_test(board_id, file):
@@ -57,6 +57,10 @@ def basic_test(board_id, file):
             size = 0x502
             addr_flash = 0x4000
         elif target_type == "kl25z":
+            addr = 0x20000001
+            size = 0x502
+            addr_flash = 0x10000
+        elif target_type == "kl28z":
             addr = 0x20000001
             size = 0x502
             addr_flash = 0x10000
@@ -157,9 +161,25 @@ def basic_test(board_id, file):
         target.halt()
         print "HALT: pc: 0x%X" % target.readCoreRegister('pc')
         sleep(0.2)
-        
-        
-        
+
+
+        print "\r\n\r\n------ TEST STEP ------"
+
+        print "reset and halt"
+        target.resetStopOnReset()
+        currentPC = target.readCoreRegister('pc')
+        print "HALT: pc: 0x%X" % currentPC
+        sleep(0.2)
+
+        for i in range(4):
+            print "step"
+            target.step()
+            newPC = target.readCoreRegister('pc')
+            print "STEP: pc: 0x%X" % newPC
+            currentPC = newPC
+            sleep(0.2)
+
+
         print "\r\n\r\n------ TEST READ / WRITE MEMORY ------"
         target.halt()
         print "READ32/WRITE32"

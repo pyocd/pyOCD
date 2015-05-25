@@ -153,7 +153,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('erasePage error: %i', result)
+            logging.error('erasePage(0x%x) error: %i', flashPtr, result)
 
         return
 
@@ -173,7 +173,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('programPage error: %i', result)
+            logging.error('programPage(0x%x) error: %i', flashPtr, result)
 
         return
 

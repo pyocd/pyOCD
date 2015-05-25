@@ -35,41 +35,64 @@ MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS = (1 << 0)
 MDM_CTRL_DEBUG_REQUEST = (1 << 2)
 MDM_CTRL_CORE_HOLD_RESET = (1 << 4)
 
+# Kinetis FCF byte array to disable flash security.
+fcf = [0xff] * 12
+fcf += [0xfe, 0xff, 0xff, 0xff]
+
+# Location of FCF in the memory map.
+FCF_ADDR = 0x400
+
 class Kinetis(CortexM):
-    
+
     def __init__(self, transport):
         super(Kinetis, self).__init__(transport)
         self.mdm_idr = 0
-        
+        self.do_auto_unlock = True
+
+    def setAutoUnlock(self, doAutoUnlock):
+        self.do_auto_unlock = doAutoUnlock
+
     def init(self):
         CortexM.init(self, initial_setup=True, bus_accessible=False)
-        
-        # check for flash security
+
+        # check MDM-AP ID
         val = self.transport.readAP(MDM_IDR)
         if val != self.mdm_idr:
             logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, val, self.mdm_idr)
-        if self.isLocked():
-            logging.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
-            # keep the target in reset until is had been erased and halted
-            self.transport.assertReset(True)
-            if not self.massErase():
-                self.transport.assertReset(False)
-                logging.error("%s: mass erase failed", self.part_number)
-                raise Exception("unable to unlock device")
-            # Use the MDM to keep the target halted after reset has been released 
-            self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
-            # Enable debug
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
-            self.transport.assertReset(False)
-            while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
-                logging.debug("Waiting for mdm halt (erase)")
-                sleep(0.01)
 
-            # release MDM halt once it has taken effect in the DHCSR
-            self.transport.writeAP(MDM_CTRL, 0)
+        # check for flash security
+        isLocked = self.isLocked()
+        if isLocked:
+            if self.do_auto_unlock:
+                logging.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
+                # keep the target in reset until is had been erased and halted
+                self.transport.assertReset(True)
+                if not self.massErase():
+                    self.transport.assertReset(False)
+                    logging.error("%s: mass erase failed", self.part_number)
+                    raise Exception("unable to unlock device")
+                # Use the MDM to keep the target halted after reset has been released
+                self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
+                # Enable debug
+                self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+                self.transport.assertReset(False)
+                while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
+                    logging.debug("Waiting for mdm halt (erase)")
+                    sleep(0.01)
+
+                # release MDM halt once it has taken effect in the DHCSR
+                self.transport.writeAP(MDM_CTRL, 0)
+
+                isLocked = False
+            else:
+                logging.warning("%s in secure state: not automatically unlocking", self.part_number)
         else:
             logging.info("%s not in secure state", self.part_number)
-        
+
+        # Can't do anything more if the target is secure
+        if isLocked:
+            return
+
         # Prevent the target from resetting if it has invalid code
         self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
         while self.transport.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
@@ -141,3 +164,4 @@ class Kinetis(CortexM):
         else:
             logging.error("Failed to unlock. MDM status: 0x%x", val)
             return False
+
