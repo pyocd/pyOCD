@@ -738,6 +738,7 @@ class GDBServer(threading.Thread):
                     if not print_progress.done:
                         print_progress.done = True
                         sys.stdout.write("\r\n")
+                        sys.stdout.flush()
 
             if self.hide_programming_progress:
                 progress_cb = None
@@ -974,7 +975,7 @@ class GDBServer(threading.Thread):
                     # if the first command was a 'help', we only need
                     # to return info about the first cmd after it
                     resp = hexEncode(safecmd[cmd_sub][0]+'\n')
-                    return self.createRSPPacket(resp)                    
+                    return self.createRSPPacket(resp)
                 resultMask |= safecmd[cmd_sub][1]
 
             # Run cmds in proper order
@@ -984,7 +985,7 @@ class GDBServer(threading.Thread):
                 self.target.resetStopOnReset()
             elif resultMask & 0x2:
                 # on 'reset' still do a reset halt
-                self.target.resetStopOnReset()                
+                self.target.resetStopOnReset()
                 # self.target.reset()
             elif resultMask & 0x4:
                 self.target.halt()
