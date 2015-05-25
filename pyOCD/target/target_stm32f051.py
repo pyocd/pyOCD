@@ -17,6 +17,7 @@
 
 from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_MASKINTS, C_STEP, DEMCR, VC_CORERESET, NVIC_AIRCR, NVIC_AIRCR_VECTKEY, NVIC_AIRCR_SYSRESETREQ
 from cortex_m import C_HALT
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
 import logging
 
@@ -29,7 +30,7 @@ DBGMCU_APB1_CR = 0x40015808
 DBGMCU_APB2_CR = 0x4001580C
 
 #0000 0000 0000 0000 0000 0000 0000 0100
-#BGMCU_CR_VAL = 0x00000000 
+#BGMCU_CR_VAL = 0x00000000
 
 #0000 0010 0010 0000 0001 1101 0011 0011
 DBGMCU_APB1_VAL = 0x02201D33
@@ -41,16 +42,13 @@ DBGMCU_APB2_VAL = 0x00070800
 
 class STM32F051(CortexM):
 
-    memoryMapXML =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x08000000" length="0x10000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x20000000" length="0x2000"> </memory>
-</memory-map>
-"""
-    
+    memoryMap = MemoryMap(
+        FlashRegion(    start=0x08000000,  length=0x10000,      blocksize=0x400, isBootMemory=True),
+        RamRegion(      start=0x20000000,  length=0x2000)
+        )
+
     def __init__(self, transport):
-        super(STM32F051, self).__init__(transport)
+        super(STM32F051, self).__init__(transport, self.memoryMap)
 
     def init(self):
         logging.debug('stm32f051 init')

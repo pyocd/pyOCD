@@ -16,6 +16,7 @@
 """
 
 from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_MASKINTS, C_STEP, DEMCR, VC_CORERESET, NVIC_AIRCR, NVIC_AIRCR_VECTKEY, NVIC_AIRCR_SYSRESETREQ
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
 import logging
 
@@ -25,16 +26,13 @@ RESET_ENABLE = (1 << 0)
 
 class NRF51(CortexM):
 
-    memoryMapXML =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x40000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x20000000" length="0x4000"> </memory>
-</memory-map>
-"""
-    
+    memoryMap = MemoryMap(
+        FlashRegion(    start=0,           length=0x40000,      blocksize=0x400, isBootMemory=True),
+        RamRegion(      start=0x20000000,  length=0x4000)
+        )
+
     def __init__(self, transport):
-        super(NRF51, self).__init__(transport)
+        super(NRF51, self).__init__(transport, self.memoryMap)
 
     def resetn(self):
         """

@@ -323,8 +323,8 @@ class CortexM(Target):
         RegisterInfo('s31',     64,         'float',        'float'),
         ]
 
-    def __init__(self, transport):
-        super(CortexM, self).__init__(transport)
+    def __init__(self, transport, memoryMap=None):
+        super(CortexM, self).__init__(transport, memoryMap)
 
         self.idcode = 0
         self.breakpoints = []
