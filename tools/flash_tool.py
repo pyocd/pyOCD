@@ -116,6 +116,10 @@ else:
     board_selected = MbedBoard.chooseBoard(board_id = args.board_id, target_override = args.target_override, frequency = args.frequency)
     with board_selected as board:
         flash = board.flash
+        transport = board.transport
+
+        # Boost speed with deferred transfers
+        transport.setDeferredTransfer(True)
 
         progress = print_progress
         if args.hide_progress:
