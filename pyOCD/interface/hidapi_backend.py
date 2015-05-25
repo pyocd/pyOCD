@@ -107,3 +107,7 @@ class HidApiUSB(Interface):
         """
         logging.debug("closing interface")
         self.device.close()
+
+    def setPacketCount(self, count):
+        # No interface level restrictions on count
+        self.packet_count = count
