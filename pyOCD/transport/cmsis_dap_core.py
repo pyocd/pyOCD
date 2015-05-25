@@ -104,7 +104,7 @@ class CMSIS_DAP_Protocol(object):
 
         return x.tostring()
 
-    def setLed(interface):
+    def setLed(self):
         #not yet implemented
         return
 
@@ -162,7 +162,7 @@ class CMSIS_DAP_Protocol(object):
 
         return True
 
-    def resetTarget(interface):
+    def resetTarget(self):
         cmd = []
         cmd.append(COMMAND_ID['DAP_RESET_TARGET'])
         self.interface.write(cmd)
