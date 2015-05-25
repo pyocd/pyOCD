@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM
+from .coresight_target import (SVDFile, CoreSightTarget)
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 
@@ -23,7 +23,7 @@ DBGMCU_CR = 0xE0042004
 #0111 1110 0011 1111 1111 1111 0000 0000
 DBGMCU_VAL = 0x7E3FFF00
 
-class STM32F103RC(CortexM):
+class STM32F103RC(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(    start=0x08000000,  length=0x80000,      blocksize=0x800, isBootMemory=True),
@@ -32,10 +32,11 @@ class STM32F103RC(CortexM):
 
     def __init__(self, link):
         super(STM32F103RC, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F103xx.svd", is_local=False)
 
     def init(self):
         logging.debug('stm32f103rc init')
-        CortexM.init(self)
+        super(STM32F103RC, self).init()
         self.writeMemory(DBGMCU_CR, DBGMCU_VAL);
 
 

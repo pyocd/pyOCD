@@ -16,6 +16,7 @@
 """
 
 from flash_kinetis import Flash_Kinetis
+import logging
 
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -79,9 +80,41 @@ flash_algo = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x1fffa000
               };
 
+SCG_CSR = 0x4007B010
+
+SCG_RCCR = 0x4007B014
+SCS_MASK = 0x0F000000
+SCS_SHIFT = 24
+DIVCORE_MASK = 0x000F0000
+DIVCORE_SHIFT = 16
+DIVSLOW_MASK = 0x0000000F
+DIVSLOW_SHIFT = 0
+
+SCG_FIRCCSR = 0x4007B300
+FIRCEN_MASK = 1
+
+SCG_FIRCCFG = 0x4007B308
+
+
 # @brief Flash algorithm for Kinetis L-series devices.
 class Flash_kl28z(Flash_Kinetis):
 
     def __init__(self, target):
         super(Flash_kl28z, self).__init__(target, flash_algo)
+
+    def init(self):
+        super(Flash_kl28z, self).init()
+
+        # Enable FIRC.
+        value = self.target.read32(SCG_FIRCCSR)
+        value |= FIRCEN_MASK
+        self.target.write32(SCG_FIRCCSR, value)
+
+        # Switch system to FIRC, core=48MHz (/1), slow=24MHz (/2).
+        # Flash and the bus are clocked from the slow clock, and its max is 24MHz,
+        # so there is no benefit from raising the core clock further.
+        self.target.write32(SCG_RCCR, (0x3 << SCS_SHIFT) | (1 << DIVSLOW_SHIFT))
+
+        csr = self.target.read32(SCG_CSR)
+        logging.debug("SCG_CSR = 0x%08x", csr)
 

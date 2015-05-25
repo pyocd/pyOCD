@@ -30,6 +30,7 @@ from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
 from pyOCD.pyDAPAccess import DAPAccess
 from pyOCD.target.target import Target
+from pyOCD.utility import mask
 
 # Make disasm optional.
 try:
@@ -48,7 +49,10 @@ LEVELS = {
 
 CORE_STATUS_DESC = {
         Target.TARGET_HALTED : "Halted",
-        Target.TARGET_RUNNING : "Running"
+        Target.TARGET_RUNNING : "Running",
+        Target.TARGET_RESET : "Reset",
+        Target.TARGET_SLEEPING : "Sleeping",
+        Target.TARGET_LOCKUP : "Lockup",
         }
 
 ## Default SWD clock in kHz.
@@ -63,8 +67,8 @@ COMMAND_INFO = {
             },
         'erase' : {
             'aliases' : [],
-            'args' : "",
-            'help' : "Erase all internal flash"
+            'args' : "ADDR [COUNT]",
+            'help' : "Erase internal flash sectors"
             },
         'unlock' :  {
             'aliases' : [],
@@ -166,7 +170,22 @@ COMMAND_INFO = {
             'args' : "",
             'help' : "Quit pyocd-tool"
             },
+        'core' : {
+            'aliases' : [],
+            'args' : "[NUM]",
+            'help' : "Select CPU core by number or print selected core"
+            },
         }
+
+def hex_width(value, width):
+    if width == 8:
+        return "%02x" % value
+    elif width == 16:
+        return "%04x" % value
+    elif width == 32:
+        return "%08x" % value
+    else:
+        raise ToolError("unrecognized register width (%d)" % reg.size)
 
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
@@ -241,6 +260,11 @@ class PyOCDConsole(object):
 
     def process_command(self, cmd):
         try:
+            if (cmd.strip())[0] == '$':
+                cmd = cmd[1:].strip()
+                self.tool.handle_python(cmd)
+                return
+
             args = cmd.split()
             cmd = args[0].lower()
             args = args[1:]
@@ -251,7 +275,7 @@ class PyOCDConsole(object):
                 return
 
             # Handle register name as command.
-            if cmd in pyOCD.target.cortex_m.CORE_REGISTER:
+            if cmd in pyOCD.coresight.cortex_m.CORE_REGISTER:
                 self.tool.handle_reg([cmd])
                 return
 
@@ -268,8 +292,12 @@ class PyOCDConsole(object):
             traceback.print_exc()
         except DAPAccess.TransferError:
             print "Error: transfer failed"
+            traceback.print_exc()
         except ToolError as e:
             print "Error:", e
+        except Exception as e:
+            print "Unexpected exception:", e
+            traceback.print_exc()
 
     def show_help(self, args):
         if not args:
@@ -328,7 +356,8 @@ class PyOCDTool(object):
                 'log' :     self.handle_log,
                 'clock' :   self.handle_clock,
                 'exit' :    self.handle_exit,
-                'quit' :    self.handle_exit
+                'quit' :    self.handle_exit,
+                'core' :    self.handle_core,
             }
 
     def get_args(self):
@@ -382,11 +411,20 @@ class PyOCDTool(object):
             try:
                 self.board.init()
             except Exception as e:
-                print "Exception while initing board:", e
+                print "Exception while initing board: %s" % e
+                traceback.print_exc()
+                self.exitCode = 1
+                return self.exitCode
 
             self.target = self.board.target
             self.link = self.board.link
             self.flash = self.board.flash
+
+            self.svd_device = self.target.svd_device
+            self.peripherals = {}
+            if self.svd_device:
+                for p in self.svd_device.peripherals:
+                    self.peripherals[p.name.lower()] = p
 
             # Halt if requested.
             if self.args.halt:
@@ -424,6 +462,7 @@ class PyOCDTool(object):
             print "Error: invalid argument"
         except DAPAccess.TransferError:
             print "Error: transfer failed"
+            traceback.print_exc()
             self.exitCode = 2
         except ToolError as e:
             print "Error:", e
@@ -439,10 +478,13 @@ class PyOCDTool(object):
         MbedBoard.listConnectedBoards()
 
     def handle_info(self, args):
-        print "Target:    %s" % self.target.part_number
-        print "CPU type:  %s" % pyOCD.target.cortex_m.CORE_TYPE_NAME[self.target.core_type]
-        print "Unique ID: %s" % self.board.getUniqueID()
-        print "Core ID:   0x%08x" % self.target.readIDCode()
+        print "Target:       %s" % self.target.part_number
+        print "Unique ID:    %s" % self.board.getUniqueID()
+        print "DAP IDCODE:   0x%08x" % self.target.readIDCode()
+        print "Cores:        %d" % len(self.target.cores)
+        for i, c in enumerate(self.target.cores):
+            core = self.target.cores[c]
+            print "Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type])
 
     def handle_status(self, args):
         if self.target.isLocked():
@@ -450,11 +492,11 @@ class PyOCDTool(object):
         else:
             print "Security:       Unlocked"
         if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
-            print "MDM-AP Control: 0x%08x" % \
-                self.target.dap.readAP(target_kinetis.MDM_CTRL)
-            print "MDM-AP Status:  0x%08x" % \
-                self.target.dap.readAP(target_kinetis.MDM_STATUS)
-        print "Core status:    %s" % CORE_STATUS_DESC[self.target.getState()]
+            print "MDM-AP Control: 0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_CTRL)
+            print "MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS)
+        for i, c in enumerate(self.target.cores):
+            core = self.target.cores[c]
+            print "Core %d status:  %s" % (i, CORE_STATUS_DESC[core.getState()])
 
     def handle_reg(self, args):
         # If there are no args, print all register values.
@@ -462,14 +504,36 @@ class PyOCDTool(object):
             self.dump_registers()
             return
 
-        reg = args[0].lower()
-        value = self.target.readCoreRegister(reg)
-        if type(value) is int:
-            print "%s = 0x%08x (%d)" % (reg, value, value)
-        elif type(value) is float:
-            print "%s = %g" % (reg, value)
+        if len(args) == 2 and args[0].lower() == '-f':
+            del args[0]
+            show_fields = True
         else:
-            raise ToolError("Unknown register value type")
+            show_fields = False
+
+        reg = args[0].lower()
+        if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+            value = self.target.readCoreRegister(reg)
+            if type(value) is int:
+                print "%s = 0x%08x (%d)" % (reg, value, value)
+            elif type(value) is float:
+                print "%s = %g" % (reg, value)
+            else:
+                raise ToolError("Unknown register value type")
+        else:
+            subargs = reg.split('.')
+            if self.peripherals.has_key(subargs[0]):
+                p = self.peripherals[subargs[0]]
+                if len(subargs) > 1:
+                    r = [x for x in p.registers if x.name.lower() == subargs[1]]
+                    if len(r):
+                        self._dump_peripheral_register(p, r[0], True)
+                    else:
+                        raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
+                else:
+                    for r in p.registers:
+                        self._dump_peripheral_register(p, r, show_fields)
+            else:
+                raise ToolError("invalid peripheral '%s'" % (subargs[0]))
 
     def handle_write_reg(self, args):
         if len(args) < 1:
@@ -585,8 +649,20 @@ class PyOCDTool(object):
             self.target.writeBlockMemoryUnaligned8(addr, data)
 
     def handle_erase(self, args):
+        if len(args) < 1:
+            raise ToolError("invalid arguments")
+        addr = int(args[0], base=0)
+        if len(args) < 2:
+            count = 1
+        else:
+            count = int(args[1], base=0)
         self.flash.init()
-        self.flash.eraseAll()
+        while count:
+            info = self.flash.getPageInfo(addr)
+            self.flash.erasePage(info.base_addr)
+            print "Erased page 0x%08x" % info.base_addr
+            count -= 1
+            addr += info.size
 
     def handle_unlock(self, args):
         # Currently the same as erase.
@@ -654,6 +730,32 @@ class PyOCDTool(object):
     def handle_exit(self, args):
         raise ToolExitException()
 
+    def handle_python(self, args):
+        try:
+            env = {
+                    'board' : self.board,
+                    'target' : self.target,
+                    'link' : self.link,
+                    'flash' : self.flash,
+                }
+            result = eval(args, globals(), env)
+            if result is not None:
+                if type(result) is int:
+                    print "0x%08x (%d)" % (result, result)
+                else:
+                    print result
+        except Exception as e:
+            print "Exception while executing expression:", e
+            traceback.print_exc()
+
+    def handle_core(self, args):
+        if len(args) < 1:
+            print "Core %d is selected" % self.target.selected_core.core_number
+            return
+        core = int(args[0], base=0)
+        self.target.select_core(core)
+        print "Selected core %d" % core
+
     def isFlashWrite(self, addr, width, data):
         mem_map = self.board.target.getMemoryMap()
         region = mem_map.getRegionForAddress(addr)
@@ -677,7 +779,7 @@ class PyOCDTool(object):
     # '[0x1040]'. You can also use put an offset in the brackets after a comma, such as
     # '[r3,8]'. The offset can be positive or negative, and any supported base.
     def convert_value(self, arg):
-        arg = arg.lower()
+        arg = arg.lower().replace('_', '')
         deref = (arg[0] == '[')
         if deref:
             arg = arg[1:-1]
@@ -687,11 +789,20 @@ class PyOCDTool(object):
                 arg = arg.strip()
                 offset = int(offset.strip(), base=0)
 
-        if arg in pyOCD.target.cortex_m.CORE_REGISTER:
+        if arg in pyOCD.coresight.cortex_m.CORE_REGISTER:
             value = self.target.readCoreRegister(arg)
             print "%s = 0x%08x" % (arg, value)
         else:
-            value = int(arg, base=0)
+            subargs = arg.split('.')
+            if self.peripherals.has_key(subargs[0]) and len(subargs) > 1:
+                p = self.peripherals[subargs[0]]
+                r = [x for x in p.registers if x.name.lower() == subargs[1]]
+                if len(r):
+                    value = p.base_address + r[0].address_offset
+                else:
+                    raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
+            else:
+                value = int(arg, base=0)
 
         if deref:
             value = pyOCD.utility.conversion.byteListToU32leList(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
@@ -713,6 +824,40 @@ class PyOCDTool(object):
             print "{:>8} {:#010x} ".format(reg + ':', regValue),
             if i % 3 == 2:
                 print
+
+    def _dump_peripheral_register(self, periph, reg, show_fields):
+        addr = periph.base_address + reg.address_offset
+        value = self.target.readMemory(addr, reg.size)
+        value_str = hex_width(value, reg.size)
+        print "%s.%s @ %08x = %s" % (periph.name, reg.name, addr, value_str)
+
+        if show_fields:
+            for f in reg.fields:
+                if f.is_reserved:
+                    continue
+                msb = f.bit_offset + f.bit_width - 1
+                lsb = f.bit_offset
+                f_value = mask.bfx(value, msb, lsb)
+                v_enum = None
+                if f.enumerated_values:
+                    for v in f.enumerated_values:
+                        if v.value == f_value:
+                            v_enum = v
+                            break
+                if f.bit_width == 1:
+                    bits_str = "%d" % lsb
+                else:
+                    bits_str = "%d:%d" % (msb, lsb)
+                f_value_str = "%x" % f_value
+                digits = (f.bit_width + 3) / 4
+                f_value_str = "0" * (digits - len(f_value_str)) + f_value_str
+                f_value_bin_str = bin(f_value)[2:]
+                f_value_bin_str = "0" * (f.bit_width - len(f_value_bin_str)) + f_value_bin_str
+                if v_enum:
+                    f_value_enum_str = " %s: %s" % (v.name, v_enum.description)
+                else:
+                    f_value_enum_str = ""
+                print "  %s[%s] = %s (%s)%s" % (f.name, bits_str, f_value_str, f_value_bin_str, f_value_enum_str)
 
     def print_memory_map(self):
         print "Region          Start         End           Blocksize"

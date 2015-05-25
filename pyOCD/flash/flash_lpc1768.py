@@ -86,4 +86,5 @@ class Flash_lpc1768(Flash):
             info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT * LARGE_TO_SMALL_RATIO
             info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT * LARGE_TO_SMALL_RATIO
             info.size = LARGE_PAGE_SIZE
+        info.base_addr = addr - (addr % info.size)
         return info

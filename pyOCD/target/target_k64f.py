@@ -17,6 +17,7 @@
 
 from target_kinetis import Kinetis
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
+from .coresight_target import SVDFile
 import logging
 
 
@@ -30,4 +31,5 @@ class K64F(Kinetis):
     def __init__(self, link):
         super(K64F, self).__init__(link, self.memoryMap)
         self.mdm_idr = 0x001c0000
+        self._svd_location = SVDFile(vendor="Freescale", filename="MK64F12.svd", is_local=False)
 
