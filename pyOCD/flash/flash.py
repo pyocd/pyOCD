@@ -208,17 +208,17 @@ class Flash(object):
     def getFlashBuilder(self):
         return FlashBuilder(self, self.getFlashInfo().rom_start)
 
-    def flashBlock(self, addr, data, smart_flash = True, chip_erase = None, progress_cb = None):
+    def flashBlock(self, addr, data, smart_flash = True, chip_erase = None, progress_cb = None, fast_verify = False):
         """
         Flash a block of data
         """
         flash_start = self.getFlashInfo().rom_start
         fb = FlashBuilder(self, flash_start)
         fb.addData(addr, data)
-        info = fb.program(chip_erase, progress_cb, smart_flash)
+        info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
         return info
 
-    def flashBinary(self, path_file, flashPtr = 0x0000000, smart_flash = True, chip_erase = None, progress_cb = None):
+    def flashBinary(self, path_file, flashPtr = 0x0000000, smart_flash = True, chip_erase = None, progress_cb = None, fast_verify = False):
         """
         Flash a binary
         """
@@ -227,7 +227,7 @@ class Flash(object):
         with open(path_file, "rb") as f:
             data = f.read()
         data = unpack(str(len(data)) + 'B', data)
-        self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb)
+        self.flashBlock(flashPtr, data, smart_flash, chip_erase, progress_cb, fast_verify)
 
     def callFunction(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):
         reg_list = []

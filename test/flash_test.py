@@ -284,6 +284,15 @@ def flash_test(board_id):
             print("TEST FAILED")
         test_count += 1
 
+        print "\r\n\r\n------ Test Fast Verify ------"
+        info = flash.flashBlock(0, new_data, progress_cb = print_progress, fast_verify=True)
+        if info.program_type == FLASH_PAGE_ERASE:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+
         print "\r\n\r\n------ Test Offset Write ------"
         new_data = [0x55] * board.flash.page_size * 2
         addr = rom_start + rom_size / 2

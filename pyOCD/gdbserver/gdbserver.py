@@ -50,6 +50,7 @@ class GDBServer(threading.Thread):
         self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
         self.chip_erase = options.get('chip_erase', None)
         self.hide_programming_progress = options.get('hide_programming_progress', False)
+        self.fast_program = options.get('fast_program', False)
         self.packet_size = 2048
         self.flashBuilder = None
         self.conn = None
@@ -394,7 +395,7 @@ class GDBServer(threading.Thread):
             else:
                  progress_cb = print_progress
 
-            self.flashBuilder.program(chip_erase = self.chip_erase, progress_cb=progress_cb)
+            self.flashBuilder.program(chip_erase = self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
 
             # Set flash builder to None so that on the next flash command a new
             # object is used.

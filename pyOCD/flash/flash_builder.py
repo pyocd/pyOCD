@@ -127,7 +127,7 @@ class FlashBuilder(object):
                                operation.addr, operation.addr + len(operation.data)))
             prev_flash_operation = operation
 
-    def program(self, chip_erase = None, progress_cb = None, smart_flash = True):
+    def program(self, chip_erase = None, progress_cb = None, smart_flash = True, fast_verify = False):
         """
         Determine fastest method of flashing and then run flash programming.
 
@@ -213,7 +213,7 @@ class FlashBuilder(object):
         if chip_erase != True:
             analyze_start = time()
             if self.flash.getFlashInfo().crc_supported:
-                sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_crc32()
+                sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_crc32(fast_verify)
                 self.perf.analyze_type = FLASH_ANALYSIS_CRC32
             else:
                 sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_sector_read()
@@ -317,6 +317,10 @@ class FlashBuilder(object):
         Quickly estimate how many pages are the same.  These estimates are used
         by page_erase_program so it is recommended to call this before beginning programming
         This is done automatically by smart_program.
+
+        If assume_estimate_correct is set to True, then pages with matching CRCs
+        will be marked as the same.  There is a small chance that the CRCs match even though the 
+        data is different, but the odds of this happing are low: ~1/(2^32) = ~2.33*10^-8%.
         """
         # Build list of all the pages that need to be analyzed
         sector_list = []

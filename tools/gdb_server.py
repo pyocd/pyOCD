@@ -54,6 +54,7 @@ parser.add_argument("-u", "--unlock", action="store_true", default=False, help="
 # reserved: "-a", "--address"
 # reserved: "-s", "--skip"
 parser.add_argument("-hp", "--hide_progress", action="store_true", help = "Don't display programming progress." )
+parser.add_argument("-fp", "--fast_program", action="store_true", help = "Use only the CRC of each page to determine if it already has the same data.")
 args = parser.parse_args()
 
 # Notes
@@ -75,6 +76,7 @@ gdb_server_settings = {
     'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
     'chip_erase' : chip_erase,
     'hide_programming_progress' : args.hide_progress,
+    'fast_program' : args.fast_program,
     }
 
 gdb = None

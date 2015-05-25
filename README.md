@@ -110,6 +110,7 @@ A series of tests are provided in the test directory:
   * "-ce", "--chip_erase", help="Use chip erase when programming."
   * "-se", "--sector_erase", help="Use sector erase when programming."
   * "-hp", "--hide_progress", help = "Don't display programming progress."
+  * "-fp", "--fast_program", help = "Use only the CRC of each page to determine if it already has the same data."
 
 
 ### Hello World example code

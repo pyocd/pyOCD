@@ -70,6 +70,7 @@ parser.add_argument("-u", "--unlock", action="store_true", default=False, help="
 parser.add_argument("-a", "--address", default = None, help="Address to flash binary.  This can only be used with binary files")
 parser.add_argument("-s", "--skip", default = 0, type=int, help="Skip programming the first N bytes.  This can only be used with binary files")
 parser.add_argument("-hp", "--hide_progress", action="store_true", help = "Don't display programming progress." )
+parser.add_argument("-fp", "--fast_program", action="store_true", help = "Use only the CRC of each page to determine if it already has the same data.")
 args = parser.parse_args()
 
 # Notes
@@ -137,7 +138,7 @@ else:
                 data = f.read()
             args.address += args.skip
             data = unpack(str(len(data)) + 'B', data)
-            flash.flashBlock(args.address, data, chip_erase=chip_erase, progress_cb=progress)
+            flash.flashBlock(args.address, data, chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
 
         # Intel hex file format
         if args.format == 'hex':
@@ -152,4 +153,4 @@ else:
                 size = end - start + 1
                 data = list(hex.tobinarray(start=start, size=size))
                 flash_builder.addData(start, data)
-            flash_builder.program(chip_erase=chip_erase, progress_cb=progress)
+            flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
