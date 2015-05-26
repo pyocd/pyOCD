@@ -23,12 +23,16 @@ WATCHPOINT_WRITE = 2
 WATCHPOINT_READ_WRITE = 3
 
 class Target(object):
-    
+
     def __init__(self, transport):
         self.transport = transport
         self.flash = None
         self.part_number = ""
-    
+        self.halt_on_connect = True
+
+    def setHaltOnConnect(self, halt):
+        self.halt_on_connect = halt
+
     def setFlash(self, flash):
         self.flash = flash
         
@@ -91,13 +95,13 @@ class Target(object):
     
     def getState(self):
         return
-    
+
     # GDB functions
     def getTargetXML(self):
         return ''
-    
+
     def getMemoryMapXML(self):
-        return self.memoryMapXML
+            return self.memoryMapXML
 
     def getRegisterContext(self):
         return ''

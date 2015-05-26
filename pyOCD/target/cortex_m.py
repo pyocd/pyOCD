@@ -371,31 +371,34 @@ class CortexM(Target):
                 logging.warning("Unknown AHB IDR: 0x%x" % ahb_idr)
 
         if bus_accessible:
-            self.halt()
+            if self.halt_on_connect:
+                self.halt()
             self.setupFPB()
             self.readCoreType()
             self.checkForFPU()
             self.setupDWT()
+            self.buildTargetXML()
 
-            # Build register_list and targetXML
-            self.register_list = []
-            xml_root = Element('target')
-            xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
-            for reg in self.regs_general:
+    def buildTargetXML(self):
+        # Build register_list and targetXML
+        self.register_list = []
+        xml_root = Element('target')
+        xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
+        for reg in self.regs_general:
+            self.register_list.append(reg)
+            SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
+        # Check if target has ARMv7 registers
+        if self.core_type in  (ARM_CortexM3, ARM_CortexM4):
+            for reg in self.regs_system_armv7_only:
+                self.register_list.append(reg)
+                SubElement(xml_regs_general, 'reg',  **reg.gdb_xml_attrib)
+        # Check if target has FPU registers
+        if self.has_fpu:
+            #xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
+            for reg in self.regs_float:
                 self.register_list.append(reg)
                 SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
-            # Check if target has ARMv7 registers
-            if self.core_type in  (ARM_CortexM3, ARM_CortexM4):
-                for reg in self.regs_system_armv7_only:
-                    self.register_list.append(reg)
-                    SubElement(xml_regs_general, 'reg',  **reg.gdb_xml_attrib)
-            # Check if target has FPU registers
-            if self.has_fpu:
-                #xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
-                for reg in self.regs_float:
-                    self.register_list.append(reg)
-                    SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
-            self.targetXML = '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
+        self.targetXML = '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
 
     ## @brief Read the CPUID register and determine core type.
     def readCoreType(self):

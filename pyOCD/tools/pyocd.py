@@ -43,7 +43,7 @@ ACTION_RESET = 6
 ACTION_READ = 7
 ACTION_WRITE = 8
 ACTION_GO = 9
-
+ACTION_HALT = 10
 
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
@@ -53,30 +53,28 @@ def dumpHexData(data, startAddress=0, width=8):
         while i < len(data):
             d = data[i]
             i += 1
-            if width == 8:
+            if width==8:
                 print "%02x" % d,
                 if i % 4 == 0:
                     print "",
                 if i % 16 == 0:
                     break
-            elif width == 16:
+            elif width==16:
                 print "%04x" % d,
                 if i % 8 == 0:
                     break
-            elif width == 32:
+            elif width==32:
                 print "%08x" % d,
                 if i % 4 == 0:
                     break
         print
 
-
 class ToolError(Exception):
     pass
 
-
 class PyOCDTool(object):
     def __init__(self):
-        # logging.basicConfig(level=logging.INFO)
+        #logging.basicConfig(level=logging.INFO)
         pass
 
     def get_args(self):
@@ -91,7 +89,7 @@ class PyOCDTool(object):
                             help="Print device info and status.")
         parser.add_argument("-R", "--reset", action="store_const", dest='action', const=ACTION_RESET,
                             help="Reset target device.")
-        parser.add_argument("-H", "--halt", action="store_true", default=False, help="Halt core on reset.")
+        parser.add_argument("-H", "--halt", action="store_true", help="Halt core. Can be used alone or with --reset.")
         parser.add_argument("-g", "--go", action="store_const", dest='action', const=ACTION_GO,
                             help="Resume execution of code.")
         parser.add_argument("-r", "--read", action="store", metavar='ADDR', help="Read and print data.")
@@ -118,6 +116,8 @@ class PyOCDTool(object):
             args.action = ACTION_WRITE
             args.write = int(args.write, base=0)
             args.data = [int(d, base=0) for d in args.data]
+        elif args.halt and not args.action:
+            args.action = ACTION_HALT
 
         # Default to list mode if no other action was specified.
         if args.action == None and args.file == None:
@@ -144,11 +144,13 @@ class PyOCDTool(object):
                 sys.exit(0)
 
             board = MbedBoard.chooseBoard(board_id=args.board, target_override=args.target, init_board=False)
+            self.board = board
             board.target.setAutoUnlock(False)
+            board.target.setHaltOnConnect(False)
             try:
                 board.init()
             except Exception, e:
-                print "Exception:", e
+                print "Exception while initing board:", e
 
             target = board.target
             transport = board.transport
@@ -162,8 +164,27 @@ class PyOCDTool(object):
             # Handle reset action first
             if args.action == ACTION_RESET:
                 print "Resetting target"
-                target.reset()
+                if args.halt:
+                    target.resetStopOnReset()
+
+                    status = target.getState()
+                    if status != pyOCD.target.cortex_m.TARGET_HALTED:
+                        print "Failed to halt device on reset"
+                    else:
+                        print "Successfully halted device on reset"
+                else:
+                    target.reset()
                 sys.exit(0)
+
+            # Halt if requested.
+            if args.halt:
+                target.halt()
+
+                status = target.getState()
+                if status != pyOCD.target.cortex_m.TARGET_HALTED:
+                    print "Failed to halt device"
+                else:
+                    print "Successfully halted device"
 
             # Handle a device with flash security enabled.
             didErase = False
@@ -194,7 +215,7 @@ class PyOCDTool(object):
                     i = 0
                     data = []
                     while i < len(byteData):
-                        data.append(byteData[i] | (byteData[i + 1] << 8))
+                        data.append(byteData[i] | (byteData[i+1] << 8))
                         i += 2
                 elif args.width == 32:
                     if args.read & 0x3:
@@ -219,7 +240,7 @@ class PyOCDTool(object):
                     dumpHexData(data, args.read, width=args.width)
             elif args.action == ACTION_WRITE:
                 if args.width == 8:
-                    target.writeBlockMemoryUnaligned8(args.write, args.data)
+                        target.writeBlockMemoryUnaligned8(args.write, args.data)
                 elif args.width == 16:
                     if args.write & 0x1:
                         raise ToolError("write address 0x%08x is not 16-bit aligned" % args.write)
@@ -229,7 +250,7 @@ class PyOCDTool(object):
                     if args.write & 0x3:
                         raise ToolError("write address 0x%08x is not 32-bit aligned" % args.write)
 
-                    target.writeBlockMemoryAligned32(args.write, args.data)
+                        target.writeBlockMemoryAligned32(args.write, args.data)
             elif args.action == ACTION_PROGRAM:
                 if not os.path.exists(args.file):
                     raise ToolError("%s does not exist!" % args.file)
@@ -246,6 +267,11 @@ class PyOCDTool(object):
                     target.massErase()
             elif args.action == ACTION_GO:
                 target.resume()
+                status = target.getState()
+                if status == pyOCD.target.cortex_m.TARGET_RUNNING:
+                    print "Successfully resumed device"
+                else:
+                    print "Failed to resume device"
 
         except ToolError, e:
             print "Error:", e
