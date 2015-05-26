@@ -97,7 +97,7 @@ class RamRegion(MemoryRegion):
 ## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
-        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory)
+        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length, blocksize=blocksize, name=name, isBootMemory=isBootMemory)
 
 ## @brief Memory map consisting of memory regions.
 class MemoryMap(object):
