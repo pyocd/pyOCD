@@ -59,6 +59,7 @@ def _same(d1, d2):
 class PageInfo(object):
 
     def __init__(self):
+        self.base_addr = None           # Start address of this page
         self.erase_weight = None        # Time it takes to erase a page
         self.program_weight = None      # Time it takes to program a page (Not including data transfer time)
         self.size = None                # Size of page
@@ -114,10 +115,7 @@ class Flash(object):
         if result != 0:
             logging.error('init error: %i', result)
 
-        return
-
     def computeCrcs(self, sectors):
-
         data = []
 
         # Convert address, size pairs into commands
@@ -153,8 +151,6 @@ class Flash(object):
         if result != 0:
             logging.error('eraseAll error: %i', result)
 
-        return
-
     def erasePage(self, flashPtr):
         """
         Erase one page
@@ -167,8 +163,6 @@ class Flash(object):
         if result != 0:
             logging.error('erasePage(0x%x) error: %i', flashPtr, result)
 
-        return
-
     def programPage(self, flashPtr, bytes):
         """
         Flash one page
@@ -180,8 +174,11 @@ class Flash(object):
         # first transfer in RAM
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
+        # get info about this page
+        page_info = self.getPageInfo(flashPtr)
+
         # update core register to execute the program_page subroutine
-        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, self.page_size, self.begin_data)
+        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, page_info.size, self.begin_data)
 
         # check the return code
         if result != 0:
@@ -199,8 +196,11 @@ class Flash(object):
         """
         assert bufferNumber < len(self.page_buffers), "Invalid buffer number"
 
+        # get info about this page
+        page_info = self.getPageInfo(flashPtr)
+
         # update core register to execute the program_page subroutine
-        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, self.page_size, self.page_buffers[bufferNumber])
+        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, page_info.size, self.page_buffers[bufferNumber])
 
     def loadPageBuffer(self, bufferNumber, flashPtr, bytes):
         assert bufferNumber < len(self.page_buffers), "Invalid buffer number"
@@ -229,18 +229,22 @@ class Flash(object):
         if result != 0:
             logging.error('programPage(0x%x) error: %i', flashPtr, result)
 
-        return
-
     def getPageInfo(self, addr):
         """
         Get info about the page that contains this address
 
         Override this function if variable page sizes are supported
         """
+        region = self.target.getMemoryMap().getRegionForAddress(addr)
+
         info = PageInfo()
         info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
         info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
-        info.size = self.flash_algo['page_size']
+        if region.isFlash and region.blocksize > 0:
+            info.size = region.blocksize
+        else:
+            inf.size = self.page_size
+        info.base_addr = addr - (addr % info.size)
         return info
 
     def getFlashInfo(self):
@@ -249,8 +253,10 @@ class Flash(object):
 
         Override this function to return differnt values
         """
+        boot_region = self.target.getMemoryMap().getBootMemory()
+
         info = FlashInfo()
-        info.rom_start = 0
+        info.rom_start = boot_region.start if boot_region else 0
         info.erase_weight = DEFAULT_CHIP_ERASE_WEIGHT
         info.crc_supported = self.flash_algo['analyzer_supported']
         return info
@@ -268,10 +274,13 @@ class Flash(object):
         info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
         return info
 
-    def flashBinary(self, path_file, flashPtr = 0x0000000, smart_flash = True, chip_erase = None, progress_cb = None, fast_verify = False):
+    def flashBinary(self, path_file, flashPtr = None, smart_flash = True, chip_erase = None, progress_cb = None, fast_verify = False):
         """
         Flash a binary
         """
+        if flashPtr is None:
+            flashPtr = self.getFlashInfo().rom_start
+
         f = open(path_file, "rb")
 
         with open(path_file, "rb") as f:
