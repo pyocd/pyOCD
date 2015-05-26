@@ -18,6 +18,7 @@
 import os, sys
 from time import sleep, time
 from random import randrange
+import traceback
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -66,6 +67,7 @@ class SpeedTest(Test):
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
             result = SpeedTestResult()
             result.passed = False
+            traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
         return result
@@ -235,4 +237,8 @@ def speed_test(board_id):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    speed_test(None)
+    board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close = True)[0]
+    test = SpeedTest()
+    result = [test.run(board)]
+    print result
+    test.print_perf_info(result)
