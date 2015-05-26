@@ -100,6 +100,10 @@ class FlashBuilder(object):
         self.flash_operation_list = []
         self.page_list = []
         self.perf = ProgrammingInfo()
+        self.enable_double_buffering = True
+
+    def enableDoubleBuffer(self, enable):
+        self.enable_double_buffering = enable
 
     def addData(self, addr, data):
         """
@@ -229,13 +233,17 @@ class FlashBuilder(object):
             chip_erase = chip_erase_program_time < page_program_time
 
         if chip_erase:
-            if self.flash.isDoubleBufferingSupported():
+            if self.flash.isDoubleBufferingSupported() and self.enable_double_buffering:
                 logging.debug("Using double buffer chip erase program")
                 flash_operation = self._chip_erase_program_double_buffer(progress_cb)
             else:
                 flash_operation = self._chip_erase_program(progress_cb)
         else:
-            flash_operation = self._page_erase_program(progress_cb)
+            if self.flash.isDoubleBufferingSupported() and self.enable_double_buffering:
+                logging.debug("Using double buffer page erase program")
+                flash_operation = self._page_erase_program_double_buffer(progress_cb)
+            else:
+                flash_operation = self._page_erase_program(progress_cb)
 
         self.flash.target.resetStopOnReset()
 
@@ -481,6 +489,106 @@ class FlashBuilder(object):
             # Update progress
             if self.page_erase_weight > 0:
                 progress_cb(float(progress) / float(self.page_erase_weight))
+
+        progress_cb(1.0)
+
+        logging.debug("Estimated page erase count: %i", self.page_erase_count)
+        logging.debug("Actual page erase count: %i", actual_page_erase_count)
+
+        return FLASH_PAGE_ERASE
+
+    def _scan_pages_for_same(self, progress_cb = _stub_progress):
+        """
+        Program by performing sector erases.
+        """
+        progress = 0
+        count = 0
+        same_count = 0
+
+        for page in self.page_list:
+            # Read page data if unknown - after this page.same will be True or False
+            if page.same is None:
+                data = self.flash.target.readBlockMemoryUnaligned8(page.addr, len(page.data))
+                page.same = _same(page.data, data)
+                progress += page.getVerifyWeight()
+                count += 1
+                if page.same:
+                    same_count += 1
+
+                # Update progress
+                progress_cb(float(progress) / float(self.page_erase_weight))
+        logging.debug("scanned %d pages for equality (%d same)", count, same_count)
+        return progress
+
+    def _next_nonsame_page(self, i):
+        if i >= len(self.page_list):
+            return None, i
+        page = self.page_list[i]
+        while page.same:
+            i += 1
+            if i >= len(self.page_list):
+                return None, i
+            page = self.page_list[i]
+        return page, i+1
+
+    def _page_erase_program_double_buffer(self, progress_cb = _stub_progress):
+        """
+        Program by performing sector erases.
+        """
+        actual_page_erase_count = 0
+        actual_page_erase_weight = 0
+        progress = 0
+
+        progress_cb(0.0)
+
+        # Fill in same flag for all pages.
+        progress = self._scan_pages_for_same(progress_cb)
+
+        # Set up page and buffer info.
+        error_count = 0
+        current_buf = 0
+        next_buf = 1
+        page, i = self._next_nonsame_page(0)
+
+        # Make sure there are actually pages to program differently from current flash contents.
+        if page is not None:
+            # Load first page buffer
+            self.flash.loadPageBuffer(current_buf, page.addr, page.data)
+
+            while page is not None:
+                assert page.same is not None
+
+                # Kick off this page program.
+                current_addr = page.addr
+                current_weight = page.getEraseProgramWeight()
+                self.flash.erasePage(current_addr)
+                self.flash.startProgramPageWithBuffer(current_buf, current_addr)
+
+                # Get next page and load it.
+                page, i = self._next_nonsame_page(i)
+                if page is not None:
+                    self.flash.loadPageBuffer(next_buf, page.addr, page.data)
+
+                # Wait for the program to complete.
+                result = self.flash.waitForCompletion()
+
+                # check the return code
+                if result != 0:
+                    logging.error('programPage(0x%x) error: %i', current_addr, result)
+                    error_count += 1
+                    if error_count > 10:
+                        logging.error("Too many page programming errors, aborting program operation")
+                        break
+
+                # Swap buffers.
+                temp = current_buf
+                current_buf = next_buf
+                next_buf = temp
+
+                # Update progress
+                progress += current_weight
+                if self.page_erase_weight > 0:
+                    progress_cb(float(progress) / float(self.page_erase_weight))
 
         progress_cb(1.0)
 
