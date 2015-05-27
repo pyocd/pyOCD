@@ -16,13 +16,18 @@
 """
 
 import logging, threading, socket
-from pyOCD.target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
-from pyOCD.transport import TransferError
+from ..target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
+from ..transport import TransferError
+from ..utility.conversion import hexStringToIntList, hexEncode, hexDecode
 from struct import unpack
 from time import sleep, time
 import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
+
+# Logging options. Set to True to enable.
+LOG_MEM = False # Log memory accesses.
+LOG_ACK = False # Log ack or nak.
 
 class GDBServer(threading.Thread):
     """
@@ -160,10 +165,11 @@ class GDBServer(threading.Thread):
                         # wait a '+' from the client
                         try:
                             data = self.abstract_socket.read()
-                            if data[0] != '+':
-                                logging.debug('gdb client has not ack!')
-                            else:
-                                logging.debug('gdb client has ack!')
+                            if LOG_ACK:
+                                if data[0] != '+':
+                                    logging.debug('gdb client has not ack!')
+                                else:
+                                    logging.debug('gdb client has ack!')
                             if data.index("$") >= 0 and data.index("#") >= 0:
                                 new_command = True
                         except:
@@ -191,14 +197,15 @@ class GDBServer(threading.Thread):
         #logging.debug('-->>>>>>>>>>>> GDB rsp packet: %s', msg)
         
         # query command
-        if msg[1] == 'q':
-            return self.handleQuery(msg[2:]), 1, 0
-            
-        elif msg[1] == 'H':
-            return self.createRSPPacket(''), 1, 0
-        
-        elif msg[1] == '?':
+        if msg[1] == '?':
             return self.createRSPPacket(self.target.getTResponse()), 1, 0
+
+        # we don't send immediately the response for C and S commands
+        elif msg[1] == 'C' or msg[1] == 'c':
+            return self.resume()
+
+        elif msg[1] == 'D':
+            return self.detach(msg[1:]), 1, 1
 
         elif msg[1] == 'g':
             return self.getRegisters(), 1, 0
@@ -206,43 +213,50 @@ class GDBServer(threading.Thread):
         elif msg[1] == 'G':
             return self.setRegisters(msg[2:]), 1, 0
 
-        elif msg[1] == 'P':
-            return self.writeRegister(msg[2:]), 1, 0
+        elif msg[1] == 'H':
+            return self.createRSPPacket(''), 1, 0
+
+        elif msg[1] == 'k':
+            return self.kill(), 1, 1
 
         elif msg[1] == 'm':
             return self.getMemory(msg[2:]), 1, 0
-        
-        elif msg[1] == 'X':
-            return self.writeMemory(msg[2:]), 1, 0
-        
-        elif msg[1] == 'v':
-            return self.flashOp(msg[2:]), 1, 0
-        
-        # we don't send immediately the response for C and S commands
-        elif msg[1] == 'C' or msg[1] == 'c':
-            return self.resume()
-        
+
+        elif msg[1] == 'M': # write memory with hex data
+            return self.writeMemoryHex(msg[2:]), 1, 0
+
+        elif msg[1] == 'p':
+            return self.readRegister(msg[2:]), 1, 0
+
+        elif msg[1] == 'P':
+            return self.writeRegister(msg[2:]), 1, 0
+
+        elif msg[1] == 'q':
+            return self.handleQuery(msg[2:]), 1, 0
+
         elif msg[1] == 'S' or msg[1] == 's':
             return self.step()
-        
+
+        elif msg[1] == 'v':
+            return self.flashOp(msg[2:]), 1, 0
+
+        elif msg[1] == 'X': # write memory with binary data
+            return self.writeMemory(msg[2:]), 1, 0
+
         elif msg[1] == 'Z' or msg[1] == 'z':
             return self.breakpoint(msg[1:]), 1, 0
-        
-        elif msg[1] == 'D':
-            return self.detach(msg[1:]), 1, 1
-        
-        elif msg[1] == 'k':
-            return self.kill(), 1, 1
-        
+
         else:
             logging.error("Unknown RSP packet: %s", msg)
             return self.createRSPPacket(""), 1, 0
         
     def detach(self, data):
+        logging.info("Client detached")
         resp = "OK"
         return self.createRSPPacket(resp)
     
     def kill(self):
+        logging.debug("GDB kill")
         # Keep target halted and leave vector catches if in persistent mode.
         if not self.persist:
             self.board.target.setVectorCatchFault(False)
@@ -254,6 +268,7 @@ class GDBServer(threading.Thread):
         # handle breakpoint/watchpoint commands
         split = data.split('#')[0].split(',')
         addr = int(split[1], 16)
+        logging.debug("GDB breakpoint %d @ %x" % (int(data[1]), addr))
 
         # handle hardware breakpoint Z1/z1
         # and software breakpoint Z0/z0
@@ -291,7 +306,8 @@ class GDBServer(threading.Thread):
         self.abstract_socket.setBlocking(0)
 
         self.target.resume()
-        
+        logging.debug("target resumed")
+
         val = ''
 
         self.timeOfLastPacket = time()
@@ -326,6 +342,7 @@ class GDBServer(threading.Thread):
 
     def step(self):
         self.ack()
+        logging.debug("GDB step")
         self.target.step(not self.step_into_interrupt)
         return self.createRSPPacket(self.target.getTResponse()), 0, 0
 
@@ -419,9 +436,12 @@ class GDBServer(threading.Thread):
     def getMemory(self, data):
         split = data.split(',')
         addr = int(split[0], 16)
-        length = split[1]
-        length = int(length[:len(length)-3],16)
-        
+        length = split[1].split('#')[0]
+        length = int(length,16)
+
+        if LOG_MEM:
+            logging.debug("GDB getMem: addr=%x len=%x", addr, length)
+
         try:
             val = ''
             mem = self.target.readBlockMemoryUnaligned8(addr, length)
@@ -436,12 +456,38 @@ class GDBServer(threading.Thread):
             logging.debug("getMemory failed at 0x%x" % addr)
             val = 'E01' #EPERM
         return self.createRSPPacket(val)
-    
+
+    def writeMemoryHex(self, data):
+        split = data.split(',')
+        addr = int(split[0], 16)
+
+        split = split[1].split(':')
+        length = int(split[0], 16)
+
+        split = split[1].split('#')
+        data = hexStringToIntList(split[0])
+
+        if LOG_MEM:
+            logging.debug("GDB writeMemHex: addr=%x len=%x", addr, length)
+
+        try:
+            if length > 0:
+                self.target.writeBlockMemoryUnaligned8(addr, data)
+            resp = "OK"
+        except TransferError:
+            logging.debug("writeMemory failed at 0x%x" % addr)
+            resp = 'E01' #EPERM
+
+        return self.createRSPPacket(resp)
+
     def writeMemory(self, data):
         split = data.split(',')
         addr = int(split[0], 16)
         length = int(split[1].split(':')[0], 16)
-        
+
+        if LOG_MEM:
+            logging.debug("GDB writeMem: addr=%x len=%x", addr, length)
+
         idx_begin = 0
         for i in range(len(data)):
             if data[i] == ':':
@@ -463,6 +509,9 @@ class GDBServer(threading.Thread):
             resp = 'E01' #EPERM
         
         return self.createRSPPacket(resp)
+
+    def readRegister(self, which):
+        return self.createRSPPacket(self.target.gdbGetRegister(which))
 
     def writeRegister(self, data):
         reg = int(data.split('=')[0], 16)
@@ -530,7 +579,7 @@ class GDBServer(threading.Thread):
             return self.createRSPPacket(resp)
 
         elif query[0].startswith('Rcmd,'):
-            cmd = self.hexDecode(query[0][5:].split('#')[0])
+            cmd = hexDecode(query[0][5:].split('#')[0])
             logging.debug('Remote command: %s', cmd)
 
             safecmd = {
@@ -544,7 +593,7 @@ class GDBServer(threading.Thread):
                 resp = ''
                 for k,v in safecmd.items():
                     resp += '%s\t%s\n' % (k,v[0])
-                resp = self.hexEncode(resp)
+                resp = hexEncode(resp)
             else:
                 cmdList = cmd.split(' ')
                 #check whether all the cmds is valid cmd for monitor
@@ -553,7 +602,7 @@ class GDBServer(threading.Thread):
                         #error cmd for monitor
                         logging.warning("Invalid mon command '%s'", cmd)
                         resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                         return self.createRSPPacket(resp)
                     else:
                         resultMask = resultMask | safecmd[cmd_sub][1]
@@ -566,15 +615,15 @@ class GDBServer(threading.Thread):
                     #10000001 for help reset, so output reset cmd help information
                     if resultMask == 0x81:
                         resp = 'Reset the target\n'
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                     #10000010 for help halt, so output halt cmd help information
                     elif resultMask == 0x82:
                         resp = 'Halt the target\n'
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                     #10000100 for help resume, so output resume cmd help information
                     elif resultMask == 0x84:
                         resp = 'Resume the target\n'
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
                     #11 for reset halt cmd, so launch self.target.resetStopOnReset()
                     elif resultMask == 0x3:
                         resp = "OK"
@@ -587,7 +636,7 @@ class GDBServer(threading.Thread):
                     else:
                         logging.warning("Invalid mon command '%s'", cmd)
                         resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = self.hexEncode(resp)
+                        resp = hexEncode(resp)
 
                 if self.target.getState() != TARGET_HALTED:
                     logging.error("Remote command left target running!")
@@ -649,9 +698,4 @@ class GDBServer(threading.Thread):
     def ack(self):
         self.abstract_socket.write("+")
 
-    def hexDecode(self, cmd):
-        return ''.join([ chr(int(cmd[i:i+2], 16)) for i in range(0, len(cmd), 2)])
-
-    def hexEncode(self, string):
-        return ''.join(['%02x' % ord(i) for i in string])
 
