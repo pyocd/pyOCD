@@ -154,7 +154,7 @@ def flash_test(board_id):
             ram_size = 0x1000
             rom_start = 0x00000000
             rom_size = 0x4000
-        elif target_type == "nrf51822":
+        elif target_type == "nrf51":
             ram_start = 0x20000000
             ram_size = 0x4000
             rom_start = 0x00000000
@@ -227,6 +227,9 @@ def flash_test(board_id):
         addr = rom_start
         size = len(data)
 
+        # Turn on extra checks for the next 4 tests
+        flash.setFlashAlgoDebug(True)
+
         print "\r\n\r\n------ Test Basic Page Erase ------"
         info = flash.flashBlock(addr, data, False, False, progress_cb = print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, size)
@@ -267,6 +270,8 @@ def flash_test(board_id):
             print("TEST FAILED")
         test_count += 1
 
+        flash.setFlashAlgoDebug(False)
+
         print "\r\n\r\n------ Test Basic Page Erase (Entire chip) ------"
         new_data = list(data)
         new_data.extend(unused * [0x77])
@@ -275,6 +280,15 @@ def flash_test(board_id):
             print("TEST PASSED")
             test_pass_count += 1
             result.page_erase_rate = float(len(new_data)) / float(info.program_time)
+        else:
+            print("TEST FAILED")
+        test_count += 1
+
+        print "\r\n\r\n------ Test Fast Verify ------"
+        info = flash.flashBlock(0, new_data, progress_cb = print_progress, fast_verify=True)
+        if info.program_type == FLASH_PAGE_ERASE:
+            print("TEST PASSED")
+            test_pass_count += 1
         else:
             print("TEST FAILED")
         test_count += 1
@@ -341,6 +355,17 @@ def flash_test(board_id):
         test_pass_count += 1
         test_count += 1
 
+        # Only run test if the reset handler can be programmed (rom start at address 0)
+        if rom_start == 0:
+            print "\r\n\r\n------ Test Non-Thumb reset handler ------"
+            non_thumb_data = list(data)
+            # Clear bit 0 of 2nd word - reset handler
+            non_thumb_data[4] = non_thumb_data[4] & ~1 
+            flash.flashBlock(rom_start, non_thumb_data)
+            flash.flashBlock(rom_start, data)
+            print("TEST PASSED")
+            test_pass_count += 1
+            test_count += 1
 
         # Note - The decision based tests below are order dependent since they
         # depend on the previous state of the flash

@@ -84,7 +84,7 @@ def basic_test(board_id, file):
             addr = 0x10000001
             size = 0x502
             addr_flash = 0x2000
-        elif target_type == "nrf51822":
+        elif target_type == "nrf51":
             addr = 0x20000001
             size = 0x502
             addr_flash = 0x20000

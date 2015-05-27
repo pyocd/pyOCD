@@ -52,6 +52,10 @@ class GDBServer(threading.Thread):
         self.board.target.setVectorCatchReset(self.break_on_reset)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
+        self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
+        self.chip_erase = options.get('chip_erase', None)
+        self.hide_programming_progress = options.get('hide_programming_progress', False)
+        self.fast_program = options.get('fast_program', False)
         self.packet_size = 2048
         self.flashBuilder = None
         self.conn = None
@@ -270,10 +274,13 @@ class GDBServer(threading.Thread):
         addr = int(split[1], 16)
         logging.debug("GDB breakpoint %d @ %x" % (int(data[1]), addr))
 
+        if data[1] == '0' and not self.soft_bkpt_as_hard:   
+            # Empty response indicating no support for software breakpoints
+            return self.createRSPPacket("")
+
         # handle hardware breakpoint Z1/z1
         # and software breakpoint Z0/z0
-        if data[1] == '1' or data[1] == '0':
-            #TODO - add support for real software breakpoints
+        if data[1] == '1' or (self.soft_bkpt_as_hard and data[1] == '0'):
             if data[0] == 'Z':
                 if self.target.setBreakpoint(addr) == False:
                     return self.createRSPPacket('E01') #EPERM
@@ -398,10 +405,14 @@ class GDBServer(threading.Thread):
                 if progress >= 1.0:
                     if not print_progress.done:
                         print_progress.done = True
-                        sys.stdout.write("\n")
+                        sys.stdout.write("\r\n")
 
-            self.flashBuilder.program(progress_cb = print_progress)
-            sys.stdout.write("\r\n")
+            if self.hide_programming_progress:
+                progress_cb = None
+            else:
+                 progress_cb = print_progress
+
+            self.flashBuilder.program(chip_erase = self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
 
             # Set flash builder to None so that on the next flash command a new
             # object is used.

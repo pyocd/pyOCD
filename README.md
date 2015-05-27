@@ -96,16 +96,21 @@ A series of tests are provided in the test directory:
   * flash a binary
 * gdb_test.py: launch a gdbserver
 * gdb_server.py: an enhanced version of gdbserver which provides the following options:
-  * "-p", "--port", help = "Write the port number that GDB server will open"
-  * "-b", "--board", help = "Write the board id you want to connect"
-  * "-l", "--list", help = "List all the connected board"
-  * "-d", "--debug", help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical"
-  * "-t", "--target", help = "Override target to debug"
+  * "-p", "--port", help = "Write the port number that GDB server will open."
+  * "-b", "--board", help="Connect to board by board id."
+  * "-l", "--list", help = "List all connected boards."
+  * "-d", "--debug", help = "Set the level of system logging output."
+  * "-t", "--target", help = "Override target to debug."
   * "-n", "--nobreak", help = "Disable halt at hardfault handler."
   * "-r", "--reset-break", help = "Halt the target when reset."
   * "-s", "--step-int", help = "Allow single stepping to step into interrupts."
-  * "-f", "--frequency", help = "SWD clock frequency in Hz."
+  * "-f", "--frequency", help = "Set the SWD clock frequency in Hz."
   * "-o", "--persist", help = "Keep GDB server running even after remote has detached."
+  * "-bh", "--soft-bkpt-as-hard", help = "Replace software breakpoints with hardware breakpoints."
+  * "-ce", "--chip_erase", help="Use chip erase when programming."
+  * "-se", "--sector_erase", help="Use sector erase when programming."
+  * "-hp", "--hide_progress", help = "Don't display programming progress."
+  * "-fp", "--fast_program", help = "Use only the CRC of each page to determine if it already has the same data."
 
 
 ### Hello World example code
