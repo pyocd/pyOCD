@@ -756,6 +756,9 @@ class CortexM(Target):
     def setTargetState(self, state):
         if state == "PROGRAM":
             self.resetStopOnReset(True)
+            # Write the thumb bit in case the reset handler
+            # points to an ARM address
+            self.writeCoreRegister('xpsr', 0x1000000)
 
     def getState(self):
         dhcsr = self.readMemory(DHCSR)
@@ -942,6 +945,12 @@ class CortexM(Target):
         if self.fpb_enabled is False:
             self.enableFPB()
 
+        if addr >= 0x20000000:
+            # Hardware breakpoints are only supported in the range
+            # 0x00000000 - 0x1fffffff on cortex-m devices
+            logging.error('Breakpoint out of range 0x%X', addr)
+            return False
+
         if self.availableBreakpoint() == 0:
             logging.error('No more available breakpoint!!, dropped bp at 0x%X', addr)
             return False
@@ -1052,6 +1061,9 @@ class CortexM(Target):
             demcr = demcr & ~VC_HARDERR
         self.writeMemory(DEMCR, demcr)
 
+    def getVectorCatchFault(self):
+        return bool(self.readMemory(DEMCR) & VC_HARDERR)
+
     def setVectorCatchReset(self, enable):
         demcr = self.readMemory(DEMCR)
         if enable:
@@ -1059,6 +1071,9 @@ class CortexM(Target):
         else:
             demcr = demcr & ~VC_CORERESET
         self.writeMemory(DEMCR, demcr)
+
+    def getVectorCatchReset(self):
+        return bool(self.readMemory(DEMCR) & VC_CORERESET)
 
     # GDB functions
     def getTargetXML(self):
@@ -1106,6 +1121,15 @@ class CortexM(Target):
             value = conversion.hex8ToInt(data)
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
             self.writeCoreRegisterRaw(regName, value)
+
+    def gdbGetRegister(self, reg):
+        resp = ''
+        if reg < len(self.register_list):
+            regName = self.register_list[reg].name
+            regValue = self.readCoreRegisterRaw(regName)
+            resp = conversion.intToHex8(regValue)
+            logging.debug("GDB reg: %s = 0x%X", regName, regValue)
+        return resp
 
     def getTResponse(self, gdbInterrupt = False):
         """

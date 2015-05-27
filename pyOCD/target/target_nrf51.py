@@ -23,7 +23,7 @@ import logging
 RESET = 0x40000544
 RESET_ENABLE = (1 << 0)
 
-class NRF51822(CortexM):
+class NRF51(CortexM):
 
     memoryMapXML =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
@@ -34,7 +34,7 @@ class NRF51822(CortexM):
 """
     
     def __init__(self, transport):
-        super(NRF51822, self).__init__(transport)
+        super(NRF51, self).__init__(transport)
 
     def resetn(self):
         """
@@ -42,8 +42,8 @@ class NRF51822(CortexM):
         is running
         """
         #Regular reset will kick NRF out of DBG mode
-        logging.debug("target_nrf518.reset: enable reset pin")
+        logging.debug("target_nrf51.reset: enable reset pin")
         self.writeMemory(RESET, RESET_ENABLE)
         #reset
-        logging.debug("target_nrf518.reset: trigger nRST pin")
+        logging.debug("target_nrf51.reset: trigger nRST pin")
         CortexM.reset(self)

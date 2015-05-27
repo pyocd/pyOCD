@@ -45,28 +45,39 @@ supported_formats = ['bin', 'hex']
 supported_targets = pyOCD.target.TARGET.keys()
 supported_targets.remove('cortex_m')    # No generic programming
 
+debug_levels = LEVELS.keys()
+
+# Keep args in snyc with gdb_server.py when possible
 parser = argparse.ArgumentParser(description='Flash utility')
 parser.add_argument("file", help="File to program")
 parser.add_argument("format", choices=supported_formats, help="File format")
+# reserved: "-p", "--port"
+# reserved: "-c", "--cmd-port"
+parser.add_argument("-b", "--board", dest = "board_id", default = None, help="Connect to board by board id.  Use -l to list all connected boards.")
+parser.add_argument("-l", "--list", action = "store_true", dest = "list_all", default = False, help = "List all connected boards.")
+parser.add_argument("-d", "--debug", dest = "debug_level", choices = debug_levels, default = 'info', help = "Set the level of system logging output. Supported choices are: "+", ".join(debug_levels), metavar="LEVEL")
+parser.add_argument("-t", "--target", dest = "target_override", choices=supported_targets, default = None, help = "Override target to debug.  Supported targets are: "+", ".join(supported_targets), metavar="TARGET")
+# reserved: "-n", "--nobreak"
+# reserved: "-r", "--reset-break"
+# reserved: "-s", "--step-int"
+parser.add_argument("-f", "--frequency", dest = "frequency", default = 1000000, type=int, help = "Set the SWD clock frequency in Hz." )
+# reserved: "-o", "--persist"
+# reserved: "-k", "--soft-bkpt-as-hard"
 group = parser.add_mutually_exclusive_group()
-group.add_argument("-ce", "--chip_erase", action="store_true",help="erase flash before write")
-group.add_argument("-se", "--sector_erase", action="store_true",help="only erase sectors")
-parser.add_argument("-u", "--unlock", action="store_true", default=False, help="Unlock device.")
+group.add_argument("-ce", "--chip_erase", action="store_true",help="Use chip erase when programming.")
+group.add_argument("-se", "--sector_erase", action="store_true",help="Use sector erase when programming.")
+parser.add_argument("-u", "--unlock", action="store_true", default=False, help="Unlock the device.")
 parser.add_argument("-a", "--address", default = None, help="Address to flash binary.  This can only be used with binary files")
 parser.add_argument("-s", "--skip", default = 0, type=int, help="Skip programming the first N bytes.  This can only be used with binary files")
-parser.add_argument("-id", "--board_id", default = None, help="connect to board by board id, use -l to list all connected boards")
-parser.add_argument("-l", "--list", action="store_true", help="list all connected boards")
-parser.add_argument("-d", "--debug", default = 'info', help = "Set the level of system logging output, the available value for DEBUG_LEVEL: debug, info, warning, error, critical" )
-parser.add_argument("-t", "--target", choices=supported_targets, default = None, help = "Override target to debug.  Supported targets are: "+', '.join(supported_targets), metavar='' )
-parser.add_argument("-f", "--frequency", default = 1000000, type=int, help = "SWD clock frequency in Hz." )
-parser.add_argument("-p", "--hide_progress", action="store_true", help = "Don't display programming progress." )
+parser.add_argument("-hp", "--hide_progress", action="store_true", help = "Don't display programming progress." )
+parser.add_argument("-fp", "--fast_program", action="store_true", help = "Use only the CRC of each page to determine if it already has the same data.")
 args = parser.parse_args()
 
 # Notes
 # -Currently "--unlock" does nothing since kinetis parts will automatically get unlocked
 
 # Set logging level
-level = LEVELS.get(args.debug, logging.NOTSET)
+level = LEVELS.get(args.debug_level, logging.NOTSET)
 logging.basicConfig(level=level)
 
 def ranges(i):
@@ -99,12 +110,16 @@ if args.format == 'hex' and not intelhex_available:
     exit()
 
 
-if args.list:
+if args.list_all:
     MbedBoard.listConnectedBoards()
 else:
-    board_selected = MbedBoard.chooseBoard(board_id = args.board_id, target_override = args.target, frequency = args.frequency)
+    board_selected = MbedBoard.chooseBoard(board_id = args.board_id, target_override = args.target_override, frequency = args.frequency)
     with board_selected as board:
         flash = board.flash
+        transport = board.transport
+
+        # Boost speed with deferred transfers
+        transport.setDeferredTransfer(True)
 
         progress = print_progress
         if args.hide_progress:
@@ -127,7 +142,7 @@ else:
                 data = f.read()
             args.address += args.skip
             data = unpack(str(len(data)) + 'B', data)
-            flash.flashBlock(args.address, data, chip_erase=chip_erase, progress_cb=progress)
+            flash.flashBlock(args.address, data, chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
 
         # Intel hex file format
         if args.format == 'hex':
@@ -142,4 +157,4 @@ else:
                 size = end - start + 1
                 data = list(hex.tobinarray(start=start, size=size))
                 flash_builder.addData(start, data)
-            flash_builder.program(chip_erase=chip_erase, progress_cb=progress)
+            flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
