@@ -19,7 +19,7 @@ from distutils.core import setup
 
 setup(
     name="pyOCD",
-    version="0.4",
+    version="0.4.1",
     description="CMSIS-DAP debugger for Python",
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
@@ -30,5 +30,5 @@ setup(
         "Programming Language :: Python",
     ],
     use_2to3=True,
-    packages=["pyOCD", "pyOCD.flash", "pyOCD.gdbserver", "pyOCD.interface", "pyOCD.target", "pyOCD.transport", "pyOCD.board"]
+    packages=["pyOCD", "pyOCD.flash", "pyOCD.gdbserver", "pyOCD.interface", "pyOCD.target", "pyOCD.transport", "pyOCD.board", "pyOCD.utility"]
 )
