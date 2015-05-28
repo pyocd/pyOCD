@@ -101,9 +101,13 @@ class FlashBuilder(object):
         self.page_list = []
         self.perf = ProgrammingInfo()
         self.enable_double_buffering = True
+        self.max_errors = 10
 
     def enableDoubleBuffer(self, enable):
         self.enable_double_buffering = enable
+
+    def setMaxErrors(self, count):
+        self.max_errors = count
 
     def addData(self, addr, data):
         """
@@ -445,7 +449,7 @@ class FlashBuilder(object):
             if result != 0:
                 logging.error('programPage(0x%x) error: %i', current_addr, result)
                 error_count += 1
-                if error_count > 10:
+                if error_count > self.max_errors:
                     logging.error("Too many page programming errors, aborting program operation")
                     break
 
@@ -545,7 +549,8 @@ class FlashBuilder(object):
 
         progress_cb(0.0)
 
-        # Fill in same flag for all pages.
+        # Fill in same flag for all pages. This is done up front so we're not trying
+        # to read from flash while simultaneously programming it.
         progress = self._scan_pages_for_same(progress_cb)
 
         # Set up page and buffer info.
@@ -566,7 +571,9 @@ class FlashBuilder(object):
                 current_addr = page.addr
                 current_weight = page.getEraseProgramWeight()
                 self.flash.erasePage(current_addr)
-                self.flash.startProgramPageWithBuffer(current_buf, current_addr)
+                self.flash.startProgramPageWithBuffer(current_buf, current_addr) #, erase_page=True)
+                actual_page_erase_count += 1
+                actual_page_erase_weight += page.getEraseProgramWeight()
 
                 # Get next page and load it.
                 page, i = self._next_nonsame_page(i)
@@ -580,7 +587,7 @@ class FlashBuilder(object):
                 if result != 0:
                     logging.error('programPage(0x%x) error: %i', current_addr, result)
                     error_count += 1
-                    if error_count > 10:
+                    if error_count > self.max_errors:
                         logging.error("Too many page programming errors, aborting program operation")
                         break
 
