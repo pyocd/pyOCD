@@ -335,7 +335,7 @@ class FlashBuilder(object):
         This is done automatically by smart_program.
 
         If assume_estimate_correct is set to True, then pages with matching CRCs
-        will be marked as the same.  There is a small chance that the CRCs match even though the 
+        will be marked as the same.  There is a small chance that the CRCs match even though the
         data is different, but the odds of this happing are low: ~1/(2^32) = ~2.33*10^-8%.
         """
         # Build list of all the pages that need to be analyzed
@@ -525,7 +525,6 @@ class FlashBuilder(object):
 
                 # Update progress
                 progress_cb(float(progress) / float(self.page_erase_weight))
-        logging.debug("scanned %d pages for equality (%d same)", count, same_count)
         return progress
 
     def _next_nonsame_page(self, i):

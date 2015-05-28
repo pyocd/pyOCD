@@ -245,5 +245,4 @@ if __name__ == "__main__":
     board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close = True)[0]
     test = SpeedTest()
     result = [test.run(board)]
-    print result
     test.print_perf_info(result)
