@@ -20,6 +20,8 @@ from time import sleep, time
 from random import randrange
 import math
 import struct
+import traceback
+import argparse
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -90,6 +92,7 @@ class FlashTest(Test):
             result = FlashTestResult()
             result.passed = False
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
         return result
@@ -436,6 +439,14 @@ def flash_test(board_id):
         return result
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser(description='pyOCD flash test')
+    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    args = parser.parse_args()
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level)
     # Set to debug to print some of the decisions made while flashing
-    flash_test(None)
+    board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close = True)[0]
+    test = FlashTest()
+    result = [test.run(board)]
+    test.print_perf_info(result)
+

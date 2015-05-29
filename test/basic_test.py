@@ -257,10 +257,11 @@ def basic_test(board_id, file):
         target.reset()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-
     parser = argparse.ArgumentParser(description='A CMSIS-DAP python debugger')
     parser.add_argument('-f', help='binary file', dest = "file")
+    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
     args = parser.parse_args()
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level)
     file = args.file
     basic_test(None, file)

@@ -19,6 +19,7 @@ import argparse, os, sys
 from time import sleep, time
 from random import randrange
 import math
+import argparse
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -292,5 +293,9 @@ def cortex_test(board_id):
         return result
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser(description='pyOCD cpu test')
+    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    args = parser.parse_args()
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level)
     cortex_test(None)

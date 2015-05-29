@@ -26,6 +26,7 @@ from pyOCD.utility.conversion import float2int
 import logging
 from time import time
 from test_util import TestResult, Test, Logger
+import argparse
 
 from basic_test import basic_test
 from speed_test import SpeedTest
@@ -36,9 +37,15 @@ from flash_test import FlashTest
 if __name__ == "__main__":
     log_file = "automated_test_result.txt"
 
+    parser = argparse.ArgumentParser(description='pyOCD automated testing')
+    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    args = parser.parse_args()
+
     # Setup logging
     if os.path.exists(log_file):
         os.remove(log_file)
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level)
     logger = Logger(log_file)
     sys.stdout = logger
     sys.stderr = logger
