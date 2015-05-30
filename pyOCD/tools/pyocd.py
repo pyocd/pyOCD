@@ -19,6 +19,7 @@
 import argparse
 import sys
 import logging
+import readline
 
 import os
 import pyOCD
@@ -70,6 +71,68 @@ def dumpHexData(data, startAddress=0, width=8):
 class ToolError(Exception):
     pass
 
+class PyOCDConsole(object):
+    PROMPT = '>>> '
+
+    def __init__(self, tool):
+        self.tool = tool
+        self.last_command = ''
+
+    def run(self):
+        try:
+            while True:
+                line = raw_input(self.PROMPT)
+                line = line.strip()
+                if line:
+                    self.process_command_line(line)
+                    self.last_command = line
+                elif self.last_command:
+                    self.process_command(self.last_command)
+        except EOFError:
+            print
+
+    def process_command_line(self, line):
+        for cmd in line.split(';'):
+            self.process_command(cmd)
+
+    def process_command(self, cmd):
+        try:
+            args = cmd.split()
+            cmd = args[0].lower()
+            args = args[1:]
+
+            # Handle help.
+            if cmd in ['?', 'help']:
+                self.show_help(args)
+                return
+
+            # Handle register name as command.
+            if cmd in pyOCD.target.cortex_m.CORE_REGISTER:
+                self.tool.handle_reg([cmd])
+                return
+
+            # Check for valid command.
+            if cmd not in self.tool.command_list:
+                print "Error: unrecognized command '%s'" % cmd
+                return
+
+            # Run command.
+            handler = self.tool.command_list[cmd]
+            handler(args)
+        except pyOCD.transport.transport.TransferError:
+            print "Error: transfer failed"
+        except ToolError, e:
+            print "Error:", e
+
+    def show_help(self, args):
+        if not args:
+            self.list_commands()
+
+    def list_commands(self):
+        cmds = sorted(self.tool.command_list.keys())
+        print "Commands:\n---------"
+        print '\n'.join(cmds)
+
 class PyOCDTool(object):
     def __init__(self):
         self.board = None
@@ -81,7 +144,7 @@ class PyOCDTool(object):
                 'info' :    self.handle_info,
                 'i' :       self.handle_info,
                 'status' :  self.handle_status,
-                's' :       self.handle_status,
+                'reg' :     self.handle_reg,
                 'reset' :   self.handle_reset,
                 'read' :    self.handle_read8,
                 'read8' :   self.handle_read8,
@@ -101,11 +164,15 @@ class PyOCDTool(object):
                 'w32' :     self.handle_write32,
                 'go' :      self.handle_go,
                 'g' :       self.handle_go,
+                'step' :    self.handle_step,
+                's' :       self.handle_step,
                 'halt' :    self.handle_halt,
                 'h' :       self.handle_halt,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
-                'map' :     self.print_memory_map
+                'map' :     self.handle_memory_map,
+                'log' :     self.handle_log,
+                'clock' :   self.handle_clock
             }
 
     def get_args(self):
@@ -115,7 +182,6 @@ class PyOCDTool(object):
 
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
-        parser.add_argument("-C", "--center", action="store_true", help="Center the disassembly around the provided address.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
@@ -133,12 +199,14 @@ class PyOCDTool(object):
             # Read command-line arguments.
             self.args = self.get_args()
             self.cmd = self.args.cmd
+            if self.cmd:
+                self.cmd = self.cmd.lower()
 
             # Set logging level
             self.configure_logging()
 
             # Check for a valid command.
-            if self.cmd not in self.command_list:
+            if self.cmd and self.cmd not in self.command_list:
                 print "Error: unrecognized command '%s'" % self.cmd
                 return 1
 
@@ -171,13 +239,18 @@ class PyOCDTool(object):
             self.didErase = False
             if self.target.isLocked() and self.cmd != 'unlock':
                 print "Error: Target is locked, cannot complete operation. Use unlock command to mass erase and unlock."
-                if self.cmd not in ['reset', 'info']:
+                if self.cmd and self.cmd not in ['reset', 'info']:
                     return 1
 
-            # Invoke action handler.
-            result = self.command_list[self.cmd]()
-            if result is not None:
-                self.exitCode = result
+            # If no command, enter interactive mode.
+            if not self.cmd:
+                console = PyOCDConsole(self)
+                console.run()
+            else:
+                # Invoke action handler.
+                result = self.command_list[self.cmd](self.args.args)
+                if result is not None:
+                    self.exitCode = result
 
         except pyOCD.transport.transport.TransferError:
             print "Error: transfer failed"
@@ -192,16 +265,20 @@ class PyOCDTool(object):
 
         return self.exitCode
 
-    def handle_list(self):
+    def handle_list(self, args):
         MbedBoard.listConnectedBoards()
 
-    def handle_info(self):
+    def handle_info(self, args):
         print "Target:    %s" % self.target.part_number
         print "CPU type:  %s" % pyOCD.target.cortex_m.CORE_TYPE_NAME[self.target.core_type]
         print "Unique ID: %s" % self.board.getUniqueID()
         print "Core ID:   0x%08x" % self.target.readIDCode()
 
-    def handle_status(self):
+    def handle_status(self, args):
+        if self.target.isLocked():
+            print "Security:       Locked"
+        else:
+            print "Security:       Unlocked"
         if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
             print "MDM-AP Control: 0x%08x" % self.transport.readAP(target_kinetis.MDM_CTRL)
             print "MDM-AP Status:  0x%08x" % self.transport.readAP(target_kinetis.MDM_STATUS)
@@ -212,9 +289,24 @@ class PyOCDTool(object):
         elif status == pyOCD.target.cortex_m.TARGET_RUNNING:
             print "Core status:    Running"
 
-    def handle_reset(self):
+    def handle_reg(self, args):
+        # If there are no args, print all register values.
+        if len(args) < 1:
+            self.dump_registers()
+            return
+
+        reg = args[0].lower()
+        value = self.target.readCoreRegister(reg)
+        if type(value) is int:
+            print "%s = 0x%08x (%d)" % (reg, value, value)
+        elif type(value) is float:
+            print "%s = %g" % (reg, value)
+        else:
+            raise ToolError("Unknown register value type")
+
+    def handle_reset(self, args):
         print "Resetting target"
-        if self.args.halt:
+        if len(args) and args[0].lower() in ['-halt', '-h']:
             self.target.resetStopOnReset()
 
             status = self.target.getState()
@@ -225,17 +317,21 @@ class PyOCDTool(object):
         else:
             self.target.reset()
 
-    def handle_disasm(self):
-        if len(self.args.args) == 0:
+    def handle_disasm(self, args):
+        if len(args) == 0:
             print "Error: no address specified"
             return 1
-        addr = self.convert_value(self.args.args[0])
-        if len(self.args.args) < 2:
+        addr = self.convert_value(args[0])
+        if len(args) < 2:
             count = 6
         else:
-            count = self.convert_value(self.args.args[1])
+            count = self.convert_value(args[1])
+        if len(args) < 3:
+            center = False
+        else:
+            center = args[2].lower() in ('-c', '-center')
 
-        if self.args.center:
+        if center:
             addr -= count // 2
 
         # Since we're disassembling, make sure the Thumb bit is cleared.
@@ -245,39 +341,39 @@ class PyOCDTool(object):
         data = self.target.readBlockMemoryUnaligned8(addr, count)
         self.print_disasm(str(bytearray(data)), addr)
 
-    def handle_read8(self):
+    def handle_read8(self, args):
         self.args.width = 8
-        return self.do_read()
+        return self.do_read(args)
 
-    def handle_read16(self):
+    def handle_read16(self, args):
         self.args.width = 16
-        return self.do_read()
+        return self.do_read(args)
 
-    def handle_read32(self):
+    def handle_read32(self, args):
         self.args.width = 32
-        return self.do_read()
+        return self.do_read(args)
 
-    def handle_write8(self):
+    def handle_write8(self, args):
         self.args.width = 8
-        return self.do_write()
+        return self.do_write(args)
 
-    def handle_write16(self):
+    def handle_write16(self, args):
         self.args.width = 16
-        return self.do_write()
+        return self.do_write(args)
 
-    def handle_write32(self):
+    def handle_write32(self, args):
         self.args.width = 32
-        return self.do_write()
+        return self.do_write(args)
 
-    def do_read(self):
-        if len(self.args.args) == 0:
+    def do_read(self, args):
+        if len(args) == 0:
             print "Error: no address specified"
             return 1
-        addr = self.convert_value(self.args.args[0])
-        if len(self.args.args) < 2:
+        addr = self.convert_value(args[0])
+        if len(args) < 2:
             count = 4
         else:
-            count = self.convert_value(self.args.args[1])
+            count = self.convert_value(args[1])
 
         if self.args.width == 8:
             data = self.target.readBlockMemoryUnaligned8(addr, count)
@@ -292,16 +388,16 @@ class PyOCDTool(object):
         # Print hex dump of output.
         dumpHexData(data, addr, width=self.args.width)
 
-    def do_write(self):
-        if len(self.args.args) == 0:
+    def do_write(self, args):
+        if len(args) == 0:
             print "Error: no address specified"
             return 1
-        addr = self.convert_value(self.args.args[0])
-        if len(self.args.args) <= 1:
+        addr = self.convert_value(args[0])
+        if len(args) <= 1:
             print "Error: no data for write"
             return 1
         else:
-            data = [self.convert_value(d) for d in self.args.args[1:]]
+            data = [self.convert_value(d) for d in args[1:]]
 
         if self.args.width == 8:
             pass
@@ -312,16 +408,16 @@ class PyOCDTool(object):
 
         self.target.writeBlockMemoryUnaligned8(addr, data)
 
-    def handle_erase(self):
+    def handle_erase(self, args):
         self.flash.init()
         self.flash.eraseAll()
 
-    def handle_unlock(self):
+    def handle_unlock(self, args):
         # Currently the same as erase.
         if not self.didErase:
             self.target.massErase()
 
-    def handle_go(self):
+    def handle_go(self, args):
         self.target.resume()
         status = self.target.getState()
         if status == pyOCD.target.cortex_m.TARGET_RUNNING:
@@ -329,7 +425,11 @@ class PyOCDTool(object):
         else:
             print "Failed to resume device"
 
-    def handle_halt(self):
+    def handle_step(self, args):
+        self.target.step()
+        print "Successfully stepped device"
+
+    def handle_halt(self, args):
         self.target.halt()
 
         status = self.target.getState()
@@ -338,6 +438,39 @@ class PyOCDTool(object):
             return 1
         else:
             print "Successfully halted device"
+
+    def handle_memory_map(self, args):
+        self.print_memory_map()
+
+    def handle_log(self, args):
+        if len(args) < 1:
+            print "Error: no log level provided"
+            return 1
+        if args[0].lower() not in LEVELS:
+            print "Error: log level must be one of {%s}" % ','.join(LEVELS.keys())
+            return 1
+        logging.getLogger().setLevel(LEVELS[args[0].lower()])
+
+    def handle_clock(self, args):
+        if len(args) < 1:
+            print "Error: no clock frequency provided"
+            return 1
+        freq_Hz = int(args[0]) * 1000
+        self.transport.setClock(freq_Hz)
+
+        if self.transport.mode == pyOCD.transport.cmsis_dap.DAP_MODE_SWD:
+            swd_jtag = 'SWD'
+        else:
+            swd_jtag = 'JTAG'
+
+        if freq_Hz >= 1000000:
+            nice_freq = "%.2f MHz" % (freq_Hz / 1000000)
+        elif freq_Hz > 1000:
+            nice_freq = "%.2f kHz" % (freq_Hz / 1000)
+        else:
+            nice_frq = "%d Hz" % freq_Hz
+
+        print "Changed %s frequency to %s" % (swd_jtag, nice_freq)
 
     ## @brief Convert an argument to a 32-bit integer.
     #
