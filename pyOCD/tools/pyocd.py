@@ -33,18 +33,6 @@ try:
 except ImportError:
     isCapstoneAvailable = False
 
-# Command action constants.
-ACTION_LIST = 1
-ACTION_ERASE = 2
-ACTION_UNLOCK = 3
-ACTION_INFO = 4
-ACTION_RESET = 6
-ACTION_READ = 7
-ACTION_WRITE = 8
-ACTION_GO = 9
-ACTION_HALT = 10
-ACTION_DISASM = 11
-
 LEVELS={'debug':logging.DEBUG,
         'info':logging.INFO,
         'warning':logging.WARNING,
@@ -52,16 +40,8 @@ LEVELS={'debug':logging.DEBUG,
         'critical':logging.CRITICAL
         }
 
-USAGE = """
-The --read and --disasm command take an optional byte count using the --length
-option. The length defaults to 4 bytes if not specified. The --center option will
-shift the disassembly so that the specified address is centered in the output.
---read and --write will make use of the --width option in different ways. --read
-uses the width only when printing the hex dump. For --write, the width determines
-the word size of the data positional arguments. For if -W32 is specified, the data
-arguments are each a 32-bit word, and the total number of bytes written will be the
-number of data arguments times 4.
-"""
+## Default SWD clock in kHz.
+DEFAULT_CLOCK_FREQ_KHZ = 1000
 
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
@@ -94,64 +74,55 @@ class PyOCDTool(object):
     def __init__(self):
         self.board = None
         self.exitCode = 0
-        self.action_handlers = {
-                ACTION_LIST : self.handle_list,
-                ACTION_ERASE : self.handle_erase,
-                ACTION_UNLOCK : self.handle_unlock,
-                ACTION_INFO : self.handle_info,
-                ACTION_RESET : self.handle_reset,
-                ACTION_READ : self.handle_read,
-                ACTION_WRITE : self.handle_write,
-                ACTION_GO : self.handle_go,
-                ACTION_HALT : self.handle_halt,
-                ACTION_DISASM : self.handle_disasm
+        self.command_list = {
+                'list' :    self.handle_list,
+                'erase' :   self.handle_erase,
+                'unlock' :  self.handle_unlock,
+                'info' :    self.handle_info,
+                'i' :       self.handle_info,
+                'status' :  self.handle_status,
+                's' :       self.handle_status,
+                'reset' :   self.handle_reset,
+                'read' :    self.handle_read8,
+                'read8' :   self.handle_read8,
+                'read16' :  self.handle_read16,
+                'read32' :  self.handle_read32,
+                'r' :       self.handle_read8,
+                'r8' :      self.handle_read8,
+                'r16' :     self.handle_read16,
+                'r32' :     self.handle_read32,
+                'write' :   self.handle_write8,
+                'write8' :  self.handle_write8,
+                'write16' : self.handle_write16,
+                'write32' : self.handle_write32,
+                'w' :       self.handle_write8,
+                'w8' :      self.handle_write8,
+                'w16' :     self.handle_write16,
+                'w32' :     self.handle_write32,
+                'go' :      self.handle_go,
+                'g' :       self.handle_go,
+                'halt' :    self.handle_halt,
+                'h' :       self.handle_halt,
+                'disasm' :  self.handle_disasm,
+                'd' :       self.handle_disasm,
+                'map' :     self.print_memory_map
             }
 
     def get_args(self):
         debug_levels = LEVELS.keys()
 
-        parser = argparse.ArgumentParser(description='Target inspection utility', epilog=USAGE)
-        parser.add_argument("-l", "--list", action="store_const", dest='action', const=ACTION_LIST,
-                            help="List available boards.")
-        parser.add_argument("-e", "--erase", action="store_const", dest='action', const=ACTION_ERASE,
-                            help="Erase all flash.")
-        parser.add_argument("-u", "--unlock", action="store_const", dest='action', const=ACTION_UNLOCK,
-                            help="Unlock device.")
-        parser.add_argument("-i", "--info", action="store_const", dest='action', const=ACTION_INFO,
-                            help="Print device info and status.")
-        parser.add_argument("-R", "--reset", action="store_const", dest='action', const=ACTION_RESET,
-                            help="Reset target device.")
-        parser.add_argument("-H", "--halt", action="store_true", help="Halt core. Can be used alone or with --reset.")
-        parser.add_argument("-g", "--go", action="store_const", dest='action', const=ACTION_GO, help="Resume execution of code.")
-        parser.add_argument('-D', "--disasm", action='store', metavar='ADDR', help="Disassemble code at address.")
+        epi = "Available commands:\n" + ', '.join(sorted(self.command_list.keys()))
+
+        parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
+        parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
         parser.add_argument("-C", "--center", action="store_true", help="Center the disassembly around the provided address.")
-        parser.add_argument("-r", "--read", action="store", metavar='ADDR', help="Read and print data.")
-        parser.add_argument('-n', "--len", "--length", action="store", metavar='LENGTH', default="4", help="Number of bytes to read or disassemble. (Default 4.)")
-        parser.add_argument("-w", "--write", action="store", metavar='ADDR', help="Write data to memory.")
-        parser.add_argument("-W", "--width", action="store", choices=[8, 16, 32], type=int, default=8, help="Word size for read and write. (Default 8.)")
-        parser.add_argument('-k', "--clock", metavar='KHZ', default=0, type=int, help="Set SWD speed in kHz.")
+        parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: "+", ".join(debug_levels), metavar="LEVEL")
-        parser.add_argument("data", nargs='*', help="Data to write using the --write option")
+        parser.add_argument("cmd", nargs='?', default=None, help="Command")
+        parser.add_argument("args", nargs='*', help="Arguments for the command.")
         return parser.parse_args()
-
-    def determine_action(self, args):
-        # Determine action.
-        if args.read:
-            args.action = ACTION_READ
-        elif args.write:
-            args.action = ACTION_WRITE
-        elif args.disasm:
-            args.action = ACTION_DISASM
-        elif args.halt and not args.action:
-            args.action = ACTION_HALT
-
-        # Default to list mode if no other action was specified.
-        if args.action == None:
-            args.action = ACTION_LIST
-
-        return args
 
     def configure_logging(self):
         level = LEVELS.get(self.args.debug_level, logging.WARNING)
@@ -160,18 +131,27 @@ class PyOCDTool(object):
     def run(self):
         try:
             # Read command-line arguments.
-            args = self.get_args()
-            self.args = self.determine_action(args)
+            self.args = self.get_args()
+            self.cmd = self.args.cmd
 
             # Set logging level
             self.configure_logging()
 
-            # Print a list of all connected boards.
-            if self.args.action == ACTION_LIST:
-                self.handle_list()
-                sys.exit(0)
+            # Check for a valid command.
+            if self.cmd not in self.command_list:
+                print "Error: unrecognized command '%s'" % self.cmd
+                return 1
 
-            self.board = MbedBoard.chooseBoard(board_id=self.args.board, target_override=self.args.target, init_board=False)
+            # List command must be dealt with specially.
+            if self.cmd == 'list':
+                self.handle_list()
+                return 0
+
+            if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
+                print "Setting SWD clock to %d kHz" % self.args.clock
+
+            # Connect to board.
+            self.board = MbedBoard.chooseBoard(board_id=self.args.board, target_override=self.args.target, init_board=False, frequency=(self.args.clock * 1000))
             self.board.target.setAutoUnlock(False)
             self.board.target.setHaltOnConnect(False)
             try:
@@ -183,33 +163,21 @@ class PyOCDTool(object):
             self.transport = self.board.transport
             self.flash = self.board.flash
 
-            # Set specified SWD clock.
-            if self.args.clock > 0:
-                print "Setting SWD clock to %d kHz" % self.args.clock
-                self.transport.setClock(self.args.clock * 1000)
-
-            # Handle reset action first
-            if self.args.action == ACTION_RESET:
-                self.handle_reset()
-                sys.exit(0)
-
             # Halt if requested.
             if self.args.halt:
-                self.target.halt()
-
-                status = self.target.getState()
-                if status != pyOCD.target.cortex_m.TARGET_HALTED:
-                    print "Failed to halt device"
-                else:
-                    print "Successfully halted device"
+                self.handle_halt()
 
             # Handle a device with flash security enabled.
             self.didErase = False
-            if self.target.isLocked() and self.args.action != ACTION_UNLOCK:
-                print "Target is locked, cannot complete operation. Use --unlock to mass erase and unlock."
+            if self.target.isLocked() and self.cmd != 'unlock':
+                print "Error: Target is locked, cannot complete operation. Use unlock command to mass erase and unlock."
+                if self.cmd not in ['reset', 'info']:
+                    return 1
 
             # Invoke action handler.
-            self.action_handlers[self.args.action]()
+            result = self.command_list[self.cmd]()
+            if result is not None:
+                self.exitCode = result
 
         except pyOCD.transport.transport.TransferError:
             print "Error: transfer failed"
@@ -228,10 +196,12 @@ class PyOCDTool(object):
         MbedBoard.listConnectedBoards()
 
     def handle_info(self):
-        print "Target:         %s" % self.target.part_number
-        print "CPU type:       %s" % pyOCD.target.cortex_m.CORE_TYPE_NAME[self.target.core_type]
-        print "Unique ID:      %s" % self.board.getUniqueID()
-        print "Core ID:        0x%08x" % self.target.readIDCode()
+        print "Target:    %s" % self.target.part_number
+        print "CPU type:  %s" % pyOCD.target.cortex_m.CORE_TYPE_NAME[self.target.core_type]
+        print "Unique ID: %s" % self.board.getUniqueID()
+        print "Core ID:   0x%08x" % self.target.readIDCode()
+
+    def handle_status(self):
         if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
             print "MDM-AP Control: 0x%08x" % self.transport.readAP(target_kinetis.MDM_CTRL)
             print "MDM-AP Status:  0x%08x" % self.transport.readAP(target_kinetis.MDM_STATUS)
@@ -256,31 +226,58 @@ class PyOCDTool(object):
             self.target.reset()
 
     def handle_disasm(self):
-        addr = self.convert_value(self.args.disasm)
-        count = self.convert_value(self.args.len)
-
-        # Since we're disassembling, make sure the Thumb bit is cleared.
-        addr &= ~1
+        if len(self.args.args) == 0:
+            print "Error: no address specified"
+            return 1
+        addr = self.convert_value(self.args.args[0])
+        if len(self.args.args) < 2:
+            count = 6
+        else:
+            count = self.convert_value(self.args.args[1])
 
         if self.args.center:
             addr -= count // 2
 
-        if self.args.width == 8:
-            data = self.target.readBlockMemoryUnaligned8(addr, count)
-            byteData = data
-        elif self.args.width == 16:
-            byteData = self.target.readBlockMemoryUnaligned8(addr, count)
-            data = pyOCD.utility.conversion.byte2half(byteData)
-        elif self.args.width == 32:
-            byteData = self.target.readBlockMemoryUnaligned8(addr, count)
-            data = pyOCD.utility.conversion.byte2word(byteData)
+        # Since we're disassembling, make sure the Thumb bit is cleared.
+        addr &= ~1
 
         # Print disasm of data.
-        self.disasm(str(bytearray(byteData)), addr)
+        data = self.target.readBlockMemoryUnaligned8(addr, count)
+        self.print_disasm(str(bytearray(data)), addr)
 
-    def handle_read(self):
-        addr = self.convert_value(self.args.read)
-        count = self.convert_value(self.args.len)
+    def handle_read8(self):
+        self.args.width = 8
+        return self.do_read()
+
+    def handle_read16(self):
+        self.args.width = 16
+        return self.do_read()
+
+    def handle_read32(self):
+        self.args.width = 32
+        return self.do_read()
+
+    def handle_write8(self):
+        self.args.width = 8
+        return self.do_write()
+
+    def handle_write16(self):
+        self.args.width = 16
+        return self.do_write()
+
+    def handle_write32(self):
+        self.args.width = 32
+        return self.do_write()
+
+    def do_read(self):
+        if len(self.args.args) == 0:
+            print "Error: no address specified"
+            return 1
+        addr = self.convert_value(self.args.args[0])
+        if len(self.args.args) < 2:
+            count = 4
+        else:
+            count = self.convert_value(self.args.args[1])
 
         if self.args.width == 8:
             data = self.target.readBlockMemoryUnaligned8(addr, count)
@@ -295,9 +292,16 @@ class PyOCDTool(object):
         # Print hex dump of output.
         dumpHexData(data, addr, width=self.args.width)
 
-    def handle_write(self):
-        addr = self.convert_value(self.args.write)
-        data = [self.convert_value(d) for d in self.args.data]
+    def do_write(self):
+        if len(self.args.args) == 0:
+            print "Error: no address specified"
+            return 1
+        addr = self.convert_value(self.args.args[0])
+        if len(self.args.args) <= 1:
+            print "Error: no data for write"
+            return 1
+        else:
+            data = [self.convert_value(d) for d in self.args.args[1:]]
 
         if self.args.width == 8:
             pass
@@ -309,9 +313,8 @@ class PyOCDTool(object):
         self.target.writeBlockMemoryUnaligned8(addr, data)
 
     def handle_erase(self):
-        # TODO: change to be a complete chip erase that doesn't write FSEC to 0xfe.
-        if not self.didErase:
-            self.target.massErase()
+        self.flash.init()
+        self.flash.eraseAll()
 
     def handle_unlock(self):
         # Currently the same as erase.
@@ -327,7 +330,14 @@ class PyOCDTool(object):
             print "Failed to resume device"
 
     def handle_halt(self):
-        pass
+        self.target.halt()
+
+        status = self.target.getState()
+        if status != pyOCD.target.cortex_m.TARGET_HALTED:
+            print "Failed to halt device"
+            return 1
+        else:
+            print "Successfully halted device"
 
     ## @brief Convert an argument to a 32-bit integer.
     #
@@ -348,9 +358,6 @@ class PyOCDTool(object):
                 offset = int(offset.strip(), base=0)
 
         if arg in pyOCD.target.cortex_m.CORE_REGISTER:
-#             arg = arg[1:]
-#             if arg not in pyOCD.target.cortex_m.CORE_REGISTER:
-#                 raise ToolError("Unknown register name '%s'" % arg)
             value = self.target.readCoreRegister(arg)
             print "%s = 0x%08x" % (arg, value)
         else:
@@ -382,7 +389,7 @@ class PyOCDTool(object):
         for region in self.target.getMemoryMap():
             print "{:<15} {:#010x}    {:#010x}    {}".format(region.name, region.start, region.end, region.blocksize if region.isFlash else '-')
 
-    def disasm(self, code, startAddr):
+    def print_disasm(self, code, startAddr):
         if not isCapstoneAvailable:
             print "Warning: Disassembly is not available because the Capstone library is not installed"
             return
