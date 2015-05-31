@@ -39,6 +39,7 @@ flash_algo = { 'load_address' : 0x10000000,
                'pc_erase_sector' : 0x100000ab,
                'pc_program_page' : 0x100000ed,
                'begin_data' : 0x100001c4,
+               # Double buffering is not supported since there is not enough ram
                'begin_stack' : 0x10001000,
                'static_base' : 0x1000019c,
                'page_size' : 0x1000,
