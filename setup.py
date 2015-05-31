@@ -14,8 +14,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import sys
+from setuptools import setup, find_packages
 
-from distutils.core import setup
+install_requires = []
+if sys.platform.startswith('linux'):
+    install_requires.extend([
+        'pyusb',
+    ])
+elif sys.platform.startswith('win'):
+    install_requires.extend([
+        'pywinusb',
+    ])
+elif sys.platform.startswith('darwin'):
+    install_requires.extend([
+        'hidapi',
+    ])
+
 
 setup(
     name="pyOCD",
@@ -29,6 +44,7 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
     ],
+    install_requires=install_requires,
     use_2to3=True,
-    packages=["pyOCD", "pyOCD.flash", "pyOCD.gdbserver", "pyOCD.interface", "pyOCD.target", "pyOCD.transport", "pyOCD.board", "pyOCD.utility"]
+    packages=find_packages(),
 )
