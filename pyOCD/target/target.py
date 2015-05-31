@@ -103,8 +103,10 @@ class Target(object):
     def getMemoryMapXML(self):
         if self.memory_map:
             return self.memory_map.getXML()
-        else:
+        elif hasattr(self, 'memoryMapXML'):
             return self.memoryMapXML
+        else:
+            return None
 
     def getRegisterContext(self):
         return ''
