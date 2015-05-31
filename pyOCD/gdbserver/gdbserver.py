@@ -57,6 +57,9 @@ class GDBServer(threading.Thread):
         self.hide_programming_progress = options.get('hide_programming_progress', False)
         self.fast_program = options.get('fast_program', False)
         self.packet_size = 2048
+        self.send_acks = True
+        self.clear_send_acks = False
+        self.gdb_features = []
         self.flashBuilder = None
         self.conn = None
         self.lock = threading.Lock()
@@ -162,23 +165,26 @@ class GDBServer(threading.Thread):
             
                     if resp is not None:
                         # ack
-                        if ack:
+                        if ack and self.send_acks:
                             resp = "+" + resp
                         # send resp
                         self.abstract_socket.write(resp)
-                        # wait a '+' from the client
-                        try:
-                            data = self.abstract_socket.read()
-                            if LOG_ACK:
-                                if data[0] != '+':
-                                    logging.debug('gdb client has not ack!')
-                                else:
-                                    logging.debug('gdb client has ack!')
-                            if data.index("$") >= 0 and data.index("#") >= 0:
-                                new_command = True
-                        except:
-                            pass
-                        
+                        if self.send_acks:
+                            # wait a '+' from the client
+                            try:
+                                data = self.abstract_socket.read()
+                                if LOG_ACK:
+                                    if data[0] != '+':
+                                        logging.debug('gdb client has not ack!')
+                                    else:
+                                        logging.debug('gdb client has ack!')
+                                if self.clear_send_acks:
+                                    self.send_acks = False
+                                if data.index("$") >= 0 and data.index("#") >= 0:
+                                    new_command = True
+                            except:
+                                pass
+
                     if detach:
                         self.abstract_socket.close()
                         self.lock.release()
@@ -237,6 +243,9 @@ class GDBServer(threading.Thread):
 
         elif msg[1] == 'q':
             return self.handleQuery(msg[2:]), 1, 0
+
+        elif msg[1] == 'Q':
+            return self.handleGeneralSet(msg[2:]), 1, 0
 
         elif msg[1] == 'S' or msg[1] == 's':
             return self.step()
@@ -548,7 +557,11 @@ class GDBServer(threading.Thread):
             return None
         
         if query[0] == 'Supported':
-            features = ['qXfer:features:read+']
+            # Save features sent by gdb.
+            self.gdb_features = query[1].split(';')
+
+            # Build our list of features.
+            features = ['qXfer:features:read+', 'QStartNoAckMode+']
             features.append('PacketSize=' + hex(self.packet_size)[2:])
             if hasattr(self.target, 'memoryMapXML'):
                 features.append('qXfer:memory-map:read+')
@@ -660,7 +673,18 @@ class GDBServer(threading.Thread):
 
         else:
             return self.createRSPPacket("")
-            
+
+    def handleGeneralSet(self, msg):
+        logging.debug("GDB general set: %s", msg)
+        feature = msg.split('#')[0]
+
+        if feature == 'StartNoAckMode':
+            # Disable acks after the reply and ack.
+            self.clear_send_acks = False
+            return self.createRSPPacket("OK")
+        else:
+            return self.createRSPPacket("")
+
     def handleQueryXML(self, query, offset, size):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
         xml = ''
