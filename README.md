@@ -25,43 +25,28 @@ You can use the following interfaces:
 Installation
 ------------
 
-### Pre-Install 
-pyOCD relies on external USB libraries:
-
-* Windows: [pyWinUSB](https://github.com/rene-aguirre/pywinusb):
+The latest stable version of pyOCD may be done via
+[pip](https://pip.pypa.io/en/stable/index.html) as follows:
 
 ```Shell
-$ cd /path-to-pywinusb/
-$ python setup.py install
+$ pip install --pre -U pyocd
 ```
 
-* Linux: [pyUSB](https://github.com/walac/pyusb):
+To install the latest development version (master branch), you can do
+the following:
 
 ```Shell
-$ sudo apt-get install python libusb-1.0-0-dev
-$ cd /path-to-pyusb/
-$ sudo python setup.py install
+$ pip install --pre -U https://github.com/mbedmicro/pyOCD/archive/master.zip
 ```
 
+Note that you may run into permissions issues running these commands.
+You have a few options here:
 
-* Mac: [hidapi](https://github.com/signal11/hidapi), [cython-hidapi](https://github.com/trezor/cython-hidapi)
-```Shell
-$ brew install hidapi
-$ git clone https://github.com/trezor/cython-hidapi.git
-$ cd cython-hidapi
-$ sudo python setup.py install
-```
-
-### Install pyOCD
-Clone pyOCD somewhere then run the install script.
-```Shell
-$ cd /path-to-pyOCD/
-$ python setup.py install
-```
-Test the installation of pyOCD by running the basic test with an mbed enabled board connected to the computer. The basic_test.py will perform a series of tests on the board and leave it with a blinky program running.
-```Shell
-$ python2.7 pyOCD/test/basic_test.py
-```
+1. Run with `sudo` to install pyOCD and dependencies globally
+2. Specify the `--user` option to install local to your user
+3. Run the command in a
+   [virtualenv](https://virtualenv.pypa.io/en/latest/) local to a
+   specific project working set.
 
 Standalone GDB Server
 ---------------------
