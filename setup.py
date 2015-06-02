@@ -47,6 +47,8 @@ setup(
     entry_points={
         'console_scripts': [
             'pyocd-gdbserver = pyOCD.tools.gdb_server:main',
+            'pyocd-flashtool = pyOCD.tools.flash_tool:main',
+            'pyocd-tool = pyOCD.tools.pyocd:main',
         ],
     },
     install_requires=install_requires,
