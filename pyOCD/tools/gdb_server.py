@@ -24,12 +24,13 @@ from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 import argparse
 
-LEVELS={'debug':logging.DEBUG,
-        'info':logging.INFO,
-        'warning':logging.WARNING,
-        'error':logging.ERROR,
-        'critical':logging.CRITICAL
-        }
+LEVELS = {
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
 
 supported_targets = pyOCD.target.TARGET.keys()
 debug_levels = LEVELS.keys()
@@ -51,54 +52,71 @@ parser.add_argument("-bh", "--soft-bkpt-as-hard", dest = "soft_bkpt_as_hard", de
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-ce", "--chip_erase", action="store_true",help="Use chip erase when programming.")
 group.add_argument("-se", "--sector_erase", action="store_true",help="Use sector erase when programming.")
+# -Currently "--unlock" does nothing since kinetis parts will automatically get unlocked
 parser.add_argument("-u", "--unlock", action="store_true", default=False, help="Unlock the device.")
 # reserved: "-a", "--address"
 # reserved: "-s", "--skip"
 parser.add_argument("-hp", "--hide_progress", action="store_true", help = "Don't display programming progress." )
 parser.add_argument("-fp", "--fast_program", action="store_true", help = "Use only the CRC of each page to determine if it already has the same data.")
-args = parser.parse_args()
 
-# Notes
-# -Currently "--unlock" does nothing since kinetis parts will automatically get unlocked
 
-# Determine programming mode
-chip_erase = None
-if args.chip_erase:
-    chip_erase = True
-elif args.sector_erase:
-    chip_erase = False
+def get_chip_erase(args):
+    # Determine programming mode
+    chip_erase = None
+    if args.chip_erase:
+        chip_erase = True
+    elif args.sector_erase:
+        chip_erase = False
+    return chip_erase
 
-# Set gdb server settings
-gdb_server_settings = {
-    'break_at_hardfault' : args.break_at_hardfault,
-    'step_into_interrupt' : args.step_into_interrupt,
-    'break_on_reset' : args.break_on_reset,
-    'persist' : args.persist,
-    'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
-    'chip_erase' : chip_erase,
-    'hide_programming_progress' : args.hide_progress,
-    'fast_program' : args.fast_program,
+
+def get_gdb_server_settings(args):
+    # Set gdb server settings
+    return {
+        'break_at_hardfault' : args.break_at_hardfault,
+        'step_into_interrupt' : args.step_into_interrupt,
+        'break_on_reset' : args.break_on_reset,
+        'persist' : args.persist,
+        'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
+        'chip_erase': get_chip_erase(args),
+        'hide_programming_progress' : args.hide_progress,
+        'fast_program' : args.fast_program,
     }
 
-gdb = None
-level = LEVELS.get(args.debug_level, logging.NOTSET)
-logging.basicConfig(level=level)
-if args.list_all == True:
-    MbedBoard.listConnectedBoards()
-else:
-    try:
-        board_selected = MbedBoard.chooseBoard(board_id = args.board_id, target_override = args.target_override, frequency = args.frequency)
-        with board_selected as board:
-            # Boost speed with deferred transfers
-            board.transport.setDeferredTransfer(True)
-            gdb = GDBServer(board, args.port_number, gdb_server_settings)
-            while gdb.isAlive():
-                gdb.join(timeout = 0.5)
-    except KeyboardInterrupt:
-        if gdb != None:
-            gdb.stop()
-    except Exception as e:
-        print "uncaught exception: %s" % e
-        traceback.print_exc()
-        if gdb != None:
-            gdb.stop()
+
+def setup_logging(args):
+    level = LEVELS.get(args.debug_level, logging.NOTSET)
+    logging.basicConfig(level=level)
+
+
+def main():
+    args = parser.parse_args()
+    gdb_server_settings = get_gdb_server_settings(args)
+    setup_logging(args)
+
+    gdb = None
+    if args.list_all == True:
+        MbedBoard.listConnectedBoards()
+    else:
+        try:
+            board_selected = MbedBoard.chooseBoard(
+                board_id=args.board_id,
+                target_override=args.target_override,
+                frequency=args.frequency)
+            with board_selected as board:
+                # Boost speed with deferred transfers
+                board.transport.setDeferredTransfer(True)
+                gdb = GDBServer(board, args.port_number, gdb_server_settings)
+                while gdb.isAlive():
+                    gdb.join(timeout=0.5)
+        except KeyboardInterrupt:
+            if gdb != None:
+                gdb.stop()
+        except Exception as e:
+            print "uncaught exception: %s" % e
+            traceback.print_exc()
+            if gdb != None:
+                gdb.stop()
+
+if __name__ == '__main__':
+    main()

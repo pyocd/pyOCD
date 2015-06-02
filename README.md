@@ -25,49 +25,46 @@ You can use the following interfaces:
 Installation
 ------------
 
-### Pre-Install 
-pyOCD relies on external USB libraries:
-
-* Windows: [pyWinUSB](https://github.com/rene-aguirre/pywinusb):
+The latest stable version of pyOCD may be done via
+[pip](https://pip.pypa.io/en/stable/index.html) as follows:
 
 ```Shell
-$ cd /path-to-pywinusb/
-$ python setup.py install
+$ pip install --pre -U pyocd
 ```
 
-* Linux: [pyUSB](https://github.com/walac/pyusb):
+To install the latest development version (master branch), you can do
+the following:
 
 ```Shell
-$ sudo apt-get install python libusb-1.0-0-dev
-$ cd /path-to-pyusb/
-$ sudo python setup.py install
+$ pip install --pre -U https://github.com/mbedmicro/pyOCD/archive/master.zip
 ```
 
+Note that you may run into permissions issues running these commands.
+You have a few options here:
 
-* Mac: [hidapi](https://github.com/signal11/hidapi), [cython-hidapi](https://github.com/trezor/cython-hidapi)
-```Shell
-$ brew install hidapi
-$ git clone https://github.com/trezor/cython-hidapi.git
-$ cd cython-hidapi
-$ sudo python setup.py install
-```
+1. Run with `sudo` to install pyOCD and dependencies globally
+2. Specify the `--user` option to install local to your user
+3. Run the command in a
+   [virtualenv](https://virtualenv.pypa.io/en/latest/) local to a
+   specific project working set.
 
-### Install pyOCD
-Clone pyOCD somewhere then run the install script.
+You can also install from source by cloning the git repository and running
+
 ```Shell
-$ cd /path-to-pyOCD/
-$ python setup.py install
-```
-Test the installation of pyOCD by running the basic test with an mbed enabled board connected to the computer. The basic_test.py will perform a series of tests on the board and leave it with a blinky program running.
-```Shell
-$ python2.7 pyOCD/test/basic_test.py
+python setup.py install
 ```
 
 Standalone GDB Server
 ---------------------
-<p>pyOCD now provide a manual HOW_TO_BUILD.md in root folder to explain how to build pyOCD into single executable gdb server program.</p>
-[GCC ARM Toolchain](https://launchpad.net/gcc-arm-embedded) also provided a pre-build version of pyOCD gdb server at [Misc tools related to gcc arm embedded tool chain](https://launchpad.net/gcc-arm-embedded-misc/pyocd-binary)
 
+When you install pyOCD via pip, you should be able to execute the
+following in order to start a GDB server powered by pyOCD:
+
+```Shell
+pyocd-gdbserver
+```
+
+You can get additional help by running `pyocd-gdbserver --help`.
 
 ### Recommended GDB and IDE setup
 The GDB server works well with Eclipse and the GNU ARM Eclipse OpenOCD plug-in.
@@ -82,6 +79,22 @@ does not need to be specified, as pyOCD will automatically determine this.
 If an external processor is being debugged then "-t [processor]" must
 be added to the command line.  For more information on setup see [this post for OpenOCD](http://gnuarmeclipse.livius.net/blog/openocd-debugging/)
 
+Development Setup
+-----------------
+
+PyOCD developers are recommended to setup a working environment using
+[virtualenv](https://virtualenv.pypa.io/en/latest/).  After cloning
+the code, you can setup a virtualenv and install the PyOCD
+dependencies for the current platform by doing the following:
+
+```
+$ virtualenv env
+$ source env/bin/activate
+$ pip install -r dev-requirements.txt
+```
+
+On Windows, the virtualenv would be activated by executing
+`env\Scripts\activate`.
 
 Examples
 --------

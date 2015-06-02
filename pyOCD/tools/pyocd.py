@@ -17,14 +17,10 @@
 """
 
 import argparse
-import os
 import sys
-from time import sleep
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
+import os
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
@@ -32,6 +28,7 @@ from pyOCD.target import target_kinetis
 # Make disasm optional.
 try:
     import capstone
+
     isCapstoneAvailable = True
 except ImportError:
     isCapstoneAvailable = False
@@ -47,6 +44,7 @@ ACTION_READ = 7
 ACTION_WRITE = 8
 ACTION_GO = 9
 
+
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
     while i < len(data):
@@ -55,43 +53,53 @@ def dumpHexData(data, startAddress=0, width=8):
         while i < len(data):
             d = data[i]
             i += 1
-            if width==8:
+            if width == 8:
                 print "%02x" % d,
                 if i % 4 == 0:
                     print "",
                 if i % 16 == 0:
                     break
-            elif width==16:
+            elif width == 16:
                 print "%04x" % d,
                 if i % 8 == 0:
                     break
-            elif width==32:
+            elif width == 32:
                 print "%08x" % d,
                 if i % 4 == 0:
                     break
         print
 
+
 class ToolError(Exception):
     pass
 
+
 class PyOCDTool(object):
     def __init__(self):
-        #logging.basicConfig(level=logging.INFO)
+        # logging.basicConfig(level=logging.INFO)
         pass
 
     def get_args(self):
         parser = argparse.ArgumentParser(description='Flash utility')
-        parser.add_argument("-l", "--list", action="store_const", dest='action', const=ACTION_LIST, help="List available boards.")
-        parser.add_argument("-e", "--erase", action="store_const", dest='action', const=ACTION_ERASE, help="Erase all flash.")
-        parser.add_argument("-u", "--unlock", action="store_const", dest='action', const=ACTION_UNLOCK, help="Unlock device.")
-        parser.add_argument("-i", "--info", action="store_const", dest='action', const=ACTION_INFO, help="Print device info and status.")
-        parser.add_argument("-R", "--reset", action="store_const", dest='action', const=ACTION_RESET, help="Reset target device.")
+        parser.add_argument("-l", "--list", action="store_const", dest='action', const=ACTION_LIST,
+                            help="List available boards.")
+        parser.add_argument("-e", "--erase", action="store_const", dest='action', const=ACTION_ERASE,
+                            help="Erase all flash.")
+        parser.add_argument("-u", "--unlock", action="store_const", dest='action', const=ACTION_UNLOCK,
+                            help="Unlock device.")
+        parser.add_argument("-i", "--info", action="store_const", dest='action', const=ACTION_INFO,
+                            help="Print device info and status.")
+        parser.add_argument("-R", "--reset", action="store_const", dest='action', const=ACTION_RESET,
+                            help="Reset target device.")
         parser.add_argument("-H", "--halt", action="store_true", default=False, help="Halt core on reset.")
-        parser.add_argument("-g", "--go", action="store_const", dest='action', const=ACTION_GO, help="Resume execution of code.")
+        parser.add_argument("-g", "--go", action="store_const", dest='action', const=ACTION_GO,
+                            help="Resume execution of code.")
         parser.add_argument("-r", "--read", action="store", metavar='ADDR', help="Read and print data.")
-        parser.add_argument('-n', "--len", "--length", action="store", metavar='LENGTH', default="4", help="Length of data to read.")
+        parser.add_argument('-n', "--len", "--length", action="store", metavar='LENGTH', default="4",
+                            help="Length of data to read.")
         parser.add_argument("-w", "--write", action="store", metavar='ADDR', help="Write data to memory.")
-        parser.add_argument("-W", "--width", action="store", choices=[8, 16, 32], type=int, default=8, help="Word size for read and write.")
+        parser.add_argument("-W", "--width", action="store", choices=[8, 16, 32], type=int, default=8,
+                            help="Word size for read and write.")
         parser.add_argument('-f', "--flash", dest="file", metavar='FILE', help="Program a binary file into flash.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=0, type=int, help="Set SWD speed in kHz.")
         parser.add_argument('-v', "--verbose", action='store_true', default=False, help="Enable verbose logging.")
@@ -186,7 +194,7 @@ class PyOCDTool(object):
                     i = 0
                     data = []
                     while i < len(byteData):
-                        data.append(byteData[i] | (byteData[i+1] << 8))
+                        data.append(byteData[i] | (byteData[i + 1] << 8))
                         i += 2
                 elif args.width == 32:
                     if args.read & 0x3:
@@ -270,13 +278,19 @@ class PyOCDTool(object):
             hexBytes = ''
             for b in i.bytes:
                 hexBytes += '%02x' % b
+
             def spacing(s, w):
                 return ' ' * (w - len(s))
-            text += "0x%08x:  %s%s%s%s%s\n" % (i.address, hexBytes, spacing(hexBytes, 10), i.mnemonic, spacing(i.mnemonic, 8), i.op_str)
+
+            text += "0x%08x:  %s%s%s%s%s\n" % (
+            i.address, hexBytes, spacing(hexBytes, 10), i.mnemonic, spacing(i.mnemonic, 8), i.op_str)
 
         print text
 
 
+def main():
+    sys.exit(PyOCDTool().run())
+
 
 if __name__ == '__main__':
-    sys.exit(PyOCDTool().run())
+    main()
