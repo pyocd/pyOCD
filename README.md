@@ -48,6 +48,12 @@ You have a few options here:
    [virtualenv](https://virtualenv.pypa.io/en/latest/) local to a
    specific project working set.
 
+You can also install from source by cloning the git repository and running
+
+```Shell
+python setup.py install
+```
+
 Standalone GDB Server
 ---------------------
 
@@ -55,10 +61,10 @@ When you install pyOCD via pip, you should be able to execute the
 following in order to start a GDB server powered by pyOCD:
 
 ```Shell
-pyocd
+pyocd-gdbserver
 ```
 
-You can get additional help by running `pyocd --help`.
+You can get additional help by running `pyocd-gdbserver --help`.
 
 ### Recommended GDB and IDE setup
 The GDB server works well with Eclipse and the GNU ARM Eclipse OpenOCD plug-in.
@@ -73,6 +79,22 @@ does not need to be specified, as pyOCD will automatically determine this.
 If an external processor is being debugged then "-t [processor]" must
 be added to the command line.  For more information on setup see [this post for OpenOCD](http://gnuarmeclipse.livius.net/blog/openocd-debugging/)
 
+Development Setup
+-----------------
+
+PyOCD developers are recommended to setup a working environment using
+[virtualenv](https://virtualenv.pypa.io/en/latest/).  After cloning
+the code, you can setup a virtualenv and install the PyOCD
+dependencies for the current platform by doing the following:
+
+```
+$ virtualenv env
+$ source env/bin/activate
+$ pip install -r dev-requirements.txt
+```
+
+On Windows, the virtualenv would be activated by executing
+`env\Scripts\activate`.
 
 Examples
 --------
