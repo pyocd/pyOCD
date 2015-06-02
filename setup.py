@@ -39,12 +39,18 @@ setup(
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
     license="Apache 2.0",
-    classifiers = [
+    classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
     ],
+    entry_points={
+        'console_scripts': [
+            'pyocd-gdbserver = pyOCD.tools.gdb_server:main',
+        ],
+    },
     install_requires=install_requires,
     use_2to3=True,
     packages=find_packages(),
+    include_package_data=True,  # include files from MANIFEST.in
 )

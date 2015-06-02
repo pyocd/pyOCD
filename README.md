@@ -50,9 +50,15 @@ You have a few options here:
 
 Standalone GDB Server
 ---------------------
-<p>pyOCD now provide a manual HOW_TO_BUILD.md in root folder to explain how to build pyOCD into single executable gdb server program.</p>
-[GCC ARM Toolchain](https://launchpad.net/gcc-arm-embedded) also provided a pre-build version of pyOCD gdb server at [Misc tools related to gcc arm embedded tool chain](https://launchpad.net/gcc-arm-embedded-misc/pyocd-binary)
 
+When you install pyOCD via pip, you should be able to execute the
+following in order to start a GDB server powered by pyOCD:
+
+```Shell
+pyocd
+```
+
+You can get additional help by running `pyocd --help`.
 
 ### Recommended GDB and IDE setup
 The GDB server works well with Eclipse and the GNU ARM Eclipse OpenOCD plug-in.
