@@ -1,54 +1,45 @@
 How to Build PyOCD into Single Executable File
 ==============================================
-This manual provides a step-by-step guide on how to ‘build pyOCD’ on Windows 7 32bit or Ubuntu 10.04.
-pyOCD is an open source GDB server library written in Python and maintained by pyOCD community, it depends on several libraries like pyusb under Linux, and pywinusb under Windows. Pyinstaller was chosen to bundle it into a single executable file, so that the pyOCD executable produced can be run on any computer, whether python and the related library are present or not on the system.
+This manual provides a step-by-step guide on how to build a single
+file executable using
+[pyinstaller](http://pythonhosted.org/PyInstaller/).  It should be
+possible for PyInstaller to work across all supported operating
+system, but these steps have only been tested on Windows 7 64-bit and
+Ubuntu 14.04.
 
-Build pyOCD on Ubuntu 10.04
----------------------------
-1. Install Python:
-  <p>Here on Ubuntu 10.04, this can be done by running the following command:</p>
-  ```
-  $ sudo apt-get install python
-  ```
-2. Install pyOCD and related library:
-  <p>[pyOCD](https://github.com/mbedmicro/pyOCD)</p>
-  <p>[Pyusb(Linux)](https://github.com/walac/pyusb)</p>
-  <p>The installation steps are just on the github website, if you have any problem to install them. Please raise an issue ticket on the corresponding github website.</p>
+pyOCD is an open source GDB server library written in Python and
+maintained by pyOCD community, it depends on several libraries like
+pyusb under Linux, and pywinusb under Windows. Pyinstaller was chosen
+to bundle it into a single executable file, so that the pyOCD
+executable produced can be run on any computer, whether python and the
+related library are present or not on the system.
 
-3. Install Pyinstaller:
-  <p>Pyinstaller is an open source python program which can bundle python library like pyOCD into one executable file. You can get more information on its homepage: http://www.pyinstaller.org/.</p>
-  <p>Although it has its release version 2.1, but there’s a bug related to pyusb interface hasn’t been merged into the release version. So you still need to download the developing version on the github: https://github.com/pyinstaller/pyinstaller. The installation step is quite simple, and you can just refer to the github website.</p>
+Instructions
+------------
 
-4. Bundle pyOCD library into single executable file:
-  <p>Switch to PyOCD source folder, under its test folder, there’s a py file gdb_server.py you need to bundle it to produce a single gdb server. This can be done by running the following command:</p>
-  ```
-  cd /path-to-pyocd/tools
-  $ pyinstaller gdb_server.py --onefile.
-  ```
-  <p>In ./dist folder, there will be a single executable file which is ready to use or distribute it to other library.</p>
+Follow the following instructions from a fresh checkout of pyOCD to
+build a single file executable containing the pyOCD GDB server.  These
+instructions assume that you already have Python installed:
 
-Build pyOCD on Windows 7 32bit
-------------------------------
-1.  Install Python:
-  <p>Here on Windows 7, you can download msi installer from: https://www.python.org/ftp/python/2.7.7/python-2.7.7.msi. Remember to check python is added to your system path.</p>
+The following script shows the basic steps that one must follow:
 
-2.  Install pyOCD and related library:
-  <p>[pyOCD](https://github.com/mbedmicro/pyOCD)</p>
-  <p>[Pywinusb(Windows)](https://github.com/rene-aguirre/pywinusb)</p>
-  <p>The installation steps are just on the github website, if you have any problem to install them. Please raise an issue ticket on the corresponding github website.</p>
+```bash
+# Install pip and virtualenv
+sudo apt-get install python-pip python-virtualenv
 
-3. Install Pyinstaller:
-  <p>Pyinstaller is an open source python program which can bundle python library like pyOCD into one executable file. You can get more information on its homepage: http://www.pyinstaller.org/.</p>
-  <p>Although it has its release version 2.1, but there’s a bug related to pyusb interface hasn’t been merged into the release version. So you still need to download the developing version on the github: https://github.com/pyinstaller/pyinstaller. The installation step is quite simple, and you can just refer to the github website. Make sure you have add the pyinstaller to your system path.</p>
+# Setup a virtualenv and install dependencies
+virtualenv env
+source env/bin/activate
+pip install --editable .
 
-4.  Bundle pyOCD library into single executable file:
-  <p>Switch to pyOCD source folder, under its test folder, there’s a py file gdb_server.py you need to bundle it to produce a single gdb server. This can be done by running the following command:</p>
-  ```
-  cd /path-to-pyocd/tools
-  $ pyinstaller gdb_server.py --onefile.
-  ```
-  <p>In ./dist folder, there will be a single executable file which is ready to use or distribute it to other library.</p>
+# We need to use upstream version of pyinstaller due to
+# http://comments.gmane.org/gmane.comp.python.pyinstaller/6457
+pip install https://github.com/pyinstaller/pyinstaller/archive/develop.zip
 
-Note
-----
-The steps above may most likely also work on an Ubuntu whose version is not 10.04, and an Windows whose version is not Windows 7 32bit, but it is not guaranteed.
+# Create single-file executables
+pyinstaller --onefile pyOCD/tools/gdb_server.py
+pyinstaller --onefile pyOCD/tools/flash_tool.py
+```
+
+In ./dist folder, there will be a single executable file which is
+ready to use or distribute it to other library.
