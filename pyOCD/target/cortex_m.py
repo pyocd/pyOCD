@@ -1007,7 +1007,7 @@ class CortexM(Target):
             # Remove bp by type.
             if bp.type == BREAKPOINT_SW:
                 self.removeSoftwareBreakpoint(bp)
-            elif bp.type == BREAKPOINT_SW:
+            elif bp.type == BREAKPOINT_HW:
                 self.removeHardwareBreakpoint(bp.addr)
             else:
                 raise RuntimeError("Unknown breakpoint type %d" % bp.type)
