@@ -58,6 +58,8 @@ html
 /env
 /env3
 /venv
+/dev
+/windev
 
 automated_test_result.txt
 
