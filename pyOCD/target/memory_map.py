@@ -17,7 +17,7 @@
 
 from xml.etree import ElementTree
 
-__all__ = ['MemoryRegion', 'MemoryMap']
+__all__ = ['MemoryRegion', 'MemoryMap', 'RamRegion', 'RomRegion', 'FlashRegion']
 
 MAP_XML_HEADER =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
@@ -72,6 +72,10 @@ class MemoryRegion(object):
         return self._type == 'ram'
 
     @property
+    def isRom(self):
+        return self._type == 'rom'
+
+    @property
     def isBootMemory(self):
         return self._is_boot_mem
 
@@ -93,6 +97,11 @@ class MemoryRegion(object):
 class RamRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
         super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory)
+
+## @brief Contiguous region of ROM.
+class RomRegion(MemoryRegion):
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
+        super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory)
 
 ## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
@@ -142,7 +151,7 @@ class MemoryMap(object):
         root = ElementTree.Element('memory-map')
         for r in self._regions:
             mem = ElementTree.SubElement(root, 'memory', type=r.type, start=hex(r.start), length=hex(r.length))
-            if r.type == 'flash':
+            if r.isFlash:
                 prop = ElementTree.SubElement(mem, 'property', name='blocksize')
                 prop.text = hex(r.blocksize)
         return MAP_XML_HEADER + ElementTree.tostring(root)
