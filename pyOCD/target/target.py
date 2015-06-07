@@ -18,6 +18,13 @@
 TARGET_RUNNING = (1 << 0)
 TARGET_HALTED = (1 << 1)
 
+# Types of breakpoints.
+#
+# Auto will select the best type given the address and available breakpoints.
+BREAKPOINT_HW = 1
+BREAKPOINT_SW = 2
+BREAKPOINT_AUTO = 3
+
 WATCHPOINT_READ = 1
 WATCHPOINT_WRITE = 2
 WATCHPOINT_READ_WRITE = 3
@@ -85,7 +92,10 @@ class Target(object):
     def writeCoreRegister(self, id):
         return
 
-    def setBreakpoint(self, addr):
+    def setBreakpoint(self, addr, type=BREAKPOINT_AUTO):
+        return
+
+    def getBreakpointType(self, addr):
         return
 
     def removeBreakpoint(self, addr):

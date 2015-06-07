@@ -16,7 +16,8 @@
 """
 
 import logging, threading, socket
-from ..target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
+from ..target.target import (TARGET_HALTED, BREAKPOINT_HW, BREAKPOINT_SW,
+    WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
 from ..transport import TransferError
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from struct import unpack
@@ -417,17 +418,21 @@ class GDBServer(threading.Thread):
         # handle breakpoint/watchpoint commands
         split = data.split('#')[0].split(',')
         addr = int(split[1], 16)
-        logging.debug("GDB breakpoint %d @ %x" % (int(data[1]), addr))
+        logging.debug("GDB breakpoint %s%d @ %x" % (data[0], int(data[1]), addr))
 
+        # handle software breakpoint Z0/z0
         if data[1] == '0' and not self.soft_bkpt_as_hard:
-            # Empty response indicating no support for software breakpoints
-            return self.createRSPPacket("")
+            if data[0] == 'Z':
+                if not self.target.setBreakpoint(addr, BREAKPOINT_SW):
+                    return self.createRSPPacket('E01') #EPERM
+            else:
+                self.target.removeBreakpoint(addr)
+            return self.createRSPPacket("OK")
 
         # handle hardware breakpoint Z1/z1
-        # and software breakpoint Z0/z0
         if data[1] == '1' or (self.soft_bkpt_as_hard and data[1] == '0'):
             if data[0] == 'Z':
-                if self.target.setBreakpoint(addr) == False:
+                if self.target.setBreakpoint(addr, BREAKPOINT_HW) == False:
                     return self.createRSPPacket('E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
@@ -445,6 +450,7 @@ class GDBServer(threading.Thread):
             watchpoint_type = WATCHPOINT_READ_WRITE
         else:
             return self.createRSPPacket('E01') #EPERM
+
         size = int(split[2], 16)
         if data[0] == 'Z':
             if self.target.setWatchpoint(addr, size, watchpoint_type) == False:
