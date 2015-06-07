@@ -391,7 +391,7 @@ class GDBServer(threading.Thread):
             return self.setRegisters(msg[2:]), 0
 
         elif msg[1] == 'H':
-            return self.createRSPPacket(''), 0
+            return self.createRSPPacket('OK'), 0
 
         elif msg[1] == 'k':
             return self.kill(), 1
@@ -416,6 +416,9 @@ class GDBServer(threading.Thread):
 
         elif msg[1] == 'S' or msg[1] == 's':
             return self.step()
+
+        elif msg[1] == 'T': # check if thread is alive
+            return self.createRSPPacket('OK'), 0
 
         elif msg[1] == 'v':
             return self.flashOp(msg[2:]), 0
@@ -736,7 +739,7 @@ class GDBServer(threading.Thread):
             self.gdb_features = query[1].split(';')
 
             # Build our list of features.
-            features = ['qXfer:features:read+', 'QStartNoAckMode+']
+            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+']
             features.append('PacketSize=' + hex(self.packet_size)[2:])
             if self.target.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')
@@ -756,7 +759,13 @@ class GDBServer(threading.Thread):
                 resp = self.handleQueryXML('memory_map', int(data[0], 16), int(data[1].split('#')[0], 16))
                 return self.createRSPPacket(resp)
 
+            elif query[1] == 'threads' and query[2] == 'read':
+                data = query[4].split(',')
+                resp = self.handleQueryXML('threads', int(data[0], 16), int(data[1].split('#')[0], 16))
+                return self.createRSPPacket(resp)
+
             else:
+                logging.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
                 return None
 
         elif query[0] == 'C#b4':
@@ -869,13 +878,17 @@ class GDBServer(threading.Thread):
             xml = self.target.getMemoryMapXML()
         elif query == 'read_feature':
             xml = self.target.getTargetXML()
+        elif query == 'threads':
+            xml = self.target.getThreadsXML()
+        else:
+            raise RuntimeError("Invalid XML query (%s)" % query)
 
         size_xml = len(xml)
 
         prefix = 'm'
 
         if offset > size_xml:
-            logging.error('GDB: offset target.xml > size!')
+            logging.error('GDB: xml offset > size for %s!', query)
             return
 
         if size > (self.packet_size - 4):
