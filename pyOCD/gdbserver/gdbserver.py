@@ -162,6 +162,9 @@ class GDBServer(threading.Thread):
                 if len(data) != 0:
                     # decode and prepare resp
                     [resp, ack, detach] = self.handleMsg(data)
+
+                    # Clear out data
+                    data = ""
             
                     if resp is not None:
                         # ack
@@ -680,7 +683,7 @@ class GDBServer(threading.Thread):
 
         if feature == 'StartNoAckMode':
             # Disable acks after the reply and ack.
-            self.clear_send_acks = False
+            self.clear_send_acks = True
             return self.createRSPPacket("OK")
         else:
             return self.createRSPPacket("")
@@ -733,6 +736,7 @@ class GDBServer(threading.Thread):
         return resp
     
     def ack(self):
-        self.abstract_socket.write("+")
+        if self.send_acks:
+            self.abstract_socket.write("+")
 
 
