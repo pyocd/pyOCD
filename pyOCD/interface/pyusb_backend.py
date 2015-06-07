@@ -111,7 +111,7 @@ class PyUSB(Interface):
             product_name = usb.util.get_string(board, 2)
             vendor_name = usb.util.get_string(board, 1)
             """If there is no EP for OUT then we can use CTRL EP"""
-            if not ep_in or not ep_out:
+            if not ep_in:
                 logging.error('Endpoints not found')
                 return None
             
