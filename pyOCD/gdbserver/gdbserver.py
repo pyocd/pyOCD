@@ -72,11 +72,11 @@ class GDBServer(threading.Thread):
             self.abstract_socket = GDBWebSocket(self.wss_server)
         self.setDaemon(True)
         self.start()
-    
+
     def restart(self):
         if self.isAlive():
             self.detach_event.set()
-    
+
     def stop(self):
         if self.isAlive():
             self.shutdown_event.set()
@@ -84,7 +84,7 @@ class GDBServer(threading.Thread):
                 pass
             logging.info("GDB server thread killed")
         self.board.uninit()
-        
+
     def setBoard(self, board, stop = True):
         self.lock.acquire()
         if stop:
@@ -94,38 +94,38 @@ class GDBServer(threading.Thread):
         self.flash = board.flash
         self.lock.release()
         return
-        
+
     def run(self):
         self.timeOfLastPacket = time()
         while True:
             new_command = False
             data = ""
             logging.info('GDB server started at port:%d',self.port)
-            
+
             self.shutdown_event.clear()
             self.detach_event.clear()
-                
+
             while not self.shutdown_event.isSet() and not self.detach_event.isSet():
                 connected = self.abstract_socket.connect()
                 if connected != None:
                     break
-            
+
             if self.shutdown_event.isSet():
                 return
-            
+
             if self.detach_event.isSet():
                 continue
-            
+
             logging.info("One client connected!")
-            
+
             while True:
-                
+
                 if self.shutdown_event.isSet():
                     return
-            
+
                 if self.detach_event.isSet():
                     continue
-                
+
                 # read command
                 while True:
                     if (new_command == True):
@@ -146,26 +146,26 @@ class GDBServer(threading.Thread):
                             break
                     except (ValueError, socket.error):
                         pass
-                
+
                 if self.shutdown_event.isSet():
                     return
-            
+
                 if self.detach_event.isSet():
                     continue
-                
+
                 self.abstract_socket.setBlocking(1)
-                    
+
                 data = data[data.index("$"):]
-                
+
                 self.lock.acquire()
-            
+
                 if len(data) != 0:
                     # decode and prepare resp
                     [resp, ack, detach] = self.handleMsg(data)
 
                     # Clear out data
                     data = ""
-            
+
                     if resp is not None:
                         # ack
                         if ack and self.send_acks:
@@ -199,16 +199,16 @@ class GDBServer(threading.Thread):
                     self.timeOfLastPacket = time()
 
                 self.lock.release()
-        
-        
+
+
     def handleMsg(self, msg):
-        
+
         if msg[0] != '$':
             logging.debug('msg ignored: first char != $')
             return None, 0, 0
-        
+
         #logging.debug('-->>>>>>>>>>>> GDB rsp packet: %s', msg)
-        
+
         # query command
         if msg[1] == '?':
             return self.createRSPPacket(self.target.getTResponse()), 1, 0
@@ -265,12 +265,12 @@ class GDBServer(threading.Thread):
         else:
             logging.error("Unknown RSP packet: %s", msg)
             return self.createRSPPacket(""), 1, 0
-        
+
     def detach(self, data):
         logging.info("Client detached")
         resp = "OK"
         return self.createRSPPacket(resp)
-    
+
     def kill(self):
         logging.debug("GDB kill")
         # Keep target halted and leave vector catches if in persistent mode.
@@ -279,14 +279,14 @@ class GDBServer(threading.Thread):
             self.board.target.setVectorCatchReset(False)
             self.board.target.resume()
         return self.createRSPPacket("")
-        
+
     def breakpoint(self, data):
         # handle breakpoint/watchpoint commands
         split = data.split('#')[0].split(',')
         addr = int(split[1], 16)
         logging.debug("GDB breakpoint %d @ %x" % (int(data[1]), addr))
 
-        if data[1] == '0' and not self.soft_bkpt_as_hard:   
+        if data[1] == '0' and not self.soft_bkpt_as_hard:
             # Empty response indicating no support for software breakpoints
             return self.createRSPPacket("")
 
@@ -373,10 +373,10 @@ class GDBServer(threading.Thread):
     def flashOp(self, data):
         ops = data.split(':')[0]
         logging.debug("flash op: %s", ops)
-        
+
         if ops == 'FlashErase':
             return self.createRSPPacket("OK")
-        
+
         elif ops == 'FlashWrite':
             write_addr = int(data.split(':')[1], 16)
             logging.debug("flash write addr: 0x%x", write_addr)
@@ -394,10 +394,10 @@ class GDBServer(threading.Thread):
 
             # Add data to flash builder
             self.flashBuilder.addData(write_addr, self.unescape(data[idx_begin:len(data) - 3]))
-            
-                
+
+
             return self.createRSPPacket("OK")
-        
+
         # we need to flash everything
         elif 'FlashDone' in ops :
 
@@ -405,7 +405,7 @@ class GDBServer(threading.Thread):
                 # Reset state on 0.0
                 if progress == 0.0:
                     print_progress.done = False
-                
+
                 # print progress bar
                 if not print_progress.done:
                     sys.stdout.write('\r')
@@ -431,31 +431,31 @@ class GDBServer(threading.Thread):
             self.flashBuilder = None
 
             return self.createRSPPacket("OK")
-        
+
         elif 'Cont' in ops:
             if 'Cont?' in ops:
                 return self.createRSPPacket("vCont;c;s;t")
-                
+
         return None
-    
+
     def unescape(self, data):
         data_idx = 0
-    
+
         # unpack the data into binary array
         str_unpack = str(len(data)) + 'B'
         data = unpack(str_unpack, data)
         data = list(data)
-    
+
         # check for escaped characters
         while data_idx < len(data):
             if data[data_idx] == 0x7d:
                 data.pop(data_idx)
                 data[data_idx] = data[data_idx] ^ 0x20
             data_idx += 1
-            
+
         return data
-            
-        
+
+
     def getMemory(self, data):
         split = data.split(',')
         addr = int(split[0], 16)
@@ -519,10 +519,10 @@ class GDBServer(threading.Thread):
                 idx_begin += 1
                 break
             idx_begin += 1
-        
+
         data = data[idx_begin:len(data) - 3]
         data = self.unescape(data)
-        
+
         try:
             if length > 0:
                 self.target.writeBlockMemoryUnaligned8(addr, data)
@@ -532,7 +532,7 @@ class GDBServer(threading.Thread):
         except TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
             resp = 'E01' #EPERM
-        
+
         return self.createRSPPacket(resp)
 
     def readRegister(self, which):
@@ -558,7 +558,7 @@ class GDBServer(threading.Thread):
         if query is None:
             logging.error('GDB received query packet malformed')
             return None
-        
+
         if query[0] == 'Supported':
             # Save features sent by gdb.
             self.gdb_features = query[1].split(';')
@@ -570,39 +570,39 @@ class GDBServer(threading.Thread):
                 features.append('qXfer:memory-map:read+')
             resp = ';'.join(features)
             return self.createRSPPacket(resp)
-            
+
         elif query[0] == 'Xfer':
-            
+
             if query[1] == 'features' and query[2] == 'read' and \
                query[3] == 'target.xml':
                 data = query[4].split(',')
                 resp = self.handleQueryXML('read_feature', int(data[0], 16), int(data[1].split('#')[0], 16))
                 return self.createRSPPacket(resp)
-            
+
             elif query[1] == 'memory-map' and query[2] == 'read':
                 data = query[4].split(',')
                 resp = self.handleQueryXML('memory_map', int(data[0], 16), int(data[1].split('#')[0], 16))
                 return self.createRSPPacket(resp)
-                
+
             else:
                 return None
-            
+
         elif query[0] == 'C#b4':
             return self.createRSPPacket("")
-        
+
         elif query[0].find('Attached') != -1:
             return self.createRSPPacket("1")
-        
+
         elif query[0].find('TStatus') != -1:
             return self.createRSPPacket("")
-        
+
         elif query[0].find('Tf') != -1:
             return self.createRSPPacket("")
-        
+
         elif 'Offsets' in query[0]:
             resp = "Text=0;Data=0;Bss=0"
             return self.createRSPPacket(resp)
-        
+
         elif 'Symbol' in query[0]:
             resp = "OK"
             return self.createRSPPacket(resp)
@@ -697,30 +697,30 @@ class GDBServer(threading.Thread):
             xml = self.target.getTargetXML()
 
         size_xml = len(xml)
-        
+
         prefix = 'm'
-        
+
         if offset > size_xml:
             logging.error('GDB: offset target.xml > size!')
             return
-        
+
         if size > (self.packet_size - 4):
             size = self.packet_size - 4
-        
+
         nbBytesAvailable = size_xml - offset
-        
+
         if size > nbBytesAvailable:
             prefix = 'l'
             size = nbBytesAvailable
-        
+
         resp = prefix + xml[offset:offset + size]
-        
+
         return resp
-            
-            
+
+
     def createRSPPacket(self, data):
         resp = '$' + data + '#'
-        
+
         c = 0
         checksum = 0
         for c in data:
@@ -731,10 +731,10 @@ class GDBServer(threading.Thread):
         if int(checksum[2:], 16) < 0x10:
             resp += '0'
         resp += checksum[2:]
-        
+
         #logging.debug('--<<<<<<<<<<<< GDB rsp packet: %s', resp)
         return resp
-    
+
     def ack(self):
         if self.send_acks:
             self.abstract_socket.write("+")
