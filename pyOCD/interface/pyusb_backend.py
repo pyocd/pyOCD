@@ -165,10 +165,6 @@ class PyUSB(Interface):
             pass
         return self.rcv_data.pop(0)
 
-    def setPacketCount(self, count):
-        # No interface level restrictions on count
-        self.packet_count = count
-
     def close(self):
         """
         close the interface
