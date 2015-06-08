@@ -34,7 +34,7 @@ elif sys.platform.startswith('darwin'):
 
 setup(
     name="pyOCD",
-    version="0.4.1",
+    version="0.4.2",
     description="CMSIS-DAP debugger for Python",
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
