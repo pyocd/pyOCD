@@ -18,8 +18,6 @@
 from setuptools import setup, find_packages
 import sys
 
-exec(open('pyOCD/__pkginfo__.py').read())
-
 install_requires = dict(
     win32=['pyWinUSB'],
     linux2=['pyUSB'],
@@ -28,7 +26,11 @@ install_requires = dict(
 
 setup(
     name="pyOCD",
-    version=__version__,
+    use_scm_version={
+        'local_scheme': 'dirty-tag',
+        'write_to': 'pyOCD/_version.py'
+    },
+    setup_requires=['setuptools_scm'],
     description="CMSIS-DAP debugger for Python",
     long_description=open('README.md', 'Ur').read(),
     author="samux, emilmont",

@@ -23,4 +23,5 @@ import target
 import transport
 import utility
 
-from .__pkginfo__ import __version__
+from ._version import version as __version__
+
