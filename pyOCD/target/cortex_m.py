@@ -956,6 +956,13 @@ class CortexM(Target):
         # Clear Thumb bit in case it is set.
         addr = addr & ~1
 
+        # Check for an existing breakpoint at this address.
+        bp = self.findBreakpoint(addr)
+        if bp is not None:
+            return True
+
+        # Look up the memory region for the requested address. If there is no region,
+        # then we can't set a breakpoint.
         region = self.memory_map.getRegionForAddress(addr)
         if region is None:
             return False
