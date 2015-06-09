@@ -22,8 +22,9 @@ import logging
 
 import os
 import pyOCD
-from pyOCD.board import MbedBoard
-from pyOCD.target import target_kinetis
+from ..board import MbedBoard
+from ..target import target_kinetis
+from .. import __version__
 
 # Make disasm optional.
 try:
@@ -81,6 +82,7 @@ class PyOCDTool(object):
 
     def get_args(self):
         parser = argparse.ArgumentParser(description='Flash utility')
+        parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-l", "--list", action="store_const", dest='action', const=ACTION_LIST,
                             help="List available boards.")
         parser.add_argument("-e", "--erase", action="store_const", dest='action', const=ACTION_ERASE,

@@ -21,6 +21,7 @@ import sys
 import logging
 import itertools
 from struct import unpack
+from .. import __version__
 
 try:
     from intelhex import IntelHex
@@ -51,6 +52,7 @@ debug_levels = LEVELS.keys()
 
 # Keep args in snyc with gdb_server.py when possible
 parser = argparse.ArgumentParser(description='Flash utility')
+parser.add_argument('--version', action='version', version=__version__)
 parser.add_argument("file", help="File to program")
 parser.add_argument("format", choices=supported_formats, help="File format")
 # reserved: "-p", "--port"

@@ -20,6 +20,8 @@ import logging
 import traceback
 import pyOCD.board.mbed_board
 
+from .. import __version__
+
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 import argparse
@@ -37,6 +39,7 @@ debug_levels = LEVELS.keys()
 
 # Keep args in snyc with flash_tool.py when possible
 parser = argparse.ArgumentParser(description='PyOCD GDB Server')
+parser.add_argument('--version', action='version', version=__version__)
 parser.add_argument("-p", "--port", dest = "port_number", type=int, default = 3333, help = "Write the port number that GDB server will open.")
 parser.add_argument("-c", "--cmd-port", dest = "cmd_port", default = 4444, help = "Command port number. pyOCD doesn't open command port, but it's required to be compatible with OpenOCD and Eclipse.")
 parser.add_argument("-b", "--board", dest = "board_id", default = None, help="Connect to board by board id.  Use -l to list all connected boards.")
