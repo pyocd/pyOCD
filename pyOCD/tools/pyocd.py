@@ -19,6 +19,9 @@
 import argparse
 import sys
 import logging
+import optparse
+from optparse import make_option
+import traceback
 
 import os
 import pyOCD
@@ -33,11 +36,17 @@ try:
 except ImportError:
     isCapstoneAvailable = False
 
-LEVELS={'debug':logging.DEBUG,
+LEVELS = {
+        'debug':logging.DEBUG,
         'info':logging.INFO,
         'warning':logging.WARNING,
         'error':logging.ERROR,
         'critical':logging.CRITICAL
+        }
+
+CORE_STATUS_DESC = {
+        pyOCD.target.cortex_m.TARGET_HALTED : "Halted",
+        pyOCD.target.cortex_m.TARGET_RUNNING : "Running"
         }
 
 ## Default SWD clock in kHz.
@@ -51,17 +60,17 @@ def dumpHexData(data, startAddress=0, width=8):
         while i < len(data):
             d = data[i]
             i += 1
-            if width==8:
+            if width == 8:
                 print "%02x" % d,
                 if i % 4 == 0:
                     print "",
                 if i % 16 == 0:
                     break
-            elif width==16:
+            elif width == 16:
                 print "%04x" % d,
                 if i % 8 == 0:
                     break
-            elif width==32:
+            elif width == 32:
                 print "%08x" % d,
                 if i % 4 == 0:
                     break
@@ -69,6 +78,17 @@ def dumpHexData(data, startAddress=0, width=8):
 
 class ToolError(Exception):
     pass
+
+def cmdoptions(opts):
+    def process_opts(fn):
+        parser = optparse.OptionParser(add_help_option=False)
+        for opt in opts:
+            parser.add_option(opt)
+        def foo(inst, args):
+            namespace, other_args = parser.parse_args(args)
+            return fn(inst, namespace, other_args)
+        return foo
+    return process_opts
 
 class PyOCDConsole(object):
     PROMPT = '>>> '
@@ -80,13 +100,16 @@ class PyOCDConsole(object):
     def run(self):
         try:
             while True:
-                line = raw_input(self.PROMPT)
-                line = line.strip()
-                if line:
-                    self.process_command_line(line)
-                    self.last_command = line
-                elif self.last_command:
-                    self.process_command(self.last_command)
+                try:
+                    line = raw_input(self.PROMPT)
+                    line = line.strip()
+                    if line:
+                        self.process_command_line(line)
+                        self.last_command = line
+                    elif self.last_command:
+                        self.process_command(self.last_command)
+                except KeyboardInterrupt:
+                    print
         except EOFError:
             print
 
@@ -118,6 +141,9 @@ class PyOCDConsole(object):
             # Run command.
             handler = self.tool.command_list[cmd]
             handler(args)
+        except ValueError:
+            print "Error: invalid argument"
+            traceback.print_exc()
         except pyOCD.transport.transport.TransferError:
             print "Error: transfer failed"
         except ToolError, e:
@@ -143,6 +169,7 @@ class PyOCDTool(object):
                 'info' :    self.handle_info,
                 'i' :       self.handle_info,
                 'status' :  self.handle_status,
+                'stat' :    self.handle_status,
                 'reg' :     self.handle_reg,
                 'reset' :   self.handle_reset,
                 'read' :    self.handle_read8,
@@ -243,6 +270,14 @@ class PyOCDTool(object):
 
             # If no command, enter interactive mode.
             if not self.cmd:
+                # Say what we're connected to.
+                print "Connected to %s [%s]: %s" % (self.target.part_number,
+                    CORE_STATUS_DESC[self.target.getState()], self.board.getUniqueID())
+
+                # Remove list command that disrupts the connection.
+                self.command_list.pop('list')
+
+                # Run the command line.
                 console = PyOCDConsole(self)
                 console.run()
             else:
@@ -251,6 +286,8 @@ class PyOCDTool(object):
                 if result is not None:
                     self.exitCode = result
 
+        except ValueError:
+            print "Error: invalid argument"
         except pyOCD.transport.transport.TransferError:
             print "Error: transfer failed"
             self.exitCode = 2
@@ -281,12 +318,7 @@ class PyOCDTool(object):
         if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
             print "MDM-AP Control: 0x%08x" % self.transport.readAP(target_kinetis.MDM_CTRL)
             print "MDM-AP Status:  0x%08x" % self.transport.readAP(target_kinetis.MDM_STATUS)
-        status = self.target.getState()
-        if status == pyOCD.target.cortex_m.TARGET_HALTED:
-            print "Core status:    Halted"
-            self.dump_registers()
-        elif status == pyOCD.target.cortex_m.TARGET_RUNNING:
-            print "Core status:    Running"
+        print "Core status:    %s" % CORE_STATUS_DESC[self.target.getState()]
 
     def handle_reg(self, args):
         # If there are no args, print all register values.
@@ -303,9 +335,10 @@ class PyOCDTool(object):
         else:
             raise ToolError("Unknown register value type")
 
-    def handle_reset(self, args):
+    @cmdoptions([make_option('-h', "--halt", action="store_true")])
+    def handle_reset(self, args, other):
         print "Resetting target"
-        if len(args) and args[0].lower() in ['-halt', '-h']:
+        if args.halt:
             self.target.resetStopOnReset()
 
             status = self.target.getState()
@@ -316,21 +349,18 @@ class PyOCDTool(object):
         else:
             self.target.reset()
 
-    def handle_disasm(self, args):
-        if len(args) == 0:
+    @cmdoptions([make_option('-c', "--center", action="store_true")])
+    def handle_disasm(self, args, other):
+        if len(other) == 0:
             print "Error: no address specified"
             return 1
-        addr = self.convert_value(args[0])
-        if len(args) < 2:
+        addr = self.convert_value(other[0])
+        if len(other) < 2:
             count = 6
         else:
-            count = self.convert_value(args[1])
-        if len(args) < 3:
-            center = False
-        else:
-            center = args[2].lower() in ('-c', '-center')
+            count = self.convert_value(other[1])
 
-        if center:
+        if args.center:
             addr -= count // 2
 
         # Since we're disassembling, make sure the Thumb bit is cleared.
@@ -454,7 +484,10 @@ class PyOCDTool(object):
         if len(args) < 1:
             print "Error: no clock frequency provided"
             return 1
-        freq_Hz = int(args[0]) * 1000
+        try:
+            freq_Hz = int(args[0]) * 1000
+        except:
+            print "Error: invalid frequency"
         self.transport.setClock(freq_Hz)
 
         if self.transport.mode == pyOCD.transport.cmsis_dap.DAP_MODE_SWD:
