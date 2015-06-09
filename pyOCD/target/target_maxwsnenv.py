@@ -39,13 +39,13 @@ class MAXWSNENV(CortexM):
         return the IDCODE of the core
         """
         if self.idcode == 0:
-            self.idcode = self.protocol.dapJTAGIDCode()
+            self.idcode = self.protocol.jtagIDCode()
         return self.idcode
 
     def dsb(self):
         logging.info("Triggering Destructive Security Bypass...")
 
-        self.protocol.dapVendor(1)
+        self.protocol.vendor(1)
 
         # Reconnect debugger
         self.transport.init()
@@ -53,7 +53,7 @@ class MAXWSNENV(CortexM):
     def fge(self):
         logging.info("Triggering Factory Global Erase...")
 
-        self.protocol.dapVendor(2)
+        self.protocol.vendor(2)
 
         # Reconnect debugger
         self.transport.init()

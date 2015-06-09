@@ -104,11 +104,11 @@ class CMSIS_DAP_Protocol(object):
 
         return x.tostring()
 
-    def dapLed(interface):
+    def setLed(interface):
         #not yet implemented
         return
 
-    def dapConnect(self, mode = DAP_DEFAULT_PORT):
+    def connect(self, mode = DAP_DEFAULT_PORT):
         cmd = []
         cmd.append(COMMAND_ID['DAP_CONNECT'])
         cmd.append(mode)
@@ -129,7 +129,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapDisconnect(self):
+    def disconnect(self):
         cmd = []
         cmd.append(COMMAND_ID['DAP_DISCONNECT'])
         self.interface.write(cmd)
@@ -143,7 +143,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapWriteAbort(self, data, dap_index = 0):
+    def writeAbort(self, data, dap_index = 0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_WRITE_ABORT'])
         cmd.append(dap_index)
@@ -162,7 +162,7 @@ class CMSIS_DAP_Protocol(object):
 
         return True
 
-    def dapResetTarget(interface):
+    def resetTarget(interface):
         cmd = []
         cmd.append(COMMAND_ID['DAP_RESET_TARGET'])
         self.interface.write(cmd)
@@ -176,7 +176,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapTransferConfigure(self, idle_cycles = 0x00, wait_retry = 0x0050, match_retry = 0x0000):
+    def transferConfigure(self, idle_cycles = 0x00, wait_retry = 0x0050, match_retry = 0x0000):
         cmd = []
         cmd.append(COMMAND_ID['DAP_TRANSFER_CONFIGURE'])
         cmd.append(idle_cycles)
@@ -195,7 +195,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapTransfer(self, count, request, data = [0], dap_index = 0):
+    def transfer(self, count, request, data = [0], dap_index = 0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_TRANSFER'])
         cmd.append(dap_index)
@@ -227,7 +227,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[3:3+count_write*4]
 
-    def dapTransferBlock(self, count, request, data = [0], dap_index = 0):
+    def transferBlock(self, count, request, data = [0], dap_index = 0):
         packet_count = count
         max_pending_reads = self.interface.getPacketCount()
         reads_pending = 0
@@ -289,7 +289,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp
 
-    def dapSWJClock(self, clock = 1000000):
+    def setSWJClock(self, clock = 1000000):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWJ_CLOCK'])
         cmd.append(clock & 0xff)
@@ -307,7 +307,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapSWJPins(self, output, pin, wait = 0):
+    def setSWJPins(self, output, pin, wait = 0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWJ_PINS'])
         try:
@@ -329,8 +329,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-
-    def dapSWDConfigure(self, conf = 0):
+    def swdConfigure(self, conf = 0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWD_CONFIGURE'])
         cmd.append(conf)
@@ -345,7 +344,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapSWJSequence(self, data):
+    def swjSequence(self, data):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWJ_SEQUENCE'])
         cmd.append(len(data)*8)
@@ -362,7 +361,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def dapJTAGSequence(self, info, tdi):
+    def jtagSequence(self, info, tdi):
         cmd = []
         cmd.append(COMMAND_ID['DAP_JTAG_SEQUENCE'])
         cmd.append(1)
@@ -379,7 +378,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[2]
 
-    def dapJTAGConfigure(self, irlen, dev_num = 1):
+    def jtagConfigure(self, irlen, dev_num = 1):
         cmd = []
         cmd.append(COMMAND_ID['DAP_JTAG_CONFIGURE'])
         cmd.append(dev_num)
@@ -395,7 +394,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[2:]
 
-    def dapJTAGIDCode(self, index = 0):
+    def jtagIDCode(self, index = 0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_JTAG_IDCODE'])
         cmd.append(index)
@@ -413,7 +412,7 @@ class CMSIS_DAP_Protocol(object):
                 (resp[4] << 16) | \
                 (resp[5] << 24)
 
-    def dapVendor(self, index):
+    def vendor(self, index):
         cmd = []
         cmd.append(COMMAND_ID['DAP_VENDOR0'] + index)
         self.interface.write(cmd)
