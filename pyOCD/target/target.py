@@ -101,7 +101,7 @@ class Target(object):
         return ''
 
     def getMemoryMapXML(self):
-            return self.memoryMapXML
+        return self.memoryMapXML
 
     def getRegisterContext(self):
         return ''
