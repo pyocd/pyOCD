@@ -29,7 +29,7 @@ class MemoryRegion(object):
         self._type = type
         self._start = start
         if length != 0:
-            self._end = self.start + length - 1
+            self._end = self._start + length - 1
         else:
             self._end = end
         self._blocksize = blocksize
@@ -146,6 +146,10 @@ class MemoryMap(object):
                 prop = ElementTree.SubElement(mem, 'property', name='blocksize')
                 prop.text = hex(r.blocksize)
         return MAP_XML_HEADER + ElementTree.tostring(root)
+
+    ## @brief Enable iteration over the memory map.
+    def __iter__(self):
+        return iter(self._regions)
 
 
 
