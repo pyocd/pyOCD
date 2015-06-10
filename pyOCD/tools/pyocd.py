@@ -238,7 +238,7 @@ class PyOCDTool(object):
 
             # List command must be dealt with specially.
             if self.cmd == 'list':
-                self.handle_list()
+                self.handle_list([])
                 return 0
 
             if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
