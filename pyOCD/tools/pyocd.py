@@ -19,7 +19,6 @@
 import argparse
 import sys
 import logging
-import readline
 
 import os
 import pyOCD
