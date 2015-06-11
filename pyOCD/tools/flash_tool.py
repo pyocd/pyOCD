@@ -21,16 +21,15 @@ import sys
 import logging
 import itertools
 from struct import unpack
-from .. import __version__
 
 try:
     from intelhex import IntelHex
-
     intelhex_available = True
-except:
+except ImportError:
     intelhex_available = False
 
 import pyOCD
+from pyOCD import __version__
 from pyOCD.board import MbedBoard
 
 LEVELS = {

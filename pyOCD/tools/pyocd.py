@@ -17,19 +17,18 @@
 """
 
 import argparse
-import sys
 import logging
-
 import os
+import sys
+
 import pyOCD
-from ..board import MbedBoard
-from ..target import target_kinetis
-from .. import __version__
+from pyOCD import __version__
+from pyOCD.board import MbedBoard
+from pyOCD.target import target_kinetis
 
 # Make disasm optional.
 try:
     import capstone
-
     isCapstoneAvailable = True
 except ImportError:
     isCapstoneAvailable = False

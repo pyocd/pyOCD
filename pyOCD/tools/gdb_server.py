@@ -16,15 +16,14 @@
  limitations under the License.
 """
 
+import argparse
 import logging
 import traceback
-import pyOCD.board.mbed_board
 
-from .. import __version__
-
+from pyOCD import __version__
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
-import argparse
+import pyOCD.board.mbed_board
 
 LEVELS = {
     'debug': logging.DEBUG,

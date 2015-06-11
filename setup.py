@@ -43,6 +43,9 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
     ],
+    extras_require={
+        'dissassembler': ['capstone']
+    },
     entry_points={
         'console_scripts': [
             'pyocd-gdbserver = pyOCD.tools.gdb_server:main',
