@@ -22,20 +22,11 @@ class W7500(CortexM):
     memoryMapXML =  """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 <memory-map>
-    <memory type="flash" start="0x0" length="0x8000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x10000000" length="0x1000"> </memory>
+    <memory type="flash" start="0x0" length="0x20000"> <property name="blocksize">0x100</property></memory>
+    <memory type="ram" start="0x20000000" length="0x4000"> </memory>
 </memory-map>
 """
     
     def __init__(self, transport):
         super(W7500, self).__init__(transport)
 
-    def resetStopOnReset(self, software_reset = None, map_to_user = True):
-        CortexM.resetStopOnReset(self, software_reset)
-
-        # Remap to use flash and set SP and SP accordingly
-        if map_to_user:
-            sp = self.readMemory(0x0)
-            pc = self.readMemory(0x4)
-            self.writeCoreRegisterRaw('sp', sp)
-            self.writeCoreRegisterRaw('pc', pc)

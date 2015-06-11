@@ -31,10 +31,10 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_erase_sector'  : 0x20000045,
                'pc_program_page'  : 0x20000057,
                'static_base'      : 0x2000006C,               
-               'begin_data'       : 0x20001000, # Analyzer uses a max of 256 B data (64 pages * 4 bytes / page)
+               'begin_data'       : 0x20002000, # Analyzer uses a max of 256 B data (64 pages * 4 bytes / page)
                'begin_stack'      : 0x20004000,
                'page_size'        : 256,
-               'analyzer_supported' : False,
+               'analyzer_supported' : True,
                'analyzer_address' : 0x20001000 # Analyzer 0x20001000..0x20001600
               };
 
