@@ -32,7 +32,7 @@ setup(
     },
     setup_requires=['setuptools_scm'],
     description="CMSIS-DAP debugger for Python",
-    long_description=open('README.md', 'Ur').read(),
+    long_description=open('README.rst', 'Ur').read(),
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
     url='https://github.com/mbedmicro/pyOCD',
