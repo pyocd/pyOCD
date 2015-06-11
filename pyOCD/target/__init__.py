@@ -35,6 +35,7 @@ import target_stm32f103rc
 import target_stm32f051
 import target_maxwsnenv
 import target_max32600mbed
+import semihost
 
 TARGET = {
           'cortex_m': cortex_m.CortexM,

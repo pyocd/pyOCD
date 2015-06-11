@@ -24,6 +24,8 @@ from time import sleep, time
 import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
+from ..target.semihost import SemihostAgent
+import traceback
 
 # Logging options. Set to True to enable.
 LOG_MEM = False # Log memory accesses.
@@ -56,6 +58,7 @@ class GDBServer(threading.Thread):
         self.chip_erase = options.get('chip_erase', None)
         self.hide_programming_progress = options.get('hide_programming_progress', False)
         self.fast_program = options.get('fast_program', False)
+        self.enable_semihosting = options.get('enable_semihosting', True)
         self.packet_size = 2048
         self.send_acks = True
         self.clear_send_acks = False
@@ -70,6 +73,7 @@ class GDBServer(threading.Thread):
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
+        self.semihost = SemihostAgent(self.target)
         self.setDaemon(True)
         self.start()
     
@@ -350,10 +354,20 @@ class GDBServer(threading.Thread):
 
             try:
                 if self.target.getState() == TARGET_HALTED:
+                    # Handle semihosting
+                    if self.enable_semihosting:
+                        was_semihost = self.semihost.checkAndHandleBreakpoint()
+
+                        if was_semihost:
+                            self.target.resume()
+                            continue
+
                     logging.debug("state halted")
                     val = self.target.getTResponse()
                     break
-            except:
+            except Exception, e:
+                print "Exception:", e
+                traceback.print_exc()
                 logging.debug('Target is unavailable temporary.')
 
         self.abstract_socket.setBlocking(1)
