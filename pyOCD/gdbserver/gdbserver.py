@@ -41,6 +41,8 @@ class GDBServer(threading.Thread):
         self.board = board
         self.target = board.target
         self.flash = board.flash
+        self.buffer = ''
+        self.new_command = False
         self.abstract_socket = None
         self.wss_server = None
         self.port = 0
@@ -102,9 +104,7 @@ class GDBServer(threading.Thread):
     def run(self):
         self.timeOfLastPacket = time()
         while True:
-            new_command = False
-            data = ""
-            logging.info('GDB server started at port:%d',self.port)
+            logging.info('GDB server started at port:%d', self.port)
 
             self.shutdown_event.clear()
             self.detach_event.clear()
@@ -131,25 +131,7 @@ class GDBServer(threading.Thread):
                     continue
 
                 # read command
-                while True:
-                    if (new_command == True):
-                        new_command = False
-                        break
-
-                    # Reduce CPU usage by sleep()ing once we know that the
-                    # debugger doesn't have a queue of commands that we should
-                    # execute as quickly as possible.
-                    if time() - self.timeOfLastPacket > 0.5:
-                        sleep(0.1)
-                    try:
-                        if self.shutdown_event.isSet() or self.detach_event.isSet():
-                            break
-                        self.abstract_socket.setBlocking(0)
-                        data += self.abstract_socket.read()
-                        if data.index("$") >= 0 and data.index("#") >= 0:
-                            break
-                    except (ValueError, socket.error):
-                        pass
+                self.receive_packet()
 
                 if self.shutdown_event.isSet():
                     return
@@ -157,40 +139,23 @@ class GDBServer(threading.Thread):
                 if self.detach_event.isSet():
                     continue
 
-                self.abstract_socket.setBlocking(1)
-
-                data = data[data.index("$"):]
+                self.buffer = self.buffer[self.buffer.index("$"):]
 
                 self.lock.acquire()
 
-                if len(data) != 0:
+                if len(self.buffer) != 0:
                     # decode and prepare resp
-                    [resp, ack, detach] = self.handleMsg(data)
+                    [resp, ack, detach] = self.handleMsg(self.buffer)
 
                     # Clear out data
-                    data = ""
+                    self.buffer = ""
 
                     if resp is not None:
                         # ack
                         if ack and self.send_acks:
                             resp = "+" + resp
                         # send resp
-                        self.abstract_socket.write(resp)
-                        if self.send_acks:
-                            # wait a '+' from the client
-                            try:
-                                data = self.abstract_socket.read()
-                                if LOG_ACK:
-                                    if data[0] != '+':
-                                        logging.debug('gdb client has not ack!')
-                                    else:
-                                        logging.debug('gdb client has ack!')
-                                if self.clear_send_acks:
-                                    self.send_acks = False
-                                if data.index("$") >= 0 and data.index("#") >= 0:
-                                    new_command = True
-                            except:
-                                pass
+                        self.send_packet(resp)
 
                     if detach:
                         self.abstract_socket.close()
@@ -204,6 +169,51 @@ class GDBServer(threading.Thread):
 
                 self.lock.release()
 
+    def receive_packet(self):
+        self.abstract_socket.setBlocking(0)
+
+        # read command
+        while True:
+            if (self.new_command == True):
+                self.new_command = False
+                break
+
+            # Reduce CPU usage by sleep()ing once we know that the
+            # debugger doesn't have a queue of commands that we should
+            # execute as quickly as possible.
+            if time() - self.timeOfLastPacket > 0.5:
+                sleep(0.1)
+            try:
+                if self.shutdown_event.isSet() or self.detach_event.isSet():
+                    break
+                self.buffer += self.abstract_socket.read()
+                if self.buffer.index("$") >= 0 and self.buffer.index("#") >= 0:
+                    break
+            except (ValueError, socket.error):
+                pass
+
+        self.abstract_socket.setBlocking(1)
+
+    def send_packet(self, packet):
+        self.abstract_socket.write(packet)
+
+        if self.send_acks:
+            # wait a '+' from the client
+            try:
+                self.buffer = self.abstract_socket.read()
+                if LOG_ACK:
+                    if self.buffer[0] != '+':
+                        logging.debug('gdb client has not ack!')
+                    else:
+                        # TODO - resend packet
+                        logging.debug('gdb client has ack!')
+                if self.clear_send_acks:
+                    self.send_acks = False
+                if self.buffer.index("$") >= 0 and self.buffer.index("#") >= 0:
+                    self.new_command = True
+            except Exception, e:
+                logging.debug("Exception while sending packet: %s", e)
+                traceback.print_exc()
 
     def handleMsg(self, msg):
 
