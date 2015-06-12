@@ -8,27 +8,28 @@ supported.
 You can use the following interfaces:
 
 #. From a python interpretor:
-    -  halt, step, resume execution
-    -  read/write memory
-    -  read/write block memory
-    -  read-write core register
-    -  set/remove hardware breakpoints
-    -  flash new binary
-    -  reset
+
+   -  halt, step, resume execution
+   -  read/write memory
+   -  read/write block memory
+   -  read-write core register
+   -  set/remove hardware breakpoints
+   -  flash new binary
+   -  reset
 
 #. From a GDB client, you have all the features provided by gdb:
-    -  load a .elf file
-    -  read/write memory
-    -  read/write core register
-    -  set/remove hardware breakpoints
-    -  high level stepping
-    -  ...
+
+   -  load a .elf file
+   -  read/write memory
+   -  read/write core register
+   -  set/remove hardware breakpoints
+   -  high level stepping
+   -  ...
 
 Installation
 ------------
 
-The latest stable version of pyOCD may be done via
- `pip <https://pip.pypa.io/en/stable/index.html>`__ as follows:
+The latest stable version of pyOCD may be done via  `pip <https://pip.pypa.io/en/stable/index.html>`__ as follows:
 
 .. code:: shell
 
@@ -46,9 +47,8 @@ You have a few options here:
 
 #. Run with ``sudo -H`` to install pyOCD and dependencies globally
 #. Specify the ``--user`` option to install local to your user
-#. Run the command in a
-    `virtualenv <https://virtualenv.pypa.io/en/latest/>`__ local to a
-    specific project working set.
+#. Run the command in a `virtualenv <https://virtualenv.pypa.io/en/latest/>`__ 
+   local to a specific project working set.
 
 You can also install from source by cloning the git repository and running
 
@@ -80,7 +80,7 @@ Embedded System Register Viewer: http://embsysregview.sourceforge.net/update
 The pyOCD gdb server executable will run as a drop in place replacement for
 OpenOCD. If a supported mbed development board is being debugged the target
 does not need to be specified, as pyOCD will automatically determine this.
-If an external processor is being debugged then "-t [processor]" must
+If an external processor is being debugged then ``-t [processor]`` must
 be added to the command line. For more information on setup see
 `this post for OpenOCD <http://gnuarmeclipse.livius.net/blog/openocd-debugging/>`__
 
@@ -110,29 +110,32 @@ Tests
 A series of tests are provided in the test directory:
 
 -  basic\_test.py: a simple test that checks:
-    -  read/write core registers
-    -  read/write memory
-    -  stop/resume/step the execution
-    -  reset the target
-    -  erase pages
-    -  flash a binary
+
+   -  read/write core registers
+   -  read/write memory
+   -  stop/resume/step the execution
+   -  reset the target
+   -  erase pages
+   -  flash a binary
+    
 -  gdb\_test.py: launch a gdbserver
 -  gdb\_server.py: an enhanced version of gdbserver which provides the following options:
-    -  "-p", "--port", help = "Write the port number that GDB server will open."
-    -  "-b", "--board", help="Connect to board by board id."
-    -  "-l", "--list", help = "List all connected boards."
-    -  "-d", "--debug", help = "Set the level of system logging output."
-    -  "-t", "--target", help = "Override target to debug."
-    -  "-n", "--nobreak", help = "Disable halt at hardfault handler."
-    -  "-r", "--reset-break", help = "Halt the target when reset."
-    -  "-s", "--step-int", help = "Allow single stepping to step into interrupts."
-    -  "-f", "--frequency", help = "Set the SWD clock frequency in Hz."
-    -  "-o", "--persist", help = "Keep GDB server running even after remote has detached."
-    -  "-bh", "--soft-bkpt-as-hard", help = "Replace software breakpoints with hardware breakpoints."
-    -  "-ce", "--chip\_erase", help="Use chip erase when programming."
-    -  "-se", "--sector\_erase", help="Use sector erase when programming."
-    -  "-hp", "--hide\_progress", help = "Don't display programming progress."
-    -  "-fp", "--fast\_program", help = "Use only the CRC of each page to determine if it already has the same data."
+
+   -  "-p", "--port", help = "Write the port number that GDB server will open."
+   -  "-b", "--board", help="Connect to board by board id."
+   -  "-l", "--list", help = "List all connected boards."
+   -  "-d", "--debug", help = "Set the level of system logging output."
+   -  "-t", "--target", help = "Override target to debug."
+   -  "-n", "--nobreak", help = "Disable halt at hardfault handler."
+   -  "-r", "--reset-break", help = "Halt the target when reset."
+   -  "-s", "--step-int", help = "Allow single stepping to step into interrupts."
+   -  "-f", "--frequency", help = "Set the SWD clock frequency in Hz."
+   -  "-o", "--persist", help = "Keep GDB server running even after remote has detached."
+   -  "-bh", "--soft-bkpt-as-hard", help = "Replace software breakpoints with hardware breakpoints."
+   -  "-ce", "--chip\_erase", help="Use chip erase when programming."
+   -  "-se", "--sector\_erase", help="Use sector erase when programming."
+   -  "-hp", "--hide\_progress", help = "Don't display programming progress."
+   -  "-fp", "--fast\_program", help = "Use only the CRC of each page to determine if it already has the same data."
 
 Hello World example code
 ~~~~~~~~~~~~~~~~~~~~~~~~
