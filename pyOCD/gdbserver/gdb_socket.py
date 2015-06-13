@@ -52,4 +52,7 @@ class GDBSocket(object):
         return self.s.close()
     
     def setBlocking(self, blocking):
-        return self.conn.setblocking(blocking)
+        self.conn.setblocking(blocking)
+
+    def setTimeout(self, timeout):
+        self.conn.settimeout(timeout)

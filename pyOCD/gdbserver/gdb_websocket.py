@@ -48,4 +48,7 @@ class GDBWebSocket(object):
             self.wss.settimeout(None)
         else:
             self.wss.settimeout(0)
-            
+
+    def setTimeout(self, timeout):
+        self.wss.settimeout(timeout)
+
