@@ -273,7 +273,7 @@ class SemihostAgent(object):
         try:
             if self.console:
 #                 self.console.writeDebugConsole(c)
-                self.console.performFileIO('write,1,%x,1' % args)
+                self.console.syscall('write,1,%x,1' % args)
 #             f = self.open_files[STDOUT_FD]
 #             if f is not None:
 #                 if 'b' not in f.mode:
@@ -290,7 +290,7 @@ class SemihostAgent(object):
         try:
             if self.console:
 #                 self.console.writeDebugConsole(msg)
-                self.console.performFileIO('write,1,%x,%x' % (args, len(msg)))
+                self.console.syscall('write,1,%x,%x' % (args, len(msg)))
 #             f = self.open_files[STDOUT_FD]
 #             if f is not None:
 #                 if 'b' not in f.mode:
@@ -306,7 +306,7 @@ class SemihostAgent(object):
         logging.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
         if fd in (STDOUT_FD, STDERR_FD) and self.console:
 #             self.console.writeDebugConsole(self._get_string(data_ptr, length))
-            self.console.performFileIO('write,%x,%x,%x' % (fd, data_ptr, length))
+            self.console.syscall('write,%x,%x,%x' % (fd, data_ptr, length))
             return 0
         else:
             if not self._is_valid_fd(fd):

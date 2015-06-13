@@ -850,7 +850,7 @@ class GDBServer(threading.Thread):
 
         return resp
 
-    def performFileIO(self, op):
+    def syscall(self, op):
         request = self.createRSPPacket('F' + op)
         self.packet_io.send(request)
 
