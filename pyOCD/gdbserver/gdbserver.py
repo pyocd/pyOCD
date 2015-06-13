@@ -28,6 +28,7 @@ from gdb_websocket import GDBWebSocket
 # Logging options. Set to True to enable.
 LOG_MEM = False # Log memory accesses.
 LOG_ACK = False # Log ack or nak.
+LOG_PACKETS = False # Log all packets sent and received.
 
 class GDBServer(threading.Thread):
     """
@@ -183,6 +184,10 @@ class GDBServer(threading.Thread):
                 if self.shutdown_event.isSet() or self.detach_event.isSet():
                     break
                 self.buffer += self.abstract_socket.read()
+
+                if LOG_PACKETS:
+                    logging.debug('-->>>>>>>>>>>> GDB rsp packet: %s', data)
+
                 if self.buffer.index("$") >= 0 and self.buffer.index("#") >= 0:
                     break
             except (ValueError, socket.error):
@@ -191,6 +196,10 @@ class GDBServer(threading.Thread):
         self.abstract_socket.setBlocking(1)
 
     def send_packet(self, packet):
+
+        if LOG_PACKETS:
+            logging.debug('--<<<<<<<<<<<< GDB rsp packet: %s', packet)
+
         self.abstract_socket.write(packet)
 
         if self.send_acks:
@@ -212,12 +221,9 @@ class GDBServer(threading.Thread):
                 traceback.print_exc()
 
     def handleMsg(self, msg):
-
         if msg[0] != '$':
             logging.debug('msg ignored: first char != $')
             return None, 0, 0
-
-        #logging.debug('-->>>>>>>>>>>> GDB rsp packet: %s', msg)
 
         # query command
         if msg[1] == '?':
@@ -742,7 +748,6 @@ class GDBServer(threading.Thread):
             resp += '0'
         resp += checksum[2:]
 
-        #logging.debug('--<<<<<<<<<<<< GDB rsp packet: %s', resp)
         return resp
 
     def ack(self):
