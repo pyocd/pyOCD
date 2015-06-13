@@ -268,11 +268,12 @@ class SemihostAgent(object):
         return 0
 
     def handle_sys_writec(self, args):
-#         c = chr(self.target.read8(args))
+        c = chr(self.target.read8(args))
         logging.debug("Semihost: writec c='%s'", c)
         try:
             if self.console:
-                self.console.writeDebugConsole(args, 1)
+#                 self.console.writeDebugConsole(c)
+                self.console.performFileIO('write,1,%x,1' % args)
 #             f = self.open_files[STDOUT_FD]
 #             if f is not None:
 #                 if 'b' not in f.mode:
@@ -288,7 +289,8 @@ class SemihostAgent(object):
         logging.debug("Semihost: write0 msg='%s'", msg)
         try:
             if self.console:
-                self.console.writeDebugConsole(args, len(msg))
+#                 self.console.writeDebugConsole(msg)
+                self.console.performFileIO('write,1,%x,%x' % (args, len(msg)))
 #             f = self.open_files[STDOUT_FD]
 #             if f is not None:
 #                 if 'b' not in f.mode:
@@ -303,7 +305,9 @@ class SemihostAgent(object):
         fd, data_ptr, length = self._get_args(args, 3)
         logging.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
         if fd in (STDOUT_FD, STDERR_FD) and self.console:
-            self.console.writeDebugConsole(data_ptr, length)
+#             self.console.writeDebugConsole(self._get_string(data_ptr, length))
+            self.console.performFileIO('write,%x,%x,%x' % (fd, data_ptr, length))
+            return 0
         else:
             if not self._is_valid_fd(fd):
                 # Return byte count not written.

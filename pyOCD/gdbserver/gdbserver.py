@@ -398,6 +398,7 @@ class GDBServer(threading.Thread):
                         was_semihost = self.semihost.checkAndHandleSemihostRequest()
 
                         if was_semihost:
+                            self.abstract_socket.setBlocking(0)
                             self.target.resume()
                             continue
 
@@ -797,17 +798,16 @@ class GDBServer(threading.Thread):
             self.abstract_socket.write("+")
 
     def performFileIO(self, op):
+        self.buffer = ""
         request = self.createRSPPacket('F' + op)
-        self.send_packet(request)
+        self.send_packet(request, True)
+
         while True:
             # Read a packet.
             self.receive_packet()
 
-            # Check file file I/O response.
+            # Check for file I/O response.
             if self.buffer[0] == '$' and self.buffer[1] == 'F':
-                self.buffer = ""
-                break
-            elif self.buffer[0] == '$' and self.buffer[1] in ('c', 'C'):
                 self.buffer = ""
                 break
 
@@ -818,22 +818,15 @@ class GDBServer(threading.Thread):
             self.buffer = ""
 
             if resp is not None:
-                # ack
-                if ack and self.send_acks:
-                    resp = "+" + resp
                 # send resp
-                self.send_packet(resp)
+                self.send_packet(resp, ack)
 
             if detach:
                 self.detach_event.set()
                 logging.warning("GDB server received detach request while waiting for file I/O completion")
                 break
 
-            self.timeOfLastPacket = time()
-
-    def writeDebugConsole(self, ptr, size):
-#         resp = self.createRSPPacket('O' + hexEncode(msg))
-
-        request = 'write,1,%x,%x' % (ptr, size)
-        self.performFileIO(request)
+    def writeDebugConsole(self, msg):
+         resp = self.createRSPPacket('O' + hexEncode(msg) + '00')
+         self.send_packet(resp)
 
