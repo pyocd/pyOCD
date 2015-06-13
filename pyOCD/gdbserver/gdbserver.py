@@ -148,11 +148,8 @@ class GDBServer(threading.Thread):
                     self.buffer = ""
 
                     if resp is not None:
-                        # ack
-                        if ack and self.send_acks:
-                            resp = "+" + resp
                         # send resp
-                        self.send_packet(resp)
+                        self.send_packet(resp, ack)
 
                     if detach:
                         self.abstract_socket.close()
@@ -161,8 +158,6 @@ class GDBServer(threading.Thread):
                             break
                         else:
                             return
-
-                    self.timeOfLastPacket = time()
 
                 self.lock.release()
 
@@ -183,24 +178,30 @@ class GDBServer(threading.Thread):
             try:
                 if self.shutdown_event.isSet() or self.detach_event.isSet():
                     break
-                self.buffer += self.abstract_socket.read()
+                data = self.abstract_socket.read()
 
                 if LOG_PACKETS:
                     logging.debug('-->>>>>>>>>>>> GDB rsp packet: %s', data)
 
+                self.buffer += data
                 if self.buffer.index("$") >= 0 and self.buffer.index("#") >= 0:
+                    self.timeOfLastPacket = time()
                     break
             except (ValueError, socket.error):
                 pass
 
         self.abstract_socket.setBlocking(1)
 
-    def send_packet(self, packet):
+    def send_packet(self, packet, ack=True):
+        # ack
+        if ack and self.send_acks:
+            packet = "+" + packet
 
         if LOG_PACKETS:
             logging.debug('--<<<<<<<<<<<< GDB rsp packet: %s', packet)
 
         self.abstract_socket.write(packet)
+        self.timeOfLastPacket = time()
 
         if self.send_acks:
             # wait a '+' from the client
