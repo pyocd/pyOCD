@@ -38,20 +38,18 @@ def word2byte(data):
         res.append((x >> 24) & 0xff)
     return res
 
-## @brief Convert a byte array into a halfword array.
-def byte2half(data):
+## @brief Convert a halfword array into a byte array
+def half2byte(data):
     byteData = []
     for i in data:
-        byteData.extend([i & 0xff, (i >> 8) & 0xff])
+        byteData.extend([data[i] & 0xff, (data[i] >> 8) & 0xff])
     return byteData
 
-## @brief Convert a halfword array into a byte array
-def half2byte(byteData):
-    i = 0
+## @brief Convert a byte array into a halfword array.
+def byte2half(byteData):
     data = []
-    while i < len(byteData):
+    while i in range(0, len(byteData), 2):
         data.append(byteData[i] | (byteData[i+1] << 8))
-        i += 2
     return data
 
 ## @brief Convert a 32-bit int to an IEEE754 float.

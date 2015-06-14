@@ -30,6 +30,9 @@ class Target(object):
         self.part_number = ""
         self.halt_on_connect = True
 
+    def setAutoUnlock(self, doAutoUnlock):
+        pass
+
     def setHaltOnConnect(self, halt):
         self.halt_on_connect = halt
 

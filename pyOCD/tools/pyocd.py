@@ -52,6 +52,120 @@ CORE_STATUS_DESC = {
 ## Default SWD clock in kHz.
 DEFAULT_CLOCK_FREQ_KHZ = 1000
 
+## Command info and help.
+COMMAND_INFO = {
+        'list' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "Show available targets"
+            },
+        'erase' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "Erase all internal flash"
+            },
+        'unlock' :  {
+            'aliases' : [],
+            'args' : "",
+            'help' : "Unlock security on the target"
+            },
+        'info' : {
+            'aliases' : ['i'],
+            'args' : "",
+            'help' : "Display target type and IDs"
+            },
+        'status' : {
+            'aliases' : ['stat'],
+            'args' : "",
+            'help' : "Show the target's current state"
+            },
+        'reg' : {
+            'aliases' : [],
+            'args' : "[REG]",
+            'help' : "Print all or one register"
+            },
+        'wreg' : {
+            'aliases' : [],
+            'args' : "REG VALUE",
+            'help' : "Set the value of a register"
+            },
+        'reset' : {
+            'aliases' : [],
+            'args' : "[-h/--halt]",
+            'help' : "Reset the target"
+            },
+        'read8' : {
+            'aliases' : ['read', 'r'],
+            'args' : "ADDR [LEN]",
+            'help' : "Read 8-bit bytes"
+            },
+        'read16' : {
+            'aliases' : ['r16'],
+            'args' : "ADDR [LEN]",
+            'help' : "Read 16-bit halfwords"
+            },
+        'read32' : {
+            'aliases' : ['r32'],
+            'args' : "ADDR [LEN]",
+            'help' : "Read 32-bit words"
+            },
+        'write8' : {
+            'aliases' : ['write', 'w'],
+            'args' : "ADDR DATA...",
+            'help' : "Write 8-bit bytes"
+            },
+        'write16' : {
+            'aliases' : ['w16'],
+            'args' : "ADDR DATA...",
+            'help' : "Write 16-bit halfwords"
+            },
+        'write32' : {
+            'aliases' : ['w32'],
+            'args' : "ADDR DATA...",
+            'help' : "Write 32-bit words"
+            },
+        'go' : {
+            'aliases' : ['g'],
+            'args' : "",
+            'help' : "Resume execution of the target"
+            },
+        'step' : {
+            'aliases' : ['s'],
+            'args' : "",
+            'help' : "Step one instruction"
+            },
+        'halt' : {
+            'aliases' : ['h'],
+            'args' : "",
+            'help' : "Halt the target"
+            },
+        'help' : {
+            'aliases' : ['?'],
+            'args' : "[CMD]",
+            'help' : "Show help for commands"
+            },
+        'disasm' : {
+            'aliases' : ['d'],
+            'args' : "[-c/--center] ADDR [LEN]",
+            'help' : "Disassemble instructions at an address"
+            },
+        'log' : {
+            'aliases' : [],
+            'args' : "LEVEL",
+            'help' : "Set log level to one of debug, info, warning, error, critical"
+            },
+        'clock' : {
+            'aliases' : [],
+            'args' : "KHZ",
+            'help' : "Set SWD or JTAG clock frequency"
+            },
+        'exit' : {
+            'aliases' : ['quit'],
+            'args' : "",
+            'help' : "Quit pyocd-tool"
+            },
+        }
+
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
     while i < len(data):
@@ -77,6 +191,9 @@ def dumpHexData(data, startAddress=0, width=8):
         print
 
 class ToolError(Exception):
+    pass
+
+class ToolExitException(Exception):
     pass
 
 def cmdoptions(opts):
@@ -111,7 +228,10 @@ class PyOCDConsole(object):
                 except KeyboardInterrupt:
                     print
         except EOFError:
-            print
+            # Print a newline when we get a Ctrl-D on a Posix system.
+            # Windows exits with a Ctrl-Z+Return, so there is no need for this.
+            if os.name != "nt":
+                print
 
     def process_command_line(self, line):
         for cmd in line.split(';'):
@@ -146,7 +266,7 @@ class PyOCDConsole(object):
             traceback.print_exc()
         except pyOCD.transport.transport.TransferError:
             print "Error: transfer failed"
-        except ToolError, e:
+        except ToolError as e:
             print "Error:", e
 
     def show_help(self, args):
@@ -154,9 +274,16 @@ class PyOCDConsole(object):
             self.list_commands()
 
     def list_commands(self):
-        cmds = sorted(self.tool.command_list.keys())
+        cmds = sorted(COMMAND_INFO.keys())
         print "Commands:\n---------"
-        print '\n'.join(cmds)
+        for cmd in cmds:
+            info = COMMAND_INFO[cmd]
+            print "{cmd:<25} {args:<20} {help}".format(
+                cmd=', '.join(sorted([cmd] + info['aliases'])),
+                **info)
+        print
+        print "All register names are also available as commands that print the register's value."
+        print "Any ADDR or LEN argument will accept a register name."
 
 class PyOCDTool(object):
     def __init__(self):
@@ -171,13 +298,13 @@ class PyOCDTool(object):
                 'status' :  self.handle_status,
                 'stat' :    self.handle_status,
                 'reg' :     self.handle_reg,
+                'wreg' :    self.handle_write_reg,
                 'reset' :   self.handle_reset,
                 'read' :    self.handle_read8,
                 'read8' :   self.handle_read8,
                 'read16' :  self.handle_read16,
                 'read32' :  self.handle_read32,
                 'r' :       self.handle_read8,
-                'r8' :      self.handle_read8,
                 'r16' :     self.handle_read16,
                 'r32' :     self.handle_read32,
                 'write' :   self.handle_write8,
@@ -185,7 +312,6 @@ class PyOCDTool(object):
                 'write16' : self.handle_write16,
                 'write32' : self.handle_write32,
                 'w' :       self.handle_write8,
-                'w8' :      self.handle_write8,
                 'w16' :     self.handle_write16,
                 'w32' :     self.handle_write32,
                 'go' :      self.handle_go,
@@ -196,9 +322,10 @@ class PyOCDTool(object):
                 'h' :       self.handle_halt,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
-                'map' :     self.handle_memory_map,
                 'log' :     self.handle_log,
-                'clock' :   self.handle_clock
+                'clock' :   self.handle_clock,
+                'exit' :    self.handle_exit,
+                'quit' :    self.handle_exit
             }
 
     def get_args(self):
@@ -250,7 +377,7 @@ class PyOCDTool(object):
             self.board.target.setHaltOnConnect(False)
             try:
                 self.board.init()
-            except Exception, e:
+            except Exception as e:
                 print "Exception while initing board:", e
 
             self.target = self.board.target
@@ -286,12 +413,14 @@ class PyOCDTool(object):
                 if result is not None:
                     self.exitCode = result
 
+        except ToolExitException:
+            self.exitCode = 0
         except ValueError:
             print "Error: invalid argument"
         except pyOCD.transport.transport.TransferError:
             print "Error: transfer failed"
             self.exitCode = 2
-        except ToolError, e:
+        except ToolError as e:
             print "Error:", e
             self.exitCode = 1
         finally:
@@ -334,6 +463,19 @@ class PyOCDTool(object):
             print "%s = %g" % (reg, value)
         else:
             raise ToolError("Unknown register value type")
+
+    def handle_write_reg(self, args):
+        if len(args) < 1:
+            raise ToolError("No register specified")
+        if len(args) < 2:
+            raise ToolError("No value specified")
+
+        reg = args[0].lower()
+        if reg.startswith('s'):
+            value = float(args[1])
+        else:
+            value = self.convert_value(args[1])
+        self.target.writeCoreRegister(reg, value)
 
     @cmdoptions([make_option('-h', "--halt", action="store_true")])
     def handle_reset(self, args, other):
@@ -468,9 +610,6 @@ class PyOCDTool(object):
         else:
             print "Successfully halted device"
 
-    def handle_memory_map(self, args):
-        self.print_memory_map()
-
     def handle_log(self, args):
         if len(args) < 1:
             print "Error: no log level provided"
@@ -503,6 +642,9 @@ class PyOCDTool(object):
             nice_frq = "%d Hz" % freq_Hz
 
         print "Changed %s frequency to %s" % (swd_jtag, nice_freq)
+
+    def handle_exit(self, args):
+        raise ToolExitException()
 
     ## @brief Convert an argument to a 32-bit integer.
     #
@@ -548,11 +690,6 @@ class PyOCDTool(object):
             print "{:>8} {:#010x} ".format(reg + ':', regValue),
             if i % 3 == 2:
                 print
-
-    def print_memory_map(self):
-        print "Region          Start         End           Blocksize"
-        for region in self.target.getMemoryMap():
-            print "{:<15} {:#010x}    {:#010x}    {}".format(region.name, region.start, region.end, region.blocksize if region.isFlash else '-')
 
     def print_disasm(self, code, startAddr):
         if not isCapstoneAvailable:
