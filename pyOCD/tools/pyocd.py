@@ -403,6 +403,7 @@ class PyOCDTool(object):
 
                 # Remove list command that disrupts the connection.
                 self.command_list.pop('list')
+                COMMAND_INFO.pop('list')
 
                 # Run the command line.
                 console = PyOCDConsole(self)

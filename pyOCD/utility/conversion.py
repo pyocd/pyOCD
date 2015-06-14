@@ -41,14 +41,14 @@ def word2byte(data):
 ## @brief Convert a halfword array into a byte array
 def half2byte(data):
     byteData = []
-    for i in data:
-        byteData.extend([data[i] & 0xff, (data[i] >> 8) & 0xff])
+    for h in data:
+        byteData.extend([h & 0xff, (h >> 8) & 0xff])
     return byteData
 
 ## @brief Convert a byte array into a halfword array.
 def byte2half(byteData):
     data = []
-    while i in range(0, len(byteData), 2):
+    for i in range(0, len(byteData), 2):
         data.append(byteData[i] | (byteData[i+1] << 8))
     return data
 

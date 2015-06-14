@@ -33,6 +33,9 @@ class Target(object):
     def setAutoUnlock(self, doAutoUnlock):
         pass
 
+    def isLocked(self):
+        return False
+
     def setHaltOnConnect(self, halt):
         self.halt_on_connect = halt
 
