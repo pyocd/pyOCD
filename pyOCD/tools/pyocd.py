@@ -639,7 +639,7 @@ class PyOCDTool(object):
         elif freq_Hz > 1000:
             nice_freq = "%.2f kHz" % (freq_Hz / 1000)
         else:
-            nice_frq = "%d Hz" % freq_Hz
+            nice_freq = "%d Hz" % freq_Hz
 
         print "Changed %s frequency to %s" % (swd_jtag, nice_freq)
 
