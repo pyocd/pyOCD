@@ -23,3 +23,5 @@ import target
 import transport
 import utility
 
+from ._version import version as __version__
+

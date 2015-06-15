@@ -17,18 +17,18 @@
 """
 
 import argparse
-import sys
 import logging
-
 import os
+import sys
+
 import pyOCD
+from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
 
 # Make disasm optional.
 try:
     import capstone
-
     isCapstoneAvailable = True
 except ImportError:
     isCapstoneAvailable = False
@@ -81,6 +81,7 @@ class PyOCDTool(object):
 
     def get_args(self):
         parser = argparse.ArgumentParser(description='Flash utility')
+        parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-l", "--list", action="store_const", dest='action', const=ACTION_LIST,
                             help="List available boards.")
         parser.add_argument("-e", "--erase", action="store_const", dest='action', const=ACTION_ERASE,
