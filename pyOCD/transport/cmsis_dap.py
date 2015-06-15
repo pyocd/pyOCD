@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from cmsis_dap_core import dapTransferBlock, dapWriteAbort, dapSWJPins, dapConnect, dapDisconnect, dapTransfer, dapSWJSequence, dapSWDConfigure, dapSWJClock, dapTransferConfigure, dapInfo, dapJTAGIDCode, dapJTAGConfigure
+from cmsis_dap_core import CMSIS_DAP_Protocol
 from transport import Transport, TransferError, READ_START, READ_NOW, READ_END
 import logging
 from time import sleep
@@ -77,25 +77,13 @@ CTRLSTAT_STICKYERR = 0x00000020
 
 COMMANDS_PER_DAP_TRANSFER = 12
 
-def JTAG2SWD(interface):
-    data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-    dapSWJSequence(interface, data)
-
-    data = [0x9e, 0xe7]
-    dapSWJSequence(interface, data)
-
-    data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-    dapSWJSequence(interface, data)
-
-    data = [0x00]
-    dapSWJSequence(interface, data)
-
 class CMSIS_DAP(Transport):
     """
     This class implements the CMSIS-DAP protocol
     """
     def __init__(self, interface):
         super(CMSIS_DAP, self).__init__(interface)
+        self.protocol = CMSIS_DAP_Protocol(interface)
         self.packet_max_count = 0
         self.packet_max_size = 0
         self.csw = -1
@@ -109,41 +97,54 @@ class CMSIS_DAP(Transport):
         # Flush to be safe
         self.flush()
         # connect to DAP, check for SWD or JTAG
-        self.mode = dapConnect(self.interface)
+        self.mode = self.protocol.connect()
         # set clock frequency
-        dapSWJClock(self.interface, frequency)
+        self.protocol.setSWJClock(frequency)
         # configure transfer
-        dapTransferConfigure(self.interface)
+        self.protocol.transferConfigure()
         if (self.mode == DAP_MODE_SWD):
             # configure swd protocol
-            dapSWDConfigure(self.interface)
+            self.protocol.swdConfigure()
             # switch from jtag to swd
-            JTAG2SWD(self.interface)
+            self.JTAG2SWD()
             # read ID code
             logging.info('IDCODE: 0x%X', self.readDP(DP_REG['IDCODE']))
             # clear errors
-            dapWriteAbort(self.interface, 0x1e);
+            self.protocol.writeAbort(0x1e);
         elif (self.mode == DAP_MODE_JTAG):
             # configure jtag protocol
-            dapJTAGConfigure(self.interface, 4)
+            self.protocol.jtagConfigure(4)
             # Test logic reset, run test idle
-            dapSWJSequence(self.interface, [0x1F])
+            self.protocol.swjSequence([0x1F])
             # read ID code
-            logging.info('IDCODE: 0x%X', dapJTAGIDCode(self.interface))
+            logging.info('IDCODE: 0x%X', self.protocol.jtagIDCode())
             # clear errors
             self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
         return
 
     def uninit(self):
         self.flush()
-        dapDisconnect(self.interface)
+        self.protocol.disconnect()
         return
+
+    def JTAG2SWD(self):
+        data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+        self.protocol.swjSequence(data)
+
+        data = [0x9e, 0xe7]
+        self.protocol.swjSequence(data)
+
+        data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+        self.protocol.swjSequence(data)
+
+        data = [0x00]
+        self.protocol.swjSequence(data)
 
     def info(self, request):
         self.flush()
         resp = None
         try:
-            resp = dapInfo(self.interface, request)
+            resp = self.protocol.dapInfo(request)
         except KeyError:
             logging.error('request %s not supported', request)
         return resp
@@ -306,23 +307,24 @@ class CMSIS_DAP(Transport):
             self.flush()
 
         return res
+
     def reset(self):
         self.flush()
-        dapSWJPins(self.interface, 0, 'nRESET')
+        self.protocol.setSWJPins(0, 'nRESET')
         sleep(0.1)
-        dapSWJPins(self.interface, 0x80, 'nRESET')
+        self.protocol.setSWJPins(0x80, 'nRESET')
         sleep(0.1)
 
     def assertReset(self, asserted):
         self.flush()
         if asserted:
-            dapSWJPins(self.interface, 0, 'nRESET')
+            self.protocol.setSWJPins(0, 'nRESET')
         else:
-            dapSWJPins(self.interface, 0x80, 'nRESET')
+            self.protocol.setSWJPins(0x80, 'nRESET')
 
     def setClock(self, frequency):
         self.flush()
-        dapSWJClock(self.interface, frequency)
+        self.protocol.setSWJClock(frequency)
 
     def setDeferredTransfer(self, enable):
         """
@@ -338,7 +340,7 @@ class CMSIS_DAP(Transport):
         exception to occur on a later, unrelated write.  To guarantee
         that previous writes are complete call the flush() function.
 
-        The behaviour of read operations is determined by the modes 
+        The behaviour of read operations is determined by the modes
         READ_START, READ_NOW and READ_END.  The option READ_NOW is the
         default and will cause the read to flush all previous writes,
         and read the data immediately.  To improve performance, multiple
@@ -358,7 +360,7 @@ class CMSIS_DAP(Transport):
         if transfer_count > 0:
             assert transfer_count <= COMMANDS_PER_DAP_TRANSFER
             try:
-                data = dapTransfer(self.interface, transfer_count, self.request_list, self.data_list)
+                data = self.protocol.transfer(transfer_count, self.request_list, self.data_list)
                 self.data_read_list.extend(data)
             except TransferError:
                 # Dump any pending commands
@@ -397,4 +399,4 @@ class CMSIS_DAP(Transport):
 
     def _transferBlock(self, count, request, data = [0]):
         self.flush()
-        return dapTransferBlock(self.interface, count, request, data)
+        return self.protocol.transferBlock(count, request, data)

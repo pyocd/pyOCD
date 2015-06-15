@@ -16,7 +16,7 @@
 """
 
 from cortex_m import CortexM
-from pyOCD.transport.cmsis_dap_core import dapJTAGIDCode, dapVendor, dapSWJPins, PINS
+from pyOCD.transport.cmsis_dap_core import PINS
 import logging
 
 class MAXWSNENV(CortexM):
@@ -39,13 +39,13 @@ class MAXWSNENV(CortexM):
         return the IDCODE of the core
         """
         if self.idcode == 0:
-            self.idcode = dapJTAGIDCode(self.transport.interface)
+            self.idcode = self.protocol.jtagIDCode()
         return self.idcode
 
     def dsb(self):
         logging.info("Triggering Destructive Security Bypass...")
 
-        dapVendor(self.transport.interface, 1)
+        self.protocol.vendor(1)
 
         # Reconnect debugger
         self.transport.init()
@@ -53,7 +53,7 @@ class MAXWSNENV(CortexM):
     def fge(self):
         logging.info("Triggering Factory Global Erase...")
 
-        dapVendor(self.transport.interface, 2)
+        self.protocol.vendor(2)
 
         # Reconnect debugger
         self.transport.init()
