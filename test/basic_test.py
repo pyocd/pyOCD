@@ -101,6 +101,10 @@ def basic_test(board_id, file):
             addr = 0x20000001
             size = 0x502
             addr_flash = 0x10000
+        elif target_type == "w7500":
+            addr = 0x20000001
+            size = 0x1102
+            addr_flash = 0x00000000
         else:
             raise Exception("A board is not supported by this test script.")
 
