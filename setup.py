@@ -18,11 +18,10 @@
 from setuptools import setup, find_packages
 import sys
 
-install_requires = dict(
-    win32=['pyWinUSB'],
-    linux2=['pyUSB'],
-    darwin=['hidapi']
-)
+if 'win32' in sys.platform: required_interface = 'pyWinUSB'
+elif 'linux' in sys.platform: required_interface = 'pyUSB'
+elif 'darwin' in sys.platform: required_interface = 'hidapi'
+else: raise RuntimeError('Unknown platform: "%s"' % sys.platform)
 
 setup(
     name="pyOCD",
@@ -37,7 +36,7 @@ setup(
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
     url='https://github.com/mbedmicro/pyOCD',
     license="Apache 2.0",
-    install_requires=install_requires[sys.platform] + ['intelhex'],
+    install_requires=[required_interface, 'intelhex'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
