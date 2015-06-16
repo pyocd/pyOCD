@@ -18,11 +18,19 @@
 from setuptools import setup, find_packages
 import sys
 
-install_requires = dict(
-    win32=['pyWinUSB'],
-    linux2=['pyUSB'],
-    darwin=['hidapi']
-)
+install_requires = ['intelhex']
+if sys.platform.startswith('linux'):
+    install_requires.extend([
+        'pyusb',
+    ])
+elif sys.platform.startswith('win'):
+    install_requires.extend([
+        'pywinusb',
+    ])
+elif sys.platform.startswith('darwin'):
+    install_requires.extend([
+        'hidapi',
+    ])
 
 setup(
     name="pyOCD",
@@ -37,7 +45,7 @@ setup(
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
     url='https://github.com/mbedmicro/pyOCD',
     license="Apache 2.0",
-    install_requires=install_requires[sys.platform] + ['intelhex'],
+    install_requires=install_requires,
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
