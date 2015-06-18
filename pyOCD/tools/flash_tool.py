@@ -24,12 +24,12 @@ from struct import unpack
 
 try:
     from intelhex import IntelHex
-
     intelhex_available = True
-except:
+except ImportError:
     intelhex_available = False
 
 import pyOCD
+from pyOCD import __version__
 from pyOCD.board import MbedBoard
 
 LEVELS = {
@@ -51,6 +51,7 @@ debug_levels = LEVELS.keys()
 
 # Keep args in snyc with gdb_server.py when possible
 parser = argparse.ArgumentParser(description='Flash utility')
+parser.add_argument('--version', action='version', version=__version__)
 parser.add_argument("file", help="File to program")
 parser.add_argument("format", choices=supported_formats, help="File format")
 # reserved: "-p", "--port"
