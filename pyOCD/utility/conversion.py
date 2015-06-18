@@ -16,6 +16,7 @@
 """
 
 import struct
+import binascii
 
 ## @brief Convert a byte array into a word array.
 def byte2word(data):
@@ -36,6 +37,20 @@ def word2byte(data):
         res.append((x >> 16) & 0xff)
         res.append((x >> 24) & 0xff)
     return res
+
+## @brief Convert a halfword array into a byte array
+def half2byte(data):
+    byteData = []
+    for h in data:
+        byteData.extend([h & 0xff, (h >> 8) & 0xff])
+    return byteData
+
+## @brief Convert a byte array into a halfword array.
+def byte2half(byteData):
+    data = []
+    for i in range(0, len(byteData), 2):
+        data.append(byteData[i] | (byteData[i+1] << 8))
+    return data
 
 ## @brief Convert a 32-bit int to an IEEE754 float.
 def int2float(data):
@@ -76,16 +91,11 @@ def intToHex2(val):
 
 ## @brief Convert string of hex bytes to list of integers.
 def hexStringToIntList(data):
-    i = 0
-    result = []
-    while i < len(data):
-        result.append(int(data[i:i+2], 16))
-        i += 2
-    return result
+    return [ord(i) for i in binascii.unhexlify(data)]
 
 def hexDecode(cmd):
-    return ''.join([ chr(int(cmd[i:i+2], 16)) for i in range(0, len(cmd), 2)])
+    return binascii.unhexlify(cmd)
 
 def hexEncode(string):
-    return ''.join(['%02x' % ord(i) for i in string])
+    return binascii.hexlify(string)
 
