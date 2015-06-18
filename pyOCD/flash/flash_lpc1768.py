@@ -52,6 +52,7 @@ flash_algo = { 'load_address' : 0x10000000,
                'begin_stack' : 0x10001000,
                'static_base' : 0x10000214,
                'page_size' : 0x8000,
+               'min_program_length' : 256,
                'analyzer_supported' : True,
                'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600
               };

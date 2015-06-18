@@ -67,6 +67,7 @@ flash_algo = { 'load_address' : 0x20000000,
                'page_buffers' : [0x20001000, 0x20001800],   # Enable double buffering
                'static_base' : 0x20000000 + 0x20 + 0x48c,
                'page_size' : 2048,
+               'min_program_length' : 8,
                'analyzer_supported' : True,
                'analyzer_address' : 0x1ffff000  # Analyzer 0x1ffff000..0x1ffff600
               };

@@ -144,6 +144,7 @@ class PyOCDTool(object):
                 sys.exit(0)
 
             board = MbedBoard.chooseBoard(board_id=args.board, target_override=args.target, init_board=False)
+            self.board = board
             board.target.setAutoUnlock(False)
             try:
                 board.init()

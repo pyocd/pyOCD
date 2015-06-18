@@ -25,7 +25,7 @@ MAP_XML_HEADER =  """<?xml version="1.0"?>
 
 ## @brief One contiguous range of memory.
 class MemoryRegion(object):
-    def __init__(self, type='ram', start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
+    def __init__(self, type='ram', start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
         self._type = type
         self._start = start
         if length != 0:
@@ -38,6 +38,7 @@ class MemoryRegion(object):
         else:
             self._name = name
         self._is_boot_mem = isBootMemory
+        self._isPoweredOnBoot = isPoweredOnBoot
 
     @property
     def type(self):
@@ -79,6 +80,10 @@ class MemoryRegion(object):
     def isBootMemory(self):
         return self._is_boot_mem
 
+    @property
+    def isPoweredOnBoot(self):
+        return self._isPoweredOnBoot
+
     def containsAddress(self, address):
         return (address >= self.start) and (address <= self.end)
 
@@ -95,18 +100,18 @@ class MemoryRegion(object):
 
 ## @brief Contiguous region of RAM.
 class RamRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
-        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory)
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
+        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot)
 
 ## @brief Contiguous region of ROM.
 class RomRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
-        super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory)
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
+        super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot)
 
 ## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False):
-        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length, blocksize=blocksize, name=name, isBootMemory=isBootMemory)
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
+        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length, blocksize=blocksize, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot)
 
 ## @brief Memory map consisting of memory regions.
 class MemoryMap(object):

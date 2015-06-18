@@ -86,6 +86,7 @@ class Flash(object):
             self.begin_data = flash_algo['begin_data']
             self.static_base = flash_algo['static_base']
             self.page_size = flash_algo['page_size']
+            self.min_program_length = flash_algo.get('min_program_length', 0)
 
             # Check for double buffering support.
             if flash_algo.has_key('page_buffers'):
@@ -94,12 +95,17 @@ class Flash(object):
                 self.page_buffers = [self.begin_data]
 
             self.double_buffer_supported = len(self.page_buffers) > 1
+
         else:
             self.end_flash_algo = None
             self.begin_stack = None
             self.begin_data = None
             self.static_base = None
             self.page_size = None
+
+    @property
+    def minimumProgramLength(self):
+        return self.min_program_length
 
     def init(self):
         """
@@ -213,8 +219,18 @@ class Flash(object):
 
     def programPhrase(self, flashPtr, bytes):
         """
-        Flash one page
+        Flash a portion of a page.
         """
+
+        # Get min programming length. If one was not specified, use the page size.
+        if self.min_program_length:
+            min_len = self.min_program_length
+        else:
+            min_len = self.getPageInfo(flashPtr).size
+
+        # Require write address and length to be aligned to min write size.
+        if (flashPtr % min_len) or (len(bytes) % min_len):
+            raise RuntimeError("unaligned address or length")
 
         # prevent security settings from locking the device
         bytes = self.overrideSecurityBits(flashPtr, bytes)
@@ -223,11 +239,11 @@ class Flash(object):
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        result = self.callFunction(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
+        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, bytes_len, self.begin_data)
 
         # check the return code
         if result != 0:
-            logging.error('programPage(0x%x) error: %i', flashPtr, result)
+            logging.error('programPhrase(0x%x) error: %i', flashPtr, result)
 
     def getPageInfo(self, addr):
         """
@@ -243,7 +259,7 @@ class Flash(object):
         if region.isFlash and region.blocksize > 0:
             info.size = region.blocksize
         else:
-            inf.size = self.page_size
+            info.size = self.page_size
         info.base_addr = addr - (addr % info.size)
         return info
 
