@@ -85,7 +85,6 @@ class Flash(object):
             self.begin_stack = flash_algo['begin_stack']
             self.begin_data = flash_algo['begin_data']
             self.static_base = flash_algo['static_base']
-            self.page_size = flash_algo['page_size']
             self.min_program_length = flash_algo.get('min_program_length', 0)
 
             # Check for double buffering support.
@@ -101,7 +100,6 @@ class Flash(object):
             self.begin_stack = None
             self.begin_data = None
             self.static_base = None
-            self.page_size = None
 
     @property
     def minimumProgramLength(self):
@@ -252,14 +250,13 @@ class Flash(object):
         Override this function if variable page sizes are supported
         """
         region = self.target.getMemoryMap().getRegionForAddress(addr)
+        if not region:
+            return None
 
         info = PageInfo()
         info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
         info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
-        if region.isFlash and region.blocksize > 0:
-            info.size = region.blocksize
-        else:
-            info.size = self.page_size
+        info.size = region.blocksize
         info.base_addr = addr - (addr % info.size)
         return info
 
