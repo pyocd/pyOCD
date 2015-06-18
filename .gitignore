@@ -63,3 +63,6 @@ html
 
 automated_test_result.txt
 
+
+.eggs/
+pyOCD/_version.py

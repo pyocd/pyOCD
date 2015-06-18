@@ -25,12 +25,12 @@ from struct import unpack
 
 try:
     from intelhex import IntelHex
-
     intelhex_available = True
-except:
+except ImportError:
     intelhex_available = False
 
 import pyOCD
+from pyOCD import __version__
 from pyOCD.board import MbedBoard
 
 LEVELS = {
@@ -65,6 +65,7 @@ sector to erase and the number of sectors to erase.
 parser = argparse.ArgumentParser(description='Flash utility', epilog=epi)
 parser.add_argument("file", nargs='?', default=None, help="File to program")
 parser.add_argument("format", nargs='?', choices=supported_formats, default=None, help="File format. Default is to use the file extension (.bin or .hex)")
+parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-p", "--port"
 # reserved: "-c", "--cmd-port"
 parser.add_argument("-b", "--board", dest="board_id", default=None,

@@ -141,6 +141,11 @@ def speed_test(board_id):
             ram_size = 0x8000
             rom_start = 0x00000000
             rom_size = 0x40000
+        elif target_type == "w7500":
+            ram_start = 0x20000000
+            ram_size = 0x4000
+            rom_start = 0x00000000
+            rom_size = 0x20000
         else:
             raise Exception("The board is not supported by this test script.")
 

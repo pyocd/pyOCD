@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2013 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,13 +15,18 @@
  limitations under the License.
 """
 
-import board
-import flash
-import gdbserver
-import interface
-import target
-import transport
-import utility
+from cortex_m import CortexM
 
-from ._version import version as __version__
+class W7500(CortexM):
+
+    memoryMapXML =  """<?xml version="1.0"?>
+<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
+<memory-map>
+    <memory type="flash" start="0x0" length="0x20000"> <property name="blocksize">0x100</property></memory>
+    <memory type="ram" start="0x20000000" length="0x4000"> </memory>
+</memory-map>
+"""
+    
+    def __init__(self, transport):
+        super(W7500, self).__init__(transport)
 

@@ -17,21 +17,21 @@
 """
 
 import argparse
-import sys
 import logging
+import os
+import sys
 import optparse
 from optparse import make_option
 import traceback
 
-import os
 import pyOCD
+from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
 
 # Make disasm optional.
 try:
     import capstone
-
     isCapstoneAvailable = True
 except ImportError:
     isCapstoneAvailable = False
@@ -334,6 +334,7 @@ class PyOCDTool(object):
         epi = "Available commands:\n" + ', '.join(sorted(self.command_list.keys()))
 
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
+        parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
@@ -375,7 +376,7 @@ class PyOCDTool(object):
             self.board = MbedBoard.chooseBoard(board_id=self.args.board, target_override=self.args.target, init_board=False, frequency=(self.args.clock * 1000))
             self.board.target.setAutoUnlock(False)
             self.board.target.setHaltOnConnect(False)
-            try:
+        try:
                 self.board.init()
             except Exception as e:
                 print "Exception while initing board:", e
@@ -432,7 +433,7 @@ class PyOCDTool(object):
         return self.exitCode
 
     def handle_list(self, args):
-        MbedBoard.listConnectedBoards()
+                MbedBoard.listConnectedBoards()
 
     def handle_info(self, args):
         print "Target:    %s" % self.target.part_number
@@ -480,7 +481,7 @@ class PyOCDTool(object):
 
     @cmdoptions([make_option('-h', "--halt", action="store_true")])
     def handle_reset(self, args, other):
-        print "Resetting target"
+                print "Resetting target"
         if args.halt:
             self.target.resetStopOnReset()
 
@@ -544,7 +545,7 @@ class PyOCDTool(object):
         addr = self.convert_value(args[0])
         if len(args) < 2:
             count = 4
-        else:
+                else:
             count = self.convert_value(args[1])
 
         if self.args.width == 8:
@@ -585,7 +586,7 @@ class PyOCDTool(object):
         self.flash.eraseAll()
 
     def handle_unlock(self, args):
-        # Currently the same as erase.
+                # Currently the same as erase.
         if not self.didErase:
             self.target.massErase()
 
