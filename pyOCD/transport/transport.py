@@ -15,7 +15,7 @@
  limitations under the License.
 """
 # Read modes:
-# Start a read.  This must be followed by READ_END of the 
+# Start a read.  This must be followed by READ_END of the
 # same type and in the same order
 READ_START = 1
 # Read immediately
@@ -74,7 +74,7 @@ class Transport(object):
     def reset(self):
         return
 
-    def setClock(self):
+    def setClock(self, frequency):
         return
 
     def setDeferredTransfer(self, enable):
