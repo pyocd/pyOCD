@@ -44,14 +44,13 @@ class ConnectionClosedException(Exception):
 ## @brief Packet I/O thread.
 #
 # This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
-# handles checking checksums, acking, and receiving Ctrl-C interrupts. There is a queue
-# for outgoing packets, and a queue for received packets. The interface to these queues
-# are the send() and receive() methods.
+# handles verifying checksums, acking, and receiving Ctrl-C interrupts. There is a queue
+# for received packets. The interface to this queue is the receive() method. The send()
+# method writes outgoing packets to the socket immediately.
 class GDBServerPacketIOThread(threading.Thread):
     def __init__(self, abstract_socket):
         super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
         self._abstract_socket = abstract_socket
-        self._send_queue = Queue.Queue()
         self._receive_queue = Queue.Queue()
         self._shutdown_event = threading.Event()
         self.interrupt_event = threading.Event()
@@ -76,8 +75,14 @@ class GDBServerPacketIOThread(threading.Thread):
         self._shutdown_event.set()
 
     def send(self, packet):
-        if packet:
-            self._send_queue.put(packet)
+        if self._closed or not packet:
+            return
+        if not self.drop_reply:
+            self._last_packet = packet
+            self._write_packet(packet)
+        else:
+            self.drop_reply = False
+            logging.debug("GDB dropped reply %s", packet)
 
     def receive(self, block=True):
         if self._closed:
@@ -98,23 +103,7 @@ class GDBServerPacketIOThread(threading.Thread):
     def run(self):
         self._abstract_socket.setTimeout(0.01)
 
-        while True:
-            if self._shutdown_event.is_set():
-                break
-
-            # Check if we need to send a packet.
-            if not self._send_queue.empty():
-                packet = self._send_queue.get()
-                if not self.drop_reply:
-                    self._last_packet = packet
-                    self._write_packet(packet)
-                else:
-                    self.drop_reply = False
-                    logging.debug("GDB dropped reply %s", packet)
-
-            if self._shutdown_event.is_set():
-                break
-
+        while not self._shutdown_event.is_set():
             try:
                 data = self._abstract_socket.read()
 
