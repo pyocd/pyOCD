@@ -329,7 +329,7 @@ class GDBServer(threading.Thread):
 
                 if len(packet) != 0:
                     # decode and prepare resp
-                    [resp, ack, detach] = self.handleMsg(packet)
+                    resp, detach = self.handleMsg(packet)
 
                     if resp is not None:
                         # send resp
@@ -354,64 +354,64 @@ class GDBServer(threading.Thread):
     def handleMsg(self, msg):
         if msg[0] != '$':
             logging.debug('msg ignored: first char != $')
-            return None, 0, 0
+            return None, 0
 
         # query command
         if msg[1] == '?':
-            return self.createRSPPacket(self.target.getTResponse()), 1, 0
+            return self.createRSPPacket(self.target.getTResponse()), 0
 
         # we don't send immediately the response for C and S commands
         elif msg[1] == 'C' or msg[1] == 'c':
             return self.resume()
 
         elif msg[1] == 'D':
-            return self.detach(msg[1:]), 1, 1
+            return self.detach(msg[1:]), 1
 
         elif msg[1] == 'g':
-            return self.getRegisters(), 1, 0
+            return self.getRegisters(), 0
 
         elif msg[1] == 'G':
-            return self.setRegisters(msg[2:]), 1, 0
+            return self.setRegisters(msg[2:]), 0
 
         elif msg[1] == 'H':
-            return self.createRSPPacket(''), 1, 0
+            return self.createRSPPacket(''), 0
 
         elif msg[1] == 'k':
-            return self.kill(), 1, 1
+            return self.kill(), 1
 
         elif msg[1] == 'm':
-            return self.getMemory(msg[2:]), 1, 0
+            return self.getMemory(msg[2:]), 0
 
         elif msg[1] == 'M': # write memory with hex data
-            return self.writeMemoryHex(msg[2:]), 1, 0
+            return self.writeMemoryHex(msg[2:]), 0
 
         elif msg[1] == 'p':
-            return self.readRegister(msg[2:]), 1, 0
+            return self.readRegister(msg[2:]), 0
 
         elif msg[1] == 'P':
-            return self.writeRegister(msg[2:]), 1, 0
+            return self.writeRegister(msg[2:]), 0
 
         elif msg[1] == 'q':
-            return self.handleQuery(msg[2:]), 1, 0
+            return self.handleQuery(msg[2:]), 0
 
         elif msg[1] == 'Q':
-            return self.handleGeneralSet(msg[2:]), 1, 0
+            return self.handleGeneralSet(msg[2:]), 0
 
         elif msg[1] == 'S' or msg[1] == 's':
             return self.step()
 
         elif msg[1] == 'v':
-            return self.flashOp(msg[2:]), 1, 0
+            return self.flashOp(msg[2:]), 0
 
         elif msg[1] == 'X': # write memory with binary data
-            return self.writeMemory(msg[2:]), 1, 0
+            return self.writeMemory(msg[2:]), 0
 
         elif msg[1] == 'Z' or msg[1] == 'z':
-            return self.breakpoint(msg[1:]), 1, 0
+            return self.breakpoint(msg[1:]), 0
 
         else:
             logging.error("Unknown RSP packet: %s", msg)
-            return self.createRSPPacket(""), 1, 0
+            return self.createRSPPacket(""), 0
 
     def detach(self, data):
         logging.info("Client detached")
@@ -477,7 +477,7 @@ class GDBServer(threading.Thread):
         while True:
             if self.shutdown_event.isSet():
                 self.packet_io.interrupt_event.clear()
-                return self.createRSPPacket(val), 0, 0
+                return self.createRSPPacket(val), 0
 
             # Introduce a delay between non-blocking socket reads once we know
             # that the CPU isn't going to halt quickly.
@@ -499,16 +499,16 @@ class GDBServer(threading.Thread):
             except:
                 logging.debug('Target is unavailable temporary.')
 
-        return self.createRSPPacket(val), 0, 0
+        return self.createRSPPacket(val), 0
 
     def step(self):
         logging.debug("GDB step")
         self.target.step(not self.step_into_interrupt)
-        return self.createRSPPacket(self.target.getTResponse()), 0, 0
+        return self.createRSPPacket(self.target.getTResponse()), 0
 
     def halt(self):
         self.target.halt()
-        return self.createRSPPacket(self.target.getTResponse()), 0, 0
+        return self.createRSPPacket(self.target.getTResponse()), 0
 
     def flashOp(self, data):
         ops = data.split(':')[0]
