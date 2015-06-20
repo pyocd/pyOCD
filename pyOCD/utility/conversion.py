@@ -18,18 +18,18 @@
 import struct
 import binascii
 
-## @brief Convert a byte array into a word array.
-def byte2word(data):
+## @brief Convert a list of bytes to a list of 32-bit integers (little endian)
+def byteListToLittleEndianU32List(data):
     res = []
-    for i in range(len(data)/4):
-        res.append(data[i*4 + 0] << 0  |
-                   data[i*4 + 1] << 8  |
-                   data[i*4 + 2] << 16 |
-                   data[i*4 + 3] << 24)
+    for i in range(len(data) / 4):
+        res.append(data[i * 4 + 0] |
+                   data[i * 4 + 1] << 8 |
+                   data[i * 4 + 2] << 16 |
+                   data[i * 4 + 3] << 24)
     return res
 
 ## @brief Convert a word array into a byte array.
-def word2byte(data):
+def u32leListToBytelist(data):
     res = []
     for x in data:
         res.append((x >> 0) & 0xff)
@@ -39,14 +39,14 @@ def word2byte(data):
     return res
 
 ## @brief Convert a halfword array into a byte array
-def half2byte(data):
+def u16leListToByteList(data):
     byteData = []
     for h in data:
         byteData.extend([h & 0xff, (h >> 8) & 0xff])
     return byteData
 
 ## @brief Convert a byte array into a halfword array.
-def byte2half(byteData):
+def byteListToU16leList(byteData):
     data = []
     for i in range(0, len(byteData), 2):
         data.append(byteData[i] | (byteData[i+1] << 8))
@@ -64,18 +64,7 @@ def float2int(data):
 
 ## @brief create 8-digit hexadecimal string from 32-bit register value.
 def intToHex8(val):
-    val = hex(int(val))[2:]
-    size = len(val)
-    r = ''
-    for i in range(8-size):
-        r += '0'
-    r += str(val)
-
-    resp = ''
-    for i in range(4):
-        resp += r[8 - 2*i - 2: 8 - 2*i]
-
-    return resp
+    return "%08X" % int(val)
 
 ## @brief Build 32-bit register value from little-endian 8-digit hexadecimal string.
 def hex8ToInt(data):
@@ -83,11 +72,7 @@ def hex8ToInt(data):
 
 ## @brief Create 2-digit hexadecimal string from 8-bit value.
 def intToHex2(val):
-    val = hex(int(val))[2:]
-    if len(val) < 2:
-        return '0' + val
-    else:
-        return val
+    return "%02x" % int(val)
 
 ## @brief Convert string of hex bytes to list of integers.
 def hexStringToIntList(data):

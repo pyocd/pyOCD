@@ -567,7 +567,7 @@ class CortexM(Target):
         if (size >= 4):
             #logging.debug("read blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
             mem = self.readBlockMemoryAligned32(addr, size/4)
-            res += conversion.word2byte(mem)
+            res += conversion.u32leListToBytelist(mem)
             size -= 4*len(mem)
             addr += 4*len(mem)
 
@@ -615,7 +615,7 @@ class CortexM(Target):
         # write aligned block of 32 bits
         if (size >= 4):
             #logging.debug("write blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
-            data32 = conversion.byte2word(data[idx:idx + (size & ~0x03)])
+            data32 = conversion.byteListToLittleEndianU32List(data[idx:idx + (size & ~0x03)])
             self.writeBlockMemoryAligned32(addr, data32)
             addr += size & ~0x03
             idx += size & ~0x03

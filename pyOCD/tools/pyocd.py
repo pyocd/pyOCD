@@ -545,7 +545,7 @@ class PyOCDTool(object):
         addr = self.convert_value(args[0])
         if len(args) < 2:
             count = 4
-                else:
+        else:
             count = self.convert_value(args[1])
 
         if self.args.width == 8:
@@ -553,10 +553,10 @@ class PyOCDTool(object):
             byteData = data
         elif self.args.width == 16:
             byteData = self.target.readBlockMemoryUnaligned8(addr, count)
-            data = pyOCD.utility.conversion.byte2half(byteData)
+            data = pyOCD.utility.conversion.byteListToU16leList(byteData)
         elif self.args.width == 32:
             byteData = self.target.readBlockMemoryUnaligned8(addr, count)
-            data = pyOCD.utility.conversion.byte2word(byteData)
+            data = pyOCD.utility.conversion.byteListToLittleEndianU32List(byteData)
 
         # Print hex dump of output.
         dumpHexData(data, addr, width=self.args.width)
@@ -575,9 +575,9 @@ class PyOCDTool(object):
         if self.args.width == 8:
             pass
         elif self.args.width == 16:
-            data = pyOCD.utility.conversion.half2byte(data)
+            data = pyOCD.utility.conversion.u16leListToByteList(data)
         elif self.args.width == 32:
-            data = pyOCD.utility.conversion.word2byte(data)
+            data = pyOCD.utility.conversion.u32leListToBytelist(data)
 
         self.target.writeBlockMemoryUnaligned8(addr, data)
 
@@ -673,7 +673,7 @@ class PyOCDTool(object):
             value = int(arg, base=0)
 
         if deref:
-            value = pyOCD.utility.conversion.byte2word(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
+            value = pyOCD.utility.conversion.byteListToLittleEndianU32List(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
             print "[%s,%d] = 0x%08x" % (arg, offset, value)
 
         return value
