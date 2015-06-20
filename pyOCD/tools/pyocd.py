@@ -322,6 +322,7 @@ class PyOCDTool(object):
                 'h' :       self.handle_halt,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
+                'map' :     self.handle_memory_map,
                 'log' :     self.handle_log,
                 'clock' :   self.handle_clock,
                 'exit' :    self.handle_exit,
@@ -616,6 +617,9 @@ class PyOCDTool(object):
         else:
             print "Successfully halted device"
 
+    def handle_memory_map(self, args):
+        self.print_memory_map()
+
     def handle_log(self, args):
         if len(args) < 1:
             print "Error: no log level provided"
@@ -712,6 +716,11 @@ class PyOCDTool(object):
             print "{:>8} {:#010x} ".format(reg + ':', regValue),
             if i % 3 == 2:
                 print
+
+    def print_memory_map(self):
+        print "Region          Start         End           Blocksize"
+        for region in self.target.getMemoryMap():
+            print "{:<15} {:#010x}    {:#010x}    {}".format(region.name, region.start, region.end, region.blocksize if region.isFlash else '-')
 
     def print_disasm(self, code, startAddr):
         if not isCapstoneAvailable:
