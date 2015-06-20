@@ -34,6 +34,19 @@ LOG_MEM = False # Log memory accesses.
 LOG_ACK = False # Log ack or nak.
 LOG_PACKETS = False # Log all packets sent and received.
 
+def checksum(data):
+    return "%02x" % (sum([ord(c) for c in data]) % 256)
+
+## @brief Exception used to signal the GDB server connection closed.
+class ConnectionClosedException(Exception):
+    pass
+
+## @brief Packet I/O thread.
+#
+# This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
+# handles checking checksums, acking, and receiving Ctrl-C interrupts. There is a queue
+# for outgoing packets, and a queue for received packets. The interface to these queues
+# are the send() and receive() methods.
 class GDBServerPacketIOThread(threading.Thread):
     def __init__(self, abstract_socket):
         super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
@@ -48,6 +61,8 @@ class GDBServerPacketIOThread(threading.Thread):
         self._expecting_ack = False
         self.time_of_last_packet = 0
         self.drop_reply = False
+        self._last_packet = ''
+        self._closed = False
         self.start()
 
     def set_send_acks(self, ack):
@@ -64,10 +79,20 @@ class GDBServerPacketIOThread(threading.Thread):
             self._send_queue.put(packet)
 
     def receive(self, block=True):
-        try:
-            return self._receive_queue.get(block)
-        except Queue.Empty:
-            return None
+        if self._closed:
+            raise ConnectionClosedException()
+        while True:
+            try:
+                # If block is false, we'll get an Empty exception immediately if there
+                # are no packets in the queue. Same if block is true and it times out
+                # waiting on an empty queue.
+                return self._receive_queue.get(block, 0.1)
+            except Queue.Empty:
+                # Only exit the loop if block is false or connection closed.
+                if not block:
+                    return None
+                if self._closed:
+                    raise ConnectionClosedException()
 
     def run(self):
         self._abstract_socket.setTimeout(0.01)
@@ -80,13 +105,8 @@ class GDBServerPacketIOThread(threading.Thread):
             if not self._send_queue.empty():
                 packet = self._send_queue.get()
                 if not self.drop_reply:
-                    if LOG_PACKETS:
-                        logging.debug('--<<<<<<<<<<<< GDB send %d bytes: %s', len(packet), packet)
-                    # TODO - handle socket not writing all data
-                    self._abstract_socket.write(packet)
-                    if self.send_acks:
-                        self._expecting_ack = True
-                    self.time_of_last_packet = time()
+                    self._last_packet = packet
+                    self._write_packet(packet)
                 else:
                     self.drop_reply = False
                     logging.debug("GDB dropped reply %s", packet)
@@ -99,6 +119,7 @@ class GDBServerPacketIOThread(threading.Thread):
 
                 # Handle closed connection
                 if len(data) == 0:
+                    self._closed = True
                     break
 
                 if LOG_PACKETS:
@@ -111,53 +132,84 @@ class GDBServerPacketIOThread(threading.Thread):
             if self._shutdown_event.is_set():
                 break
 
-            # Process all incoming data until there are no more complete packets.
-            while len(self._buffer):
-                # Handle expected ack.
-                if self._expecting_ack:
-                    if self._buffer[0] in ('+', '-'):
-                        if LOG_ACK:
-                            logging.debug('got ack: %s', self._buffer[0])
-                        if self._buffer[0] == '-':
-                            # TODO - handle nack from gdb
-                            pass
-                        self._buffer = self._buffer[1:]
+            self._process_data()
 
-                        # Handle disabling of acks.
-                        if self._clear_send_acks:
-                            self.send_acks = False
-                            self._clear_send_acks = False
-                    else:
-                        logging.debug("GDB: expected n/ack but got '%s'", self._buffer[0])
-                    self._expecting_ack = False
+    def _write_packet(self, packet):
+        if LOG_PACKETS:
+            logging.debug('--<<<<<<<<<<<< GDB send %d bytes: %s', len(packet), packet)
 
-                # Check for a ctrl-c.
-                if len(self._buffer) and self._buffer[0] == CTRL_C:
-                    self.interrupt_event.set()
-                    self._buffer = self._buffer[1:]
+        # Make sure the entire packet is sent.
+        remaining = len(packet)
+        while remaining:
+            written = self._abstract_socket.write(packet)
+            remaining -= written
+            if remaining:
+                packet = packet[written:]
 
-                try:
-                    # Look for complete packet and extract from buffer.
-                    pkt_begin = self._buffer.index("$")
-                    pkt_end = self._buffer.index("#") + 2
-                    if pkt_begin >= 0 and pkt_end < len(self._buffer):
-                        self.time_of_last_packet = time()
-                        pkt = self._buffer[pkt_begin:pkt_end+1]
-                        self._buffer = self._buffer[pkt_end+1:]
-                        self._handling_incoming_packet(pkt)
-                    else:
-                        break
-                except ValueError:
-                    # No complete packet received yet.
+        if self.send_acks:
+            self._expecting_ack = True
+        self.time_of_last_packet = time()
+
+    def _check_expected_ack(self):
+        # Handle expected ack.
+        c = self._buffer[0]
+        if c in ('+', '-'):
+            self._buffer = self._buffer[1:]
+            if LOG_ACK:
+                logging.debug('got ack: %s', c)
+            if c == '-':
+                # Handle nack from gdb
+                self._write_packet(self._last_packet)
+                return
+
+            # Handle disabling of acks.
+            if self._clear_send_acks:
+                self.send_acks = False
+                self._clear_send_acks = False
+        else:
+            logging.debug("GDB: expected n/ack but got '%s'", c)
+
+    def _process_data(self):
+        # Process all incoming data until there are no more complete packets.
+        while len(self._buffer):
+            if self._expecting_ack:
+                self._expecting_ack = False
+                self._check_expected_ack()
+
+            # Check for a ctrl-c.
+            if len(self._buffer) and self._buffer[0] == CTRL_C:
+                self.interrupt_event.set()
+                self._buffer = self._buffer[1:]
+
+            try:
+                # Look for complete packet and extract from buffer.
+                pkt_begin = self._buffer.index("$")
+                pkt_end = self._buffer.index("#") + 2
+                if pkt_begin >= 0 and pkt_end < len(self._buffer):
+                    self.time_of_last_packet = time()
+                    pkt = self._buffer[pkt_begin:pkt_end+1]
+                    self._buffer = self._buffer[pkt_end+1:]
+                    self._handling_incoming_packet(pkt)
+                else:
                     break
+            except ValueError:
+                # No complete packet received yet.
+                break
 
     def _handling_incoming_packet(self, packet):
-        # TODO - compute checksum
+        # Compute checksum
+        data, cksum = packet[1:].split('#')
+        computedCksum = checksum(data)
+        goodPacket = (computedCksum.lower() == cksum.lower())
+
         if self.send_acks:
-            self._abstract_socket.write('+')
+            ack = '+' if goodPacket else '-'
+            self._abstract_socket.write(ack)
             if LOG_ACK:
-                logging.debug('+')
-        self._receive_queue.put(packet)
+                logging.debug(ack)
+
+        if goodPacket:
+            self._receive_queue.put(packet)
 
 class GDBServer(threading.Thread):
     """
@@ -210,6 +262,8 @@ class GDBServer(threading.Thread):
     def stop(self):
         if self.isAlive():
             self.shutdown_event.set()
+            if self.packet_io:
+                self.packet_io.stop()
             while self.isAlive():
                 pass
             logging.info("GDB server thread killed")
@@ -253,21 +307,23 @@ class GDBServer(threading.Thread):
                     return
 
                 if self.detach_event.isSet():
-                    continue
+                    break
 
                 if self.packet_io.interrupt_event.isSet():
                     logging.debug("Got unexpected ctrl-c, ignoring")
                     self.packet_io.interrupt_event.clear()
 
                 # read command
-                packet = self.packet_io.receive()
-                # TODO - handle closed connection
+                try:
+                    packet = self.packet_io.receive()
+                except ConnectionClosedException:
+                    break
 
                 if self.shutdown_event.isSet():
                     return
 
                 if self.detach_event.isSet():
-                    continue
+                    break
 
                 self.lock.acquire()
 
@@ -803,19 +859,7 @@ class GDBServer(threading.Thread):
 
 
     def createRSPPacket(self, data):
-        resp = '$' + data + '#'
-
-        c = 0
-        checksum = 0
-        for c in data:
-            checksum += ord(c)
-        checksum = checksum % 256
-        checksum = hex(checksum)
-
-        if int(checksum[2:], 16) < 0x10:
-            resp += '0'
-        resp += checksum[2:]
-
+        resp = '$' + data + '#' + checksum(data)
         return resp
 
 
