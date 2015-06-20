@@ -63,6 +63,7 @@ class GDBServerPacketIOThread(threading.Thread):
         self.drop_reply = False
         self._last_packet = ''
         self._closed = False
+        self.setDaemon(True)
         self.start()
 
     def set_send_acks(self, ack):
@@ -119,6 +120,7 @@ class GDBServerPacketIOThread(threading.Thread):
 
                 # Handle closed connection
                 if len(data) == 0:
+                    logging.debug("GDB packet thread: other side closed connection")
                     self._closed = True
                     break
 
@@ -133,6 +135,8 @@ class GDBServerPacketIOThread(threading.Thread):
                 break
 
             self._process_data()
+
+        logging.debug("GDB packet thread stopping")
 
     def _write_packet(self, packet):
         if LOG_PACKETS:
@@ -221,7 +225,6 @@ class GDBServer(threading.Thread):
         self.board = board
         self.target = board.target
         self.flash = board.flash
-        self.new_command = False
         self.abstract_socket = None
         self.wss_server = None
         self.port = 0
@@ -243,11 +246,9 @@ class GDBServer(threading.Thread):
         self.packet_io = None
         self.gdb_features = []
         self.flashBuilder = None
-        self.conn = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
         self.detach_event = threading.Event()
-        self.quit = False
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
         else:
