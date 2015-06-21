@@ -108,7 +108,14 @@ hang).
 
 .. code:: console
 
-    $ nosetest pyOCD/tests
+    $ nosetests pyOCD/tests
+
+To get code coverage results, do the following:
+
+.. code:: console
+
+    $ nosetests --with-coverage --cover-html --cover-package=pyOCD pyOCD/tests
+    $ firefox cover/index.html
 
 Examples
 --------

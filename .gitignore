@@ -54,6 +54,9 @@ html
 #PyCharm project files
 .idea
 
+# Coverage
+cover
+
 # Common virtualenv environment names
 /env
 /env3
