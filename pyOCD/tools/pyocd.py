@@ -376,7 +376,7 @@ class PyOCDTool(object):
             self.board = MbedBoard.chooseBoard(board_id=self.args.board, target_override=self.args.target, init_board=False, frequency=(self.args.clock * 1000))
             self.board.target.setAutoUnlock(False)
             self.board.target.setHaltOnConnect(False)
-        try:
+            try:
                 self.board.init()
             except Exception as e:
                 print "Exception while initing board:", e
@@ -433,7 +433,7 @@ class PyOCDTool(object):
         return self.exitCode
 
     def handle_list(self, args):
-                MbedBoard.listConnectedBoards()
+        MbedBoard.listConnectedBoards()
 
     def handle_info(self, args):
         print "Target:    %s" % self.target.part_number
@@ -481,7 +481,7 @@ class PyOCDTool(object):
 
     @cmdoptions([make_option('-h', "--halt", action="store_true")])
     def handle_reset(self, args, other):
-                print "Resetting target"
+        print "Resetting target"
         if args.halt:
             self.target.resetStopOnReset()
 
@@ -545,7 +545,7 @@ class PyOCDTool(object):
         addr = self.convert_value(args[0])
         if len(args) < 2:
             count = 4
-                else:
+        else:
             count = self.convert_value(args[1])
 
         if self.args.width == 8:
@@ -586,7 +586,7 @@ class PyOCDTool(object):
         self.flash.eraseAll()
 
     def handle_unlock(self, args):
-                # Currently the same as erase.
+        # Currently the same as erase.
         if not self.didErase:
             self.target.massErase()
 
