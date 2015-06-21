@@ -25,7 +25,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.utility.conversion import float2int
+from pyOCD.utility.conversion import float32beToU32be
 import logging
 
 def basic_test(board_id, file):
@@ -146,13 +146,13 @@ def basic_test(board_id, file):
         
         if target.has_fpu:
             s0 = target.readCoreRegister('s0')
-            print "S0 = %g (0x%08x)" % (s0,float2int(s0))
+            print "S0 = %g (0x%08x)" % (s0,float32beToU32be(s0))
             target.writeCoreRegister('s0', math.pi)
             newS0 = target.readCoreRegister('s0')
-            print "New S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+            print "New S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0))
             target.writeCoreRegister('s0', s0)
             newS0 = target.readCoreRegister('s0')
-            print "Restored S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+            print "Restored S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0))
         
         
         print "\r\n\r\n------ TEST HALT / RESUME ------"
