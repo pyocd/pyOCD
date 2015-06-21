@@ -302,8 +302,9 @@ def flash_test(board_id):
         test_count += 1
 
         print "\r\n\r\n------ Test Offset Write ------"
-        new_data = [0x55] * board.flash.page_size * 2
         addr = rom_start + rom_size / 2
+        page_size = flash.getPageInfo(addr).size
+        new_data = [0x55] * page_size * 2
         info = flash.flashBlock(addr, new_data, progress_cb = print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, len(new_data))
         if same(data_flashed, new_data) and info.program_type is FLASH_PAGE_ERASE:
@@ -314,7 +315,9 @@ def flash_test(board_id):
         test_count += 1
 
         print "\r\n\r\n------ Test Multiple Block Writes ------"
-        more_data = [0x33] * board.flash.page_size * 2
+        addr = rom_start + rom_size / 2
+        page_size = flash.getPageInfo(addr).size
+        more_data = [0x33] * page_size * 2
         addr = (rom_start + rom_size / 2) + 1 #cover multiple pages
         fb = flash.getFlashBuilder()
         fb.addData(rom_start, data)
@@ -331,8 +334,9 @@ def flash_test(board_id):
 
         print "\r\n\r\n------ Test Overlapping Blocks ------"
         test_pass = False
-        new_data = [0x33] * board.flash.page_size
         addr = (rom_start + rom_size / 2) #cover multiple pages
+        page_size = flash.getPageInfo(addr).size
+        new_data = [0x33] * page_size
         fb = flash.getFlashBuilder()
         fb.addData(addr, new_data)
         try:
