@@ -58,7 +58,6 @@ class GDBServerPacketIOThread(threading.Thread):
         self._clear_send_acks = False
         self._buffer = ''
         self._expecting_ack = False
-        self.time_of_last_packet = 0
         self.drop_reply = False
         self._last_packet = ''
         self._closed = False
@@ -141,7 +140,6 @@ class GDBServerPacketIOThread(threading.Thread):
 
         if self.send_acks:
             self._expecting_ack = True
-        self.time_of_last_packet = time()
 
     def _check_expected_ack(self):
         # Handle expected ack.
@@ -179,7 +177,6 @@ class GDBServerPacketIOThread(threading.Thread):
                 pkt_begin = self._buffer.index("$")
                 pkt_end = self._buffer.index("#") + 2
                 if pkt_begin >= 0 and pkt_end < len(self._buffer):
-                    self.time_of_last_packet = time()
                     pkt = self._buffer[pkt_begin:pkt_end+1]
                     self._buffer = self._buffer[pkt_end+1:]
                     self._handling_incoming_packet(pkt)
@@ -270,7 +267,6 @@ class GDBServer(threading.Thread):
         return
 
     def run(self):
-        self.timeOfLastPacket = time()
         while True:
             logging.info('GDB server started at port:%d', self.port)
 
@@ -463,18 +459,13 @@ class GDBServer(threading.Thread):
 
         val = ''
 
-        self.timeOfLastPacket = time()
         while True:
             if self.shutdown_event.isSet():
                 self.packet_io.interrupt_event.clear()
                 return self.createRSPPacket(val), 0
 
-            # Introduce a delay between non-blocking socket reads once we know
-            # that the CPU isn't going to halt quickly.
-            if time() - self.timeOfLastPacket > 0.5:
-                sleep(0.1)
-
-            if self.packet_io.interrupt_event.is_set():
+            # Wait for a ctrl-c to be received.
+            if self.packet_io.interrupt_event.wait(0.01):
                 logging.debug("receive CTRL-C")
                 self.packet_io.interrupt_event.clear()
                 self.target.halt()
