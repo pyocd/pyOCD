@@ -24,7 +24,7 @@ from time import sleep, time
 import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
-from ..target.semihost import SemihostAgent
+from ..target import semihost
 import traceback
 import io
 import Queue
@@ -35,17 +35,6 @@ CTRL_C = '\x03'
 LOG_MEM = False # Log memory accesses.
 LOG_ACK = False # Log ack or nak.
 LOG_PACKETS = False # Log all packets sent and received.
-
-class SemihostDebugIO(io.IOBase):
-    def __init__(self, server):
-        self.server = server
-        self.mode = 't'
-
-    def writable(self):
-        return True
-
-    def write(self, b):
-        self.server.writeDebugConsole(b)
 
 class GDBServerPacketIOThread(threading.Thread):
     def __init__(self, abstract_socket):
@@ -214,9 +203,7 @@ class GDBServer(threading.Thread):
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
-        self.debug_console = SemihostDebugIO(self)
-        self.semihost = SemihostAgent(self.target, console=self) #.debug_console,
-#             stdin=None, stderr=self.debug_console)
+        self.semihost = semihost.SemihostAgent(self.target, console=semihost.TelnetSemihostIOHandler(4444))
         self.setDaemon(True)
         self.start()
 
