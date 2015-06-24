@@ -81,7 +81,7 @@ class SemihostIOHandler(object):
     def errno(self):
         return self._errno
 
-    def open(self, filename, mode):
+    def open(self, fnptr, fnlen, mode):
         raise NotImplementedError()
 
     def close(self, fd):
@@ -93,7 +93,7 @@ class SemihostIOHandler(object):
     def read(self, fd, ptr, length):
         raise NotImplementedError()
 
-    def readc(self, fd):
+    def readc(self):
         raise NotImplementedError()
 
     def istty(self, fd):
@@ -103,6 +103,12 @@ class SemihostIOHandler(object):
         raise NotImplementedError()
 
     def flen(self, fd):
+        raise NotImplementedError()
+
+    def remove(self, ptr, length):
+        raise NotImplementedError()
+
+    def rename(self, oldptr, oldlength, newptr, newlength):
         raise NotImplementedError()
 
 ##
@@ -122,7 +128,9 @@ class InternalSemihostIOHandler(SemihostIOHandler):
     def _is_valid_fd(self, fd):
          return self.open_files.has_key(fd) and self.open_files[fd] is not None
 
-    def open(self, filename, mode):
+    def open(self, fnptr, fnlen, mode):
+        filename = self.agent._get_string(fnptr, fnlen)
+
         # Handle standard I/O.
         if filename == ':tt':
             if mode == 'r':
@@ -145,7 +153,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             self.open_files[fd] = f
 
             return fd
-        except IOError, e:
+        except IOError as e:
             self._errno = e.errno
             logging.error("Semihost: failed to open file '%s'", filename)
             return -1
@@ -195,16 +203,42 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         return length - len(data)
 
     def readc(self):
-        raise NotImplementedError()
+        try:
+            f = self.open_files[STDIN_FD]
+            if f is not None:
+                data = f.read(1)
+                if 'b' not in f.mode:
+                    data = data.encode()
+                return data
+            else:
+                return 0
+        except OSError as e:
+            self._errno = e.errno
+            return 0
 
     def istty(self, fd):
-        raise NotImplementedError()
+        if not self._is_valid_fd(fd):
+            return -1
+        return int(self.open_files[fd].isatty())
 
     def seek(self, fd, pos):
-        raise NotImplementedError()
+        if not self._is_valid_fd(fd):
+            return -1
+        try:
+            self.open_files[fd].seek(pos)
+        except IOError as e:
+            self._errno = e.errno
+            return -1
 
     def flen(self, fd):
-        raise NotImplementedError()
+        if not self._is_valid_fd(fd):
+            return -1
+        try:
+            info = os.fstat(fd)
+            return info.st_size
+        except OSError as e:
+            self._errno = e.errno
+            return -1
 
 ##
 # @brief Serves a telnet connection for semihosting.
@@ -294,8 +328,6 @@ class SemihostAgent(object):
 
     def __init__(self, target, io_handler=None, console=None):
         self.target = target
-        self.errno = 0
-        self.next_fd = STDERR_FD + 1
         self.start_time = time.time()
         self.io_handler = io_handler if (io_handler is not None) else InternalSemihostIOHandler()
         self.io_handler.agent = self
@@ -317,6 +349,7 @@ class SemihostAgent(object):
                 TARGET_SYS_WRITE       : self.handle_sys_write,
                 TARGET_SYS_READ        : self.handle_sys_read,
                 TARGET_SYS_READC       : self.handle_sys_readc,
+                TARGET_SYS_ISERROR     : self.handle_sys_iserror,
                 TARGET_SYS_ISTTY       : self.handle_sys_istty,
                 TARGET_SYS_SEEK        : self.handle_sys_seek,
                 TARGET_SYS_FLEN        : self.handle_sys_flen,
@@ -425,15 +458,13 @@ class SemihostAgent(object):
          return self.open_files.has_key(fd) and self.open_files[fd] is not None
 
     def handle_sys_open(self, args):
-        arg0, arg1, arg2 = self._get_args(args, 3)
-        filename = self._get_string(arg0, arg2)
-        if arg1 >= len(self.OPEN_MODES):
+        fnptr, mode, fnlen = self._get_args(args, 3)
+        if mode >= len(self.OPEN_MODES):
             return -1
-        mode = self.OPEN_MODES[arg1]
+        mode = self.OPEN_MODES[mode]
 
-        logging.debug("Semihost: open '%s', mode %s", filename, mode)
-
-        return self.io_handler.open(filename, mode)
+        logging.debug("Semihost: open %x/%x, mode %s", fnptr, fnlen, mode)
+        return self.io_handler.open(fnptr, fnlen, mode)
 
     def handle_sys_close(self, args):
         fd = self._get_args(args, 1)
@@ -441,47 +472,19 @@ class SemihostAgent(object):
         return self.io_handler.close(fd)
 
     def handle_sys_writec(self, args):
-        c = chr(self.target.read8(args))
-        logging.debug("Semihost: writec c='%s'", c)
+        logging.debug("Semihost: writec %x", args)
         return self.console.write(STDOUT_FD, args, 1)
-#         try:
-#             if self.console:
-# #                 self.console.writeDebugConsole(c)
-#                 self.console.syscall('write,1,%x,1' % args)
-# #             f = self.open_files[STDOUT_FD]
-# #             if f is not None:
-# #                 if 'b' not in f.mode:
-# #                     c = unicode(c)
-# #                 f.write(c)
-#         except IOError:
-#             # Ignore errors writing to debug console.
-#             pass
-#         return 0
 
     def handle_sys_write0(self, args):
         msg = self._get_string(args)
         logging.debug("Semihost: write0 msg='%s'", msg)
         return self.console.write(STDOUT_FD, args, len(msg))
-#         try:
-#             if self.console:
-# #                 self.console.writeDebugConsole(msg)
-#                 self.console.syscall('write,1,%x,%x' % (args, len(msg)))
-# #             f = self.open_files[STDOUT_FD]
-# #             if f is not None:
-# #                 if 'b' not in f.mode:
-# #                     msg = unicode(msg)
-# #                 f.write(msg)
-#         except IOError:
-#             # Ignore errors writing to debug console.
-#             pass
-#         return 0
 
     def handle_sys_write(self, args):
         fd, data_ptr, length = self._get_args(args, 3)
         logging.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
         if fd in (STDOUT_FD, STDERR_FD):
             return self.console.write(fd, data_ptr, length)
-#             self.console.syscall('write,%x,%x,%x' % (fd, data_ptr, length))
         else:
             return self.io_handler.write(fd, data_ptr, length)
 
@@ -495,57 +498,36 @@ class SemihostAgent(object):
 
     def handle_sys_readc(self, args):
         logging.debug("Semihost: readc")
-        try:
-            f = self.open_files[STDIN_FD]
-            if f is not None:
-                data = f.read(1)
-                if 'b' not in f.mode:
-                    data = data.encode()
-                return data
-            else:
-                return 0
-        except OSError, e:
-            self.errno = e.errno
-            return 0
+        return self.console.readc()
+
+    def handle_sys_iserror(self, args):
+        raise NotImplementedError()
 
     def handle_sys_istty(self, args):
         fd = self._get_args(args, 1)
         logging.debug("Semihost: istty fd=%d", fd)
-        if not self._is_valid_fd(fd):
-            return -1
-        return int(self.open_files[fd].isatty())
+        return self.io_handler.istty(fd)
 
     def handle_sys_seek(self, args):
         fd, pos = self._get_args(args, 2)
         logging.debug("Semihost: seek fd=%d pos=%d", fd, pos)
-        if not self._is_valid_fd(fd):
-            return -1
-        try:
-            self.open_files[fd].seek(pos)
-        except IOError, e:
-            self.errno = e.errno
-            return -1
+        return self.io_handler.seek(fd, pos)
 
     def handle_sys_flen(self, args):
         fd = self._get_args(args, 1)
         logging.debug("Semihost: flen fd=%d", fd)
-        if not self._is_valid_fd(fd):
-            return -1
-        try:
-            info = os.fstat(fd)
-            return info.st_size
-        except OSError, e:
-            self.errno = e.errno
-            return -1
+        return self.io_handler.flen(fd)
 
     def handle_sys_tmpnam(self, args):
         raise NotImplementedError()
 
     def handle_sys_remove(self, args):
-        raise NotImplementedError()
+        ptr, length = self._get_args(args, 2)
+        return self.io_handler.remove(ptr, length)
 
     def handle_sys_rename(self, args):
-        raise NotImplementedError()
+        oldptr, oldlength, newptr, newlength = self._get_args(args, 4)
+        return self.io_handler.rename(oldptr, oldlength, newptr, newlength)
 
     def handle_sys_clock(self, args):
         now = time.time()
@@ -563,7 +545,7 @@ class SemihostAgent(object):
         raise NotImplementedError()
 
     def handle_sys_errno(self, args):
-        return self.errno
+        return self.io_handler.errno
 
     def handle_sys_get_cmdline(self, args):
         raise NotImplementedError()
