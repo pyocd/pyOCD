@@ -255,6 +255,8 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
             self._port = port_or_url
             self._abstract_socket = GDBSocket(self._port, 4096)
         self.mode = 't'
+        self._buffer = bytearray()
+        self._buffer_lock = threading.Lock()
         self.connected = None
         self._shutdown_event = threading.Event()
         self._thread = threading.Thread(target=self._server, name="semihost-telnet")
@@ -265,31 +267,42 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
         self._shutdown_event.set()
 
     def _server(self):
-        logging.debug("Telnet: server thread started on port %s", str(self._port))
+        logging.info("Telnet: server started on port %s", str(self._port))
         self.connected = None
         while not self._shutdown_event.is_set():
+            # Wait for a client to connect.
+            # TODO support multiple client connections
             while not self._shutdown_event.is_set():
                 self.connected = self._abstract_socket.connect()
                 if self.connected is not None:
                     logging.debug("Telnet: client connected")
                     break
+
+            # Set timeout on new connection.
             self._abstract_socket.setTimeout(0.1)
+
+            # Keep reading from the client until we either get a shutdown event, or
+            # the client disconnects. The incoming data is appended to our read buffer.
             while not self._shutdown_event.is_set():
                 try:
-                    d = self._abstract_socket.read()
-                    if len(d) == 0:
+                    data = self._abstract_socket.read()
+                    if len(data) == 0:
+                        # Client disconnected.
                         self._abstract_socket.close()
                         self.connected = None
                         break
+
+                    logging.debug("Telnet: received '%s'" % data)
+                    self._buffer_lock.acquire()
+                    self._buffer += bytearray(data)
+                    self._buffer_lock.release()
                 except socket.timeout:
                     pass
         self._abstract_socket.close()
-        logging.debug("Telnet: server thread stopped")
-
-    def writable(self):
-        return self._abstract_socket.conn is not None
+        logging.info("Telnet: server stopped")
 
     def write(self, fd, ptr, length):
+        # If nobody is connected, act like all data was written anyway.
         if self.connected is None:
             return 0
         data = self.agent._get_string(ptr, length)
@@ -300,6 +313,46 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
             if remaining:
                 data = data[count:]
         return 0
+
+    ## @brief Extract requested amount of data from the read buffer.
+    def _get_input(self, length):
+        self._buffer_lock.acquire()
+        actualLength = min(length, len(self._buffer))
+        if actualLength:
+            data = self._buffer[:actualLength]
+            self._buffer = self._buffer[actualLength:]
+        else:
+            data = bytearray()
+        self._buffer_lock.release()
+        return data
+
+    def read(self, fd, ptr, length):
+        if self.connected is None:
+            return -1
+
+        # Extract requested amount of data from the read buffer.
+        data = self._get_input(length)
+
+        # Stuff data into provided buffer.
+        if data:
+            self.agent.target.writeBlockMemoryUnaligned8(ptr, data)
+
+        result = length - len(data)
+        if not data:
+            self._errno = 5
+            return -1
+        return result
+
+    def readc(self):
+        if self.connected is None:
+            return -1
+
+        data = self._get_input(1)
+
+        if data:
+            return data[0]
+        else:
+            return -1
 
 ##
 # @brief Handler for ARM semihosting requests.
