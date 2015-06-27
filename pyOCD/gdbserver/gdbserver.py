@@ -24,6 +24,7 @@ from time import sleep, time
 import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
+from syscall import GDBSyscallIOHandler
 from ..target import semihost
 import traceback
 import io
@@ -190,6 +191,9 @@ class GDBServer(threading.Thread):
         self.hide_programming_progress = options.get('hide_programming_progress', False)
         self.fast_program = options.get('fast_program', False)
         self.enable_semihosting = options.get('enable_semihosting', True)
+        self.telnet_port = options.get('telnet_port', 4444)
+        self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
+        self.server_listening_callback = options.get('server_listening_callback', None)
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -203,7 +207,16 @@ class GDBServer(threading.Thread):
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
-        self.semihost = semihost.SemihostAgent(self.target, console=semihost.TelnetSemihostIOHandler(4444))
+
+        # Init semihosting and telnet console.
+        if self.semihost_use_syscalls:
+            self.semihost_io_handler = GDBSyscallIOHandler(self)
+        else:
+            # Use internal IO handler.
+            self.semihost_io_handler = None
+        self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port)
+        self.semihost = semihost.SemihostAgent(self.target, io_handler=self.semihost_io_handler, console=self.telnet_console)
+
         self.setDaemon(True)
         self.start()
 
@@ -233,6 +246,10 @@ class GDBServer(threading.Thread):
         self.timeOfLastPacket = time()
         while True:
             logging.info('GDB server started at port:%d', self.port)
+
+            # Inform callback that the server is running.
+            if self.server_listening_callback:
+                self.server_listening_callback(self)
 
             self.shutdown_event.clear()
             self.detach_event.clear()

@@ -18,6 +18,7 @@
 import os
 from ..target.semihost import SemihostIOHandler
 
+# Open mode flags
 O_RDONLY = 0x0
 O_WRONLY = 0x1
 O_RDWR   = 0x2
@@ -25,18 +26,6 @@ O_APPEND = 0x8
 O_CREAT  = 0x200
 O_TRUNC  = 0x400
 O_EXCL   = 0x800
-
-S_IFREG       0100000
-S_IFDIR        040000
-S_IRUSR          0400
-S_IWUSR          0200
-S_IXUSR          0100
-S_IRGRP           040
-S_IWGRP           020
-S_IXGRP           010
-S_IROTH            04
-S_IWOTH            02
-S_IXOTH            01
 
 ##
 # @brief Abstract interface for semihosting file I/O handlers.
@@ -107,7 +96,7 @@ class GDBSyscallIOHandler(SemihostIOHandler):
                     | (size[3] << 32) \
                     | (size[4] << 24) \
                     | (size[5] << 16) \
-                    | (size[6] << 8) |
+                    | (size[6] << 8) \
                     | (size[7])
         return result
 
