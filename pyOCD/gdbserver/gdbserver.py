@@ -190,7 +190,7 @@ class GDBServer(threading.Thread):
         self.chip_erase = options.get('chip_erase', None)
         self.hide_programming_progress = options.get('hide_programming_progress', False)
         self.fast_program = options.get('fast_program', False)
-        self.enable_semihosting = options.get('enable_semihosting', True)
+        self.enable_semihosting = options.get('enable_semihosting', False)
         self.telnet_port = options.get('telnet_port', 4444)
         self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
         self.server_listening_callback = options.get('server_listening_callback', None)
@@ -729,73 +729,74 @@ class GDBServer(threading.Thread):
 
         elif query[0].startswith('Rcmd,'):
             cmd = hexDecode(query[0][5:].split('#')[0])
-            logging.debug('Remote command: %s', cmd)
-
-            safecmd = {
-                'reset' : ['Reset target', 0x1],
-                'halt'  : ['Halt target', 0x2],
-                'resume': ['Resume target', 0x4],
-                'help'  : ['Display this help', 0x80],
-            }
-            resultMask = 0x00
-            if cmd == 'help':
-                resp = ''
-                for k,v in safecmd.items():
-                    resp += '%s\t%s\n' % (k,v[0])
-                resp = hexEncode(resp)
-            else:
-                cmdList = cmd.split(' ')
-                #check whether all the cmds is valid cmd for monitor
-                for cmd_sub in cmdList:
-                    if not cmd_sub in safecmd:
-                        #error cmd for monitor
-                        logging.warning("Invalid mon command '%s'", cmd)
-                        resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = hexEncode(resp)
-                        return self.createRSPPacket(resp)
-                    else:
-                        resultMask = resultMask | safecmd[cmd_sub][1]
-                #if it's a single cmd, just launch it!
-                if len(cmdList) == 1:
-                    tmp = eval ('self.target.%s()' % cmd_sub)
-                    logging.debug(tmp)
-                    resp = "OK"
-                else:
-                    #10000001 for help reset, so output reset cmd help information
-                    if resultMask == 0x81:
-                        resp = 'Reset the target\n'
-                        resp = hexEncode(resp)
-                    #10000010 for help halt, so output halt cmd help information
-                    elif resultMask == 0x82:
-                        resp = 'Halt the target\n'
-                        resp = hexEncode(resp)
-                    #10000100 for help resume, so output resume cmd help information
-                    elif resultMask == 0x84:
-                        resp = 'Resume the target\n'
-                        resp = hexEncode(resp)
-                    #11 for reset halt cmd, so launch self.target.resetStopOnReset()
-                    elif resultMask == 0x3:
-                        resp = "OK"
-                        self.target.resetStopOnReset()
-                    #111 for reset halt resume cmd, so launch self.target.resetStopOnReset() and self.target.resume()
-                    elif resultMask == 0x7:
-                        resp = "OK"
-                        self.target.resetStopOnReset()
-                        self.target.resume()
-                    else:
-                        logging.warning("Invalid mon command '%s'", cmd)
-                        resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = hexEncode(resp)
-
-                if self.target.getState() != TARGET_HALTED:
-                    logging.error("Remote command left target running!")
-                    logging.error("Forcing target to halt")
-                    self.target.halt()
-
-            return self.createRSPPacket(resp)
+            return self.handleRemoteCommand(cmd)
 
         else:
             return self.createRSPPacket("")
+
+    # TODO rewrite the remote command handler
+    def handleRemoteCommand(self, cmd):
+        logging.debug('Remote command: %s', cmd)
+
+        safecmd = {
+            'reset' : ['Reset target', 0x1],
+            'halt'  : ['Halt target', 0x2],
+            'resume': ['Resume target', 0x4],
+            'help'  : ['Display this help', 0x80],
+            'reg'   : ['Show registers', 0],
+            'init'  : ['Init reset sequence', 0]
+        }
+        resultMask = 0x00
+        resp = 'OK'
+        if cmd == 'help':
+            for k,v in safecmd.items():
+                resp += '%s\t%s\n' % (k,v[0])
+            resp = hexEncode(resp)
+        elif cmd.startswith('arm semihosting'):
+            self.enable_semihosting = 'enable' in cmd
+            logging.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
+        else:
+            cmdList = cmd.split(' ')
+            #check whether all the cmds is valid cmd for monitor
+            for cmd_sub in cmdList:
+                if not cmd_sub in safecmd:
+                    #error cmd for monitor
+                    logging.warning("Invalid mon command '%s'", cmd)
+                    resp = 'Invalid Command: "%s"\n' % cmd
+                    resp = hexEncode(resp)
+                    return self.createRSPPacket(resp)
+                else:
+                    resultMask = resultMask | safecmd[cmd_sub][1]
+            #10000001 for help reset, so output reset cmd help information
+            if resultMask == 0x81:
+                resp = 'Reset the target\n'
+                resp = hexEncode(resp)
+            #10000010 for help halt, so output halt cmd help information
+            elif resultMask == 0x82:
+                resp = 'Halt the target\n'
+                resp = hexEncode(resp)
+            #10000100 for help resume, so output resume cmd help information
+            elif resultMask == 0x84:
+                resp = 'Resume the target\n'
+                resp = hexEncode(resp)
+            #11 for reset halt cmd, so launch self.target.resetStopOnReset()
+            elif resultMask == 0x3:
+                self.target.resetStopOnReset()
+            #111 for reset halt resume cmd, so launch self.target.resetStopOnReset() and self.target.resume()
+            elif resultMask == 0x7:
+                self.target.resetStopOnReset()
+                self.target.resume()
+            elif resultMask == 0x1:
+                self.target.reset()
+            elif resultMask == 0x2:
+                self.target.halt()
+
+            if self.target.getState() != TARGET_HALTED:
+                logging.error("Remote command left target running!")
+                logging.error("Forcing target to halt")
+                self.target.halt()
+
+        return self.createRSPPacket(resp)
 
     def handleGeneralSet(self, msg):
         logging.debug("GDB general set: %s", msg)
