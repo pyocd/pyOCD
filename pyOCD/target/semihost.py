@@ -18,13 +18,13 @@
 import os
 import sys
 import io
-import pyOCD
-#from pyOCD.target import cortex_m #import (DFSR, DFSR_BKPT)
 import logging
 import time
 import datetime
 import threading
 import socket
+import traceback
+import pyOCD
 from ..gdbserver.gdb_socket import GDBSocket
 from ..gdbserver.gdb_websocket import GDBWebSocket
 
@@ -52,8 +52,8 @@ TARGET_SYS_SYSTEM      = 0x12
 TARGET_SYS_ERRNO       = 0x13
 TARGET_SYS_GET_CMDLINE = 0x15
 TARGET_SYS_HEAPINFO    = 0x16
-# angel_SWIreason_EnterSVC = 0x17
-TARGET_SYS_EXIT        = 0x18 # angel_SWIreason_ReportException
+angel_SWIreason_EnterSVC = 0x17
+TARGET_SYS_EXIT        = 0x18 # Also called angel_SWIreason_ReportException
 TARGET_SYS_ELAPSED     = 0x30
 TARGET_SYS_TICKFREQ    = 0x31
 
@@ -113,6 +113,10 @@ class SemihostIOHandler(object):
 
 ##
 # @brief Implements semihosting requests directly in the Python process.
+#
+# This class maintains its own list of pseudo-file descriptors for files opened by the
+# debug target. By default, this class uses the system stdin, stdout, and stderr file objects
+# for file desscriptors 1, 2, and 3.
 class InternalSemihostIOHandler(SemihostIOHandler):
     def __init__(self):
         super(InternalSemihostIOHandler, self).__init__()
@@ -242,6 +246,13 @@ class InternalSemihostIOHandler(SemihostIOHandler):
 
 ##
 # @brief Serves a telnet connection for semihosting.
+#
+# Not all semihost requests are support. This class is meant to be used only for the
+# debug console. Pass an instance for the @i console parameter of the SemihostAgent
+# constructor.
+#
+# The server thread will automatically be started by the constructor. To shut down the
+# server and its thread, call the stop() method.
 class TelnetSemihostIOHandler(SemihostIOHandler):
     def __init__(self, port_or_url):
         super(TelnetSemihostIOHandler, self).__init__()
@@ -254,7 +265,6 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
         else:
             self._port = port_or_url
             self._abstract_socket = GDBSocket(self._port, 4096)
-        self.mode = 't'
         self._buffer = bytearray()
         self._buffer_lock = threading.Lock()
         self.connected = None
@@ -269,36 +279,38 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
     def _server(self):
         logging.info("Telnet: server started on port %s", str(self._port))
         self.connected = None
-        while not self._shutdown_event.is_set():
-            # Wait for a client to connect.
-            # TODO support multiple client connections
+        try:
             while not self._shutdown_event.is_set():
-                self.connected = self._abstract_socket.connect()
-                if self.connected is not None:
-                    logging.debug("Telnet: client connected")
-                    break
-
-            # Set timeout on new connection.
-            self._abstract_socket.setTimeout(0.1)
-
-            # Keep reading from the client until we either get a shutdown event, or
-            # the client disconnects. The incoming data is appended to our read buffer.
-            while not self._shutdown_event.is_set():
-                try:
-                    data = self._abstract_socket.read()
-                    if len(data) == 0:
-                        # Client disconnected.
-                        self._abstract_socket.close()
-                        self.connected = None
+                # Wait for a client to connect.
+                # TODO support multiple client connections
+                while not self._shutdown_event.is_set():
+                    self.connected = self._abstract_socket.connect()
+                    if self.connected is not None:
+                        logging.debug("Telnet: client connected")
                         break
 
-                    logging.debug("Telnet: received '%s'" % data)
-                    self._buffer_lock.acquire()
-                    self._buffer += bytearray(data)
-                    self._buffer_lock.release()
-                except socket.timeout:
-                    pass
-        self._abstract_socket.close()
+                # Set timeout on new connection.
+                self._abstract_socket.setTimeout(0.1)
+
+                # Keep reading from the client until we either get a shutdown event, or
+                # the client disconnects. The incoming data is appended to our read buffer.
+                while not self._shutdown_event.is_set():
+                    try:
+                        data = self._abstract_socket.read()
+                        if len(data) == 0:
+                            # Client disconnected.
+                            self._abstract_socket.close()
+                            self.connected = None
+                            break
+
+                        logging.debug("Telnet: received '%s'" % data)
+                        self._buffer_lock.acquire()
+                        self._buffer += bytearray(data)
+                        self._buffer_lock.release()
+                    except socket.timeout:
+                        pass
+        finally:
+            self._abstract_socket.close()
         logging.info("Telnet: server stopped")
 
     def write(self, fd, ptr, length):
@@ -317,14 +329,16 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
     ## @brief Extract requested amount of data from the read buffer.
     def _get_input(self, length):
         self._buffer_lock.acquire()
-        actualLength = min(length, len(self._buffer))
-        if actualLength:
-            data = self._buffer[:actualLength]
-            self._buffer = self._buffer[actualLength:]
-        else:
-            data = bytearray()
-        self._buffer_lock.release()
-        return data
+        try:
+            actualLength = min(length, len(self._buffer))
+            if actualLength:
+                data = self._buffer[:actualLength]
+                self._buffer = self._buffer[actualLength:]
+            else:
+                data = bytearray()
+            return data
+        finally:
+            self._buffer_lock.release()
 
     def read(self, fd, ptr, length):
         if self.connected is None:
@@ -362,22 +376,36 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
 # of word-sized arguments pointed to by R1. The return value is passed back to the target
 # in R0.
 #
-# This class maintains its own list of pseudo-file descriptors for files opened by the
-# debug target. By default, this class uses the system stdin, stdout, and stderr file objects
-# for file desscriptors 1, 2, and 3. In all cases, debug console I/O is mapped to pseudo-file
-# descriptors 1 and 2.
+# This class does not handle any file-related requests by itself. It uses I/O handler objects
+# passed in to the constructor. The requests handled directly by this class are #TARGET_SYS_CLOCK
+# and #TARGET_SYS_TIME.
 #
-# The user of this class can provide their own file-like objects to the constructor if they
-# wish to redirect standard I/O elsewhere. None may also be passed for standard I/O to the
-# constructor, in order to disable the I/O.
+# There are two types of I/O handlers accepted by the constructor. The main I/O handler, set
+# with the constructor's @i io_handler parameter, is used for most file operations.
+# You may optionally pass another I/O handler for the @i console constructor parameter. The
+# console handler is used solely for standard I/O and debug console I/O requests. If no console
+# handler is provided, the main handler is used instead. TARGET_SYS_OPEN requests are not
+# passed to the console handler in any event, they are always passed to the main handler.
 #
-# Any user-provided file-like objects must have 'mode' attributes. This attribute is used
-# to determine whether the file accepts bytes (binary) or unicode (text) data for read and
-# write.
+# The SemihostAgent assumes standard I/O file descriptor numbers are STDIN_FD, STDOUT_FD,
+# and STDERR_FD. When it receives a read or write request for one of these descriptors, it
+# passes the request to the console handler. This means the main handler must return these
+# numbers for standard I/O open requests (those with a file name of ":tt").
+#
+# Not all semihosting requests are supported. Those that are not implemented are:
+# - TARGET_SYS_TMPNAM
+# - TARGET_SYS_SYSTEM
+# - TARGET_SYS_GET_CMDLINE
+# - TARGET_SYS_HEAPINFO
+# - TARGET_SYS_EXIT
+# - TARGET_SYS_ELAPSED
+# - TARGET_SYS_TICKFREQ
 class SemihostAgent(object):
 
     ## Index into this array is the file open mode argument to TARGET_SYS_OPEN.
     OPEN_MODES = ['r', 'rb', 'r+', 'r+b', 'w', 'wb', 'w+', 'w+b', 'a', 'ab', 'a+', 'a+b']
+
+    EPOCH = datetime.datetime(1970, 1, 1)
 
     def __init__(self, target, io_handler=None, console=None):
         self.target = target
@@ -434,7 +462,7 @@ class SemihostAgent(object):
     # @retval True A semihosting request was handled.
     # @retval False The target halted for a reason other than semihosting, i.e. a user-installed
     #   debugging breakpoint.
-    def checkAndHandleSemihostRequest(self):
+    def check_and_handle_semihost_request(self):
         # Nothing to do if this is not a bkpt.
         if (self.target.read32(pyOCD.target.cortex_m.DFSR) & pyOCD.target.cortex_m.DFSR_BKPT) == 0:
             return False
@@ -468,6 +496,10 @@ class SemihostAgent(object):
             try:
                 result = handler(args)
             except NotImplementedError:
+                result = -1
+            except Exception as e:
+                logging.debug("Exception while handling semihost request: %s", e)
+                traceback.print_exc(e)
                 result = -1
         else:
             result = -1
@@ -506,9 +538,6 @@ class SemihostAgent(object):
                 target_str += str(bytearray(data))
                 ptr += 32
         return target_str
-
-    def _is_valid_fd(self, fd):
-         return self.open_files.has_key(fd) and self.open_files[fd] is not None
 
     def handle_sys_open(self, args):
         fnptr, mode, fnlen = self._get_args(args, 3)
@@ -588,9 +617,8 @@ class SemihostAgent(object):
         return int(delta * 100)
 
     def handle_sys_time(self, args):
-        epoch = datetime.datetime(1970, 1, 1)
         now = datetime.datetime.now()
-        delta = now - epoch
+        delta = now - self.EPOCH
         seconds = (delta.days * 86400) + delta.seconds
         return seconds
 

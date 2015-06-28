@@ -460,7 +460,7 @@ class GDBServer(threading.Thread):
                 if self.target.getState() == TARGET_HALTED:
                     # Handle semihosting
                     if self.enable_semihosting:
-                        was_semihost = self.semihost.checkAndHandleSemihostRequest()
+                        was_semihost = self.semihost.check_and_handle_semihost_request()
 
                         if was_semihost:
                             self.target.resume()
