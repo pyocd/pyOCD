@@ -27,7 +27,6 @@ from gdb_websocket import GDBWebSocket
 from syscall import GDBSyscallIOHandler
 from ..target import semihost
 import traceback
-import io
 import Queue
 
 CTRL_C = '\x03'
@@ -249,12 +248,12 @@ class GDBServer(threading.Thread):
 
         # Init semihosting and telnet console.
         if self.semihost_use_syscalls:
-            self.semihost_io_handler = GDBSyscallIOHandler(self)
+            semihost_io_handler = GDBSyscallIOHandler(self)
         else:
             # Use internal IO handler.
-            self.semihost_io_handler = None
+            semihost_io_handler = semihost.InternalSemihostIOHandler()
         self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port)
-        self.semihost = semihost.SemihostAgent(self.target, io_handler=self.semihost_io_handler, console=self.telnet_console)
+        self.semihost = semihost.SemihostAgent(self.target, io_handler=semihost_io_handler, console=self.telnet_console)
 
         self.setDaemon(True)
         self.start()
@@ -266,8 +265,6 @@ class GDBServer(threading.Thread):
     def stop(self):
         if self.isAlive():
             self.shutdown_event.set()
-            if self.packet_io:
-                self.packet_io.stop()
             while self.isAlive():
                 pass
             logging.info("GDB server thread killed")
@@ -282,6 +279,18 @@ class GDBServer(threading.Thread):
         self.flash = board.flash
         self.lock.release()
         return
+
+    def _cleanup(self):
+        logging.debug("GDB server cleaning up")
+        if self.packet_io:
+            self.packet_io.stop()
+            self.packet_io = None
+        if self.semihost:
+            self.semihost.cleanup()
+            self.semihost = None
+        if self.telnet_console:
+            self.telnet_console.stop()
+            self.telnet_console = None
 
     def run(self):
         while True:
@@ -301,6 +310,7 @@ class GDBServer(threading.Thread):
                     break
 
             if self.shutdown_event.isSet():
+                self._cleanup()
                 return
 
             if self.detach_event.isSet():
@@ -311,6 +321,7 @@ class GDBServer(threading.Thread):
             while True:
 
                 if self.shutdown_event.isSet():
+                    self._cleanup()
                     return
 
                 if self.detach_event.isSet():
@@ -327,6 +338,7 @@ class GDBServer(threading.Thread):
                     break
 
                 if self.shutdown_event.isSet():
+                    self._cleanup()
                     return
 
                 if self.detach_event.isSet():
@@ -350,13 +362,10 @@ class GDBServer(threading.Thread):
                         if self.persist:
                             break
                         else:
+                            self._cleanup()
                             return
 
                 self.lock.release()
-
-        if self.packet_io is not None:
-            self.packet_io.stop()
-            self.packet_io = None
 
     def handleMsg(self, msg):
         if msg[0] != '$':
@@ -506,7 +515,7 @@ class GDBServer(threading.Thread):
                     logging.debug("state halted")
                     val = self.target.getTResponse()
                     break
-            except Exception, e:
+            except Exception as e:
                 try:
                     self.target.halt()
                 except:
@@ -885,10 +894,7 @@ class GDBServer(threading.Thread):
         request = self.createRSPPacket('F' + op)
         self.packet_io.send(request)
 
-        while True:
-            if self.packet_io.interrupt_event.is_set():
-                break
-
+        while not self.packet_io.interrupt_event.is_set():
             # Read a packet.
             packet = self.packet_io.receive(False)
             if packet is None:
@@ -908,7 +914,7 @@ class GDBServer(threading.Thread):
                 return result, errno
 
             # decode and prepare resp
-            resp, ack, detach = self.handleMsg(packet)
+            resp, detach = self.handleMsg(packet)
 
             if resp is not None:
                 # send resp
@@ -920,8 +926,4 @@ class GDBServer(threading.Thread):
                 break
 
         return -1, 0
-
-    def writeDebugConsole(self, msg):
-         resp = self.createRSPPacket('O' + hexEncode(msg) + '00')
-         self.send_packet(resp)
 

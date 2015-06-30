@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -74,11 +74,17 @@ STDERR_FD = 3
 MAX_STRING_LENGTH = 2048
 
 ##
-# @brief Abstract interface for semihosting file I/O handlers.
+# @brief Interface for semihosting file I/O handlers.
+#
+# This class is also used as the default I/O handler if none is provided to SemihostAgent.
+# In this case, all file I/O requests are rejected.
 class SemihostIOHandler(object):
     def __init__(self):
         self.agent = None
         self._errno = 0
+
+    def cleanup(self):
+        pass
 
     @property
     def errno(self):
@@ -165,6 +171,10 @@ class InternalSemihostIOHandler(SemihostIOHandler):
 
     def _is_valid_fd(self, fd):
          return self.open_files.has_key(fd) and self.open_files[fd] is not None
+
+    def cleanup(self):
+        for f in (self.open_files[k] for k in self.open_files if k > STDERR_FD):
+            f.close()
 
     def open(self, fnptr, fnlen, mode):
         fd, filename = self._std_open(fnptr, fnlen, mode)
@@ -301,6 +311,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
 
     def stop(self):
         self._shutdown_event.set()
+        self.join()
 
     def _server(self):
         logging.info("Telnet: server started on port %s", str(self._port))
@@ -405,15 +416,18 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
 # passed in to the constructor. The requests handled directly by this class are #TARGET_SYS_CLOCK
 # and #TARGET_SYS_TIME.
 #
-# There are two types of I/O handlers accepted by the constructor. The main I/O handler, set
+# There are two types of I/O handlers used by this class. The main I/O handler, set
 # with the constructor's @i io_handler parameter, is used for most file operations.
 # You may optionally pass another I/O handler for the @i console constructor parameter. The
 # console handler is used solely for standard I/O and debug console I/O requests. If no console
 # handler is provided, the main handler is used instead. TARGET_SYS_OPEN requests are not
 # passed to the console handler in any event, they are always passed to the main handler.
 #
-# The SemihostAgent assumes standard I/O file descriptor numbers are STDIN_FD, STDOUT_FD,
-# and STDERR_FD. When it receives a read or write request for one of these descriptors, it
+# If no main I/O handler is provided, the class will use SemihostIOHandler, which causes all
+# file I/O requests to be rejected as an error.
+#
+# The SemihostAgent assumes standard I/O file descriptor numbers are #STDIN_FD, #STDOUT_FD,
+# and #STDERR_FD. When it receives a read or write request for one of these descriptors, it
 # passes the request to the console handler. This means the main handler must return these
 # numbers for standard I/O open requests (those with a file name of ":tt").
 #
@@ -435,7 +449,7 @@ class SemihostAgent(object):
     def __init__(self, target, io_handler=None, console=None):
         self.target = target
         self.start_time = time.time()
-        self.io_handler = io_handler if (io_handler is not None) else InternalSemihostIOHandler()
+        self.io_handler = io_handler if (io_handler is not None) else SemihostIOHandler()
         self.io_handler.agent = self
         self.console = console if (console is not None) else self.io_handler
         self.console.agent = self
@@ -532,6 +546,14 @@ class SemihostAgent(object):
         self.target.writeCoreRegister('r0', result)
 
         return True
+
+    ## @brief Clean up any resources allocated by semihost requests.
+    #
+    # @note May be called more than once.
+    def cleanup(self):
+        self.io_handler.cleanup()
+        if self.console is not self.io_handler:
+            self.console.cleanup()
 
     def _get_args(self, args, count):
         return self.target.readBlockMemoryAligned32(args, count)
