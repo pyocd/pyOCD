@@ -54,6 +54,9 @@ html
 #PyCharm project files
 .idea
 
+# Coverage
+cover
+
 # Common virtualenv environment names
 /env
 /env3
@@ -63,3 +66,6 @@ html
 
 automated_test_result.txt
 
+
+.eggs/
+pyOCD/_version.py

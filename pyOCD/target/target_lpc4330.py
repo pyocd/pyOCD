@@ -16,22 +16,20 @@
 """
 
 from cortex_m import CortexM
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 
 class LPC4330(CortexM):
 
-    memoryMapXML =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x14000000" length="0x4000000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x10000000" length="0x20000"> </memory>
-    <memory type="ram" start="0x10080000" length="0x12000"> </memory>
-    <memory type="ram" start="0x20000000" length="0x8000"> </memory>
-    <memory type="ram" start="0x20008000" length="0x8000"> </memory>
-</memory-map>
-"""
-    
+    memoryMap = MemoryMap(
+        FlashRegion(    start=0x14000000,  length=0x4000000,    blocksize=0x400, isBootMemory=True),
+        RamRegion(      start=0x10000000,  length=0x20000),
+        RamRegion(      start=0x10080000,  length=0x12000),
+        RamRegion(      start=0x20000000,  length=0x8000),
+        RamRegion(      start=0x20008000,  length=0x8000)
+        )
+
     def __init__(self, transport):
-        super(LPC4330, self).__init__(transport)
+        super(LPC4330, self).__init__(transport, self.memoryMap)
         self.ignoreReset = False
 
     def setFlash(self, flash):

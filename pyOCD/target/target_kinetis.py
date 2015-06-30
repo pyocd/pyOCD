@@ -44,8 +44,8 @@ FCF_ADDR = 0x400
 
 class Kinetis(CortexM):
 
-    def __init__(self, transport):
-        super(Kinetis, self).__init__(transport)
+    def __init__(self, transport, memoryMap=None):
+        super(Kinetis, self).__init__(transport, memoryMap)
         self.mdm_idr = 0
         self.do_auto_unlock = True
 
@@ -93,26 +93,27 @@ class Kinetis(CortexM):
         if isLocked:
             return
 
-        # Prevent the target from resetting if it has invalid code
-        self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
-        while self.transport.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
+        if self.halt_on_connect:
+            # Prevent the target from resetting if it has invalid code
             self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
-        # Enable debug
-        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
-        # Disable holding the core in reset, leave MDM halt on
-        self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
+            while self.transport.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
+                self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
+            # Enable debug
+            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+            # Disable holding the core in reset, leave MDM halt on
+            self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
-        # Wait until the target is halted
-        while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
-            logging.debug("Waiting for mdm halt")
-            sleep(0.01)
+            # Wait until the target is halted
+            while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
+                logging.debug("Waiting for mdm halt")
+                sleep(0.01)
 
-        # release MDM halt once it has taken effect in the DHCSR
-        self.transport.writeAP(MDM_CTRL, 0)
-        
-        # sanity check that the target is still halted
-        if self.getState() == TARGET_RUNNING:
-            raise Exception("Target failed to stay halted during init sequence")
+            # release MDM halt once it has taken effect in the DHCSR
+            self.transport.writeAP(MDM_CTRL, 0)
+
+            # sanity check that the target is still halted
+            if self.getState() == TARGET_RUNNING:
+                raise Exception("Target failed to stay halted during init sequence")
 
         CortexM.init(self, initial_setup=False, bus_accessible=True)
 

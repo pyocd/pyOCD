@@ -17,6 +17,7 @@
 """
 
 import argparse
+import os
 import sys
 import logging
 import itertools
@@ -24,12 +25,12 @@ from struct import unpack
 
 try:
     from intelhex import IntelHex
-
     intelhex_available = True
-except:
+except ImportError:
     intelhex_available = False
 
 import pyOCD
+from pyOCD import __version__
 from pyOCD.board import MbedBoard
 
 LEVELS = {
@@ -49,10 +50,22 @@ supported_targets.remove('cortex_m')  # No generic programming
 
 debug_levels = LEVELS.keys()
 
+def int_base_0(x):
+    return int(x, base=0)
+
+epi = """--chip_erase and --sector_erase can be used alone as individual commands, or they
+can be used in conjunction with flashing a binary or hex file. For the former, only the erase option
+will be performed. With a file, the erase options specify whether to erase the entire chip before
+flashing the file, or just to erase only those sectors occupied by the file. For a standalone
+sector erase, the --address and --count options are used to specify the start address of the
+sector to erase and the number of sectors to erase.
+"""
+
 # Keep args in snyc with gdb_server.py when possible
-parser = argparse.ArgumentParser(description='Flash utility')
-parser.add_argument("file", help="File to program")
-parser.add_argument("format", choices=supported_formats, help="File format")
+parser = argparse.ArgumentParser(description='Flash utility', epilog=epi)
+parser.add_argument("file", nargs='?', default=None, help="File to program")
+parser.add_argument("format", nargs='?', choices=supported_formats, default=None, help="File format. Default is to use the file extension (.bin or .hex)")
+parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-p", "--port"
 # reserved: "-c", "--cmd-port"
 parser.add_argument("-b", "--board", dest="board_id", default=None,
@@ -76,9 +89,11 @@ group = parser.add_mutually_exclusive_group()
 group.add_argument("-ce", "--chip_erase", action="store_true", help="Use chip erase when programming.")
 group.add_argument("-se", "--sector_erase", action="store_true", help="Use sector erase when programming.")
 parser.add_argument("-u", "--unlock", action="store_true", default=False, help="Unlock the device.")
-parser.add_argument("-a", "--address", default=None,
-                    help="Address to flash binary.  This can only be used with binary files")
-parser.add_argument("-s", "--skip", default=0, type=int,
+parser.add_argument("-a", "--address", default=None, type=int_base_0,
+                    help="Address. Used for the sector address with sector erase, and for the address where to flash a binary.")
+parser.add_argument("-n", "--count", default=1, type=int_base_0,
+                    help="Number of sectors to erase. Only applies to sector erase. Default is 1.")
+parser.add_argument("-s", "--skip", default=0, type=int_base_0,
                     help="Skip programming the first N bytes.  This can only be used with binary files")
 parser.add_argument("-hp", "--hide_progress", action="store_true", help="Don't display programming progress.")
 parser.add_argument("-fp", "--fast_program", action="store_true",
@@ -144,11 +159,43 @@ def main():
             if args.hide_progress:
                 progress = None
 
+            has_file = args.file is not None
+
             chip_erase = None
             if args.chip_erase:
                 chip_erase = True
             elif args.sector_erase:
                 chip_erase = False
+
+            if not has_file:
+                if chip_erase:
+                    print("Erasing chip...")
+                    flash.init()
+                    flash.eraseAll()
+                    print("Done")
+                elif args.sector_erase and args.address is not None:
+                    flash.init()
+                    page_addr = args.address
+                    for i in range(args.count):
+                        page_info = flash.getPageInfo(page_addr)
+                        if not page_info:
+                            break
+                        # Align page address on first time through.
+                        if i == 0:
+                            delta = page_addr % page_info.size
+                            if delta:
+                                print("Warning: sector address 0x%08x is unaligned" % page_addr)
+                                page_addr -= delta
+                        print("Erasing sector 0x%08x" % page_addr)
+                        flash.erasePage(page_addr)
+                        page_addr += page_info.size
+                else:
+                    print("No operation performed")
+                return
+
+            # If no format provided, use the file's extension.
+            if not args.format:
+                args.format = os.path.splitext(args.file)[1][1:]
 
             # Binary file format
             if args.format == 'bin':
@@ -165,7 +212,7 @@ def main():
                                  fast_verify=args.fast_program)
 
             # Intel hex file format
-            if args.format == 'hex':
+            elif args.format == 'hex':
                 hex = IntelHex(args.file)
                 addresses = hex.addresses()
                 addresses.sort()
@@ -179,6 +226,8 @@ def main():
                     flash_builder.addData(start, data)
                 flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
 
+            else:
+                print("Unknown file format '%s'" % args.format)
 
 if __name__ == '__main__':
     main()

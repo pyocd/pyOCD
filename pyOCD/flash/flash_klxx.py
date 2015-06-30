@@ -80,7 +80,7 @@ flash_algo = { 'load_address' : 0x20000000,
                'begin_data' : 0x20000a00,       # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
                                                 # Note: 128 pages on KL25 and KL26, 256 pages on KL46
                'static_base' : 0x20000000 + 0x20 + 0x5E8,
-               'page_size' : 1024,
+               'min_program_length' : 4,
                'analyzer_supported' : False     # Not enough space on KL02 and KL05
               };
 

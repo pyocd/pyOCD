@@ -175,8 +175,11 @@ CORE_REGISTER = {
                  'r11': 11,
                  'r12': 12,
                  'sp': 13,
+                 'r13': 13,
                  'lr': 14,
+                 'r14': 14,
                  'pc': 15,
+                 'r15': 15,
                  'xpsr': 16,
                  'msp': 17,
                  'psp': 18,
@@ -323,8 +326,8 @@ class CortexM(Target):
         RegisterInfo('s31',     64,         'float',        'float'),
         ]
 
-    def __init__(self, transport):
-        super(CortexM, self).__init__(transport)
+    def __init__(self, transport, memoryMap=None):
+        super(CortexM, self).__init__(transport, memoryMap)
 
         self.idcode = 0
         self.breakpoints = []
@@ -371,31 +374,34 @@ class CortexM(Target):
                 logging.warning("Unknown AHB IDR: 0x%x" % ahb_idr)
 
         if bus_accessible:
-            self.halt()
+            if self.halt_on_connect:
+                self.halt()
             self.setupFPB()
             self.readCoreType()
             self.checkForFPU()
             self.setupDWT()
+            self.buildTargetXML()
 
-            # Build register_list and targetXML
-            self.register_list = []
-            xml_root = Element('target')
-            xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
-            for reg in self.regs_general:
+    def buildTargetXML(self):
+        # Build register_list and targetXML
+        self.register_list = []
+        xml_root = Element('target')
+        xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
+        for reg in self.regs_general:
+            self.register_list.append(reg)
+            SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
+        # Check if target has ARMv7 registers
+        if self.core_type in  (ARM_CortexM3, ARM_CortexM4):
+            for reg in self.regs_system_armv7_only:
+                self.register_list.append(reg)
+                SubElement(xml_regs_general, 'reg',  **reg.gdb_xml_attrib)
+        # Check if target has FPU registers
+        if self.has_fpu:
+            #xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
+            for reg in self.regs_float:
                 self.register_list.append(reg)
                 SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
-            # Check if target has ARMv7 registers
-            if self.core_type in  (ARM_CortexM3, ARM_CortexM4):
-                for reg in self.regs_system_armv7_only:
-                    self.register_list.append(reg)
-                    SubElement(xml_regs_general, 'reg',  **reg.gdb_xml_attrib)
-            # Check if target has FPU registers
-            if self.has_fpu:
-                #xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
-                for reg in self.regs_float:
-                    self.register_list.append(reg)
-                    SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
-            self.targetXML = '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
+        self.targetXML = '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
 
     ## @brief Read the CPUID register and determine core type.
     def readCoreType(self):
@@ -561,7 +567,7 @@ class CortexM(Target):
         if (size >= 4):
             #logging.debug("read blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
             mem = self.readBlockMemoryAligned32(addr, size/4)
-            res += conversion.word2byte(mem)
+            res += conversion.u32leListToByteList(mem)
             size -= 4*len(mem)
             addr += 4*len(mem)
 
@@ -609,7 +615,7 @@ class CortexM(Target):
         # write aligned block of 32 bits
         if (size >= 4):
             #logging.debug("write blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
-            data32 = conversion.byte2word(data[idx:idx + (size & ~0x03)])
+            data32 = conversion.byteListToU32leList(data[idx:idx + (size & ~0x03)])
             self.writeBlockMemoryAligned32(addr, data32)
             addr += size & ~0x03
             idx += size & ~0x03
@@ -793,7 +799,7 @@ class CortexM(Target):
         regValue = self.readCoreRegisterRaw(regIndex)
         # Convert int to float.
         if regIndex >= 0x40:
-            regValue = conversion.int2float(regValue)
+            regValue = conversion.u32BEToFloat32BE(regValue)
         return regValue
 
     def registerNameToIndex(self, reg):
@@ -876,7 +882,7 @@ class CortexM(Target):
         regIndex = self.registerNameToIndex(reg)
         # Convert float to int.
         if regIndex >= 0x40:
-            data = conversion.float2int(data)
+            data = conversion.float32beToU32be(data)
         self.writeCoreRegisterRaw(regIndex, data)
 
     def writeCoreRegisterRaw(self, reg, data):
@@ -1089,7 +1095,7 @@ class CortexM(Target):
         vals = self.readCoreRegistersRaw(reg_num_list)
         #print("Vals: %s" % vals)
         for reg, regValue in zip(self.register_list, vals):
-            resp += conversion.intToHex8(regValue)
+            resp += conversion.u32beToHex8le(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
 
         return resp
@@ -1102,7 +1108,7 @@ class CortexM(Target):
         reg_num_list = []
         reg_data_list = []
         for reg in self.register_list:
-            regValue = conversion.hex8ToInt(data)
+            regValue = conversion.hex8leToU32be(data)
             reg_num_list.append(reg.reg_num)
             reg_data_list.append(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
@@ -1118,7 +1124,7 @@ class CortexM(Target):
             return
         elif reg < len(self.register_list):
             regName = self.register_list[reg].name
-            value = conversion.hex8ToInt(data)
+            value = conversion.hex8leToU32be(data)
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
             self.writeCoreRegisterRaw(regName, value)
 
@@ -1127,7 +1133,7 @@ class CortexM(Target):
         if reg < len(self.register_list):
             regName = self.register_list[reg].name
             regValue = self.readCoreRegisterRaw(regName)
-            resp = conversion.intToHex8(regValue)
+            resp = conversion.u32beToHex8le(regValue)
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 
@@ -1138,9 +1144,9 @@ class CortexM(Target):
             The current value of the important registers (sp, lr, pc).
         """
         if gdbInterrupt:
-            response = 'T' + conversion.intToHex2(signals.SIGINT)
+            response = 'T' + conversion.byteToHex2(signals.SIGINT)
         else:
-            response = 'T' + conversion.intToHex2(self.getSignalValue())
+            response = 'T' + conversion.byteToHex2(self.getSignalValue())
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self.getRegIndexValuePairs([7, 13, 14, 15])
@@ -1173,6 +1179,6 @@ class CortexM(Target):
         str = ''
         regList = self.readCoreRegistersRaw(regIndexList)
         for regIndex, reg in zip(regIndexList, regList):
-            str += conversion.intToHex2(regIndex) + ':' + conversion.intToHex8(reg) + ';'
+            str += conversion.byteToHex2(regIndex) + ':' + conversion.u32beToHex8le(reg) + ';'
         return str
 

@@ -16,19 +16,17 @@
 """
 
 from cortex_m import CortexM
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 
 class LPC11U24(CortexM):
 
-    memoryMapXML =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x8000"> <property name="blocksize">0x400</property></memory>
-    <memory type="ram" start="0x10000000" length="0x1000"> </memory>
-</memory-map>
-"""
-    
+    memoryMap = MemoryMap(
+        FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, isBootMemory=True),
+        RamRegion(      start=0x10000000,  length=0x1000)
+        )
+
     def __init__(self, transport):
-        super(LPC11U24, self).__init__(transport)
+        super(LPC11U24, self).__init__(transport, self.memoryMap)
 
     def resetStopOnReset(self, software_reset = None, map_to_user = True):
         CortexM.resetStopOnReset(self, software_reset)

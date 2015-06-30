@@ -16,36 +16,34 @@
 """
 
 from cortex_m import CortexM
-from pyOCD.transport.cmsis_dap_core import dapJTAGIDCode, dapVendor, dapSWJPins, PINS
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
+from pyOCD.transport.cmsis_dap_core import PINS
 import logging
 
 class MAX32600MBED(CortexM):
 
-    memoryMapXML =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x40000"> <property name="blocksize">0x800</property></memory>
-    <memory type="ram" start="0x20000000" length="0x8000"> </memory>
-    <memory type="ram" start="0x40000000" length="0x100000"> </memory>
-    <memory type="ram" start="0xe0000000" length="0x100000"> </memory>
-</memory-map>
-"""
+    memoryMap = MemoryMap(
+        FlashRegion(    start=0,           length=0x40000,      blocksize=0x800, isBootMemory=True),
+        RamRegion(      start=0x20000000,  length=0x8000),
+        RamRegion(      start=0x40000000,  length=0x100000),
+        RamRegion(      start=0xe0000000,  length=0x100000)
+        )
 
     def __init__(self, transport):
-        super(MAX32600MBED, self).__init__(transport)
+        super(MAX32600MBED, self).__init__(transport, self.memoryMap)
 
     def readIDCode(self):
         """
         return the IDCODE of the core
         """
         if self.idcode == 0:
-            self.idcode = dapJTAGIDCode(self.transport.interface)
+            self.idcode = self.protocol.jtagIDCode()
         return self.idcode
 
     def dsb(self):
         logging.info("Triggering Destructive Security Bypass...")
 
-        dapVendor(self.transport.interface, 1)
+        self.protocol.vendor(1)
 
         # Reconnect debugger
         self.transport.init()
@@ -53,7 +51,7 @@ class MAX32600MBED(CortexM):
     def fge(self):
         logging.info("Triggering Factory Global Erase...")
 
-        dapVendor(self.transport.interface, 2)
+        self.protocol.vendor(2)
 
         # Reconnect debugger
         self.transport.init()

@@ -20,10 +20,13 @@ import sys
 import logging
 import traceback
 import argparse
+
 import pyOCD.board.mbed_board
+from pyOCD import __version__
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line
+import pyOCD.board.mbed_board
 
 LEVELS = {
     'debug': logging.DEBUG,

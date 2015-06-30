@@ -25,7 +25,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.utility.conversion import float2int
+from pyOCD.utility.conversion import float32beToU32be
 import logging
 
 def basic_test(board_id, file):
@@ -101,6 +101,10 @@ def basic_test(board_id, file):
             addr = 0x20000001
             size = 0x502
             addr_flash = 0x10000
+        elif target_type == "w7500":
+            addr = 0x20000001
+            size = 0x1102
+            addr_flash = 0x00000000
         else:
             raise Exception("A board is not supported by this test script.")
 
@@ -142,13 +146,13 @@ def basic_test(board_id, file):
         
         if target.has_fpu:
             s0 = target.readCoreRegister('s0')
-            print "S0 = %g (0x%08x)" % (s0,float2int(s0))
+            print "S0 = %g (0x%08x)" % (s0,float32beToU32be(s0))
             target.writeCoreRegister('s0', math.pi)
             newS0 = target.readCoreRegister('s0')
-            print "New S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+            print "New S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0))
             target.writeCoreRegister('s0', s0)
             newS0 = target.readCoreRegister('s0')
-            print "Restored S0 = %g (0x%08x)" % (newS0, float2int(newS0))
+            print "Restored S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0))
         
         
         print "\r\n\r\n------ TEST HALT / RESUME ------"
@@ -236,16 +240,23 @@ def basic_test(board_id, file):
             
         print "\r\n\r\n------ TEST PROGRAM/ERASE PAGE ------"
         # Fill 3 pages with 0x55
-        fill = [0x55] * flash.page_size
+        page_size = flash.getPageInfo(addr_flash).size
+        fill = [0x55] * page_size
         flash.init()
         for i in range(0, 3):
-            flash.erasePage(addr_flash + flash.page_size * i)
-            flash.programPage( addr_flash + flash.page_size * i, fill )
+            address = addr_flash + page_size * i
+            # Test only supports a location with 3 aligned
+            # pages of the same size
+            current_page_size = flash.getPageInfo(addr_flash).size
+            assert page_size == current_page_size
+            assert address % current_page_size == 0
+            flash.erasePage(address)
+            flash.programPage(address, fill)
         # Erase the middle page
-        flash.erasePage(addr_flash + flash.page_size)
+        flash.erasePage(addr_flash + page_size)
         # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
-        data = target.readBlockMemoryUnaligned8(addr_flash, flash.page_size * 3)
-        expected = fill + [0xFF] * flash.page_size + fill
+        data = target.readBlockMemoryUnaligned8(addr_flash, page_size * 3)
+        expected = fill + [0xFF] * page_size + fill
         if data == expected:
             print "TEST PASSED"
         else:

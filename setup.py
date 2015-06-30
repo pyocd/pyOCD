@@ -14,10 +14,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import sys
-from setuptools import setup, find_packages
 
-install_requires = []
+from setuptools import setup, find_packages
+import sys
+
+install_requires = ['intelhex']
 if sys.platform.startswith('linux'):
     install_requires.extend([
         'pyusb',
@@ -31,19 +32,28 @@ elif sys.platform.startswith('darwin'):
         'hidapi',
     ])
 
-
 setup(
     name="pyOCD",
-    version="0.4.2",
+    use_scm_version={
+        'local_scheme': 'dirty-tag',
+        'write_to': 'pyOCD/_version.py'
+    },
+    setup_requires=['setuptools-scm!=1.5.3,!=1.5.4'],
     description="CMSIS-DAP debugger for Python",
+    long_description=open('README.rst', 'Ur').read(),
     author="samux, emilmont",
     author_email="Samuel.Mokrani@arm.com, Emilio.Monti@arm.com",
+    url='https://github.com/mbedmicro/pyOCD',
     license="Apache 2.0",
+    install_requires=install_requires,
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
     ],
+    extras_require={
+        'dissassembler': ['capstone']
+    },
     entry_points={
         'console_scripts': [
             'pyocd-gdbserver = pyOCD.tools.gdb_server:main',
@@ -51,7 +61,6 @@ setup(
             'pyocd-tool = pyOCD.tools.pyocd:main',
         ],
     },
-    install_requires=install_requires,
     use_2to3=True,
     packages=find_packages(),
     include_package_data=True,  # include files from MANIFEST.in

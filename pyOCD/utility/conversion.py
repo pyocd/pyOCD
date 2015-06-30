@@ -16,19 +16,22 @@
 """
 
 import struct
+import binascii
 
-## @brief Convert a byte array into a word array.
-def byte2word(data):
+
+def byteListToU32leList(data):
+    """Convert a list of bytes to a list of 32-bit integers (little endian)"""
     res = []
-    for i in range(len(data)/4):
-        res.append(data[i*4 + 0] << 0  |
-                   data[i*4 + 1] << 8  |
-                   data[i*4 + 2] << 16 |
-                   data[i*4 + 3] << 24)
+    for i in range(len(data) / 4):
+        res.append(data[i * 4 + 0] |
+                   data[i * 4 + 1] << 8 |
+                   data[i * 4 + 2] << 16 |
+                   data[i * 4 + 3] << 24)
     return res
 
-## @brief Convert a word array into a byte array.
-def word2byte(data):
+
+def u32leListToByteList(data):
+    """Convert a word array into a byte array"""
     res = []
     for x in data:
         res.append((x >> 0) & 0xff)
@@ -37,55 +40,63 @@ def word2byte(data):
         res.append((x >> 24) & 0xff)
     return res
 
-## @brief Convert a 32-bit int to an IEEE754 float.
-def int2float(data):
-    d = struct.pack("@I", data)
-    return struct.unpack("@f", d)[0]
 
-## @brief Convert an IEEE754 float to a 32-bit int.
-def float2int(data):
-    d = struct.pack("@f", data)
-    return struct.unpack("@I", d)[0]
+def u16leListToByteList(data):
+    """Convert a halfword array into a byte array"""
+    byteData = []
+    for h in data:
+        byteData.extend([h & 0xff, (h >> 8) & 0xff])
+    return byteData
 
-## @brief create 8-digit hexadecimal string from 32-bit register value.
-def intToHex8(val):
-    val = hex(int(val))[2:]
-    size = len(val)
-    r = ''
-    for i in range(8-size):
-        r += '0'
-    r += str(val)
 
-    resp = ''
-    for i in range(4):
-        resp += r[8 - 2*i - 2: 8 - 2*i]
+def byteListToU16leList(byteData):
+    """Convert a byte array into a halfword array"""
+    data = []
+    for i in range(0, len(byteData), 2):
+        data.append(byteData[i] | (byteData[i + 1] << 8))
+    return data
 
-    return resp
 
-## @brief Build 32-bit register value from little-endian 8-digit hexadecimal string.
-def hex8ToInt(data):
+def u32BEToFloat32BE(data):
+    """Convert a 32-bit int to an IEEE754 float"""
+    d = struct.pack(">I", data)
+    return struct.unpack(">f", d)[0]
+
+
+def float32beToU32be(data):
+    """Convert an IEEE754 float to a 32-bit int"""
+    d = struct.pack(">f", data)
+    return struct.unpack(">I", d)[0]
+
+
+def u32beToHex8le(val):
+    """Create 8-digit hexadecimal string from 32-bit register value"""
+    return ''.join("%02x" % (x & 0xFF) for x in (
+        val,
+        val >> 8,
+        val >> 16,
+        val >> 24,
+    ))
+
+
+def hex8leToU32be(data):
+    """Build 32-bit register value from little-endian 8-digit hexadecimal string"""
     return int(data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
 
-## @brief Create 2-digit hexadecimal string from 8-bit value.
-def intToHex2(val):
-    val = hex(int(val))[2:]
-    if len(val) < 2:
-        return '0' + val
-    else:
-        return val
 
-## @brief Convert string of hex bytes to list of integers.
-def hexStringToIntList(data):
-    i = 0
-    result = []
-    while i < len(data):
-        result.append(int(data[i:i+2], 16))
-        i += 2
-    return result
+def byteToHex2(val):
+    """Create 2-digit hexadecimal string from 8-bit value"""
+    return "%02x" % int(val)
+
+
+def hexToByteList(data):
+    """Convert string of hex bytes to list of integers"""
+    return [ord(i) for i in binascii.unhexlify(data)]
+
 
 def hexDecode(cmd):
-    return ''.join([ chr(int(cmd[i:i+2], 16)) for i in range(0, len(cmd), 2)])
+    return binascii.unhexlify(cmd)
+
 
 def hexEncode(string):
-    return ''.join(['%02x' % ord(i) for i in string])
-
+    return binascii.hexlify(string)

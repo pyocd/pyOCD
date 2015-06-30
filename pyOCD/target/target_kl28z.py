@@ -16,6 +16,7 @@
 """
 
 from target_kinetis import Kinetis
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 from cortex_m import (NVIC_AIRCR, NVIC_AIRCR_SYSRESETREQ)
 from ..transport.transport import TransferError
@@ -28,29 +29,23 @@ KEYATTR_DUAL_CORE = 1
 
 class KL28x(Kinetis):
 
-    memoryMapXMLSingle =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x80000"> <property name="blocksize">0x800</property></memory>
-    <memory type="ram" start="0x1fff8000" length="0x20000"> </memory>
-    <memory type="ram" start="0x40100000" length="0x800"> </memory>
-</memory-map>
-"""
+    singleMap = MemoryMap(
+        FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, isBootMemory=True),
+        RamRegion(name='ram', start=0x1fff8000, length=0x20000),
+        RamRegion(name='usb ram', start=0x40100000, length=0x800)
+        )
 
-    memoryMapXMLDual =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x80000"> <property name="blocksize">0x800</property></memory>
-    <memory type="flash" start="0x1d200000" length="0x40000"> <property name="blocksize">0x800</property></memory>
-    <memory type="ram" start="0x1fffa000" length="0x12000"> </memory>
-    <memory type="flash" start="0x2d200000" length="0x40000"> <property name="blocksize">0x800</property></memory>
-    <memory type="ram" start="0x2d300000" length="0x8000"> </memory>
-    <memory type="ram" start="0x40100000" length="0x800"> </memory>
-</memory-map>
-"""
+    dualMap = MemoryMap(
+        FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, isBootMemory=True),
+        RamRegion(name='core1 imem alias', start=0x1d200000, length=0x40000, blocksize=0x800),
+        RamRegion(name='core0 ram', start=0x1fffa000, length=0x12000),
+        FlashRegion(name='core1 imem', start=0x2d200000, length=0x40000, blocksize=0x800),
+        RamRegion(name='core1 dmem', start=0x2d300000, length=0x8000),
+        RamRegion(name='usb ram', start=0x40100000, length=0x800)
+        )
 
     def __init__(self, transport):
-        super(KL28x, self).__init__(transport)
+        super(KL28x, self).__init__(transport, self.singleMap)
         self.mdm_idr = 0x001c0020
         self.is_dual_core = False
 
@@ -63,13 +58,8 @@ class KL28x(Kinetis):
         logging.debug("KEYATTR=0x%x SDID=0x%08x", keyattr, sdid)
         self.is_dual_core = (keyattr == KEYATTR_DUAL_CORE)
         if self.is_dual_core:
+            self.memory_map = self.dualMap
             logging.info("KL28 is dual core")
-
-    def getMemoryMapXML(self):
-        if self.is_dual_core:
-            return self.memoryMapXMLDual
-        else:
-            return self.memoryMapXMLSingle
 
     def reset(self, software_reset = None):
         try:

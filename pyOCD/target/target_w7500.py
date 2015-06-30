@@ -15,19 +15,16 @@
  limitations under the License.
 """
 
-from target_kinetis import Kinetis
+from cortex_m import CortexM
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
-import logging
 
-
-class KL46Z(Kinetis):
+class W7500(CortexM):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x40000,      blocksize=0x400, isBootMemory=True),
-        RamRegion(      start=0x1fffe000,  length=0x8000)
+        FlashRegion(    start=0x00000000,  length=0x20000,      blocksize=0x100, isBootMemory=True),
+        RamRegion(      start=0x20000000,  length=0x4000)
         )
 
     def __init__(self, transport):
-        super(KL46Z, self).__init__(transport, self.memoryMap)
-        self.mdm_idr = 0x001c0020
+        super(W7500, self).__init__(transport, self.memoryMap)
 
