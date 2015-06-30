@@ -567,7 +567,7 @@ class CortexM(Target):
         if (size >= 4):
             #logging.debug("read blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
             mem = self.readBlockMemoryAligned32(addr, size/4)
-            res += conversion.word2byte(mem)
+            res += conversion.u32leListToByteList(mem)
             size -= 4*len(mem)
             addr += 4*len(mem)
 
@@ -615,7 +615,7 @@ class CortexM(Target):
         # write aligned block of 32 bits
         if (size >= 4):
             #logging.debug("write blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
-            data32 = conversion.byte2word(data[idx:idx + (size & ~0x03)])
+            data32 = conversion.byteListToU32leList(data[idx:idx + (size & ~0x03)])
             self.writeBlockMemoryAligned32(addr, data32)
             addr += size & ~0x03
             idx += size & ~0x03
@@ -799,7 +799,7 @@ class CortexM(Target):
         regValue = self.readCoreRegisterRaw(regIndex)
         # Convert int to float.
         if regIndex >= 0x40:
-            regValue = conversion.int2float(regValue)
+            regValue = conversion.u32BEToFloat32BE(regValue)
         return regValue
 
     def registerNameToIndex(self, reg):
@@ -882,7 +882,7 @@ class CortexM(Target):
         regIndex = self.registerNameToIndex(reg)
         # Convert float to int.
         if regIndex >= 0x40:
-            data = conversion.float2int(data)
+            data = conversion.float32beToU32be(data)
         self.writeCoreRegisterRaw(regIndex, data)
 
     def writeCoreRegisterRaw(self, reg, data):
@@ -1095,7 +1095,7 @@ class CortexM(Target):
         vals = self.readCoreRegistersRaw(reg_num_list)
         #print("Vals: %s" % vals)
         for reg, regValue in zip(self.register_list, vals):
-            resp += conversion.intToHex8(regValue)
+            resp += conversion.u32beToHex8le(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
 
         return resp
@@ -1108,7 +1108,7 @@ class CortexM(Target):
         reg_num_list = []
         reg_data_list = []
         for reg in self.register_list:
-            regValue = conversion.hex8ToInt(data)
+            regValue = conversion.hex8leToU32be(data)
             reg_num_list.append(reg.reg_num)
             reg_data_list.append(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
@@ -1124,7 +1124,7 @@ class CortexM(Target):
             return
         elif reg < len(self.register_list):
             regName = self.register_list[reg].name
-            value = conversion.hex8ToInt(data)
+            value = conversion.hex8leToU32be(data)
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
             self.writeCoreRegisterRaw(regName, value)
 
@@ -1133,7 +1133,7 @@ class CortexM(Target):
         if reg < len(self.register_list):
             regName = self.register_list[reg].name
             regValue = self.readCoreRegisterRaw(regName)
-            resp = conversion.intToHex8(regValue)
+            resp = conversion.u32beToHex8le(regValue)
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 
@@ -1144,9 +1144,9 @@ class CortexM(Target):
             The current value of the important registers (sp, lr, pc).
         """
         if gdbInterrupt:
-            response = 'T' + conversion.intToHex2(signals.SIGINT)
+            response = 'T' + conversion.byteToHex2(signals.SIGINT)
         else:
-            response = 'T' + conversion.intToHex2(self.getSignalValue())
+            response = 'T' + conversion.byteToHex2(self.getSignalValue())
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self.getRegIndexValuePairs([7, 13, 14, 15])
@@ -1179,6 +1179,6 @@ class CortexM(Target):
         str = ''
         regList = self.readCoreRegistersRaw(regIndexList)
         for regIndex, reg in zip(regIndexList, regList):
-            str += conversion.intToHex2(regIndex) + ':' + conversion.intToHex8(reg) + ';'
+            str += conversion.byteToHex2(regIndex) + ':' + conversion.u32beToHex8le(reg) + ';'
         return str
 

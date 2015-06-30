@@ -18,7 +18,7 @@
 import logging, threading, socket
 from ..target.target import TARGET_HALTED, WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE
 from ..transport import TransferError
-from ..utility.conversion import hexStringToIntList, hexEncode, hexDecode
+from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from struct import unpack
 from time import sleep, time
 import sys
@@ -609,7 +609,7 @@ class GDBServer(threading.Thread):
         length = int(split[0], 16)
 
         split = split[1].split('#')
-        data = hexStringToIntList(split[0])
+        data = hexToByteList(split[0])
 
         if LOG_MEM:
             logging.debug("GDB writeMemHex: addr=%x len=%x", addr, length)

@@ -28,7 +28,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
-from pyOCD.utility.conversion import float2int
+from pyOCD.utility.conversion import float32beToU32be
 from pyOCD.flash.flash import FLASH_PAGE_ERASE, FLASH_CHIP_ERASE
 from test_util import Test, TestResult
 

@@ -101,6 +101,22 @@ dependencies for the current platform by doing the following:
 On Windows, the virtualenv would be activated by executing
 ``env\Scripts\activate``.
 
+To run the unittests, you can execute the following.  Because of how
+nose searches for tests, specifying the directory is important as it
+will otherwise attempt to run non-unit tests as well (which will
+hang).
+
+.. code:: console
+
+    $ nosetests pyOCD/tests
+
+To get code coverage results, do the following:
+
+.. code:: console
+
+    $ nosetests --with-coverage --cover-html --cover-package=pyOCD pyOCD/tests
+    $ firefox cover/index.html
+
 Examples
 --------
 
