@@ -322,6 +322,7 @@ class PyOCDTool(object):
                 'h' :       self.handle_halt,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
+                'map' :     self.handle_memory_map,
                 'log' :     self.handle_log,
                 'clock' :   self.handle_clock,
                 'exit' :    self.handle_exit,
@@ -579,7 +580,11 @@ class PyOCDTool(object):
         elif self.args.width == 32:
             data = pyOCD.utility.conversion.u32leListToByteList(data)
 
-        self.target.writeBlockMemoryUnaligned8(addr, data)
+        if self.isFlashWrite(args):
+            target.flash.init()
+            target.flash.programPhrase(addr, data)
+        else:
+            self.target.writeBlockMemoryUnaligned8(addr, data)
 
     def handle_erase(self, args):
         self.flash.init()
@@ -612,6 +617,9 @@ class PyOCDTool(object):
         else:
             print "Successfully halted device"
 
+    def handle_memory_map(self, args):
+        self.print_memory_map()
+
     def handle_log(self, args):
         if len(args) < 1:
             print "Error: no log level provided"
@@ -629,6 +637,7 @@ class PyOCDTool(object):
             freq_Hz = int(args[0]) * 1000
         except:
             print "Error: invalid frequency"
+            return 1
         self.transport.setClock(freq_Hz)
 
         if self.transport.mode == pyOCD.transport.cmsis_dap.DAP_MODE_SWD:
@@ -647,6 +656,21 @@ class PyOCDTool(object):
 
     def handle_exit(self, args):
         raise ToolExitException()
+
+    def isFlashWrite(self, args):
+        mem_map = self.board.target.getMemoryMap()
+        region = mem_map.getRegionForAddress(args.write)
+        if (region is None) or (not region.isFlash):
+            return False
+
+        if args.width == 8:
+            l = len(args.data)
+        elif args.width == 16:
+            l = len(args.data)*2
+        elif args.width == 32:
+            l = len(args.data)*4
+
+        return region.containsRange(args.write, length=l)
 
     ## @brief Convert an argument to a 32-bit integer.
     #
@@ -692,6 +716,11 @@ class PyOCDTool(object):
             print "{:>8} {:#010x} ".format(reg + ':', regValue),
             if i % 3 == 2:
                 print
+
+    def print_memory_map(self):
+        print "Region          Start         End           Blocksize"
+        for region in self.target.getMemoryMap():
+            print "{:<15} {:#010x}    {:#010x}    {}".format(region.name, region.start, region.end, region.blocksize if region.isFlash else '-')
 
     def print_disasm(self, code, startAddr):
         if not isCapstoneAvailable:

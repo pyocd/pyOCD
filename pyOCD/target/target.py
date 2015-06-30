@@ -24,10 +24,11 @@ WATCHPOINT_READ_WRITE = 3
 
 class Target(object):
 
-    def __init__(self, transport):
+    def __init__(self, transport, memoryMap=None):
         self.transport = transport
         self.flash = None
         self.part_number = ""
+        self.memory_map = memoryMap
         self.halt_on_connect = True
 
     def setAutoUnlock(self, doAutoUnlock):
@@ -83,7 +84,7 @@ class Target(object):
 
     def writeCoreRegister(self, id):
         return
-    
+
     def setBreakpoint(self, addr):
         return
 
@@ -102,12 +103,20 @@ class Target(object):
     def getState(self):
         return
 
+    def getMemoryMap(self):
+        return self.memory_map
+
     # GDB functions
     def getTargetXML(self):
         return ''
 
     def getMemoryMapXML(self):
-        return self.memoryMapXML
+        if self.memory_map:
+            return self.memory_map.getXML()
+        elif hasattr(self, 'memoryMapXML'):
+            return self.memoryMapXML
+        else:
+            return None
 
     def getRegisterContext(self):
         return ''

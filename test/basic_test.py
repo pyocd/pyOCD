@@ -240,16 +240,23 @@ def basic_test(board_id, file):
             
         print "\r\n\r\n------ TEST PROGRAM/ERASE PAGE ------"
         # Fill 3 pages with 0x55
-        fill = [0x55] * flash.page_size
+        page_size = flash.getPageInfo(addr_flash).size
+        fill = [0x55] * page_size
         flash.init()
         for i in range(0, 3):
-            flash.erasePage(addr_flash + flash.page_size * i)
-            flash.programPage( addr_flash + flash.page_size * i, fill )
+            address = addr_flash + page_size * i
+            # Test only supports a location with 3 aligned
+            # pages of the same size
+            current_page_size = flash.getPageInfo(addr_flash).size
+            assert page_size == current_page_size
+            assert address % current_page_size == 0
+            flash.erasePage(address)
+            flash.programPage(address, fill)
         # Erase the middle page
-        flash.erasePage(addr_flash + flash.page_size)
+        flash.erasePage(addr_flash + page_size)
         # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
-        data = target.readBlockMemoryUnaligned8(addr_flash, flash.page_size * 3)
-        expected = fill + [0xFF] * flash.page_size + fill
+        data = target.readBlockMemoryUnaligned8(addr_flash, page_size * 3)
+        expected = fill + [0xFF] * page_size + fill
         if data == expected:
             print "TEST PASSED"
         else:

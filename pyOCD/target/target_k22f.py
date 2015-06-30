@@ -16,21 +16,19 @@
 """
 
 from target_kinetis import Kinetis
+from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 
 
 class K22F(Kinetis):
 
     # 512kB flash with 2kB sectors, 128kB RAM
-    memoryMapXML =  """<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-<memory-map>
-    <memory type="flash" start="0x0" length="0x80000"> <property name="blocksize">0x800</property></memory>
-    <memory type="ram" start="0x1fff0000" length="0x20000"> </memory>
-</memory-map>
-"""
-    
+    memoryMap = MemoryMap(
+        FlashRegion(    start=0,           length=0x80000,     blocksize=0x800, isBootMemory=True),
+        RamRegion(      start=0x1fff0000,  length=0x20000)
+        )
+
     def __init__(self, transport):
-        super(K22F, self).__init__(transport)
+        super(K22F, self).__init__(transport, self.memoryMap)
         self.mdm_idr = 0x001c0000
-        
+

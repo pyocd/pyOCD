@@ -687,7 +687,7 @@ class GDBServer(threading.Thread):
             # Build our list of features.
             features = ['qXfer:features:read+', 'QStartNoAckMode+']
             features.append('PacketSize=' + hex(self.packet_size)[2:])
-            if hasattr(self.target, 'memoryMapXML'):
+            if self.target.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')
             resp = ';'.join(features)
             return self.createRSPPacket(resp)
@@ -813,7 +813,7 @@ class GDBServer(threading.Thread):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
         xml = ''
         if query == 'memory_map':
-            xml = self.target.memoryMapXML
+            xml = self.target.getMemoryMapXML()
         elif query == 'read_feature':
             xml = self.target.getTargetXML()
 

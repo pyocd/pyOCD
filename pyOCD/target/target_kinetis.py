@@ -44,8 +44,8 @@ FCF_ADDR = 0x400
 
 class Kinetis(CortexM):
 
-    def __init__(self, transport):
-        super(Kinetis, self).__init__(transport)
+    def __init__(self, transport, memoryMap=None):
+        super(Kinetis, self).__init__(transport, memoryMap)
         self.mdm_idr = 0
         self.do_auto_unlock = True
 

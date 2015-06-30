@@ -74,7 +74,7 @@ flash_algo = { 'load_address' : 0x20000000,
                'begin_data' : 0x20000a00,       # Analyzer uses a max of 2 KB data (512 pages * 4 bytes / page)
                'page_buffers' : [0x20000a00, 0x20001200],   # Enable double buffering
                'static_base' : 0x20000000 + 0x20 + 0x594,
-               'page_size' : 2048,
+               'min_program_length' : 8,
                'analyzer_supported' : True,
                'analyzer_address' : 0x1fffa000
               };
