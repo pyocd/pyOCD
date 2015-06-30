@@ -41,55 +41,55 @@ class Target(object):
 
     def setFlash(self, flash):
         self.flash = flash
-        
+
     def init(self):
         return
-        
+
     def info(self, request):
         return
-    
+
     def readIDCode(self):
         return
-    
+
     def halt(self):
         return
-    
+
     def step(self):
         return
-    
+
     def resume(self):
         return
-    
+
     def writeMemory(self, addr, value, transfer_size = 32):
         return
-    
+
     def readMemory(self, addr, transfer_size = 32):
         return
-    
+
     def writeBlockMemoryUnaligned8(self, addr, value):
         return
-    
+
     def writeBlockMemoryAligned32(self, addr, data):
         return
-    
+
     def readBlockMemoryUnaligned8(self, addr, size):
         return
-    
+
     def readBlockMemoryAligned32(self, addr, size):
         return
-    
+
     def readCoreRegister(self, id):
         return
-    
+
     def writeCoreRegister(self, id):
         return
     
     def setBreakpoint(self, addr):
         return
-    
+
     def removeBreakpoint(self, addr):
         return
-    
+
     def setWatchpoint(addr, size, type):
         return
 
@@ -98,7 +98,7 @@ class Target(object):
 
     def reset(self):
         return
-    
+
     def getState(self):
         return
 
