@@ -16,6 +16,7 @@
 """
 
 import os
+import logging
 from ..target.semihost import SemihostIOHandler
 
 # Open mode flags
@@ -27,14 +28,24 @@ O_CREAT  = 0x200
 O_TRUNC  = 0x400
 O_EXCL   = 0x800
 
+# Offset added to file descriptor numbers returned from gdb. This offset is to make
+# sure we don't overlap with the standard I/O file descriptors 1, 2, and 3 (fds must be
+# non-zero for semihosting).
+FD_OFFSET = 4
+
 ##
-# @brief Abstract interface for semihosting file I/O handlers.
+# @brief Semihosting file I/O handler that performs GDB syscalls.
 class GDBSyscallIOHandler(SemihostIOHandler):
     def __init__(self, server):
         super(GDBSyscallIOHandler, self).__init__()
         self._server = server
 
     def open(self, fnptr, fnlen, mode):
+        # Handle standard I/O.
+        fd, _ = self._std_open(fnptr, fnlen, mode)
+        if fd is not None:
+            return fd
+
         # Convert mode string to flags.
         modeval = 0
         hasplus = '+' in mode
@@ -54,20 +65,29 @@ class GDBSyscallIOHandler(SemihostIOHandler):
             else:
                 modeval |= O_WRONLY | O_APPEND | O_CREAT
 
-        result, self._errno = self._server.syscall('open,%x/%x,%x,%x' % (fnptr, fnlen, 0777, modeval))
+        result, self._errno = self._server.syscall('open,%x/%x,%x,%x' % (fnptr, fnlen+1, modeval, 0777))
+        if result != -1:
+            result += FD_OFFSET
         return result
 
     def close(self, fd):
+        fd -= FD_OFFSET
         result, self._errno = self._server.syscall('close,%x' % (fd))
         return result
 
+    # syscall return: number of bytes written
+    # semihost return: 0 is success, or number of bytes not written
     def write(self, fd, ptr, length):
+        fd -= FD_OFFSET
         result, self._errno = self._server.syscall('write,%x,%x,%x' % (fd, ptr, length))
-        return result
+        return length - result
 
+    # syscall return: number of bytes read
+    # semihost return: 0 is success, length is EOF, number of bytes not read
     def read(self, fd, ptr, length):
+        fd -= FD_OFFSET
         result, self._errno = self._server.syscall('read,%x,%x,%x' % (fd, ptr, length))
-        return result
+        return length - result
 
     def readc(self):
         ptr = self.agent.target.readCoreRegister('sp') - 4
@@ -77,14 +97,17 @@ class GDBSyscallIOHandler(SemihostIOHandler):
         return result
 
     def istty(self, fd):
+        fd -= FD_OFFSET
         result, self._errno = self._server.syscall('isatty,%x' % (fd))
         return result
 
     def seek(self, fd, pos):
+        fd -= FD_OFFSET
         result, self._errno = self._server.syscall('lseek,%x,%x,0' % (fd, pos))
         return 0 if result is not -1 else -1
 
     def flen(self, fd):
+        fd -= FD_OFFSET
         ptr = self.agent.target.readCoreRegister('sp') - 64
         result, self._errno = self._server.syscall('fstat,%x,%x' % (fd, ptr))
         if result != -1:

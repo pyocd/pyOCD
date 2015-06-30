@@ -856,6 +856,7 @@ class GDBServer(threading.Thread):
         return resp
 
     def syscall(self, op):
+        logging.debug("GDB server syscall: %s", op)
         request = self.createRSPPacket('F' + op)
         self.packet_io.send(request)
 
@@ -871,10 +872,10 @@ class GDBServer(threading.Thread):
 
             # Check for file I/O response.
             if packet[0] == '$' and packet[1] == 'F':
-                logging.debug("Syscall: got syscall response")
+                logging.debug("Syscall: got syscall response " + packet)
                 args = packet[2:packet.index('#')].split(',')
-                result = args[0]
-                errno = args[1] if len(args) > 1 else 0
+                result = int(args[0], base=16)
+                errno = int(args[1], base=16) if len(args) > 1 else 0
                 ctrl_c = args[2] if len(args) > 2 else ''
                 if ctrl_c == 'C':
                     self.packet_io.interrupt_event.set()

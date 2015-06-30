@@ -28,6 +28,9 @@ import pyOCD
 from ..gdbserver.gdb_socket import GDBSocket
 from ..gdbserver.gdb_websocket import GDBWebSocket
 
+# Debug logging options
+LOG_SEMIHOST = True
+
 ## bkpt #0xab instruction
 BKPT_INSTR = 0xbeab
 
@@ -81,6 +84,37 @@ class SemihostIOHandler(object):
     def errno(self):
         return self._errno
 
+    ## @brief Helper for standard I/O open requests.
+    #
+    # In the ARM semihosting spec, standard I/O files are opened using a filename of ":tt"
+    # with the open mode specifying which standard I/O file to open. This method takes care
+    # of these special open requests, and is intended to be used by concrete I/O handler
+    # subclasses.
+    #
+    # @return A 2-tuple of the file descriptor and filename. The filename is returned so it
+    #   only has to be read from target memory once if the request is not for standard I/O.
+    #   The returned file descriptor may be one of 0, 1, or 2 for the standard I/O files,
+    #   -1 if an invalid combination was requested, or None if the request was not for
+    #   a standard I/O file (i.e., the filename was not ":tt"). If None is returned for the
+    #   file descriptor, the caller must handle the open request.
+    def _std_open(self, fnptr, fnlen, mode):
+        filename = self.agent._get_string(fnptr, fnlen)
+        logging.debug("Semihost: open '%s' mode %s", filename, mode)
+
+        # Handle standard I/O.
+        if filename == ':tt':
+            if mode == 'r':
+                fd = STDIN_FD
+            elif mode == 'w':
+                fd = STDOUT_FD
+            elif mode == 'a':
+                fd = STDERR_FD
+            else:
+                logging.warning("Unrecognized semihosting console open file combination: mode=%s", mode)
+                return -1, filename
+            return fd, filename
+        return None, filename
+
     def open(self, fnptr, fnlen, mode):
         raise NotImplementedError()
 
@@ -133,19 +167,8 @@ class InternalSemihostIOHandler(SemihostIOHandler):
          return self.open_files.has_key(fd) and self.open_files[fd] is not None
 
     def open(self, fnptr, fnlen, mode):
-        filename = self.agent._get_string(fnptr, fnlen)
-
-        # Handle standard I/O.
-        if filename == ':tt':
-            if mode == 'r':
-                fd = STDIN_FD
-            elif mode == 'w':
-                fd = STDOUT_FD
-            elif mode == 'a':
-                fd = STDERR_FD
-            else:
-                logging.warning("Unrecognized semihosting console file combination: mode=%s", mode)
-                return -1
+        fd, filename = self._std_open(fnptr, fnlen, mode)
+        if fd is not None:
             return fd
 
         try:
@@ -160,6 +183,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         except IOError as e:
             self._errno = e.errno
             logging.error("Semihost: failed to open file '%s'", filename)
+            traceback.print_exc()
             return -1
 
     def close(self, fd):
@@ -184,6 +208,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             if 'b' not in f.mode:
                 data = unicode(data)
             f.write(data)
+            f.flush()
             return 0
         except IOError as e:
             self._errno = e.errno
@@ -203,7 +228,8 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             self._errno = e.errno
             logging.debug("Semihost: exception: %s", e)
             return -1
-        self.target.writeBlockMemoryUnaligned8(ptr, data)
+        data = bytearray(data)
+        self.agent.target.writeBlockMemoryUnaligned8(ptr, data)
         return length - len(data)
 
     def readc(self):
@@ -303,7 +329,6 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
                             self.connected = None
                             break
 
-                        logging.debug("Telnet: received '%s'" % data)
                         self._buffer_lock.acquire()
                         self._buffer += bytearray(data)
                         self._buffer_lock.release()
@@ -488,17 +513,16 @@ class SemihostAgent(object):
         op = self.target.readCoreRegister('r0')
         args = self.target.readCoreRegister('r1')
 
-        logging.debug("Semihost: request pc=%x r0=%x r1=%x", pc, op, args)
-
         # Handle request
         handler = self.request_map.get(op, None)
         if handler:
             try:
                 result = handler(args)
             except NotImplementedError:
+                logging.warning("Semihost: unimplemented request pc=%x r0=%x r1=%x", pc, op, args)
                 result = -1
             except Exception as e:
-                logging.debug("Exception while handling semihost request: %s", e)
+                logging.warning("Exception while handling semihost request: %s", e)
                 traceback.print_exc(e)
                 result = -1
         else:
@@ -545,26 +569,31 @@ class SemihostAgent(object):
             return -1
         mode = self.OPEN_MODES[mode]
 
-        logging.debug("Semihost: open %x/%x, mode %s", fnptr, fnlen, mode)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: open %x/%x, mode %s", fnptr, fnlen, mode)
         return self.io_handler.open(fnptr, fnlen, mode)
 
     def handle_sys_close(self, args):
         fd = self._get_args(args, 1)
-        logging.debug("Semihost: close fd=%d", fd)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: close fd=%d", fd)
         return self.io_handler.close(fd)
 
     def handle_sys_writec(self, args):
-        logging.debug("Semihost: writec %x", args)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: writec %x", args)
         return self.console.write(STDOUT_FD, args, 1)
 
     def handle_sys_write0(self, args):
         msg = self._get_string(args)
-        logging.debug("Semihost: write0 msg='%s'", msg)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: write0 msg='%s'", msg)
         return self.console.write(STDOUT_FD, args, len(msg))
 
     def handle_sys_write(self, args):
         fd, data_ptr, length = self._get_args(args, 3)
-        logging.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
         if fd in (STDOUT_FD, STDERR_FD):
             return self.console.write(fd, data_ptr, length)
         else:
@@ -572,14 +601,16 @@ class SemihostAgent(object):
 
     def handle_sys_read(self, args):
         fd, ptr, length = self._get_args(args, 3)
-        logging.debug("Semihost: read fd=%d ptr=%x len=%d", fd, ptr, length)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: read fd=%d ptr=%x len=%d", fd, ptr, length)
         if fd == STDIN_FD:
             return self.console.read(fd, ptr, length)
         else:
             return self.io_handler.read(fd, ptr, length)
 
     def handle_sys_readc(self, args):
-        logging.debug("Semihost: readc")
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: readc")
         return self.console.readc()
 
     def handle_sys_iserror(self, args):
@@ -587,17 +618,20 @@ class SemihostAgent(object):
 
     def handle_sys_istty(self, args):
         fd = self._get_args(args, 1)
-        logging.debug("Semihost: istty fd=%d", fd)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: istty fd=%d", fd)
         return self.io_handler.istty(fd)
 
     def handle_sys_seek(self, args):
         fd, pos = self._get_args(args, 2)
-        logging.debug("Semihost: seek fd=%d pos=%d", fd, pos)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: seek fd=%d pos=%d", fd, pos)
         return self.io_handler.seek(fd, pos)
 
     def handle_sys_flen(self, args):
         fd = self._get_args(args, 1)
-        logging.debug("Semihost: flen fd=%d", fd)
+        if LOG_SEMIHOST:
+            logging.debug("Semihost: flen fd=%d", fd)
         return self.io_handler.flen(fd)
 
     def handle_sys_tmpnam(self, args):
