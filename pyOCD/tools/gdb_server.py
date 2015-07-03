@@ -48,6 +48,7 @@ class GDBServerTool(object):
     def build_parser(self):
         # Keep args in snyc with flash_tool.py when possible
         parser = argparse.ArgumentParser(description='PyOCD GDB Server')
+        parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-p", "--port", dest = "port_number", type=int, default = 3333, help = "Write the port number that GDB server will open.")
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting.")
         parser.add_argument("-b", "--board", dest = "board_id", default = None, help="Connect to board by board id.  Use -l to list all connected boards.")
