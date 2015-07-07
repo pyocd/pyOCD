@@ -266,6 +266,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             return -1
         try:
             self.open_files[fd].seek(pos)
+            return 0
         except IOError as e:
             self._errno = e.errno
             return -1
@@ -311,7 +312,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
 
     def stop(self):
         self._shutdown_event.set()
-        self.join()
+        self._thread.join()
 
     def _server(self):
         logging.info("Telnet: server started on port %s", str(self._port))
@@ -325,6 +326,9 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
                     if self.connected is not None:
                         logging.debug("Telnet: client connected")
                         break
+
+                if self._shutdown_event.is_set():
+                    break
 
                 # Set timeout on new connection.
                 self._abstract_socket.setTimeout(0.1)
@@ -556,7 +560,11 @@ class SemihostAgent(object):
             self.console.cleanup()
 
     def _get_args(self, args, count):
-        return self.target.readBlockMemoryAligned32(args, count)
+        args = self.target.readBlockMemoryAligned32(args, count)
+        if count == 1:
+            return args[0]
+        else:
+            return args
 
     def _get_string(self, ptr, length=None):
         if length is not None:
