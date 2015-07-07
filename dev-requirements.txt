@@ -1,5 +1,7 @@
 # install pyOCD itself (and dependencies) as editable
 --editable .
 
-nose
+pytest
+pytest-catchlog
 coverage
+elapsedtimer
