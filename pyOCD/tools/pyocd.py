@@ -516,30 +516,24 @@ class PyOCDTool(object):
         self.print_disasm(str(bytearray(data)), addr)
 
     def handle_read8(self, args):
-        self.args.width = 8
-        return self.do_read(args)
+        return self.do_read(args, 8)
 
     def handle_read16(self, args):
-        self.args.width = 16
-        return self.do_read(args)
+        return self.do_read(args, 16)
 
     def handle_read32(self, args):
-        self.args.width = 32
-        return self.do_read(args)
+        return self.do_read(args, 32)
 
     def handle_write8(self, args):
-        self.args.width = 8
-        return self.do_write(args)
+        return self.do_write(args, 8)
 
     def handle_write16(self, args):
-        self.args.width = 16
-        return self.do_write(args)
+        return self.do_write(args, 16)
 
     def handle_write32(self, args):
-        self.args.width = 32
-        return self.do_write(args)
+        return self.do_write(args, 32)
 
-    def do_read(self, args):
+    def do_read(self, args, width):
         if len(args) == 0:
             print "Error: no address specified"
             return 1
@@ -549,20 +543,20 @@ class PyOCDTool(object):
         else:
             count = self.convert_value(args[1])
 
-        if self.args.width == 8:
+        if width == 8:
             data = self.target.readBlockMemoryUnaligned8(addr, count)
             byteData = data
-        elif self.args.width == 16:
+        elif width == 16:
             byteData = self.target.readBlockMemoryUnaligned8(addr, count)
             data = pyOCD.utility.conversion.byteListToU16leList(byteData)
-        elif self.args.width == 32:
+        elif width == 32:
             byteData = self.target.readBlockMemoryUnaligned8(addr, count)
             data = pyOCD.utility.conversion.byteListToU32leList(byteData)
 
         # Print hex dump of output.
-        dumpHexData(data, addr, width=self.args.width)
+        dumpHexData(data, addr, width=width)
 
-    def do_write(self, args):
+    def do_write(self, args, width):
         if len(args) == 0:
             print "Error: no address specified"
             return 1
@@ -573,14 +567,14 @@ class PyOCDTool(object):
         else:
             data = [self.convert_value(d) for d in args[1:]]
 
-        if self.args.width == 8:
+        if width == 8:
             pass
-        elif self.args.width == 16:
+        elif width == 16:
             data = pyOCD.utility.conversion.u16leListToByteList(data)
-        elif self.args.width == 32:
+        elif width == 32:
             data = pyOCD.utility.conversion.u32leListToByteList(data)
 
-        if self.isFlashWrite(args):
+        if self.isFlashWrite(addr, width, data):
             target.flash.init()
             target.flash.programPhrase(addr, data)
         else:
@@ -657,20 +651,20 @@ class PyOCDTool(object):
     def handle_exit(self, args):
         raise ToolExitException()
 
-    def isFlashWrite(self, args):
+    def isFlashWrite(self, addr, width, data):
         mem_map = self.board.target.getMemoryMap()
-        region = mem_map.getRegionForAddress(args.write)
+        region = mem_map.getRegionForAddress(addr)
         if (region is None) or (not region.isFlash):
             return False
 
-        if args.width == 8:
-            l = len(args.data)
-        elif args.width == 16:
-            l = len(args.data)*2
-        elif args.width == 32:
-            l = len(args.data)*4
+        if width == 8:
+            l = len(data)
+        elif width == 16:
+            l = len(data)*2
+        elif width == 32:
+            l = len(data)*4
 
-        return region.containsRange(args.write, length=l)
+        return region.containsRange(addr, length=l)
 
     ## @brief Convert an argument to a 32-bit integer.
     #
