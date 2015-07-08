@@ -23,6 +23,7 @@ import pyOCD
 from pyOCD.target.target import (TARGET_RUNNING, TARGET_HALTED)
 from pyOCD.target import semihost
 from elapsedtimer import ElapsedTimer
+import telnetlib
 
 @pytest.fixture(scope='module', autouse=True)
 def debuglog():
@@ -484,11 +485,111 @@ def semihost_telnet_agent(tgt, telnet, request):
 def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
     return SemihostRequestBuilder(tgt, semihost_telnet_agent, ramrgn)
 
+@pytest.fixture(scope='function')
+def telnet_conn(request):
+    telnet = telnetlib.Telnet('localhost', 4444, 1.0)
+    def cleanup():
+        telnet.close()
+    request.addfinalizer(cleanup)
+    return telnet
+
 class TestSemihostingTelnet:
-    def test_start_stop(self, semihost_telnet_builder):
+    def test_connect(self, semihost_telnet_builder, telnet_conn):
         result = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
         assert result == 0
 
+    def test_write(self, semihost_telnet_builder, telnet_conn):
+        result = semihost_telnet_builder.do_write(semihost.STDOUT_FD, 'hello world')
+        assert result == 0
 
+        index, _, text = telnet_conn.expect(['hello world'])
+        assert index != -1
+        assert text == 'hello world'
+
+    def test_writec(self, semihost_telnet_builder, telnet_conn):
+        for c in 'xyzzy':
+            result = semihost_telnet_builder.do_writec(c)
+            assert result == 0
+
+            index, _, text = telnet_conn.expect([c])
+            assert index != -1
+            assert text == c
+
+    def test_write0(self, semihost_telnet_builder, telnet_conn):
+        result = semihost_telnet_builder.do_write0('hello world')
+        assert result == 0
+
+        index, _, text = telnet_conn.expect(['hello world'])
+        assert index != -1
+        assert text == 'hello world'
+
+    def test_read(self, semihost_telnet_builder, telnet_conn):
+        telnet_conn.write('hello world')
+
+        result, data = semihost_telnet_builder.do_read(semihost.STDIN_FD, 11)
+        assert result == 0
+        assert data == 'hello world'
+
+    def test_readc(self, semihost_telnet_builder, telnet_conn):
+        telnet_conn.write('xyz')
+
+        for c in 'xyz':
+            rc = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_READC)
+            assert chr(rc) == c
+
+class TestSemihostAgent:
+    def test_no_io_handler(self, tgt):
+        a = semihost.SemihostAgent(tgt, io_handler=None, console=None)
+        assert type(a.io_handler) is semihost.SemihostIOHandler
+        assert type(a.console) is semihost.SemihostIOHandler
+        assert a.console is a.io_handler
+
+    def test_only_io_handler(self, tgt):
+        c = RecordingSemihostIOHandler()
+        a = semihost.SemihostAgent(tgt, io_handler=c, console=None)
+        assert a.io_handler is c
+        assert a.console is c
+
+    def test_only_console(self, tgt):
+        c = RecordingSemihostIOHandler()
+        a = semihost.SemihostAgent(tgt, io_handler=None, console=c)
+        assert type(a.io_handler) is semihost.SemihostIOHandler
+        assert a.console is c
+
+@pytest.fixture
+def ioh(tgt):
+    handler = semihost.SemihostIOHandler()
+    agent = semihost.SemihostAgent(tgt, io_handler=handler)
+    return handler, agent
+
+class TestSemihostIOHandlerBase:
+    @pytest.mark.parametrize(("filename", "mode", "expectedFd"), [
+            (":tt", 'r', semihost.STDIN_FD),
+            (":tt", 'w', semihost.STDOUT_FD),
+            (":tt", 'a', semihost.STDERR_FD),
+            (":tt", 'r+b', -1),
+            ("somefile", 'r+b', None),
+        ])
+    def test_std_open(self, tgt, ramrgn, ioh, filename, mode, expectedFd):
+        handler, agent = ioh
+        tgt.writeBlockMemoryUnaligned8(ramrgn.start, bytearray(filename) + bytearray('\x00'))
+        assert handler._std_open(ramrgn.start, len(filename), mode) == (expectedFd, filename)
+
+    @pytest.mark.parametrize(("op", "args"), [
+            ('open', (0, 0, 'r')),
+            ('close', (1,)),
+            ('write', (1, 0, 0)),
+            ('read', (1, 0, 0)),
+            ('readc', tuple()),
+            ('istty', (1,)),
+            ('seek', (1, 0)),
+            ('flen', (1,)),
+            ('remove', (0, 0)),
+            ('rename', (0, 0, 0, 0)),
+        ])
+    def test_unimplemented(self, op, args):
+        handler = semihost.SemihostIOHandler()
+        with pytest.raises(NotImplementedError):
+            handler.__getattribute__(op)(*args)
 
 

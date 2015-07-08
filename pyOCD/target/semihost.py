@@ -259,7 +259,8 @@ class InternalSemihostIOHandler(SemihostIOHandler):
     def istty(self, fd):
         if not self._is_valid_fd(fd):
             return -1
-        return int(self.open_files[fd].isatty())
+        # Just assume that stdio is a terminal and other files aren't.
+        return int(not fd > STDERR_FD)
 
     def seek(self, fd, pos):
         if not self._is_valid_fd(fd):
@@ -275,7 +276,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         if not self._is_valid_fd(fd):
             return -1
         try:
-            info = os.fstat(fd)
+            info = os.fstat(self.open_files[fd].fileno())
             return info.st_size
         except OSError as e:
             self._errno = e.errno
@@ -453,17 +454,10 @@ class SemihostAgent(object):
     def __init__(self, target, io_handler=None, console=None):
         self.target = target
         self.start_time = time.time()
-        self.io_handler = io_handler if (io_handler is not None) else SemihostIOHandler()
+        self.io_handler = io_handler or SemihostIOHandler()
         self.io_handler.agent = self
-        self.console = console if (console is not None) else self.io_handler
+        self.console = console or self.io_handler
         self.console.agent = self
-
-        # Go ahead and connect standard I/O
-        self.open_files = {
-                STDIN_FD : sys.stdin,
-                STDOUT_FD : sys.stdout,
-                STDERR_FD : sys.stderr
-            }
 
         self.request_map = {
                 TARGET_SYS_OPEN        : self.handle_sys_open,

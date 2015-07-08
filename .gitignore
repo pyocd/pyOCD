@@ -56,6 +56,7 @@ html
 
 # Coverage
 cover
+htmlcov
 
 # Common virtualenv environment names
 /env
