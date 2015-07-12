@@ -795,6 +795,7 @@ class GDBServer(threading.Thread):
         resultMask = 0x00
         resp = 'OK'
         if cmd == 'help':
+            resp = ''
             for k,v in safecmd.items():
                 resp += '%s\t%s\n' % (k,v[0])
             resp = hexEncode(resp)
