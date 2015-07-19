@@ -1253,16 +1253,14 @@ class CortexM(Target):
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 
-    def getTResponse(self, gdbInterrupt = False, forceSignal0=False):
+    def getTResponse(self, forceSignal=None):
         """
         Returns a GDB T response string.  This includes:
             The signal encountered.
             The current value of the important registers (sp, lr, pc).
         """
-        if forceSignal0:
-            response = 'T00'
-        elif gdbInterrupt:
-            response = 'T' + conversion.byteToHex2(signals.SIGINT)
+        if forceSignal is not None:
+            response = 'T' + conversion.byteToHex2(forceSignal)
         else:
             response = 'T' + conversion.byteToHex2(self.getSignalValue())
 

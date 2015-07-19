@@ -16,7 +16,7 @@
 """
 
 import logging, threading, socket
-from ..target.target import (TARGET_HALTED, BREAKPOINT_HW, BREAKPOINT_SW,
+from ..target.target import (TARGET_HALTED, TARGET_RUNNING, BREAKPOINT_HW, BREAKPOINT_SW,
     WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
 from ..transport import TransferError
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
@@ -239,7 +239,7 @@ class GDBServer(threading.Thread):
         self.packet_io = None
         self.gdb_features = []
         self.non_stop = False
-        self.is_target_running = False
+        self.is_target_running = (self.target.getState() == TARGET_RUNNING)
         self.flashBuilder = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -333,6 +333,7 @@ class GDBServer(threading.Thread):
                 if self.packet_io.interrupt_event.isSet():
                     if self.non_stop:
                         self.target.halt()
+                        self.is_target_running = False
                         self.sendStopNotification()
                     else:
                         logging.debug("Got unexpected ctrl-c, ignoring")
@@ -342,9 +343,11 @@ class GDBServer(threading.Thread):
                     try:
                         if self.target.getState() == TARGET_HALTED:
                             logging.debug("state halted")
+                            self.is_target_running = False
                             self.sendStopNotification()
-                    except:
-                        logging.debug('Target is unavailable temporary.')
+                    except Exception as e:
+                        logging.debug("Unexpected exception: %s", e)
+                        traceback.print_exc()
 
                 # read command
                 try:
@@ -393,7 +396,7 @@ class GDBServer(threading.Thread):
 
         # query command
         if msg[1] == '?':
-            return self.createRSPPacket(self.target.getTResponse()), 0
+            return self.stopReasonQuery(), 0
 
         # we don't send immediately the response for C and S commands
         elif msg[1] == 'C' or msg[1] == 'c':
@@ -510,6 +513,13 @@ class GDBServer(threading.Thread):
             self.target.removeWatchpoint(addr, size, watchpoint_type)
         return self.createRSPPacket("OK")
 
+    def stopReasonQuery(self):
+        # In non-stop mode, if no threads are stopped we need to reply with OK.
+        if self.non_stop and self.is_target_running:
+            return self.createRSPPacket("OK")
+
+        return self.createRSPPacket(self.target.getTResponse())
+
     def _get_resume_step_addr(self, data):
         if data is None:
             return None
@@ -529,10 +539,6 @@ class GDBServer(threading.Thread):
         self.target.resume()
         logging.debug("target resumed")
 
-        if self.non_stop:
-            self.is_target_running = True
-            return self.createRSPPacket("OK")
-
         val = ''
 
         while True:
@@ -545,7 +551,7 @@ class GDBServer(threading.Thread):
                 logging.debug("receive CTRL-C")
                 self.packet_io.interrupt_event.clear()
                 self.target.halt()
-                val = self.target.getTResponse(True)
+                val = self.target.getTResponse(forceSignal=signals.SIGINT)
                 break
 
             try:
@@ -583,8 +589,8 @@ class GDBServer(threading.Thread):
         self.target.halt()
         return self.createRSPPacket(self.target.getTResponse())
 
-    def sendStopNotification(self):
-        data = self.target.getTResponse()
+    def sendStopNotification(self, forceSignal=None):
+        data = self.target.getTResponse(forceSignal=forceSignal)
         packet = '%Stop:' + data + '#' + checksum(data)
         self.packet_io.send(packet)
 
@@ -640,13 +646,28 @@ class GDBServer(threading.Thread):
             thread_actions[1] = default_action
 
         if thread_actions[1] in ('c', 'C'):
-            return self.resume(None)
+            if self.non_stop:
+                self.target.resume()
+                self.is_target_running = True
+                return self.createRSPPacket("OK")
+            else:
+                return self.resume(None)
         elif thread_actions[1] in ('s', 'S'):
-            return self.step(None)
+            if self.non_stop:
+                self.target.step(not self.step_into_interrupt)
+                self.packet_io.send(self.createRSPPacket("OK"))
+                self.sendStopNotification()
+                return None
+            else:
+                return self.step(None)
         elif thread_actions[1] == 't':
+            # Must ignore t command in all-stop mode.
+            if not self.non_stop:
+                return self.createRSPPacket("")
+            self.packet_io.send(self.createRSPPacket("OK"))
             self.target.halt()
             self.is_target_running = False
-            return self.createRSPPacket(self.target.getTResponse(forceSignal0=True))
+            self.sendStopNotification(forceSignal=0)
 
     def flashOp(self, data):
         ops = data.split(':')[0]
@@ -867,8 +888,8 @@ class GDBServer(threading.Thread):
                 logging.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
                 return None
 
-        elif query[0] == 'C#b4':
-            return self.createRSPPacket("")
+        elif query[0].startswith('C'):
+            return self.createRSPPacket("QC1")
 
         elif query[0].find('Attached') != -1:
             return self.createRSPPacket("1")
