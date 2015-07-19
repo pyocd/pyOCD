@@ -296,33 +296,40 @@ class GDBServer(threading.Thread):
             self.telnet_console = None
 
     def run(self):
+        logging.info('GDB server started at port:%d', self.port)
+
         while True:
-            logging.info('GDB server started at port:%d', self.port)
+            try:
+                self.detach_event.clear()
 
-            # Inform callback that the server is running.
-            if self.server_listening_callback:
-                self.server_listening_callback(self)
+                # Inform callback that the server is running.
+                if self.server_listening_callback:
+                    self.server_listening_callback(self)
 
-            self.shutdown_event.clear()
-            self.detach_event.clear()
+                while not self.shutdown_event.isSet() and not self.detach_event.isSet():
+                    connected = self.abstract_socket.connect()
+                    if connected != None:
+                        self.packet_io = GDBServerPacketIOThread(self.abstract_socket)
+                        break
 
-            while not self.shutdown_event.isSet() and not self.detach_event.isSet():
-                connected = self.abstract_socket.connect()
-                if connected != None:
-                    self.packet_io = GDBServerPacketIOThread(self.abstract_socket)
-                    break
+                if self.shutdown_event.isSet():
+                    self._cleanup()
+                    return
 
-            if self.shutdown_event.isSet():
-                self._cleanup()
-                return
+                if self.detach_event.isSet():
+                    continue
 
-            if self.detach_event.isSet():
-                continue
+                logging.info("One client connected!")
+                self._run_connection()
 
-            logging.info("One client connected!")
+            except Exception as e:
+                logging.debug("Unexpected exception: %s", e)
+                traceback.print_exc()
 
-            while True:
 
+    def _run_connection(self):
+        while True:
+            try:
                 if self.shutdown_event.isSet():
                     self._cleanup()
                     return
@@ -384,10 +391,14 @@ class GDBServer(threading.Thread):
                         if self.persist:
                             break
                         else:
-                            self._cleanup()
+                            self.shutdown_event.set()
                             return
 
                 self.lock.release()
+
+            except Exception as e:
+                logging.debug("Unexpected exception: %s", e)
+                traceback.print_exc()
 
     def handleMsg(self, msg):
         if msg[0] != '$':
