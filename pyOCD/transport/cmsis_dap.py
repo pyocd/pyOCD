@@ -381,6 +381,8 @@ class CMSIS_DAP(Transport):
         """
         Write a single command
         """
+        assert type(request) in (int, long), "request is not an int"
+        assert type(data) in (int, long), "data is not an int"
         self.request_list.append(request)
         self.data_list.append(data)
         transfer_count = len(self.request_list)

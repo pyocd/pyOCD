@@ -24,6 +24,8 @@ from time import sleep, time
 import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
+from syscall import GDBSyscallIOHandler
+from ..target import semihost
 import traceback
 import Queue
 
@@ -228,6 +230,10 @@ class GDBServer(threading.Thread):
         self.chip_erase = options.get('chip_erase', None)
         self.hide_programming_progress = options.get('hide_programming_progress', False)
         self.fast_program = options.get('fast_program', False)
+        self.enable_semihosting = options.get('enable_semihosting', False)
+        self.telnet_port = options.get('telnet_port', 4444)
+        self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
+        self.server_listening_callback = options.get('server_listening_callback', None)
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -239,6 +245,16 @@ class GDBServer(threading.Thread):
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
+
+        # Init semihosting and telnet console.
+        if self.semihost_use_syscalls:
+            semihost_io_handler = GDBSyscallIOHandler(self)
+        else:
+            # Use internal IO handler.
+            semihost_io_handler = semihost.InternalSemihostIOHandler()
+        self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port)
+        self.semihost = semihost.SemihostAgent(self.target, io_handler=semihost_io_handler, console=self.telnet_console)
+
         self.setDaemon(True)
         self.start()
 
@@ -249,8 +265,6 @@ class GDBServer(threading.Thread):
     def stop(self):
         if self.isAlive():
             self.shutdown_event.set()
-            if self.packet_io:
-                self.packet_io.stop()
             while self.isAlive():
                 pass
             logging.info("GDB server thread killed")
@@ -266,9 +280,25 @@ class GDBServer(threading.Thread):
         self.lock.release()
         return
 
+    def _cleanup(self):
+        logging.debug("GDB server cleaning up")
+        if self.packet_io:
+            self.packet_io.stop()
+            self.packet_io = None
+        if self.semihost:
+            self.semihost.cleanup()
+            self.semihost = None
+        if self.telnet_console:
+            self.telnet_console.stop()
+            self.telnet_console = None
+
     def run(self):
         while True:
             logging.info('GDB server started at port:%d', self.port)
+
+            # Inform callback that the server is running.
+            if self.server_listening_callback:
+                self.server_listening_callback(self)
 
             self.shutdown_event.clear()
             self.detach_event.clear()
@@ -280,6 +310,7 @@ class GDBServer(threading.Thread):
                     break
 
             if self.shutdown_event.isSet():
+                self._cleanup()
                 return
 
             if self.detach_event.isSet():
@@ -290,6 +321,7 @@ class GDBServer(threading.Thread):
             while True:
 
                 if self.shutdown_event.isSet():
+                    self._cleanup()
                     return
 
                 if self.detach_event.isSet():
@@ -306,6 +338,7 @@ class GDBServer(threading.Thread):
                     break
 
                 if self.shutdown_event.isSet():
+                    self._cleanup()
                     return
 
                 if self.detach_event.isSet():
@@ -329,13 +362,10 @@ class GDBServer(threading.Thread):
                         if self.persist:
                             break
                         else:
+                            self._cleanup()
                             return
 
                 self.lock.release()
-
-        if self.packet_io is not None:
-            self.packet_io.stop()
-            self.packet_io = None
 
     def handleMsg(self, msg):
         if msg[0] != '$':
@@ -474,11 +504,26 @@ class GDBServer(threading.Thread):
 
             try:
                 if self.target.getState() == TARGET_HALTED:
+                    # Handle semihosting
+                    if self.enable_semihosting:
+                        was_semihost = self.semihost.check_and_handle_semihost_request()
+
+                        if was_semihost:
+                            self.target.resume()
+                            continue
+
                     logging.debug("state halted")
                     val = self.target.getTResponse()
                     break
-            except:
-                logging.debug('Target is unavailable temporary.')
+            except Exception as e:
+                try:
+                    self.target.halt()
+                except:
+                    pass
+                traceback.print_exc()
+                logging.debug('Target is unavailable temporarily.')
+                val = 'S%02x' % self.target.getSignalValue()
+                break
 
         return self.createRSPPacket(val), 0
 
@@ -730,73 +775,75 @@ class GDBServer(threading.Thread):
 
         elif query[0].startswith('Rcmd,'):
             cmd = hexDecode(query[0][5:].split('#')[0])
-            logging.debug('Remote command: %s', cmd)
-
-            safecmd = {
-                'reset' : ['Reset target', 0x1],
-                'halt'  : ['Halt target', 0x2],
-                'resume': ['Resume target', 0x4],
-                'help'  : ['Display this help', 0x80],
-            }
-            resultMask = 0x00
-            if cmd == 'help':
-                resp = ''
-                for k,v in safecmd.items():
-                    resp += '%s\t%s\n' % (k,v[0])
-                resp = hexEncode(resp)
-            else:
-                cmdList = cmd.split(' ')
-                #check whether all the cmds is valid cmd for monitor
-                for cmd_sub in cmdList:
-                    if not cmd_sub in safecmd:
-                        #error cmd for monitor
-                        logging.warning("Invalid mon command '%s'", cmd)
-                        resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = hexEncode(resp)
-                        return self.createRSPPacket(resp)
-                    else:
-                        resultMask = resultMask | safecmd[cmd_sub][1]
-                #if it's a single cmd, just launch it!
-                if len(cmdList) == 1:
-                    tmp = eval ('self.target.%s()' % cmd_sub)
-                    logging.debug(tmp)
-                    resp = "OK"
-                else:
-                    #10000001 for help reset, so output reset cmd help information
-                    if resultMask == 0x81:
-                        resp = 'Reset the target\n'
-                        resp = hexEncode(resp)
-                    #10000010 for help halt, so output halt cmd help information
-                    elif resultMask == 0x82:
-                        resp = 'Halt the target\n'
-                        resp = hexEncode(resp)
-                    #10000100 for help resume, so output resume cmd help information
-                    elif resultMask == 0x84:
-                        resp = 'Resume the target\n'
-                        resp = hexEncode(resp)
-                    #11 for reset halt cmd, so launch self.target.resetStopOnReset()
-                    elif resultMask == 0x3:
-                        resp = "OK"
-                        self.target.resetStopOnReset()
-                    #111 for reset halt resume cmd, so launch self.target.resetStopOnReset() and self.target.resume()
-                    elif resultMask == 0x7:
-                        resp = "OK"
-                        self.target.resetStopOnReset()
-                        self.target.resume()
-                    else:
-                        logging.warning("Invalid mon command '%s'", cmd)
-                        resp = 'Invalid Command: "%s"\n' % cmd
-                        resp = hexEncode(resp)
-
-                if self.target.getState() != TARGET_HALTED:
-                    logging.error("Remote command left target running!")
-                    logging.error("Forcing target to halt")
-                    self.target.halt()
-
-            return self.createRSPPacket(resp)
+            return self.handleRemoteCommand(cmd)
 
         else:
             return self.createRSPPacket("")
+
+    # TODO rewrite the remote command handler
+    def handleRemoteCommand(self, cmd):
+        logging.debug('Remote command: %s', cmd)
+
+        safecmd = {
+            'reset' : ['Reset target', 0x1],
+            'halt'  : ['Halt target', 0x2],
+            'resume': ['Resume target', 0x4],
+            'help'  : ['Display this help', 0x80],
+            'reg'   : ['Show registers', 0],
+            'init'  : ['Init reset sequence', 0]
+        }
+        resultMask = 0x00
+        resp = 'OK'
+        if cmd == 'help':
+            resp = ''
+            for k,v in safecmd.items():
+                resp += '%s\t%s\n' % (k,v[0])
+            resp = hexEncode(resp)
+        elif cmd.startswith('arm semihosting'):
+            self.enable_semihosting = 'enable' in cmd
+            logging.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
+        else:
+            cmdList = cmd.split(' ')
+            #check whether all the cmds is valid cmd for monitor
+            for cmd_sub in cmdList:
+                if not cmd_sub in safecmd:
+                    #error cmd for monitor
+                    logging.warning("Invalid mon command '%s'", cmd)
+                    resp = 'Invalid Command: "%s"\n' % cmd
+                    resp = hexEncode(resp)
+                    return self.createRSPPacket(resp)
+                else:
+                    resultMask = resultMask | safecmd[cmd_sub][1]
+            #10000001 for help reset, so output reset cmd help information
+            if resultMask == 0x81:
+                resp = 'Reset the target\n'
+                resp = hexEncode(resp)
+            #10000010 for help halt, so output halt cmd help information
+            elif resultMask == 0x82:
+                resp = 'Halt the target\n'
+                resp = hexEncode(resp)
+            #10000100 for help resume, so output resume cmd help information
+            elif resultMask == 0x84:
+                resp = 'Resume the target\n'
+                resp = hexEncode(resp)
+            #11 for reset halt cmd, so launch self.target.resetStopOnReset()
+            elif resultMask == 0x3:
+                self.target.resetStopOnReset()
+            #111 for reset halt resume cmd, so launch self.target.resetStopOnReset() and self.target.resume()
+            elif resultMask == 0x7:
+                self.target.resetStopOnReset()
+                self.target.resume()
+            elif resultMask == 0x1:
+                self.target.reset()
+            elif resultMask == 0x2:
+                self.target.halt()
+
+            if self.target.getState() != TARGET_HALTED:
+                logging.error("Remote command left target running!")
+                logging.error("Forcing target to halt")
+                self.target.halt()
+
+        return self.createRSPPacket(resp)
 
     def handleGeneralSet(self, msg):
         logging.debug("GDB general set: %s", msg)
@@ -843,4 +890,41 @@ class GDBServer(threading.Thread):
         resp = '$' + data + '#' + checksum(data)
         return resp
 
+    def syscall(self, op):
+        logging.debug("GDB server syscall: %s", op)
+        request = self.createRSPPacket('F' + op)
+        self.packet_io.send(request)
+
+        while not self.packet_io.interrupt_event.is_set():
+            # Read a packet.
+            packet = self.packet_io.receive(False)
+            if packet is None:
+                sleep(0.1)
+                continue
+
+            # Check for file I/O response.
+            if packet[0] == '$' and packet[1] == 'F':
+                logging.debug("Syscall: got syscall response " + packet)
+                args = packet[2:packet.index('#')].split(',')
+                result = int(args[0], base=16)
+                errno = int(args[1], base=16) if len(args) > 1 else 0
+                ctrl_c = args[2] if len(args) > 2 else ''
+                if ctrl_c == 'C':
+                    self.packet_io.interrupt_event.set()
+                    self.packet_io.drop_reply = True
+                return result, errno
+
+            # decode and prepare resp
+            resp, detach = self.handleMsg(packet)
+
+            if resp is not None:
+                # send resp
+                self.packet_io.send(resp)
+
+            if detach:
+                self.detach_event.set()
+                logging.warning("GDB server received detach request while waiting for file I/O completion")
+                break
+
+        return -1, 0
 
