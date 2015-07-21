@@ -133,8 +133,9 @@ class GDBServerTool(object):
                 pass
 
     def server_listening(self, server):
-        print >>sys.stderr, self.echo_msg
-        sys.stderr.flush()
+        if self.echo_msg is not None:
+            print >>sys.stderr, self.echo_msg
+            sys.stderr.flush()
 
     def run(self):
         self.args = self.build_parser().parse_args()
