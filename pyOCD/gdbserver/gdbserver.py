@@ -15,18 +15,19 @@
  limitations under the License.
 """
 
-import logging, threading, socket
 from ..target.target import (TARGET_HALTED, TARGET_RUNNING, BREAKPOINT_HW, BREAKPOINT_SW,
     WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
 from ..transport import TransferError
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
-from struct import unpack
-from time import sleep, time
-import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 from syscall import GDBSyscallIOHandler
 from ..target import semihost
+import signals
+import logging, threading, socket
+from struct import unpack
+from time import sleep, time
+import sys
 import traceback
 import Queue
 
@@ -323,9 +324,8 @@ class GDBServer(threading.Thread):
                 self._run_connection()
 
             except Exception as e:
-                logging.debug("Unexpected exception: %s", e)
+                logging.error("Unexpected exception: %s", e)
                 traceback.print_exc()
-
 
     def _run_connection(self):
         while True:
@@ -353,7 +353,7 @@ class GDBServer(threading.Thread):
                             self.is_target_running = False
                             self.sendStopNotification()
                     except Exception as e:
-                        logging.debug("Unexpected exception: %s", e)
+                        logging.error("Unexpected exception: %s", e)
                         traceback.print_exc()
 
                 # read command
@@ -397,73 +397,79 @@ class GDBServer(threading.Thread):
                 self.lock.release()
 
             except Exception as e:
-                logging.debug("Unexpected exception: %s", e)
+                logging.error("Unexpected exception: %s", e)
                 traceback.print_exc()
 
     def handleMsg(self, msg):
-        if msg[0] != '$':
-            logging.debug('msg ignored: first char != $')
-            return None, 0
+        try:
+            if msg[0] != '$':
+                logging.debug('msg ignored: first char != $')
+                return None, 0
 
-        # query command
-        if msg[1] == '?':
-            return self.stopReasonQuery(), 0
+            # query command
+            if msg[1] == '?':
+                return self.stopReasonQuery(), 0
 
-        # we don't send immediately the response for C and S commands
-        elif msg[1] == 'C' or msg[1] == 'c':
-            return self.resume(msg[1:]), 0
+            # we don't send immediately the response for C and S commands
+            elif msg[1] == 'C' or msg[1] == 'c':
+                return self.resume(msg[1:]), 0
 
-        elif msg[1] == 'D':
-            return self.detach(msg[1:]), 1
+            elif msg[1] == 'D':
+                return self.detach(msg[1:]), 1
 
-        elif msg[1] == 'g':
-            return self.getRegisters(), 0
+            elif msg[1] == 'g':
+                return self.getRegisters(), 0
 
-        elif msg[1] == 'G':
-            return self.setRegisters(msg[2:]), 0
+            elif msg[1] == 'G':
+                return self.setRegisters(msg[2:]), 0
 
-        elif msg[1] == 'H':
-            return self.createRSPPacket('OK'), 0
+            elif msg[1] == 'H':
+                return self.createRSPPacket('OK'), 0
 
-        elif msg[1] == 'k':
-            return self.kill(), 1
+            elif msg[1] == 'k':
+                return self.kill(), 1
 
-        elif msg[1] == 'm':
-            return self.getMemory(msg[2:]), 0
+            elif msg[1] == 'm':
+                return self.getMemory(msg[2:]), 0
 
-        elif msg[1] == 'M': # write memory with hex data
-            return self.writeMemoryHex(msg[2:]), 0
+            elif msg[1] == 'M': # write memory with hex data
+                return self.writeMemoryHex(msg[2:]), 0
 
-        elif msg[1] == 'p':
-            return self.readRegister(msg[2:]), 0
+            elif msg[1] == 'p':
+                return self.readRegister(msg[2:]), 0
 
-        elif msg[1] == 'P':
-            return self.writeRegister(msg[2:]), 0
+            elif msg[1] == 'P':
+                return self.writeRegister(msg[2:]), 0
 
-        elif msg[1] == 'q':
-            return self.handleQuery(msg[2:]), 0
+            elif msg[1] == 'q':
+                return self.handleQuery(msg[2:]), 0
 
-        elif msg[1] == 'Q':
-            return self.handleGeneralSet(msg[2:]), 0
+            elif msg[1] == 'Q':
+                return self.handleGeneralSet(msg[2:]), 0
 
-        elif msg[1] == 'S' or msg[1] == 's':
-            return self.step(msg[1:]), 0
+            elif msg[1] == 'S' or msg[1] == 's':
+                return self.step(msg[1:]), 0
 
-        elif msg[1] == 'T': # check if thread is alive
-            return self.createRSPPacket('OK'), 0
+            elif msg[1] == 'T': # check if thread is alive
+                return self.createRSPPacket('OK'), 0
 
-        elif msg[1] == 'v':
-            return self.vCommand(msg[2:]), 0
+            elif msg[1] == 'v':
+                return self.vCommand(msg[2:]), 0
 
-        elif msg[1] == 'X': # write memory with binary data
-            return self.writeMemory(msg[2:]), 0
+            elif msg[1] == 'X': # write memory with binary data
+                return self.writeMemory(msg[2:]), 0
 
-        elif msg[1] == 'Z' or msg[1] == 'z':
-            return self.breakpoint(msg[1:]), 0
+            elif msg[1] == 'Z' or msg[1] == 'z':
+                return self.breakpoint(msg[1:]), 0
 
-        else:
-            logging.error("Unknown RSP packet: %s", msg)
-            return self.createRSPPacket(""), 0
+            else:
+                logging.error("Unknown RSP packet: %s", msg)
+                return self.createRSPPacket(""), 0
+
+        except Exception as e:
+            logging.error("Unhandled exception in handleMsg: %s", e)
+            traceback.print_exc()
+            return self.createRSPPacket("E01"), 0
 
     def detach(self, data):
         logging.info("Client detached")
