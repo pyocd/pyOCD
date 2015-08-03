@@ -35,7 +35,7 @@ class STM32F103RC(CortexM):
         super(STM32F103RC, self).__init__(transport, self.memoryMap)
 
     def init(self):
-    	logging.debug('stm32f103rc init')
+        logging.debug('stm32f103rc init')
         CortexM.init(self)
         self.writeMemory(DBGMCU_CR, DBGMCU_VAL);
 
