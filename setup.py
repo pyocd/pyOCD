@@ -21,7 +21,7 @@ import sys
 install_requires = ['intelhex']
 if sys.platform.startswith('linux'):
     install_requires.extend([
-        'pyusb',
+        'pyusb>=1.0.0b2',
     ])
 elif sys.platform.startswith('win'):
     install_requires.extend([
