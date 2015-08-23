@@ -21,6 +21,7 @@ from pyOCD.interface import INTERFACE
 from pyOCD.flash import FLASH
 
 import logging
+import traceback
 
 class Board(object):
     """
@@ -72,16 +73,22 @@ class Board(object):
         self.closed = True
             
         logging.debug("uninit board %s", self)
+        if resume:
+            try:
+                self.target.resume()
+            except:
+                logging.error("target exception during uninit:")
+                traceback.print_exc()
         try:
-            if resume:
-                try:
-                    self.target.resume()
-                except:
-                    logging.error("exception during uninit")
-                    pass
             self.transport.uninit()
-        finally:
+        except:
+            logging.error("transport exception during uninit:")
+            traceback.print_exc()
+        try:
             self.interface.close()
+        except:
+            logging.error("interface exception during uninit:")
+            traceback.print_exc()
     
     def getInfo(self):
         return self.interface.getInfo()
