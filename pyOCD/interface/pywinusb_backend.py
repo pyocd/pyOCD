@@ -16,7 +16,8 @@
 """
 
 from interface import Interface
-import logging, os
+import logging, os, collections
+from time import time
 
 try:
     import pywinusb.hid as hid
@@ -42,7 +43,10 @@ class PyWinUSB(Interface):
         super(PyWinUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.report = []
-        self.rcv_data = []
+        # deque used here instead of synchronized Queue
+        # since read speeds are ~10-30% faster and are
+        # comprable to a based list implmentation.  
+        self.rcv_data = collections.deque()
         self.device = None
         return
     
@@ -106,13 +110,22 @@ class PyWinUSB(Interface):
         return
         
         
-    def read(self, timeout = -1):
+    def read(self, timeout = 1.0):
         """
         read data on the IN endpoint associated to the HID interface
         """
+        start = time()
         while len(self.rcv_data) == 0:
-            pass
-        return self.rcv_data.pop(0)
+            if time() - start > timeout:
+                # Read operations should typically take ~1-2ms.
+                # If this exception occurs, then it could indicate
+                # a problem in one of the following areas:
+                # 1. Bad usb driver causing either a dropped read or write
+                # 2. CMSIS-DAP firmware problem cause a dropped read or write
+                # 3. CMSIS-DAP is performing a long operation or is being
+                #    halted in a debugger
+                raise Exception("Read timed out")
+        return self.rcv_data.popleft()
 
     def setPacketCount(self, count):
         # No interface level restrictions on count
