@@ -29,6 +29,7 @@ from subprocess import Popen, STDOUT, PIPE
 
 from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.board import MbedBoard
+from test_util import Test, TestResult
 
 # TODO, c1728p9 - run script several times with
 #       with different command line parameters
@@ -39,7 +40,42 @@ TEST_RESULT_FILE = "test_results.txt"
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+class GdbTestResult(TestResult):
+    def __init__(self):
+        super(self.__class__, self).__init__(None, None, None)
+
+
+class GdbTest(Test):
+    def __init__(self):
+        super(self.__class__, self).__init__("Gdb Test", test_gdb)
+
+    def print_perf_info(self, result_list):
+        pass
+
+    def run(self, board):
+        try:
+            result = self.test_function(board.getUniqueID())
+        except Exception as e:
+            result = GdbTestResult()
+            result.passed = False
+            print("Exception %s when testing board %s" %
+                  (e, board.getUniqueID()))
+        result.board = board
+        result.test = self
+        return result
+
+TEST_RESULT_KEYS = [
+    "breakpoint_count",
+    "watchpoint_count",
+    "step_time_si",
+    "step_time_s",
+    "step_time_n",
+    "fail_count",
+]
+
+
 def test_gdb(board_id=None):
+    result = GdbTestResult()
     with MbedBoard.chooseBoard(board_id=board_id) as board:
         memory_map = board.target.getMemoryMap()
         ram_regions = [region for region in memory_map if region.type == 'ram']
@@ -48,6 +84,8 @@ def test_gdb(board_id=None):
         target_type = board.getTargetType()
         binary_file = os.path.join(parentdir, 'binaries',
                                    board.getTestBinary())
+        if board_id is None:
+            board_id = board.getUniqueID()
         test_clock = 10000000
         test_port = 3334
         error_on_invalid_access = True
@@ -81,7 +119,7 @@ def test_gdb(board_id=None):
     gdb = ["arm-none-eabi-gdb-py", "--command=gdb_script.py"]
     with open("output.txt", "wb") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
-        args = ['-p=%i' % test_port, "-f=%i" % test_clock]
+        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id]
         server = GDBServerTool()
         server.run(args)
         program.wait()
@@ -91,16 +129,24 @@ def test_gdb(board_id=None):
         test_result = json.loads(f.read())
 
     # Print results
-    print("----------------Test Results----------------")
-    print("HW breakpoint count: %s" % test_result["breakpoint_count"])
-    print("Watchpoint count: %s" % test_result["watchpoint_count"])
-    print("Average instruction step time: %s" % test_result["step_time_si"])
-    print("Average single step time: %s" % test_result["step_time_s"])
-    print("Average over step time: %s" % test_result["step_time_n"])
-    print("Failure count: %i" % test_result["fail_count"])
+    if set(TEST_RESULT_KEYS).issubset(test_result):
+        print("----------------Test Results----------------")
+        print("HW breakpoint count: %s" % test_result["breakpoint_count"])
+        print("Watchpoint count: %s" % test_result["watchpoint_count"])
+        print("Average instruction step time: %s" %
+              test_result["step_time_si"])
+        print("Average single step time: %s" % test_result["step_time_s"])
+        print("Average over step time: %s" % test_result["step_time_n"])
+        print("Failure count: %i" % test_result["fail_count"])
+        result.passed = test_result["fail_count"] == 0
+    else:
+        result.passed = False
 
     # Cleanup
     os.remove(TEST_RESULT_FILE)
     os.remove(TEST_PARAM_FILE)
-test_gdb()
-print("SCRIPT FINISHED!")
+
+    return result
+
+if __name__ == "__main__":
+    test_gdb()
