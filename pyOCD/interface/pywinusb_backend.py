@@ -36,29 +36,29 @@ class PyWinUSB(Interface):
     """
     vid = 0
     pid = 0
-    
+
     isAvailable = isAvailable
-    
+
     def __init__(self):
         super(PyWinUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.report = []
         # deque used here instead of synchronized Queue
         # since read speeds are ~10-30% faster and are
-        # comprable to a based list implmentation.  
+        # comprable to a based list implmentation.
         self.rcv_data = collections.deque()
         self.device = None
         return
-    
+
     # handler called when a report is received
     def rx_handler(self, data):
         #logging.debug("rcv: %s", data[1:])
         self.rcv_data.append(data[1:])
-    
+
     def open(self):
         self.device.set_raw_data_handler(self.rx_handler)
         self.device.open()
-        
+
     @staticmethod
     def getAllConnectedInterface(vid, pid):
         """
@@ -66,17 +66,17 @@ class PyWinUSB(Interface):
         returns an array of PyWinUSB (Interface) objects
         """
         all_devices = hid.find_all_hid_devices()
-        
+
         # find devices with good vid/pid
         all_mbed_devices = []
         for d in all_devices:
             if (d.vendor_id == vid) and (d.product_id == pid):
                 all_mbed_devices.append(d)
-                
+
         if not all_mbed_devices:
             logging.debug("No Mbed device connected")
             return
-            
+
         boards = []
         for dev in all_mbed_devices:
             try:
@@ -91,14 +91,14 @@ class PyWinUSB(Interface):
                     new_board.pid = dev.product_id
                     new_board.device = dev
                     new_board.device.set_raw_data_handler(new_board.rx_handler)
-                        
+
                     boards.append(new_board)
             except Exception as e:
                 logging.error("Receiving Exception: %s", e)
                 dev.close()
-                
+
         return boards
-    
+
     def write(self, data):
         """
         write data on the OUT endpoint associated to the HID interface
@@ -108,9 +108,9 @@ class PyWinUSB(Interface):
         #logging.debug("send: %s", data)
         self.report.send([0] + data)
         return
-        
-        
-    def read(self, timeout = 1.0):
+
+
+    def read(self, timeout=1.0):
         """
         read data on the IN endpoint associated to the HID interface
         """

@@ -181,8 +181,8 @@ class GDBServerPacketIOThread(threading.Thread):
                 pkt_begin = self._buffer.index("$")
                 pkt_end = self._buffer.index("#") + 2
                 if pkt_begin >= 0 and pkt_end < len(self._buffer):
-                    pkt = self._buffer[pkt_begin:pkt_end+1]
-                    self._buffer = self._buffer[pkt_end+1:]
+                    pkt = self._buffer[pkt_begin:pkt_end + 1]
+                    self._buffer = self._buffer[pkt_end + 1:]
                     self._handling_incoming_packet(pkt)
                 else:
                     break
@@ -210,7 +210,7 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, board, port_urlWSS, options = {}):
+    def __init__(self, board, port_urlWSS, options={}):
         threading.Thread.__init__(self)
         self.board = board
         self.target = board.target
@@ -274,7 +274,7 @@ class GDBServer(threading.Thread):
             logging.info("GDB server thread killed")
         self.board.uninit()
 
-    def setBoard(self, board, stop = True):
+    def setBoard(self, board, stop=True):
         self.lock.acquire()
         if stop:
             self.restart()
@@ -725,8 +725,8 @@ class GDBServer(threading.Thread):
                 # print progress bar
                 if not print_progress.done:
                     sys.stdout.write('\r')
-                    i = int(progress*20.0)
-                    sys.stdout.write("[%-20s] %3d%%" % ('='*i, round(progress * 100)))
+                    i = int(progress * 20.0)
+                    sys.stdout.write("[%-20s] %3d%%" % ('=' * i, round(progress * 100)))
                     sys.stdout.flush()
 
                 # Finish on 1.0
@@ -740,7 +740,7 @@ class GDBServer(threading.Thread):
             else:
                  progress_cb = print_progress
 
-            self.flashBuilder.program(chip_erase = self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
+            self.flashBuilder.program(chip_erase=self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
 
             # Set flash builder to None so that on the next flash command a new
             # object is used.
@@ -772,7 +772,7 @@ class GDBServer(threading.Thread):
         split = data.split(',')
         addr = int(split[0], 16)
         length = split[1].split('#')[0]
-        length = int(length,16)
+        length = int(length, 16)
 
         if LOG_MEM:
             logging.debug("GDB getMem: addr=%x len=%x", addr, length)
@@ -948,8 +948,8 @@ class GDBServer(threading.Thread):
         resp = 'OK'
         if cmd == 'help':
             resp = ''
-            for k,v in safecmd.items():
-                resp += '%s\t%s\n' % (k,v[0])
+            for k, v in safecmd.items():
+                resp += '%s\t%s\n' % (k, v[0])
             resp = hexEncode(resp)
         elif cmd.startswith('arm semihosting'):
             self.enable_semihosting = 'enable' in cmd

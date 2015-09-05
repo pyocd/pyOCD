@@ -28,7 +28,7 @@ class LPC11U24(CortexM):
     def __init__(self, transport):
         super(LPC11U24, self).__init__(transport, self.memoryMap)
 
-    def resetStopOnReset(self, software_reset = None, map_to_user = True):
+    def resetStopOnReset(self, software_reset=None, map_to_user=True):
         CortexM.resetStopOnReset(self, software_reset)
 
         # Remap to use flash and set SP and SP accordingly

@@ -71,10 +71,10 @@ def test_function(board, function):
         function()
         board.transport.flush()
     stop = time()
-    return (stop-start) / float(TEST_COUNT)
+    return (stop - start) / float(TEST_COUNT)
 
 def cortex_test(board_id):
-    with MbedBoard.chooseBoard(board_id = board_id, frequency = 1000000) as board:
+    with MbedBoard.chooseBoard(board_id=board_id, frequency=1000000) as board:
         addr = 0
         size = 0
         f = None

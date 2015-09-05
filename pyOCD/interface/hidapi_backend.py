@@ -63,7 +63,7 @@ class HidApiUSB(Interface):
 
         for deviceInfo in devices:
             try:
-                dev = hid.device(vendor_id=vid, product_id=pid, path = deviceInfo['path'])
+                dev = hid.device(vendor_id=vid, product_id=pid, path=deviceInfo['path'])
             except IOError:
                 logging.debug("Failed to open Mbed device")
                 return
@@ -95,7 +95,7 @@ class HidApiUSB(Interface):
         return
 
 
-    def read(self, timeout = -1):
+    def read(self, timeout=-1):
         """
         read data on the IN endpoint associated to the HID interface
         """

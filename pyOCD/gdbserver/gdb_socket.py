@@ -24,33 +24,33 @@ class GDBSocket(object):
         self.conn = None
         self.port = port
         return
-    
+
     def init(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.s.bind(('', self.port))
         self.s.listen(5)
-    
+
     def connect(self):
         self.conn = None
         self.init()
-        rr,_,_ = select.select([self.s],[],[], 0.5)
+        rr, _, _ = select.select([self.s], [], [], 0.5)
         if rr:
             self.conn, _ = self.s.accept()
-        
+
         return self.conn
-    
+
     def read(self):
         return self.conn.recv(self.packet_size)
-    
+
     def write(self, data):
         return self.conn.send(data)
-    
+
     def close(self):
         if self.conn != None:
             self.conn.close()
         return self.s.close()
-    
+
     def setBlocking(self, blocking):
         self.conn.setblocking(blocking)
 

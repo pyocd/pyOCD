@@ -60,7 +60,7 @@ class KL28x(Kinetis):
             self.memory_map = self.dualMap
             logging.info("KL28 is dual core")
 
-    def reset(self, software_reset = None):
+    def reset(self, software_reset=None):
         try:
             super(KL28x, self).reset(software_reset)
         except TransferError:

@@ -65,7 +65,7 @@ class MbedBoard(Board):
     Particularly, this class allows you to dynamically determine
     the type of all boards connected based on the id board
     """
-    def __init__(self, interface, board_id, unique_id, target = None, transport = "cmsis_dap", frequency = 1000000):
+    def __init__(self, interface, board_id, unique_id, target=None, transport="cmsis_dap", frequency=1000000):
         """
         Init the board
         """
@@ -88,13 +88,13 @@ class MbedBoard(Board):
         super(MbedBoard, self).__init__(target, target, interface, transport, frequency)
         self.unique_id = unique_id
         self.target_type = target
-    
+
     def getUniqueID(self):
         """
         Return the unique id of the board
         """
         return self.unique_id
-    
+
     def getTargetType(self):
         """
         Return the type of the board
@@ -118,13 +118,13 @@ class MbedBoard(Board):
         Return info on the board
         """
         return Board.getInfo(self) + " [" + self.target_type + "]"
-    
+
     @staticmethod
-    def listConnectedBoards(transport = "cmsis_dap"):
+    def listConnectedBoards(transport="cmsis_dap"):
         """
         List the connected board info
         """
-        all_mbeds = MbedBoard.getAllConnectedBoards(close = True, blocking = False)
+        all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
         index = 0
         if len(all_mbeds) > 0:
             for mbed in all_mbeds:
@@ -132,10 +132,10 @@ class MbedBoard(Board):
                 index += 1
         else:
             print("No available boards are connected")
-        
+
     @staticmethod
-    def getAllConnectedBoards(transport = "cmsis_dap", close = False, blocking = True,
-                                target_override = None, frequency = 1000000):
+    def getAllConnectedBoards(transport="cmsis_dap", close=False, blocking=True,
+                                target_override=None, frequency=1000000):
         """
         Return an array of all mbed boards connected
         """
@@ -147,15 +147,15 @@ class MbedBoard(Board):
                     # Sleep before getting connected interfaces.  This way if a keyboard
                     # exception comes in there will be no resources to close
                     sleep(0.2)
-            
+
                 all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
                 if all_mbeds == None:
                     all_mbeds = []
-                
+
                 if not blocking:
                     # No blocking so break from loop
                     break
-                
+
                 if len(all_mbeds) > 0:
                     # A board has been found so break from loop
                     break
@@ -163,14 +163,14 @@ class MbedBoard(Board):
                 if (first == True):
                     logging.info("Waiting for a USB device connected")
                     first = False
-                
+
             mbed_boards = []
             for mbed in all_mbeds:
                 try:
                     mbed.write([0x80])
                     u_id_ = mbed.read()
                     board_id = array.array('B', [i for i in u_id_[2:6]]).tostring()
-                    unique_id = array.array('B', [i for i in u_id_[2:2+u_id_[1]]]).tostring()
+                    unique_id = array.array('B', [i for i in u_id_[2:2 + u_id_[1]]]).tostring()
                     if board_id not in BOARD_ID_TO_INFO:
                         logging.info("Unsupported board found: %s" % board_id)
                         if target_override is None:
@@ -188,26 +188,26 @@ class MbedBoard(Board):
                     #TODO - close all boards when an exception occurs
                     mbed.close()
                     raise
-            
+
             if len(mbed_boards) > 0 or not blocking:
                 return mbed_boards
-            
+
             if (first == True):
                 logging.info("Waiting for a USB device connected")
                 first = False
-    
+
     @staticmethod
-    def chooseBoard(transport = "cmsis_dap", blocking = True, return_first = False, board_id = None, target_override = None, frequency = 1000000, init_board = True):
+    def chooseBoard(transport="cmsis_dap", blocking=True, return_first=False, board_id=None, target_override=None, frequency=1000000, init_board=True):
         """
         Allow you to select a board among all boards connected
         """
         all_mbeds = MbedBoard.getAllConnectedBoards(transport, False, blocking, target_override, frequency)
-        
+
         # If a board ID is specified close all other boards
         if board_id != None:
             new_mbed_list = []
             for mbed in all_mbeds:
-                if mbed.unique_id == (board_id):    
+                if mbed.unique_id == (board_id):
                     new_mbed_list.append(mbed)
                 else:
                     mbed.interface.close()
@@ -215,19 +215,19 @@ class MbedBoard(Board):
             all_mbeds = new_mbed_list
 
         # Return if no boards are connected
-        if all_mbeds == None or len(all_mbeds)  <= 0:
+        if all_mbeds == None or len(all_mbeds) <= 0:
             if board_id is None:
                 print("No connected boards")
             else:
                 print("Board %s is not connected" % board_id)
             return None # No boards to close so it is safe to return
-            
+
         # Select first board and close others if True
         if return_first:
             for i in range(1, len(all_mbeds)):
                 all_mbeds[i].interface.close()
             all_mbeds = all_mbeds[0:1]
-        
+
         # Ask use to select boards if there is more than 1 left
         if len(all_mbeds) > 1:
             index = 0
@@ -248,7 +248,7 @@ class MbedBoard(Board):
                     logging.info("BAD CHOICE: %s", line)
                     index = 0
                     for mbed in all_mbeds:
-                        print "%d => %s" % ( index, mbed.getInfo())
+                        print "%d => %s" % (index, mbed.getInfo())
                         index += 1
                 else:
                     break
@@ -256,8 +256,8 @@ class MbedBoard(Board):
             for mbed in all_mbeds:
                 if mbed != all_mbeds[ch]:
                     mbed.interface.close()
-            all_mbeds = all_mbeds[ch:ch+1]
-            
+            all_mbeds = all_mbeds[ch:ch + 1]
+
         assert len(all_mbeds) == 1
         mbed = all_mbeds[0]
         if init_board:

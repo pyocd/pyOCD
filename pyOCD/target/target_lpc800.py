@@ -29,7 +29,7 @@ class LPC800(CortexM):
     def __init__(self, transport):
         super(LPC800, self).__init__(transport, self.memoryMap)
 
-    def resetStopOnReset(self, software_reset = None, map_to_user = True):
+    def resetStopOnReset(self, software_reset=None, map_to_user=True):
         CortexM.resetStopOnReset(self, software_reset)
 
         # Remap to use flash and set SP and SP accordingly

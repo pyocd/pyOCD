@@ -59,7 +59,7 @@ CSW_MSTRCORE =  0x00000000
 CSW_MSTRDBG  =  0x20000000
 CSW_RESERVED =  0x01000000
 
-CSW_VALUE  = (CSW_RESERVED | CSW_MSTRDBG | CSW_HPROT | CSW_DBGSTAT | CSW_SADDRINC)
+CSW_VALUE = (CSW_RESERVED | CSW_MSTRDBG | CSW_HPROT | CSW_DBGSTAT | CSW_SADDRINC)
 
 TRANSFER_SIZE = {8: CSW_SIZE8,
                  16: CSW_SIZE16,
@@ -93,7 +93,7 @@ class CMSIS_DAP(Transport):
         self.data_list = []
         self.data_read_list = []
 
-    def init(self, frequency = 1000000):
+    def init(self, frequency=1000000):
         # Flush to be safe
         self.flush()
         # connect to DAP, check for SWD or JTAG
@@ -155,7 +155,7 @@ class CMSIS_DAP(Transport):
         elif (self.mode == DAP_MODE_JTAG):
             self.writeDP(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR)
 
-    def writeMem(self, addr, data, transfer_size = 32):
+    def writeMem(self, addr, data, transfer_size=32):
         self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
 
         if transfer_size == 8:
@@ -170,7 +170,7 @@ class CMSIS_DAP(Transport):
         if not self.deferred_transfer:
             self.flush()
 
-    def readMem(self, addr, transfer_size = 32, mode = READ_NOW):
+    def readMem(self, addr, transfer_size=32, mode=READ_NOW):
         res = None
         if mode in (READ_START, READ_NOW):
             self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
@@ -179,8 +179,8 @@ class CMSIS_DAP(Transport):
 
         if mode in (READ_NOW, READ_END):
             resp = self._read()
-            res =   (resp[0] << 0)  | \
-                    (resp[1] << 8)  | \
+            res = (resp[0] << 0) | \
+                    (resp[1] << 8) | \
                     (resp[2] << 16) | \
                     (resp[3] << 24)
 
@@ -222,26 +222,26 @@ class CMSIS_DAP(Transport):
         except TransferError:
             self.clearStickyErr()
             raise
-        for i in range(len(resp)/4):
-            data.append( (resp[i*4 + 0] << 0)   | \
-                         (resp[i*4 + 1] << 8)   | \
-                         (resp[i*4 + 2] << 16)  | \
-                         (resp[i*4 + 3] << 24))
+        for i in range(len(resp) / 4):
+            data.append((resp[i * 4 + 0] << 0) | \
+                         (resp[i * 4 + 1] << 8) | \
+                         (resp[i * 4 + 2] << 16) | \
+                         (resp[i * 4 + 3] << 24))
         # If not in deferred mode flush after calls to _read or _write
         if not self.deferred_transfer:
             self.flush()
         return data
 
 
-    def readDP(self, addr, mode = READ_NOW):
+    def readDP(self, addr, mode=READ_NOW):
         res = None
         if mode in (READ_START, READ_NOW):
             self._write(READ | DP_ACC | (addr & 0x0c))
 
         if mode in (READ_NOW, READ_END):
             resp = self._read()
-            res =   (resp[0] << 0)  | \
-                    (resp[1] << 8)  | \
+            res = (resp[0] << 0) | \
+                    (resp[1] << 8) | \
                     (resp[2] << 16) | \
                     (resp[3] << 24)
 
@@ -283,7 +283,7 @@ class CMSIS_DAP(Transport):
 
         return True
 
-    def readAP(self, addr, mode = READ_NOW):
+    def readAP(self, addr, mode=READ_NOW):
         res = None
         if mode in (READ_START, READ_NOW):
             ap_sel = addr & 0xff000000
@@ -294,8 +294,8 @@ class CMSIS_DAP(Transport):
 
         if mode in (READ_NOW, READ_END):
             resp = self._read()
-            res =   (resp[0] << 0)  | \
-                    (resp[1] << 8)  | \
+            res = (resp[0] << 0) | \
+                    (resp[1] << 8) | \
                     (resp[2] << 16) | \
                     (resp[3] << 24)
 
@@ -377,7 +377,7 @@ class CMSIS_DAP(Transport):
             self.request_list = []
             self.data_list = []
 
-    def _write(self, request, data = 0):
+    def _write(self, request, data=0):
         """
         Write a single command
         """
@@ -399,6 +399,6 @@ class CMSIS_DAP(Transport):
         self.data_read_list = self.data_read_list[4:]
         return data
 
-    def _transferBlock(self, count, request, data = [0]):
+    def _transferBlock(self, count, request, data=[0]):
         self.flush()
         return self.protocol.transferBlock(count, request, data)

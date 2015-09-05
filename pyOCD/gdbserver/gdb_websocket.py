@@ -19,13 +19,13 @@ try:
     from websocket import create_connection
 except:
     pass
-        
+
 class GDBWebSocket(object):
     def __init__(self, url):
         self.url = url
         self.wss = None
         return
-    
+
     def connect(self):
         self.wss = None
         try:
@@ -33,16 +33,16 @@ class GDBWebSocket(object):
         except:
             pass
         return self.wss
-    
+
     def read(self):
         return self.wss.recv()
-    
+
     def write(self, data):
         return self.wss.send(data)
-    
+
     def close(self):
         return self.wss.close()
-    
+
     def setBlocking(self, blocking):
         if blocking != 0:
             self.wss.settimeout(None)

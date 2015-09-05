@@ -59,7 +59,7 @@ WATCH_TYPE_TO_FUNCT = {
                         }
 # Only sizes that are powers of 2 are supported
 # Breakpoint size = MASK**2
-WATCH_SIZE_TO_MASK = dict((2**i, i) for i in range(0,32))
+WATCH_SIZE_TO_MASK = dict((2 ** i, i) for i in range(0, 32))
 
 
 # Maps the fault code found in the IPSR to a GDB signal value.
@@ -107,10 +107,10 @@ CORE_REGISTER = {
                  'msp': 17,
                  'psp': 18,
                  'cfbp': 20,
-                 'control': -4,
-                 'faultmask': -3,
-                 'basepri': -2,
-                 'primask': -1,
+                 'control':-4,
+                 'faultmask':-3,
+                 'basepri':-2,
+                 'primask':-1,
                  'fpscr': 33,
                  's0': 0x40,
                  's1': 0x41,
@@ -407,7 +407,7 @@ class CortexM(Target):
         if self.core_type in  (ARM_CortexM3, ARM_CortexM4):
             for reg in self.regs_system_armv7_only:
                 self.register_list.append(reg)
-                SubElement(xml_regs_general, 'reg',  **reg.gdb_xml_attrib)
+                SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
         # Check if target has FPU registers
         if self.has_fpu:
             #xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
@@ -501,7 +501,7 @@ class CortexM(Target):
             self.idcode = self.transport.readDP(DP_REG['IDCODE'])
         return self.idcode
 
-    def writeMemory(self, addr, value, transfer_size = 32):
+    def writeMemory(self, addr, value, transfer_size=32):
         """
         write a memory location.
         By default the transfer size is a word
@@ -527,7 +527,7 @@ class CortexM(Target):
         """
         self.writeMemory(addr, value, 8)
 
-    def readMemory(self, addr, transfer_size = 32, mode = READ_NOW):
+    def readMemory(self, addr, transfer_size=32, mode=READ_NOW):
         """
         read a memory location. By default, a word will
         be read
@@ -579,10 +579,10 @@ class CortexM(Target):
         # try to read aligned block of 32bits
         if (size >= 4):
             #logging.debug("read blocks aligned at 0x%X, size: 0x%X", addr, (size/4)*4)
-            mem = self.readBlockMemoryAligned32(addr, size/4)
+            mem = self.readBlockMemoryAligned32(addr, size / 4)
             res += conversion.u32leListToByteList(mem)
-            size -= 4*len(mem)
-            addr += 4*len(mem)
+            size -= 4 * len(mem)
+            addr += 4 * len(mem)
 
         if (size > 1):
             mem = self.readMemory(addr, 16)
@@ -620,7 +620,7 @@ class CortexM(Target):
         # try to write 16 bits data
         if (size > 1) and (addr & 0x02):
 #             logging.debug("write 2 bytes at 0x%X: 0x%X", addr, data[idx] | (data[idx+1] << 8))
-            self.writeMemory(addr, data[idx] | (data[idx+1] << 8), 16)
+            self.writeMemory(addr, data[idx] | (data[idx + 1] << 8), 16)
             size -= 2
             addr += 2
             idx += 2
@@ -637,7 +637,7 @@ class CortexM(Target):
         # try to write 16 bits data
         if (size > 1):
 #             logging.debug("write 2 bytes at 0x%X: 0x%X", addr, data[idx] | (data[idx+1] << 8))
-            self.writeMemory(addr, data[idx] | (data[idx+1] << 8), 16)
+            self.writeMemory(addr, data[idx] | (data[idx + 1] << 8), 16)
             size -= 2
             addr += 2
             idx += 2
@@ -659,11 +659,11 @@ class CortexM(Target):
         size = len(data)
         while size > 0:
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
-            if size*4 < n:
-                n = (size*4) & 0xfffffffc
-            self.transport.writeBlock32(addr, data[:n/4])
-            data = data[n/4:]
-            size -= n/4
+            if size * 4 < n:
+                n = (size * 4) & 0xfffffffc
+            self.transport.writeBlock32(addr, data[:n / 4])
+            data = data[n / 4:]
+            size -= n / 4
             addr += n
         return
 
@@ -675,10 +675,10 @@ class CortexM(Target):
         resp = []
         while size > 0:
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
-            if size*4 < n:
-                n = (size*4) & 0xfffffffc
-            resp += self.transport.readBlock32(addr, n/4)
-            size -= n/4
+            if size * 4 < n:
+                n = (size * 4) & 0xfffffffc
+            resp += self.transport.readBlock32(addr, n / 4)
+            size -= n / 4
             addr += n
         return resp
 
@@ -690,7 +690,7 @@ class CortexM(Target):
         self.flush()
         return
 
-    def step(self, disable_interrupts = True):
+    def step(self, disable_interrupts=True):
         """
         perform an instruction level step.  This function preserves the previous
         interrupt mask state
@@ -732,7 +732,7 @@ class CortexM(Target):
     def clearDebugCauseBits(self):
         self.writeMemory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 
-    def reset(self, software_reset = None):
+    def reset(self, software_reset=None):
         """
         reset a core. After a call to this function, the core
         is running
@@ -748,7 +748,7 @@ class CortexM(Target):
         else:
             self.transport.reset()
 
-    def resetStopOnReset(self, software_reset = None):
+    def resetStopOnReset(self, software_reset=None):
         """
         perform a reset and stop the core on the reset handler
         """

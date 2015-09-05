@@ -34,11 +34,11 @@ class PyUSB(Interface):
     a USB HID device using pyusb:
         - write/read an endpoint
     """
-    
-    vid         = 0
-    pid         = 0
+
+    vid = 0
+    pid = 0
     intf_number = 0
-    
+
     isAvailable = isAvailable
 
     def __init__(self):
@@ -49,12 +49,12 @@ class PyUSB(Interface):
         self.closed = False
         self.rcv_data = []
         self.read_sem = threading.Semaphore(0)
-    
+
     def start_rx(self):
-        self.thread = threading.Thread(target = self.rx_task)
+        self.thread = threading.Thread(target=self.rx_task)
         self.thread.daemon = True
         self.thread.start()
-    
+
     def rx_task(self):
         while not self.closed:
             self.read_sem.acquire()
@@ -71,36 +71,36 @@ class PyUSB(Interface):
         """
         # find all devices matching the vid/pid specified
         all_devices = usb.core.find(find_all=True, idVendor=vid, idProduct=pid)
-        
+
         if not all_devices:
             logging.debug("No device connected")
             return None
-        
+
         boards = []
 
         # iterate on all devices found
         for board in all_devices:
             interface_number = -1
-            
+
             # get active config
             config = board.get_active_configuration()
-            
+
             # iterate on all interfaces:
             #    - if we found a HID interface -> CMSIS-DAP
             for interface in config:
                 if interface.bInterfaceClass == 0x03:
                     interface_number = interface.bInterfaceNumber
                     break
-            
+
             if interface_number == -1:
                 continue
-            
+
             try:
                 if board.is_kernel_driver_active(interface_number):
                     board.detach_kernel_driver(interface_number)
             except Exception as e:
                 print e
-            
+
             ep_in, ep_out = None, None
             for ep in interface:
                 if ep.bEndpointAddress & 0x80:
@@ -114,7 +114,7 @@ class PyUSB(Interface):
             if not ep_in:
                 logging.error('Endpoints not found')
                 return None
-            
+
             new_board = PyUSB()
             new_board.ep_in = ep_in
             new_board.ep_out = ep_out
@@ -126,9 +126,9 @@ class PyUSB(Interface):
             new_board.vendor_name = vendor_name
             new_board.start_rx()
             boards.append(new_board)
-            
+
         return boards
-    
+
     def write(self, data):
         """
         write data on the OUT endpoint associated to the HID interface
@@ -142,21 +142,21 @@ class PyUSB(Interface):
            data.append(0)
 
         self.read_sem.release()
-        
+
         if not self.ep_out:
             bmRequestType = 0x21              #Host to device request of type Class of Recipient Interface
-            bmRequest     = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
-            wValue        = 0x200             #Issuing an OUT report
-            wIndex        = self.intf_number  #mBed Board interface number for HID
-            self.dev.ctrl_transfer(bmRequestType,bmRequest,wValue,wIndex,data)
+            bmRequest = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
+            wValue = 0x200             #Issuing an OUT report
+            wIndex = self.intf_number  #mBed Board interface number for HID
+            self.dev.ctrl_transfer(bmRequestType, bmRequest, wValue, wIndex, data)
             return
             #raise ValueError('EP_OUT endpoint is NULL')
-        
+
         self.ep_out.write(data)
         #logging.debug('sent: %s', data)
         return
-        
-        
+
+
     def read(self):
         """
         read data on the IN endpoint associated to the HID interface

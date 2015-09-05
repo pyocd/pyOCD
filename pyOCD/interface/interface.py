@@ -15,8 +15,9 @@
  limitations under the License.
 """
 
+
 class Interface(object):
-    
+
     def __init__(self):
         self.vid = 0
         self.pid = 0
@@ -24,22 +25,22 @@ class Interface(object):
         self.product_name = ""
         self.packet_count = 1
         return
-    
+
     def init(self):
         return
-    
+
     def write(self, data):
         return
-        
-    def read(self, size = -1, timeout = -1):
+
+    def read(self, size=-1, timeout=-1):
         return
-    
+
     def getInfo(self):
         return self.vendor_name + " " + \
                self.product_name + " (" + \
                str(hex(self.vid)) + ", " + \
                str(hex(self.pid)) + ")"
-    
+
     def setPacketCount(self, count):
         # Unless overridden the packet count cannot be changed
         return
@@ -49,5 +50,3 @@ class Interface(object):
 
     def close(self):
         return
-    
-            

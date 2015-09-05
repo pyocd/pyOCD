@@ -340,7 +340,7 @@ class PyOCDTool(object):
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
-        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: "+", ".join(debug_levels), metavar="LEVEL")
+        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
         parser.add_argument("cmd", nargs='?', default=None, help="Command")
         parser.add_argument("args", nargs='*', help="Arguments for the command.")
         return parser.parse_args()
@@ -660,9 +660,9 @@ class PyOCDTool(object):
         if width == 8:
             l = len(data)
         elif width == 16:
-            l = len(data)*2
+            l = len(data) * 2
         elif width == 32:
-            l = len(data)*4
+            l = len(data) * 4
 
         return region.containsRange(addr, length=l)
 
@@ -730,7 +730,7 @@ class PyOCDTool(object):
             hexBytes = ''
             for b in i.bytes:
                 hexBytes += '%02x' % b
-            pc_marker = '*' if (pc==i.address) else ' '
+            pc_marker = '*' if (pc == i.address) else ' '
             text += "{addr:#010x}:{pc_marker} {bytes:<10}{mnemonic:<8}{args}\n".format(addr=i.address, pc_marker=pc_marker, bytes=hexBytes, mnemonic=i.mnemonic, args=i.op_str)
 
         print text

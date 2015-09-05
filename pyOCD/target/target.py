@@ -68,10 +68,10 @@ class Target(object):
     def resume(self):
         return
 
-    def writeMemory(self, addr, value, transfer_size = 32):
+    def writeMemory(self, addr, value, transfer_size=32):
         return
 
-    def readMemory(self, addr, transfer_size = 32):
+    def readMemory(self, addr, transfer_size=32):
         return
 
     def writeBlockMemoryUnaligned8(self, addr, value):
@@ -137,5 +137,5 @@ class Target(object):
     def setRegister(self, reg, data):
         return
 
-    def getTResponse(self, gdbInterrupt = False):
+    def getTResponse(self, gdbInterrupt=False):
         return ''

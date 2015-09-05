@@ -23,8 +23,10 @@ READ_NOW = 2
 # Get the result of a read started with READ_START
 READ_END = 3
 
+
 class TransferError(ValueError):
     pass
+
 
 class Transport(object):
 
@@ -53,10 +55,10 @@ class Transport(object):
     def readAP(self, addr, mode=READ_NOW):
         return
 
-    def writeMem(self, addr, data, transfer_size = 32):
+    def writeMem(self, addr, data, transfer_size=32):
         return
 
-    def readMem(self, addr, transfer_size = 32, mode=READ_NOW):
+    def readMem(self, addr, transfer_size=32, mode=READ_NOW):
         return
 
     def writeBlock32(self, addr, data):

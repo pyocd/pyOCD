@@ -133,30 +133,30 @@ class Kinetis(CortexM):
             if status & MDM_STATUS_FLASH_READY:
                 break
             sleep(0.01)
-        
+
         # Check if mass erase is enabled.
         status = self.transport.readAP(MDM_STATUS)
         if not (status & MDM_STATUS_MASS_ERASE_ENABLE):
             logging.error("Mass erase disabled. MDM status: 0x%x", status)
             return False
-        
+
         # Set Flash Mass Erase in Progress bit to start erase.
         self.transport.writeAP(MDM_CTRL, MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS)
-        
+
         # Wait for Flash Mass Erase Acknowledge to be set.
         while True:
             val = self.transport.readAP(MDM_STATUS)
             if val & MDM_STATUS_FLASH_MASS_ERASE_ACKNOWLEDGE:
                 break
             sleep(0.01)
-                
+
         # Wait for Flash Mass Erase in Progress bit to clear when erase is completed.
         while True:
             val = self.transport.readAP(MDM_CTRL)
             if (val == 0):
                 break
             sleep(0.01)
-        
+
         # Confirm the part was unlocked
         val = self.transport.readAP(MDM_STATUS)
         if (val & MDM_STATUS_SYSTEM_SECURITY) == 0:

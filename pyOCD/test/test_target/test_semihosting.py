@@ -148,8 +148,8 @@ class SemihostRequestBuilder:
         assert self.tgt.getState() == TARGET_HALTED
 
         self.tgt.write16(self.ramrgn.start, NOP)
-        self.tgt.write16(self.ramrgn.start+2, BKPT_AB)
-        self.tgt.write16(self.ramrgn.start+4, BKPT_00)
+        self.tgt.write16(self.ramrgn.start + 2, BKPT_AB)
+        self.tgt.write16(self.ramrgn.start + 4, BKPT_00)
 
         self.tgt.writeCoreRegister('pc', self.ramrgn.start)
         self.tgt.writeCoreRegister('sp', self.ramrgn.start + 0x100)
@@ -163,11 +163,11 @@ class SemihostRequestBuilder:
 
         # Write filename
         filename = bytearray(filename + '\x00')
-        self.tgt.writeBlockMemoryUnaligned8(argsptr+12, filename)
+        self.tgt.writeBlockMemoryUnaligned8(argsptr + 12, filename)
 
-        self.tgt.write32(argsptr, argsptr+12) # null terminated filename
-        self.tgt.write32(argsptr+4, semihost.SemihostAgent.OPEN_MODES.index(mode)) # mode
-        self.tgt.write32(argsptr+8, len(filename)-1) # filename length minus null terminator
+        self.tgt.write32(argsptr, argsptr + 12) # null terminated filename
+        self.tgt.write32(argsptr + 4, semihost.SemihostAgent.OPEN_MODES.index(mode)) # mode
+        self.tgt.write32(argsptr + 8, len(filename) - 1) # filename length minus null terminator
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
@@ -189,11 +189,11 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
 
         # Write data
-        self.tgt.writeBlockMemoryUnaligned8(argsptr+12, bytearray(data))
+        self.tgt.writeBlockMemoryUnaligned8(argsptr + 12, bytearray(data))
 
         self.tgt.write32(argsptr, fd) # fd
-        self.tgt.write32(argsptr+4, argsptr+12) # data
-        self.tgt.write32(argsptr+8, len(data)) # data length
+        self.tgt.write32(argsptr + 4, argsptr + 12) # data
+        self.tgt.write32(argsptr + 8, len(data)) # data length
         self.tgt.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -228,11 +228,11 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_READ)
 
         # Clear read buffer.
-        self.tgt.writeBlockMemoryUnaligned8(argsptr+12, bytearray('\x00') * length)
+        self.tgt.writeBlockMemoryUnaligned8(argsptr + 12, bytearray('\x00') * length)
 
         self.tgt.write32(argsptr, fd) # fd
-        self.tgt.write32(argsptr+4, argsptr+12) # ptr
-        self.tgt.write32(argsptr+8, length) # data length
+        self.tgt.write32(argsptr + 4, argsptr + 12) # ptr
+        self.tgt.write32(argsptr + 8, length) # data length
         self.tgt.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -241,7 +241,7 @@ class SemihostRequestBuilder:
         result = self.tgt.readCoreRegister('r0')
 
         # Read data put into read buffer.
-        data = str(bytearray(self.tgt.readBlockMemoryUnaligned8(argsptr+12, length - result)))
+        data = str(bytearray(self.tgt.readBlockMemoryUnaligned8(argsptr + 12, length - result)))
 
         return result, data
 
@@ -249,7 +249,7 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_SEEK)
 
         self.tgt.write32(argsptr, fd) # fd
-        self.tgt.write32(argsptr+4, pos) # pos
+        self.tgt.write32(argsptr + 4, pos) # pos
         self.tgt.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -358,7 +358,7 @@ class TestSemihosting:
 
         result, data = semihost_builder.do_read(fd, readLen)
         assert result == readResult
-        assert data == writeData[pos:pos+readLen]
+        assert data == writeData[pos:pos + readLen]
 
         result = semihost_builder.do_close(fd)
         assert result == 0

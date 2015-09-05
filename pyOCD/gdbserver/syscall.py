@@ -22,11 +22,11 @@ from ..target.semihost import SemihostIOHandler
 # Open mode flags
 O_RDONLY = 0x0
 O_WRONLY = 0x1
-O_RDWR   = 0x2
+O_RDWR = 0x2
 O_APPEND = 0x8
-O_CREAT  = 0x200
-O_TRUNC  = 0x400
-O_EXCL   = 0x800
+O_CREAT = 0x200
+O_TRUNC = 0x400
+O_EXCL = 0x800
 
 # Offset added to file descriptor numbers returned from gdb. This offset is to make
 # sure we don't overlap with the standard I/O file descriptors 1, 2, and 3 (fds must be
@@ -65,7 +65,7 @@ class GDBSyscallIOHandler(SemihostIOHandler):
             else:
                 modeval |= O_WRONLY | O_APPEND | O_CREAT
 
-        result, self._errno = self._server.syscall('open,%x/%x,%x,%x' % (fnptr, fnlen+1, modeval, 0777))
+        result, self._errno = self._server.syscall('open,%x/%x,%x,%x' % (fnptr, fnlen + 1, modeval, 0777))
         if result != -1:
             result += FD_OFFSET
         return result
