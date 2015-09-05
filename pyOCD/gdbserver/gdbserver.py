@@ -15,18 +15,19 @@
  limitations under the License.
 """
 
-import logging, threading, socket
-from ..target.target import (TARGET_HALTED, BREAKPOINT_HW, BREAKPOINT_SW,
+from ..target.target import (TARGET_HALTED, TARGET_RUNNING, BREAKPOINT_HW, BREAKPOINT_SW,
     WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
 from ..transport import TransferError
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
-from struct import unpack
-from time import sleep, time
-import sys
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 from syscall import GDBSyscallIOHandler
 from ..target import semihost
+import signals
+import logging, threading, socket
+from struct import unpack
+from time import sleep, time
+import sys
 import traceback
 import Queue
 
@@ -238,6 +239,8 @@ class GDBServer(threading.Thread):
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
+        self.non_stop = False
+        self.is_target_running = (self.target.getState() == TARGET_RUNNING)
         self.flashBuilder = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -294,33 +297,39 @@ class GDBServer(threading.Thread):
             self.telnet_console = None
 
     def run(self):
+        logging.info('GDB server started at port:%d', self.port)
+
         while True:
-            logging.info('GDB server started at port:%d', self.port)
+            try:
+                self.detach_event.clear()
 
-            # Inform callback that the server is running.
-            if self.server_listening_callback:
-                self.server_listening_callback(self)
+                # Inform callback that the server is running.
+                if self.server_listening_callback:
+                    self.server_listening_callback(self)
 
-            self.shutdown_event.clear()
-            self.detach_event.clear()
+                while not self.shutdown_event.isSet() and not self.detach_event.isSet():
+                    connected = self.abstract_socket.connect()
+                    if connected != None:
+                        self.packet_io = GDBServerPacketIOThread(self.abstract_socket)
+                        break
 
-            while not self.shutdown_event.isSet() and not self.detach_event.isSet():
-                connected = self.abstract_socket.connect()
-                if connected != None:
-                    self.packet_io = GDBServerPacketIOThread(self.abstract_socket)
-                    break
+                if self.shutdown_event.isSet():
+                    self._cleanup()
+                    return
 
-            if self.shutdown_event.isSet():
-                self._cleanup()
-                return
+                if self.detach_event.isSet():
+                    continue
 
-            if self.detach_event.isSet():
-                continue
+                logging.info("One client connected!")
+                self._run_connection()
 
-            logging.info("One client connected!")
+            except Exception as e:
+                logging.error("Unexpected exception: %s", e)
+                traceback.print_exc()
 
-            while True:
-
+    def _run_connection(self):
+        while True:
+            try:
                 if self.shutdown_event.isSet():
                     self._cleanup()
                     return
@@ -329,12 +338,27 @@ class GDBServer(threading.Thread):
                     break
 
                 if self.packet_io.interrupt_event.isSet():
-                    logging.debug("Got unexpected ctrl-c, ignoring")
+                    if self.non_stop:
+                        self.target.halt()
+                        self.is_target_running = False
+                        self.sendStopNotification()
+                    else:
+                        logging.debug("Got unexpected ctrl-c, ignoring")
                     self.packet_io.interrupt_event.clear()
+
+                if self.non_stop and self.is_target_running:
+                    try:
+                        if self.target.getState() == TARGET_HALTED:
+                            logging.debug("state halted")
+                            self.is_target_running = False
+                            self.sendStopNotification()
+                    except Exception as e:
+                        logging.error("Unexpected exception: %s", e)
+                        traceback.print_exc()
 
                 # read command
                 try:
-                    packet = self.packet_io.receive()
+                    packet = self.packet_io.receive(block=not self.non_stop)
                 except ConnectionClosedException:
                     break
 
@@ -344,6 +368,10 @@ class GDBServer(threading.Thread):
 
                 if self.detach_event.isSet():
                     break
+
+                if self.non_stop and packet is None:
+                    sleep(0.1)
+                    continue
 
                 self.lock.acquire()
 
@@ -363,72 +391,85 @@ class GDBServer(threading.Thread):
                         if self.persist:
                             break
                         else:
-                            self._cleanup()
+                            self.shutdown_event.set()
                             return
 
                 self.lock.release()
 
+            except Exception as e:
+                logging.error("Unexpected exception: %s", e)
+                traceback.print_exc()
+
     def handleMsg(self, msg):
-        if msg[0] != '$':
-            logging.debug('msg ignored: first char != $')
-            return None, 0
+        try:
+            if msg[0] != '$':
+                logging.debug('msg ignored: first char != $')
+                return None, 0
 
-        # query command
-        if msg[1] == '?':
-            return self.createRSPPacket(self.target.getTResponse()), 0
+            # query command
+            if msg[1] == '?':
+                return self.stopReasonQuery(), 0
 
-        # we don't send immediately the response for C and S commands
-        elif msg[1] == 'C' or msg[1] == 'c':
-            return self.resume()
+            # we don't send immediately the response for C and S commands
+            elif msg[1] == 'C' or msg[1] == 'c':
+                return self.resume(msg[1:]), 0
 
-        elif msg[1] == 'D':
-            return self.detach(msg[1:]), 1
+            elif msg[1] == 'D':
+                return self.detach(msg[1:]), 1
 
-        elif msg[1] == 'g':
-            return self.getRegisters(), 0
+            elif msg[1] == 'g':
+                return self.getRegisters(), 0
 
-        elif msg[1] == 'G':
-            return self.setRegisters(msg[2:]), 0
+            elif msg[1] == 'G':
+                return self.setRegisters(msg[2:]), 0
 
-        elif msg[1] == 'H':
-            return self.createRSPPacket(''), 0
+            elif msg[1] == 'H':
+                return self.createRSPPacket('OK'), 0
 
-        elif msg[1] == 'k':
-            return self.kill(), 1
+            elif msg[1] == 'k':
+                return self.kill(), 1
 
-        elif msg[1] == 'm':
-            return self.getMemory(msg[2:]), 0
+            elif msg[1] == 'm':
+                return self.getMemory(msg[2:]), 0
 
-        elif msg[1] == 'M': # write memory with hex data
-            return self.writeMemoryHex(msg[2:]), 0
+            elif msg[1] == 'M': # write memory with hex data
+                return self.writeMemoryHex(msg[2:]), 0
 
-        elif msg[1] == 'p':
-            return self.readRegister(msg[2:]), 0
+            elif msg[1] == 'p':
+                return self.readRegister(msg[2:]), 0
 
-        elif msg[1] == 'P':
-            return self.writeRegister(msg[2:]), 0
+            elif msg[1] == 'P':
+                return self.writeRegister(msg[2:]), 0
 
-        elif msg[1] == 'q':
-            return self.handleQuery(msg[2:]), 0
+            elif msg[1] == 'q':
+                return self.handleQuery(msg[2:]), 0
 
-        elif msg[1] == 'Q':
-            return self.handleGeneralSet(msg[2:]), 0
+            elif msg[1] == 'Q':
+                return self.handleGeneralSet(msg[2:]), 0
 
-        elif msg[1] == 'S' or msg[1] == 's':
-            return self.step()
+            elif msg[1] == 'S' or msg[1] == 's':
+                return self.step(msg[1:]), 0
 
-        elif msg[1] == 'v':
-            return self.flashOp(msg[2:]), 0
+            elif msg[1] == 'T': # check if thread is alive
+                return self.createRSPPacket('OK'), 0
 
-        elif msg[1] == 'X': # write memory with binary data
-            return self.writeMemory(msg[2:]), 0
+            elif msg[1] == 'v':
+                return self.vCommand(msg[2:]), 0
 
-        elif msg[1] == 'Z' or msg[1] == 'z':
-            return self.breakpoint(msg[1:]), 0
+            elif msg[1] == 'X': # write memory with binary data
+                return self.writeMemory(msg[2:]), 0
 
-        else:
-            logging.error("Unknown RSP packet: %s", msg)
-            return self.createRSPPacket(""), 0
+            elif msg[1] == 'Z' or msg[1] == 'z':
+                return self.breakpoint(msg[1:]), 0
+
+            else:
+                logging.error("Unknown RSP packet: %s", msg)
+                return self.createRSPPacket(""), 0
+
+        except Exception as e:
+            logging.error("Unhandled exception in handleMsg: %s", e)
+            traceback.print_exc()
+            return self.createRSPPacket("E01"), 0
 
     def detach(self, data):
         logging.info("Client detached")
@@ -489,7 +530,29 @@ class GDBServer(threading.Thread):
             self.target.removeWatchpoint(addr, size, watchpoint_type)
         return self.createRSPPacket("OK")
 
-    def resume(self):
+    def stopReasonQuery(self):
+        # In non-stop mode, if no threads are stopped we need to reply with OK.
+        if self.non_stop and self.is_target_running:
+            return self.createRSPPacket("OK")
+
+        return self.createRSPPacket(self.target.getTResponse())
+
+    def _get_resume_step_addr(self, data):
+        if data is None:
+            return None
+        data = data.split('#')[0]
+        if ';' not in data:
+            return None
+        # c[;addr]
+        if data[0] in ('c', 's'):
+            addr = int(data[2:], base=16)
+        # Csig[;addr]
+        elif data[0] in ('C', 'S'):
+            addr = int(data[1:].split(';')[1], base=16)
+        return addr
+
+    def resume(self, data):
+        addr = self._get_resume_step_addr(data)
         self.target.resume()
         logging.debug("target resumed")
 
@@ -498,14 +561,14 @@ class GDBServer(threading.Thread):
         while True:
             if self.shutdown_event.isSet():
                 self.packet_io.interrupt_event.clear()
-                return self.createRSPPacket(val), 0
+                return self.createRSPPacket(val)
 
             # Wait for a ctrl-c to be received.
             if self.packet_io.interrupt_event.wait(0.01):
                 logging.debug("receive CTRL-C")
                 self.packet_io.interrupt_event.clear()
                 self.target.halt()
-                val = self.target.getTResponse(True)
+                val = self.target.getTResponse(forceSignal=signals.SIGINT)
                 break
 
             try:
@@ -531,16 +594,97 @@ class GDBServer(threading.Thread):
                 val = 'S%02x' % self.target.getSignalValue()
                 break
 
-        return self.createRSPPacket(val), 0
+        return self.createRSPPacket(val)
 
-    def step(self):
-        logging.debug("GDB step")
+    def step(self, data):
+        addr = self._get_resume_step_addr(data)
+        logging.debug("GDB step: %s", data)
         self.target.step(not self.step_into_interrupt)
-        return self.createRSPPacket(self.target.getTResponse()), 0
+        return self.createRSPPacket(self.target.getTResponse())
 
     def halt(self):
         self.target.halt()
-        return self.createRSPPacket(self.target.getTResponse()), 0
+        return self.createRSPPacket(self.target.getTResponse())
+
+    def sendStopNotification(self, forceSignal=None):
+        data = self.target.getTResponse(forceSignal=forceSignal)
+        packet = '%Stop:' + data + '#' + checksum(data)
+        self.packet_io.send(packet)
+
+    def vCommand(self, data):
+        cmd = data.split('#')[0]
+        logging.debug("GDB vCommand: %s", cmd)
+
+        # Flash command.
+        if cmd.startswith('Flash'):
+            return self.flashOp(data)
+
+        # vCont capabilities query.
+        elif 'Cont?' == cmd:
+            return self.createRSPPacket("vCont;c;C;s;S;t")
+
+        # vCont, thread action command.
+        elif cmd.startswith('Cont'):
+            return self.vCont(cmd)
+
+        # vStopped, part of thread stop state notification sequence.
+        elif 'Stopped' in cmd:
+            # Because we only support one thread for now, we can just reply OK to vStopped.
+            return self.createRSPPacket("OK")
+
+        return self.createRSPPacket("")
+
+    # Example: $vCont;s:1;c#c1
+    def vCont(self, cmd):
+        ops = cmd.split(';')[1:] # split and remove 'Cont' from list
+        if not ops:
+            return self.createRSPPacket("OK")
+
+        thread_actions = { 1 : None } # our only thread
+        default_action = None
+        for op in ops:
+            args = op.split(':')
+            action = args[0]
+            if len(args) > 1:
+                thread_id = args[1]
+                if thread_id == '-1' or thread_id == '0':
+                    thread_id = '1'
+                thread_id = int(thread_id, base=16)
+                thread_actions[thread_id] = action
+            else:
+                default_action = action
+
+        logging.debug("thread_actions=%s; default_action=%s", repr(thread_actions), default_action)
+
+        # Only thread 1 is supported at the moment.
+        if thread_actions[1] is None:
+            if default_action is None:
+                return self.createRSPPacket('E01')
+            thread_actions[1] = default_action
+
+        if thread_actions[1] in ('c', 'C'):
+            if self.non_stop:
+                self.target.resume()
+                self.is_target_running = True
+                return self.createRSPPacket("OK")
+            else:
+                return self.resume(None)
+        elif thread_actions[1] in ('s', 'S'):
+            if self.non_stop:
+                self.target.step(not self.step_into_interrupt)
+                self.packet_io.send(self.createRSPPacket("OK"))
+                self.sendStopNotification()
+                return None
+            else:
+                return self.step(None)
+        elif thread_actions[1] == 't':
+            # Must ignore t command in all-stop mode.
+            if not self.non_stop:
+                return self.createRSPPacket("")
+            self.packet_io.send(self.createRSPPacket("OK"))
+            self.target.halt()
+            self.is_target_running = False
+            self.sendStopNotification(forceSignal=0)
 
     def flashOp(self, data):
         ops = data.split(':')[0]
@@ -603,10 +747,6 @@ class GDBServer(threading.Thread):
             self.flashBuilder = None
 
             return self.createRSPPacket("OK")
-
-        elif 'Cont' in ops:
-            if 'Cont?' in ops:
-                return self.createRSPPacket("vCont;c;s;t")
 
         return None
 
@@ -736,7 +876,7 @@ class GDBServer(threading.Thread):
             self.gdb_features = query[1].split(';')
 
             # Build our list of features.
-            features = ['qXfer:features:read+', 'QStartNoAckMode+']
+            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+']
             features.append('PacketSize=' + hex(self.packet_size)[2:])
             if self.target.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')
@@ -756,11 +896,17 @@ class GDBServer(threading.Thread):
                 resp = self.handleQueryXML('memory_map', int(data[0], 16), int(data[1].split('#')[0], 16))
                 return self.createRSPPacket(resp)
 
+            elif query[1] == 'threads' and query[2] == 'read':
+                data = query[4].split(',')
+                resp = self.handleQueryXML('threads', int(data[0], 16), int(data[1].split('#')[0], 16))
+                return self.createRSPPacket(resp)
+
             else:
+                logging.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
                 return None
 
-        elif query[0] == 'C#b4':
-            return self.createRSPPacket("")
+        elif query[0].startswith('C'):
+            return self.createRSPPacket("QC1")
 
         elif query[0].find('Attached') != -1:
             return self.createRSPPacket("1")
@@ -852,13 +998,19 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(resp)
 
     def handleGeneralSet(self, msg):
-        logging.debug("GDB general set: %s", msg)
         feature = msg.split('#')[0]
+        logging.debug("GDB general set: %s", feature)
 
         if feature == 'StartNoAckMode':
             # Disable acks after the reply and ack.
             self.packet_io.set_send_acks(False)
             return self.createRSPPacket("OK")
+
+        elif feature.startswith('NonStop'):
+            enable = feature.split(':')[1]
+            self.non_stop = (enable == '1')
+            return self.createRSPPacket("OK")
+
         else:
             return self.createRSPPacket("")
 
@@ -869,13 +1021,17 @@ class GDBServer(threading.Thread):
             xml = self.target.getMemoryMapXML()
         elif query == 'read_feature':
             xml = self.target.getTargetXML()
+        elif query == 'threads':
+            xml = self.target.getThreadsXML()
+        else:
+            raise RuntimeError("Invalid XML query (%s)" % query)
 
         size_xml = len(xml)
 
         prefix = 'm'
 
         if offset > size_xml:
-            logging.error('GDB: offset target.xml > size!')
+            logging.error('GDB: xml offset > size for %s!', query)
             return
 
         if size > (self.packet_size - 4):

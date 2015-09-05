@@ -1253,19 +1253,22 @@ class CortexM(Target):
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 
-    def getTResponse(self, gdbInterrupt = False):
+    def getTResponse(self, forceSignal=None):
         """
         Returns a GDB T response string.  This includes:
             The signal encountered.
             The current value of the important registers (sp, lr, pc).
         """
-        if gdbInterrupt:
-            response = 'T' + conversion.byteToHex2(signals.SIGINT)
+        if forceSignal is not None:
+            response = 'T' + conversion.byteToHex2(forceSignal)
         else:
             response = 'T' + conversion.byteToHex2(self.getSignalValue())
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self.getRegIndexValuePairs([7, 13, 14, 15])
+
+        # Append thread and core
+        response += "thread:1;core:0;"
 
         return response
 
@@ -1297,4 +1300,11 @@ class CortexM(Target):
         for regIndex, reg in zip(regIndexList, regList):
             str += conversion.byteToHex2(regIndex) + ':' + conversion.u32beToHex8le(reg) + ';'
         return str
+
+    def getThreadsXML(self):
+        root = Element('threads')
+        t = SubElement(root, 'thread', id="1", core="0")
+        t.text = "Thread mode"
+        return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
+
 
