@@ -15,8 +15,7 @@
  limitations under the License.
 """
 
-from ..target.target import (TARGET_HALTED, TARGET_RUNNING, BREAKPOINT_HW, BREAKPOINT_SW,
-    WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
+from ..target.target import Target
 from ..transport import TransferError
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
@@ -240,7 +239,7 @@ class GDBServer(threading.Thread):
         self.packet_io = None
         self.gdb_features = []
         self.non_stop = False
-        self.is_target_running = (self.target.getState() == TARGET_RUNNING)
+        self.is_target_running = (self.target.getState() == Target.TARGET_RUNNING)
         self.flashBuilder = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -348,7 +347,7 @@ class GDBServer(threading.Thread):
 
                 if self.non_stop and self.is_target_running:
                     try:
-                        if self.target.getState() == TARGET_HALTED:
+                        if self.target.getState() == Target.TARGET_HALTED:
                             logging.debug("state halted")
                             self.is_target_running = False
                             self.sendStopNotification()
@@ -494,7 +493,7 @@ class GDBServer(threading.Thread):
         # handle software breakpoint Z0/z0
         if data[1] == '0' and not self.soft_bkpt_as_hard:
             if data[0] == 'Z':
-                if not self.target.setBreakpoint(addr, BREAKPOINT_SW):
+                if not self.target.setBreakpoint(addr, Target.BREAKPOINT_SW):
                     return self.createRSPPacket('E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
@@ -503,7 +502,7 @@ class GDBServer(threading.Thread):
         # handle hardware breakpoint Z1/z1
         if data[1] == '1' or (self.soft_bkpt_as_hard and data[1] == '0'):
             if data[0] == 'Z':
-                if self.target.setBreakpoint(addr, BREAKPOINT_HW) == False:
+                if self.target.setBreakpoint(addr, Target.BREAKPOINT_HW) == False:
                     return self.createRSPPacket('E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
@@ -512,13 +511,13 @@ class GDBServer(threading.Thread):
         # handle hardware watchpoint Z2/z2/Z3/z3/Z4/z4
         if data[1] == '2':
             # Write-only watch
-            watchpoint_type = WATCHPOINT_WRITE
+            watchpoint_type = Target.WATCHPOINT_WRITE
         elif data[1] == '3':
             # Read-only watch
-            watchpoint_type = WATCHPOINT_READ
+            watchpoint_type = Target.WATCHPOINT_READ
         elif data[1] == '4':
             # Read-Write watch
-            watchpoint_type = WATCHPOINT_READ_WRITE
+            watchpoint_type = Target.WATCHPOINT_READ_WRITE
         else:
             return self.createRSPPacket('E01') #EPERM
 
@@ -572,7 +571,7 @@ class GDBServer(threading.Thread):
                 break
 
             try:
-                if self.target.getState() == TARGET_HALTED:
+                if self.target.getState() == Target.TARGET_HALTED:
                     # Handle semihosting
                     if self.enable_semihosting:
                         was_semihost = self.semihost.check_and_handle_semihost_request()
@@ -990,7 +989,7 @@ class GDBServer(threading.Thread):
             elif resultMask == 0x2:
                 self.target.halt()
 
-            if self.target.getState() != TARGET_HALTED:
+            if self.target.getState() != Target.TARGET_HALTED:
                 logging.error("Remote command left target running!")
                 logging.error("Forcing target to halt")
                 self.target.halt()

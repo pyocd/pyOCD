@@ -20,7 +20,7 @@ import os
 import sys
 import logging
 import pyOCD
-from pyOCD.target.target import (TARGET_RUNNING, TARGET_HALTED)
+from pyOCD.target.target import Target
 from pyOCD.target import semihost
 from elapsedtimer import ElapsedTimer
 import telnetlib
@@ -73,7 +73,7 @@ def run_til_halt(tgt, semihostagent):
             while True:
                 if t.elapsed >= 2.0:
                     raise TimeoutError()
-                if tgt.getState() == TARGET_HALTED:
+                if tgt.getState() == Target.TARGET_HALTED:
                     logging.info("Target halted")
                     didHandle = semihostagent.check_and_handle_semihost_request()
                     if didHandle:
@@ -85,7 +85,7 @@ def run_til_halt(tgt, semihostagent):
             tgt.halt()
             return False
         finally:
-            assert tgt.getState() == TARGET_HALTED
+            assert tgt.getState() == Target.TARGET_HALTED
 
 NOP = 0x46c0
 BKPT_00 = 0xbe00
@@ -145,7 +145,7 @@ class SemihostRequestBuilder:
         self.semihostagent = agent
 
     def setup_semihost_request(self, rqnum):
-        assert self.tgt.getState() == TARGET_HALTED
+        assert self.tgt.getState() == Target.TARGET_HALTED
 
         self.tgt.write16(self.ramrgn.start, NOP)
         self.tgt.write16(self.ramrgn.start + 2, BKPT_AB)

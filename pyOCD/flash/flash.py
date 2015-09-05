@@ -15,11 +15,11 @@
  limitations under the License.
 """
 
-from pyOCD.target.target import TARGET_RUNNING
+from pyOCD.target.target import Target
 import logging
 from struct import unpack
 from time import time
-from flash_builder import FLASH_PAGE_ERASE, FLASH_CHIP_ERASE, FlashBuilder
+from flash_builder import FlashBuilder
 
 DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
 DEFAULT_PAGE_ERASE_WEIGHT = 0.048
@@ -347,7 +347,7 @@ class Flash(object):
 
     ## @brief Wait until the breakpoint is hit.
     def waitForCompletion(self):
-        while(self.target.getState() == TARGET_RUNNING):
+        while(self.target.getState() == Target.TARGET_RUNNING):
             pass
 
         if self.flash_algo_debug:

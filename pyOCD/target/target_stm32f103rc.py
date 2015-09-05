@@ -17,7 +17,6 @@
 
 from cortex_m import CortexM
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
-from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
 import logging
 
 DBGMCU_CR = 0xE0042004

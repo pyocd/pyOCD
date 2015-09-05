@@ -15,19 +15,11 @@
  limitations under the License.
 """
 
-from pyOCD.target.target import TARGET_RUNNING
+from pyOCD.target.target import Target
 import logging
 from struct import unpack
 from time import time
 from binascii import crc32
-
-# Type of flash operation
-FLASH_PAGE_ERASE = 1
-FLASH_CHIP_ERASE = 2
-
-# Type of flash analysis
-FLASH_ANALYSIS_CRC32 = "CRC32"
-FLASH_ANALYSIS_PARTIAL_PAGE_READ = "PAGE_READ"
 
 # Number of bytes in a page to read to quickly determine if the page has the same data
 PAGE_ESTIMATE_SIZE = 32
@@ -93,6 +85,14 @@ class flash_operation(object):
         self.data = data
 
 class FlashBuilder(object):
+
+    # Type of flash operation
+    FLASH_PAGE_ERASE = 1
+    FLASH_CHIP_ERASE = 2
+
+    # Type of flash analysis
+    FLASH_ANALYSIS_CRC32 = "CRC32"
+    FLASH_ANALYSIS_PARTIAL_PAGE_READ = "PAGE_READ"
 
     def __init__(self, flash, base_addr=0):
         self.flash = flash
@@ -222,10 +222,10 @@ class FlashBuilder(object):
             analyze_start = time()
             if self.flash.getFlashInfo().crc_supported:
                 sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_crc32(fast_verify)
-                self.perf.analyze_type = FLASH_ANALYSIS_CRC32
+                self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_CRC32
             else:
                 sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_sector_read()
-                self.perf.analyze_type = FLASH_ANALYSIS_PARTIAL_PAGE_READ
+                self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_PARTIAL_PAGE_READ
             analyze_finish = time()
             self.perf.analyze_time = analyze_finish - analyze_start
             logging.debug("Analyze time: %f" % (analyze_finish - analyze_start))
@@ -397,7 +397,7 @@ class FlashBuilder(object):
                 progress += page.getProgramWeight()
                 progress_cb(float(progress) / float(self.chip_erase_weight))
         progress_cb(1.0)
-        return FLASH_CHIP_ERASE
+        return FlashBuilder.FLASH_CHIP_ERASE
 
     def _next_unerased_page(self, i):
         if i >= len(self.page_list):
@@ -463,7 +463,7 @@ class FlashBuilder(object):
             progress_cb(float(progress) / float(self.chip_erase_weight))
 
         progress_cb(1.0)
-        return FLASH_CHIP_ERASE
+        return FlashBuilder.FLASH_CHIP_ERASE
 
     def _page_erase_program(self, progress_cb=_stub_progress):
         """
@@ -503,7 +503,7 @@ class FlashBuilder(object):
         logging.debug("Estimated page erase count: %i", self.page_erase_count)
         logging.debug("Actual page erase count: %i", actual_page_erase_count)
 
-        return FLASH_PAGE_ERASE
+        return FlashBuilder.FLASH_PAGE_ERASE
 
     def _scan_pages_for_same(self, progress_cb=_stub_progress):
         """
@@ -605,4 +605,4 @@ class FlashBuilder(object):
         logging.debug("Estimated page erase count: %i", self.page_erase_count)
         logging.debug("Actual page erase count: %i", actual_page_erase_count)
 
-        return FLASH_PAGE_ERASE
+        return FlashBuilder.FLASH_PAGE_ERASE

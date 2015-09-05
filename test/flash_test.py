@@ -29,7 +29,8 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.flash.flash import FLASH_PAGE_ERASE, FLASH_CHIP_ERASE
+from pyOCD.flash.flash import Flash
+from pyOCD.flash.flash_builder import FlashBuilder
 from test_util import Test, TestResult
 
 addr = 0
@@ -241,7 +242,7 @@ def flash_test(board_id):
         print "\r\n\r\n------ Test Basic Page Erase ------"
         info = flash.flashBlock(addr, data, False, False, progress_cb=print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, size)
-        if same(data_flashed, data) and info.program_type is FLASH_PAGE_ERASE:
+        if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -251,7 +252,7 @@ def flash_test(board_id):
         print "\r\n\r\n------ Test Basic Chip Erase ------"
         info = flash.flashBlock(addr, data, False, True, progress_cb=print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, size)
-        if same(data_flashed, data) and info.program_type is FLASH_CHIP_ERASE:
+        if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_CHIP_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -261,7 +262,7 @@ def flash_test(board_id):
         print "\r\n\r\n------ Test Smart Page Erase ------"
         info = flash.flashBlock(addr, data, True, False, progress_cb=print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, size)
-        if same(data_flashed, data) and info.program_type is FLASH_PAGE_ERASE:
+        if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -271,7 +272,7 @@ def flash_test(board_id):
         print "\r\n\r\n------ Test Smart Chip Erase ------"
         info = flash.flashBlock(addr, data, True, True, progress_cb=print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, size)
-        if same(data_flashed, data) and info.program_type is FLASH_CHIP_ERASE:
+        if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_CHIP_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -284,7 +285,7 @@ def flash_test(board_id):
         new_data = list(data)
         new_data.extend(unused * [0x77])
         info = flash.flashBlock(0, new_data, False, False, progress_cb=print_progress)
-        if info.program_type == FLASH_PAGE_ERASE:
+        if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
             result.page_erase_rate = float(len(new_data)) / float(info.program_time)
@@ -294,7 +295,7 @@ def flash_test(board_id):
 
         print "\r\n\r\n------ Test Fast Verify ------"
         info = flash.flashBlock(0, new_data, progress_cb=print_progress, fast_verify=True)
-        if info.program_type == FLASH_PAGE_ERASE:
+        if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -307,7 +308,7 @@ def flash_test(board_id):
         new_data = [0x55] * page_size * 2
         info = flash.flashBlock(addr, new_data, progress_cb=print_progress)
         data_flashed = target.readBlockMemoryUnaligned8(addr, len(new_data))
-        if same(data_flashed, new_data) and info.program_type is FLASH_PAGE_ERASE:
+        if same(data_flashed, new_data) and info.program_type is FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -386,7 +387,7 @@ def flash_test(board_id):
         new_data = list(data)
         new_data.extend([0xff] * unused) # Pad with 0xFF
         info = flash.flashBlock(0, new_data, progress_cb=print_progress)
-        if info.program_type == FLASH_CHIP_ERASE:
+        if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
             result.chip_erase_rate_erased = float(len(new_data)) / float(info.program_time)
@@ -398,7 +399,7 @@ def flash_test(board_id):
         new_data = list(data)
         new_data.extend([0x00] * unused) # Pad with 0x00
         info = flash.flashBlock(0, new_data, progress_cb=print_progress)
-        if info.program_type == FLASH_CHIP_ERASE:
+        if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
             result.chip_erase_rate = float(len(new_data)) / float(info.program_time)
@@ -410,7 +411,7 @@ def flash_test(board_id):
         new_data = list(data)
         new_data.extend([0x00] * unused) # Pad with 0x00
         info = flash.flashBlock(0, new_data, progress_cb=print_progress)
-        if info.program_type == FLASH_PAGE_ERASE:
+        if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
             result.page_erase_rate_same = float(len(new_data)) / float(info.program_time)
@@ -428,7 +429,7 @@ def flash_test(board_id):
         new_data.extend([0x00] * size_same) # Pad 5/6 with 0x00 and 1/6 with 0xFF
         new_data.extend([0x55] * size_differ)
         info = flash.flashBlock(0, new_data, progress_cb=print_progress)
-        if info.program_type == FLASH_PAGE_ERASE:
+        if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
         else:

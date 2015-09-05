@@ -16,7 +16,7 @@
 """
 
 from cortex_m import CortexM
-from pyOCD.target.target import TARGET_RUNNING
+from pyOCD.target.target import Target
 import logging
 from time import sleep
 
@@ -112,7 +112,7 @@ class Kinetis(CortexM):
             self.transport.writeAP(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
-            if self.getState() == TARGET_RUNNING:
+            if self.getState() == Target.TARGET_RUNNING:
                 raise Exception("Target failed to stay halted during init sequence")
 
         CortexM.init(self, initial_setup=False, bus_accessible=True)

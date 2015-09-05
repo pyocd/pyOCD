@@ -28,6 +28,7 @@ import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
+from pyOCD.target.target import Target
 
 # Make disasm optional.
 try:
@@ -45,8 +46,8 @@ LEVELS = {
         }
 
 CORE_STATUS_DESC = {
-        pyOCD.target.cortex_m.TARGET_HALTED : "Halted",
-        pyOCD.target.cortex_m.TARGET_RUNNING : "Running"
+        Target.TARGET_HALTED : "Halted",
+        Target.TARGET_RUNNING : "Running"
         }
 
 ## Default SWD clock in kHz.
@@ -487,7 +488,7 @@ class PyOCDTool(object):
             self.target.resetStopOnReset()
 
             status = self.target.getState()
-            if status != pyOCD.target.cortex_m.TARGET_HALTED:
+            if status != Target.TARGET_HALTED:
                 print "Failed to halt device on reset"
             else:
                 print "Successfully halted device on reset"
@@ -592,7 +593,7 @@ class PyOCDTool(object):
     def handle_go(self, args):
         self.target.resume()
         status = self.target.getState()
-        if status == pyOCD.target.cortex_m.TARGET_RUNNING:
+        if status == Target.TARGET_RUNNING:
             print "Successfully resumed device"
         else:
             print "Failed to resume device"
@@ -605,7 +606,7 @@ class PyOCDTool(object):
         self.target.halt()
 
         status = self.target.getState()
-        if status != pyOCD.target.cortex_m.TARGET_HALTED:
+        if status != Target.TARGET_HALTED:
             print "Failed to halt device"
             return 1
         else:

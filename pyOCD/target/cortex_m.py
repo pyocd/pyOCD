@@ -17,9 +17,6 @@
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from .target import Target
-from .target import (TARGET_RUNNING, TARGET_HALTED,
-    BREAKPOINT_HW, BREAKPOINT_SW, BREAKPOINT_AUTO,
-    WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
 from ..transport.cmsis_dap import (DP_REG, AP_REG)
 from ..transport.transport import (READ_START, READ_NOW, READ_END, TransferError)
 from ..gdbserver import signals
@@ -53,9 +50,9 @@ AHB_IDR_TO_WRAP_SIZE = {
     }
 
 WATCH_TYPE_TO_FUNCT = {
-                        WATCHPOINT_READ: 5,
-                        WATCHPOINT_WRITE: 6,
-                        WATCHPOINT_READ_WRITE: 7
+                        Target.WATCHPOINT_READ: 5,
+                        Target.WATCHPOINT_WRITE: 6,
+                        Target.WATCHPOINT_READ_WRITE: 7
                         }
 # Only sizes that are powers of 2 are supported
 # Breakpoint size = MASK**2
@@ -148,7 +145,7 @@ CORE_REGISTER = {
 
 class Breakpoint(object):
     def __init__(self, comp_register_addr):
-        self.type = BREAKPOINT_HW
+        self.type = Target.BREAKPOINT_HW
         self.comp_register_addr = comp_register_addr
         self.enabled = False
         self.addr = 0
@@ -766,7 +763,7 @@ class CortexM(Target):
         self.reset(software_reset)
 
         # wait until the unit resets
-        while (self.getState() == TARGET_RUNNING):
+        while (self.getState() == Target.TARGET_RUNNING):
             pass
 
         # restore vector catch setting
@@ -782,14 +779,14 @@ class CortexM(Target):
     def getState(self):
         dhcsr = self.readMemory(CortexM.DHCSR)
         if dhcsr & (CortexM.C_STEP | CortexM.C_HALT):
-            return TARGET_HALTED
-        return TARGET_RUNNING
+            return Target.TARGET_HALTED
+        return Target.TARGET_RUNNING
 
     def resume(self):
         """
         resume the execution
         """
-        if self.getState() != TARGET_HALTED:
+        if self.getState() != Target.TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
         self.clearDebugCauseBits()
@@ -958,7 +955,7 @@ class CortexM(Target):
     #
     # @retval True Breakpoint was set.
     # @retval False Breakpoint could not be set.
-    def setBreakpoint(self, addr, type=BREAKPOINT_AUTO):
+    def setBreakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
         logging.debug("set bkpt type %d at 0x%x", type, addr)
 
         # Clear Thumb bit in case it is set.
@@ -976,7 +973,7 @@ class CortexM(Target):
             return False
 
         # Determine best type to use if auto.
-        if type == BREAKPOINT_AUTO:
+        if type == Target.BREAKPOINT_AUTO:
             # Use sw breaks for:
             #  1. Addresses outside the supported FPBv1 range of 0-0x1fffffff
             #  2. RAM regions by default.
@@ -984,26 +981,26 @@ class CortexM(Target):
             #
             # Otherwise use hw.
             if (addr >= 0x20000000) or (region.isRam) or (self.availableBreakpoint() == 0):
-                type = BREAKPOINT_SW
+                type = Target.BREAKPOINT_SW
             else:
-                type = BREAKPOINT_HW
+                type = Target.BREAKPOINT_HW
 
             logging.debug("using type %d for auto bp", type)
 
         # Revert to sw bp above 0x2000_0000.
-        if (type == BREAKPOINT_HW) and (addr >= 0x20000000):
+        if (type == Target.BREAKPOINT_HW) and (addr >= 0x20000000):
             logging.debug("using sw bp instead because of unsupported addr")
-            type = BREAKPOINT_SW
+            type = Target.BREAKPOINT_SW
 
         # Revert to hw bp if region is flash.
         if region.isFlash:
             logging.debug("using hw bp instead because addr is flash")
-            type = BREAKPOINT_HW
+            type = Target.BREAKPOINT_HW
 
         # Set the bp.
-        if type == BREAKPOINT_HW:
+        if type == Target.BREAKPOINT_HW:
             return self.setHardwareBreakpoint(addr)
-        elif type == BREAKPOINT_SW:
+        elif type == Target.BREAKPOINT_SW:
             return self.setSoftwareBreakpoint(addr)
         else:
             raise RuntimeError("Unknown breakpoint type %d" % type)
@@ -1020,9 +1017,9 @@ class CortexM(Target):
             bp = self.breakpoints.pop(addr)
 
             # Remove bp by type.
-            if bp.type == BREAKPOINT_SW:
+            if bp.type == Target.BREAKPOINT_SW:
                 self.removeSoftwareBreakpoint(bp)
-            elif bp.type == BREAKPOINT_HW:
+            elif bp.type == Target.BREAKPOINT_HW:
                 self.removeHardwareBreakpoint(bp.addr)
             else:
                 raise RuntimeError("Unknown breakpoint type %d" % bp.type)
@@ -1047,7 +1044,7 @@ class CortexM(Target):
 
             # Create bp object.
             bp = Breakpoint(0)
-            bp.type = BREAKPOINT_SW
+            bp.type = Target.BREAKPOINT_SW
             bp.enabled = True
             bp.addr = addr
             bp.original_instr = instr
