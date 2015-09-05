@@ -27,45 +27,6 @@ from ..utility import conversion
 import logging
 import struct
 
-# Debug Fault Status Register
-DFSR = 0xE000ED30
-DFSR_DWTTRAP = (1 << 2)
-DFSR_BKPT = (1 << 1)
-DFSR_HALTED = (1 << 0)
-# Debug Halting Control and Status Register
-DHCSR = 0xE000EDF0
-# Debug Core Register Selector Register
-DCRSR = 0xE000EDF4
-REGWnR = (1 << 16)
-# Debug Core Register Data Register
-DCRDR = 0xE000EDF8
-# Debug Exception and Monitor Control Register
-DEMCR = 0xE000EDFC
-
-TRACE_ENA = (1 << 24) # DWTENA in armv6 architecture reference manual
-VC_HARDERR = (1 << 10)
-VC_BUSERR = (1 << 8)
-VC_CORERESET = (1 << 0)
-
-# CPUID Register
-CPUID = 0xE000ED00
-
-# CPUID masks
-CPUID_IMPLEMENTER_MASK = 0xff000000
-CPUID_IMPLEMENTER_POS = 24
-CPUID_VARIANT_MASK = 0x00f00000
-CPUID_VARIANT_POS = 20
-CPUID_ARCHITECTURE_MASK = 0x000f0000
-CPUID_ARCHITECTURE_POS = 16
-CPUID_PARTNO_MASK = 0x0000fff0
-CPUID_PARTNO_POS = 4
-CPUID_REVISION_MASK = 0x0000000f
-CPUID_REVISION_POS = 0
-
-CPUID_IMPLEMENTER_ARM = 0x41
-ARMv6M = 0xC
-ARMv7M = 0xF
-
 # CPUID PARTNO values
 ARM_CortexM0 = 0xC20
 ARM_CortexM1 = 0xC21
@@ -82,23 +43,6 @@ CORE_TYPE_NAME = {
                  ARM_CortexM0p : "Cortex-M0+"
                }
 
-# Coprocessor Access Control Register
-CPACR = 0xE000ED88
-CPACR_CP10_CP11_MASK = (3 << 20) | (3 << 22)
-
-NVIC_AIRCR = (0xE000ED0C)
-NVIC_AIRCR_VECTKEY = (0x5FA << 16)
-NVIC_AIRCR_VECTRESET = (1 << 0)
-NVIC_AIRCR_SYSRESETREQ = (1 << 2)
-
-CSYSPWRUPACK = 0x80000000
-CDBGPWRUPACK = 0x20000000
-CSYSPWRUPREQ = 0x40000000
-CDBGPWRUPREQ = 0x10000000
-
-TRNNORMAL = 0x00000000
-MASKLANE = 0x00000f00
-
 AHB_IDR_TO_WRAP_SIZE = {
     0x24770011 : 0x1000,    # Used on m4 & m3 - Documented in arm_cortexm4_processor_trm_100166_0001_00_en.pdf
                             #                   and arm_cortexm3_processor_trm_100165_0201_00_en.pdf
@@ -108,29 +52,6 @@ AHB_IDR_TO_WRAP_SIZE = {
     0x74770001 : 0x400,     # Used on m0+ on KL28Z
     }
 
-# DHCSR bit masks
-C_DEBUGEN = (1 << 0)
-C_HALT = (1 << 1)
-C_STEP = (1 << 2)
-C_MASKINTS = (1 << 3)
-C_SNAPSTALL = (1 << 5)
-S_REGRDY = (1 << 16)
-S_HALT = (1 << 17)
-S_SLEEP = (1 << 18)
-S_LOCKUP = (1 << 19)
-DBGKEY = (0xA05F << 16)
-
-# FPB (breakpoint)
-FP_CTRL = (0xE0002000)
-FP_CTRL_KEY = (1 << 1)
-FP_COMP0 = (0xE0002008)
-
-# DWT (data watchpoint & trace)
-DWT_CTRL = 0xE0001000
-DWT_COMP_BASE = 0xE0001020
-DWT_MASK_OFFSET = 4
-DWT_FUNCTION_OFFSET = 8
-DWT_COMP_BLOCK_SIZE = 0x10
 WATCH_TYPE_TO_FUNCT = {
                         WATCHPOINT_READ: 5,
                         WATCHPOINT_WRITE: 6,
@@ -252,6 +173,93 @@ class CortexM(Target):
        - set/remove hardware breakpoints
     """
 
+    # Debug Fault Status Register
+    DFSR = 0xE000ED30
+    DFSR_EXTERNAL = (1 << 4)
+    DFSR_VCATCH = (1 << 3)
+    DFSR_DWTTRAP = (1 << 2)
+    DFSR_BKPT = (1 << 1)
+    DFSR_HALTED = (1 << 0)
+
+    # Debug Exception and Monitor Control Register
+    DEMCR = 0xE000EDFC
+    # DWTENA in armv6 architecture reference manual
+    DEMCR_TRCENA = (1 << 24)
+    DEMCR_VC_HARDERR = (1 << 10)
+    DEMCR_VC_BUSERR = (1 << 8)
+    DEMCR_VC_CORERESET = (1 << 0)
+
+    # CPUID Register
+    CPUID = 0xE000ED00
+
+    # CPUID masks
+    CPUID_IMPLEMENTER_MASK = 0xff000000
+    CPUID_IMPLEMENTER_POS = 24
+    CPUID_VARIANT_MASK = 0x00f00000
+    CPUID_VARIANT_POS = 20
+    CPUID_ARCHITECTURE_MASK = 0x000f0000
+    CPUID_ARCHITECTURE_POS = 16
+    CPUID_PARTNO_MASK = 0x0000fff0
+    CPUID_PARTNO_POS = 4
+    CPUID_REVISION_MASK = 0x0000000f
+    CPUID_REVISION_POS = 0
+
+    CPUID_IMPLEMENTER_ARM = 0x41
+    ARMv6M = 0xC
+    ARMv7M = 0xF
+
+    # Debug Core Register Selector Register
+    DCRSR = 0xE000EDF4
+    DCRSR_REGWnR = (1 << 16)
+    DCRSR_REGSEL = 0x1F
+
+    # Debug Halting Control and Status Register
+    DHCSR = 0xE000EDF0
+    C_DEBUGEN = (1 << 0)
+    C_HALT = (1 << 1)
+    C_STEP = (1 << 2)
+    C_MASKINTS = (1 << 3)
+    C_SNAPSTALL = (1 << 5)
+    S_REGRDY = (1 << 16)
+    S_HALT = (1 << 17)
+    S_SLEEP = (1 << 18)
+    S_LOCKUP = (1 << 19)
+
+    # Debug Core Register Data Register
+    DCRDR = 0xE000EDF8
+
+    # Coprocessor Access Control Register
+    CPACR = 0xE000ED88
+    CPACR_CP10_CP11_MASK = (3 << 20) | (3 << 22)
+
+    NVIC_AIRCR = (0xE000ED0C)
+    NVIC_AIRCR_VECTKEY = (0x5FA << 16)
+    NVIC_AIRCR_VECTRESET = (1 << 0)
+    NVIC_AIRCR_SYSRESETREQ = (1 << 2)
+
+    CSYSPWRUPACK = 0x80000000
+    CDBGPWRUPACK = 0x20000000
+    CSYSPWRUPREQ = 0x40000000
+    CDBGPWRUPREQ = 0x10000000
+
+    TRNNORMAL = 0x00000000
+    MASKLANE = 0x00000f00
+
+
+    DBGKEY = (0xA05F << 16)
+
+    # FPB (breakpoint)
+    FP_CTRL = (0xE0002000)
+    FP_CTRL_KEY = (1 << 1)
+    FP_COMP0 = (0xE0002008)
+
+    # DWT (data watchpoint & trace)
+    DWT_CTRL = 0xE0001000
+    DWT_COMP_BASE = 0xE0001020
+    DWT_MASK_OFFSET = 4
+    DWT_FUNCTION_OFFSET = 8
+    DWT_COMP_BLOCK_SIZE = 0x10
+
     class RegisterInfo(object):
         def __init__(self, name, bitsize, reg_type, reg_group):
             self.name = name
@@ -357,14 +365,14 @@ class CortexM(Target):
             self.idcode = self.readIDCode()
             # select bank 0 (to access DRW and TAR)
             self.transport.writeDP(DP_REG['SELECT'], 0)
-            self.transport.writeDP(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ)
+            self.transport.writeDP(DP_REG['CTRL_STAT'], CortexM.CSYSPWRUPREQ | CortexM.CDBGPWRUPREQ)
 
             while True:
                 r = self.transport.readDP(DP_REG['CTRL_STAT'])
-                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
+                if (r & (CortexM.CDBGPWRUPACK | CortexM.CSYSPWRUPACK)) == (CortexM.CDBGPWRUPACK | CortexM.CSYSPWRUPACK):
                     break
 
-            self.transport.writeDP(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
+            self.transport.writeDP(DP_REG['CTRL_STAT'], CortexM.CSYSPWRUPREQ | CortexM.CDBGPWRUPREQ | CortexM.TRNNORMAL | CortexM.MASKLANE)
             self.transport.writeDP(DP_REG['SELECT'], 0)
 
             ahb_idr = self.transport.readAP(AP_REG['IDR'])
@@ -411,14 +419,14 @@ class CortexM(Target):
     ## @brief Read the CPUID register and determine core type.
     def readCoreType(self):
         # Read CPUID register
-        cpuid = self.read32(CPUID)
+        cpuid = self.read32(CortexM.CPUID)
 
-        implementer = (cpuid & CPUID_IMPLEMENTER_MASK) >> CPUID_IMPLEMENTER_POS
-        if implementer != CPUID_IMPLEMENTER_ARM:
+        implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
+        if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
             logging.warning("CPU implementer is not ARM!")
 
-        self.arch = (cpuid & CPUID_ARCHITECTURE_MASK) >> CPUID_ARCHITECTURE_POS
-        self.core_type = (cpuid & CPUID_PARTNO_MASK) >> CPUID_PARTNO_POS
+        self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
+        self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         logging.info("CPU core is %s", CORE_TYPE_NAME[self.core_type])
 
     ## @brief Determine if a Cortex-M4 has an FPU.
@@ -429,15 +437,15 @@ class CortexM(Target):
             self.has_fpu = False
             return
 
-        originalCpacr = self.read32(CPACR)
-        cpacr = originalCpacr | CPACR_CP10_CP11_MASK
-        self.write32(CPACR, cpacr)
+        originalCpacr = self.read32(CortexM.CPACR)
+        cpacr = originalCpacr | CortexM.CPACR_CP10_CP11_MASK
+        self.write32(CortexM.CPACR, cpacr)
 
-        cpacr = self.read32(CPACR)
-        self.has_fpu = (cpacr & CPACR_CP10_CP11_MASK) != 0
+        cpacr = self.read32(CortexM.CPACR)
+        self.has_fpu = (cpacr & CortexM.CPACR_CP10_CP11_MASK) != 0
 
         # Restore previous value.
-        self.write32(CPACR, originalCpacr)
+        self.write32(CortexM.CPACR, originalCpacr)
 
         if self.has_fpu:
             logging.info("FPU present")
@@ -450,12 +458,12 @@ class CortexM(Target):
         which will be enabled when a first breakpoint will be set
         """
         # setup FPB (breakpoint)
-        fpcr = self.readMemory(FP_CTRL)
+        fpcr = self.readMemory(CortexM.FP_CTRL)
         self.nb_code = ((fpcr >> 8) & 0x70) | ((fpcr >> 4) & 0xF)
         self.nb_lit = (fpcr >> 7) & 0xf
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
         for i in range(self.nb_code):
-            self.hw_breakpoints.append(Breakpoint(FP_COMP0 + 4*i))
+            self.hw_breakpoints.append(Breakpoint(CortexM.FP_COMP0 + 4 * i))
 
         # disable FPB (will be enabled on first bp set)
         self.disableFPB()
@@ -468,15 +476,15 @@ class CortexM(Target):
         and makes sure that they are all disabled and ready for future
         use
         """
-        demcr = self.readMemory(DEMCR)
-        demcr = demcr | TRACE_ENA
-        self.writeMemory(DEMCR, demcr)
-        dwt_ctrl = self.readMemory(DWT_CTRL)
+        demcr = self.readMemory(CortexM.DEMCR)
+        demcr = demcr | CortexM.DEMCR_TRCENA
+        self.writeMemory(CortexM.DEMCR, demcr)
+        dwt_ctrl = self.readMemory(CortexM.DWT_CTRL)
         watchpoint_count = (dwt_ctrl >> 28) & 0xF
         logging.info("%d hardware watchpoints", watchpoint_count)
         for i in range(watchpoint_count):
-            self.watchpoints.append(Watchpoint(DWT_COMP_BASE + DWT_COMP_BLOCK_SIZE*i))
-            self.writeMemory(DWT_COMP_BASE + DWT_COMP_BLOCK_SIZE*i + DWT_FUNCTION_OFFSET, 0)
+            self.watchpoints.append(Watchpoint(CortexM.DWT_COMP_BASE + CortexM.DWT_COMP_BLOCK_SIZE * i))
+            self.writeMemory(CortexM.DWT_COMP_BASE + CortexM.DWT_COMP_BLOCK_SIZE * i + CortexM.DWT_FUNCTION_OFFSET, 0)
         self.dwt_configured = True
 
     def info(self, request):
@@ -678,7 +686,7 @@ class CortexM(Target):
         """
         halt the core
         """
-        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT)
+        self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.flush()
         return
 
@@ -689,40 +697,40 @@ class CortexM(Target):
         """
         # Was 'if self.getState() != TARGET_HALTED:'
         # but now value of dhcsr is saved
-        dhcsr = self.readMemory(DHCSR)
-        if not (dhcsr & (C_STEP | C_HALT)):
+        dhcsr = self.readMemory(CortexM.DHCSR)
+        if not (dhcsr & (CortexM.C_STEP | CortexM.C_HALT)):
             logging.error('cannot step: target not halted')
             return
 
         self.clearDebugCauseBits()
 
         # Save previous interrupt mask state
-        interrupts_masked = (C_MASKINTS & dhcsr) != 0
+        interrupts_masked = (CortexM.C_MASKINTS & dhcsr) != 0
 
         # Mask interrupts - C_HALT must be set when changing to C_MASKINTS
         if not interrupts_masked and disable_interrupts:
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT | C_MASKINTS)
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT | CortexM.C_MASKINTS)
 
         # Single step using current C_MASKINTS setting
         if disable_interrupts or interrupts_masked:
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_STEP)
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)
         else:
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_STEP)
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP)
 
         # Wait for halt to auto set (This should be done before the first read)
-        while not self.readMemory(DHCSR) & C_HALT:
+        while not self.readMemory(CortexM.DHCSR) & CortexM.C_HALT:
             pass
 
         # Restore interrupt mask state
         if not interrupts_masked and disable_interrupts:
             # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN | C_HALT )
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
 
         self.flush()
         return
 
     def clearDebugCauseBits(self):
-        self.writeMemory(DFSR, DFSR_DWTTRAP | DFSR_BKPT | DFSR_HALTED)
+        self.writeMemory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 
     def reset(self, software_reset = None):
         """
@@ -734,7 +742,7 @@ class CortexM(Target):
             software_reset = True
 
         if software_reset:
-            self.writeMemory(NVIC_AIRCR, NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ)
+            self.writeMemory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_SYSRESETREQ)
             # Without a flush a transfer error can occur
             self.flush()
         else:
@@ -749,11 +757,11 @@ class CortexM(Target):
         # halt the target
         self.halt()
 
-        # Save DEMCR
-        demcr = self.readMemory(DEMCR)
+        # Save CortexM.DEMCR
+        demcr = self.readMemory(CortexM.DEMCR)
 
         # enable the vector catch
-        self.writeMemory(DEMCR, demcr | VC_CORERESET)
+        self.writeMemory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
 
         self.reset(software_reset)
 
@@ -762,7 +770,7 @@ class CortexM(Target):
             pass
 
         # restore vector catch setting
-        self.writeMemory(DEMCR, demcr)
+        self.writeMemory(CortexM.DEMCR, demcr)
 
     def setTargetState(self, state):
         if state == "PROGRAM":
@@ -772,8 +780,8 @@ class CortexM(Target):
             self.writeCoreRegister('xpsr', 0x1000000)
 
     def getState(self):
-        dhcsr = self.readMemory(DHCSR)
-        if dhcsr & (C_STEP | C_HALT):
+        dhcsr = self.readMemory(CortexM.DHCSR)
+        if dhcsr & (CortexM.C_STEP | CortexM.C_HALT):
             return TARGET_HALTED
         return TARGET_RUNNING
 
@@ -785,7 +793,7 @@ class CortexM(Target):
             logging.debug('cannot resume: target not halted')
             return
         self.clearDebugCauseBits()
-        self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+        self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
         self.flush()
         return
 
@@ -851,22 +859,22 @@ class CortexM(Target):
                 reg = CORE_REGISTER['cfbp']
 
             # write id in DCRSR
-            self.writeMemory(DCRSR, reg)
+            self.writeMemory(CortexM.DCRSR, reg)
 
             # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
             # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
-            self.readMemory(DHCSR, mode=READ_START)
-            self.readMemory(DCRDR, mode=READ_START)
+            self.readMemory(CortexM.DHCSR, mode=READ_START)
+            self.readMemory(CortexM.DCRDR, mode=READ_START)
 
         # Read all results
         reg_vals = []
         for reg in reg_list:
-            dhcsr_val = self.readMemory(DHCSR, mode=READ_END)
-            assert dhcsr_val & S_REGRDY
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=READ_END)
+            assert dhcsr_val & CortexM.S_REGRDY
             # read DCRDR
-            val = self.readMemory(DCRDR, mode=READ_END)
+            val = self.readMemory(CortexM.DCRDR, mode=READ_END)
 
             # Special handling for registers that are combined into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
@@ -932,19 +940,19 @@ class CortexM(Target):
                 reg = CORE_REGISTER['cfbp']
 
             # write DCRDR
-            self.writeMemory(DCRDR, data)
+            self.writeMemory(CortexM.DCRDR, data)
 
             # write id in DCRSR and flag to start write transfer
-            self.writeMemory(DCRSR, reg | REGWnR)
+            self.writeMemory(CortexM.DCRSR, reg | CortexM.DCRSR_REGWnR)
 
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
             # Read it and assert that S_REGRDY is set
-            self.readMemory(DHCSR, mode=READ_START)
+            self.readMemory(CortexM.DHCSR, mode=READ_START)
 
         for reg in reg_list:
-            dhcsr_val = self.readMemory(DHCSR, mode=READ_END)
-            assert dhcsr_val & S_REGRDY
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=READ_END)
+            assert dhcsr_val & CortexM.S_REGRDY
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
     #
@@ -1093,13 +1101,13 @@ class CortexM(Target):
         return len(self.hw_breakpoints) - self.num_hw_breakpoint_used
 
     def enableFPB(self):
-        self.writeMemory(FP_CTRL, FP_CTRL_KEY | 1)
+        self.writeMemory(CortexM.FP_CTRL, CortexM.FP_CTRL_KEY | 1)
         self.fpb_enabled = True
         logging.debug('fpb has been enabled')
         return
 
     def disableFPB(self):
-        self.writeMemory(FP_CTRL, FP_CTRL_KEY | 0)
+        self.writeMemory(CortexM.FP_CTRL, CortexM.FP_CTRL_KEY | 0)
         self.fpb_enabled = False
         logging.debug('fpb has been disabled')
         return
@@ -1149,13 +1157,13 @@ class CortexM(Target):
                     return False
 
                 mask = WATCH_SIZE_TO_MASK[size]
-                self.writeMemory(watch.comp_register_addr + DWT_MASK_OFFSET, mask)
-                if self.readMemory(watch.comp_register_addr + DWT_MASK_OFFSET) != mask:
+                self.writeMemory(watch.comp_register_addr + CortexM.DWT_MASK_OFFSET, mask)
+                if self.readMemory(watch.comp_register_addr + CortexM.DWT_MASK_OFFSET) != mask:
                     logging.error('Watchpoint of size %d not supported by device', size)
                     return False
 
                 self.writeMemory(watch.comp_register_addr, addr)
-                self.writeMemory(watch.comp_register_addr + DWT_FUNCTION_OFFSET, watch.func)
+                self.writeMemory(watch.comp_register_addr + CortexM.DWT_FUNCTION_OFFSET, watch.func)
                 self.watchpoint_used += 1
                 return True
 
@@ -1171,31 +1179,31 @@ class CortexM(Target):
             return
 
         watch.func = 0
-        self.writeMemory(watch.comp_register_addr + DWT_FUNCTION_OFFSET, 0)
+        self.writeMemory(watch.comp_register_addr + CortexM.DWT_FUNCTION_OFFSET, 0)
         self.watchpoint_used -= 1
         return
 
     def setVectorCatchFault(self, enable):
-        demcr = self.readMemory(DEMCR)
+        demcr = self.readMemory(CortexM.DEMCR)
         if enable:
-            demcr = demcr | VC_HARDERR
+            demcr = demcr | CortexM.DEMCR_VC_HARDERR
         else:
-            demcr = demcr & ~VC_HARDERR
-        self.writeMemory(DEMCR, demcr)
+            demcr = demcr & ~CortexM.DEMCR_VC_HARDERR
+        self.writeMemory(CortexM.DEMCR, demcr)
 
     def getVectorCatchFault(self):
-        return bool(self.readMemory(DEMCR) & VC_HARDERR)
+        return bool(self.readMemory(CortexM.DEMCR) & CortexM.DEMCR_VC_HARDERR)
 
     def setVectorCatchReset(self, enable):
-        demcr = self.readMemory(DEMCR)
+        demcr = self.readMemory(CortexM.DEMCR)
         if enable:
-            demcr = demcr | VC_CORERESET
+            demcr = demcr | CortexM.DEMCR_VC_CORERESET
         else:
-            demcr = demcr & ~VC_CORERESET
-        self.writeMemory(DEMCR, demcr)
+            demcr = demcr & ~CortexM.DEMCR_VC_CORERESET
+        self.writeMemory(CortexM.DEMCR, demcr)
 
     def getVectorCatchReset(self):
-        return bool(self.readMemory(DEMCR) & VC_CORERESET)
+        return bool(self.readMemory(CortexM.DEMCR) & CortexM.DEMCR_VC_CORERESET)
 
     # GDB functions
     def getTargetXML(self):
@@ -1286,7 +1294,7 @@ class CortexM(Target):
         return signal
 
     def isDebugTrap(self):
-        debugEvents = self.readMemory(DFSR) & (DFSR_DWTTRAP | DFSR_BKPT | DFSR_HALTED)
+        debugEvents = self.readMemory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
         return debugEvents != 0
 
     def getRegIndexValuePairs(self, regIndexList):

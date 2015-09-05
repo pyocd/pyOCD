@@ -18,7 +18,6 @@
 from target_kinetis import Kinetis
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
-from cortex_m import (NVIC_AIRCR, NVIC_AIRCR_SYSRESETREQ)
 from ..transport.transport import TransferError
 
 SIM_SDID = 0x40075024

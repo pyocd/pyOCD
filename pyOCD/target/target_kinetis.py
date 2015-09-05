@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_HALT
+from cortex_m import CortexM
 from pyOCD.target.target import TARGET_RUNNING
 import logging
 from time import sleep
@@ -74,7 +74,7 @@ class Kinetis(CortexM):
                 # Use the MDM to keep the target halted after reset has been released
                 self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
                 # Enable debug
-                self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
                 self.transport.assertReset(False)
                 while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
                     logging.debug("Waiting for mdm halt (erase)")
@@ -99,7 +99,7 @@ class Kinetis(CortexM):
             while self.transport.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                 self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             # Enable debug
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
             # Disable holding the core in reset, leave MDM halt on
             self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
