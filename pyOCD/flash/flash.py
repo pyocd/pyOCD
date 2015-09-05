@@ -237,7 +237,7 @@ class Flash(object):
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, bytes_len, self.begin_data)
+        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
 
         # check the return code
         if result != 0:

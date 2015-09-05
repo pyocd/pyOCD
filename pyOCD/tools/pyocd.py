@@ -575,8 +575,8 @@ class PyOCDTool(object):
             data = pyOCD.utility.conversion.u32leListToByteList(data)
 
         if self.isFlashWrite(addr, width, data):
-            target.flash.init()
-            target.flash.programPhrase(addr, data)
+            self.target.flash.init()
+            self.target.flash.programPhrase(addr, data)
         else:
             self.target.writeBlockMemoryUnaligned8(addr, data)
 

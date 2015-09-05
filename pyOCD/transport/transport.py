@@ -81,3 +81,6 @@ class Transport(object):
 
     def setDeferredTransfer(self, enable):
         return
+
+    def flush(self):
+        return

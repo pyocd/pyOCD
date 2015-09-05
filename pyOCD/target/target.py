@@ -101,10 +101,10 @@ class Target(object):
     def removeBreakpoint(self, addr):
         return
 
-    def setWatchpoint(addr, size, type):
+    def setWatchpoint(self, addr, size, type):
         return
 
-    def removeWatchpoint(addr, size, type):
+    def removeWatchpoint(self, addr, size, type):
         return
 
     def reset(self):

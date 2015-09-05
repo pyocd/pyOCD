@@ -21,7 +21,7 @@ from .target import (TARGET_RUNNING, TARGET_HALTED,
     BREAKPOINT_HW, BREAKPOINT_SW, BREAKPOINT_AUTO,
     WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
 from ..transport.cmsis_dap import (DP_REG, AP_REG)
-from ..transport.transport import (READ_START, READ_NOW, READ_END)
+from ..transport.transport import (READ_START, READ_NOW, READ_END, TransferError)
 from ..gdbserver import signals
 from ..utility import conversion
 import logging
@@ -1065,7 +1065,7 @@ class CortexM(Target):
             # Restore original instruction.
             self.write16(bp.addr, bp.original_instr)
         except TransferError:
-            logging.debug("Failed to set sw bp at 0x%x" % addr)
+            logging.debug("Failed to set sw bp at 0x%x" % bp.addr)
 
     def setHardwareBreakpoint(self, addr):
         """

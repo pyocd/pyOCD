@@ -126,7 +126,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
 
     def readc(self):
         if not self._in_data.has_key(semihost.STDIN_FD):
-            return length
+            return -1
         d = self._in_data[semihost.STDIN_FD][:1]
         self._in_data[semihost.STDIN_FD] = self._in_data[semihost.STDIN_FD][1:]
         if len(d):
