@@ -18,7 +18,7 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from .target import Target
 from ..transport.cmsis_dap import (DP_REG, AP_REG)
-from ..transport.transport import (READ_START, READ_NOW, READ_END, TransferError)
+from ..transport.transport import Transport
 from ..gdbserver import signals
 from ..utility import conversion
 import logging
@@ -524,7 +524,7 @@ class CortexM(Target):
         """
         self.writeMemory(addr, value, 8)
 
-    def readMemory(self, addr, transfer_size=32, mode=READ_NOW):
+    def readMemory(self, addr, transfer_size=32, mode=Transport.READ_NOW):
         """
         read a memory location. By default, a word will
         be read
@@ -862,16 +862,16 @@ class CortexM(Target):
             # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
-            self.readMemory(CortexM.DHCSR, mode=READ_START)
-            self.readMemory(CortexM.DCRDR, mode=READ_START)
+            self.readMemory(CortexM.DHCSR, mode=Transport.READ_START)
+            self.readMemory(CortexM.DCRDR, mode=Transport.READ_START)
 
         # Read all results
         reg_vals = []
         for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=READ_END)
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Transport.READ_END)
             assert dhcsr_val & CortexM.S_REGRDY
             # read DCRDR
-            val = self.readMemory(CortexM.DCRDR, mode=READ_END)
+            val = self.readMemory(CortexM.DCRDR, mode=Transport.READ_END)
 
             # Special handling for registers that are combined into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
@@ -945,10 +945,10 @@ class CortexM(Target):
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
             # Read it and assert that S_REGRDY is set
-            self.readMemory(CortexM.DHCSR, mode=READ_START)
+            self.readMemory(CortexM.DHCSR, mode=Transport.READ_START)
 
         for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=READ_END)
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Transport.READ_END)
             assert dhcsr_val & CortexM.S_REGRDY
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
@@ -1051,7 +1051,7 @@ class CortexM(Target):
 
             self.breakpoints[addr] = bp
             return True
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("Failed to set sw bp at 0x%x" % addr)
             return False
 
@@ -1061,7 +1061,7 @@ class CortexM(Target):
         try:
             # Restore original instruction.
             self.write16(bp.addr, bp.original_instr)
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("Failed to set sw bp at 0x%x" % bp.addr)
 
     def setHardwareBreakpoint(self, addr):

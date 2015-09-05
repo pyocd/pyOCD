@@ -17,7 +17,7 @@
 
 import logging
 import array
-from transport import TransferError
+from transport import Transport
 
 COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_LED': 0x01,
@@ -217,7 +217,7 @@ class CMSIS_DAP_Protocol(object):
 
         if resp[2] != DAP_TRANSFER_OK:
             if resp[2] == DAP_TRANSFER_FAULT:
-                raise TransferError()
+                raise Transport.TransferError()
             raise ValueError('SWD Fault')
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
@@ -285,7 +285,7 @@ class CMSIS_DAP_Protocol(object):
         if error_response:
             raise ValueError('DAP_TRANSFER_BLOCK response error')
         elif error_transfer:
-            raise TransferError()
+            raise Transport.TransferError()
 
         return resp
 

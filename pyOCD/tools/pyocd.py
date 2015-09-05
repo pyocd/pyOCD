@@ -28,6 +28,7 @@ import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
+from pyOCD.transport.transport import Transport
 from pyOCD.target.target import Target
 
 # Make disasm optional.
@@ -265,7 +266,7 @@ class PyOCDConsole(object):
         except ValueError:
             print "Error: invalid argument"
             traceback.print_exc()
-        except pyOCD.transport.transport.TransferError:
+        except Transport.TransferError:
             print "Error: transfer failed"
         except ToolError as e:
             print "Error:", e
@@ -421,7 +422,7 @@ class PyOCDTool(object):
             self.exitCode = 0
         except ValueError:
             print "Error: invalid argument"
-        except pyOCD.transport.transport.TransferError:
+        except Transport.TransferError:
             print "Error: transfer failed"
             self.exitCode = 2
         except ToolError as e:

@@ -16,7 +16,7 @@
 """
 
 from cmsis_dap_core import CMSIS_DAP_Protocol
-from transport import Transport, TransferError, READ_START, READ_NOW, READ_END
+from transport import Transport
 import logging
 from time import sleep
 
@@ -170,14 +170,14 @@ class CMSIS_DAP(Transport):
         if not self.deferred_transfer:
             self.flush()
 
-    def readMem(self, addr, transfer_size=32, mode=READ_NOW):
+    def readMem(self, addr, transfer_size=32, mode=Transport.READ_NOW):
         res = None
-        if mode in (READ_START, READ_NOW):
+        if mode in (Transport.READ_START, Transport.READ_NOW):
             self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
             self._write(WRITE | AP_ACC | AP_REG['TAR'], addr)
             self._write(READ | AP_ACC | AP_REG['DRW'])
 
-        if mode in (READ_NOW, READ_END):
+        if mode in (Transport.READ_NOW, Transport.READ_END):
             resp = self._read()
             res = (resp[0] << 0) | \
                     (resp[1] << 8) | \
@@ -185,7 +185,7 @@ class CMSIS_DAP(Transport):
                     (resp[3] << 24)
 
             # All READ_STARTs must have been finished with READ_END before using READ_NOW
-            assert (mode != READ_NOW) or (len(self.data_read_list) == 0)
+            assert (mode != Transport.READ_NOW) or (len(self.data_read_list) == 0)
 
             if transfer_size == 8:
                 res = (res >> ((addr & 0x03) << 3) & 0xff)
@@ -204,7 +204,7 @@ class CMSIS_DAP(Transport):
         self.writeAP(AP_REG['TAR'], addr)
         try:
             self._transferBlock(len(data), WRITE | AP_ACC | AP_REG['DRW'], data)
-        except TransferError:
+        except Transport.TransferError:
             self.clearStickyErr()
             raise
         # If not in deferred mode flush after calls to _read or _write
@@ -219,7 +219,7 @@ class CMSIS_DAP(Transport):
         data = []
         try:
             resp = self._transferBlock(size, READ | AP_ACC | AP_REG['DRW'])
-        except TransferError:
+        except Transport.TransferError:
             self.clearStickyErr()
             raise
         for i in range(len(resp) / 4):
@@ -233,12 +233,12 @@ class CMSIS_DAP(Transport):
         return data
 
 
-    def readDP(self, addr, mode=READ_NOW):
+    def readDP(self, addr, mode=Transport.READ_NOW):
         res = None
-        if mode in (READ_START, READ_NOW):
+        if mode in (Transport.READ_START, Transport.READ_NOW):
             self._write(READ | DP_ACC | (addr & 0x0c))
 
-        if mode in (READ_NOW, READ_END):
+        if mode in (Transport.READ_NOW, Transport.READ_END):
             resp = self._read()
             res = (resp[0] << 0) | \
                     (resp[1] << 8) | \
@@ -246,7 +246,7 @@ class CMSIS_DAP(Transport):
                     (resp[3] << 24)
 
             # All READ_STARTs must have been finished with READ_END before using READ_NOW
-            assert (mode != READ_NOW) or (len(self.data_read_list) == 0)
+            assert (mode != Transport.READ_NOW) or (len(self.data_read_list) == 0)
 
         # If not in deferred mode flush after calls to _read or _write
         if not self.deferred_transfer:
@@ -283,16 +283,16 @@ class CMSIS_DAP(Transport):
 
         return True
 
-    def readAP(self, addr, mode=READ_NOW):
+    def readAP(self, addr, mode=Transport.READ_NOW):
         res = None
-        if mode in (READ_START, READ_NOW):
+        if mode in (Transport.READ_START, Transport.READ_NOW):
             ap_sel = addr & 0xff000000
             bank_sel = addr & APBANKSEL
 
             self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
             self._write(READ | AP_ACC | (addr & 0x0c))
 
-        if mode in (READ_NOW, READ_END):
+        if mode in (Transport.READ_NOW, Transport.READ_END):
             resp = self._read()
             res = (resp[0] << 0) | \
                     (resp[1] << 8) | \
@@ -300,7 +300,7 @@ class CMSIS_DAP(Transport):
                     (resp[3] << 24)
 
             # All READ_STARTs must have been finished with READ_END before using READ_NOW
-            assert (mode != READ_NOW) or (len(self.data_read_list) == 0)
+            assert (mode != Transport.READ_NOW) or (len(self.data_read_list) == 0)
 
         # If not in deferred mode flush after calls to _read or _write
         if not self.deferred_transfer:
@@ -362,7 +362,7 @@ class CMSIS_DAP(Transport):
             try:
                 data = self.protocol.transfer(transfer_count, self.request_list, self.data_list)
                 self.data_read_list.extend(data)
-            except TransferError:
+            except Transport.TransferError:
                 # Dump any pending commands
                 self.request_list = []
                 self.data_list = []

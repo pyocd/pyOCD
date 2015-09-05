@@ -16,7 +16,7 @@
 """
 
 from ..target.target import Target
-from ..transport import TransferError
+from ..transport.transport import Transport
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
@@ -786,7 +786,7 @@ class GDBServer(threading.Thread):
                     val += hex(x)[2:4]
                 else:
                     val += '0' + hex(x)[2:3]
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("getMemory failed at 0x%x" % addr)
             val = 'E01' #EPERM
         return self.createRSPPacket(val)
@@ -810,7 +810,7 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target.flush()
             resp = "OK"
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
             resp = 'E01' #EPERM
 
@@ -840,7 +840,7 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target.flush()
             resp = "OK"
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
             resp = 'E01' #EPERM
 
