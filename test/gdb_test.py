@@ -31,7 +31,7 @@ try:
     if board_selected != None:
         gdb = GDBServer(board_selected, 3333)
         while gdb.isAlive():
-            gdb.join(timeout = 0.5)
+            gdb.join(timeout=0.5)
 
 except KeyboardInterrupt:
     if gdb != None:

@@ -27,7 +27,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.transport import TransferError
+from pyOCD.transport.transport import Transport
 from test_util import Test, TestResult
 import logging
 from random import randrange
@@ -71,10 +71,10 @@ def test_function(board, function):
         function()
         board.transport.flush()
     stop = time()
-    return (stop-start) / float(TEST_COUNT)
+    return (stop - start) / float(TEST_COUNT)
 
 def cortex_test(board_id):
-    with MbedBoard.chooseBoard(board_id = board_id, frequency = 1000000) as board:
+    with MbedBoard.chooseBoard(board_id=board_id, frequency=1000000) as board:
         addr = 0
         size = 0
         f = None
@@ -234,7 +234,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except TransferError:
+        except Transport.TransferError:
             pass
 
         try:
@@ -243,7 +243,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except TransferError:
+        except Transport.TransferError:
             pass
 
         data = [0x00] * 0x1000
@@ -253,7 +253,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except TransferError:
+        except Transport.TransferError:
             pass
 
         data = [0x00] * 0x1000
@@ -263,7 +263,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except TransferError:
+        except Transport.TransferError:
             pass
 
         data = [randrange(0, 255) for x in range(size)]

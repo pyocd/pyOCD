@@ -29,7 +29,7 @@ from pyOCD.utility.conversion import float32beToU32be
 import logging
 
 def basic_test(board_id, file):
-    with MbedBoard.chooseBoard(board_id = board_id) as board:
+    with MbedBoard.chooseBoard(board_id=board_id) as board:
         addr = 0
         size = 0
         f = None
@@ -112,11 +112,11 @@ def basic_test(board_id, file):
         transport = board.transport
         flash = board.flash
         interface = board.interface
-        
-        
+
+
         print "\r\n\r\n------ GET Unique ID ------"
         print "Unique ID: %s" % board.getUniqueID()
-        
+
         print "\r\n\r\n------ TEST READ / WRITE CORE REGISTER ------"
         pc = target.readCoreRegister('pc')
         print "initial pc: 0x%X" % target.readCoreRegister('pc')
@@ -126,41 +126,41 @@ def basic_test(board_id, file):
         # write initial pc value
         target.writeCoreRegister('pc', pc)
         print "initial pc value rewritten: 0x%X" % target.readCoreRegister('pc')
-        
+
         msp = target.readCoreRegister('msp')
         psp = target.readCoreRegister('psp')
         print "MSP = 0x%08x; PSP = 0x%08x" % (msp, psp)
-        
+
         control = target.readCoreRegister('control')
         faultmask = target.readCoreRegister('faultmask')
         basepri = target.readCoreRegister('basepri')
         primask = target.readCoreRegister('primask')
         print "CONTROL = 0x%02x; FAULTMASK = 0x%02x; BASEPRI = 0x%02x; PRIMASK = 0x%02x" % (control, faultmask, basepri, primask)
-        
+
         target.writeCoreRegister('primask', 1)
         newPrimask = target.readCoreRegister('primask')
         print "New PRIMASK = 0x%02x" % newPrimask
         target.writeCoreRegister('primask', primask)
         newPrimask = target.readCoreRegister('primask')
         print "Restored PRIMASK = 0x%02x" % newPrimask
-        
+
         if target.has_fpu:
             s0 = target.readCoreRegister('s0')
-            print "S0 = %g (0x%08x)" % (s0,float32beToU32be(s0))
+            print "S0 = %g (0x%08x)" % (s0, float32beToU32be(s0))
             target.writeCoreRegister('s0', math.pi)
             newS0 = target.readCoreRegister('s0')
             print "New S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0))
             target.writeCoreRegister('s0', s0)
             newS0 = target.readCoreRegister('s0')
             print "Restored S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0))
-        
-        
+
+
         print "\r\n\r\n------ TEST HALT / RESUME ------"
-        
+
         print "resume"
         target.resume()
         sleep(0.2)
-        
+
         print "halt"
         target.halt()
         print "HALT: pc: 0x%X" % target.readCoreRegister('pc')
@@ -194,7 +194,7 @@ def basic_test(board_id, file):
         print "read32 at 0x%X: 0x%X" % (addr, res)
         if res != val:
             print "ERROR in READ/WRITE 32"
-            
+
         print "\r\nREAD16/WRITE16"
         val = randrange(0, 0xffff)
         print "write16 0x%X at 0x%X" % (val, addr + 2)
@@ -203,7 +203,7 @@ def basic_test(board_id, file):
         print "read16 at 0x%X: 0x%X" % (addr + 2, res)
         if res != val:
             print "ERROR in READ/WRITE 16"
-        
+
         print "\r\nREAD8/WRITE8"
         val = randrange(0, 0xff)
         print "write8 0x%X at 0x%X" % (val, addr + 1)
@@ -212,8 +212,8 @@ def basic_test(board_id, file):
         print "read8 at 0x%X: 0x%X" % (addr + 1, res)
         if res != val:
             print "ERROR in READ/WRITE 8"
-        
-        
+
+
         print "\r\n\r\n------ TEST READ / WRITE MEMORY BLOCK ------"
         data = [randrange(1, 50) for x in range(size)]
         target.writeBlockMemoryUnaligned8(addr, data)
@@ -227,17 +227,17 @@ def basic_test(board_id, file):
             print "TEST FAILED"
         else:
             print "TEST PASSED"
-        
-        
+
+
         print "\r\n\r\n------ TEST RESET ------"
         target.reset()
         sleep(0.1)
         target.halt()
-        
+
         for i in range(5):
             target.step()
             print "pc: 0x%X" % target.readCoreRegister('pc')
-            
+
         print "\r\n\r\n------ TEST PROGRAM/ERASE PAGE ------"
         # Fill 3 pages with 0x55
         page_size = flash.getPageInfo(addr_flash).size
@@ -261,7 +261,7 @@ def basic_test(board_id, file):
             print "TEST PASSED"
         else:
             print "TEST FAILED"
-            
+
         print "\r\n\r\n----- FLASH NEW BINARY -----"
         flash.flashBinary(binary_file, addr_bin)
 
@@ -269,7 +269,7 @@ def basic_test(board_id, file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='A CMSIS-DAP python debugger')
-    parser.add_argument('-f', help='binary file', dest = "file")
+    parser.add_argument('-f', help='binary file', dest="file")
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO

@@ -35,12 +35,12 @@ class LPC4330(CortexM):
     def setFlash(self, flash):
         self.flash = flash
 
-    def reset(self, software_reset = False):
+    def reset(self, software_reset=False):
         # Always use software reset for LPC4330 since the hardware version
         # will reset the DAP.
         CortexM.reset(self, True)
 
-    def resetStopOnReset(self, software_reset = False):
+    def resetStopOnReset(self, software_reset=False):
         if self.ignoreReset:
             return
 

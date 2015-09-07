@@ -17,7 +17,7 @@
 
 import logging
 import array
-from transport import TransferError
+from transport import Transport
 
 COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_LED': 0x01,
@@ -100,7 +100,7 @@ class CMSIS_DAP_Protocol(object):
                 return (resp[3] << 8) | resp[2]
 
         # String values
-        x = array.array('B', [i for i in resp[2:2+resp[1]]])
+        x = array.array('B', [i for i in resp[2:2 + resp[1]]])
 
         return x.tostring()
 
@@ -108,7 +108,7 @@ class CMSIS_DAP_Protocol(object):
         #not yet implemented
         return
 
-    def connect(self, mode = DAP_DEFAULT_PORT):
+    def connect(self, mode=DAP_DEFAULT_PORT):
         cmd = []
         cmd.append(COMMAND_ID['DAP_CONNECT'])
         cmd.append(mode)
@@ -143,7 +143,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def writeAbort(self, data, dap_index = 0):
+    def writeAbort(self, data, dap_index=0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_WRITE_ABORT'])
         cmd.append(dap_index)
@@ -176,7 +176,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def transferConfigure(self, idle_cycles = 0x00, wait_retry = 0x0050, match_retry = 0x0000):
+    def transferConfigure(self, idle_cycles=0x00, wait_retry=0x0050, match_retry=0x0000):
         cmd = []
         cmd.append(COMMAND_ID['DAP_TRANSFER_CONFIGURE'])
         cmd.append(idle_cycles)
@@ -195,7 +195,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def transfer(self, count, request, data = [0], dap_index = 0):
+    def transfer(self, count, request, data=[0], dap_index=0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_TRANSFER'])
         cmd.append(dap_index)
@@ -203,7 +203,7 @@ class CMSIS_DAP_Protocol(object):
         count_write = count
         for i in range(count):
             cmd.append(request[i])
-            if not ( request[i] & ((1 << 1) | (1 << 4))):
+            if not (request[i] & ((1 << 1) | (1 << 4))):
                 cmd.append(data[i] & 0xff)
                 cmd.append((data[i] >> 8) & 0xff)
                 cmd.append((data[i] >> 16) & 0xff)
@@ -217,7 +217,7 @@ class CMSIS_DAP_Protocol(object):
 
         if resp[2] != DAP_TRANSFER_OK:
             if resp[2] == DAP_TRANSFER_FAULT:
-                raise TransferError()
+                raise Transport.TransferError()
             raise ValueError('SWD Fault')
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
@@ -225,9 +225,9 @@ class CMSIS_DAP_Protocol(object):
         if resp[1] != count:
             raise ValueError('Transfer not completed')
 
-        return resp[3:3+count_write*4]
+        return resp[3:3 + count_write * 4]
 
-    def transferBlock(self, count, request, data = [0], dap_index = 0):
+    def transferBlock(self, count, request, data=[0], dap_index=0):
         packet_count = count
         max_pending_reads = self.interface.getPacketCount()
         reads_pending = 0
@@ -249,10 +249,10 @@ class CMSIS_DAP_Protocol(object):
                 cmd.append(request)
                 if not (request & ((1 << 1))):
                     for i in range(packet_written):
-                        cmd.append(data[i + nb*MAX_PACKET_SIZE] & 0xff)
-                        cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 8) & 0xff)
-                        cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 16) & 0xff)
-                        cmd.append((data[i + nb*MAX_PACKET_SIZE] >> 24) & 0xff)
+                        cmd.append(data[i + nb * MAX_PACKET_SIZE] & 0xff)
+                        cmd.append((data[i + nb * MAX_PACKET_SIZE] >> 8) & 0xff)
+                        cmd.append((data[i + nb * MAX_PACKET_SIZE] >> 16) & 0xff)
+                        cmd.append((data[i + nb * MAX_PACKET_SIZE] >> 24) & 0xff)
                 self.interface.write(cmd)
                 packet_count = packet_count - MAX_PACKET_SIZE
                 nb = nb + 1
@@ -278,18 +278,18 @@ class CMSIS_DAP_Protocol(object):
                         error_response = True
 
                 size_transfer = tmp[1] | (tmp[2] << 8)
-                resp.extend(tmp[4:4+size_transfer*4])
+                resp.extend(tmp[4:4 + size_transfer * 4])
                 reads_pending = reads_pending - 1
 
         # Raise pending errors
         if error_response:
             raise ValueError('DAP_TRANSFER_BLOCK response error')
         elif error_transfer:
-            raise TransferError()
+            raise Transport.TransferError()
 
         return resp
 
-    def setSWJClock(self, clock = 1000000):
+    def setSWJClock(self, clock=1000000):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWJ_CLOCK'])
         cmd.append(clock & 0xff)
@@ -307,7 +307,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def setSWJPins(self, output, pin, wait = 0):
+    def setSWJPins(self, output, pin, wait=0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWJ_PINS'])
         try:
@@ -329,7 +329,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def swdConfigure(self, conf = 0):
+    def swdConfigure(self, conf=0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWD_CONFIGURE'])
         cmd.append(conf)
@@ -347,7 +347,7 @@ class CMSIS_DAP_Protocol(object):
     def swjSequence(self, data):
         cmd = []
         cmd.append(COMMAND_ID['DAP_SWJ_SEQUENCE'])
-        cmd.append(len(data)*8)
+        cmd.append(len(data) * 8)
         for i in range(len(data)):
             cmd.append(data[i])
         self.interface.write(cmd)
@@ -378,7 +378,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[2]
 
-    def jtagConfigure(self, irlen, dev_num = 1):
+    def jtagConfigure(self, irlen, dev_num=1):
         cmd = []
         cmd.append(COMMAND_ID['DAP_JTAG_CONFIGURE'])
         cmd.append(dev_num)
@@ -394,7 +394,7 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[2:]
 
-    def jtagIDCode(self, index = 0):
+    def jtagIDCode(self, index=0):
         cmd = []
         cmd.append(COMMAND_ID['DAP_JTAG_IDCODE'])
         cmd.append(index)
@@ -407,8 +407,8 @@ class CMSIS_DAP_Protocol(object):
         if resp[1] != DAP_OK:
             raise ValueError('DAP JTAG ID code failed')
 
-        return  (resp[2] << 0)  | \
-                (resp[3] << 8)  | \
+        return  (resp[2] << 0) | \
+                (resp[3] << 8) | \
                 (resp[4] << 16) | \
                 (resp[5] << 24)
 

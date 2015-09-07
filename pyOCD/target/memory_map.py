@@ -19,7 +19,7 @@ from xml.etree import ElementTree
 
 __all__ = ['MemoryRegion', 'MemoryMap', 'RamRegion', 'RomRegion', 'FlashRegion']
 
-MAP_XML_HEADER =  """<?xml version="1.0"?>
+MAP_XML_HEADER = """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 """
 

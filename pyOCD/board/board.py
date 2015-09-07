@@ -28,7 +28,7 @@ class Board(object):
     This class associates a target, a flash, a transport and an interface
     to create a board
     """
-    def __init__(self, target, flash, interface, transport = "cmsis_dap", frequency = 1000000):
+    def __init__(self, target, flash, interface, transport="cmsis_dap", frequency=1000000):
         if isinstance(interface, str) == False:
             self.interface = interface
         else:
@@ -40,14 +40,14 @@ class Board(object):
         self.debug_clock_frequency = frequency
         self.closed = False
         return
-        
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, type, value, traceback):
         self.uninit()
         return False
-    
+
     def init(self):
         """
         Initialize the board: interface, transport and target
@@ -62,8 +62,8 @@ class Board(object):
         self.interface.setPacketCount(packet_count)
         self.transport.init(self.debug_clock_frequency)
         self.target.init()
-        
-    def uninit(self, resume = True ):
+
+    def uninit(self, resume=True):
         """
         Uninitialize the board: interface, transport and target.
         This function resumes the target
@@ -71,7 +71,7 @@ class Board(object):
         if self.closed:
             return
         self.closed = True
-            
+
         logging.debug("uninit board %s", self)
         if resume:
             try:
@@ -89,7 +89,7 @@ class Board(object):
         except:
             logging.error("interface exception during uninit:")
             traceback.print_exc()
-    
+
     def getInfo(self):
         return self.interface.getInfo()
 

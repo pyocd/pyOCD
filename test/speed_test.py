@@ -42,7 +42,7 @@ class SpeedTest(Test):
     def print_perf_info(self, result_list):
         result_list = filter(lambda x : isinstance(x, SpeedTestResult), result_list)
         print("\r\n\r\n------ Speed Test Performance ------")
-        print("{:<10}{:<16}{:<16}{:<16}{:<16}".format("Target","Write Speed","Read Speed", "USB speed", "USB overlap speed"))
+        print("{:<10}{:<16}{:<16}{:<16}{:<16}".format("Target", "Write Speed", "Read Speed", "USB speed", "USB overlap speed"))
         print("")
         for result in result_list:
             if result.passed:
@@ -75,7 +75,7 @@ class SpeedTest(Test):
 
 
 def speed_test(board_id):
-    with MbedBoard.chooseBoard(board_id = board_id, frequency = 1000000) as board:
+    with MbedBoard.chooseBoard(board_id=board_id, frequency=1000000) as board:
         target_type = board.getTargetType()
 
         test_clock = 10000000
@@ -86,9 +86,9 @@ def speed_test(board_id):
             rom_size = 0x20000
         elif target_type == "kl28z":
             ram_start = 0x1fffa000
-            ram_size = 96*1024
+            ram_size = 96 * 1024
             rom_start = 0x00000000
-            rom_size = 512*1024
+            rom_size = 512 * 1024
         elif target_type == "kl46z":
             ram_start = 0x1fffe000
             ram_size = 0x8000
@@ -171,7 +171,7 @@ def speed_test(board_id):
                 interface.read()
                 packet_count = packet_count - 1
         stop = time()
-        result.usb_speed = USB_TEST_XFER_COUNT * 64 / (stop-start)
+        result.usb_speed = USB_TEST_XFER_COUNT * 64 / (stop - start)
         print "USB transfer rate %f B/s" % result.usb_speed
 
         print "\r\n\r\n------ TEST OVERLAPPED USB TRANSFER SPEED ------"
@@ -193,7 +193,7 @@ def speed_test(board_id):
                 interface.read()
                 reads_pending = reads_pending - 1
         stop = time()
-        result.usb_overlapped = USB_TEST_XFER_COUNT * 64 / (stop-start)
+        result.usb_overlapped = USB_TEST_XFER_COUNT * 64 / (stop - start)
         print "USB transfer rate %f B/s" % result.usb_overlapped
 
         print "\r\n\r\n------ TEST RAM READ / WRITE SPEED ------"
@@ -203,15 +203,15 @@ def speed_test(board_id):
         start = time()
         target.writeBlockMemoryUnaligned8(test_addr, data)
         stop = time()
-        diff = stop-start
+        diff = stop - start
         result.write_speed = test_size / diff
-        print("Writing %i byte took %s seconds: %s B/s" % (test_size, diff,  result.write_speed))
+        print("Writing %i byte took %s seconds: %s B/s" % (test_size, diff, result.write_speed))
         start = time()
         block = target.readBlockMemoryUnaligned8(test_addr, test_size)
         stop = time()
-        diff = stop-start
+        diff = stop - start
         result.read_speed = test_size / diff
-        print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff,  result.read_speed))
+        print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff, result.read_speed))
         error = False
         for i in range(len(block)):
             if (block[i] != data[i]):
@@ -230,8 +230,8 @@ def speed_test(board_id):
         start = time()
         block = target.readBlockMemoryUnaligned8(test_addr, test_size)
         stop = time()
-        diff = stop-start
-        print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff,  test_size / diff))
+        diff = stop - start
+        print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff, test_size / diff))
         print "TEST PASSED"
         test_pass_count += 1
         test_count += 1
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close = True)[0]
+    board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close=True)[0]
     test = SpeedTest()
     result = [test.run(board)]
     test.print_perf_info(result)

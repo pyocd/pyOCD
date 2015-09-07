@@ -28,6 +28,8 @@ import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
+from pyOCD.transport.transport import Transport
+from pyOCD.target.target import Target
 
 # Make disasm optional.
 try:
@@ -45,8 +47,8 @@ LEVELS = {
         }
 
 CORE_STATUS_DESC = {
-        pyOCD.target.cortex_m.TARGET_HALTED : "Halted",
-        pyOCD.target.cortex_m.TARGET_RUNNING : "Running"
+        Target.TARGET_HALTED : "Halted",
+        Target.TARGET_RUNNING : "Running"
         }
 
 ## Default SWD clock in kHz.
@@ -264,7 +266,7 @@ class PyOCDConsole(object):
         except ValueError:
             print "Error: invalid argument"
             traceback.print_exc()
-        except pyOCD.transport.transport.TransferError:
+        except Transport.TransferError:
             print "Error: transfer failed"
         except ToolError as e:
             print "Error:", e
@@ -340,7 +342,7 @@ class PyOCDTool(object):
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
-        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: "+", ".join(debug_levels), metavar="LEVEL")
+        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
         parser.add_argument("cmd", nargs='?', default=None, help="Command")
         parser.add_argument("args", nargs='*', help="Arguments for the command.")
         return parser.parse_args()
@@ -420,7 +422,7 @@ class PyOCDTool(object):
             self.exitCode = 0
         except ValueError:
             print "Error: invalid argument"
-        except pyOCD.transport.transport.TransferError:
+        except Transport.TransferError:
             print "Error: transfer failed"
             self.exitCode = 2
         except ToolError as e:
@@ -487,7 +489,7 @@ class PyOCDTool(object):
             self.target.resetStopOnReset()
 
             status = self.target.getState()
-            if status != pyOCD.target.cortex_m.TARGET_HALTED:
+            if status != Target.TARGET_HALTED:
                 print "Failed to halt device on reset"
             else:
                 print "Successfully halted device on reset"
@@ -575,8 +577,8 @@ class PyOCDTool(object):
             data = pyOCD.utility.conversion.u32leListToByteList(data)
 
         if self.isFlashWrite(addr, width, data):
-            target.flash.init()
-            target.flash.programPhrase(addr, data)
+            self.target.flash.init()
+            self.target.flash.programPhrase(addr, data)
         else:
             self.target.writeBlockMemoryUnaligned8(addr, data)
 
@@ -592,7 +594,7 @@ class PyOCDTool(object):
     def handle_go(self, args):
         self.target.resume()
         status = self.target.getState()
-        if status == pyOCD.target.cortex_m.TARGET_RUNNING:
+        if status == Target.TARGET_RUNNING:
             print "Successfully resumed device"
         else:
             print "Failed to resume device"
@@ -605,7 +607,7 @@ class PyOCDTool(object):
         self.target.halt()
 
         status = self.target.getState()
-        if status != pyOCD.target.cortex_m.TARGET_HALTED:
+        if status != Target.TARGET_HALTED:
             print "Failed to halt device"
             return 1
         else:
@@ -660,9 +662,9 @@ class PyOCDTool(object):
         if width == 8:
             l = len(data)
         elif width == 16:
-            l = len(data)*2
+            l = len(data) * 2
         elif width == 32:
-            l = len(data)*4
+            l = len(data) * 4
 
         return region.containsRange(addr, length=l)
 
@@ -730,7 +732,7 @@ class PyOCDTool(object):
             hexBytes = ''
             for b in i.bytes:
                 hexBytes += '%02x' % b
-            pc_marker = '*' if (pc==i.address) else ' '
+            pc_marker = '*' if (pc == i.address) else ' '
             text += "{addr:#010x}:{pc_marker} {bytes:<10}{mnemonic:<8}{args}\n".format(addr=i.address, pc_marker=pc_marker, bytes=hexBytes, mnemonic=i.mnemonic, args=i.op_str)
 
         print text

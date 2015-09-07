@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from flash import Flash, DEFAULT_CHIP_ERASE_WEIGHT
+from flash import Flash, DEFAULT_CHIP_ERASE_WEIGHT, FlashInfo
 
 flash_algo = { 'load_address' : 0x10000000,
                'instructions' : [

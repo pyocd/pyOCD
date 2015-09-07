@@ -15,15 +15,15 @@
  limitations under the License.
 """
 
-from pyOCD.target.target import TARGET_RUNNING
+from pyOCD.target.target import Target
 import logging
 from struct import unpack
 from time import time
-from flash_builder import FLASH_PAGE_ERASE, FLASH_CHIP_ERASE, FlashBuilder
+from flash_builder import FlashBuilder
 
 DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
-DEFAULT_PAGE_ERASE_WEIGHT   = 0.048
-DEFAULT_CHIP_ERASE_WEIGHT   = 0.174
+DEFAULT_PAGE_ERASE_WEIGHT = 0.048
+DEFAULT_CHIP_ERASE_WEIGHT = 0.174
 
 # Program to compute the CRC of sectors.  This works on cortex-m processors.
 # Code is relocatable and only needs to be on a 4 byte boundary.
@@ -41,10 +41,10 @@ analyzer = (
     0xedb88320, 0x00000044,
     )
 
-def _msb( n ):
+def _msb(n):
     ndx = 0
-    while ( 1 < n ):
-        n = ( n >> 1 )
+    while (1 < n):
+        n = (n >> 1)
         ndx += 1
     return ndx
 
@@ -81,7 +81,7 @@ class Flash(object):
         self.flash_algo = flash_algo
         self.flash_algo_debug = False
         if flash_algo is not None:
-            self.end_flash_algo = flash_algo['load_address'] + len(flash_algo)*4
+            self.end_flash_algo = flash_algo['load_address'] + len(flash_algo) * 4
             self.begin_stack = flash_algo['begin_stack']
             self.begin_data = flash_algo['begin_data']
             self.static_base = flash_algo['static_base']
@@ -237,7 +237,7 @@ class Flash(object):
         self.target.writeBlockMemoryUnaligned8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, bytes_len, self.begin_data)
+        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
 
         # check the return code
         if result != 0:
@@ -277,7 +277,7 @@ class Flash(object):
     def getFlashBuilder(self):
         return FlashBuilder(self, self.getFlashInfo().rom_start)
 
-    def flashBlock(self, addr, data, smart_flash = True, chip_erase = None, progress_cb = None, fast_verify = False):
+    def flashBlock(self, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
         """
         Flash a block of data
         """
@@ -287,7 +287,7 @@ class Flash(object):
         info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
         return info
 
-    def flashBinary(self, path_file, flashPtr = None, smart_flash = True, chip_erase = None, progress_cb = None, fast_verify = False):
+    def flashBinary(self, path_file, flashPtr=None, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
         """
         Flash a binary
         """
@@ -347,7 +347,7 @@ class Flash(object):
 
     ## @brief Wait until the breakpoint is hit.
     def waitForCompletion(self):
-        while(self.target.getState() == TARGET_RUNNING):
+        while(self.target.getState() == Target.TARGET_RUNNING):
             pass
 
         if self.flash_algo_debug:

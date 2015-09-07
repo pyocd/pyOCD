@@ -15,9 +15,8 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_MASKINTS, C_STEP, DEMCR, VC_CORERESET, NVIC_AIRCR, NVIC_AIRCR_VECTKEY, NVIC_AIRCR_SYSRESETREQ
+from cortex_m import CortexM
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
-from pyOCD.target.target import TARGET_RUNNING, TARGET_HALTED
 import logging
 
 # NRF51 specific registers

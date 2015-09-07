@@ -62,7 +62,7 @@ if __name__ == "__main__":
     test_list.append(FlashTest())
 
     # Put together list of boards to test
-    board_list = MbedBoard.getAllConnectedBoards(close = True, blocking = False)
+    board_list = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
 
     start = time()
     for board in board_list:

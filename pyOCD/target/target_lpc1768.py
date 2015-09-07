@@ -30,10 +30,10 @@ class LPC1768(CortexM):
     def __init__(self, transport):
         super(LPC1768, self).__init__(transport, self.memoryMap)
 
-    def reset(self, software_reset = False):
+    def reset(self, software_reset=False):
         CortexM.reset(self, False)
 
-    def resetStopOnReset(self, software_reset = False, map_to_user = True):
+    def resetStopOnReset(self, software_reset=False, map_to_user=True):
         CortexM.resetStopOnReset(self)
 
         # Remap to use flash and set SP and SP accordingly

@@ -15,8 +15,8 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM, DHCSR, DBGKEY, C_DEBUGEN, C_HALT
-from pyOCD.target.target import TARGET_RUNNING
+from cortex_m import CortexM
+from pyOCD.target.target import Target
 import logging
 from time import sleep
 
@@ -74,7 +74,7 @@ class Kinetis(CortexM):
                 # Use the MDM to keep the target halted after reset has been released
                 self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
                 # Enable debug
-                self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
                 self.transport.assertReset(False)
                 while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
                     logging.debug("Waiting for mdm halt (erase)")
@@ -99,7 +99,7 @@ class Kinetis(CortexM):
             while self.transport.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                 self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             # Enable debug
-            self.writeMemory(DHCSR, DBGKEY | C_DEBUGEN)
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
             # Disable holding the core in reset, leave MDM halt on
             self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
@@ -112,7 +112,7 @@ class Kinetis(CortexM):
             self.transport.writeAP(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
-            if self.getState() == TARGET_RUNNING:
+            if self.getState() == Target.TARGET_RUNNING:
                 raise Exception("Target failed to stay halted during init sequence")
 
         CortexM.init(self, initial_setup=False, bus_accessible=True)
@@ -133,30 +133,30 @@ class Kinetis(CortexM):
             if status & MDM_STATUS_FLASH_READY:
                 break
             sleep(0.01)
-        
+
         # Check if mass erase is enabled.
         status = self.transport.readAP(MDM_STATUS)
         if not (status & MDM_STATUS_MASS_ERASE_ENABLE):
             logging.error("Mass erase disabled. MDM status: 0x%x", status)
             return False
-        
+
         # Set Flash Mass Erase in Progress bit to start erase.
         self.transport.writeAP(MDM_CTRL, MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS)
-        
+
         # Wait for Flash Mass Erase Acknowledge to be set.
         while True:
             val = self.transport.readAP(MDM_STATUS)
             if val & MDM_STATUS_FLASH_MASS_ERASE_ACKNOWLEDGE:
                 break
             sleep(0.01)
-                
+
         # Wait for Flash Mass Erase in Progress bit to clear when erase is completed.
         while True:
             val = self.transport.readAP(MDM_CTRL)
             if (val == 0):
                 break
             sleep(0.01)
-        
+
         # Confirm the part was unlocked
         val = self.transport.readAP(MDM_STATUS)
         if (val & MDM_STATUS_SYSTEM_SECURITY) == 0:

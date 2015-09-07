@@ -18,8 +18,7 @@
 from target_kinetis import Kinetis
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
-from cortex_m import (NVIC_AIRCR, NVIC_AIRCR_SYSRESETREQ)
-from ..transport.transport import TransferError
+from ..transport.transport import Transport
 
 SIM_SDID = 0x40075024
 SIM_SDID_KEYATTR_MASK = 0x70
@@ -61,10 +60,10 @@ class KL28x(Kinetis):
             self.memory_map = self.dualMap
             logging.info("KL28 is dual core")
 
-    def reset(self, software_reset = None):
+    def reset(self, software_reset=None):
         try:
             super(KL28x, self).reset(software_reset)
-        except TransferError:
+        except Transport.TransferError:
             # KL28 causes a SWD transfer fault for the AIRCR write when
             # it resets. Just ignore this error.
             pass

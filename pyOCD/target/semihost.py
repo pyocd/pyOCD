@@ -27,6 +27,7 @@ import traceback
 import pyOCD
 from ..gdbserver.gdb_socket import GDBSocket
 from ..gdbserver.gdb_websocket import GDBWebSocket
+from ..transport.transport import Transport
 
 # Debug logging options
 LOG_SEMIHOST = True
@@ -501,7 +502,8 @@ class SemihostAgent(object):
     #   debugging breakpoint.
     def check_and_handle_semihost_request(self):
         # Nothing to do if this is not a bkpt.
-        if (self.target.read32(pyOCD.target.cortex_m.DFSR) & pyOCD.target.cortex_m.DFSR_BKPT) == 0:
+        if (self.target.read32(pyOCD.target.cortex_m.CortexM.DFSR) &
+                pyOCD.target.cortex_m.CortexM.DFSR_BKPT) == 0:
             return False
 
         pc = self.target.readCoreRegister('pc')
@@ -578,7 +580,7 @@ class SemihostAgent(object):
                 # and then exit the loop.
                 target_str += str(bytearray(data[:terminator]))
                 break
-            except TransferError:
+            except Transport.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:

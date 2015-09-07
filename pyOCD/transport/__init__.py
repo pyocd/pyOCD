@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from cmsis_dap import CMSIS_DAP, TransferError
+from cmsis_dap import CMSIS_DAP
 
 TRANSPORT = {'cmsis_dap': CMSIS_DAP
             }

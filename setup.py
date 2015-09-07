@@ -18,7 +18,7 @@
 from setuptools import setup, find_packages
 import sys
 
-setup_requires=['setuptools_scm!=1.5.3,!=1.5.4']
+setup_requires = ['setuptools_scm!=1.5.3,!=1.5.4']
 install_requires = ['intelhex']
 if sys.platform.startswith('linux'):
     install_requires.extend([

@@ -33,8 +33,8 @@ from flash_max32600mbed import Flash_max32600mbed
 from flash_w7500 import Flash_w7500
 
 FLASH = {
-         'cortex_m' : Flash_cortex_m,
-         'kinetis' : Flash_cortex_m,
+         'cortex_m': Flash_cortex_m,
+         'kinetis': Flash_cortex_m,
          'kl02z': Flash_klxx,
          'kl05z': Flash_klxx,
          'kl25z': Flash_klxx,
@@ -53,5 +53,5 @@ FLASH = {
          'stm32f051': Flash_stm32f051,
          'maxwsnenv': Flash_maxwsnenv,
          'max32600mbed': Flash_max32600mbed,
-         'w7500' : Flash_w7500,
+         'w7500': Flash_w7500,
          }

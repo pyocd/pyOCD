@@ -15,9 +15,8 @@
  limitations under the License.
 """
 
-from ..target.target import (TARGET_HALTED, TARGET_RUNNING, BREAKPOINT_HW, BREAKPOINT_SW,
-    WATCHPOINT_READ, WATCHPOINT_WRITE, WATCHPOINT_READ_WRITE)
-from ..transport import TransferError
+from ..target.target import Target
+from ..transport.transport import Transport
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
@@ -181,8 +180,8 @@ class GDBServerPacketIOThread(threading.Thread):
                 pkt_begin = self._buffer.index("$")
                 pkt_end = self._buffer.index("#") + 2
                 if pkt_begin >= 0 and pkt_end < len(self._buffer):
-                    pkt = self._buffer[pkt_begin:pkt_end+1]
-                    self._buffer = self._buffer[pkt_end+1:]
+                    pkt = self._buffer[pkt_begin:pkt_end + 1]
+                    self._buffer = self._buffer[pkt_end + 1:]
                     self._handling_incoming_packet(pkt)
                 else:
                     break
@@ -210,7 +209,7 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, board, port_urlWSS, options = {}):
+    def __init__(self, board, port_urlWSS, options={}):
         threading.Thread.__init__(self)
         self.board = board
         self.target = board.target
@@ -240,7 +239,7 @@ class GDBServer(threading.Thread):
         self.packet_io = None
         self.gdb_features = []
         self.non_stop = False
-        self.is_target_running = (self.target.getState() == TARGET_RUNNING)
+        self.is_target_running = (self.target.getState() == Target.TARGET_RUNNING)
         self.flashBuilder = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
@@ -274,7 +273,7 @@ class GDBServer(threading.Thread):
             logging.info("GDB server thread killed")
         self.board.uninit()
 
-    def setBoard(self, board, stop = True):
+    def setBoard(self, board, stop=True):
         self.lock.acquire()
         if stop:
             self.restart()
@@ -348,7 +347,7 @@ class GDBServer(threading.Thread):
 
                 if self.non_stop and self.is_target_running:
                     try:
-                        if self.target.getState() == TARGET_HALTED:
+                        if self.target.getState() == Target.TARGET_HALTED:
                             logging.debug("state halted")
                             self.is_target_running = False
                             self.sendStopNotification()
@@ -494,7 +493,7 @@ class GDBServer(threading.Thread):
         # handle software breakpoint Z0/z0
         if data[1] == '0' and not self.soft_bkpt_as_hard:
             if data[0] == 'Z':
-                if not self.target.setBreakpoint(addr, BREAKPOINT_SW):
+                if not self.target.setBreakpoint(addr, Target.BREAKPOINT_SW):
                     return self.createRSPPacket('E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
@@ -503,7 +502,7 @@ class GDBServer(threading.Thread):
         # handle hardware breakpoint Z1/z1
         if data[1] == '1' or (self.soft_bkpt_as_hard and data[1] == '0'):
             if data[0] == 'Z':
-                if self.target.setBreakpoint(addr, BREAKPOINT_HW) == False:
+                if self.target.setBreakpoint(addr, Target.BREAKPOINT_HW) == False:
                     return self.createRSPPacket('E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
@@ -512,13 +511,13 @@ class GDBServer(threading.Thread):
         # handle hardware watchpoint Z2/z2/Z3/z3/Z4/z4
         if data[1] == '2':
             # Write-only watch
-            watchpoint_type = WATCHPOINT_WRITE
+            watchpoint_type = Target.WATCHPOINT_WRITE
         elif data[1] == '3':
             # Read-only watch
-            watchpoint_type = WATCHPOINT_READ
+            watchpoint_type = Target.WATCHPOINT_READ
         elif data[1] == '4':
             # Read-Write watch
-            watchpoint_type = WATCHPOINT_READ_WRITE
+            watchpoint_type = Target.WATCHPOINT_READ_WRITE
         else:
             return self.createRSPPacket('E01') #EPERM
 
@@ -572,7 +571,7 @@ class GDBServer(threading.Thread):
                 break
 
             try:
-                if self.target.getState() == TARGET_HALTED:
+                if self.target.getState() == Target.TARGET_HALTED:
                     # Handle semihosting
                     if self.enable_semihosting:
                         was_semihost = self.semihost.check_and_handle_semihost_request()
@@ -725,8 +724,8 @@ class GDBServer(threading.Thread):
                 # print progress bar
                 if not print_progress.done:
                     sys.stdout.write('\r')
-                    i = int(progress*20.0)
-                    sys.stdout.write("[%-20s] %3d%%" % ('='*i, round(progress * 100)))
+                    i = int(progress * 20.0)
+                    sys.stdout.write("[%-20s] %3d%%" % ('=' * i, round(progress * 100)))
                     sys.stdout.flush()
 
                 # Finish on 1.0
@@ -740,7 +739,7 @@ class GDBServer(threading.Thread):
             else:
                  progress_cb = print_progress
 
-            self.flashBuilder.program(chip_erase = self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
+            self.flashBuilder.program(chip_erase=self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
 
             # Set flash builder to None so that on the next flash command a new
             # object is used.
@@ -772,7 +771,7 @@ class GDBServer(threading.Thread):
         split = data.split(',')
         addr = int(split[0], 16)
         length = split[1].split('#')[0]
-        length = int(length,16)
+        length = int(length, 16)
 
         if LOG_MEM:
             logging.debug("GDB getMem: addr=%x len=%x", addr, length)
@@ -787,7 +786,7 @@ class GDBServer(threading.Thread):
                     val += hex(x)[2:4]
                 else:
                     val += '0' + hex(x)[2:3]
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("getMemory failed at 0x%x" % addr)
             val = 'E01' #EPERM
         return self.createRSPPacket(val)
@@ -811,7 +810,7 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target.flush()
             resp = "OK"
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
             resp = 'E01' #EPERM
 
@@ -841,7 +840,7 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target.flush()
             resp = "OK"
-        except TransferError:
+        except Transport.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
             resp = 'E01' #EPERM
 
@@ -948,8 +947,8 @@ class GDBServer(threading.Thread):
         resp = 'OK'
         if cmd == 'help':
             resp = ''
-            for k,v in safecmd.items():
-                resp += '%s\t%s\n' % (k,v[0])
+            for k, v in safecmd.items():
+                resp += '%s\t%s\n' % (k, v[0])
             resp = hexEncode(resp)
         elif cmd.startswith('arm semihosting'):
             self.enable_semihosting = 'enable' in cmd
@@ -990,7 +989,7 @@ class GDBServer(threading.Thread):
             elif resultMask == 0x2:
                 self.target.halt()
 
-            if self.target.getState() != TARGET_HALTED:
+            if self.target.getState() != Target.TARGET_HALTED:
                 logging.error("Remote command left target running!")
                 logging.error("Forcing target to halt")
                 self.target.halt()
