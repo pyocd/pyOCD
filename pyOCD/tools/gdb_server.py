@@ -137,8 +137,8 @@ class GDBServerTool(object):
             print >> sys.stderr, self.echo_msg
             sys.stderr.flush()
 
-    def run(self):
-        self.args = self.build_parser().parse_args()
+    def run(self, args=None):
+        self.args = self.build_parser().parse_args(args)
         self.gdb_server_settings = self.get_gdb_server_settings(self.args)
         self.setup_logging(self.args)
 

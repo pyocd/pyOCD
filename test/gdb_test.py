@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2015-2015 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,27 +15,138 @@
  limitations under the License.
 """
 
-import argparse, os, sys
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
+# Note
+#  To run this script GNU Tools ARM Embedded must be installed,
+#  along with python for the same architecture.  The program
+#  "arm-none-eabi-gdb-py.exe" requires python for the same
+#  architecture (x86 or 64) to work correctly. Also, on windows
+#  the GNU Tools ARM Embedded bin directory needs to be added to
+#  your path.
 
-from pyOCD.gdbserver import GDBServer
+import os
+import json
+from subprocess import Popen, STDOUT, PIPE
+
+from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.board import MbedBoard
+from test_util import Test, TestResult
 
-import logging
-logging.basicConfig(level=logging.INFO)
+# TODO, c1728p9 - run script several times with
+#       with different command line parameters
 
-gdb = None
-try:
-    board_selected = MbedBoard.chooseBoard()
-    if board_selected != None:
-        gdb = GDBServer(board_selected, 3333)
-        while gdb.isAlive():
-            gdb.join(timeout=0.5)
+TEST_PARAM_FILE = "test_params.txt"
+TEST_RESULT_FILE = "test_results.txt"
 
-except KeyboardInterrupt:
-    if gdb != None:
-        gdb.shutdown_event.set()
-except Exception as e:
-    print "uncaught exception: %s" % e
-    gdb.stop()
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class GdbTestResult(TestResult):
+    def __init__(self):
+        super(self.__class__, self).__init__(None, None, None)
+
+
+class GdbTest(Test):
+    def __init__(self):
+        super(self.__class__, self).__init__("Gdb Test", test_gdb)
+
+    def print_perf_info(self, result_list):
+        pass
+
+    def run(self, board):
+        try:
+            result = self.test_function(board.getUniqueID())
+        except Exception as e:
+            result = GdbTestResult()
+            result.passed = False
+            print("Exception %s when testing board %s" %
+                  (e, board.getUniqueID()))
+        result.board = board
+        result.test = self
+        return result
+
+TEST_RESULT_KEYS = [
+    "breakpoint_count",
+    "watchpoint_count",
+    "step_time_si",
+    "step_time_s",
+    "step_time_n",
+    "fail_count",
+]
+
+
+def test_gdb(board_id=None):
+    result = GdbTestResult()
+    with MbedBoard.chooseBoard(board_id=board_id) as board:
+        memory_map = board.target.getMemoryMap()
+        ram_regions = [region for region in memory_map if region.type == 'ram']
+        ram_region = ram_regions[0]
+        rom_region = memory_map.getBootMemory()
+        target_type = board.getTargetType()
+        binary_file = os.path.join(parentdir, 'binaries',
+                                   board.getTestBinary())
+        if board_id is None:
+            board_id = board.getUniqueID()
+        test_clock = 10000000
+        test_port = 3334
+        error_on_invalid_access = True
+        # Hardware breakpoints are not supported above 0x20000000 on
+        # CortexM devices
+        ignore_hw_bkpt_result = 1 if ram_region.start >= 0x20000000 else 0
+        if target_type == "nrf51":
+            # Override clock since 10MHz is too fast
+            test_clock = 1000000
+            # Reading invalid ram returns 0 or nrf51
+            error_on_invalid_access = False
+
+        # Program with initial test image
+        board.flash.flashBinary(binary_file, rom_region.start)
+        board.uninit(False)
+
+    # Write out the test configuration
+    test_params = {}
+    test_params["rom_start"] = rom_region.start
+    test_params["rom_length"] = rom_region.length
+    test_params["ram_start"] = ram_region.start
+    test_params["ram_length"] = ram_region.length
+    test_params["invalid_start"] = 0xffff0000
+    test_params["invalid_length"] = 0x1000
+    test_params["expect_error_on_invalid_access"] = error_on_invalid_access
+    test_params["ignore_hw_bkpt_result"] = ignore_hw_bkpt_result
+    with open(TEST_PARAM_FILE, "wb") as f:
+        f.write(json.dumps(test_params))
+
+    # Run the test
+    gdb = ["arm-none-eabi-gdb-py", "--command=gdb_script.py"]
+    with open("output.txt", "wb") as f:
+        program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
+        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id]
+        server = GDBServerTool()
+        server.run(args)
+        program.wait()
+
+    # Read back the result
+    with open(TEST_RESULT_FILE, "rb") as f:
+        test_result = json.loads(f.read())
+
+    # Print results
+    if set(TEST_RESULT_KEYS).issubset(test_result):
+        print("----------------Test Results----------------")
+        print("HW breakpoint count: %s" % test_result["breakpoint_count"])
+        print("Watchpoint count: %s" % test_result["watchpoint_count"])
+        print("Average instruction step time: %s" %
+              test_result["step_time_si"])
+        print("Average single step time: %s" % test_result["step_time_s"])
+        print("Average over step time: %s" % test_result["step_time_n"])
+        print("Failure count: %i" % test_result["fail_count"])
+        result.passed = test_result["fail_count"] == 0
+    else:
+        result.passed = False
+
+    # Cleanup
+    os.remove(TEST_RESULT_FILE)
+    os.remove(TEST_PARAM_FILE)
+
+    return result
+
+if __name__ == "__main__":
+    test_gdb()
