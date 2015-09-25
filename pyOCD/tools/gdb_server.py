@@ -51,6 +51,7 @@ class GDBServerTool(object):
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-p", "--port", dest="port_number", type=int, default=3333, help="Write the port number that GDB server will open.")
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting.")
+        parser.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false", help="Allow remote TCP/IP connections (default is no).")
         parser.add_argument("-b", "--board", dest="board_id", default=None, help="Connect to board by board id.  Use -l to list all connected boards.")
         parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False, help="List all connected boards.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
@@ -100,6 +101,7 @@ class GDBServerTool(object):
             'enable_semihosting' : args.enable_semihosting,
             'telnet_port' : args.telnet_port,
             'semihost_use_syscalls' : args.semihost_use_syscalls,
+            'serve_local_only' : args.serve_local_only,
         }
 
 
