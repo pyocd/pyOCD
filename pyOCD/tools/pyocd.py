@@ -390,7 +390,7 @@ class PyOCDTool(object):
 
             # Halt if requested.
             if self.args.halt:
-                self.handle_halt()
+                self.handle_halt([])
 
             # Handle a device with flash security enabled.
             self.didErase = False
