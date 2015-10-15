@@ -141,7 +141,12 @@ class GDBServerTool(object):
             print >> sys.stderr, self.echo_msg
             sys.stderr.flush()
 
+    def disable_logging(self):
+        logging.getLogger().setLevel(logging.FATAL)
+
     def list_boards(self):
+        self.disable_logging()
+
         all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
 
         if self.args.output_json:
@@ -171,6 +176,8 @@ class GDBServerTool(object):
                 print("No available boards are connected")
 
     def list_targets(self):
+        self.disable_logging()
+
         if self.args.output_json:
             targets = []
             obj = {
