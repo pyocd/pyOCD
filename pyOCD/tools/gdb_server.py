@@ -20,6 +20,8 @@ import sys
 import logging
 import traceback
 import argparse
+import json
+import pkg_resources
 
 import pyOCD.board.mbed_board
 from pyOCD import __version__
@@ -53,6 +55,8 @@ class GDBServerTool(object):
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting.")
         parser.add_argument("-b", "--board", dest="board_id", default=None, help="Connect to board by board id.  Use -l to list all connected boards.")
         parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False, help="List all connected boards.")
+        parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
+        parser.add_argument("--json", action="store_true", dest="output_json", default=False, help="Output lists in JSON format. Only applies to --list and --list-targets.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
         parser.add_argument("-t", "--target", dest="target_override", choices=supported_targets, default=None, help="Override target to debug.  Supported targets are: " + ", ".join(supported_targets), metavar="TARGET")
         parser.add_argument("-n", "--nobreak", dest="break_at_hardfault", default=True, action="store_false", help="Disable halt at hardfault handler.")
@@ -137,6 +141,56 @@ class GDBServerTool(object):
             print >> sys.stderr, self.echo_msg
             sys.stderr.flush()
 
+    def list_boards(self):
+        all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+
+        if self.args.output_json:
+            boards = []
+            obj = {
+                'version' : __version__,
+                'boards' : boards
+                }
+
+            for mbed in all_mbeds:
+                d = {
+                    'unique_id' : mbed.unique_id,
+                    'info' : mbed.getInfo().encode('ascii', 'ignore'),
+                    'board_name' : mbed.getBoardName(),
+                    'target' : mbed.getTargetType()
+                    }
+                boards.append(d)
+
+            print json.dumps(obj, indent=4) #, sys.stdout)
+        else:
+            index = 0
+            if len(all_mbeds) > 0:
+                for mbed in all_mbeds:
+                    print("%d => %s boardId => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'), mbed.unique_id))
+                    index += 1
+            else:
+                print("No available boards are connected")
+
+    def list_targets(self):
+        if self.args.output_json:
+            targets = []
+            obj = {
+                'version' : __version__,
+                'targets' : targets
+                }
+
+            for name in supported_targets:
+                t = pyOCD.target.TARGET[name](None)
+                d = {
+                    'name' : name,
+                    'part_number' : t.part_number,
+                    }
+                targets.append(d)
+
+            print json.dumps(obj, indent=4) #, sys.stdout)
+        else:
+            for t in supported_targets:
+                print t
+
     def run(self, args=None):
         self.args = self.build_parser().parse_args(args)
         self.gdb_server_settings = self.get_gdb_server_settings(self.args)
@@ -146,7 +200,9 @@ class GDBServerTool(object):
 
         gdb = None
         if self.args.list_all == True:
-            MbedBoard.listConnectedBoards()
+            self.list_boards()
+        elif self.args.list_targets == True:
+            self.list_targets()
         else:
             try:
                 board_selected = MbedBoard.chooseBoard(
