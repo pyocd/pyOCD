@@ -147,14 +147,28 @@ class GDBServerTool(object):
     def list_boards(self):
         self.disable_logging()
 
-        all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+        try:
+            all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+            status = 0
+            error = ""
+        except Exception as e:
+            all_mbeds = []
+            status = 1
+            error = str(e)
+            if not self.args.output_json:
+                raise
 
         if self.args.output_json:
             boards = []
             obj = {
-                'version' : __version__,
-                'boards' : boards
+                'pyocd_version' : __version__,
+                'version' : 1,
+                'status' : status,
+                'boards' : boards,
                 }
+
+            if status != 0:
+                obj['error'] = error
 
             for mbed in all_mbeds:
                 d = {
@@ -181,7 +195,9 @@ class GDBServerTool(object):
         if self.args.output_json:
             targets = []
             obj = {
-                'version' : __version__,
+                'pyocd_version' : __version__,
+                'version' : 1,
+                'status' : 0,
                 'targets' : targets
                 }
 
