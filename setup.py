@@ -25,7 +25,7 @@ if sys.platform.startswith('linux'):
     ])
 elif sys.platform.startswith('win'):
     install_requires.extend([
-        'pywinusb',
+        'pywinusb>=0.4.0',
     ])
 elif sys.platform.startswith('darwin'):
     install_requires.extend([

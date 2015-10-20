@@ -57,7 +57,7 @@ class PyWinUSB(Interface):
 
     def open(self):
         self.device.set_raw_data_handler(self.rx_handler)
-        self.device.open()
+        self.device.open(shared=False)
 
     @staticmethod
     def getAllConnectedInterface(vid, pid):
@@ -80,7 +80,7 @@ class PyWinUSB(Interface):
         boards = []
         for dev in all_mbed_devices:
             try:
-                dev.open()
+                dev.open(shared=False)
                 report = dev.find_output_reports()
                 if (len(report) == 1):
                     new_board = PyWinUSB()
