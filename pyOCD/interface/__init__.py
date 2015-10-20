@@ -43,10 +43,14 @@ if not usb_backend:
             usb_backend = "hidapiusb"
         elif PyWinUSB.isAvailable:
             usb_backend = "pywinusb"
+        else:
+            raise Exception("No USB backend found")
     elif os.name == "posix":
         # Select hidapi for OS X and pyUSB for Linux.
         if os.uname()[0] == 'Darwin':
             usb_backend = "hidapiusb"
         else:
             usb_backend = "pyusb"
+    else:
+        raise Exception("No USB backend found")
 
