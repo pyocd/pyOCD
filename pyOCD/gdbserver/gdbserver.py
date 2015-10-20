@@ -248,7 +248,6 @@ class GDBServer(threading.Thread):
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
             if self.serve_local_only:
-                import socket
                 self.abstract_socket.host = 'localhost'
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
