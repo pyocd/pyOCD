@@ -28,8 +28,8 @@ class LPC4330(CortexM):
         RamRegion(      start=0x20008000,  length=0x8000)
         )
 
-    def __init__(self, transport):
-        super(LPC4330, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(LPC4330, self).__init__(link, self.memoryMap)
         self.ignoreReset = False
 
     def setFlash(self, flash):

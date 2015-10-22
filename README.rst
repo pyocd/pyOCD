@@ -222,17 +222,6 @@ gdb server:
 
 Architecture
 ------------
-
-Interface
-~~~~~~~~~
-
-An interface does the link between the target and the computer.
-This module contains basic functionalities to write and read data to and from
-an interface. You can inherit from ``Interface`` and overwrite
-``read()``, ``write()``, etc
-
-Then declare your interface in ``INTERFACE`` (in ``pyOCD.interface.__init__.py``)
-
 Target
 ~~~~~~
 

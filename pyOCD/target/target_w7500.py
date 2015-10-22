@@ -25,6 +25,6 @@ class W7500(CortexM):
         RamRegion(      start=0x20000000,  length=0x4000)
         )
 
-    def __init__(self, transport):
-        super(W7500, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(W7500, self).__init__(link, self.memoryMap)
 

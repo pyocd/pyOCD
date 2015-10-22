@@ -27,7 +27,7 @@ class K64F(Kinetis):
         RamRegion(      start=0x1fff0000,  length=0x40000)
         )
 
-    def __init__(self, transport):
-        super(K64F, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(K64F, self).__init__(link, self.memoryMap)
         self.mdm_idr = 0x001c0000
 

@@ -17,8 +17,8 @@
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from .target import Target
-from ..transport.cmsis_dap import (DP_REG, AP_REG)
-from ..transport.transport import Transport
+from pyOCD.target.dap import (DP_REG, AP_REG, Dap)
+from ..transport.link import Link
 from ..gdbserver import signals
 from ..utility import conversion
 import logging
@@ -335,8 +335,8 @@ class CortexM(Target):
         RegisterInfo('s31',     64,         'float',        'float'),
         ]
 
-    def __init__(self, transport, memoryMap=None):
-        super(CortexM, self).__init__(transport, memoryMap)
+    def __init__(self, link, memoryMap=None):
+        super(CortexM, self).__init__(link, memoryMap)
 
         self.idcode = 0
         self.hw_breakpoints = []
@@ -353,26 +353,30 @@ class CortexM(Target):
         self.core_type = 0
         self.has_fpu = False
         self.part_number = self.__class__.__name__
+        self.dap = Dap(link)
 
     def init(self, initial_setup=True, bus_accessible=True):
         """
         Cortex M initialization
         """
         if initial_setup:
+            self.link.connect()
             self.idcode = self.readIDCode()
+            self.dap.init()
+
             # select bank 0 (to access DRW and TAR)
-            self.transport.writeDP(DP_REG['SELECT'], 0)
-            self.transport.writeDP(DP_REG['CTRL_STAT'], CortexM.CSYSPWRUPREQ | CortexM.CDBGPWRUPREQ)
+            self.dap.writeDP(DP_REG['SELECT'], 0)
+            self.dap.writeDP(DP_REG['CTRL_STAT'], CortexM.CSYSPWRUPREQ | CortexM.CDBGPWRUPREQ)
 
             while True:
-                r = self.transport.readDP(DP_REG['CTRL_STAT'])
+                r = self.dap.readDP(DP_REG['CTRL_STAT'])
                 if (r & (CortexM.CDBGPWRUPACK | CortexM.CSYSPWRUPACK)) == (CortexM.CDBGPWRUPACK | CortexM.CSYSPWRUPACK):
                     break
 
-            self.transport.writeDP(DP_REG['CTRL_STAT'], CortexM.CSYSPWRUPREQ | CortexM.CDBGPWRUPREQ | CortexM.TRNNORMAL | CortexM.MASKLANE)
-            self.transport.writeDP(DP_REG['SELECT'], 0)
+            self.dap.writeDP(DP_REG['CTRL_STAT'], CortexM.CSYSPWRUPREQ | CortexM.CDBGPWRUPREQ | CortexM.TRNNORMAL | CortexM.MASKLANE)
+            self.dap.writeDP(DP_REG['SELECT'], 0)
 
-            ahb_idr = self.transport.readAP(AP_REG['IDR'])
+            ahb_idr = self.dap.readAP(AP_REG['IDR'])
             if ahb_idr in AHB_IDR_TO_WRAP_SIZE:
                 self.auto_increment_page_size = AHB_IDR_TO_WRAP_SIZE[ahb_idr]
             else:
@@ -485,17 +489,17 @@ class CortexM(Target):
         self.dwt_configured = True
 
     def info(self, request):
-        return self.transport.info(request)
+        return self.link.info(request)
 
     def flush(self):
-        self.transport.flush()
+        self.link.flush()
 
     def readIDCode(self):
         """
         return the IDCODE of the core
         """
         if self.idcode == 0:
-            self.idcode = self.transport.readDP(DP_REG['IDCODE'])
+            self.idcode = self.dap.readDP(DP_REG['IDCODE'])
         return self.idcode
 
     def writeMemory(self, addr, value, transfer_size=32):
@@ -503,7 +507,7 @@ class CortexM(Target):
         write a memory location.
         By default the transfer size is a word
         """
-        self.transport.writeMem(addr, value, transfer_size)
+        self.dap.writeMem(addr, value, transfer_size)
         return
 
     def write32(self, addr, value):
@@ -524,12 +528,12 @@ class CortexM(Target):
         """
         self.writeMemory(addr, value, 8)
 
-    def readMemory(self, addr, transfer_size=32, mode=Transport.READ_NOW):
+    def readMemory(self, addr, transfer_size=32, mode=Link.MODE.NOW):
         """
         read a memory location. By default, a word will
         be read
         """
-        return self.transport.readMem(addr, transfer_size, mode)
+        return self.dap.readMem(addr, transfer_size, mode)
 
     def read32(self, addr):
         """
@@ -658,7 +662,7 @@ class CortexM(Target):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size * 4 < n:
                 n = (size * 4) & 0xfffffffc
-            self.transport.writeBlock32(addr, data[:n / 4])
+            self.dap.writeBlock32(addr, data[:n / 4])
             data = data[n / 4:]
             size -= n / 4
             addr += n
@@ -674,7 +678,7 @@ class CortexM(Target):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size * 4 < n:
                 n = (size * 4) & 0xfffffffc
-            resp += self.transport.readBlock32(addr, n / 4)
+            resp += self.dap.readBlock32(addr, n / 4)
             size -= n / 4
             addr += n
         return resp
@@ -743,7 +747,7 @@ class CortexM(Target):
             # Without a flush a transfer error can occur
             self.flush()
         else:
-            self.transport.reset()
+            self.link.reset()
 
     def resetStopOnReset(self, software_reset=None):
         """
@@ -862,16 +866,16 @@ class CortexM(Target):
             # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
-            self.readMemory(CortexM.DHCSR, mode=Transport.READ_START)
-            self.readMemory(CortexM.DCRDR, mode=Transport.READ_START)
+            self.readMemory(CortexM.DHCSR, mode=Link.MODE.START)
+            self.readMemory(CortexM.DCRDR, mode=Link.MODE.START)
 
         # Read all results
         reg_vals = []
         for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Transport.READ_END)
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Link.MODE.END)
             assert dhcsr_val & CortexM.S_REGRDY
             # read DCRDR
-            val = self.readMemory(CortexM.DCRDR, mode=Transport.READ_END)
+            val = self.readMemory(CortexM.DCRDR, mode=Link.MODE.END)
 
             # Special handling for registers that are combined into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
@@ -945,10 +949,10 @@ class CortexM(Target):
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
             # Read it and assert that S_REGRDY is set
-            self.readMemory(CortexM.DHCSR, mode=Transport.READ_START)
+            self.readMemory(CortexM.DHCSR, mode=Link.MODE.START)
 
         for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Transport.READ_END)
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Link.MODE.END)
             assert dhcsr_val & CortexM.S_REGRDY
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
@@ -1051,7 +1055,7 @@ class CortexM(Target):
 
             self.breakpoints[addr] = bp
             return True
-        except Transport.TransferError:
+        except Link.Error:
             logging.debug("Failed to set sw bp at 0x%x" % addr)
             return False
 
@@ -1061,7 +1065,7 @@ class CortexM(Target):
         try:
             # Restore original instruction.
             self.write16(bp.addr, bp.original_instr)
-        except Transport.TransferError:
+        except Link.Error:
             logging.debug("Failed to set sw bp at 0x%x" % bp.addr)
 
     def setHardwareBreakpoint(self, addr):

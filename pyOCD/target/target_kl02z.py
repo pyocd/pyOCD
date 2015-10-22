@@ -27,7 +27,7 @@ class KL02Z(Kinetis):
         RamRegion(      start=0x1ffffc00,  length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(KL02Z, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(KL02Z, self).__init__(link, self.memoryMap)
         self.mdm_idr = 0x001c0020
 

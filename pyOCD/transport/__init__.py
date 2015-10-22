@@ -14,8 +14,3 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from cmsis_dap import CMSIS_DAP
-
-TRANSPORT = {'cmsis_dap': CMSIS_DAP
-            }

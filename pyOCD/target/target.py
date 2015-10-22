@@ -33,8 +33,8 @@ class Target(object):
     WATCHPOINT_WRITE = 2
     WATCHPOINT_READ_WRITE = 3
 
-    def __init__(self, transport, memoryMap=None):
-        self.transport = transport
+    def __init__(self, link, memoryMap=None):
+        self.link = link
         self.flash = None
         self.part_number = ""
         self.memory_map = memoryMap

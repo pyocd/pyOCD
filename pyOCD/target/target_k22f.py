@@ -28,7 +28,7 @@ class K22F(Kinetis):
         RamRegion(      start=0x1fff0000,  length=0x20000)
         )
 
-    def __init__(self, transport):
-        super(K22F, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(K22F, self).__init__(link, self.memoryMap)
         self.mdm_idr = 0x001c0000
 

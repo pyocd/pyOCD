@@ -35,8 +35,6 @@ def basic_test(board_id, file):
         f = None
         binary_file = "l1_"
 
-        interface = None
-
         target_type = board.getTargetType()
 
         if file is None:
@@ -109,9 +107,8 @@ def basic_test(board_id, file):
             raise Exception("A board is not supported by this test script.")
 
         target = board.target
-        transport = board.transport
+        link = board.link
         flash = board.flash
-        interface = board.interface
 
 
         print "\r\n\r\n------ GET Unique ID ------"
