@@ -21,10 +21,19 @@ import target_kl02z
 import target_kl05z
 import target_kl25z
 import target_kl26z
+import target_kl27z4
+import target_kl27z644
 import target_kl28z
+import target_kl43z4
 import target_kl46z
+import target_kv10z7
+import target_kv11z7
+import target_kw01z4
+import target_kw40z4
 import target_k22f
 import target_k64f
+import target_k66f18
+import target_k82f25615
 import target_k20d50m
 import target_lpc800
 import target_lpc11u24
@@ -51,11 +60,20 @@ TARGET = {
           'kl05z': target_kl05z.KL05Z,
           'kl25z': target_kl25z.KL25Z,
           'kl26z': target_kl26z.KL26Z,
+          'kl27z4': target_kl27z4.KL27Z4,
+          'kl27z644': target_kl27z644.KL27Z644,
           'kl28z': target_kl28z.KL28x,
+          'kl43z4': target_kl43z4.KL43Z4,
           'kl46z': target_kl46z.KL46Z,
+          'kv10z7': target_kv10z7.KV10Z7,
+          'kv11z7': target_kv11z7.KV11Z7,
+          'kw01z4': target_kw01z4.KW01Z4,
+          'kw40z4': target_kw40z4.KW40Z4,
           'k20d50m': target_k20d50m.K20D50M,
           'k22f': target_k22f.K22F,
           'k64f': target_k64f.K64F,
+          'k66f18': target_k66f18.K66F18,
+          'k82f25615': target_k82f25615.K82F25615,
           'lpc800': target_lpc800.LPC800,
           'lpc11u24': target_lpc11u24.LPC11U24,
           'lpc1768': target_lpc1768.LPC1768,
