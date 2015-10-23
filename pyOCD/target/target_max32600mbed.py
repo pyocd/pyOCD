@@ -32,14 +32,6 @@ class MAX32600MBED(CortexM):
     def __init__(self, transport):
         super(MAX32600MBED, self).__init__(transport, self.memoryMap)
 
-    def readIDCode(self):
-        """
-        return the IDCODE of the core
-        """
-        if self.idcode == 0:
-            self.idcode = self.protocol.jtagIDCode()
-        return self.idcode
-
     def dsb(self):
         logging.info("Triggering Destructive Security Bypass...")
 
