@@ -235,6 +235,7 @@ class GDBServer(threading.Thread):
         self.telnet_port = options.get('telnet_port', 4444)
         self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
         self.server_listening_callback = options.get('server_listening_callback', None)
+        self.serve_local_only = options.get('serve_local_only', True)
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -246,6 +247,8 @@ class GDBServer(threading.Thread):
         self.detach_event = threading.Event()
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
+            if self.serve_local_only:
+                self.abstract_socket.host = 'localhost'
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
 
@@ -255,7 +258,7 @@ class GDBServer(threading.Thread):
         else:
             # Use internal IO handler.
             semihost_io_handler = semihost.InternalSemihostIOHandler()
-        self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port)
+        self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
         self.semihost = semihost.SemihostAgent(self.target, io_handler=semihost_io_handler, console=self.telnet_console)
 
         self.setDaemon(True)

@@ -23,12 +23,12 @@ class GDBSocket(object):
         self.s = None
         self.conn = None
         self.port = port
-        return
+        self.host = ''
 
     def init(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.s.bind(('', self.port))
+        self.s.bind((self.host, self.port))
         self.s.listen(5)
 
     def connect(self):

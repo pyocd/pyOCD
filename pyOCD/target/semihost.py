@@ -293,7 +293,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
 # The server thread will automatically be started by the constructor. To shut down the
 # server and its thread, call the stop() method.
 class TelnetSemihostIOHandler(SemihostIOHandler):
-    def __init__(self, port_or_url):
+    def __init__(self, port_or_url, serve_local_only=True):
         super(TelnetSemihostIOHandler, self).__init__()
         self._abstract_socket = None
         self._wss_server = None
@@ -304,6 +304,8 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
         else:
             self._port = port_or_url
             self._abstract_socket = GDBSocket(self._port, 4096)
+            if serve_local_only:
+                self._abstract_socket.host = 'localhost'
         self._buffer = bytearray()
         self._buffer_lock = threading.Lock()
         self.connected = None
