@@ -88,7 +88,13 @@ class Board(object):
             traceback.print_exc()
 
     def getInfo(self):
-        return self.interface.getInfo()
+        # If the product name starts with the vendor name, we don't want to duplicate
+        # the vendor name, so just return the product name. Otherwise combined the two.
+        if self.interface.product_name.startswith(self.interface.vendor_name):
+            info = self.interface.product_name
+        else:
+            info = self.interface.vendor_name + " " + self.interface.product_name
+        return info
 
     def getPacketCount(self):
         """
