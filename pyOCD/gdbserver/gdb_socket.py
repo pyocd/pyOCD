@@ -26,10 +26,11 @@ class GDBSocket(object):
         self.host = ''
 
     def init(self):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.s.bind((self.host, self.port))
-        self.s.listen(5)
+        if self.s is None:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.s.bind((self.host, self.port))
+            self.s.listen(5)
 
     def connect(self):
         self.conn = None
@@ -47,9 +48,17 @@ class GDBSocket(object):
         return self.conn.send(data)
 
     def close(self):
-        if self.conn != None:
+        if self.conn is not None:
             self.conn.close()
-        return self.s.close()
+            self.conn = None
+
+        return_value = None
+        if self.s is not None:
+            return_value = self.s.close()
+            self.s = None
+
+        return return_value
+
 
     def setBlocking(self, blocking):
         self.conn.setblocking(blocking)
