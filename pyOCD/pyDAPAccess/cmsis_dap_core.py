@@ -17,7 +17,7 @@
 
 import logging
 import array
-from link import Link
+from .dap_access_api import DAPAccessIntf
 
 COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_LED': 0x01,
@@ -217,7 +217,7 @@ class CMSIS_DAP_Protocol(object):
 
         if resp[2] != DAP_TRANSFER_OK:
             if resp[2] == DAP_TRANSFER_FAULT:
-                raise Link.Error()
+                raise DAPAccessIntf.Error()
             raise ValueError('SWD Fault')
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
@@ -286,7 +286,7 @@ class CMSIS_DAP_Protocol(object):
         if error_response:
             raise ValueError('DAP_TRANSFER_BLOCK response error')
         elif error_transfer:
-            raise Link.Error()
+            raise DAPAccessIntf.Error()
 
         return resp
 

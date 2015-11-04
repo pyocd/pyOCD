@@ -18,7 +18,7 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from .target import Target
 from pyOCD.target.dap import (DP_REG, AP_REG, Dap)
-from ..transport.link import Link
+from pyOCD.pyDAPAccess import DAPAccess
 from ..gdbserver import signals
 from ..utility import conversion
 import logging
@@ -528,7 +528,7 @@ class CortexM(Target):
         """
         self.writeMemory(addr, value, 8)
 
-    def readMemory(self, addr, transfer_size=32, mode=Link.MODE.NOW):
+    def readMemory(self, addr, transfer_size=32, mode=DAPAccess.MODE.NOW):
         """
         read a memory location. By default, a word will
         be read
@@ -866,16 +866,16 @@ class CortexM(Target):
             # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
-            self.readMemory(CortexM.DHCSR, mode=Link.MODE.START)
-            self.readMemory(CortexM.DCRDR, mode=Link.MODE.START)
+            self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.START)
+            self.readMemory(CortexM.DCRDR, mode=DAPAccess.MODE.START)
 
         # Read all results
         reg_vals = []
         for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Link.MODE.END)
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.END)
             assert dhcsr_val & CortexM.S_REGRDY
             # read DCRDR
-            val = self.readMemory(CortexM.DCRDR, mode=Link.MODE.END)
+            val = self.readMemory(CortexM.DCRDR, mode=DAPAccess.MODE.END)
 
             # Special handling for registers that are combined into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
@@ -949,10 +949,10 @@ class CortexM(Target):
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
             # Read it and assert that S_REGRDY is set
-            self.readMemory(CortexM.DHCSR, mode=Link.MODE.START)
+            self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.START)
 
         for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=Link.MODE.END)
+            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.END)
             assert dhcsr_val & CortexM.S_REGRDY
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
@@ -1055,7 +1055,7 @@ class CortexM(Target):
 
             self.breakpoints[addr] = bp
             return True
-        except Link.Error:
+        except DAPAccess.Error:
             logging.debug("Failed to set sw bp at 0x%x" % addr)
             return False
 
@@ -1065,7 +1065,7 @@ class CortexM(Target):
         try:
             # Restore original instruction.
             self.write16(bp.addr, bp.original_instr)
-        except Link.Error:
+        except DAPAccess.Error:
             logging.debug("Failed to set sw bp at 0x%x" % bp.addr)
 
     def setHardwareBreakpoint(self, addr):

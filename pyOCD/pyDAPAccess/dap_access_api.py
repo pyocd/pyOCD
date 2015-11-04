@@ -19,7 +19,7 @@ from __future__ import absolute_import
 from enum import Enum
 
 
-class Link(object):
+class DAPAccessIntf(object):
 
     class MODE(Enum):
         # Start a read.  This must be followed by an 'END' of the

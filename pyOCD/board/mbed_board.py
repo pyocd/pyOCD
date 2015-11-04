@@ -20,7 +20,7 @@ import logging, array
 
 from time import sleep
 from board import Board
-from pyOCD.transport.daplink import DapLink
+from pyOCD.pyDAPAccess import DAPAccess
 
 class BoardInfo(object):
     def __init__(self, name, target, binary):
@@ -122,11 +122,11 @@ class MbedBoard(Board):
         return Board.getInfo(self) + " [" + self.target_type + "]"
 
     @staticmethod
-    def listConnectedBoards(link_class=DapLink):
+    def listConnectedBoards(dap_class=DAPAccess):
         """
         List the connected board info
         """
-        all_mbeds = MbedBoard.getAllConnectedBoards(link_class, close=True,
+        all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, close=True,
                                                     blocking=False)
         index = 0
         if len(all_mbeds) > 0:
@@ -137,7 +137,7 @@ class MbedBoard(Board):
             print("No available boards are connected")
 
     @staticmethod
-    def getAllConnectedBoards(link_class=DapLink, close=False, blocking=True,
+    def getAllConnectedBoards(dap_class=DAPAccess, close=False, blocking=True,
                               target_override=None, frequency=1000000):
         """
         Return an array of all mbed boards connected
@@ -146,15 +146,15 @@ class MbedBoard(Board):
         mbed_list = []
         while True:
 
-            connected_daplinks = link_class.get_connected_devices()
-            for daplink in connected_daplinks:
-                new_mbed = MbedBoard(daplink, target_override, frequency)
+            connected_daps = dap_class.get_connected_devices()
+            for dap_access in connected_daps:
+                new_mbed = MbedBoard(dap_access, target_override, frequency)
                 mbed_list.append(new_mbed)
 
             #TODO - handle exception on open
             if not close:
-                for daplink in connected_daplinks:
-                    daplink.open()
+                for dap_access in connected_daps:
+                    dap_access.open()
 
             if not blocking:
                 break
@@ -167,13 +167,13 @@ class MbedBoard(Board):
         return mbed_list
 
     @staticmethod
-    def chooseBoard(link_class=DapLink, blocking=True, return_first=False,
+    def chooseBoard(dap_class=DAPAccess, blocking=True, return_first=False,
                     board_id=None, target_override=None, frequency=1000000,
                     init_board=True):
         """
         Allow you to select a board among all boards connected
         """
-        all_mbeds = MbedBoard.getAllConnectedBoards(link_class, False, blocking,
+        all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, False, blocking,
                                                     target_override, frequency)
 
         # If a board ID is specified close all other boards

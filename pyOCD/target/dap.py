@@ -15,15 +15,15 @@
  limitations under the License.
 """
 
-from pyOCD.transport.link import Link
+from pyOCD.pyDAPAccess import DAPAccess
 import logging
 from time import sleep
 
 # !! This value are A[2:3] and not A[3:2]
-DP_REG = {'IDCODE': Link.REG.DP_0x0,
-          'ABORT': Link.REG.DP_0x0,
-          'CTRL_STAT': Link.REG.DP_0x4,
-          'SELECT': Link.REG.DP_0x8
+DP_REG = {'IDCODE': DAPAccess.REG.DP_0x0,
+          'ABORT': DAPAccess.REG.DP_0x0,
+          'CTRL_STAT': DAPAccess.REG.DP_0x4,
+          'SELECT': DAPAccess.REG.DP_0x8
           }
 AP_REG = {'CSW' : 0x00,
           'TAR' : 0x04,
@@ -74,7 +74,7 @@ COMMANDS_PER_DAP_TRANSFER = 12
 
 
 def _ap_addr_to_reg(addr):
-    return Link.REG(4 + ((addr & 0x0c) >> 2))
+    return DAPAccess.REG(4 + ((addr & 0x0c) >> 2))
 
 
 class Dap(object):
@@ -101,29 +101,29 @@ class Dap(object):
             self.link.write_reg(reg, addr)
             reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['DRW'])
             self.link.write_reg(reg, data)
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
 
-    def readMem(self, addr, transfer_size=32, mode=Link.MODE.NOW):
+    def readMem(self, addr, transfer_size=32, mode=DAPAccess.MODE.NOW):
         res = None
         try:
-            if mode in (Link.MODE.START, Link.MODE.NOW):
+            if mode in (DAPAccess.MODE.START, DAPAccess.MODE.NOW):
                 self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
                 reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['TAR'])
                 self.link.write_reg(reg, addr)
                 reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
-                self.link.read_reg(reg, mode=Link.MODE.START)
+                self.link.read_reg(reg, mode=DAPAccess.MODE.START)
 
-            if mode in (Link.MODE.NOW, Link.MODE.END):
+            if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
                 reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
-                res = self.link.read_reg(reg, mode=Link.MODE.END)
+                res = self.link.read_reg(reg, mode=DAPAccess.MODE.END)
 
                 if transfer_size == 8:
                     res = (res >> ((addr & 0x03) << 3) & 0xff)
                 elif transfer_size == 16:
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
 
@@ -137,7 +137,7 @@ class Dap(object):
         try:
             reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['DRW'])
             self.link.reg_write_repeat(len(data), reg, data)
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
 
@@ -149,30 +149,30 @@ class Dap(object):
         try:
             reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
             resp = self.link.reg_read_repeat(size, reg)
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
         return resp
 
-    def readDP(self, addr, mode=Link.MODE.NOW):
-        assert addr in Link.REG
+    def readDP(self, addr, mode=DAPAccess.MODE.NOW):
+        assert addr in DAPAccess.REG
         res = None
 
         try:
-            if mode in (Link.MODE.START, Link.MODE.NOW):
-                self.link.read_reg(addr, mode=Link.MODE.START)
+            if mode in (DAPAccess.MODE.START, DAPAccess.MODE.NOW):
+                self.link.read_reg(addr, mode=DAPAccess.MODE.START)
 
-            if mode in (Link.MODE.NOW, Link.MODE.END):
-                res = self.link.read_reg(addr, mode=Link.MODE.END)
+            if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
+                res = self.link.read_reg(addr, mode=DAPAccess.MODE.END)
 
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
 
         return res
 
     def writeDP(self, addr, data):
-        assert addr in Link.REG
+        assert addr in DAPAccess.REG
         if addr == DP_REG['SELECT']:
             if data == self.dp_select:
                 return
@@ -180,7 +180,7 @@ class Dap(object):
 
         try:
             self.link.write_reg(addr, data)
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
         return True
@@ -200,28 +200,28 @@ class Dap(object):
         try:
             self.link.write_reg(ap_reg, data)
 
-        except Link.Error:
+        except DAPAccess.Error:
             self._handle_error()
             raise
 
         return True
 
-    def readAP(self, addr, mode=Link.MODE.NOW):
+    def readAP(self, addr, mode=DAPAccess.MODE.NOW):
         assert type(addr) in (int, long)
         res = None
         ap_reg = _ap_addr_to_reg(READ | AP_ACC | (addr & 0x0c))
 
         try:
-            if mode in (Link.MODE.START, Link.MODE.NOW):
+            if mode in (DAPAccess.MODE.START, DAPAccess.MODE.NOW):
                 ap_sel = addr & 0xff000000
                 bank_sel = addr & APBANKSEL
 
                 self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
-                self.link.read_reg(ap_reg, mode=Link.MODE.START)
+                self.link.read_reg(ap_reg, mode=DAPAccess.MODE.START)
 
-            if mode in (Link.MODE.NOW, Link.MODE.END):
-                res = self.link.read_reg(ap_reg, mode=Link.MODE.END)
-        except Link.Error:
+            if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
+                res = self.link.read_reg(ap_reg, mode=DAPAccess.MODE.END)
+        except DAPAccess.Error:
             self._handle_error()
             raise
 
@@ -236,9 +236,9 @@ class Dap(object):
 
     def _clear_sticky_err(self):
         mode = self.link.get_swj_mode()
-        if mode == Link.PORT.SWD:
-            self.link.write_reg(Link.REG.DP_0x0, (1 << 2))
-        elif mode == Link.PORT.JTAG:
+        if mode == DAPAccess.PORT.SWD:
+            self.link.write_reg(DAPAccess.REG.DP_0x0, (1 << 2))
+        elif mode == DAPAccess.PORT.JTAG:
             self.link.write_reg(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR)
         else:
             assert False

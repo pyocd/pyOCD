@@ -27,7 +27,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.transport.link import Link
+from pyOCD.pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 from random import randrange
@@ -231,7 +231,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Link.Error:
+        except DAPAccess.Error:
             pass
 
         try:
@@ -240,7 +240,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Link.Error:
+        except DAPAccess.Error:
             pass
 
         data = [0x00] * 0x1000
@@ -250,7 +250,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Link.Error:
+        except DAPAccess.Error:
             pass
 
         data = [0x00] * 0x1000
@@ -260,7 +260,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Link.Error:
+        except DAPAccess.Error:
             pass
 
         data = [randrange(0, 255) for x in range(size)]

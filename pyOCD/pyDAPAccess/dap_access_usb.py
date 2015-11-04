@@ -20,7 +20,7 @@ import logging
 import time
 import collections
 import six
-from .link import Link
+from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSIS_DAP_Protocol
 from .interface import INTERFACE, usb_backend
 from .cmsis_dap_core import COMMAND_ID, DAP_TRANSFER_OK, DAP_TRANSFER_FAULT
@@ -268,7 +268,7 @@ class _Command(object):
 
         if data[2] != DAP_TRANSFER_OK:
             if data[2] == DAP_TRANSFER_FAULT:
-                raise Link.Error()
+                raise DAPAccessIntf.Error()
             raise ValueError('SWD Fault')
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
@@ -326,9 +326,9 @@ class _Command(object):
         return data
 
 
-class DapLink(Link):
+class DapAccessUSB(DAPAccessIntf):
     """
-    An implementation of the Link layer for DAPLINK boards
+    An implementation of the DAPAccessIntf layer for DAPLINK boards
     """
 
     # ------------------------------------------- #
@@ -344,7 +344,7 @@ class DapLink(Link):
         for interface in all_interfaces:
             try:
                 unique_id = _get_unique_id(interface)
-                new_daplink = DapLink(unique_id)
+                new_daplink = DapAccessUSB(unique_id)
                 all_daplinks.append(new_daplink)
             except Exception:
                 logger = logging.getLogger(__name__)
@@ -356,14 +356,14 @@ class DapLink(Link):
     @staticmethod
     def get_device(device_id):
         assert isinstance(device_id, str)
-        return DapLink(device_id)
+        return DapAccessUSB(device_id)
 
     # ------------------------------------------- #
     #          CMSIS-DAP and Other Functions
     # ------------------------------------------- #
     def __init__(self, unique_id):
         assert isinstance(unique_id, six.string_types)
-        super(DapLink, self).__init__()
+        super(DapAccessUSB, self).__init__()
         self._interface = None
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed
@@ -471,7 +471,7 @@ class DapLink(Link):
             self._read_packet()
 
     def identify(self, item):
-        assert isinstance(item, Link.ID)
+        assert isinstance(item, DAPAccessIntf.ID)
         return self._protocol.dapInfo(item.value)
 
     def vendor(self, index):
@@ -480,20 +480,20 @@ class DapLink(Link):
     # ------------------------------------------- #
     #             Target access functions
     # ------------------------------------------- #
-    def connect(self, port=Link.PORT.DEFAULT):
-        assert isinstance(port, Link.PORT)
+    def connect(self, port=DAPAccessIntf.PORT.DEFAULT):
+        assert isinstance(port, DAPAccessIntf.PORT)
         actual_port = self._protocol.connect(port.value)
-        self._dap_port = Link.PORT(actual_port)
+        self._dap_port = DAPAccessIntf.PORT(actual_port)
         # set clock frequency
         self._protocol.setSWJClock(self._frequency)
         # configure transfer
         self._protocol.transferConfigure()
-        if self._dap_port == Link.PORT.SWD:
+        if self._dap_port == DAPAccessIntf.PORT.SWD:
             # configure swd protocol
             self._protocol.swdConfigure()
             # switch from jtag to swd
             self._jtag_to_swd()
-        elif self._dap_port == Link.PORT.JTAG:
+        elif self._dap_port == DAPAccessIntf.PORT.JTAG:
             # configure jtag protocol
             self._protocol.jtagConfigure(4)
             # Test logic reset, run test idle
@@ -518,13 +518,13 @@ class DapLink(Link):
         request |= (reg_id.value % 4) * 4
         self._write(dap_index, 1, request, [value])
 
-    def read_reg(self, reg_id, dap_index=0, mode=Link.MODE.NOW):
+    def read_reg(self, reg_id, dap_index=0, mode=DAPAccessIntf.MODE.NOW):
         assert reg_id in self.REG
         assert isinstance(dap_index, six.integer_types)
         assert mode in self.MODE
         res = None
 
-        if mode in (Link.MODE.START, Link.MODE.NOW):
+        if mode in (DAPAccessIntf.MODE.START, DAPAccessIntf.MODE.NOW):
             request = READ
             if reg_id.value < 4:
                 request |= DP_ACC
@@ -533,7 +533,7 @@ class DapLink(Link):
             request |= (reg_id.value % 4) << 2
             self._write(dap_index, 1, request, None)
 
-        if mode in (Link.MODE.NOW, Link.MODE.END):
+        if mode in (DAPAccessIntf.MODE.NOW, DAPAccessIntf.MODE.END):
             res = self._read()
             assert len(res) == 1
             res = res[0]
@@ -555,14 +555,14 @@ class DapLink(Link):
         self._write(dap_index, num_repeats, request, data_array)
 
     def reg_read_repeat(self, num_repeats, reg_id, dap_index=0,
-                        mode=Link.MODE.NOW):
+                        mode=DAPAccessIntf.MODE.NOW):
         assert isinstance(num_repeats, six.integer_types)
         assert reg_id in self.REG
         assert isinstance(dap_index, six.integer_types)
         assert mode in self.MODE
         res = None
 
-        if mode in (Link.MODE.START, Link.MODE.NOW):
+        if mode in (DAPAccessIntf.MODE.START, DAPAccessIntf.MODE.NOW):
             request = READ
             if reg_id.value < 4:
                 request |= DP_ACC
@@ -571,7 +571,7 @@ class DapLink(Link):
             request |= (reg_id.value % 4) * 4
             self._write(dap_index, num_repeats, request, None)
 
-        if mode in (Link.MODE.NOW, Link.MODE.END):
+        if mode in (DAPAccessIntf.MODE.NOW, DAPAccessIntf.MODE.END):
             res = self._read()
             assert len(res) == num_repeats
 
@@ -689,7 +689,7 @@ class DapLink(Link):
         # Create transfer and add to transfer list
         if transfer_request & READ:
             transfer = _Transfer(dap_index, transfer_count,
-                                transfer_request, transfer_data)
+                                 transfer_request, transfer_data)
             self._transfer_list.append(transfer)
 
         # Build physical packet by adding it to command
