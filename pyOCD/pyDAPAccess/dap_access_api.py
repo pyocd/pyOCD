@@ -21,16 +21,6 @@ from enum import Enum
 
 class DAPAccessIntf(object):
 
-    class MODE(Enum):
-        """Deferred tranfer mode for reads"""
-        # Start a read.  This must be followed by an 'END' of the
-        # same type and in the same order
-        START = 1
-        # Read immediately
-        NOW = 2
-        # Get the result of a read started with 'START'
-        END = 3
-
     class PORT(Enum):
         """Physical access ports"""
         DEFAULT = 0
@@ -166,7 +156,7 @@ class DAPAccessIntf(object):
         """Write a single word to a DP or AP register"""
         raise NotImplementedError()
 
-    def read_reg(self, reg_id, dap_index=0, mode=MODE.NOW):
+    def read_reg(self, reg_id, dap_index=0, now=True):
         """Read a single word to a DP or AP register"""
         raise NotImplementedError()
 
@@ -174,6 +164,6 @@ class DAPAccessIntf(object):
         """Write one or more words to the same DP or AP register"""
         raise NotImplementedError()
 
-    def reg_read_repeat(self, num_repeats, reg_id, dap_index=0, mode=MODE.NOW):
+    def reg_read_repeat(self, num_repeats, reg_id, dap_index=0, now=True):
         """Read one or more words from the same DP or AP register"""
         raise NotImplementedError()

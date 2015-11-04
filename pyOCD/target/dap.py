@@ -105,29 +105,35 @@ class Dap(object):
             self._handle_error(error)
             raise
 
-    def readMem(self, addr, transfer_size=32, mode=DAPAccess.MODE.NOW):
+    def readMem(self, addr, transfer_size=32, now=True):
         res = None
         try:
-            if mode in (DAPAccess.MODE.START, DAPAccess.MODE.NOW):
-                self.writeAP(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
-                reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['TAR'])
-                self.link.write_reg(reg, addr)
-                reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
-                self.link.read_reg(reg, mode=DAPAccess.MODE.START)
-
-            if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
-                reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
-                res = self.link.read_reg(reg, mode=DAPAccess.MODE.END)
-
-                if transfer_size == 8:
-                    res = (res >> ((addr & 0x03) << 3) & 0xff)
-                elif transfer_size == 16:
-                    res = (res >> ((addr & 0x02) << 3) & 0xffff)
+            self.writeAP(AP_REG['CSW'], CSW_VALUE |
+                         TRANSFER_SIZE[transfer_size])
+            reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['TAR'])
+            self.link.write_reg(reg, addr)
+            reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
+            result_cb = self.link.read_reg(reg, now=False)
         except DAPAccess.Error as error:
             self._handle_error(error)
             raise
 
-        return res
+        def readMemCb():
+            try:
+                res = result_cb()
+                if transfer_size == 8:
+                    res = (res >> ((addr & 0x03) << 3) & 0xff)
+                elif transfer_size == 16:
+                    res = (res >> ((addr & 0x02) << 3) & 0xffff)
+            except DAPAccess.Error as error:
+                self._handle_error(error)
+                raise
+            return res
+
+        if now:
+            return readMemCb()
+        else:
+            return readMemCb
 
     # write aligned word ("data" are words)
     def writeBlock32(self, addr, data):
@@ -154,22 +160,26 @@ class Dap(object):
             raise
         return resp
 
-    def readDP(self, addr, mode=DAPAccess.MODE.NOW):
+    def readDP(self, addr, now=True):
         assert addr in DAPAccess.REG
-        res = None
 
         try:
-            if mode in (DAPAccess.MODE.START, DAPAccess.MODE.NOW):
-                self.link.read_reg(addr, mode=DAPAccess.MODE.START)
-
-            if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
-                res = self.link.read_reg(addr, mode=DAPAccess.MODE.END)
-
+            result_cb = self.link.read_reg(addr, now=False)
         except DAPAccess.Error as error:
             self._handle_error(error)
             raise
 
-        return res
+        def readDPCb():
+            try:
+                return result_cb()
+            except DAPAccess.Error as error:
+                self._handle_error(error)
+                raise
+
+        if now:
+            return readDPCb()
+        else:
+            return readDPCb
 
     def writeDP(self, addr, data):
         assert addr in DAPAccess.REG
@@ -206,33 +216,36 @@ class Dap(object):
 
         return True
 
-    def readAP(self, addr, mode=DAPAccess.MODE.NOW):
+    def readAP(self, addr, now=True):
         assert type(addr) in (int, long)
         res = None
         ap_reg = _ap_addr_to_reg(READ | AP_ACC | (addr & 0x0c))
 
         try:
-            if mode in (DAPAccess.MODE.START, DAPAccess.MODE.NOW):
-                ap_sel = addr & 0xff000000
-                bank_sel = addr & APBANKSEL
-
-                self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
-                self.link.read_reg(ap_reg, mode=DAPAccess.MODE.START)
-
-            if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
-                res = self.link.read_reg(ap_reg, mode=DAPAccess.MODE.END)
+            ap_sel = addr & 0xff000000
+            bank_sel = addr & APBANKSEL
+            self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
+            result_cb = self.link.read_reg(ap_reg, now=False)
         except DAPAccess.Error as error:
             self._handle_error(error)
             raise
 
-        return res
+        def readAPCb():
+            try:
+                return result_cb()
+            except DAPAccess.Error as error:
+                self._handle_error(error)
+                raise
+
+        if now:
+            return readAPCb()
+        else:
+            return readAPCb
 
     def _handle_error(self, error):
         # Invalidate cached registers
         self.csw = -1
         self.dp_select = -1
-        self._clear_sticky_err()
-        mode = self.link.get_swj_mode()
         # Clear sticky error for Fault errors only
         if isinstance(error, DAPAccess.TransferFaultError):
             self._clear_sticky_err()

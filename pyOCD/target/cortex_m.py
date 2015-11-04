@@ -528,12 +528,12 @@ class CortexM(Target):
         """
         self.writeMemory(addr, value, 8)
 
-    def readMemory(self, addr, transfer_size=32, mode=DAPAccess.MODE.NOW):
+    def readMemory(self, addr, transfer_size=32, now=True):
         """
         read a memory location. By default, a word will
         be read
         """
-        return self.dap.readMem(addr, transfer_size, mode)
+        return self.dap.readMem(addr, transfer_size, now=now)
 
     def read32(self, addr):
         """
@@ -855,6 +855,8 @@ class CortexM(Target):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Begin all reads and writes
+        dhcsr_cb_list = []
+        reg_cb_list = []
         for reg in reg_list:
             if (reg < 0) and (reg >= -4):
                 reg = CORE_REGISTER['cfbp']
@@ -866,18 +868,20 @@ class CortexM(Target):
             # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
-            self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.START)
-            self.readMemory(CortexM.DCRDR, mode=DAPAccess.MODE.START)
+            dhcsr_cb = self.readMemory(CortexM.DHCSR, now=False)
+            reg_cb = self.readMemory(CortexM.DCRDR, now=False)
+            dhcsr_cb_list.append(dhcsr_cb)
+            reg_cb_list.append(reg_cb)
 
         # Read all results
         reg_vals = []
-        for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.END)
+        for reg, reg_cb, dhcsr_cb in zip(reg_list, reg_cb_list, dhcsr_cb_list):
+            dhcsr_val = dhcsr_cb()
             assert dhcsr_val & CortexM.S_REGRDY
-            # read DCRDR
-            val = self.readMemory(CortexM.DCRDR, mode=DAPAccess.MODE.END)
+            val = reg_cb()
 
-            # Special handling for registers that are combined into a single DCRSR number.
+            # Special handling for registers that are combined
+            # into a single DCRSR number.
             if (reg < 0) and (reg >= -4):
                 val = (val >> ((-reg - 1) * 8)) & 0xff
 
@@ -930,6 +934,7 @@ class CortexM(Target):
                 break
 
         # Write out registers
+        dhcsr_cb_list = []
         for reg, data in zip(reg_list, data_list):
             if (reg < 0) and (reg >= -4):
                 # Mask in the new special register value so we don't modify the other register
@@ -949,10 +954,13 @@ class CortexM(Target):
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
             # Read it and assert that S_REGRDY is set
-            self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.START)
+            dhcsr_cb = self.readMemory(CortexM.DHCSR, now=False)
+            dhcsr_cb_list.append(dhcsr_cb)
 
-        for reg in reg_list:
-            dhcsr_val = self.readMemory(CortexM.DHCSR, mode=DAPAccess.MODE.END)
+        # Make sure S_REGRDY was set for all register
+        # writes
+        for dhcsr_cb in dhcsr_cb_list:
+            dhcsr_val = dhcsr_cb()
             assert dhcsr_val & CortexM.S_REGRDY
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
