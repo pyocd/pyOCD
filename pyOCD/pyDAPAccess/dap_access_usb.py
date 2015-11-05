@@ -23,7 +23,8 @@ import six
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSIS_DAP_Protocol
 from .interface import INTERFACE, usb_backend
-from .cmsis_dap_core import COMMAND_ID, DAP_TRANSFER_OK, DAP_TRANSFER_FAULT
+from .cmsis_dap_core import (COMMAND_ID, DAP_TRANSFER_OK,
+                             DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT)
 
 # CMSIS-DAP values
 AP_ACC = 1 << 0
@@ -268,13 +269,15 @@ class _Command(object):
 
         if data[2] != DAP_TRANSFER_OK:
             if data[2] == DAP_TRANSFER_FAULT:
-                raise DAPAccessIntf.Error()
-            raise ValueError('SWD Fault')
+                raise DAPAccessIntf.TransferFaultError()
+            elif data[2] == DAP_TRANSFER_WAIT:
+                raise DAPAccessIntf.TransferTimeoutError()
+            raise DAPAccessIntf.TransferError()
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
         # This allows TransferError to get thrown instead of ValueError
         if data[1] != self._read_count + self._write_count:
-            raise ValueError('Transfer not completed')
+            raise DAPAccessIntf.TransferError()
 
         return data[3:3 + 4 * self._read_count]
 
@@ -346,7 +349,7 @@ class DapAccessUSB(DAPAccessIntf):
                 unique_id = _get_unique_id(interface)
                 new_daplink = DapAccessUSB(unique_id)
                 all_daplinks.append(new_daplink)
-            except Exception:
+            except DAPAccessIntf.TransferError:
                 logger = logging.getLogger(__name__)
                 logger.error('Failed to get unique id', exc_info=True)
             finally:

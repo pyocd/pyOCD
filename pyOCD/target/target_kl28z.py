@@ -63,7 +63,7 @@ class KL28x(Kinetis):
     def reset(self, software_reset=None):
         try:
             super(KL28x, self).reset(software_reset)
-        except DAPAccess.Error:
+        except DAPAccess.TransferError:
             # KL28 causes a SWD transfer fault for the AIRCR write when
             # it resets. Just ignore this error.
             pass

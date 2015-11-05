@@ -1055,7 +1055,7 @@ class CortexM(Target):
 
             self.breakpoints[addr] = bp
             return True
-        except DAPAccess.Error:
+        except DAPAccess.TransferError:
             logging.debug("Failed to set sw bp at 0x%x" % addr)
             return False
 
@@ -1065,7 +1065,7 @@ class CortexM(Target):
         try:
             # Restore original instruction.
             self.write16(bp.addr, bp.original_instr)
-        except DAPAccess.Error:
+        except DAPAccess.TransferError:
             logging.debug("Failed to set sw bp at 0x%x" % bp.addr)
 
     def setHardwareBreakpoint(self, addr):

@@ -582,7 +582,7 @@ class SemihostAgent(object):
                 # and then exit the loop.
                 target_str += str(bytearray(data[:terminator]))
                 break
-            except DAPAccess.Error:
+            except DAPAccess.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:

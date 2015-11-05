@@ -231,7 +231,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except DAPAccess.Error:
+        except DAPAccess.TransferFaultError:
             pass
 
         try:
@@ -240,7 +240,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except DAPAccess.Error:
+        except DAPAccess.TransferFaultError:
             pass
 
         data = [0x00] * 0x1000
@@ -250,7 +250,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except DAPAccess.Error:
+        except DAPAccess.TransferFaultError:
             pass
 
         data = [0x00] * 0x1000
@@ -260,7 +260,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except DAPAccess.Error:
+        except DAPAccess.TransferFaultError:
             pass
 
         data = [randrange(0, 255) for x in range(size)]

@@ -266,7 +266,7 @@ class PyOCDConsole(object):
         except ValueError:
             print "Error: invalid argument"
             traceback.print_exc()
-        except DAPAccess.Error:
+        except DAPAccess.TransferError:
             print "Error: transfer failed"
         except ToolError as e:
             print "Error:", e
@@ -422,7 +422,7 @@ class PyOCDTool(object):
             self.exitCode = 0
         except ValueError:
             print "Error: invalid argument"
-        except DAPAccess.Error:
+        except DAPAccess.TransferError:
             print "Error: transfer failed"
             self.exitCode = 2
         except ToolError as e:

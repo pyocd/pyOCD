@@ -101,8 +101,8 @@ class Dap(object):
             self.link.write_reg(reg, addr)
             reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['DRW'])
             self.link.write_reg(reg, data)
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
 
     def readMem(self, addr, transfer_size=32, mode=DAPAccess.MODE.NOW):
@@ -123,8 +123,8 @@ class Dap(object):
                     res = (res >> ((addr & 0x03) << 3) & 0xff)
                 elif transfer_size == 16:
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
 
         return res
@@ -137,8 +137,8 @@ class Dap(object):
         try:
             reg = _ap_addr_to_reg(WRITE | AP_ACC | AP_REG['DRW'])
             self.link.reg_write_repeat(len(data), reg, data)
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
 
     # read aligned word (the size is in words)
@@ -149,8 +149,8 @@ class Dap(object):
         try:
             reg = _ap_addr_to_reg(READ | AP_ACC | AP_REG['DRW'])
             resp = self.link.reg_read_repeat(size, reg)
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
         return resp
 
@@ -165,8 +165,8 @@ class Dap(object):
             if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
                 res = self.link.read_reg(addr, mode=DAPAccess.MODE.END)
 
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
 
         return res
@@ -180,8 +180,8 @@ class Dap(object):
 
         try:
             self.link.write_reg(addr, data)
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
         return True
 
@@ -200,8 +200,8 @@ class Dap(object):
         try:
             self.link.write_reg(ap_reg, data)
 
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
 
         return True
@@ -221,18 +221,21 @@ class Dap(object):
 
             if mode in (DAPAccess.MODE.NOW, DAPAccess.MODE.END):
                 res = self.link.read_reg(ap_reg, mode=DAPAccess.MODE.END)
-        except DAPAccess.Error:
-            self._handle_error()
+        except DAPAccess.Error as error:
+            self._handle_error(error)
             raise
 
         return res
 
-    def _handle_error(self):
+    def _handle_error(self, error):
         # Invalidate cached registers
         self.csw = -1
         self.dp_select = -1
         self._clear_sticky_err()
         mode = self.link.get_swj_mode()
+        # Clear sticky error for Fault errors only
+        if isinstance(error, DAPAccess.TransferFaultError):
+            self._clear_sticky_err()
 
     def _clear_sticky_err(self):
         mode = self.link.get_swj_mode()
