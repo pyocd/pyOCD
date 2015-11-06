@@ -18,7 +18,7 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from .target import Target
 from pyOCD.target.dap import (DP_REG, AP_REG, Dap)
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 from ..gdbserver import signals
 from ..utility import conversion
 import logging

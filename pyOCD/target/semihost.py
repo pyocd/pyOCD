@@ -27,7 +27,7 @@ import traceback
 import pyOCD
 from ..gdbserver.gdb_socket import GDBSocket
 from ..gdbserver.gdb_websocket import GDBWebSocket
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 
 # Debug logging options
 LOG_SEMIHOST = True

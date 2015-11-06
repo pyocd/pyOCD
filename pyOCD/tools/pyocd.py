@@ -28,7 +28,7 @@ import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 from pyOCD.target.target import Target
 
 # Make disasm optional.

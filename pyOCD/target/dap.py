@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 import logging
 from time import sleep
 

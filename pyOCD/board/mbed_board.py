@@ -20,7 +20,7 @@ import logging, array
 
 from time import sleep
 from board import Board
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 
 class BoardInfo(object):
     def __init__(self, name, target, binary):

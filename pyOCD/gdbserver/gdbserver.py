@@ -16,7 +16,7 @@
 """
 
 from ..target.target import Target
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
