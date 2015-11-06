@@ -69,7 +69,7 @@ class MbedBoard(Board):
         """
         Init the board
         """
-        self.name = None
+        self.name = ""
         self.native_target = None
         self.test_binary = None
         unique_id = link.get_unique_id()
@@ -119,7 +119,7 @@ class MbedBoard(Board):
         """
         Return info on the board
         """
-        return Board.getInfo(self) + " [" + self.target_type + "]"
+        return self.name + " [" + self.target_type + "]"
 
     @staticmethod
     def listConnectedBoards(dap_class=DAPAccess):

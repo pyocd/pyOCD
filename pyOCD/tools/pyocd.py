@@ -637,6 +637,10 @@ class PyOCDTool(object):
             print "Error: invalid frequency"
             return 1
         self.link.set_clock(freq_Hz)
+        if self.link.get_swj_mode() == DAPAccess.PORT.SWD:
+            swd_jtag = 'SWD'
+        else:
+            swd_jtag = 'JTAG'
 
         if freq_Hz >= 1000000:
             nice_freq = "%.2f MHz" % (freq_Hz / 1000000)
@@ -645,7 +649,7 @@ class PyOCDTool(object):
         else:
             nice_freq = "%d Hz" % freq_Hz
 
-        print "Changed frequency to %s" % nice_freq
+        print "Changed %s frequency to %s" % (swd_jtag, nice_freq)
 
     def handle_exit(self, args):
         raise ToolExitException()

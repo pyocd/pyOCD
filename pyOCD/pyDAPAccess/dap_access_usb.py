@@ -57,13 +57,13 @@ class _Transfer(object):
     """
     A wrapper object representing a command invoked by the layer above.
 
-    The tranfer class contains a logical register read or a block
+    The transfer class contains a logical register read or a block
     of reads to the same register.
     """
 
     def __init__(self, daplink, dap_index, transfer_count,
                  transfer_request, transfer_data):
-        # Writes should not need a tranfer object
+        # Writes should not need a transfer object
         # since they don't have any response data
         assert isinstance(dap_index, six.integer_types)
         assert isinstance(transfer_count, six.integer_types)
@@ -103,14 +103,14 @@ class _Transfer(object):
 
     def add_error(self, error):
         """
-        Attach an exception to this tranfer rather than data.
+        Attach an exception to this transfer rather than data.
         """
         assert isinstance(error, Exception)
         self._error = error
 
     def get_result(self):
         """
-        Get the result of this tranfer.
+        Get the result of this transfer.
         """
         while self._result is None:
             if len(self.daplink._commands_to_read) > 0:
@@ -135,7 +135,7 @@ class _Command(object):
     A wrapper object representing a command send to the layer below (ex. USB).
 
     This class wraps the phyiscal commands DAP_Transfer and DAP_TransferBlock
-    to provide a uniform way to build the command to most efficiently tranfer
+    to provide a uniform way to build the command to most efficiently transfer
     the data supplied.  Register reads and writes individually or in blocks
     are added to a command object until it is full.  Once full, this class
     decides if it is more efficient to use DAP_Transfer or DAP_TransferBlock.
@@ -181,7 +181,7 @@ class _Command(object):
         _, recv = self._dap_transfer_block_free_bytes(self._size)
         transfer_block_size = recv // 4
 
-        # If data does not allow block tranfer invalidate it
+        # If data does not allow block transfer invalidate it
         if not self._block_allowed:
             transfer_block_size = -1
 
@@ -201,7 +201,7 @@ class _Command(object):
         send, _ = self._dap_transfer_block_free_bytes(self._size)
         transfer_block_size = (self._size - 5) // 4 - self._write_count
 
-        # If data does not allow block tranfer invalidate it
+        # If data does not allow block transfer invalidate it
         if not self._block_allowed:
             transfer_block_size = -1
 
@@ -229,7 +229,7 @@ class _Command(object):
             self._write_count += count
         self._data.append((count, request, data))
 
-    def _encode_tranfer_data(self):
+    def _encode_transfer_data(self):
         """
         Encode this command into a byte array that can be sent
 
@@ -264,7 +264,7 @@ class _Command(object):
                     write_pos += 1
         return buf
 
-    def _decode_tranfer_data(self, data):
+    def _decode_transfer_data(self, data):
         """
         Take a byte array and extract the data from it
 
@@ -283,13 +283,14 @@ class _Command(object):
             raise DAPAccessIntf.TransferError()
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
-        # This allows TransferError to get thrown instead of ValueError
+        # This allows TransferFaultError or TransferTimeoutError to get
+        # thrown instead of TransferFaultError
         if data[1] != self._read_count + self._write_count:
             raise DAPAccessIntf.TransferError()
 
         return data[3:3 + 4 * self._read_count]
 
-    def _encode_tranfer_block_data(self):
+    def _encode_transfer_block_data(self):
         """
         Encode this command into a byte array that can be sent
 
@@ -299,7 +300,7 @@ class _Command(object):
         # TODO, c1728p9 - future optimization
         raise NotImplementedError()
 
-    def _decode_tranfer_block_data(self, data):
+    def _decode_transfer_block_data(self, data):
         """
         Take a byte array and extract the data from it
 
@@ -319,9 +320,9 @@ class _Command(object):
         assert self.get_empty() is False
         self._data_encoded = True
         if self._block_allowed:
-            data = self._encode_tranfer_block_data()
+            data = self._encode_transfer_block_data()
         else:
-            data = self._encode_tranfer_data()
+            data = self._encode_transfer_data()
         return data
 
     def decode_data(self, data):
@@ -331,13 +332,13 @@ class _Command(object):
         assert self.get_empty() is False
         assert self._data_encoded is True
         if self._block_allowed:
-            data = self._decode_tranfer_block_data(data)
+            data = self._decode_transfer_block_data(data)
         else:
-            data = self._decode_tranfer_data(data)
+            data = self._decode_transfer_data(data)
         return data
 
 
-class DapAccessUSB(DAPAccessIntf):
+class DAPAccessUSB(DAPAccessIntf):
     """
     An implementation of the DAPAccessIntf layer for DAPLINK boards
     """
@@ -355,7 +356,7 @@ class DapAccessUSB(DAPAccessIntf):
         for interface in all_interfaces:
             try:
                 unique_id = _get_unique_id(interface)
-                new_daplink = DapAccessUSB(unique_id)
+                new_daplink = DAPAccessUSB(unique_id)
                 all_daplinks.append(new_daplink)
             except DAPAccessIntf.TransferError:
                 logger = logging.getLogger(__name__)
@@ -367,14 +368,14 @@ class DapAccessUSB(DAPAccessIntf):
     @staticmethod
     def get_device(device_id):
         assert isinstance(device_id, str)
-        return DapAccessUSB(device_id)
+        return DAPAccessUSB(device_id)
 
     # ------------------------------------------- #
     #          CMSIS-DAP and Other Functions
     # ------------------------------------------- #
     def __init__(self, unique_id):
         assert isinstance(unique_id, six.string_types)
-        super(DapAccessUSB, self).__init__()
+        super(DAPAccessUSB, self).__init__()
         self._interface = None
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed
@@ -396,10 +397,9 @@ class DapAccessUSB(DAPAccessIntf):
             try:
                 unique_id = _get_unique_id(interface)
                 if self._unique_id == unique_id:
-                    # This assert could indicate that two boars
+                    # This assert could indicate that two boards
                     # had the same ID
                     assert self._interface is None
-                    # This is the board we want so store it and break
                     self._interface = interface
             except Exception:
                 logger = logging.getLogger(__name__)
@@ -598,22 +598,22 @@ class DapAccessUSB(DAPAccessIntf):
 
     def _init_deferred_buffers(self):
         """
-        Initailize or reinitalize all the deferred tranfer buffers
+        Initialize or reinitalize all the deferred transfer buffers
 
         Calling this method will drop all pending transactions
         so use with care.
         """
-        # List of tranfers that have been started, but
+        # List of transfers that have been started, but
         # not completed (started by write_reg, read_reg,
         # reg_write_repeat and reg_read_repeat)
         self._transfer_list = collections.deque()
         # The current packet - this can contain multiple
-        # different tranfers
+        # different transfers
         self._crnt_cmd = _Command(self._packet_size)
         # Packets that have been sent but not read
         self._commands_to_read = collections.deque()
         # Buffer for data returned for completed commands.
-        # This data will be added to tranfers
+        # This data will be added to transfers
         self._command_response_buf = bytearray()
 
     def _read_packet(self):
@@ -631,15 +631,7 @@ class DapAccessUSB(DAPAccessIntf):
             raw_data = bytearray(raw_data)
             decoded_data = cmd.decode_data(raw_data)
         except Exception as exception:
-            pending_reads = len(self._commands_to_read)
-            # invalidate _transfer_list
-            for tranfer in self._transfer_list:
-                tranfer.add_error(exception)
-            # clear all deferred buffers
-            self._init_deferred_buffers()
-            # finish all pending reads and ignore the data
-            for _ in range(pending_reads):
-                self._interface.read()
+            self._abort_all_transfers(exception)
             raise
 
         decoded_data = bytearray(decoded_data)
@@ -650,7 +642,7 @@ class DapAccessUSB(DAPAccessIntf):
         while True:
             size_left = len(self._command_response_buf) - pos
             if size_left == 0:
-                # If size left is 0 then the tranfer list might
+                # If size left is 0 then the transfer list might
                 # be empty, so don't try to access element 0
                 break
             transfer = self._transfer_list[0]
@@ -684,7 +676,11 @@ class DapAccessUSB(DAPAccessIntf):
         if len(self._commands_to_read) >= max_packets:
             self._read_packet()
         data = cmd.encode_data()
-        self._interface.write(list(data))
+        try:
+            self._interface.write(list(data))
+        except Exception as exception:
+            self._abort_all_transfers(exception)
+            raise
         self._commands_to_read.append(cmd)
         self._crnt_cmd = _Command(self._packet_size)
 
@@ -754,3 +750,20 @@ class DapAccessUSB(DAPAccessIntf):
 
         data = [0x00]
         self._protocol.swjSequence(data)
+
+    def _abort_all_transfers(self, exception):
+        """
+        Abort any ongoing transfers and clear all buffers
+        """
+        pending_reads = len(self._commands_to_read)
+        # invalidate _transfer_list
+        for transfer in self._transfer_list:
+            transfer.add_error(exception)
+        # clear all deferred buffers
+        self._init_deferred_buffers()
+        # finish all pending reads and ignore the data
+        # Only do this if the error is a tranfer error.
+        # Otherwise this could cause another exception
+        if isinstance(exception, DAPAccessIntf.TransferError):
+            for _ in range(pending_reads):
+                self._interface.read()

@@ -52,7 +52,7 @@ class DAPAccessIntf(object):
         pass
 
     class DeviceError(Error):
-        """Error communicating with devcie"""
+        """Error communicating with device"""
         pass
 
     class CommandError(DeviceError):
