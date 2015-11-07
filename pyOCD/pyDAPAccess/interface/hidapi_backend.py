@@ -47,32 +47,38 @@ class HidApiUSB(Interface):
         pass
 
     @staticmethod
-    def getAllConnectedInterface(vid, pid):
+    def getAllConnectedInterface():
         """
         returns all the connected devices which matches HidApiUSB.vid/HidApiUSB.pid.
         returns an array of HidApiUSB (Interface) objects
         """
 
-        devices = hid.enumerate(vid, pid)
+        devices = hid.enumerate()
 
         if not devices:
             logging.debug("No Mbed device connected")
-            return
+            return []
 
         boards = []
 
         for deviceInfo in devices:
+            product_name = deviceInfo['product_string']
+            if (product_name.find("CMSIS-DAP") < 0):
+                # Skip non cmsis-dap devices
+                continue
+
             try:
                 dev = hid.device(vendor_id=deviceInfo['vendor_id'], product_id=deviceInfo['product_id'],
                     path=deviceInfo['path'])
             except IOError:
                 logging.debug("Failed to open Mbed device")
-                return
+                continue
 
             # Create the USB interface object for this device.
             new_board = HidApiUSB()
             new_board.vendor_name = deviceInfo['manufacturer_string']
             new_board.product_name = deviceInfo['product_string']
+            new_board.serial_number = deviceInfo['serial_number']
             new_board.vid = deviceInfo['vendor_id']
             new_board.pid = deviceInfo['product_id']
             new_board.device_info = deviceInfo
@@ -105,6 +111,9 @@ class HidApiUSB(Interface):
         read data on the IN endpoint associated to the HID interface
         """
         return self.device.read(64)
+
+    def getSerialNumber(self):
+        return self.serial_number
 
     def close(self):
         """

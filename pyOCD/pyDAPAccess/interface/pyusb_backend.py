@@ -64,23 +64,28 @@ class PyUSB(Interface):
                 self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, -1))
 
     @staticmethod
-    def getAllConnectedInterface(vid, pid):
+    def getAllConnectedInterface():
         """
         returns all the connected devices which matches PyUSB.vid/PyUSB.pid.
         returns an array of PyUSB (Interface) objects
         """
         # find all devices matching the vid/pid specified
-        all_devices = usb.core.find(find_all=True, idVendor=vid, idProduct=pid)
+        all_devices = usb.core.find(find_all=True)
 
         if not all_devices:
             logging.debug("No device connected")
-            return None
+            return []
 
         boards = []
 
         # iterate on all devices found
         for board in all_devices:
             interface_number = -1
+            product = board.product
+            if (product.find("CMSIS-DAP") < 0):
+                # Not a cmsis-dap device so close it
+                usb.util.dispose_resources(board)
+                continue
 
             # get active config
             config = board.get_active_configuration()
@@ -108,8 +113,6 @@ class PyUSB(Interface):
                 else:
                     ep_out = ep
 
-            product_name = usb.util.get_string(board, 2)
-            vendor_name = usb.util.get_string(board, 1)
             """If there is no EP for OUT then we can use CTRL EP"""
             if not ep_in:
                 logging.error('Endpoints not found')
@@ -119,11 +122,12 @@ class PyUSB(Interface):
             new_board.ep_in = ep_in
             new_board.ep_out = ep_out
             new_board.dev = board
-            new_board.vid = vid
-            new_board.pid = pid
+            new_board.vid = board.idVendor
+            new_board.pid = board.idProduct
             new_board.intf_number = interface_number
-            new_board.product_name = product_name
-            new_board.vendor_name = vendor_name
+            new_board.product_name = product
+            new_board.vendor_name = board.manufacturer
+            new_board.serial_number = board.serial_number
             new_board.start_rx()
             boards.append(new_board)
 
@@ -168,6 +172,9 @@ class PyUSB(Interface):
     def setPacketCount(self, count):
         # No interface level restrictions on count
         self.packet_count = count
+
+    def getSerialNumber(self):
+        return self.serial_number
 
     def close(self):
         """
