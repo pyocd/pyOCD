@@ -30,8 +30,8 @@ class STM32F103RC(CortexM):
         RamRegion(      start=0x20000000,  length=0x10000)
         )
 
-    def __init__(self, transport):
-        super(STM32F103RC, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(STM32F103RC, self).__init__(link, self.memoryMap)
 
     def init(self):
         logging.debug('stm32f103rc init')

@@ -30,8 +30,8 @@ class NRF51(CortexM):
         RamRegion(      start=0x20000000,  length=0x4000)
         )
 
-    def __init__(self, transport):
-        super(NRF51, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(NRF51, self).__init__(link, self.memoryMap)
 
     def resetn(self):
         """

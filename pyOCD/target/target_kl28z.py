@@ -18,7 +18,7 @@
 from target_kinetis import Kinetis
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
-from ..transport.transport import Transport
+from pyOCD.pyDAPAccess import DAPAccess
 
 SIM_SDID = 0x40075024
 SIM_SDID_KEYATTR_MASK = 0x70
@@ -43,8 +43,8 @@ class KL28x(Kinetis):
         RamRegion(name='usb ram', start=0x40100000, length=0x800)
         )
 
-    def __init__(self, transport):
-        super(KL28x, self).__init__(transport, self.singleMap)
+    def __init__(self, link):
+        super(KL28x, self).__init__(link, self.singleMap)
         self.mdm_idr = 0x001c0020
         self.is_dual_core = False
 
@@ -63,7 +63,7 @@ class KL28x(Kinetis):
     def reset(self, software_reset=None):
         try:
             super(KL28x, self).reset(software_reset)
-        except Transport.TransferError:
+        except DAPAccess.TransferError:
             # KL28 causes a SWD transfer fault for the AIRCR write when
             # it resets. Just ignore this error.
             pass

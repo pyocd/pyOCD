@@ -25,8 +25,8 @@ class LPC11XX_32(CortexM):
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(LPC11XX_32, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(LPC11XX_32, self).__init__(link, self.memoryMap)
 
     def resetStopOnReset(self, software_reset=None, map_to_user=True):
         CortexM.resetStopOnReset(self, software_reset)

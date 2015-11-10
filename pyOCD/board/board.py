@@ -16,8 +16,6 @@
 """
 
 from pyOCD.target import TARGET
-from pyOCD.transport import TRANSPORT
-from pyOCD.interface import INTERFACE
 from pyOCD.flash import FLASH
 
 import logging
@@ -25,13 +23,11 @@ import traceback
 
 class Board(object):
     """
-    This class associates a target, a flash, a transport and an interface
-    to create a board
+    This class associates a target, a flash and a link to create a board
     """
-    def __init__(self, target, flash, interface, transport="cmsis_dap", frequency=1000000):
-        self.interface = interface
-        self.transport = TRANSPORT[transport](self.interface)
-        self.target = TARGET[target](self.transport)
+    def __init__(self, target, flash, link, frequency=1000000):
+        self.link = link
+        self.target = TARGET[target](self.link)
         self.flash = FLASH[flash](self.target)
         self.target.setFlash(self.flash)
         self.debug_clock_frequency = frequency
@@ -47,22 +43,15 @@ class Board(object):
 
     def init(self):
         """
-        Initialize the board: interface, transport and target
+        Initialize the board
         """
         logging.debug("init board %s", self)
-        self.interface.init()
-        packet_count = self.getPacketCount()
-        logging.info("board allows %i concurrent packets", packet_count)
-        if packet_count < 1:
-            logging.error('packet count of %i outside of expected range', packet_count)
-            packet_count = 1
-        self.interface.setPacketCount(packet_count)
-        self.transport.init(self.debug_clock_frequency)
+        self.link.set_clock(self.debug_clock_frequency)
         self.target.init()
 
     def uninit(self, resume=True):
         """
-        Uninitialize the board: interface, transport and target.
+        Uninitialize the board: link and target.
         This function resumes the target
         """
         if self.closed:
@@ -77,27 +66,15 @@ class Board(object):
                 logging.error("target exception during uninit:")
                 traceback.print_exc()
         try:
-            self.transport.uninit()
+            self.link.disconnect()
         except:
-            logging.error("transport exception during uninit:")
+            logging.error("link exception during disconnect:")
             traceback.print_exc()
         try:
-            self.interface.close()
+            self.link.close()
         except:
-            logging.error("interface exception during uninit:")
+            logging.error("link exception during uninit:")
             traceback.print_exc()
 
     def getInfo(self):
-        # If the product name starts with the vendor name, we don't want to duplicate
-        # the vendor name, so just return the product name. Otherwise combined the two.
-        if self.interface.product_name.startswith(self.interface.vendor_name):
-            info = self.interface.product_name
-        else:
-            info = self.interface.vendor_name + " " + self.interface.product_name
-        return info
-
-    def getPacketCount(self):
-        """
-        Return the number of commands the remote device's buffer can hold.
-        """
-        return 1
+        return ""

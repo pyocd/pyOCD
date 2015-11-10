@@ -18,7 +18,7 @@
 from setuptools import setup, find_packages
 import sys
 
-install_requires = ['intelhex']
+install_requires = ['intelhex', 'six', 'enum34']
 if sys.platform.startswith('linux'):
     install_requires.extend([
         'pyusb>=1.0.0b2',

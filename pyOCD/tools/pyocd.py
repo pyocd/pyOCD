@@ -28,7 +28,7 @@ import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
-from pyOCD.transport.transport import Transport
+from pyOCD.pyDAPAccess import DAPAccess
 from pyOCD.target.target import Target
 
 # Make disasm optional.
@@ -266,7 +266,7 @@ class PyOCDConsole(object):
         except ValueError:
             print "Error: invalid argument"
             traceback.print_exc()
-        except Transport.TransferError:
+        except DAPAccess.TransferError:
             print "Error: transfer failed"
         except ToolError as e:
             print "Error:", e
@@ -385,7 +385,7 @@ class PyOCDTool(object):
                 print "Exception while initing board:", e
 
             self.target = self.board.target
-            self.transport = self.board.transport
+            self.link = self.board.link
             self.flash = self.board.flash
 
             # Halt if requested.
@@ -422,7 +422,7 @@ class PyOCDTool(object):
             self.exitCode = 0
         except ValueError:
             print "Error: invalid argument"
-        except Transport.TransferError:
+        except DAPAccess.TransferError:
             print "Error: transfer failed"
             self.exitCode = 2
         except ToolError as e:
@@ -450,8 +450,10 @@ class PyOCDTool(object):
         else:
             print "Security:       Unlocked"
         if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
-            print "MDM-AP Control: 0x%08x" % self.transport.readAP(target_kinetis.MDM_CTRL)
-            print "MDM-AP Status:  0x%08x" % self.transport.readAP(target_kinetis.MDM_STATUS)
+            print "MDM-AP Control: 0x%08x" % \
+                self.target.dap.readAP(target_kinetis.MDM_CTRL)
+            print "MDM-AP Status:  0x%08x" % \
+                self.target.dap.readAP(target_kinetis.MDM_STATUS)
         print "Core status:    %s" % CORE_STATUS_DESC[self.target.getState()]
 
     def handle_reg(self, args):
@@ -634,9 +636,8 @@ class PyOCDTool(object):
         except:
             print "Error: invalid frequency"
             return 1
-        self.transport.setClock(freq_Hz)
-
-        if self.transport.mode == pyOCD.transport.cmsis_dap.DAP_MODE_SWD:
+        self.link.set_clock(freq_Hz)
+        if self.link.get_swj_mode() == DAPAccess.PORT.SWD:
             swd_jtag = 'SWD'
         else:
             swd_jtag = 'JTAG'

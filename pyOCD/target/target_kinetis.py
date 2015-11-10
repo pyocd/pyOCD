@@ -44,8 +44,8 @@ FCF_ADDR = 0x400
 
 class Kinetis(CortexM):
 
-    def __init__(self, transport, memoryMap=None):
-        super(Kinetis, self).__init__(transport, memoryMap)
+    def __init__(self, link, memoryMap=None):
+        super(Kinetis, self).__init__(link, memoryMap)
         self.mdm_idr = 0
         self.do_auto_unlock = True
 
@@ -56,7 +56,7 @@ class Kinetis(CortexM):
         CortexM.init(self, initial_setup=True, bus_accessible=False)
 
         # check MDM-AP ID
-        val = self.transport.readAP(MDM_IDR)
+        val = self.dap.readAP(MDM_IDR)
         if val != self.mdm_idr:
             logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, val, self.mdm_idr)
 
@@ -66,22 +66,22 @@ class Kinetis(CortexM):
             if self.do_auto_unlock:
                 logging.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
                 # keep the target in reset until is had been erased and halted
-                self.transport.assertReset(True)
+                self.link.assert_reset(True)
                 if not self.massErase():
-                    self.transport.assertReset(False)
+                    self.link.assert_reset(False)
                     logging.error("%s: mass erase failed", self.part_number)
                     raise Exception("unable to unlock device")
                 # Use the MDM to keep the target halted after reset has been released
-                self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
+                self.dap.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
                 # Enable debug
                 self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
-                self.transport.assertReset(False)
-                while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
+                self.link.assert_reset(False)
+                while self.dap.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
                     logging.debug("Waiting for mdm halt (erase)")
                     sleep(0.01)
 
                 # release MDM halt once it has taken effect in the DHCSR
-                self.transport.writeAP(MDM_CTRL, 0)
+                self.dap.writeAP(MDM_CTRL, 0)
 
                 isLocked = False
             else:
@@ -95,21 +95,21 @@ class Kinetis(CortexM):
 
         if self.halt_on_connect:
             # Prevent the target from resetting if it has invalid code
-            self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
-            while self.transport.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
-                self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
+            self.dap.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
+            while self.dap.readAP(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
+                self.dap.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             # Enable debug
             self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
             # Disable holding the core in reset, leave MDM halt on
-            self.transport.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
+            self.dap.writeAP(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
             # Wait until the target is halted
-            while self.transport.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
+            while self.dap.readAP(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
                 logging.debug("Waiting for mdm halt")
                 sleep(0.01)
 
             # release MDM halt once it has taken effect in the DHCSR
-            self.transport.writeAP(MDM_CTRL, 0)
+            self.dap.writeAP(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
             if self.getState() == Target.TARGET_RUNNING:
@@ -118,7 +118,7 @@ class Kinetis(CortexM):
         CortexM.init(self, initial_setup=False, bus_accessible=True)
 
     def isLocked(self):
-        val = self.transport.readAP(MDM_STATUS)
+        val = self.dap.readAP(MDM_STATUS)
         if val & MDM_STATUS_SYSTEM_SECURITY:
             return True
         else:
@@ -129,36 +129,36 @@ class Kinetis(CortexM):
     def massErase(self):
         # Wait until flash is inited.
         while True:
-            status = self.transport.readAP(MDM_STATUS)
+            status = self.dap.readAP(MDM_STATUS)
             if status & MDM_STATUS_FLASH_READY:
                 break
             sleep(0.01)
 
         # Check if mass erase is enabled.
-        status = self.transport.readAP(MDM_STATUS)
+        status = self.dap.readAP(MDM_STATUS)
         if not (status & MDM_STATUS_MASS_ERASE_ENABLE):
             logging.error("Mass erase disabled. MDM status: 0x%x", status)
             return False
 
         # Set Flash Mass Erase in Progress bit to start erase.
-        self.transport.writeAP(MDM_CTRL, MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS)
+        self.dap.writeAP(MDM_CTRL, MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS)
 
         # Wait for Flash Mass Erase Acknowledge to be set.
         while True:
-            val = self.transport.readAP(MDM_STATUS)
+            val = self.dap.readAP(MDM_STATUS)
             if val & MDM_STATUS_FLASH_MASS_ERASE_ACKNOWLEDGE:
                 break
             sleep(0.01)
 
         # Wait for Flash Mass Erase in Progress bit to clear when erase is completed.
         while True:
-            val = self.transport.readAP(MDM_CTRL)
+            val = self.dap.readAP(MDM_CTRL)
             if (val == 0):
                 break
             sleep(0.01)
 
         # Confirm the part was unlocked
-        val = self.transport.readAP(MDM_STATUS)
+        val = self.dap.readAP(MDM_STATUS)
         if (val & MDM_STATUS_SYSTEM_SECURITY) == 0:
             logging.warning("%s secure state: unlocked successfully", self.part_number)
             return True

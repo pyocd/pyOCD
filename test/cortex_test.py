@@ -27,7 +27,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.transport.transport import Transport
+from pyOCD.pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 from random import randrange
@@ -65,11 +65,11 @@ def same(d1, d2):
     return True
 
 def test_function(board, function):
-    board.transport.flush()
+    board.link.flush()
     start = time()
     for i in range(0, TEST_COUNT):
         function()
-        board.transport.flush()
+        board.link.flush()
     stop = time()
     return (stop - start) / float(TEST_COUNT)
 
@@ -79,8 +79,6 @@ def cortex_test(board_id):
         size = 0
         f = None
         binary_file = "l1_"
-
-        interface = None
 
         target_type = board.getTargetType()
 
@@ -153,12 +151,11 @@ def cortex_test(board_id):
 
 
         target = board.target
-        transport = board.transport
+        link = board.link
         flash = board.flash
-        interface = board.interface
 
-        transport.setClock(test_clock)
-        transport.setDeferredTransfer(True)
+        link.set_clock(test_clock)
+        link.set_deferred_transfer(True)
 
         test_pass_count = 0
         test_count = 0
@@ -234,7 +231,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Transport.TransferError:
+        except DAPAccess.TransferFaultError:
             pass
 
         try:
@@ -243,7 +240,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Transport.TransferError:
+        except DAPAccess.TransferFaultError:
             pass
 
         data = [0x00] * 0x1000
@@ -253,7 +250,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Transport.TransferError:
+        except DAPAccess.TransferFaultError:
             pass
 
         data = [0x00] * 0x1000
@@ -263,7 +260,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if target_type != "nrf51":
                 memory_access_pass = False
-        except Transport.TransferError:
+        except DAPAccess.TransferFaultError:
             pass
 
         data = [randrange(0, 255) for x in range(size)]

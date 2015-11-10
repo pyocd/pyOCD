@@ -41,7 +41,6 @@ LEVELS = {
     'critical': logging.CRITICAL
 }
 
-interface = None
 board = None
 
 supported_formats = ['bin', 'hex']
@@ -150,10 +149,10 @@ def main():
                                                frequency=args.frequency)
         with board_selected as board:
             flash = board.flash
-            transport = board.transport
+            link = board.link
 
             # Boost speed with deferred transfers
-            transport.setDeferredTransfer(True)
+            link.set_deferred_transfer(True)
 
             progress = print_progress
             if args.hide_progress:

@@ -27,8 +27,8 @@ class LPC1768(CortexM):
         RamRegion(      start=0x2007C000,  length=0x8000)
         )
 
-    def __init__(self, transport):
-        super(LPC1768, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(LPC1768, self).__init__(link, self.memoryMap)
 
     def reset(self, software_reset=False):
         CortexM.reset(self, False)

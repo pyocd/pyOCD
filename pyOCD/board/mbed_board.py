@@ -20,7 +20,7 @@ import logging, array
 
 from time import sleep
 from board import Board
-from pyOCD.interface import INTERFACE, usb_backend
+from pyOCD.pyDAPAccess import DAPAccess
 
 class BoardInfo(object):
     def __init__(self, name, target, binary):
@@ -65,13 +65,15 @@ class MbedBoard(Board):
     Particularly, this class allows you to dynamically determine
     the type of all boards connected based on the id board
     """
-    def __init__(self, interface, board_id, unique_id, target=None, transport="cmsis_dap", frequency=1000000):
+    def __init__(self, link, target=None, frequency=1000000):
         """
         Init the board
         """
-        self.name = None
+        self.name = ""
         self.native_target = None
         self.test_binary = None
+        unique_id = link.get_unique_id()
+        board_id = unique_id[0:4]
         if board_id in BOARD_ID_TO_INFO:
             board_info = BOARD_ID_TO_INFO[board_id]
             self.name = board_info.name
@@ -85,7 +87,7 @@ class MbedBoard(Board):
         if target is None:
             raise Exception("Unknown board target")
 
-        super(MbedBoard, self).__init__(target, target, interface, transport, frequency)
+        super(MbedBoard, self).__init__(target, target, link, frequency)
         self.unique_id = unique_id
         self.target_type = target
 
@@ -117,14 +119,15 @@ class MbedBoard(Board):
         """
         Return info on the board
         """
-        return Board.getInfo(self) + " [" + self.target_type + "]"
+        return self.name + " [" + self.target_type + "]"
 
     @staticmethod
-    def listConnectedBoards(transport="cmsis_dap"):
+    def listConnectedBoards(dap_class=DAPAccess):
         """
         List the connected board info
         """
-        all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+        all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, close=True,
+                                                    blocking=False)
         index = 0
         if len(all_mbeds) > 0:
             for mbed in all_mbeds:
@@ -134,74 +137,44 @@ class MbedBoard(Board):
             print("No available boards are connected")
 
     @staticmethod
-    def getAllConnectedBoards(transport="cmsis_dap", close=False, blocking=True,
-                                target_override=None, frequency=1000000):
+    def getAllConnectedBoards(dap_class=DAPAccess, close=False, blocking=True,
+                              target_override=None, frequency=1000000):
         """
         Return an array of all mbed boards connected
         """
-        first = True
+
+        mbed_list = []
         while True:
-            while True:
-                if not first:
-                    # Don't eat up all the cpu if an unsupported board is connected.
-                    # Sleep before getting connected interfaces.  This way if a keyboard
-                    # exception comes in there will be no resources to close
-                    sleep(0.2)
 
-                all_mbeds = INTERFACE[usb_backend].getAllConnectedInterface(mbed_vid, mbed_pid)
-                if all_mbeds == None:
-                    all_mbeds = []
+            connected_daps = dap_class.get_connected_devices()
+            for dap_access in connected_daps:
+                new_mbed = MbedBoard(dap_access, target_override, frequency)
+                mbed_list.append(new_mbed)
 
-                if not blocking:
-                    # No blocking so break from loop
-                    break
+            #TODO - handle exception on open
+            if not close:
+                for dap_access in connected_daps:
+                    dap_access.open()
 
-                if len(all_mbeds) > 0:
-                    # A board has been found so break from loop
-                    break
+            if not blocking:
+                break
+            elif len(mbed_list) > 0:
+                break
+            else:
+                sleep(0.01)
+            assert len(mbed_list) == 0
 
-                if (first == True):
-                    logging.info("Waiting for a USB device connected")
-                    first = False
-
-            mbed_boards = []
-            for mbed in all_mbeds:
-                try:
-                    mbed.write([0x80])
-                    u_id_ = mbed.read()
-                    board_id = array.array('B', [i for i in u_id_[2:6]]).tostring()
-                    unique_id = array.array('B', [i for i in u_id_[2:2 + u_id_[1]]]).tostring()
-                    if board_id not in BOARD_ID_TO_INFO:
-                        logging.info("Unsupported board found: %s" % board_id)
-                        if target_override is None:
-                            # TODO - if no board can be determined treat this as a generic cortex-m device
-                            logging.info("Target could not be determined.  Specify target manually to use board")
-                            mbed.close()
-                            continue
-
-                    new_mbed = MbedBoard(mbed, board_id, unique_id, target_override, transport, frequency)
-                    logging.info("new board id detected: %s", unique_id)
-                    mbed_boards.append(new_mbed)
-                    if close:
-                        mbed.close()
-                except:
-                    #TODO - close all boards when an exception occurs
-                    mbed.close()
-                    raise
-
-            if len(mbed_boards) > 0 or not blocking:
-                return mbed_boards
-
-            if (first == True):
-                logging.info("Waiting for a USB device connected")
-                first = False
+        return mbed_list
 
     @staticmethod
-    def chooseBoard(transport="cmsis_dap", blocking=True, return_first=False, board_id=None, target_override=None, frequency=1000000, init_board=True):
+    def chooseBoard(dap_class=DAPAccess, blocking=True, return_first=False,
+                    board_id=None, target_override=None, frequency=1000000,
+                    init_board=True):
         """
         Allow you to select a board among all boards connected
         """
-        all_mbeds = MbedBoard.getAllConnectedBoards(transport, False, blocking, target_override, frequency)
+        all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, False, blocking,
+                                                    target_override, frequency)
 
         # If a board ID is specified close all other boards
         if board_id != None:
@@ -210,7 +183,7 @@ class MbedBoard(Board):
                 if mbed.unique_id == (board_id):
                     new_mbed_list.append(mbed)
                 else:
-                    mbed.interface.close()
+                    mbed.link.close()
             assert len(new_mbed_list) <= 1
             all_mbeds = new_mbed_list
 
@@ -225,7 +198,7 @@ class MbedBoard(Board):
         # Select first board and close others if True
         if return_first:
             for i in range(1, len(all_mbeds)):
-                all_mbeds[i].interface.close()
+                all_mbeds[i].link.close()
             all_mbeds = all_mbeds[0:1]
 
         # Ask use to select boards if there is more than 1 left
@@ -255,7 +228,7 @@ class MbedBoard(Board):
             # close all others mbed connected
             for mbed in all_mbeds:
                 if mbed != all_mbeds[ch]:
-                    mbed.interface.close()
+                    mbed.link.close()
             all_mbeds = all_mbeds[ch:ch + 1]
 
         assert len(all_mbeds) == 1
@@ -264,12 +237,6 @@ class MbedBoard(Board):
             try:
                 mbed.init()
             except:
-                mbed.interface.close()
+                mbed.link.close()
                 raise
         return mbed
-
-    def getPacketCount(self):
-        """
-        Return the number of commands the remote device's buffer can hold.
-        """
-        return self.transport.info('PACKET_COUNT')

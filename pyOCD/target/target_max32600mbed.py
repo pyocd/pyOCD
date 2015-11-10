@@ -17,7 +17,6 @@
 
 from cortex_m import CortexM
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
-from pyOCD.transport.cmsis_dap_core import PINS
 import logging
 
 class MAX32600MBED(CortexM):
@@ -29,21 +28,21 @@ class MAX32600MBED(CortexM):
         RamRegion(      start=0xe0000000,  length=0x100000)
         )
 
-    def __init__(self, transport):
-        super(MAX32600MBED, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(MAX32600MBED, self).__init__(link, self.memoryMap)
 
     def dsb(self):
         logging.info("Triggering Destructive Security Bypass...")
 
-        self.protocol.vendor(1)
+        self.link.vendor(1)
 
         # Reconnect debugger
-        self.transport.init()
+        self.link.init()
 
     def fge(self):
         logging.info("Triggering Factory Global Erase...")
 
-        self.protocol.vendor(2)
+        self.link.vendor(2)
 
         # Reconnect debugger
-        self.transport.init()
+        self.link.init()

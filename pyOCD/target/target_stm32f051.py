@@ -45,8 +45,8 @@ class STM32F051(CortexM):
         RamRegion(      start=0x20000000,  length=0x2000)
         )
 
-    def __init__(self, transport):
-        super(STM32F051, self).__init__(transport, self.memoryMap)
+    def __init__(self, link):
+        super(STM32F051, self).__init__(link, self.memoryMap)
 
     def init(self):
         logging.debug('stm32f051 init')

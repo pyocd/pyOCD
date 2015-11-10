@@ -73,10 +73,6 @@ class PyWinUSB(Interface):
             if (d.vendor_id == vid) and (d.product_id == pid):
                 all_mbed_devices.append(d)
 
-        if not all_mbed_devices:
-            logging.debug("No Mbed device connected")
-            return
-
         boards = []
         for dev in all_mbed_devices:
             try:

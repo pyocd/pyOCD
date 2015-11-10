@@ -36,7 +36,6 @@ from test_util import Test, TestResult
 addr = 0
 size = 0
 
-interface = None
 board = None
 
 import logging
@@ -184,12 +183,11 @@ def flash_test(board_id):
             raise Exception("The board is not supported by this test script.")
 
         target = board.target
-        transport = board.transport
+        link = board.link
         flash = board.flash
-        interface = board.interface
 
-        transport.setClock(test_clock)
-        transport.setDeferredTransfer(True)
+        link.set_clock(test_clock)
+        link.set_deferred_transfer(True)
 
         test_pass_count = 0
         test_count = 0

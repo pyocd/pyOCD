@@ -14,8 +14,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from .dap_access_api import DAPAccessIntf
+from .dap_access_usb import DAPAccessUSB
 
-from cmsis_dap import CMSIS_DAP
-
-TRANSPORT = {'cmsis_dap': CMSIS_DAP
-            }
+# alias DAPAccessUSB as main DAPAccess class
+DAPAccess = DAPAccessUSB

@@ -17,7 +17,7 @@
 
 import logging
 import array
-from transport import Transport
+from .dap_access_api import DAPAccessIntf
 
 COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_LED': 0x01,
@@ -87,7 +87,8 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_INFO']:
-            raise ValueError('DAP_INFO response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] == 0:
             return
@@ -116,10 +117,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_CONNECT']:
-            raise ValueError('DAP_CONNECT response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] == 0:
-            raise ValueError('DAP Connect failed')
+            # DAP connect failed
+            raise DAPAccessIntf.CommandError()
 
         if resp[1] == 1:
             logging.info('DAP SWD MODE initialised')
@@ -136,10 +139,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_DISCONNECT']:
-            raise ValueError('DAP_DISCONNECT response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP Disconnect failed')
+            # DAP Disconnect failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[1]
 
@@ -155,10 +160,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_WRITE_ABORT']:
-            raise ValueError('DAP_WRITE_ABORT response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP Write Abort failed')
+            # DAP Write Abort failed
+            raise DAPAccessIntf.CommandError()
 
         return True
 
@@ -169,10 +176,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_RESET_TARGET']:
-            raise ValueError('DAP_RESET_TARGET response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP Reset target failed')
+            # DAP Reset target failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[1]
 
@@ -188,106 +197,15 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_TRANSFER_CONFIGURE']:
-            raise ValueError('DAP_TRANSFER_CONFIGURE response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP Transfer Configure failed')
+            # DAP Transfer Configure failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[1]
 
-    def transfer(self, count, request, data=[0], dap_index=0):
-        cmd = []
-        cmd.append(COMMAND_ID['DAP_TRANSFER'])
-        cmd.append(dap_index)
-        cmd.append(count)
-        count_write = count
-        for i in range(count):
-            cmd.append(request[i])
-            if not (request[i] & ((1 << 1) | (1 << 4))):
-                cmd.append(data[i] & 0xff)
-                cmd.append((data[i] >> 8) & 0xff)
-                cmd.append((data[i] >> 16) & 0xff)
-                cmd.append((data[i] >> 24) & 0xff)
-                count_write -= 1
-        self.interface.write(cmd)
-
-        resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_TRANSFER']:
-            raise ValueError('DAP_TRANSFER response error')
-
-        if resp[2] != DAP_TRANSFER_OK:
-            if resp[2] == DAP_TRANSFER_FAULT:
-                raise Transport.TransferError()
-            raise ValueError('SWD Fault')
-
-        # Check for count mismatch after checking for DAP_TRANSFER_FAULT
-        # This allows TransferError to get thrown instead of ValueError
-        if resp[1] != count:
-            raise ValueError('Transfer not completed')
-
-        return resp[3:3 + count_write * 4]
-
-    def transferBlock(self, count, request, data=[0], dap_index=0):
-        packet_count = count
-        max_pending_reads = self.interface.getPacketCount()
-        reads_pending = 0
-        nb = 0
-        resp = []
-        error_transfer = False
-        error_response = False
-
-        # we send successfully several packets if the size is bigger than MAX_PACKET_COUNT
-        while packet_count > 0 or reads_pending > 0:
-            # Make sure the transmit buffer stays saturated
-            while packet_count > 0 and reads_pending < max_pending_reads:
-                cmd = []
-                cmd.append(COMMAND_ID['DAP_TRANSFER_BLOCK'])
-                cmd.append(dap_index)
-                packet_written = min(packet_count, MAX_PACKET_SIZE)
-                cmd.append(packet_written & 0xff)
-                cmd.append((packet_written >> 8) & 0xff)
-                cmd.append(request)
-                if not (request & ((1 << 1))):
-                    for i in range(packet_written):
-                        cmd.append(data[i + nb * MAX_PACKET_SIZE] & 0xff)
-                        cmd.append((data[i + nb * MAX_PACKET_SIZE] >> 8) & 0xff)
-                        cmd.append((data[i + nb * MAX_PACKET_SIZE] >> 16) & 0xff)
-                        cmd.append((data[i + nb * MAX_PACKET_SIZE] >> 24) & 0xff)
-                self.interface.write(cmd)
-                packet_count = packet_count - MAX_PACKET_SIZE
-                nb = nb + 1
-                reads_pending = reads_pending + 1
-
-            # Read data
-            if reads_pending > 0:
-                # we then read
-                tmp = self.interface.read()
-                if tmp[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
-                    # Error occurred - abort further writes
-                    # but make sure to finish reading remaining packets
-                    packet_count = 0
-                    error_response = True
-
-                if tmp[3] != DAP_TRANSFER_OK:
-                    # Error occurred - abort further writes
-                    # but make sure to finish reading remaining packets
-                    packet_count = 0
-                    if tmp[3] == DAP_TRANSFER_FAULT:
-                        error_transfer = True
-                    else:
-                        error_response = True
-
-                size_transfer = tmp[1] | (tmp[2] << 8)
-                resp.extend(tmp[4:4 + size_transfer * 4])
-                reads_pending = reads_pending - 1
-
-        # Raise pending errors
-        if error_response:
-            raise ValueError('DAP_TRANSFER_BLOCK response error')
-        elif error_transfer:
-            raise Transport.TransferError()
-
-        return resp
 
     def setSWJClock(self, clock=1000000):
         cmd = []
@@ -300,10 +218,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_SWJ_CLOCK']:
-                raise ValueError('DAP_SWJ_CLOCK response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP SWJ Clock failed')
+            # DAP SWJ Clock failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[1]
 
@@ -325,7 +245,8 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_SWJ_PINS']:
-                raise ValueError('DAP_SWJ_PINS response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         return resp[1]
 
@@ -337,10 +258,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_SWD_CONFIGURE']:
-                raise ValueError('DAP_SWD_CONFIGURE response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP SWD Configure failed')
+            # DAP SWD Configure failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[1]
 
@@ -354,10 +277,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_SWJ_SEQUENCE']:
-                raise ValueError('DAP_SWJ_SEQUENCE response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP SWJ Sequence failed')
+            # DAP SWJ Sequence failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[1]
 
@@ -371,10 +296,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_JTAG_SEQUENCE']:
-            raise ValueError('DAP_JTAG_SEQUENCE response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP JTAG Sequence failed')
+            # DAP JTAG Sequence failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[2]
 
@@ -387,10 +314,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_JTAG_CONFIGURE']:
-            raise ValueError('DAP_JTAG_CONFIGURE response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP JTAG Configure failed')
+            # DAP JTAG Configure failed
+            raise DAPAccessIntf.CommandError()
 
         return resp[2:]
 
@@ -402,10 +331,12 @@ class CMSIS_DAP_Protocol(object):
 
         resp = self.interface.read()
         if resp[0] != COMMAND_ID['DAP_JTAG_IDCODE']:
-            raise ValueError('DAP_JTAG_IDCODE response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
 
         if resp[1] != DAP_OK:
-            raise ValueError('DAP JTAG ID code failed')
+            # Operation failed
+            raise DAPAccessIntf.CommandError()
 
         return  (resp[2] << 0) | \
                 (resp[3] << 8) | \
@@ -420,4 +351,5 @@ class CMSIS_DAP_Protocol(object):
         resp = self.interface.read()
 
         if resp[0] != COMMAND_ID['DAP_VENDOR0'] + index:
-            raise ValueError('DAP_VENDOR response error')
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
