@@ -948,7 +948,6 @@ class GDBServer(threading.Thread):
         }
 
         resp = 'OK'
-        cmdList = cmd.split()
         if cmd == 'help':
             resp = ''.join(['%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
             resp = hexEncode(resp)
@@ -957,6 +956,7 @@ class GDBServer(threading.Thread):
             logging.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
         else:
             resultMask = 0x00
+            cmdList = cmd.split()
             if cmdList[0] == 'help':
                 # a 'help' is only valid as the first cmd, and only
                 # gives info on the second cmd if it is valid
