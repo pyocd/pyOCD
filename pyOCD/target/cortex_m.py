@@ -498,8 +498,7 @@ class CortexM(Target):
         """
         return the IDCODE of the core
         """
-        if self.idcode == 0:
-            self.idcode = self.dap.readDP(DP_REG['IDCODE'])
+        self.idcode = self.dap.readDP(DP_REG['IDCODE'])
         return self.idcode
 
     def writeMemory(self, addr, value, transfer_size=32):

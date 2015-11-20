@@ -944,7 +944,6 @@ class GDBServer(threading.Thread):
             'halt'  : ['Halt target', 0x4],
             'resume': ['Resume target', 0x8],
             'help'  : ['Display this help', 0x80],
-            # 'reg'   : ['Show registers', 0], # disabled for now
         }
 
         resp = 'OK'
