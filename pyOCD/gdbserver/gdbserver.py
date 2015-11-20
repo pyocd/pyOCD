@@ -940,9 +940,9 @@ class GDBServer(threading.Thread):
 
         safecmd = {
             'init'  : ['Init reset sequence', 0x1],
-            'reset' : ['Reset target', 0x2],
+            'reset' : ['Reset and halt the target', 0x2],
             'halt'  : ['Halt target', 0x4],
-            'resume': ['Resume target', 0x8],
+            # 'resume': ['Resume target', 0x8],
             'help'  : ['Display this help', 0x80],
         }
 
@@ -981,16 +981,13 @@ class GDBServer(threading.Thread):
             if (resultMask & 0x6) == 0x6:
                 self.target.resetStopOnReset()
             elif resultMask & 0x2:
-                self.target.reset()
+                # on 'reset' still do a reset halt
+                self.target.resetStopOnReset()                
+                # self.target.reset()
             elif resultMask & 0x4:
                 self.target.halt()
-            if resultMask & 0x8:
-                self.target.resume()
-
-            if self.target.getState() != Target.TARGET_HALTED:
-                logging.error("Remote command left target running!")
-                logging.error("Forcing target to halt")
-                self.target.halt()
+            # if resultMask & 0x8:
+            #     self.target.resume()
 
         return self.createRSPPacket(resp)
 
