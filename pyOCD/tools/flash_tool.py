@@ -146,7 +146,10 @@ def main():
         MbedBoard.listConnectedBoards()
     else:
         board_selected = MbedBoard.chooseBoard(board_id=args.board_id, target_override=args.target_override,
-                                               frequency=args.frequency)
+                                               frequency=args.frequency, blocking=False)
+        if board_selected is None:
+            print("Error: There is no board connected.")
+            sys.exit(1)
         with board_selected as board:
             flash = board.flash
             link = board.link
