@@ -182,7 +182,7 @@ class Flash(object):
         page_info = self.getPageInfo(flashPtr)
 
         # update core register to execute the program_page subroutine
-        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, page_info.size, self.begin_data)
+        result = self.callFunctionAndWait(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
 
         # check the return code
         if result != 0:

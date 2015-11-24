@@ -83,6 +83,9 @@ def speed_test(board_id):
         if target_type == "nrf51":
             # Override clock since 10MHz is too fast
             test_clock = 1000000
+        if target_type == "ncs36510":
+            # Override clock since 10MHz is too fast
+            test_clock = 1000000
 
         memory_map = board.target.getMemoryMap()
         ram_regions = [region for region in memory_map if region.type == 'ram']
