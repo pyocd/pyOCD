@@ -939,63 +939,55 @@ class GDBServer(threading.Thread):
         logging.debug('Remote command: %s', cmd)
 
         safecmd = {
-            'reset' : ['Reset target', 0x1],
-            'halt'  : ['Halt target', 0x2],
-            'resume': ['Resume target', 0x4],
+            'init'  : ['Init reset sequence', 0x1],
+            'reset' : ['Reset and halt the target', 0x2],
+            'halt'  : ['Halt target', 0x4],
+            # 'resume': ['Resume target', 0x8],
             'help'  : ['Display this help', 0x80],
-            'reg'   : ['Show registers', 0],
-            'init'  : ['Init reset sequence', 0]
         }
-        resultMask = 0x00
+
         resp = 'OK'
         if cmd == 'help':
-            resp = ''
-            for k, v in safecmd.items():
-                resp += '%s\t%s\n' % (k, v[0])
+            resp = ''.join(['%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
             resp = hexEncode(resp)
         elif cmd.startswith('arm semihosting'):
             self.enable_semihosting = 'enable' in cmd
             logging.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
         else:
-            cmdList = cmd.split(' ')
-            #check whether all the cmds is valid cmd for monitor
+            resultMask = 0x00
+            cmdList = cmd.split()
+            if cmdList[0] == 'help':
+                # a 'help' is only valid as the first cmd, and only
+                # gives info on the second cmd if it is valid
+                resultMask |= 0x80
+                del cmdList[0]
+
             for cmd_sub in cmdList:
-                if not cmd_sub in safecmd:
-                    #error cmd for monitor
-                    logging.warning("Invalid mon command '%s'", cmd)
-                    resp = 'Invalid Command: "%s"\n' % cmd
+                if cmd_sub not in safecmd:
+                    logging.warning("Invalid mon command '%s'", cmd_sub)
+                    resp = 'Invalid Command: "%s"\n' % cmd_sub
                     resp = hexEncode(resp)
                     return self.createRSPPacket(resp)
-                else:
-                    resultMask = resultMask | safecmd[cmd_sub][1]
-            #10000001 for help reset, so output reset cmd help information
-            if resultMask == 0x81:
-                resp = 'Reset the target\n'
-                resp = hexEncode(resp)
-            #10000010 for help halt, so output halt cmd help information
-            elif resultMask == 0x82:
-                resp = 'Halt the target\n'
-                resp = hexEncode(resp)
-            #10000100 for help resume, so output resume cmd help information
-            elif resultMask == 0x84:
-                resp = 'Resume the target\n'
-                resp = hexEncode(resp)
-            #11 for reset halt cmd, so launch self.target.resetStopOnReset()
-            elif resultMask == 0x3:
-                self.target.resetStopOnReset()
-            #111 for reset halt resume cmd, so launch self.target.resetStopOnReset() and self.target.resume()
-            elif resultMask == 0x7:
-                self.target.resetStopOnReset()
-                self.target.resume()
-            elif resultMask == 0x1:
-                self.target.reset()
-            elif resultMask == 0x2:
-                self.target.halt()
+                elif resultMask == 0x80:
+                    # if the first command was a 'help', we only need
+                    # to return info about the first cmd after it
+                    resp = hexEncode(safecmd[cmd_sub][0]+'\n')
+                    return self.createRSPPacket(resp)                    
+                resultMask |= safecmd[cmd_sub][1]
 
-            if self.target.getState() != Target.TARGET_HALTED:
-                logging.error("Remote command left target running!")
-                logging.error("Forcing target to halt")
+            # Run cmds in proper order
+            if resultMask & 0x1:
+                self.target.init()
+            if (resultMask & 0x6) == 0x6:
+                self.target.resetStopOnReset()
+            elif resultMask & 0x2:
+                # on 'reset' still do a reset halt
+                self.target.resetStopOnReset()                
+                # self.target.reset()
+            elif resultMask & 0x4:
                 self.target.halt()
+            # if resultMask & 0x8:
+            #     self.target.resume()
 
         return self.createRSPPacket(resp)
 
