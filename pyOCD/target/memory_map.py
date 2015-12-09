@@ -88,6 +88,7 @@ class MemoryRegion(object):
         return (address >= self.start) and (address <= self.end)
 
     def containsRange(self, start, end=None, length=None):
+        assert (end is not None) ^ (length is not None)
         if end is None:
             end = start + length - 1
         return self.containsAddress(start) and self.containsAddress(end)
