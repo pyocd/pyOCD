@@ -79,6 +79,10 @@ class CMSIS_DAP_Protocol(object):
     def __init__(self, interface):
         self.interface = interface
 
+        if logging.getLogger().isEnabledFor(logging.TRACE):
+            from analyzer import ANALYZER
+            ANALYZER['cmsis_dap'].attach(interface)
+
     def dapInfo(self, id_):
         cmd = []
         cmd.append(COMMAND_ID['DAP_INFO'])

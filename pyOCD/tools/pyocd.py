@@ -30,6 +30,7 @@ from pyOCD.board import MbedBoard
 from pyOCD.target import target_kinetis
 from pyOCD.pyDAPAccess import DAPAccess
 from pyOCD.target.target import Target
+from pyOCD.tools import LEVELS
 
 # Make disasm optional.
 try:
@@ -37,14 +38,6 @@ try:
     isCapstoneAvailable = True
 except ImportError:
     isCapstoneAvailable = False
-
-LEVELS = {
-        'debug':logging.DEBUG,
-        'info':logging.INFO,
-        'warning':logging.WARNING,
-        'error':logging.ERROR,
-        'critical':logging.CRITICAL
-        }
 
 CORE_STATUS_DESC = {
         Target.TARGET_HALTED : "Halted",

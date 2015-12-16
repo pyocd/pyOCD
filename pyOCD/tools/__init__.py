@@ -14,3 +14,20 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging
+
+# Add an extra logging level for trace functionality
+TRACE = 5
+logging.TRACE = TRACE
+def trace(self, message, *args, **kws):
+    self._log(TRACE, message, *args, **kws)
+logging.Logger.trace = trace
+
+LEVELS = {
+    'trace': logging.TRACE,
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
