@@ -54,6 +54,7 @@ BOARD_ID_TO_INFO = {
                 "0405": BoardInfo(  "max32600mbed",         "max32600mbed",     "l1_max32600mbed.bin",  ),
                 "1100": BoardInfo(  "nRF51-DK",             "nrf51",            "l1_nrf51-dk.bin",      ),
                 "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
+                "9900": BoardInfo(  "Microbit",             "nrf51",            "l1_microbit.bin",      ),
               }
 
 mbed_vid = 0x0d28
@@ -69,11 +70,11 @@ class MbedBoard(Board):
         """
         Init the board
         """
-        self.name = ""
         self.native_target = None
         self.test_binary = None
         unique_id = link.get_unique_id()
         board_id = unique_id[0:4]
+        self.name = "Unknown Board"
         if board_id in BOARD_ID_TO_INFO:
             board_info = BOARD_ID_TO_INFO[board_id]
             self.name = board_info.name
@@ -85,7 +86,8 @@ class MbedBoard(Board):
             target = self.native_target
 
         if target is None:
-            raise Exception("Unknown board target")
+            logging.error("Unsupported board found %s", board_id)
+            target = "cortex_m"
 
         super(MbedBoard, self).__init__(target, target, link, frequency)
         self.unique_id = unique_id
