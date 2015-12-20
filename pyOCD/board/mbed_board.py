@@ -69,11 +69,11 @@ class MbedBoard(Board):
         """
         Init the board
         """
-        self.name = ""
         self.native_target = None
         self.test_binary = None
         unique_id = link.get_unique_id()
         board_id = unique_id[0:4]
+        self.name = "Unknown Board"
         if board_id in BOARD_ID_TO_INFO:
             board_info = BOARD_ID_TO_INFO[board_id]
             self.name = board_info.name
@@ -85,7 +85,8 @@ class MbedBoard(Board):
             target = self.native_target
 
         if target is None:
-            raise Exception("Unknown board target")
+            logging.error("Unsupported board found %s", board_id)
+            target = "cortex_m"
 
         super(MbedBoard, self).__init__(target, target, link, frequency)
         self.unique_id = unique_id
