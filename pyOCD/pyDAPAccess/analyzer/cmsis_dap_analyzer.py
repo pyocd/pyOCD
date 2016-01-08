@@ -278,7 +278,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
 
         return lines
 
-    def _bitdiff(self, sysreg, dword, rnw):
+    def _bitdiff(self, sysreg, dword, rnw, dmask=0xffffffff):
         fields = []
         cachedword = self._cache.get(sysreg)
         for bitmask, (fieldname, offset) in BIT_MAPS[sysreg].iteritems():
@@ -289,6 +289,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
                 bitdiff = bitmask
             if (sysreg == 'DHCSR' and not rnw) or sysreg == 'AIRCR':
                 bitdiff &= 0xFFFF # Ignore VECTKEY bits
+            bitdiff &= dmask
 
             if bitdiff == 0:
                 continue
@@ -322,36 +323,42 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
 
     def _xresp(self, tcnt, tresp, xfers):
         lines = ''
-        ok = lookup_code(TRANSFER_RESP, tresp) in ('OK','ACK')
+        xferok = lookup_code(TRANSFER_RESP, tresp) in ('OK','ACK')
         for i in range(tcnt):
             treq, dapreg, dword = self.last_rqst.popleft()
             rnw = (treq&0b000010) >> 1
 
             if rnw: 
                 dword = get_word(xfers, pop=True)
-                ddir = '=>' if ok else '=>X'
+                ddir = '=>' if xferok else '=>X'
             else:
-                ddir = '<=' if ok else 'X<='
+                ddir = '<=' if xferok else 'X<='
 
-            if not ok:
-                lines += '\n\t' + "{:s} {:s} 0x{:08X}".format(dapreg, ddir, dword)
-                continue
-
+            hexdword = "0x%08X" % dword
+            expr = '\n\t' + "{:<10s} {:s} {:s}"
+            dmask = 0xffffffff
             if dapreg == 'AP.DRW':
                 tar = self._cache.get('AP.TAR')
                 addr = 'AP.DRW' if tar is None else REG_MAP.get(tar, "0x{:08X}".format(tar))
-                lines += '\n\t' + "{:<10s} {:s} 0x{:08X}".format(addr, ddir, dword)
-                lines += self._drw_access(rnw, dword)
+                if 'AP.CSW' in self._cache and tar is not None: 
+                    xfersz = self._cache['AP.CSW'] & CSW_SIZE
+                    bitoffset = 8 * (tar % 4)
+                    dmask = ((1 << (8 << xfersz)) - 1) << bitoffset
+                    dword &= dmask
+                    hexdword = ("0x{:0%dX}" % (2 << xfersz)).format(dword >> bitoffset).rjust(10)
+                lines += expr.format(addr, ddir, hexdword)
+                if xferok:
+                    lines += self._drw_access(rnw, dword, dmask)
             else:
-                lines += '\n\t' + "{:<10s} {:s} 0x{:08X}".format(dapreg, ddir, dword)
+                lines += expr.format(dapreg, ddir, hexdword)
 
             # Give the bits from the equivalent SWD transaction
             # lines += "\n\t{:s} {:s} {:s}".format(*self._swd_bits(treq, tresp, dword))
-            self._cache[dapreg] = dword
 
+            if xferok: self._cache[dapreg] = (self._cache.get(dapreg, 0) & ~dmask) | dword
         return lines
 
-    def _drw_access(self, rnw, dword):
+    def _drw_access(self, rnw, dword, dmask):
         lines = ''
 
         try:
@@ -369,7 +376,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
 
         sysreg = REG_MAP[tar]
         if sysreg == 'DCRSR':
-            wnr, regsel = dword&0x10000, dword&0x1F
+            regsel = dword&0x1F
             lines += " ; REGSEL $%s" % CORE_REGS[regsel]
         elif sysreg == 'DCRDR' and 'DCRSR' in self._cache:
             dcrsr = self._cache['DCRSR']
@@ -377,11 +384,11 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             ddir = ' =' if wnr else ':'
             lines += " ; ${:s}{:s} 0x{:08X}".format(CORE_REGS[regsel], ddir, dword)
         elif sysreg in BIT_MAPS:
-            bitdiff = self._bitdiff(sysreg, dword, rnw)
+            bitdiff = self._bitdiff(sysreg, dword, rnw, dmask)
             if bitdiff:
                 lines += " ; " + ", ".join(map("=".join, bitdiff))
 
-        self._cache[sysreg] = dword
+        self._cache[sysreg] = (self._cache.get(sysreg, 0) & ~dmask) | dword
 
         return lines
 
