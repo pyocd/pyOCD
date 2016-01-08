@@ -130,6 +130,8 @@ lookup_code = lambda d,k: d.get(k, "UNKNOWN_CODE(0x%02x)" % k)
 lookup_cmd = lambda cmd: COMMAND_ID.get(cmd, "UNKNOWN_CMD(0x%02x)" % cmd)
 reverse_bits = lambda b,width=0: bin(b)[2:].zfill(width)[::-1]
 
+TXFMT = "{rw:5s} {dapreg}[            |, 0x{dword:08X}] ; [\*| ]{dapreg} = {addr:10s}\( <{pphaddr}>\)?"
+RXFMT = "{addr:10s} {ddir} 0x{dword:08X}\( ; {bitdiff}\)?"
 
 def get_word(data,index=0,pop=False):
     d1,d2,d3,d4 = data[index:index+4]
@@ -227,22 +229,20 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             data = None
             lines += ('READ ' if rnw else 'WRITE') + ' ' + dapreg
             if not rnw:
-                dword = get_word(xfers, pop=True)
-                lines += ", 0x{:08X}".format(dword)
-                data = dword
+                data = get_word(xfers, pop=True)
+                lines += ", 0x{:08X}".format(data)
 
                 if dapregmap[a23] == 'TAR':
-                    lines += " ;  TAR = &%s" % REG_MAP.get(dword,"0x{:08X}".format(dword))
+                    lines += " ;  TAR = &%s" % REG_MAP.get(data,"0x{:08X}".format(data))
+                    # Add the peripheral space this is in
+                    # regs = sorted([(a,b) for (a,b) in MEM_MAP if a <= data < b])
+                    # if regs:
+                    #     base = regs[-1]
+                    #     lines += " <%s+%d>" % (".".join(map(MEM_MAP.get, regs)), data-base[0])
                 elif dapregmap[a23] == 'DRW':
-                    lines += " ; *TAR = 0x{:08X}".format(dword)
+                    lines += " ; *TAR = 0x{:08X}".format(data)
             elif dapregmap[a23] == 'DRW':
                 lines += " "*12 + " ;  DRW = *TAR"
-
-            if dapregmap[a23] == 'TAR':
-                regs = sorted([(a,b) for (a,b) in MEM_MAP if a <= dword < b])
-                if regs:
-                    base = regs[-1]
-                    lines += " {%s+%d}" % (".".join(map(MEM_MAP.get,regs)),dword-base[0])
 
             if vm != 0 or mm != 0:
                 lines += " (vmatch={:d}, mmask={:d})".format(vm,mm)
@@ -280,22 +280,24 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
 
     def _bitdiff(self, sysreg, dword, rnw):
         fields = []
-        cachedword = self._cache.get(sysreg,None)
-        bitdiff = 0xFFFFFFFF
-
+        cachedword = self._cache.get(sysreg)
         for bitmask, (fieldname, offset) in BIT_MAPS[sysreg].iteritems():
             bitfield = dword&bitmask
             if cachedword is not None:
                 bitdiff = bitfield ^ (cachedword&bitmask)
+            else:
+                bitdiff = bitmask
             if (sysreg == 'DHCSR' and not rnw) or sysreg == 'AIRCR':
-                bitdiff &= 0xFFFF # Ignore the VECTKEY bits on write
+                bitdiff &= 0xFFFF # Ignore VECTKEY bits
 
-            if bitdiff != 0:
-                val = (bitfield & bitdiff) >> offset
-                if (bitmask >> offset) > 1:
-                    fields.append((fieldname, "0x{:X}".format(val)))
-                else:
-                    fields.append((fieldname, "{:d}".format(val)))
+            if bitdiff == 0:
+                continue
+
+            val = (bitfield & bitdiff) >> offset
+            if (bitmask >> offset) > 1:
+                fields.append((fieldname, "0x{:X}".format(val)))
+            else:
+                fields.append((fieldname, "{:d}".format(val)))
 
         return fields
 
@@ -378,6 +380,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             bitdiff = self._bitdiff(sysreg, dword, rnw)
             if bitdiff:
                 lines += " ; " + ", ".join(map("=".join, bitdiff))
+
         self._cache[sysreg] = dword
 
         return lines
