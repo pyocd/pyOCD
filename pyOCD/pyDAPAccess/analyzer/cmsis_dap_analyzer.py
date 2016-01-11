@@ -21,27 +21,6 @@ TRANSFER_RESP = {  0b000: 'ACK'
                  , 0b010: 'WAIT'
                  , 0b100: 'FAULT'}
 
-CORE_REGS = {  0x00: 'r0'
-             , 0x01: 'r1'
-             , 0x02: 'r2'
-             , 0x03: 'r3'
-             , 0x04: 'r4'
-             , 0x05: 'r5'
-             , 0x06: 'r6'
-             , 0x07: 'r7'
-             , 0x08: 'r8'
-             , 0x09: 'r9'
-             , 0x0a: 'r10'
-             , 0x0b: 'r11'
-             , 0x0c: 'r12'
-             , 0x0d: 'sp'
-             , 0x0e: 'lr'
-             , 0x0f: 'pc'
-             , 0x10: 'xpsr'
-             , 0x11: 'msp'
-             , 0x12: 'psp'
-             , 0x14: 'spmcr'}
-
 REG_MAP = {  0xE000EDFC: 'DEMCR'
            , 0xE000EDF0: 'DHCSR'
            , 0xE000EDF4: 'DCRSR'
@@ -86,7 +65,7 @@ BIT_MAPS = \
 , 'DCRSR': 
     {   
         0x00010000: ('REGWnR',       16)
-      , 0x0008001F: ('REGSEL',        0)
+      , 0x0000007F: ('REGSEL',        0)
     }
 , 'DCRDR':
     {
@@ -180,7 +159,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             tracer = self.get_rqst_translater(cmd)
             trace = tracer(data) if tracer is not None else ""
 
-        # logging.debug(("trace_tx:%s" % cmd.lower()) + trace)
+        logging.debug(("trace_tx:%s" % cmd.lower()) + trace)
 
     def trace_read(self, data, **kwargs):
         cmd = lookup_cmd(data[0])
@@ -213,10 +192,9 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
         # for each block transfer, a single transfer request byte is sent that
         # applies to all data sent/received
         lines = ''
+        expr = "{cmd:5s} {dapreg:6s}{optdword:12s}{optcomment}"
         for i in range(tcnt):
-            lines += '\n\t'
             treq = xfers.pop(0)&0x3F
-
             apndp = (treq&0b000001)
             rnw =   (treq&0b000010) >> 1
             a23 =   (treq&0b001100)
@@ -226,28 +204,34 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             dapregmap = AP_REG if apndp else DP_RREG if rnw else DP_WREG
             dapreg = ('AP' if apndp else 'DP') + '.' + dapregmap[a23]
 
-            data = None
-            lines += ('READ ' if rnw else 'WRITE') + ' ' + dapreg
+            dword = None if rnw else get_word(xfers, pop=True)
+            comment = dwordstr = ''
             if not rnw:
-                data = get_word(xfers, pop=True)
-                lines += ", 0x{:08X}".format(data)
-
-                if dapregmap[a23] == 'TAR':
-                    lines += " ;  TAR = &%s" % REG_MAP.get(data,"0x{:08X}".format(data))
-                    # Add the peripheral space this is in
-                    # regs = sorted([(a,b) for (a,b) in MEM_MAP if a <= data < b])
-                    # if regs:
-                    #     base = regs[-1]
-                    #     lines += " <%s+%d>" % (".".join(map(MEM_MAP.get, regs)), data-base[0])
-                elif dapregmap[a23] == 'DRW':
-                    lines += " ; *TAR = 0x{:08X}".format(data)
+                comment = "{apreg:>4s} = {dword:11s}"
+                reg = dapregmap[a23]
+                dwordstr = "0x{:08X}".format(dword)
+                if reg == 'TAR' and dword in REG_MAP:
+                    dwordstr = "&" + REG_MAP[dword]
+                elif reg == 'DRW':
+                    reg = '*' + reg
+                comment = comment.format(apreg=reg, dword=dwordstr)
+                # Add the peripheral space this is in
+                # regs = sorted([(a,b) for (a,b) in MEM_MAP if a <= dword < b])
+                # if regs:
+                #     base = regs[-1]
+                #     comment += " <%s+%d>" % (".".join(map(MEM_MAP.get, regs)), dword-base[0])
             elif dapregmap[a23] == 'DRW':
-                lines += " "*12 + " ;  DRW = *TAR"
+                comment = "{apreg:>4s} = {dword:11s}".format(apreg='DRW', dword='*TAR')
+
+            lines += '\n\t' + expr.format(cmd='READ' if rnw else 'WRITE', 
+                                          dapreg=dapreg, 
+                                          optdword=", 0x{:08X}".format(dword) if dword is not None else '',
+                                          optcomment=" ; {}".format(comment) if comment else '')
 
             if vm != 0 or mm != 0:
                 lines += " (vmatch={:d}, mmask={:d})".format(vm,mm)
 
-            self.last_rqst.append([treq, dapreg, data])
+            self.last_rqst.append([treq, dapreg, dword])
 
         return lines
 
@@ -279,26 +263,29 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
         return lines
 
     def _bitdiff(self, sysreg, dword, rnw, dmask=0xffffffff):
+        if sysreg not in BIT_MAPS:
+            return []
+
+        if (sysreg == 'DHCSR' and not rnw) or sysreg == 'AIRCR':
+            dmask &= 0xFFFF # Ignore VECTKEY bits
+
         fields = []
         cachedword = self._cache.get(sysreg)
         for bitmask, (fieldname, offset) in BIT_MAPS[sysreg].iteritems():
             bitfield = dword&bitmask
             if cachedword is not None:
-                bitdiff = bitfield ^ (cachedword&bitmask)
+                diffmask = bitfield ^ (cachedword&bitmask)
             else:
-                bitdiff = bitmask
-            if (sysreg == 'DHCSR' and not rnw) or sysreg == 'AIRCR':
-                bitdiff &= 0xFFFF # Ignore VECTKEY bits
-            bitdiff &= dmask
+                diffmask = bitmask
+            diffmask &= dmask
 
-            if bitdiff == 0:
+            if diffmask == 0:
                 continue
 
-            val = (bitfield & bitdiff) >> offset
             if (bitmask >> offset) > 1:
-                fields.append((fieldname, "0x{:X}".format(val)))
+                fields.append((fieldname, "0x{:X}".format(bitfield >> offset)))
             else:
-                fields.append((fieldname, "{:d}".format(val)))
+                fields.append((fieldname, "{:d}".format((bitfield & diffmask) >> offset)))
 
         return fields
 
@@ -324,6 +311,8 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
     def _xresp(self, tcnt, tresp, xfers):
         lines = ''
         xferok = lookup_code(TRANSFER_RESP, tresp) in ('OK','ACK')
+        expr = "{addr:10s} {ddir:3s} {dword:10s}{comment}"
+        swdexpr = "{:10s} {:3s} {}"
         for i in range(tcnt):
             treq, dapreg, dword = self.last_rqst.popleft()
             rnw = (treq&0b000010) >> 1
@@ -334,63 +323,49 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             else:
                 ddir = '<=' if xferok else 'X<='
 
-            hexdword = "0x%08X" % dword
-            expr = '\n\t' + "{:<10s} {:s} {:s}"
+            dwordstr = "0x%08X" % dword
             dmask = 0xffffffff
+            addr = dapreg
+            comment = ''
             if dapreg == 'AP.DRW':
                 tar = self._cache.get('AP.TAR')
-                addr = 'AP.DRW' if tar is None else REG_MAP.get(tar, "0x{:08X}".format(tar))
-                if 'AP.CSW' in self._cache and tar is not None: 
+                if tar is not None:
+                    addr = REG_MAP.get(tar, "0x%08X" % tar)
+                elif 'AP.CSW' in self._cache and tar is not None:
                     xfersz = self._cache['AP.CSW'] & CSW_SIZE
-                    bitoffset = 8 * (tar % 4)
+                    bitoffset = (tar % 4) << 3
                     dmask = ((1 << (8 << xfersz)) - 1) << bitoffset
                     dword &= dmask
-                    hexdword = ("0x{:0%dX}" % (2 << xfersz)).format(dword >> bitoffset).rjust(10)
-                lines += expr.format(addr, ddir, hexdword)
+                    dwordstr = ("0x{:0%dX}" % (2 << xfersz)).format(dword >> bitoffset).rjust(10)
                 if xferok:
-                    lines += self._drw_access(rnw, dword, dmask)
-            else:
-                lines += expr.format(dapreg, ddir, hexdword)
+                    comment = self._drw_access(rnw, dword, dmask)
+            lines += '\n\t' + expr.format(addr=addr, ddir=ddir, dword=dwordstr, comment=" ; "+comment if comment else '')
 
             # Give the bits from the equivalent SWD transaction
-            # lines += "\n\t{:s} {:s} {:s}".format(*self._swd_bits(treq, tresp, dword))
+            # lines += "\n\t" + swdexpr.format(*self._swd_bits(treq, tresp, dword))
 
             if xferok: self._cache[dapreg] = (self._cache.get(dapreg, 0) & ~dmask) | dword
         return lines
 
     def _drw_access(self, rnw, dword, dmask):
-        lines = ''
-
         try:
             tar = self._cache['AP.TAR']
         except KeyError:
             logging.warning("Attempting to access memory without first setting TAR")
-            return lines
+            return ''
 
         # handle auto-incrementing TAR
         if 'AP.CSW' in self._cache and self._cache['AP.CSW'] & CSW_ADDRINC:
             self._cache['AP.TAR'] += 1 << (self._cache['AP.CSW'] & CSW_SIZE)
 
         if tar not in REG_MAP: # we only care about core memory space
-            return lines
+            return ''
 
         sysreg = REG_MAP[tar]
-        if sysreg == 'DCRSR':
-            regsel = dword&0x1F
-            lines += " ; REGSEL $%s" % CORE_REGS[regsel]
-        elif sysreg == 'DCRDR' and 'DCRSR' in self._cache:
-            dcrsr = self._cache['DCRSR']
-            wnr, regsel = dcrsr&0x10000, dcrsr&0x1F
-            ddir = ' =' if wnr else ':'
-            lines += " ; ${:s}{:s} 0x{:08X}".format(CORE_REGS[regsel], ddir, dword)
-        elif sysreg in BIT_MAPS:
-            bitdiff = self._bitdiff(sysreg, dword, rnw, dmask)
-            if bitdiff:
-                lines += " ; " + ", ".join(map("=".join, bitdiff))
-
+        bitdiff = self._bitdiff(sysreg, dword, rnw, dmask)
         self._cache[sysreg] = (self._cache.get(sysreg, 0) & ~dmask) | dword
 
-        return lines
+        return ", ".join(k + '=' + v for k,v in bitdiff)
 
     def _xresp_block(self, tcnt, tresp, xfers):
         treq, dapreg, txdword = self.last_blktransfer.pop(0)
