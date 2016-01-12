@@ -213,7 +213,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
                 if reg == 'TAR' and dword in REG_MAP:
                     dwordstr = "&" + REG_MAP[dword]
                 elif reg == 'DRW':
-                    reg = '*' + reg
+                    reg = '*TAR'
                 comment = comment.format(apreg=reg, dword=dwordstr)
                 # Add the peripheral space this is in
                 # regs = sorted([(a,b) for (a,b) in MEM_MAP if a <= dword < b])
@@ -311,7 +311,7 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
     def _xresp(self, tcnt, tresp, xfers):
         lines = ''
         xferok = lookup_code(TRANSFER_RESP, tresp) in ('OK','ACK')
-        expr = "{addr:10s} {ddir:3s} {dword:10s}{comment}"
+        expr = "{addr:10s} {ddir:3s} {dword:>10s}{comment}"
         swdexpr = "{:10s} {:3s} {}"
         for i in range(tcnt):
             treq, dapreg, dword = self.last_rqst.popleft()
@@ -329,16 +329,18 @@ class CMSIS_DAPAnalyzer(TransportAnalyzer):
             comment = ''
             if dapreg == 'AP.DRW':
                 tar = self._cache.get('AP.TAR')
-                if tar is not None:
-                    addr = REG_MAP.get(tar, "0x%08X" % tar)
-                elif 'AP.CSW' in self._cache and tar is not None:
+                if 'AP.CSW' in self._cache and tar is not None:
                     xfersz = self._cache['AP.CSW'] & CSW_SIZE
                     bitoffset = (tar % 4) << 3
                     dmask = ((1 << (8 << xfersz)) - 1) << bitoffset
                     dword &= dmask
-                    dwordstr = ("0x{:0%dX}" % (2 << xfersz)).format(dword >> bitoffset).rjust(10)
+                    dwordstr = ("0x{:0%dX}" % (2 << xfersz)).format(dword >> bitoffset)
+                if tar is not None:
+                    addr = REG_MAP.get(tar, "0x%08X" % tar)
                 if xferok:
                     comment = self._drw_access(rnw, dword, dmask)
+            elif dapreg == 'AP.TAR':
+                comment = "TAR = " + ('&'+REG_MAP[dword] if dword in REG_MAP else dwordstr)
             lines += '\n\t' + expr.format(addr=addr, ddir=ddir, dword=dwordstr, comment=" ; "+comment if comment else '')
 
             # Give the bits from the equivalent SWD transaction
