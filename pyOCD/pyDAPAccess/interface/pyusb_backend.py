@@ -81,7 +81,14 @@ class PyUSB(Interface):
         # iterate on all devices found
         for board in all_devices:
             interface_number = -1
-            product = board.product
+            try:
+                # The product string is read over USB when accessed.
+                # This can cause an exception to be thrown if the device
+                # is malfunctioning.
+                product = board.product
+            except usb.core.USBError as error:
+                logging.warning("Exception getting product string: %s", error)
+                continue
             if (product.find("CMSIS-DAP") < 0):
                 # Not a cmsis-dap device so close it
                 usb.util.dispose_resources(board)
