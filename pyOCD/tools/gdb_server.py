@@ -55,6 +55,7 @@ class GDBServerTool(object):
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting.")
         parser.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false", help="Allow remote TCP/IP connections (default is no).")
         parser.add_argument("-b", "--board", dest="board_id", default=None, help="Connect to board by board id.  Use -l to list all connected boards.")
+        parser.add_argument("-B", "--board-index", dest="board_index", default=None, help="Connect to board by indexing. Useful for connected to first found board using index 0.")
         parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False, help="List all connected boards.")
         parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
         parser.add_argument("--json", action="store_true", dest="output_json", default=False, help="Output lists in JSON format. Only applies to --list and --list-targets.")
@@ -222,10 +223,15 @@ class GDBServerTool(object):
         self.args = self.build_parser().parse_args(args)
         self.gdb_server_settings = self.get_gdb_server_settings(self.args)
         self.setup_logging(self.args)
-
         self.process_commands(self.args.commands)
 
         gdb = None
+        if self.args.board_index is not None:
+            ind = int(self.args.board_index)
+            all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+            if len(all_mbeds) > ind:
+                self.args.board_id = all_mbeds[ind].unique_id
+
         if self.args.list_all == True:
             self.list_boards()
         elif self.args.list_targets == True:
