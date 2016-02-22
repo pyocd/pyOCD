@@ -112,75 +112,19 @@ def flash_test(board_id):
         target_type = board.getTargetType()
 
         test_clock = 10000000
-        if target_type == "kl25z":
-            ram_start = 0x1ffff000
-            ram_size = 0x4000
-            rom_start = 0x00000000
-            rom_size = 0x20000
-        elif target_type == "kl28z":
-            ram_start = 0x1fffa000
-            ram_size = 96 * 1024
-            rom_start = 0x00000000
-            rom_size = 512 * 1024
-        elif target_type == "kl46z":
-            ram_start = 0x1fffe000
-            ram_size = 0x8000
-            rom_start = 0x00000000
-            rom_size = 0x40000
-        elif target_type == "k22f":
-            ram_start = 0x1fff0000
-            ram_size = 0x20000
-            rom_start = 0x00000000
-            rom_size = 0x80000
-        elif target_type == "k64f":
-            ram_start = 0x1FFF0000
-            ram_size = 0x40000
-            rom_start = 0x00000000
-            rom_size = 0x100000
-        elif target_type == "lpc11u24":
-            ram_start = 0x10000000
-            ram_size = 0x2000
-            rom_start = 0x00000000
-            rom_size = 0x8000
-        elif target_type == "lpc1768":
-            ram_start = 0x10000000
-            ram_size = 0x8000
-            rom_start = 0x00000000
-            rom_size = 0x80000
-        elif target_type == "lpc4330":
-            ram_start = 0x10000000
-            ram_size = 0x20000
-            rom_start = 0x14000000
-            rom_size = 0x100000
-        elif target_type == "lpc800":
-            ram_start = 0x10000000
-            ram_size = 0x1000
-            rom_start = 0x00000000
-            rom_size = 0x4000
-        elif target_type == "nrf51":
-            ram_start = 0x20000000
-            ram_size = 0x4000
-            rom_start = 0x00000000
-            rom_size = 0x40000
+        if target_type == "nrf51":
             # Override clock since 10MHz is too fast
             test_clock = 1000000
-        elif target_type == "maxwsnenv":
-            ram_start = 0x20000000
-            ram_size = 0x8000
-            rom_start = 0x00000000
-            rom_size = 0x40000
-        elif target_type == "max32600mbed":
-            ram_start = 0x20000000
-            ram_size = 0x8000
-            rom_start = 0x00000000
-            rom_size = 0x40000
-        elif target_type == "w7500":
-            ram_start = 0x20000000
-            ram_size = 0x4000
-            rom_start = 0x00000000
-            rom_size = 0x20000
-        else:
-            raise Exception("The board is not supported by this test script.")
+
+        memory_map = board.target.getMemoryMap()
+        ram_regions = [region for region in memory_map if region.type == 'ram']
+        ram_region = ram_regions[0]
+        rom_region = memory_map.getBootMemory()
+
+        ram_start = ram_region.start
+        ram_size = ram_region.length
+        rom_start = rom_region.start
+        rom_size = rom_region.length
 
         target = board.target
         link = board.link
