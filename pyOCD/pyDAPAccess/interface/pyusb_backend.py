@@ -89,7 +89,7 @@ class PyUSB(Interface):
             except usb.core.USBError as error:
                 logging.warning("Exception getting product string: %s", error)
                 continue
-            if (product.find("CMSIS-DAP") < 0):
+            if (product is None) or (product.find("CMSIS-DAP") < 0):
                 # Not a cmsis-dap device so close it
                 usb.util.dispose_resources(board)
                 continue
