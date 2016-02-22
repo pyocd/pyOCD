@@ -63,6 +63,7 @@ BOARD_ID_TO_INFO = {
                 "1095": BoardInfo(  "RedBearLab-BLE-Nano",  "nrf51",            "l1_nrf51.bin",         ),
                 "9012": BoardInfo(  "Seeed-Tiny-BLE",       "nrf51",            "l1_nrf51.bin",         ),
                 "1234": BoardInfo(  "u-blox-C027",          "lpc1768",          "l1_lpc1768.bin",       ),
+                "1018": BoardInfo(  "Switch-Science-mbed-LPC824", "lpc824",     "l1_lpc824.bin",        ),
               }
 
 mbed_vid = 0x0d28
