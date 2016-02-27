@@ -28,6 +28,7 @@ from pyOCD import __version__
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line
+from pyOCD.pyDAPAccess.dap_access_usb import DAPAccessUSB
 import pyOCD.board.mbed_board
 
 LEVELS = {
@@ -178,9 +179,20 @@ class GDBServerTool(object):
                     'info' : mbed.getInfo(),
                     'board_name' : mbed.getBoardName(),
                     'target' : mbed.getTargetType(),
-                    'vendor_name' : mbed.interface.vendor_name,
-                    'product_name' : mbed.interface.product_name,
+                    'vendor_name' : '',
+                    'product_name' : '',
                     }
+
+                # Reopen the link so we can access the USB vendor and product names from the inteface.
+                # If it's not a USB based link, then we don't attempt this.
+                if isinstance(mbed.link, DAPAccessUSB):
+                    try:
+                        mbed.link.open()
+                        d['vendor_name'] = mbed.link._interface.vendor_name
+                        d['product_name'] = mbed.link._interface.product_name
+                        mbed.link.close()
+                    except Exception:
+                        pass
                 boards.append(d)
 
             print json.dumps(obj, indent=4) #, sys.stdout)
