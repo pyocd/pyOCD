@@ -81,10 +81,10 @@ class CMSIS_DAP_Protocol(object):
         self.interface = interface
 
     def dapInfo(self, id_):
-        cmd = []
-        cmd.append(COMMAND_ID['DAP_INFO'])
         if not type(id_) in (six.integer_types):
             id_ = ID_INFO[id_]
+        cmd = []
+        cmd.append(COMMAND_ID['DAP_INFO'])
         cmd.append(id_)
         self.interface.write(cmd)
 
@@ -97,7 +97,7 @@ class CMSIS_DAP_Protocol(object):
             return
 
         # Integer values
-        if id_ in ('CAPABILITIES', 'PACKET_COUNT', 'PACKET_SIZE'):
+        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
             if resp[1] == 1:
                 return resp[2]
             if resp[1] == 2:
@@ -108,7 +108,6 @@ class CMSIS_DAP_Protocol(object):
         if x[-1] == '\x00':
             x = x[0:-1]
         return x
-
 
     def setLed(self):
         #not yet implemented
