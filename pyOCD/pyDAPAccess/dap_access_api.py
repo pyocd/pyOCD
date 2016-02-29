@@ -43,7 +43,7 @@ class DAPAccessIntf(object):
         VENDOR = 1
         PRODUCT = 2
         SER_NUM = 3
-        FW_VAR = 4
+        FW_VER = 4
         DEVICE_VENDOR = 5
         DEVICE_NAME = 6
 

@@ -33,6 +33,7 @@ from speed_test import SpeedTest
 from cortex_test import CortexTest
 from flash_test import FlashTest
 from gdb_test import GdbTest
+from gdb_server_json_test import GdbServerJsonTest
 
 
 if __name__ == "__main__":
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     # Put together list of tests
     test = Test("Basic Test", lambda board: basic_test(board, None))
     test_list.append(test)
+    test_list.append(GdbServerJsonTest())
     test_list.append(SpeedTest())
     test_list.append(CortexTest())
     test_list.append(FlashTest())

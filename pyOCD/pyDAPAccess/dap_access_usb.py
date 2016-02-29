@@ -39,7 +39,7 @@ MBED_PID = 0x0204
 
 
 def _get_interfaces():
-    """Get the commected USB devices"""
+    """Get the connected USB devices"""
     return INTERFACE[usb_backend].getAllConnectedInterface(MBED_VID, MBED_PID)
 
 

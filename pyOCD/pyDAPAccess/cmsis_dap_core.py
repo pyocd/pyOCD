@@ -18,6 +18,7 @@
 import logging
 import array
 from .dap_access_api import DAPAccessIntf
+import six
 
 COMMAND_ID = {'DAP_INFO': 0x00,
               'DAP_LED': 0x01,
@@ -80,9 +81,11 @@ class CMSIS_DAP_Protocol(object):
         self.interface = interface
 
     def dapInfo(self, id_):
+        if not type(id_) in (six.integer_types):
+            id_ = ID_INFO[id_]
         cmd = []
         cmd.append(COMMAND_ID['DAP_INFO'])
-        cmd.append(ID_INFO[id_])
+        cmd.append(id_)
         self.interface.write(cmd)
 
         resp = self.interface.read()
@@ -94,16 +97,17 @@ class CMSIS_DAP_Protocol(object):
             return
 
         # Integer values
-        if id_ in ('CAPABILITIES', 'PACKET_COUNT', 'PACKET_SIZE'):
+        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
             if resp[1] == 1:
                 return resp[2]
             if resp[1] == 2:
                 return (resp[3] << 8) | resp[2]
 
-        # String values
-        x = array.array('B', [i for i in resp[2:2 + resp[1]]])
-
-        return x.tostring()
+        # String values. They are sent as C strings with a terminating null char, so we strip it out.
+        x = array.array('B', [i for i in resp[2:2 + resp[1]]]).tostring()
+        if x[-1] == '\x00':
+            x = x[0:-1]
+        return x
 
     def setLed(self):
         #not yet implemented

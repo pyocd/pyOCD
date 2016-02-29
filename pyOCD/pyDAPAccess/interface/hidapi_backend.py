@@ -63,7 +63,8 @@ class HidApiUSB(Interface):
 
         for deviceInfo in devices:
             try:
-                dev = hid.device(vendor_id=vid, product_id=pid, path=deviceInfo['path'])
+                dev = hid.device(vendor_id=deviceInfo['vendor_id'], product_id=deviceInfo['product_id'],
+                    path=deviceInfo['path'])
             except IOError:
                 logging.debug("Failed to open Mbed device")
                 return
@@ -74,11 +75,15 @@ class HidApiUSB(Interface):
             new_board.product_name = deviceInfo['product_string']
             new_board.vid = deviceInfo['vendor_id']
             new_board.pid = deviceInfo['product_id']
+            new_board.device_info = deviceInfo
             new_board.device = dev
             try:
-                dev.open(vid, pid)
+                dev.open_path(deviceInfo['path'])
             except AttributeError:
                 pass
+            except IOError:
+                # Ignore failure to open a device by skipping the device.
+                continue
 
             boards.append(new_board)
 
