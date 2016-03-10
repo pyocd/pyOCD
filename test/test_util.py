@@ -66,10 +66,10 @@ class Test(object):
     @staticmethod
     def print_results(result_list):
         print("\r\n\r\n------ TEST RESULTS ------")
-        print("{:<15}{:<15}{:<15}{:<15}".format("Target", "Test", "Result", "Time"))
+        print("{:<15}{:<21}{:<15}{:<15}".format("Target", "Test", "Result", "Time"))
         print("")
         for result in result_list:
-            print("{:<15}{:<15}{:<15}{:<15}".format(result.board.target_type, result.test.name, "Pass" if result.passed else "Fail", result.time))
+            print("{:<15}{:<21}{:<15}{:<15}".format(result.board.target_type, result.test.name, "Pass" if result.passed else "Fail", result.time))
 
     @staticmethod
     def all_tests_pass(result_list):
