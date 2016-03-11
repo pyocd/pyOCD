@@ -14,6 +14,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
 
 import os, sys
 from time import sleep, time
@@ -39,11 +40,13 @@ class SpeedTest(Test):
     def __init__(self):
         super(SpeedTest, self).__init__("Speed Test", speed_test)
 
-    def print_perf_info(self, result_list):
-        result_list = filter(lambda x : isinstance(x, SpeedTestResult), result_list)
-        print("\r\n\r\n------ Speed Test Performance ------")
-        print("{:<10}{:<16}{:<16}".format("Target", "Write Speed", "Read Speed"))
-        print("")
+    def print_perf_info(self, result_list, output_file=None):
+        format_str = "{:<10}{:<16}{:<16}"
+        result_list = filter(lambda x: isinstance(x, SpeedTestResult), result_list)
+        print("\r\n\r\n------ Speed Test Performance ------", file=output_file)
+        print(format_str.format("Target", "Write Speed", "Read Speed"),
+              file=output_file)
+        print("", file=output_file)
         for result in result_list:
             if result.passed:
                 read_speed = "%f KB/s" % (float(result.read_speed) / float(1000))
@@ -51,8 +54,10 @@ class SpeedTest(Test):
             else:
                 read_speed = "Fail"
                 write_speed = "Fail"
-            print("{:<10}{:<16}{:<16}".format(result.board.target_type, read_speed, write_speed))
-        print("")
+            print(format_str.format(result.board.target_type,
+                                    read_speed, write_speed),
+                  file=output_file)
+        print("", file=output_file)
 
     def run(self, board):
         passed = False
@@ -99,7 +104,7 @@ def speed_test(board_id):
         link.set_clock(test_clock)
         link.set_deferred_transfer(True)
 
-        print "\r\n\r\n------ TEST RAM READ / WRITE SPEED ------"
+        print("\r\n\r\n------ TEST RAM READ / WRITE SPEED ------")
         test_addr = ram_start
         test_size = ram_size
         data = [randrange(1, 50) for x in range(test_size)]
@@ -121,15 +126,15 @@ def speed_test(board_id):
         for i in range(len(block)):
             if (block[i] != data[i]):
                 error = True
-                print "ERROR: 0x%X, 0x%X, 0x%X!!!" % ((addr + i), block[i], data[i])
+                print("ERROR: 0x%X, 0x%X, 0x%X!!!" % ((addr + i), block[i], data[i]))
         if error:
-            print "TEST FAILED"
+            print("TEST FAILED")
         else:
-            print "TEST PASSED"
+            print("TEST PASSED")
             test_pass_count += 1
         test_count += 1
 
-        print "\r\n\r\n------ TEST ROM READ SPEED ------"
+        print("\r\n\r\n------ TEST ROM READ SPEED ------")
         test_addr = rom_start
         test_size = rom_size
         start = time()
@@ -138,7 +143,7 @@ def speed_test(board_id):
         stop = time()
         diff = stop - start
         print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff, test_size / diff))
-        print "TEST PASSED"
+        print("TEST PASSED")
         test_pass_count += 1
         test_count += 1
 

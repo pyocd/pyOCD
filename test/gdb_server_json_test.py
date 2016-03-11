@@ -43,7 +43,7 @@ class GdbServerJsonTest(Test):
     def __init__(self):
         super(GdbServerJsonTest, self).__init__("Gdb Server Json Test", gdb_server_json_test)
 
-    def print_perf_info(self, result_list):
+    def print_perf_info(self, result_list, output_file=None):
         pass
 
     def run(self, board):

@@ -42,7 +42,7 @@ class CortexTest(Test):
     def __init__(self):
         super(CortexTest, self).__init__("Cortex Test", cortex_test)
 
-    def print_perf_info(self, result_list):
+    def print_perf_info(self, result_list, output_file=None):
         pass
 
     def run(self, board):

@@ -14,6 +14,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
 
 import os, sys
 
@@ -36,11 +37,26 @@ from gdb_test import GdbTest
 from gdb_server_json_test import GdbServerJsonTest
 
 
-if __name__ == "__main__":
+def print_summary(test_list, result_list, test_time, output_file=None):
+    for test in test_list:
+        test.print_perf_info(result_list, output_file=output_file)
+
+    Test.print_results(result_list, output_file=output_file)
+    print("", file=output_file)
+    print("Test Time: %s" % test_time, file=output_file)
+    if Test.all_tests_pass(result_list):
+        print("All tests passed", file=output_file)
+    else:
+        print("One or more tests has failed!", file=output_file)
+
+
+def main():
     log_file = "automated_test_result.txt"
+    summary_file = "automated_test_summary.txt"
 
     parser = argparse.ArgumentParser(description='pyOCD automated testing')
-    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    parser.add_argument('-d', '--debug',
+                        action="store_true", help='Enable debug logging')
     args = parser.parse_args()
 
     # Setup logging
@@ -80,18 +96,17 @@ if __name__ == "__main__":
             result.time = test_stop - test_start
             result_list.append(result)
     stop = time()
+    test_time = (stop - start)
 
-    for test in test_list:
-        test.print_perf_info(result_list)
+    print_summary(test_list, result_list, test_time)
+    with open(summary_file, "wb") as output_file:
+        print_summary(test_list, result_list, test_time, output_file)
 
-    Test.print_results(result_list)
-    print("")
-    print("Test Time: %s" % (stop - start))
-    if Test.all_tests_pass(result_list):
-        print("All tests passed")
-        exit(0)
-    else:
-        print("One or more tests has failed!")
-        exit(-1)
+    exit_val = 0 if Test.all_tests_pass(result_list) else -1
+    exit(exit_val)
 
     #TODO - check if any threads are still running?
+
+if __name__ == "__main__":
+    main()
+
