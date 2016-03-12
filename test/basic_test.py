@@ -44,67 +44,15 @@ def basic_test(board_id, file):
 
         print "binary file: %s" % binary_file
 
-        addr_bin = 0x00000000
+        memory_map = board.target.getMemoryMap()
+        ram_regions = [region for region in memory_map if region.type == 'ram']
+        ram_region = ram_regions[0]
+        rom_region = memory_map.getBootMemory()
 
-        if target_type == "lpc1768":
-            addr = 0x10000001
-            size = 0x1102
-            addr_flash = 0x10000
-        elif target_type == "lpc11u24":
-            addr = 0x10000001
-            size = 0x502
-            addr_flash = 0x4000
-        elif target_type == "kl25z":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "kl28z":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "k64f":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "k22f":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "k20d50m":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "kl46z":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "lpc800":
-            addr = 0x10000001
-            size = 0x502
-            addr_flash = 0x2000
-        elif target_type == "nrf51":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x20000
-        elif target_type == "lpc4330":
-            addr = 0x10000001
-            size = 0x1102
-            addr_flash = 0x14010000
-            addr_bin = 0x14000000
-        elif target_type == "maxwsnenv":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "max32600mbed":
-            addr = 0x20000001
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "w7500":
-            addr = 0x20000001
-            size = 0x1102
-            addr_flash = 0x00000000
-        else:
-            raise Exception("A board is not supported by this test script.")
+        addr = ram_region.start + 1
+        size = 0x502
+        addr_bin = rom_region.start
+        addr_flash = rom_region.start + rom_region.length // 2
 
         target = board.target
         link = board.link

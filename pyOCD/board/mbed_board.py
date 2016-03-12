@@ -55,6 +55,16 @@ BOARD_ID_TO_INFO = {
                 "1100": BoardInfo(  "nRF51-DK",             "nrf51",            "l1_nrf51-dk.bin",      ),
                 "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
                 "9900": BoardInfo(  "Microbit",             "nrf51",            "l1_microbit.bin",      ),
+                "1114": BoardInfo("mbed LPC1114FN28",       "lpc11xx_32",       "l1_mbed_LPC1114FN28.bin",),
+                "1120": BoardInfo(  "nRF51-Dongle",         "nrf51",            "l1_nrf51.bin",         ),
+                "1019": BoardInfo(  "mbed TY51822r3",       "nrf51",            "l1_nrf51.bin",         ),
+                "1017": BoardInfo(  "mbed HRM1017",         "nrf51",            "l1_nrf51.bin",         ),
+                "1090": BoardInfo(  "RedBearLab-nRF51822",  "nrf51",            "l1_nrf51.bin",         ),
+                "1095": BoardInfo(  "RedBearLab-BLE-Nano",  "nrf51",            "l1_nrf51.bin",         ),
+                "9012": BoardInfo(  "Seeed-Tiny-BLE",       "nrf51",            "l1_nrf51.bin",         ),
+                "1234": BoardInfo(  "u-blox-C027",          "lpc1768",          "l1_lpc1768.bin",       ),
+                "1018": BoardInfo(  "Switch-Science-mbed-LPC824", "lpc824",     "l1_lpc824.bin",        ),
+                "0824": BoardInfo(  "LPCXpresso824-MAX",    "lpc824",           "l1_lpc824.bin",        ),
               }
 
 mbed_vid = 0x0d28

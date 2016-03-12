@@ -14,6 +14,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
+
 import pyOCD
 import logging, os, sys
 
@@ -57,19 +59,25 @@ class Test(object):
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
         return TestResult(board, self, passed)
 
-    def print_perf_info(self, result_list):
+    def print_perf_info(self, result_list, output_file=None):
         """
         Print performance info if any
         """
         pass
 
     @staticmethod
-    def print_results(result_list):
+    def print_results(result_list, output_file=None):
+        msg_format_str = "{:<15}{:<21}{:<15}{:<15}"
         print("\r\n\r\n------ TEST RESULTS ------")
-        print("{:<15}{:<15}{:<15}{:<15}".format("Target", "Test", "Result", "Time"))
-        print("")
+        print(msg_format_str .format("Target", "Test", "Result", "Time"),
+              file=output_file)
+        print("", file=output_file)
         for result in result_list:
-            print("{:<15}{:<15}{:<15}{:<15}".format(result.board.target_type, result.test.name, "Pass" if result.passed else "Fail", result.time))
+            status_str = "Pass" if result.passed else "Fail"
+            print(msg_format_str.format(result.board.target_type,
+                                        result.test.name,
+                                        status_str, result.time),
+                  file=output_file)
 
     @staticmethod
     def all_tests_pass(result_list):

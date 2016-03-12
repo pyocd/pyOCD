@@ -42,7 +42,7 @@ class CortexTest(Test):
     def __init__(self):
         super(CortexTest, self).__init__("Cortex Test", cortex_test)
 
-    def print_perf_info(self, result_list):
+    def print_perf_info(self, result_list, output_file=None):
         pass
 
     def run(self, board):
@@ -75,80 +75,24 @@ def test_function(board, function):
 
 def cortex_test(board_id):
     with MbedBoard.chooseBoard(board_id=board_id, frequency=1000000) as board:
-        addr = 0
-        size = 0
-        f = None
-        binary_file = "l1_"
-
         target_type = board.getTargetType()
 
         binary_file = os.path.join(parentdir, 'binaries', board.getTestBinary())
 
-        addr_bin = 0x00000000
         test_clock = 10000000
         addr_invalid = 0x3E000000 # Last 16MB of ARM SRAM region - typically empty
-        if target_type == "lpc1768":
-            addr = 0x10000000
-            size = 0x1102
-            addr_flash = 0x10000
-        elif target_type == "lpc11u24":
-            addr = 0x10000000
-            size = 0x502
-            addr_flash = 0x4000
-        elif target_type == "kl25z":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "kl28z":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "k64f":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "k22f":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "k20d50m":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "kl46z":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "lpc800":
-            addr = 0x10000000
-            size = 0x502
-            addr_flash = 0x2000
-        elif target_type == "nrf51":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x20000
+        if target_type == "nrf51":
             # Override clock since 10MHz is too fast
             test_clock = 1000000
-        elif target_type == "lpc4330":
-            addr = 0x10000000
-            size = 0x1102
-            addr_flash = 0x14010000
-            addr_bin = 0x14000000
-        elif target_type == "maxwsnenv":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "max32600mbed":
-            addr = 0x20000000
-            size = 0x502
-            addr_flash = 0x10000
-        elif target_type == "w7500":
-            addr = 0x20000000
-            size = 0x1102
-            addr_flash = 0x00000000
-        else:
-            raise Exception("A board is not supported by this test script.")
 
+        memory_map = board.target.getMemoryMap()
+        ram_regions = [region for region in memory_map if region.type == 'ram']
+        ram_region = ram_regions[0]
+        rom_region = memory_map.getBootMemory()
+
+        addr = ram_region.start + 1
+        size = 0x502
+        addr_bin = rom_region.start
 
         target = board.target
         link = board.link

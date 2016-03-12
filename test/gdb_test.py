@@ -49,7 +49,7 @@ class GdbTest(Test):
     def __init__(self):
         super(self.__class__, self).__init__("Gdb Test", test_gdb)
 
-    def print_perf_info(self, result_list):
+    def print_perf_info(self, result_list, output_file=None):
         pass
 
     def run(self, board):

@@ -38,6 +38,7 @@ import target_maxwsnenv
 import target_max32600mbed
 import target_w7500
 import target_lpc11xx_32
+import target_lpc824
 import semihost
 
 TARGET = {
@@ -64,4 +65,5 @@ TARGET = {
           'max32600mbed': target_max32600mbed.MAX32600MBED,
           'w7500': target_w7500.W7500,
           'lpc11xx_32': target_lpc11xx_32.LPC11XX_32,
+          'lpc824': target_lpc824.LPC824,
          }

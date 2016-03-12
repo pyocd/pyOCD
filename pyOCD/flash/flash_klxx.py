@@ -77,7 +77,7 @@ flash_algo = { 'load_address' : 0x20000000,
                'pc_erase_sector' : 0x2000006F,
                'pc_program_page' : 0x2000009F,
                'begin_stack' : 0x20000800,
-               'begin_data' : 0x20000a00,       # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
+               'begin_data' : 0x20000800,       # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
                                                 # Note: 128 pages on KL25 and KL26, 256 pages on KL46
                'static_base' : 0x20000000 + 0x20 + 0x5E8,
                'min_program_length' : 4,
@@ -91,7 +91,7 @@ class Flash_klxx(Flash_Kinetis):
         algo = flash_algo
         if isinstance(target, KL25Z) or isinstance(target, KL26Z) or isinstance(target, KL46Z):
             algo = dict(algo)
-            algo['page_buffers'] = [0x20000a00, 0x20000e00] # Enable double buffering
+            algo['page_buffers'] = [0x20000800, 0x20000c00] # Enable double buffering
             algo['analyzer_supported'] = True
             algo['analyzer_address'] = 0x1ffff000  # Analyzer 0x1ffff000..0x1ffff600
         super(Flash_klxx, self).__init__(target, algo)
