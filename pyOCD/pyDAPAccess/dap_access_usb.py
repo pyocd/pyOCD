@@ -34,23 +34,15 @@ WRITE = 0 << 1
 VALUE_MATCH = 1 << 4
 MATCH_MASK = 1 << 5
 
-MBED_VID = 0x0d28
-MBED_PID = 0x0204
-
 
 def _get_interfaces():
     """Get the connected USB devices"""
-    return INTERFACE[usb_backend].getAllConnectedInterface(MBED_VID, MBED_PID)
+    return INTERFACE[usb_backend].getAllConnectedInterface()
 
 
 def _get_unique_id(interface):
     """Get the unique id from an interface"""
-    interface.write([0x80])
-    raw_id = bytearray(interface.read())
-    id_start = 2
-    id_size = raw_id[1]
-    unique_id = str(raw_id[id_start:id_start + id_size])
-    return unique_id
+    return interface.getSerialNumber()
 
 
 class _Transfer(object):

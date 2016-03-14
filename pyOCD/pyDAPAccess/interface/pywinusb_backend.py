@@ -60,17 +60,16 @@ class PyWinUSB(Interface):
         self.device.open(shared=False)
 
     @staticmethod
-    def getAllConnectedInterface(vid, pid):
+    def getAllConnectedInterface():
         """
-        returns all the connected devices which matches PyWinUSB.vid/PyWinUSB.pid.
-        returns an array of PyWinUSB (Interface) objects
+        returns all the connected CMSIS-DAP devices
         """
         all_devices = hid.find_all_hid_devices()
 
         # find devices with good vid/pid
         all_mbed_devices = []
         for d in all_devices:
-            if (d.vendor_id == vid) and (d.product_id == pid):
+            if (d.product_name.find("CMSIS-DAP") >= 0):
                 all_mbed_devices.append(d)
 
         boards = []
@@ -83,6 +82,7 @@ class PyWinUSB(Interface):
                     new_board.report = report[0]
                     new_board.vendor_name = dev.vendor_name
                     new_board.product_name = dev.product_name
+                    new_board.serial_number = dev.serial_number
                     new_board.vid = dev.vendor_id
                     new_board.pid = dev.product_id
                     new_board.device = dev
@@ -126,6 +126,9 @@ class PyWinUSB(Interface):
     def setPacketCount(self, count):
         # No interface level restrictions on count
         self.packet_count = count
+
+    def getSerialNumber(self):
+        return self.serial_number
 
     def close(self):
         """

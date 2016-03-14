@@ -25,6 +25,7 @@
 
 import os
 import json
+import sys
 from subprocess import Popen, STDOUT, PIPE
 
 from pyOCD.tools.gdb_server import GDBServerTool
@@ -36,6 +37,17 @@ from test_util import Test, TestResult
 
 TEST_PARAM_FILE = "test_params.txt"
 TEST_RESULT_FILE = "test_results.txt"
+PYTHON_GDB_FOR_OS = {
+    "linux": "arm-none-eabi-gdb",
+    "darwin": "arm-none-eabi-gdb-py",
+    "win": "arm-none-eabi-gdb-py",
+}
+PYTHON_GDB = None
+for prefix, program in PYTHON_GDB_FOR_OS.iteritems():
+    if sys.platform.startswith(prefix):
+        PYTHON_GDB = program
+        break
+
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -116,7 +128,7 @@ def test_gdb(board_id=None):
         f.write(json.dumps(test_params))
 
     # Run the test
-    gdb = ["arm-none-eabi-gdb-py", "--command=gdb_script.py"]
+    gdb = [PYTHON_GDB, "--command=gdb_script.py"]
     with open("output.txt", "wb") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
         args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id]
