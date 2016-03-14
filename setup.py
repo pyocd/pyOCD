@@ -18,19 +18,12 @@
 from setuptools import setup, find_packages
 import sys
 
-install_requires = ['intelhex', 'six', 'enum34']
-if sys.platform.startswith('linux'):
-    install_requires.extend([
-        'pyusb>=1.0.0b2',
-    ])
-elif sys.platform.startswith('win'):
-    install_requires.extend([
-        'pywinusb>=0.4.0',
-    ])
-elif sys.platform.startswith('darwin'):
-    install_requires.extend([
-        'hidapi',
-    ])
+install_requires = [
+    'intelhex',
+    'six',
+    'enum34',
+    'pyDAPAccess>=0.1.0, <0.2.0',
+    ]
 
 setup(
     name="pyOCD",

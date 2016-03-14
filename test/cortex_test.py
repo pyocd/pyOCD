@@ -27,7 +27,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 from random import randrange

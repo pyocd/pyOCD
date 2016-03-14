@@ -18,7 +18,7 @@
 from target_kinetis import Kinetis
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
-from pyOCD.pyDAPAccess import DAPAccess
+from pyDAPAccess import DAPAccess
 
 SIM_SDID = 0x40075024
 SIM_SDID_KEYATTR_MASK = 0x70

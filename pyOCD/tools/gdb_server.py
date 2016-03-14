@@ -28,7 +28,7 @@ from pyOCD import __version__
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line
-from pyOCD.pyDAPAccess.dap_access_usb import DAPAccessUSB
+from pyDAPAccess.dap_access_usb import DAPAccessUSB
 import pyOCD.board.mbed_board
 
 LEVELS = {
