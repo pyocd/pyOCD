@@ -48,10 +48,14 @@ def tgt(request):
     request.addfinalizer(cleanup)
     return board.target
 
+@pytest.fixture(scope='module')
+def ctx(tgt):
+    return tgt.getTargetContext()
+
 @pytest.fixture(scope='function')
-def semihostagent(tgt, request):
+def semihostagent(ctx, request):
     io_handler = semihost.InternalSemihostIOHandler()
-    agent = semihost.SemihostAgent(tgt, io_handler)
+    agent = semihost.SemihostAgent(ctx, io_handler)
     def cleanup():
         agent.cleanup()
     request.addfinalizer(cleanup)
@@ -125,7 +129,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
             return length
         d = self._in_data[fd][:length]
         self._in_data[fd] = self._in_data[fd][length:]
-        self.agent.target.writeBlockMemoryUnaligned8(ptr, bytearray(d))
+        self.agent.context.writeBlockMemoryUnaligned8(ptr, bytearray(d))
         return length - len(d)
 
     def readc(self):
@@ -142,6 +146,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
 class SemihostRequestBuilder:
     def __init__(self, tgt, semihostagent, ramrgn):
         self.tgt = tgt
+        self.ctx = tgt.getTargetContext()
         self.semihostagent = semihostagent
         self.ramrgn = ramrgn
 
@@ -151,15 +156,15 @@ class SemihostRequestBuilder:
     def setup_semihost_request(self, rqnum):
         assert self.tgt.getState() == Target.TARGET_HALTED
 
-        self.tgt.write16(self.ramrgn.start, NOP)
-        self.tgt.write16(self.ramrgn.start + 2, BKPT_AB)
-        self.tgt.write16(self.ramrgn.start + 4, BKPT_00)
+        self.ctx.write16(self.ramrgn.start, NOP)
+        self.ctx.write16(self.ramrgn.start + 2, BKPT_AB)
+        self.ctx.write16(self.ramrgn.start + 4, BKPT_00)
 
-        self.tgt.writeCoreRegister('pc', self.ramrgn.start)
-        self.tgt.writeCoreRegister('sp', self.ramrgn.start + 0x100)
-        self.tgt.writeCoreRegister('r0', rqnum)
-        self.tgt.writeCoreRegister('r1', self.ramrgn.start + 0x200)
-        self.tgt.flush()
+        self.ctx.writeCoreRegister('pc', self.ramrgn.start)
+        self.ctx.writeCoreRegister('sp', self.ramrgn.start + 0x100)
+        self.ctx.writeCoreRegister('r0', rqnum)
+        self.ctx.writeCoreRegister('r1', self.ramrgn.start + 0x200)
+        self.ctx.flush()
         return self.ramrgn.start + 0x200
 
     def do_open(self, filename, mode):
@@ -167,82 +172,82 @@ class SemihostRequestBuilder:
 
         # Write filename
         filename = bytearray(filename + '\x00')
-        self.tgt.writeBlockMemoryUnaligned8(argsptr + 12, filename)
+        self.ctx.writeBlockMemoryUnaligned8(argsptr + 12, filename)
 
-        self.tgt.write32(argsptr, argsptr + 12) # null terminated filename
-        self.tgt.write32(argsptr + 4, semihost.SemihostAgent.OPEN_MODES.index(mode)) # mode
-        self.tgt.write32(argsptr + 8, len(filename) - 1) # filename length minus null terminator
+        self.ctx.write32(argsptr, argsptr + 12) # null terminated filename
+        self.ctx.write32(argsptr + 4, semihost.SemihostAgent.OPEN_MODES.index(mode)) # mode
+        self.ctx.write32(argsptr + 8, len(filename) - 1) # filename length minus null terminator
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
         return result
 
     def do_close(self, fd):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_CLOSE)
-        self.tgt.write32(argsptr, fd)
+        self.ctx.write32(argsptr, fd)
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
         return result
 
     def do_write(self, fd, data):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
 
         # Write data
-        self.tgt.writeBlockMemoryUnaligned8(argsptr + 12, bytearray(data))
+        self.ctx.writeBlockMemoryUnaligned8(argsptr + 12, bytearray(data))
 
-        self.tgt.write32(argsptr, fd) # fd
-        self.tgt.write32(argsptr + 4, argsptr + 12) # data
-        self.tgt.write32(argsptr + 8, len(data)) # data length
-        self.tgt.flush()
+        self.ctx.write32(argsptr, fd) # fd
+        self.ctx.write32(argsptr + 4, argsptr + 12) # data
+        self.ctx.write32(argsptr + 8, len(data)) # data length
+        self.ctx.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
         return result
 
     def do_writec(self, c):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITEC)
-        self.tgt.write8(argsptr, ord(c))
+        self.ctx.write8(argsptr, ord(c))
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
         return result
 
     def do_write0(self, s):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE0)
 
         s = bytearray(s + '\x00')
-        self.tgt.writeBlockMemoryUnaligned8(argsptr, s)
+        self.ctx.writeBlockMemoryUnaligned8(argsptr, s)
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
         return result
 
     def do_read(self, fd, length):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_READ)
 
         # Clear read buffer.
-        self.tgt.writeBlockMemoryUnaligned8(argsptr + 12, bytearray('\x00') * length)
+        self.ctx.writeBlockMemoryUnaligned8(argsptr + 12, bytearray('\x00') * length)
 
-        self.tgt.write32(argsptr, fd) # fd
-        self.tgt.write32(argsptr + 4, argsptr + 12) # ptr
-        self.tgt.write32(argsptr + 8, length) # data length
-        self.tgt.flush()
+        self.ctx.write32(argsptr, fd) # fd
+        self.ctx.write32(argsptr + 4, argsptr + 12) # ptr
+        self.ctx.write32(argsptr + 8, length) # data length
+        self.ctx.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
 
         # Read data put into read buffer.
         data = str(bytearray(self.tgt.readBlockMemoryUnaligned8(argsptr + 12, length - result)))
@@ -252,51 +257,51 @@ class SemihostRequestBuilder:
     def do_seek(self, fd, pos):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_SEEK)
 
-        self.tgt.write32(argsptr, fd) # fd
-        self.tgt.write32(argsptr + 4, pos) # pos
-        self.tgt.flush()
+        self.ctx.write32(argsptr, fd) # fd
+        self.ctx.write32(argsptr + 4, pos) # pos
+        self.ctx.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
 
         return result
 
     def do_flen(self, fd):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_FLEN)
 
-        self.tgt.write32(argsptr, fd) # fd
-        self.tgt.flush()
+        self.ctx.write32(argsptr, fd) # fd
+        self.ctx.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
 
         return result
 
     def do_istty(self, fd):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_ISTTY)
 
-        self.tgt.write32(argsptr, fd) # fd
-        self.tgt.flush()
+        self.ctx.write32(argsptr, fd) # fd
+        self.ctx.flush()
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
 
         return result
 
     def do_no_args_call(self, rq):
         argsptr = self.setup_semihost_request(rq)
-        self.tgt.writeCoreRegister('r1', 0) # r1 must be zero on entry
+        self.ctx.writeCoreRegister('r1', 0) # r1 must be zero on entry
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
 
-        result = self.tgt.readCoreRegister('r0')
+        result = self.ctx.readCoreRegister('r0')
         return result
 
 @pytest.fixture(scope='function')
@@ -306,7 +311,7 @@ def semihost_builder(tgt, semihostagent, ramrgn):
 @pytest.fixture(scope='function')
 def console_semihost_builder(semihost_builder):
     console = RecordingSemihostIOHandler()
-    agent = semihost.SemihostAgent(semihost_builder.tgt, console=console)
+    agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
     semihost_builder.set_agent(agent)
     return semihost_builder
 
@@ -369,7 +374,7 @@ class TestSemihosting:
 
     def test_console_write(self, semihost_builder):
         console = RecordingSemihostIOHandler()
-        agent = semihost.SemihostAgent(semihost_builder.tgt, console=console)
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
         result = semihost_builder.do_write(semihost.STDOUT_FD, 'hello world')
@@ -379,7 +384,7 @@ class TestSemihosting:
 
     def test_console_writec(self, semihost_builder):
         console = RecordingSemihostIOHandler()
-        agent = semihost.SemihostAgent(semihost_builder.tgt, console=console)
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
         for c in 'abcdef':
@@ -390,7 +395,7 @@ class TestSemihosting:
 
     def test_console_write0(self, semihost_builder):
         console = RecordingSemihostIOHandler()
-        agent = semihost.SemihostAgent(semihost_builder.tgt, console=console)
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
         result = semihost_builder.do_write0('this is a string')
@@ -407,7 +412,7 @@ class TestSemihosting:
         ])
     def test_console_read(self, semihost_builder, data, readlen):
         console = RecordingSemihostIOHandler()
-        agent = semihost.SemihostAgent(semihost_builder.tgt, console=console)
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
         console.set_input_data(semihost.STDIN_FD, data)
@@ -421,7 +426,7 @@ class TestSemihosting:
 
     def test_console_readc(self, semihost_builder):
         console = RecordingSemihostIOHandler()
-        agent = semihost.SemihostAgent(semihost_builder.tgt, console=console)
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
         console.set_input_data(semihost.STDIN_FD, 'x')
@@ -478,8 +483,8 @@ def telnet(request):
     return telnet
 
 @pytest.fixture(scope='function')
-def semihost_telnet_agent(tgt, telnet, request):
-    agent = semihost.SemihostAgent(tgt, console=telnet)
+def semihost_telnet_agent(ctx, telnet, request):
+    agent = semihost.SemihostAgent(ctx, console=telnet)
     def cleanup():
         agent.cleanup()
     request.addfinalizer(cleanup)
@@ -491,7 +496,10 @@ def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
 
 @pytest.fixture(scope='function')
 def telnet_conn(request):
-    telnet = telnetlib.Telnet('localhost', 4444, 1.0)
+    from time import sleep
+    # Sleep for a bit to ensure the semihost telnet server has started up in its own thread.
+    sleep(0.25)
+    telnet = telnetlib.Telnet('localhost', 4444, 10.0)
     def cleanup():
         telnet.close()
     request.addfinalizer(cleanup)
@@ -542,28 +550,28 @@ class TestSemihostingTelnet:
             assert chr(rc) == c
 
 class TestSemihostAgent:
-    def test_no_io_handler(self, tgt):
-        a = semihost.SemihostAgent(tgt, io_handler=None, console=None)
+    def test_no_io_handler(self, ctx):
+        a = semihost.SemihostAgent(ctx, io_handler=None, console=None)
         assert type(a.io_handler) is semihost.SemihostIOHandler
         assert type(a.console) is semihost.SemihostIOHandler
         assert a.console is a.io_handler
 
-    def test_only_io_handler(self, tgt):
+    def test_only_io_handler(self, ctx):
         c = RecordingSemihostIOHandler()
-        a = semihost.SemihostAgent(tgt, io_handler=c, console=None)
+        a = semihost.SemihostAgent(ctx, io_handler=c, console=None)
         assert a.io_handler is c
         assert a.console is c
 
-    def test_only_console(self, tgt):
+    def test_only_console(self, ctx):
         c = RecordingSemihostIOHandler()
-        a = semihost.SemihostAgent(tgt, io_handler=None, console=c)
+        a = semihost.SemihostAgent(ctx, io_handler=None, console=c)
         assert type(a.io_handler) is semihost.SemihostIOHandler
         assert a.console is c
 
 @pytest.fixture
-def ioh(tgt):
+def ioh(ctx):
     handler = semihost.SemihostIOHandler()
-    agent = semihost.SemihostAgent(tgt, io_handler=handler)
+    agent = semihost.SemihostAgent(ctx, io_handler=handler)
     return handler, agent
 
 class TestSemihostIOHandlerBase:
@@ -574,9 +582,9 @@ class TestSemihostIOHandlerBase:
             (":tt", 'r+b', -1),
             ("somefile", 'r+b', None),
         ])
-    def test_std_open(self, tgt, ramrgn, ioh, filename, mode, expectedFd):
+    def test_std_open(self, ctx, ramrgn, ioh, filename, mode, expectedFd):
         handler, agent = ioh
-        tgt.writeBlockMemoryUnaligned8(ramrgn.start, bytearray(filename) + bytearray('\x00'))
+        ctx.writeBlockMemoryUnaligned8(ramrgn.start, bytearray(filename) + bytearray('\x00'))
         assert handler._std_open(ramrgn.start, len(filename), mode) == (expectedFd, filename)
 
     @pytest.mark.parametrize(("op", "args"), [

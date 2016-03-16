@@ -240,7 +240,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             logging.debug("Semihost: exception: %s", e)
             return -1
         data = bytearray(data)
-        self.agent.target.writeBlockMemoryUnaligned8(ptr, data)
+        self.agent.context.writeBlockMemoryUnaligned8(ptr, data)
         return length - len(data)
 
     def readc(self):
@@ -393,7 +393,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
 
         # Stuff data into provided buffer.
         if data:
-            self.agent.target.writeBlockMemoryUnaligned8(ptr, data)
+            self.agent.context.writeBlockMemoryUnaligned8(ptr, data)
 
         result = length - len(data)
         if not data:
@@ -454,8 +454,8 @@ class SemihostAgent(object):
 
     EPOCH = datetime.datetime(1970, 1, 1)
 
-    def __init__(self, target, io_handler=None, console=None):
-        self.target = target
+    def __init__(self, context, io_handler=None, console=None):
+        self.context = context
         self.start_time = time.time()
         self.io_handler = io_handler or SemihostIOHandler()
         self.io_handler.agent = self
@@ -504,30 +504,30 @@ class SemihostAgent(object):
     #   debugging breakpoint.
     def check_and_handle_semihost_request(self):
         # Nothing to do if this is not a bkpt.
-        if (self.target.read32(pyOCD.coresight.cortex_m.CortexM.DFSR) &
+        if (self.context.read32(pyOCD.coresight.cortex_m.CortexM.DFSR) &
                 pyOCD.coresight.cortex_m.CortexM.DFSR_BKPT) == 0:
             return False
 
-        pc = self.target.readCoreRegister('pc')
+        pc = self.context.readCoreRegister('pc')
 
         # Are we stopped due to one of our own breakpoints?
-        bp = self.target.findBreakpoint(pc)
+        bp = self.context.core.findBreakpoint(pc)
         if bp:
             return False
 
         # Get the instruction at the breakpoint.
-        instr = self.target.read16(pc)
+        instr = self.context.read16(pc)
 
         # Check for semihost bkpt.
         if instr != BKPT_INSTR:
             return False
 
         # Advance PC beyond the bkpt instruction.
-        self.target.writeCoreRegister('pc', pc + 2)
+        self.context.writeCoreRegister('pc', pc + 2)
 
         # Get args
-        op = self.target.readCoreRegister('r0')
-        args = self.target.readCoreRegister('r1')
+        op = self.context.readCoreRegister('r0')
+        args = self.context.readCoreRegister('r1')
 
         # Handle request
         handler = self.request_map.get(op, None)
@@ -545,7 +545,7 @@ class SemihostAgent(object):
             result = -1
 
         # Set return value.
-        self.target.writeCoreRegister('r0', result)
+        self.context.writeCoreRegister('r0', result)
 
         return True
 
@@ -558,7 +558,7 @@ class SemihostAgent(object):
             self.console.cleanup()
 
     def _get_args(self, args, count):
-        args = self.target.readBlockMemoryAligned32(args, count)
+        args = self.context.readBlockMemoryAligned32(args, count)
         if count == 1:
             return args[0]
         else:
@@ -566,7 +566,7 @@ class SemihostAgent(object):
 
     def _get_string(self, ptr, length=None):
         if length is not None:
-            data = self.target.readBlockMemoryUnaligned8(ptr, length)
+            data = self.context.readBlockMemoryUnaligned8(ptr, length)
             return str(bytearray(data))
 
         target_str = ''
@@ -575,7 +575,7 @@ class SemihostAgent(object):
         while len(target_str) < MAX_STRING_LENGTH:
             try:
                 # Read 32 bytes at a time for efficiency.
-                data = self.target.readBlockMemoryUnaligned8(ptr, 32)
+                data = self.context.readBlockMemoryUnaligned8(ptr, 32)
                 terminator = data.index(0)
 
                 # Found a null terminator, append data up to but not including the null

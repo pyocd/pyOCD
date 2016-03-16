@@ -138,3 +138,6 @@ class DebugContext(object):
     def writeCoreRegistersRaw(self, reg_list, data_list):
         self._core.writeCoreRegistersRaw(reg_list, data_list)
 
+    def flush(self):
+        self._core.flush()
+
