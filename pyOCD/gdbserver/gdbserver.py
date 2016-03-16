@@ -263,7 +263,7 @@ class GDBServer(threading.Thread):
             # Use internal IO handler.
             semihost_io_handler = semihost.InternalSemihostIOHandler()
         self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
-        self.semihost = semihost.SemihostAgent(self.target, io_handler=semihost_io_handler, console=self.telnet_console)
+        self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=self.telnet_console)
 
         self.setDaemon(True)
         self.start()
@@ -587,7 +587,7 @@ class GDBServer(threading.Thread):
                             self.target.resume()
                             continue
 
-                    pc = self.target.readCoreRegister('pc')
+                    pc = self.target_context.readCoreRegister('pc')
                     logging.debug("state halted; pc=0x%08x", pc)
                     val = self.getTResponse()
                     break
@@ -789,9 +789,9 @@ class GDBServer(threading.Thread):
 
         try:
             val = ''
-            mem = self.target.readBlockMemoryUnaligned8(addr, length)
+            mem = self.target_context.readBlockMemoryUnaligned8(addr, length)
             # Flush so an exception is thrown now if invalid memory was accesses
-            self.target.flush()
+            self.target_context.flush()
             for x in mem:
                 if x >= 0x10:
                     val += hex(x)[2:4]
@@ -817,9 +817,9 @@ class GDBServer(threading.Thread):
 
         try:
             if length > 0:
-                self.target.writeBlockMemoryUnaligned8(addr, data)
+                self.target_context.writeBlockMemoryUnaligned8(addr, data)
                 # Flush so an exception is thrown now if invalid memory was accessed
-                self.target.flush()
+                self.target_context.flush()
             resp = "OK"
         except DAPAccess.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
@@ -847,9 +847,9 @@ class GDBServer(threading.Thread):
 
         try:
             if length > 0:
-                self.target.writeBlockMemoryUnaligned8(addr, data)
+                self.target_context.writeBlockMemoryUnaligned8(addr, data)
                 # Flush so an exception is thrown now if invalid memory was accessed
-                self.target.flush()
+                self.target_context.flush()
             resp = "OK"
         except DAPAccess.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
