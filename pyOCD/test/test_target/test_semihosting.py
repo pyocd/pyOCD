@@ -31,7 +31,11 @@ def debuglog():
 
 @pytest.fixture(scope='module')
 def tgt(request):
-    board = pyOCD.board.mbed_board.MbedBoard.chooseBoard(blocking=False, return_first=True)
+    board = None
+    try:
+        board = pyOCD.board.mbed_board.MbedBoard.chooseBoard(blocking=False, return_first=True)
+    except Exception as error:
+        pass
     if board is None:
         pytest.skip("No board present")
         return
