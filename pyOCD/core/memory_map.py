@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2017 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,32 +17,34 @@
 
 from xml.etree import ElementTree
 
-__all__ = ['MemoryRegion', 'MemoryMap', 'RamRegion', 'RomRegion', 'FlashRegion']
+__all__ = ['MemoryRange', 'MemoryRegion', 'MemoryMap', 'RamRegion', 'RomRegion',
+            'FlashRegion', 'DeviceRegion', 'AliasRegion']
 
 MAP_XML_HEADER = """<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 """
 
-## @brief One contiguous range of memory.
-class MemoryRegion(object):
-    def __init__(self, type='ram', start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
-        self._type = type
+def check_range(start, end=None, length=None, range=None):
+    assert (start is not None) and ((isinstance(start, MemoryRange) or range is not None) or
+        ((end is not None) ^ (length is not None)))
+    if isinstance(start, MemoryRange):
+        range = start
+    if range is not None:
+        start = range.start
+        end = range.end
+    elif end is None:
+        end = start + length - 1
+    return start, end
+
+## @brief A range of memory within a region.
+class MemoryRangeBase(object):
+    def __init__(self, start=0, end=0, length=0, region=None):
         self._start = start
         if length != 0:
             self._end = self._start + length - 1
         else:
             self._end = end
-        self._blocksize = blocksize
-        if not name:
-            self._name = self._type
-        else:
-            self._name = name
-        self._is_boot_mem = isBootMemory
-        self._isPoweredOnBoot = isPoweredOnBoot
-
-    @property
-    def type(self):
-        return self._type
+        self._region = region
 
     @property
     def start(self):
@@ -55,6 +57,66 @@ class MemoryRegion(object):
     @property
     def length(self):
         return self._end - self._start + 1
+
+    @property
+    def region(self):
+        return self._region
+
+    def containsAddress(self, address):
+        return (address >= self.start) and (address <= self.end)
+
+    ##
+    # @return Whether the given range is fully contained by the region.
+    def containsRange(self, start, end=None, length=None, range=None):
+        start, end = check_range(start, end, length, range)
+        return self.containsAddress(start) and self.containsAddress(end)
+
+    ##
+    # @return Whether the region is fully within the bounds of the given range.
+    def containedByRange(self, start, end=None, length=None, range=None):
+        start, end = check_range(start, end, length, range)
+        return start <= self.start and end >= self.end
+
+    ##
+    # @return Whether the region and the given range intersect at any point.
+    def intersectsRange(self, start, end=None, length=None, range=None):
+        start, end = check_range(start, end, length, range)
+        return (start <= self.start and end >= self.start) or (start <= self.end and end >= self.end) \
+            or (start >= self.start and end <= self.end)
+
+## @brief A range of memory within a region.
+class MemoryRange(MemoryRangeBase):
+    def __init__(self, start=0, end=0, length=0, region=None):
+        super(MemoryRange, self).__init__(start=start, end=end, length=length)
+        self._region = region
+
+    @property
+    def region(self):
+        return self._region
+
+    def __repr__(self):
+        return "<%s@0x%x start=0x%x end=0x%x length=0x%x region=%s>" % (self.__class__.__name__,
+            id(self), self.start, self.end, self.length, self.region)
+
+## @brief One contiguous range of memory.
+class MemoryRegion(MemoryRangeBase):
+    def __init__(self, type='ram', start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False,
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+        super(MemoryRegion, self).__init__(start=start, end=end, length=length)
+        self._type = type
+        self._blocksize = blocksize
+        if not name:
+            self._name = self._type
+        else:
+            self._name = name
+        self._is_boot_mem = isBootMemory
+        self._isPoweredOnBoot = isPoweredOnBoot
+        self._isCacheable = isCacheable
+        self._invalidateCacheOnRun = invalidateCacheOnRun
+
+    @property
+    def type(self):
+        return self._type
 
     @property
     def blocksize(self):
@@ -77,6 +139,14 @@ class MemoryRegion(object):
         return self._type == 'rom'
 
     @property
+    def isDevice(self):
+        return self._type == 'device'
+
+    @property
+    def isAlias(self):
+        return self._type == 'alias'
+
+    @property
     def isBootMemory(self):
         return self._is_boot_mem
 
@@ -84,35 +154,60 @@ class MemoryRegion(object):
     def isPoweredOnBoot(self):
         return self._isPoweredOnBoot
 
-    def containsAddress(self, address):
-        return (address >= self.start) and (address <= self.end)
+    @property
+    def isCacheable(self):
+        return self._isCacheable
 
-    def containsRange(self, start, end=None, length=None):
-        assert (end is not None) ^ (length is not None)
-        if end is None:
-            end = start + length - 1
-        return self.containsAddress(start) and self.containsAddress(end)
-
-    def __str__(self):
-        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.blocksize)
+    @property
+    def invalidateCacheOnRun(self):
+        return self._invalidateCacheOnRun
 
     def __repr__(self):
-        return str(self)
+        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.blocksize)
 
 ## @brief Contiguous region of RAM.
 class RamRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
-        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot)
+    def __init__(self, start=0, end=0, length=0, name='', isBootMemory=False,
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
+            isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot, isCacheable=isCacheable,
+            invalidateCacheOnRun=invalidateCacheOnRun)
 
 ## @brief Contiguous region of ROM.
 class RomRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
-        super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot)
+    def __init__(self, start=0, end=0, length=0, name='', isBootMemory=False,
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=False):
+        super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name,
+            isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot, isCacheable=isCacheable,
+            invalidateCacheOnRun=invalidateCacheOnRun)
 
 ## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False, isPoweredOnBoot=True):
-        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length, blocksize=blocksize, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot)
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False,
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length,
+            blocksize=blocksize, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot,
+            isCacheable=isCacheable, invalidateCacheOnRun=invalidateCacheOnRun)
+
+## @brief Device or peripheral memory.
+class DeviceRegion(MemoryRegion):
+    def __init__(self, start=0, end=0, length=0, name='', isPoweredOnBoot=True):
+        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
+            isBootMemory=False, isPoweredOnBoot=isPoweredOnBoot, isCacheable=False,
+            invalidateCacheOnRun=True)
+
+## @brief Alias of another region.
+class AliasRegion(MemoryRegion):
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', aliasOf=None, isBootMemory=False,
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
+            isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot, isCacheable=isCacheable,
+            invalidateCacheOnRun=invalidateCacheOnRun)
+        self._alias_reference = aliasOf
+
+    @property
+    def aliased_region(self):
+        return self._alias_reference
 
 ## @brief Memory map consisting of memory regions.
 class MemoryMap(object):
@@ -149,8 +244,22 @@ class MemoryMap(object):
                 return r
         return None
 
+    def getRegionByName(self, name):
+        for r in self._regions:
+            if r.name == name:
+                return r
+        return None
+
     def isValidAddress(self, address):
-        return self.regionForAddress(address) is not None
+        return self.getRegionForAddress(address) is not None
+
+    def getContainedRegions(self, start, end=None, length=None, range=None):
+        start, end = check_range(start, end, length, range)
+        return [r for r in self._regions if r.containedByRange(start, end)]
+
+    def getIntersectingRegions(self, start, end=None, length=None, range=None):
+        start, end = check_range(start, end, length, range)
+        return [r for r in self._regions if r.intersectsRange(start, end)]
 
     ## @brief Generate GDB memory map XML.
     def getXML(self):
@@ -165,6 +274,9 @@ class MemoryMap(object):
     ## @brief Enable iteration over the memory map.
     def __iter__(self):
         return iter(self._regions)
+
+    def __repr__(self):
+        return "<MemoryMap@0x%08x regions=%s>" % (id(self), repr(self._regions))
 
 
 
