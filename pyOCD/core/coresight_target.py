@@ -20,6 +20,7 @@ from ..coresight import (dap, ap, cortex_m)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
+from ..utility.notification import Notification
 import threading
 import logging
 from xml.etree.ElementTree import (Element, SubElement, tostring)
@@ -96,7 +97,10 @@ class CoreSightTarget(Target):
             core0.init()
         self.add_core(core0)
 
+        self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self))
+
     def disconnect(self):
+        self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))
         for core in self.cores.values():
             core.disconnect()
         self.dp.power_down_debug()
