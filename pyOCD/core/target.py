@@ -15,9 +15,10 @@
  limitations under the License.
 """
 
+from ..utility.notification import Notifier
 from .memory_map import MemoryMap
 
-class Target(object):
+class Target(Notifier):
 
     TARGET_RUNNING = 1   # Core is executing code.
     TARGET_HALTED = 2    # Core is halted in debug mode.
@@ -50,7 +51,26 @@ class Target(object):
     CATCH_ALL = (CATCH_HARD_FAULT | CATCH_BUS_FAULT | CATCH_MEM_FAULT | CATCH_INTERRUPT_ERR \
                 | CATCH_STATE_ERR | CATCH_CHECK_ERR | CATCH_COPROCESSOR_ERR | CATCH_CORE_RESET)
 
+    # Events
+    EVENT_POST_CONNECT = 1
+    EVENT_PRE_DISCONNECT = 2
+    EVENT_PRE_RUN = 3 # data is run type
+    EVENT_POST_RUN = 4 # data is run type
+    EVENT_PRE_HALT = 5 # data is halt reason
+    EVENT_POST_HALT = 6 # data is halt reason
+    EVENT_PRE_RESET = 7
+    EVENT_POST_RESET = 8
+
+    # Run types
+    RUN_TYPE_RESUME = 1
+    RUN_TYPE_STEP = 2
+
+    # Halt reasons
+    HALT_REASON_USER = 1
+    HALT_REASON_DEBUG = 2
+
     def __init__(self, link, memoryMap=None):
+        super(Target, self).__init__()
         self.link = link
         self.flash = None
         self.part_number = ""

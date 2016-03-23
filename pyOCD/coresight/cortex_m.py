@@ -19,6 +19,7 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility import conversion
+from ..utility.notification import Notification
 from .fpb import FPB
 from .dwt import DWT
 from ..debug.breakpoints.manager import BreakpointManager
@@ -446,8 +447,10 @@ class CortexM(Target):
         """
         halt the core
         """
+        self.notify(Notification(event=Target.EVENT_PRE_HALT, source=self, data=Target.HALT_REASON_USER))
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.dp.flush()
+        self.notify(Notification(event=Target.EVENT_POST_HALT, source=self, data=Target.HALT_REASON_USER))
 
     def step(self, disable_interrupts=True):
         """
@@ -460,6 +463,8 @@ class CortexM(Target):
         if not (dhcsr & (CortexM.C_STEP | CortexM.C_HALT)):
             logging.error('cannot step: target not halted')
             return
+
+        self.notify(Notification(event=Target.EVENT_PRE_RUN, source=self, data=Target.RUN_TYPE_STEP))
 
         self.clearDebugCauseBits()
 
@@ -489,6 +494,8 @@ class CortexM(Target):
 
         self._run_token += 1
 
+        self.notify(Notification(event=Target.EVENT_POST_RUN, source=self, data=Target.RUN_TYPE_STEP))
+
     def clearDebugCauseBits(self):
         self.writeMemory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 
@@ -497,6 +504,8 @@ class CortexM(Target):
         reset a core. After a call to this function, the core
         is running
         """
+        self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
+
         if software_reset == None:
             # Default to software reset if nothing is specified
             software_reset = True
@@ -526,6 +535,8 @@ class CortexM(Target):
             except DAPAccess.TransferError:
                 self.dp.flush()
                 sleep(0.01)
+
+        self.notify(Notification(event=Target.EVENT_POST_RESET, source=self))
 
     def resetStopOnReset(self, software_reset=None):
         """
@@ -594,10 +605,12 @@ class CortexM(Target):
         if self.getState() != Target.TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
+        self.notify(Notification(event=Target.EVENT_PRE_RUN, source=self, data=Target.RUN_TYPE_RESUME))
         self._run_token += 1
         self.clearDebugCauseBits()
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
         self.dp.flush()
+        self.notify(Notification(event=Target.EVENT_POST_RUN, source=self, data=Target.RUN_TYPE_RESUME))
 
     def findBreakpoint(self, addr):
         return self.bp_manager.find_breakpoint(addr)
