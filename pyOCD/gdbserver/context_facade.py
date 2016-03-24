@@ -143,3 +143,10 @@ class GDBDebugContextFacade(object):
         else:
             return None
 
+    def getTargetXML(self):
+        return self._context.core.getTargetXML()
+
+    def flush(self):
+        self._context.core.flush()
+
+
