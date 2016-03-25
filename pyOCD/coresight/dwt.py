@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from .breakpoints import Watchpoint
+from .fpb import HardwareBreakpoint
 from ..core.target import Target
 import logging
 
@@ -27,6 +27,13 @@ DEMCR_TRCENA = (1 << 24)
 DEMCR_VC_HARDERR = (1 << 10)
 DEMCR_VC_BUSERR = (1 << 8)
 DEMCR_VC_CORERESET = (1 << 0)
+
+class Watchpoint(HardwareBreakpoint):
+    def __init__(self, comp_register_addr, provider):
+        super(Watchpoint, self).__init__(comp_register_addr, provider)
+        self.addr = 0
+        self.size = 0
+        self.func = 0
 
 class DWT(object):
     # DWT (data watchpoint & trace)

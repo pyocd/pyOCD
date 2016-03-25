@@ -20,20 +20,12 @@ from ..pyDAPAccess import DAPAccess
 import logging
 
 class Breakpoint(object):
-    def __init__(self, comp_register_addr, provider):
+    def __init__(self, provider):
         self.type = Target.BREAKPOINT_HW
-        self.comp_register_addr = comp_register_addr
         self.enabled = False
         self.addr = 0
         self.original_instr = 0
         self.provider = provider
-
-class Watchpoint(Breakpoint):
-    def __init__(self, comp_register_addr, provider):
-        super(Watchpoint, self).__init__(comp_register_addr, provider)
-        self.addr = 0
-        self.size = 0
-        self.func = 0
 
 ## @brief Abstract base class for breakpoint providers.
 class BreakpointProvider(object):
@@ -42,6 +34,10 @@ class BreakpointProvider(object):
 
     def bp_type(self):
         return 0
+
+    @property
+    def do_filter_memory(self):
+        return False
 
     def available_breakpoints(self):
         raise NotImplementedError()
@@ -55,11 +51,20 @@ class BreakpointProvider(object):
     def remove_breakpoint(self, bp):
         raise NotImplementedError()
 
+    def filter_memory(self, addr, size, data):
+        return data
+
+class SoftwareBreakpoint(Breakpoint):
+    def __init__(self, provider):
+        super(SoftwareBreakpoint, self).__init__(provider)
+        self.type = Target.BREAKPOINT_SW
+
 class SoftwareBreakpointProvider(BreakpointProvider):
     ## BKPT #0 instruction.
     BKPT_INSTR = 0xbe00
 
     def __init__(self, core):
+        super(SoftwareBreakpointProvider, self).__init__()
         self._core = core
         self._breakpoints = {}
 
@@ -68,6 +73,10 @@ class SoftwareBreakpointProvider(BreakpointProvider):
 
     def bp_type(self):
         return Target.BREAKPOINT_SW
+
+    @property
+    def do_filter_memory(self):
+        return True
 
     def available_breakpoints(self):
         return -1
@@ -87,8 +96,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
             self._core.write16(addr, self.BKPT_INSTR)
 
             # Create bp object.
-            bp = Breakpoint(0, self)
-            bp.type = Target.BREAKPOINT_SW
+            bp = SoftwareBreakpoint(self)
             bp.enabled = True
             bp.addr = addr
             bp.original_instr = instr
@@ -110,7 +118,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
             # Remove from our list.
             del self._breakpoints[bp.addr]
         except DAPAccess.TransferError:
-            logging.debug("Failed to set sw bp at 0x%x" % bp.addr)
+            logging.debug("Failed to remove sw bp at 0x%x" % bp.addr)
 
     def filter_memory(self, addr, size, data):
         for bp in self._breakpoints.values():
@@ -245,22 +253,20 @@ class BreakpointManager(object):
         return bp.type if (bp is not None) else None
 
     def filter_memory(self, addr, size, data):
-        if Target.BREAKPOINT_SW in self._providers:
-            data = self._providers[Target.BREAKPOINT_SW].filter_memory(addr, size, data)
+        for provider in [p for p in self._providers.itervalues() if p.do_filter_memory]:
+            data = provider.filter_memory(addr, size, data)
         return data
 
     def filter_memory_unaligned_8(self, addr, size, data):
-        if Target.BREAKPOINT_SW in self._providers:
-            sw_bp = self._providers[Target.BREAKPOINT_SW]
+        for provider in [p for p in self._providers.itervalues() if p.do_filter_memory]:
             for i, d in enumerate(data):
-                data[i] = sw_bp.filter_memory(addr + i, 8, d)
+                data[i] = provider.filter_memory(addr + i, 8, d)
         return data
 
     def filter_memory_aligned_32(self, addr, size, data):
-        if Target.BREAKPOINT_SW in self._providers:
-            sw_bp = self._providers[Target.BREAKPOINT_SW]
+        for provider in [p for p in self._providers.itervalues() if p.do_filter_memory]:
             for i, d in enumerate(data):
-                data[i] = sw_bp.filter_memory(addr + i, 32, d)
+                data[i] = provider.filter_memory(addr + i, 32, d)
         return data
 
     def remove_all_breakpoints(self):
