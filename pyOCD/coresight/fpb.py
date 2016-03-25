@@ -15,8 +15,15 @@
  limitations under the License.
 """
 
-import logging
+from ..core.target import Target
 from .breakpoints import Breakpoint, BreakpointProvider
+import logging
+
+class HardwareBreakpoint(Breakpoint):
+    def __init__(self, comp_register_addr, provider):
+        super(HardwareBreakpoint, self).__init__(provider)
+        self.comp_register_addr = comp_register_addr
+        self.type = Target.BREAKPOINT_HW
 
 class FPB(BreakpointProvider):
     FP_CTRL = 0xE0002000
@@ -43,7 +50,7 @@ class FPB(BreakpointProvider):
         self.nb_lit = (fpcr >> 7) & 0xf
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
         for i in range(self.nb_code):
-            self.hw_breakpoints.append(Breakpoint(FPB.FP_COMP0 + 4*i, self))
+            self.hw_breakpoints.append(HardwareBreakpoint(FPB.FP_COMP0 + 4*i, self))
 
         # disable FPB (will be enabled on first bp set)
         self.disable()
