@@ -60,7 +60,7 @@ class PyWinUSB(Interface):
         self.device.open(shared=False)
 
     @staticmethod
-    def getAllConnectedInterface():
+    def getAllConnectedInterface(board_id = None):
         """
         returns all the connected CMSIS-DAP devices
         """

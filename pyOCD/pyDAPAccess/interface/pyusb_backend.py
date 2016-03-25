@@ -64,9 +64,10 @@ class PyUSB(Interface):
                 self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, -1))
 
     @staticmethod
-    def getAllConnectedInterface():
+    def getAllConnectedInterface(board_id = None):
         """
-        returns all the connected devices which matches PyUSB.vid/PyUSB.pid.
+        returns all the connected devices which matches
+        PyUSB.vid/PyUSB.pid and (optionally) board_id.
         returns an array of PyUSB (Interface) objects
         """
         # find all devices matching the vid/pid specified
@@ -85,7 +86,9 @@ class PyUSB(Interface):
                 # The product string is read over USB when accessed.
                 # This can cause an exception to be thrown if the device
                 # is malfunctioning.
+                # Also lack of permissions
                 product = board.product
+                serial = board.serial_number
             except usb.core.USBError as error:
                 logging.warning("Exception getting product string: %s", error)
                 continue
@@ -93,7 +96,9 @@ class PyUSB(Interface):
                 # Not a cmsis-dap device so close it
                 usb.util.dispose_resources(board)
                 continue
-
+            if board_id and serial != board_id:
+                continue
+            
             # get active config
             config = board.get_active_configuration()
 

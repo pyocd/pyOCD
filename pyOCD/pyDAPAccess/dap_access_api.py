@@ -76,7 +76,7 @@ class DAPAccessIntf(object):
         pass
 
     @staticmethod
-    def get_connected_devices():
+    def get_connected_devices(board_id = None):
         """Return a list of DAPAccess devices"""
         raise NotImplementedError()
 
