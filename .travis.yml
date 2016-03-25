@@ -1,0 +1,8 @@
+language: python
+sudo: false
+python:
+  - "2.7"
+# command to install dependencies
+install: "pip install -r dev-requirements.txt"
+# command to run tests
+script: py.test pyOCD/test
