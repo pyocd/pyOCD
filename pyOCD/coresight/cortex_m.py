@@ -22,7 +22,8 @@ from ..gdbserver import signals
 from ..utility import conversion
 from .fpb import FPB
 from .dwt import DWT
-from .breakpoints import (SoftwareBreakpointProvider, BreakpointManager)
+from ..debug.breakpoints.manager import BreakpointManager
+from ..debug.breakpoints.software import SoftwareBreakpointProvider
 from . import (dap, ap)
 import logging
 import struct

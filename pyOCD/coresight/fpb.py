@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2017 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 """
 
 from ..core.target import Target
-from .breakpoints import Breakpoint, BreakpointProvider
+from ..debug.breakpoints.provider import (Breakpoint, BreakpointProvider)
 import logging
 
 class HardwareBreakpoint(Breakpoint):

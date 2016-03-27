@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2017 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,130 +15,16 @@
  limitations under the License.
 """
 
-from ..core.target import Target
-from ..pyDAPAccess import DAPAccess
+from ...core.target import Target
+from ...pyDAPAccess import DAPAccess
 import logging
 
-class Breakpoint(object):
-    def __init__(self, provider):
-        self.type = Target.BREAKPOINT_HW
-        self.enabled = False
-        self.addr = 0
-        self.original_instr = 0
-        self.provider = provider
-
-## @brief Abstract base class for breakpoint providers.
-class BreakpointProvider(object):
-    def init(self):
-        raise NotImplementedError()
-
-    def bp_type(self):
-        return 0
-
-    @property
-    def do_filter_memory(self):
-        return False
-
-    def available_breakpoints(self):
-        raise NotImplementedError()
-
-    def find_breakpoint(self, addr):
-        raise NotImplementedError()
-
-    def set_breakpoint(self, addr):
-        raise NotImplementedError()
-
-    def remove_breakpoint(self, bp):
-        raise NotImplementedError()
-
-    def filter_memory(self, addr, size, data):
-        return data
-
-class SoftwareBreakpoint(Breakpoint):
-    def __init__(self, provider):
-        super(SoftwareBreakpoint, self).__init__(provider)
-        self.type = Target.BREAKPOINT_SW
-
-class SoftwareBreakpointProvider(BreakpointProvider):
-    ## BKPT #0 instruction.
-    BKPT_INSTR = 0xbe00
-
-    def __init__(self, core):
-        super(SoftwareBreakpointProvider, self).__init__()
-        self._core = core
-        self._breakpoints = {}
-
-    def init(self):
-        pass
-
-    def bp_type(self):
-        return Target.BREAKPOINT_SW
-
-    @property
-    def do_filter_memory(self):
-        return True
-
-    def available_breakpoints(self):
-        return -1
-
-    def find_breakpoint(self, addr):
-        return self._breakpoints.get(addr, None)
-
-    def set_breakpoint(self, addr):
-        assert self._core.memory_map.getRegionForAddress(addr).isRam
-        assert (addr & 1) == 0
-
-        try:
-            # Read original instruction.
-            instr = self._core.read16(addr)
-
-            # Insert BKPT #0 instruction.
-            self._core.write16(addr, self.BKPT_INSTR)
-
-            # Create bp object.
-            bp = SoftwareBreakpoint(self)
-            bp.enabled = True
-            bp.addr = addr
-            bp.original_instr = instr
-
-            # Save this breakpoint.
-            self._breakpoints[addr] = bp
-            return bp
-        except DAPAccess.TransferError:
-            logging.debug("Failed to set sw bp at 0x%x" % addr)
-            return None
-
-    def remove_breakpoint(self, bp):
-        assert bp is not None and isinstance(bp, Breakpoint)
-
-        try:
-            # Restore original instruction.
-            self._core.write16(bp.addr, bp.original_instr)
-
-            # Remove from our list.
-            del self._breakpoints[bp.addr]
-        except DAPAccess.TransferError:
-            logging.debug("Failed to remove sw bp at 0x%x" % bp.addr)
-
-    def filter_memory(self, addr, size, data):
-        for bp in self._breakpoints.values():
-            if size == 8:
-                if bp.addr == addr:
-                    data = bp.original_instr & 0xff
-                elif bp.addr + 1 == addr:
-                    data = bp.original_instr >> 8
-            elif size == 16:
-                if bp.addr == addr:
-                    data = bp.original_instr
-            elif size == 32:
-                if bp.addr == addr:
-                    data = (data & 0xffff0000) | bp.original_instr
-                elif bp.addr == addr + 2:
-                    data = (data & 0xffff) | (bp.original_instr << 16)
-
-        return data
-
+##
+# @brief
 class BreakpointManager(object):
+    ## Number of hardware breakpoints to try to keep available.
+    MIN_HW_BREAKPOINTS = 0
+
     def __init__(self, core):
         self._breakpoints = {}
         self._core = core
@@ -166,6 +52,8 @@ class BreakpointManager(object):
         in_hw_bkpt_range = addr < 0x20000000
         fbp_available = ((self._fpb is not None) and
                          (self._fpb.available_breakpoints() > 0))
+        fbp_below_min = ((self._fpb is None) or
+                         (self._fpb.available_breakpoints() <= self.MIN_HW_BREAKPOINTS))
 
         # Check for an existing breakpoint at this address.
         bp = self.find_breakpoint(addr)
@@ -183,16 +71,21 @@ class BreakpointManager(object):
             if region is not None:
                 is_flash = region.isFlash
                 is_ram = region.isRam
+            else:
+                # No memory region - fallback to hardware breakpoints.
+                type = Target.BREAKPOINT_HW
+                is_flash = False
+                is_ram = False
 
         # Determine best type to use if auto.
         if type == Target.BREAKPOINT_AUTO:
             # Use sw breaks for:
             #  1. Addresses outside the supported FPBv1 range of 0-0x1fffffff
             #  2. RAM regions by default.
-            #  3. No hw breaks are left.
+            #  3. Number of remaining hw breaks are at or less than the minimum we want to keep.
             #
             # Otherwise use hw.
-            if not in_hw_bkpt_range or is_ram or fbp_available:
+            if not in_hw_bkpt_range or is_ram or fbp_below_min:
                 type = Target.BREAKPOINT_SW
             else:
                 type = Target.BREAKPOINT_HW
@@ -273,4 +166,17 @@ class BreakpointManager(object):
         for bp in self._breakpoints.values():
             bp.provider.remove_breakpoint(bp)
         self._breakpoints = {}
+        self._flush_all()
+
+    def _flush_all(self):
+        # Flush all providers.
+        for provider in self._providers.itervalues():
+            provider.flush()
+
+    def flush(self):
+        try:
+            # Flush all providers.
+            self._flush_all()
+        finally:
+            pass
 
