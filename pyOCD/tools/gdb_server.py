@@ -148,8 +148,9 @@ class GDBServerTool(object):
 
 
     def setup_logging(self, args):
+        format = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
         level = LEVELS.get(args.debug_level, logging.NOTSET)
-        logging.basicConfig(level=level)
+        logging.basicConfig(level=level, format=format)
 
     ## @brief Handle OpenOCD commands for compatibility.
     def process_commands(self, commands):
