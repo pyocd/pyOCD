@@ -29,7 +29,14 @@ from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line
 import pyOCD.board.mbed_board
-from pyOCD.tools import LEVELS
+
+LEVELS = {
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
 
 supported_targets = pyOCD.target.TARGET.keys()
 debug_levels = LEVELS.keys()

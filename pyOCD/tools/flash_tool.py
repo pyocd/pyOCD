@@ -32,7 +32,14 @@ except ImportError:
 import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
-from pyOCD.tools import LEVELS
+
+LEVELS = {
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
 
 board = None
 
