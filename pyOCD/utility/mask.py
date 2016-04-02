@@ -65,7 +65,7 @@ def bfx(value, msb, lsb):
 def bfi(value, msb, lsb, field):
     mask = bitmask((msb, lsb))
     value &= ~mask
-    value |= (field & mask) << lsb
+    value |= (field << lsb) & mask
     return value
 
 def _msb( n ):
