@@ -269,6 +269,34 @@ class GDBServer(threading.Thread):
         self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=self.telnet_console)
 
+        # Command handler table.
+        self.COMMANDS = {
+                '?' : (self.stopReasonQuery, 0),        # Stop reason query.
+                'C' : (self.resume, 1),                 # Continue (at addr)
+                'c' : (self.resume, 1),                 # Continue with signal.
+                'D' : (self.detach, 1),                 # Detach.
+                'g' : (self.getRegisters, 0),           # Read general registers.
+                'G' : (self.setRegisters, 2),           # Write general registers.
+                'H' : (self.setThread, 2),              # Set thread for subsequent operations.
+                'k' : (self.kill, 0),                   # Kill.
+                'm' : (self.getMemory, 2),              # Read memory.
+                'M' : (self.writeMemoryHex, 2),         # Write memory (hex).
+                'p' : (self.readRegister, 2),           # Read register.
+                'P' : (self.writeRegister, 2),          # Write register.
+                'q' : (self.handleQuery, 2),            # General query.
+                'Q' : (self.handleGeneralSet, 2),       # General set.
+                's' : (self.step, 1),                   # Single step.
+                'S' : (self.step, 1),                   # Step with signal.
+                'T' : (self.isThreadAlive, 1),          # Thread liveness query.
+                'v' : (self.vCommand, 2),               # v command.
+                'X' : (self.writeMemory, 2),            # Write memory (binary).
+                'z' : (self.breakpoint, 1),             # Insert breakpoint/watchpoint.
+                'Z' : (self.breakpoint, 1),             # Remove breakpoint/watchpoint.
+            }
+
+        # Commands that kill the connection to gdb.
+        self.DETACH_COMMANDS = ('D', 'k')
+
         self.setDaemon(True)
         self.start()
 
@@ -419,67 +447,17 @@ class GDBServer(threading.Thread):
 
     def handleMsg(self, msg):
         try:
-            if msg[0] != '$':
-                logging.debug('msg ignored: first char != $')
-                return None, 0
+            assert msg[0] == '$', "invalid first char of message (!= $"
 
-            # query command
-            if msg[1] == '?':
-                return self.stopReasonQuery(), 0
-
-            # we don't send immediately the response for C and S commands
-            elif msg[1] == 'C' or msg[1] == 'c':
-                return self.resume(msg[1:]), 0
-
-            elif msg[1] == 'D':
-                return self.detach(msg[1:]), 1
-
-            elif msg[1] == 'g':
-                return self.getRegisters(), 0
-
-            elif msg[1] == 'G':
-                return self.setRegisters(msg[2:]), 0
-
-            elif msg[1] == 'H':
-                return self.setThread(msg[2:]), 0
-
-            elif msg[1] == 'k':
-                return self.kill(), 1
-
-            elif msg[1] == 'm':
-                return self.getMemory(msg[2:]), 0
-
-            elif msg[1] == 'M': # write memory with hex data
-                return self.writeMemoryHex(msg[2:]), 0
-
-            elif msg[1] == 'p':
-                return self.readRegister(msg[2:]), 0
-
-            elif msg[1] == 'P':
-                return self.writeRegister(msg[2:]), 0
-
-            elif msg[1] == 'q':
-                return self.handleQuery(msg[2:]), 0
-
-            elif msg[1] == 'Q':
-                return self.handleGeneralSet(msg[2:]), 0
-
-            elif msg[1] == 'S' or msg[1] == 's':
-                return self.step(msg[1:]), 0
-
-            elif msg[1] == 'T': # check if thread is alive
-                return self.isThreadAlive(msg[1:]), 0
-
-            elif msg[1] == 'v':
-                return self.vCommand(msg[2:]), 0
-
-            elif msg[1] == 'X': # write memory with binary data
-                return self.writeMemory(msg[2:]), 0
-
-            elif msg[1] == 'Z' or msg[1] == 'z':
-                return self.breakpoint(msg[1:]), 0
-
-            else:
+            try:
+                handler, msgStart = self.COMMANDS[msg[1]]
+                if msgStart == 0:
+                    reply = handler()
+                else:
+                    reply = handler(msg[msgStart:])
+                detach = 1 if msg[1] in self.DETACH_COMMANDS else 0
+                return reply, detach
+            except (KeyError, IndexError):
                 logging.error("Unknown RSP packet: %s", msg)
                 return self.createRSPPacket(""), 0
 
