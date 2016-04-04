@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2016 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 from target_kinetis import Kinetis
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
+from .coresight_target import SVDFile
 import logging
 
 
@@ -31,4 +32,5 @@ class K66F18(Kinetis):
     def __init__(self, transport):
         super(K66F18, self).__init__(transport, self.memoryMap)
         self.mdm_idr = 0x001c0000
+        self._svd_location = SVDFile(vendor="Freescale", filename="MK66F18.svd")
 
