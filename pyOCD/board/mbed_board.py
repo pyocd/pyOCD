@@ -31,6 +31,7 @@ class BoardInfo(object):
 BOARD_ID_TO_INFO = {
                         #           Board Name              Target              Test Binary
                 "0200": BoardInfo(  "FRDM-KL25Z",           "kl25z",            "l1_kl25z.bin"          ),
+                "0203": BoardInfo(  "TWR-KL28Z72M",         "kl28z",            "l1_kl28z.bin",         ),
                 "0205": BoardInfo(  "FRDM-KL28Z",           "kl28z",            "l1_kl28z.bin",         ),
                 "0210": BoardInfo(  "FRDM-KL05Z",           "kl05z",            "l1_kl05z.bin",         ),
                 "0220": BoardInfo(  "FRDM-KL46z",           "kl46z",            "l1_kl46z.bin",         ),
@@ -41,12 +42,12 @@ BOARD_ID_TO_INFO = {
                 "0260": BoardInfo(  "FRDM-KL26Z",           "kl26z",            "l1_kl26z.bin",         ),
                 "0290": BoardInfo(  "FRDM-KW40Z",           "kw40z4",           "l1_kw40z.bin",         ),
                 "0298": BoardInfo(  "FRDM-KV10Z",           "kv10z7",           "l1_kl25z.bin"          ),
-                "0300": BoardInfo(  "FRDM-KV11Z",           "kv11z7",           "l1_kl25z.bin"          ),
                 "0311": BoardInfo(  "FRDM-K66F",            "k66f18",           "l1_k66f.bin",          ),
-                "0320": BoardInfo(  "FRDM-KW01Z",           "kw01z4",           "l1_kl25z.bin"          ),
+#                 "0320": BoardInfo(  "FRDM-KW01Z9032",       "kw01z4",           "l1_kl25z.bin"          ),
                 "0321": BoardInfo(  "USB-KW01Z",            "kw01z4",           "l1_kl25z.bin"          ),
                 "0324": BoardInfo(  "USB-KW40Z",            "kw40z4",           "l1_kl25z.bin"          ),
-                "0340": BoardInfo(  "TWR-K80F",             "k82f25615",        "l1_k64f.bin",          ),
+                "0340": BoardInfo(  "TWR-K80F150M",         "k82f25615",        "l1_k64f.bin",          ),
+#                 "0300": BoardInfo(  "TWR-KV11Z75M",         "kv11z7",           "l1_kl25z.bin"          ),
                 "0341": BoardInfo(  "FRDM-KV31Z",           "kv31f12",          "l1_kl25z.bin"          ),
                 "0400": BoardInfo(  "maxwsnenv",            "maxwsnenv",        "l1_maxwsnenv.bin",     ),
                 "0405": BoardInfo(  "max32600mbed",         "max32600mbed",     "l1_max32600mbed.bin",  ),
