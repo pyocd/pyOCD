@@ -16,6 +16,7 @@
 """ 
 
 from flash_kinetis import Flash_Kinetis
+import logging
 
 flash_algo = { 
     'load_address' : 0x20000000,
@@ -90,7 +91,23 @@ flash_algo = {
     'page_buffers' : [0x20000a00, 0x20001200],   # [added] Use areas above algo. Note 'begin_data' is unused if double buffering. Can be any unused SRAM.
     'min_program_length' : 4                     # [added] See FSL_FEATURE_FLASH_PFLASH_BLOCK_WRITE_UNIT_SIZE in KSDK features header file
 };
-              
+
+
+SCG_CSR = 0x4007B010
+
+SCG_RCCR = 0x4007B014
+SCS_MASK = 0x0F000000
+SCS_SHIFT = 24
+DIVCORE_MASK = 0x000F0000
+DIVCORE_SHIFT = 16
+DIVSLOW_MASK = 0x0000000F
+DIVSLOW_SHIFT = 0
+
+SCG_FIRCCSR = 0x4007B300
+FIRCEN_MASK = 1
+
+SCG_FIRCCFG = 0x4007B308
+
 class Flash_kl28z(Flash_Kinetis): 
     def __init__(self, target):
         super(Flash_kl28z, self).__init__(target, flash_algo)
