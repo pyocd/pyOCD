@@ -112,6 +112,10 @@ class Flash_kl28z(Flash_Kinetis):
     def __init__(self, target):
         super(Flash_kl28z, self).__init__(target, flash_algo)
 
+    ##
+    # This function sets up target clocks to ensure that flash is clocked at the maximum
+    # of 24MHz. Doing so gets the best flash programming performance. The FIRC clock source
+    # is used so that there is no dependency on an external crystal frequency.
     def init(self):
         super(Flash_kl28z, self).init()
 
