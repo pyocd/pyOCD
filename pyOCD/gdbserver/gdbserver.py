@@ -345,7 +345,7 @@ class GDBServer(threading.Thread):
                         self.is_target_running = False
                         self.sendStopNotification()
                     else:
-                        logging.debug("Got unexpected ctrl-c, ignoring")
+                        logging.error("Got unexpected ctrl-c, ignoring")
                     self.packet_io.interrupt_event.clear()
 
                 if self.non_stop and self.is_target_running:
@@ -664,14 +664,14 @@ class GDBServer(threading.Thread):
                 return self.createRSPPacket('E01')
             thread_actions[1] = default_action
 
-        if thread_actions[1] in ('c', 'C'):
+        if thread_actions[1][0] in ('c', 'C'):
             if self.non_stop:
                 self.target.resume()
                 self.is_target_running = True
                 return self.createRSPPacket("OK")
             else:
                 return self.resume(None)
-        elif thread_actions[1] in ('s', 'S'):
+        elif thread_actions[1][0] in ('s', 'S'):
             if self.non_stop:
                 self.target.step(not self.step_into_interrupt)
                 self.packet_io.send(self.createRSPPacket("OK"))
@@ -687,6 +687,8 @@ class GDBServer(threading.Thread):
             self.target.halt()
             self.is_target_running = False
             self.sendStopNotification(forceSignal=0)
+        else:
+            logging.error("Unsupported vCont action '%s'" % thread_actions[1])
 
     def flashOp(self, data):
         ops = data.split(':')[0]
