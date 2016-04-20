@@ -17,6 +17,7 @@
 
 from .coresight_target import CoreSightTarget
 import target_kinetis
+import target_ke15z7
 import target_kl02z
 import target_kl05z
 import target_kl25z
@@ -55,6 +56,7 @@ import target_lpc4088dm
 TARGET = {
           'cortex_m': CoreSightTarget,
           'kinetis': target_kinetis.Kinetis,
+          'ke15z7': target_ke15z7.KE15Z7,
           'kl02z': target_kl02z.KL02Z,
           'kl05z': target_kl05z.KL05Z,
           'kl25z': target_kl25z.KL25Z,

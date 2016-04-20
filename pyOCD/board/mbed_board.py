@@ -34,6 +34,7 @@ BOARD_ID_TO_INFO = {
                 "0203": BoardInfo(  "TWR-KL28Z72M",         "kl28z",            "l1_kl28z.bin",         ),
                 "0205": BoardInfo(  "FRDM-KL28Z",           "kl28z",            "l1_kl28z.bin",         ),
                 "0210": BoardInfo(  "FRDM-KL05Z",           "kl05z",            "l1_kl05z.bin",         ),
+                "0213": BoardInfo(  "FRDM-KE15Z",           "ke15z7",           "l1_ke15z7.bin",        ),
                 "0220": BoardInfo(  "FRDM-KL46z",           "kl46z",            "l1_kl46z.bin",         ),
                 "0230": BoardInfo(  "FRDM-K20D50M",         "k20d50m",          "l1_k20d50m.bin",       ),
                 "0231": BoardInfo(  "FRDM-K22F",            "k22f",             "l1_k22f.bin",          ),
