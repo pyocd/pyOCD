@@ -19,10 +19,6 @@ from cortex_m import CortexM
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 
-# NRF52 specific registers
-RESET = 0x40000544
-RESET_ENABLE = (1 << 0)
-
 class NRF52(CortexM):
 
     memoryMap = MemoryMap(
@@ -38,9 +34,4 @@ class NRF52(CortexM):
         reset a core. After a call to this function, the core
         is running
         """
-        #Regular reset will kick NRF out of DBG mode
-        logging.debug("target_nrf52.reset: enable reset pin")
-        self.writeMemory(RESET, RESET_ENABLE)
-        #reset
-        logging.debug("target_nrf52.reset: trigger nRST pin")
         CortexM.reset(self)
