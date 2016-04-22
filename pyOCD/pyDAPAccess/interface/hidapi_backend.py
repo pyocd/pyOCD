@@ -47,7 +47,7 @@ class HidApiUSB(Interface):
         pass
 
     @staticmethod
-    def getAllConnectedInterface():
+    def getAllConnectedInterface(board_id = None):
         """
         returns all the connected devices which matches HidApiUSB.vid/HidApiUSB.pid.
         returns an array of HidApiUSB (Interface) objects
@@ -66,7 +66,8 @@ class HidApiUSB(Interface):
             if (product_name.find("CMSIS-DAP") < 0):
                 # Skip non cmsis-dap devices
                 continue
-
+            if board_id and board_id != deviceInfo['serial_number']:
+                continue
             try:
                 dev = hid.device(vendor_id=deviceInfo['vendor_id'], product_id=deviceInfo['product_id'],
                     path=deviceInfo['path'])

@@ -35,9 +35,9 @@ VALUE_MATCH = 1 << 4
 MATCH_MASK = 1 << 5
 
 
-def _get_interfaces():
+def _get_interfaces(board_id = None):
     """Get the connected USB devices"""
-    return INTERFACE[usb_backend].getAllConnectedInterface()
+    return INTERFACE[usb_backend].getAllConnectedInterface(board_id)
 
 
 def _get_unique_id(interface):
@@ -339,12 +339,15 @@ class DAPAccessUSB(DAPAccessIntf):
     #          Static Functions
     # ------------------------------------------- #
     @staticmethod
-    def get_connected_devices():
+    def get_connected_devices(board_id = None):
         """
         Return an array of all mbed boards connected
+
+        :param str board_id: if specifed, serial number of the board(s)
+            we want
         """
         all_daplinks = []
-        all_interfaces = _get_interfaces()
+        all_interfaces = _get_interfaces(board_id)
         for interface in all_interfaces:
             try:
                 unique_id = _get_unique_id(interface)

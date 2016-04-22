@@ -151,7 +151,8 @@ class MbedBoard(Board):
 
     @staticmethod
     def getAllConnectedBoards(dap_class=DAPAccess, close=False, blocking=True,
-                              target_override=None, frequency=1000000):
+                              target_override=None, frequency=1000000,
+                              board_id = None):
         """
         Return an array of all mbed boards connected
         """
@@ -159,7 +160,7 @@ class MbedBoard(Board):
         mbed_list = []
         while True:
 
-            connected_daps = dap_class.get_connected_devices()
+            connected_daps = dap_class.get_connected_devices(board_id)
             for dap_access in connected_daps:
                 new_mbed = MbedBoard(dap_access, target_override, frequency)
                 mbed_list.append(new_mbed)
@@ -187,7 +188,8 @@ class MbedBoard(Board):
         Allow you to select a board among all boards connected
         """
         all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, False, blocking,
-                                                    target_override, frequency)
+                                                    target_override, frequency,
+                                                    board_id)
 
         # If a board ID is specified close all other boards
         if board_id != None:
