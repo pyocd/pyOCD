@@ -53,6 +53,7 @@ BOARD_ID_TO_INFO = {
                 "0400": BoardInfo(  "maxwsnenv",            "maxwsnenv",        "l1_maxwsnenv.bin",     ),
                 "0405": BoardInfo(  "max32600mbed",         "max32600mbed",     "l1_max32600mbed.bin",  ),
                 "1100": BoardInfo(  "nRF51-DK",             "nrf51",            "l1_nrf51-dk.bin",      ),
+                "1101": BoardInfo(  "nRF52-DK",             "nrf52",            "l1_nrf52-dk.bin",      ),
                 "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
                 "9900": BoardInfo(  "Microbit",             "nrf51",            "l1_microbit.bin",      ),
                 "1114": BoardInfo("mbed LPC1114FN28",       "lpc11xx_32",       "l1_mbed_LPC1114FN28.bin",),
