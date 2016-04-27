@@ -70,9 +70,11 @@ flash_algo = {
     'static_base' : 0x20000000 + 0x00000020 + 0x000004ac,
     'begin_stack' : 0x20000000 + 0x00000800,
     'begin_data' : 0x20000000 + 0x00000A00,
-    'page_size' : 0x00000200,
-    'analyzer_supported' : False,
-    'analyzer_address' : 0x00000000  # ITCM, Analyzer 0x00000000..0x000000600
+    'page_size' : 0x00000800,
+    'analyzer_supported' : True,
+    'analyzer_address' : 0x1ffff000,  # Analyzer 0x1ffff000..0x1ffff600
+    'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
+    'min_program_length' : 8,
 };
 
 class Flash_ke15z7(Flash_Kinetis):
