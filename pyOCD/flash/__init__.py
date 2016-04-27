@@ -18,6 +18,7 @@
 from flash_cortex_m import Flash_cortex_m
 from flash_klxx import Flash_klxx
 from flash_ke15z7 import Flash_ke15z7
+from flash_ke18f16 import Flash_ke18f16
 from flash_kl27z4 import Flash_kl27z4
 from flash_kl28z import Flash_kl28z
 from flash_kl43z4 import Flash_kl43z4
@@ -50,6 +51,7 @@ FLASH = {
          'cortex_m': Flash_cortex_m,
          'kinetis': Flash_cortex_m,
          'ke15z7': Flash_ke15z7,
+         'ke18f16': Flash_ke18f16,
          'kl02z': Flash_klxx,
          'kl05z': Flash_klxx,
          'kl25z': Flash_klxx,
