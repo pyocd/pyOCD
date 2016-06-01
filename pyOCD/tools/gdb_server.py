@@ -28,8 +28,9 @@ from pyOCD import __version__
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line
-from pyOCD.pyDAPAccess.dap_access_usb import DAPAccessUSB
+from pyOCD.pyDAPAccess.dap_access_cmsis_dap import DAPAccessCMSISDAP
 import pyOCD.board.mbed_board
+from pyOCD.pyDAPAccess import DAPAccess
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -79,6 +80,7 @@ class GDBServerTool(object):
         parser.add_argument("-S", "--semihosting", dest="enable_semihosting", action="store_true", help="Enable semihosting.")
         parser.add_argument("-G", "--gdb-syscall", dest="semihost_use_syscalls", action="store_true", help="Use GDB syscalls for semihosting file I/O.")
         parser.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+', help="Run command (OpenOCD compatibility).")
+        parser.add_argument("-da", "--daparg", dest="daparg", action='append', nargs='+', help="Send setting to DAPAccess layer.")
         return parser
 
     def get_chip_erase(self, args):
@@ -185,7 +187,7 @@ class GDBServerTool(object):
 
                 # Reopen the link so we can access the USB vendor and product names from the inteface.
                 # If it's not a USB based link, then we don't attempt this.
-                if isinstance(mbed.link, DAPAccessUSB):
+                if isinstance(mbed.link, DAPAccessCMSISDAP):
                     try:
                         mbed.link.open()
                         d['vendor_name'] = mbed.link._interface.vendor_name
@@ -234,6 +236,7 @@ class GDBServerTool(object):
         self.args = self.build_parser().parse_args(args)
         self.gdb_server_settings = self.get_gdb_server_settings(self.args)
         self.setup_logging(self.args)
+        DAPAccess.set_args(self.args.daparg)
 
         self.process_commands(self.args.commands)
 
