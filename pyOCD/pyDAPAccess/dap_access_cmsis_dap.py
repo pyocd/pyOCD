@@ -375,8 +375,17 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         for arg in arg_list[0]:
             match = arg_pattern.match(arg)
             if match:
-                if hasattr(DAPSettings, match.group(1)):
-                    setattr(DAPSettings, match.group(1), match.group(2))
+                attr = match.group(1)
+                if hasattr(DAPSettings, attr):
+                    val = match.group(2)
+                    # convert string to int or bool
+                    if val.isdigit():
+                        val = int(val)
+                    elif val == "True":
+                        val = True
+                    elif val == "False":
+                        val = False
+                    setattr(DAPSettings, attr, val)
 
 
     # ------------------------------------------- #

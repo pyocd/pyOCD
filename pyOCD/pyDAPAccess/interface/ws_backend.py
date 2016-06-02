@@ -43,6 +43,9 @@ class WebSocketInterface(Interface):
         unique_id = str(raw_id[id_start:id_start + id_size])
         return unique_id
 
+    def getSerialNumber(self):
+        return self.getUniqueId()
+
     @staticmethod
     def getAllConnectedInterface(host,port):
         ws = WebSocketInterface(host,port)

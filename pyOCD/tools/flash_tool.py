@@ -137,7 +137,7 @@ def print_progress(progress):
 def main():
     args = parser.parse_args()
     setup_logging(args)
-    DAPAccess.set_args(self.args.daparg)
+    DAPAccess.set_args(args.daparg)
 
     # Sanity checks before attaching to board
     if args.format == 'hex' and not intelhex_available:
