@@ -80,7 +80,7 @@ class GDBServerTool(object):
         parser.add_argument("-S", "--semihosting", dest="enable_semihosting", action="store_true", help="Enable semihosting.")
         parser.add_argument("-G", "--gdb-syscall", dest="semihost_use_syscalls", action="store_true", help="Use GDB syscalls for semihosting file I/O.")
         parser.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+', help="Run command (OpenOCD compatibility).")
-        parser.add_argument("-da", "--daparg", dest="daparg", action='append', nargs='+', help="Send setting to DAPAccess layer.")
+        parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
         return parser
 
     def get_chip_erase(self, args):

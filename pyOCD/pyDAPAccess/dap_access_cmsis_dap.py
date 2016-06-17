@@ -369,23 +369,24 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @staticmethod
     def set_args(arg_list):
-        # arg_list =[['ws_host=localhost', 'ws_port=8081']]
-        # Match ws_host=localhost
+        # Example: arg_list =['use_ws=True', 'ws_host=localhost', 'ws_port=8081']
         arg_pattern = re.compile("([^=]+)=(.*)")
-        for arg in arg_list[0]:
-            match = arg_pattern.match(arg)
-            if match:
-                attr = match.group(1)
-                if hasattr(DAPSettings, attr):
-                    val = match.group(2)
-                    # convert string to int or bool
-                    if val.isdigit():
-                        val = int(val)
-                    elif val == "True":
-                        val = True
-                    elif val == "False":
-                        val = False
-                    setattr(DAPSettings, attr, val)
+        if arg_list:
+            for arg in arg_list:
+                match = arg_pattern.match(arg)
+                # check if arguments have correct format
+                if match:
+                    attr = match.group(1)
+                    if hasattr(DAPSettings, attr):
+                        val = match.group(2)
+                        # convert string to int or bool
+                        if val.isdigit():
+                            val = int(val)
+                        elif val == "True":
+                            val = True
+                        elif val == "False":
+                            val = False
+                        setattr(DAPSettings, attr, val)
 
 
     # ------------------------------------------- #
