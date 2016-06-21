@@ -15,11 +15,11 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM
+from .coresight_target import (SVDFile, CoreSightTarget)
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 
-class NRF52(CortexM):
+class NRF52(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(    start=0x0,         length=0x80000,      blocksize=0x1000, isBootMemory=True),
@@ -28,10 +28,11 @@ class NRF52(CortexM):
 
     def __init__(self, link):
         super(NRF52, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile(vendor="Nordic", filename="nrf52.svd", is_local=False)
 
     def resetn(self):
         """
         reset a core. After a call to this function, the core
         is running
         """
-        CortexM.reset(self)
+        self.reset()

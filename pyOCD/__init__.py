@@ -20,6 +20,7 @@ import flash
 import gdbserver
 import target
 import utility
+import coresight
 
 from ._version import version as __version__
 

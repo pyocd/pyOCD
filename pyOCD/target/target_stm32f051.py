@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM
+from .coresight_target import (SVDFile, CoreSightTarget)
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 
@@ -38,7 +38,7 @@ DBGMCU_APB2_VAL = 0x00070800
 
 
 
-class STM32F051(CortexM):
+class STM32F051(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(    start=0x08000000,  length=0x10000,      blocksize=0x400, isBootMemory=True),
@@ -47,10 +47,11 @@ class STM32F051(CortexM):
 
     def __init__(self, link):
         super(STM32F051, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F0xx.svd", is_local=False)
 
     def init(self):
         logging.debug('stm32f051 init')
-        CortexM.init(self)
+        super(STM32F051, self).init()
         enclock = self.readMemory(RCC_APB2ENR_CR)
         enclock |= RCC_APB2ENR_DBGMCU
         self.writeMemory(RCC_APB2ENR_CR, enclock);

@@ -162,6 +162,7 @@ class FlashBuilder(object):
             return
 
         # Convert the list of flash operations into flash pages
+        program_byte_count = 0
         flash_addr = self.flash_operation_list[0].addr
         info = self.flash.getPageInfo(flash_addr)
         page_addr = flash_addr - (flash_addr % info.size)
@@ -190,6 +191,7 @@ class FlashBuilder(object):
                 space_left_in_data = len(flash_operation.data) - pos
                 amount = min(space_left_in_page, space_left_in_data)
                 current_page.data.extend(flash_operation.data[pos:pos + amount])
+                program_byte_count += current_page.size
 
                 #increment position
                 pos += amount
@@ -255,10 +257,12 @@ class FlashBuilder(object):
         self.perf.program_time = program_finish - program_start
         self.perf.program_type = flash_operation
 
+        logging.info("Programmed %d bytes (%d pages) at %.02f kB/s", program_byte_count, len(self.page_list), ((program_byte_count/1024) / self.perf.program_time))
+
         return self.perf
 
     def getPerformance(self):
-            return self.perf
+        return self.perf
 
     def _mark_all_pages_for_programming(self):
         for page in self.page_list:

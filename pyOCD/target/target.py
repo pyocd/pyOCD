@@ -15,11 +15,13 @@
  limitations under the License.
 """
 
-
 class Target(object):
 
-    TARGET_RUNNING = (1 << 0)
-    TARGET_HALTED = (1 << 1)
+    TARGET_RUNNING = 1   # Core is executing code.
+    TARGET_HALTED = 2    # Core is halted in debug mode.
+    TARGET_RESET = 3     # Core is being held in reset.
+    TARGET_SLEEPING = 4  # Core is sleeping due to a wfi or wfe instruction.
+    TARGET_LOCKUP = 5    # Core is locked up.
 
     # Types of breakpoints.
     #
@@ -39,6 +41,13 @@ class Target(object):
         self.part_number = ""
         self.memory_map = memoryMap
         self.halt_on_connect = True
+        self.has_fpu = False
+        self._svd_location = None
+        self._svd_device = None
+
+    @property
+    def svd_device(self):
+        return self._svd_device
 
     def setAutoUnlock(self, doAutoUnlock):
         pass
@@ -53,74 +62,143 @@ class Target(object):
         self.flash = flash
 
     def init(self):
-        return
+        raise NotImplementedError()
+
+    def disconnect(self):
+        pass
 
     def info(self, request):
-        return
+        return self.link.info(request)
+
+    def flush(self):
+        self.link.flush()
 
     def readIDCode(self):
-        return
+        raise NotImplementedError()
 
     def halt(self):
-        return
+        raise NotImplementedError()
 
-    def step(self):
-        return
+    def step(self, disable_interrupts=True):
+        raise NotImplementedError()
 
     def resume(self):
-        return
+        raise NotImplementedError()
 
     def writeMemory(self, addr, value, transfer_size=32):
-        return
+        raise NotImplementedError()
 
-    def readMemory(self, addr, transfer_size=32):
-        return
+    # @brief Shorthand to write a 32-bit word.
+    def write32(self, addr, value):
+        self.writeMemory(addr, value, 32)
+
+    # @brief Shorthand to write a 16-bit halfword.
+    def write16(self, addr, value):
+        self.writeMemory(addr, value, 16)
+
+    # @brief Shorthand to write a byte.
+    def write8(self, addr, value):
+        self.writeMemory(addr, value, 8)
+
+    def readMemory(self, addr, transfer_size=32, now=True):
+        raise NotImplementedError()
+
+    # @brief Shorthand to read a 32-bit word.
+    def read32(self, addr, now=True):
+        return self.readMemory(addr, 32, now)
+
+    # @brief Shorthand to read a 16-bit halfword.
+    def read16(self, addr, now=True):
+        return self.readMemory(addr, 16, now)
+
+    # @brief Shorthand to read a byte.
+    def read8(self, addr, now=True):
+        return self.readMemory(addr, 8, now)
 
     def writeBlockMemoryUnaligned8(self, addr, value):
-        return
+        raise NotImplementedError()
 
     def writeBlockMemoryAligned32(self, addr, data):
-        return
+        raise NotImplementedError()
 
     def readBlockMemoryUnaligned8(self, addr, size):
-        return
+        raise NotImplementedError()
 
     def readBlockMemoryAligned32(self, addr, size):
-        return
+        raise NotImplementedError()
 
     def readCoreRegister(self, id):
-        return
+        raise NotImplementedError()
 
-    def writeCoreRegister(self, id):
-        return
+    def writeCoreRegister(self, id, data):
+        raise NotImplementedError()
+
+    def readCoreRegisterRaw(self, reg):
+        raise NotImplementedError()
+
+    def readCoreRegistersRaw(self, reg_list):
+        raise NotImplementedError()
+
+    def writeCoreRegisterRaw(self, reg, data):
+        raise NotImplementedError()
+
+    def writeCoreRegistersRaw(self, reg_list, data_list):
+        raise NotImplementedError()
+
+    def findBreakpoint(self, addr):
+        raise NotImplementedError()
 
     def setBreakpoint(self, addr, type=BREAKPOINT_AUTO):
-        return
+        raise NotImplementedError()
 
     def getBreakpointType(self, addr):
-        return
+        raise NotImplementedError()
 
     def removeBreakpoint(self, addr):
-        return
+        raise NotImplementedError()
 
     def setWatchpoint(self, addr, size, type):
-        return
+        raise NotImplementedError()
 
     def removeWatchpoint(self, addr, size, type):
-        return
+        raise NotImplementedError()
 
-    def reset(self):
-        return
+    def reset(self, software_reset=None):
+        raise NotImplementedError()
+
+    def resetStopOnReset(self, software_reset=None):
+        raise NotImplementedError()
+
+    def setTargetState(self, state):
+        raise NotImplementedError()
 
     def getState(self):
-        return
+        raise NotImplementedError()
+
+    def isRunning(self):
+        return self.getState() == Target.TARGET_RUNNING
+
+    def isHalted(self):
+        return self.getState() == Target.TARGET_HALTED
 
     def getMemoryMap(self):
         return self.memory_map
 
+    def setVectorCatchFault(self, enable):
+        raise NotImplementedError()
+
+    def getVectorCatchFault(self):
+        raise NotImplementedError()
+
+    def setVectorCatchReset(self, enable):
+        raise NotImplementedError()
+
+    def getVectorCatchReset(self):
+        raise NotImplementedError()
+
     # GDB functions
     def getTargetXML(self):
-        return ''
+        raise NotImplementedError()
 
     def getMemoryMapXML(self):
         if self.memory_map:
@@ -131,13 +209,16 @@ class Target(object):
             return None
 
     def getRegisterContext(self):
-        return ''
+        raise NotImplementedError()
 
     def setRegisterContext(self, data):
-        return
+        raise NotImplementedError()
 
     def setRegister(self, reg, data):
-        return
+        raise NotImplementedError()
 
     def getTResponse(self, gdbInterrupt=False):
-        return ''
+        raise NotImplementedError()
+
+    def getSignalValue(self):
+        raise NotImplementedError()

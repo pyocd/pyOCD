@@ -227,8 +227,10 @@ class Flash(object):
             min_len = self.getPageInfo(flashPtr).size
 
         # Require write address and length to be aligned to min write size.
-        if (flashPtr % min_len) or (len(bytes) % min_len):
-            raise RuntimeError("unaligned address or length")
+        if flashPtr % min_len:
+            raise RuntimeError("unaligned flash write address")
+        if len(bytes) % min_len:
+            raise RuntimeError("phrase length is unaligned or too small")
 
         # prevent security settings from locking the device
         bytes = self.overrideSecurityBits(flashPtr, bytes)
