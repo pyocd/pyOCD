@@ -66,6 +66,10 @@ htmlcov
 /windev
 
 automated_test_result.txt
+test_params.txt
+output.txt
+gdb_test_raw.txt
+test_results.txt
 
 
 .eggs/

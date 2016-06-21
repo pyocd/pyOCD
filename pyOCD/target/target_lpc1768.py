@@ -15,10 +15,10 @@
  limitations under the License.
 """
 
-from cortex_m import CortexM
+from .coresight_target import (SVDFile, CoreSightTarget)
 from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 
-class LPC1768(CortexM):
+class LPC1768(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, isBootMemory=True),
@@ -29,12 +29,13 @@ class LPC1768(CortexM):
 
     def __init__(self, link):
         super(LPC1768, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile(vendor="NXP", filename="LPC176x5x_v0.2.svd", is_local=False)
 
     def reset(self, software_reset=False):
-        CortexM.reset(self, False)
+        super(LPC1768, self).reset(False)
 
     def resetStopOnReset(self, software_reset=False, map_to_user=True):
-        CortexM.resetStopOnReset(self)
+        super(LPC1768, self).resetStopOnReset()
 
         # Remap to use flash and set SP and SP accordingly
         if map_to_user:

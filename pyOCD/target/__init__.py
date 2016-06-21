@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-import cortex_m
+from .coresight_target import CoreSightTarget
 import target_kinetis
 import target_kl02z
 import target_kl05z
@@ -42,7 +42,7 @@ import target_lpc824
 import semihost
 
 TARGET = {
-          'cortex_m': cortex_m.CortexM,
+          'cortex_m': CoreSightTarget,
           'kinetis': target_kinetis.Kinetis,
           'kl02z': target_kl02z.KL02Z,
           'kl05z': target_kl05z.KL05Z,

@@ -44,7 +44,7 @@ class SpeedTest(Test):
         format_str = "{:<10}{:<16}{:<16}"
         result_list = filter(lambda x: isinstance(x, SpeedTestResult), result_list)
         print("\r\n\r\n------ Speed Test Performance ------", file=output_file)
-        print(format_str.format("Target", "Write Speed", "Read Speed"),
+        print(format_str.format("Target", "Read Speed", "Write Speed"),
               file=output_file)
         print("", file=output_file)
         for result in result_list:

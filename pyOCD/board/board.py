@@ -66,9 +66,14 @@ class Board(object):
                 logging.error("target exception during uninit:")
                 traceback.print_exc()
         try:
+            self.target.disconnect()
+        except:
+            logging.error("link exception during target disconnect:")
+            traceback.print_exc()
+        try:
             self.link.disconnect()
         except:
-            logging.error("link exception during disconnect:")
+            logging.error("link exception during link disconnect:")
             traceback.print_exc()
         try:
             self.link.close()

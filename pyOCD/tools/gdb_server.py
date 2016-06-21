@@ -195,7 +195,7 @@ class GDBServerTool(object):
                         pass
                 boards.append(d)
 
-            print json.dumps(obj, indent=4) #, sys.stdout)
+            print json.dumps(obj, indent=4)
         else:
             index = 0
             if len(all_mbeds) > 0:
@@ -223,6 +223,15 @@ class GDBServerTool(object):
                     'name' : name,
                     'part_number' : t.part_number,
                     }
+                if t._svd_location is not None:
+                    if t._svd_location.is_local:
+                        d['svd_path'] = t._svd_location.filename
+                    else:
+                        resource = "data/{vendor}/{filename}".format(
+                            vendor=t._svd_location.vendor,
+                            filename=t._svd_location.filename
+                        )
+                        d['svd_path'] = pkg_resources.resource_filename("cmsis_svd", resource)
                 targets.append(d)
 
             print json.dumps(obj, indent=4) #, sys.stdout)
