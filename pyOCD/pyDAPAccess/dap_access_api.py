@@ -85,6 +85,13 @@ class DAPAccessIntf(object):
         """Return the DAPAccess device with the give ID"""
         raise NotImplementedError()
 
+    @staticmethod
+    def set_args(arg_list):
+        """Set arguments to configure behavior"""
+        raise NotImplementedError()
+
+
+
     # ------------------------------------------- #
     #          Host control functions
     # ------------------------------------------- #

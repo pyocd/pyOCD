@@ -374,6 +374,7 @@ class PyOCDTool(object):
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
         parser.add_argument("cmd", nargs='?', default=None, help="Command")
         parser.add_argument("args", nargs='*', help="Arguments for the command.")
+        parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
         return parser.parse_args()
 
     def configure_logging(self):
@@ -390,6 +391,7 @@ class PyOCDTool(object):
 
             # Set logging level
             self.configure_logging()
+            DAPAccess.set_args(self.args.daparg)
 
             # Check for a valid command.
             if self.cmd and self.cmd not in self.command_list:

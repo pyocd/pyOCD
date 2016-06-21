@@ -32,6 +32,7 @@ except ImportError:
 import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
+from pyOCD.pyDAPAccess import DAPAccess
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -97,6 +98,7 @@ parser.add_argument("-s", "--skip", default=0, type=int_base_0,
 parser.add_argument("-hp", "--hide_progress", action="store_true", help="Don't display programming progress.")
 parser.add_argument("-fp", "--fast_program", action="store_true",
                     help="Use only the CRC of each page to determine if it already has the same data.")
+parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
 
 # Notes
 # -Currently "--unlock" does nothing since kinetis parts will automatically get unlocked
@@ -135,6 +137,7 @@ def print_progress(progress):
 def main():
     args = parser.parse_args()
     setup_logging(args)
+    DAPAccess.set_args(args.daparg)
 
     # Sanity checks before attaching to board
     if args.format == 'hex' and not intelhex_available:

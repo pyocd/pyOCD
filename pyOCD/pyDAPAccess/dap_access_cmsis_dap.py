@@ -16,13 +16,15 @@
 """
 from __future__ import absolute_import
 
+import re
 import logging
 import time
 import collections
 import six
+from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSIS_DAP_Protocol
-from .interface import INTERFACE, usb_backend
+from .interface import INTERFACE, usb_backend, ws_backend
 from .cmsis_dap_core import (COMMAND_ID, DAP_TRANSFER_OK,
                              DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT)
 
@@ -34,10 +36,12 @@ WRITE = 0 << 1
 VALUE_MATCH = 1 << 4
 MATCH_MASK = 1 << 5
 
-
 def _get_interfaces():
     """Get the connected USB devices"""
-    return INTERFACE[usb_backend].getAllConnectedInterface()
+    if DAPSettings.use_ws:
+        return INTERFACE[ws_backend].getAllConnectedInterface(DAPSettings.ws_host, DAPSettings.ws_port)
+    else:
+        return INTERFACE[usb_backend].getAllConnectedInterface()
 
 
 def _get_unique_id(interface):
@@ -329,11 +333,12 @@ class _Command(object):
             data = self._decode_transfer_data(data)
         return data
 
-
-class DAPAccessUSB(DAPAccessIntf):
+class DAPAccessCMSISDAP(DAPAccessIntf):
     """
     An implementation of the DAPAccessIntf layer for DAPLINK boards
     """
+
+    
 
     # ------------------------------------------- #
     #          Static Functions
@@ -348,7 +353,7 @@ class DAPAccessUSB(DAPAccessIntf):
         for interface in all_interfaces:
             try:
                 unique_id = _get_unique_id(interface)
-                new_daplink = DAPAccessUSB(unique_id)
+                new_daplink = DAPAccessCMSISDAP(unique_id)
                 all_daplinks.append(new_daplink)
             except DAPAccessIntf.TransferError:
                 logger = logging.getLogger(__name__)
@@ -360,14 +365,36 @@ class DAPAccessUSB(DAPAccessIntf):
     @staticmethod
     def get_device(device_id):
         assert isinstance(device_id, str)
-        return DAPAccessUSB(device_id)
+        return DAPAccessCMSISDAP(device_id)
+
+    @staticmethod
+    def set_args(arg_list):
+        # Example: arg_list =['use_ws=True', 'ws_host=localhost', 'ws_port=8081']
+        arg_pattern = re.compile("([^=]+)=(.*)")
+        if arg_list:
+            for arg in arg_list:
+                match = arg_pattern.match(arg)
+                # check if arguments have correct format
+                if match:
+                    attr = match.group(1)
+                    if hasattr(DAPSettings, attr):
+                        val = match.group(2)
+                        # convert string to int or bool
+                        if val.isdigit():
+                            val = int(val)
+                        elif val == "True":
+                            val = True
+                        elif val == "False":
+                            val = False
+                        setattr(DAPSettings, attr, val)
+
 
     # ------------------------------------------- #
     #          CMSIS-DAP and Other Functions
     # ------------------------------------------- #
     def __init__(self, unique_id):
         assert isinstance(unique_id, six.string_types)
-        super(DAPAccessUSB, self).__init__()
+        super(DAPAccessCMSISDAP, self).__init__()
         self._interface = None
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed

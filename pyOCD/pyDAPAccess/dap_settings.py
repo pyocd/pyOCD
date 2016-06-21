@@ -14,8 +14,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from .dap_access_api import DAPAccessIntf
-from .dap_access_cmsis_dap import DAPAccessCMSISDAP
 
-# alias DAPAccessCMSISDAP as main DAPAccess class
-DAPAccess = DAPAccessCMSISDAP
+class DAPSettings():
+	
+	use_ws = False
+	ws_host = "localhost"
+	ws_port = 8081
