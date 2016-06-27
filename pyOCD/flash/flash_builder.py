@@ -191,7 +191,7 @@ class FlashBuilder(object):
                 space_left_in_data = len(flash_operation.data) - pos
                 amount = min(space_left_in_page, space_left_in_data)
                 current_page.data.extend(flash_operation.data[pos:pos + amount])
-                program_byte_count += current_page.size
+                program_byte_count += amount
 
                 #increment position
                 pos += amount
