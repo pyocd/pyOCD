@@ -47,6 +47,7 @@ from flash_lpc824 import Flash_lpc824
 from flash_lpc4088 import Flash_lpc4088
 from flash_ncs36510 import Flash_ncs36510
 from flash_lpc4088qsb_dm import Flash_lpc4088qsb_dm
+from flash_tz10xx import Flash_tz10xx
 
 FLASH = {
          'cortex_m': Flash_cortex_m,
@@ -87,4 +88,5 @@ FLASH = {
          'ncs36510': Flash_ncs36510, 
          'lpc4088qsb': Flash_lpc4088qsb_dm,
          'lpc4088dm': Flash_lpc4088qsb_dm,
+         'tz10xx': Flash_tz10xx,
          }

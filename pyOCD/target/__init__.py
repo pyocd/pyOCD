@@ -50,6 +50,8 @@ import target_w7500
 import target_lpc11xx_32
 import target_lpc824
 import target_ncs36510
+import target_tz10xx
+
 import semihost
 import target_lpc4088
 import target_lpc4088qsb
@@ -94,4 +96,5 @@ TARGET = {
           'ncs36510': target_ncs36510.NCS36510,
           'lpc4088qsb': target_lpc4088qsb.LPC4088qsb,
           'lpc4088dm': target_lpc4088dm.LPC4088dm,
+          'tz10xx': target_tz10xx.TZ10xx
          }
