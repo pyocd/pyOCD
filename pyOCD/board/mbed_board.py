@@ -66,6 +66,7 @@ BOARD_ID_TO_INFO = {
                 "1234": BoardInfo(  "u-blox-C027",          "lpc1768",          "l1_lpc1768.bin",       ),
                 "1018": BoardInfo(  "Switch-Science-mbed-LPC824", "lpc824",     "l1_lpc824.bin",        ),
                 "0824": BoardInfo(  "LPCXpresso824-MAX",    "lpc824",           "l1_lpc824.bin",        ),
+                "7010": BoardInfo(  "Cerevo BlueNinja",     "tz10xx",           "l1_blueninja.bin",     ),
               }
 
 mbed_vid = 0x0d28
