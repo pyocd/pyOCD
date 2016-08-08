@@ -84,7 +84,8 @@ class AccessPort(object):
 
             self.inited_primary = True
         if not self.inited_secondary and self.has_rom_table and bus_accessible:
-            self.init_rom_table()
+            #Initializing and reading rom table decrease the performance. Connecting to board takes 4 times longer.
+            #self.init_rom_table()
             self.inited_secondary = True
 
     def init_rom_table(self):
