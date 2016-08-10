@@ -337,8 +337,10 @@ class MEM_AP(AccessPort):
 
 class AHB_AP(MEM_AP):
     def init(self, bus_accessible=True):
-        super(AHB_AP, self).init(bus_accessible)
+        # Init super first with bus access disabled, so it doesn't read the ROM table.
+        super(AHB_AP, self).init(False)
 
+        # Look up the page size based on AP ID.
         if self.idr in AHB_IDR_TO_WRAP_SIZE:
             self.auto_increment_page_size = AHB_IDR_TO_WRAP_SIZE[self.idr]
         else:
@@ -348,6 +350,11 @@ class AHB_AP(MEM_AP):
             # read/write errors.
             self.auto_increment_page_size = 0x400
             logging.warning("Unknown AHB IDR: 0x%x" % self.idr)
+
+        # Now we can let the ROM table init since the page size is set, which is very
+        # important for performance.
+        if bus_accessible:
+            super(AHB_AP, self).init(bus_accessible)
 
 
 
