@@ -261,8 +261,6 @@ class GDBServerTool(object):
                     target_override=self.args.target_override,
                     frequency=self.args.frequency)
                 with board_selected as board:
-                    # Boost speed with deferred transfers
-                    board.link.set_deferred_transfer(True)
                     gdb = GDBServer(board, self.args.port_number, self.gdb_server_settings)
                     while gdb.isAlive():
                         gdb.join(timeout=0.5)
