@@ -131,12 +131,17 @@ def flash_test(board_id):
         memory_map = board.target.getMemoryMap()
         ram_regions = [region for region in memory_map if region.type == 'ram']
         ram_region = ram_regions[0]
-        rom_region = memory_map.getBootMemory()
 
         ram_start = ram_region.start
         ram_size = ram_region.length
+
+        # Grab boot flash and any regions coming immediately after
+        rom_region = memory_map.getBootMemory()
         rom_start = rom_region.start
         rom_size = rom_region.length
+        for region in memory_map:
+            if region.isFlash and (region.start == rom_start + rom_size):
+                rom_size += region.length
 
         target = board.target
         link = board.link
