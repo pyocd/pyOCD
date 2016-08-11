@@ -23,6 +23,10 @@ PIDR0 = 0xfe0
 CIDR0 = 0xff0
 DEVTYPE = 0xfcc
 DEVID = 0xfc8
+IDR_COUNT = 12
+PIDR4_OFFSET = 0
+PIDR0_OFFSET = 4
+CIDR0_OFFSET = 8
 
 CIDR_COMPONENT_CLASS_MASK = 0xf000
 CIDR_COMPONENT_CLASS_SHIFT = 12
@@ -90,6 +94,7 @@ class CoreSightComponent(object):
         self.address = top_addr
         self.top_address = top_addr
         self.component_class = 0
+        self.is_rom_table = False
         self.cidr = 0
         self.pidr = 0
         self.devtype = 0
@@ -98,9 +103,11 @@ class CoreSightComponent(object):
         self.name = ''
 
     def read_id_registers(self):
-        # Read Component ID and Peripheral ID registers.
-        self.cidr = self.read_id_register_set(CIDR0)
-        self.pidr = (self.read_id_register_set(PIDR4) << 32) | self.read_id_register_set(PIDR0)
+        # Read Component ID and Peripheral ID registers. This is done as a single block read
+        # for performance reasons.
+        regs = self.ap.readBlockMemoryAligned32(self.top_address + PIDR4, IDR_COUNT)
+        self.cidr = self._extract_id_register_value(regs, CIDR0_OFFSET)
+        self.pidr = (self._extract_id_register_value(regs, PIDR4_OFFSET) << 32) | self._extract_id_register_value(regs, PIDR0_OFFSET)
 
         self.name = PID_TABLE.get(self.pidr, '')
 
@@ -110,16 +117,14 @@ class CoreSightComponent(object):
         self.count_4kb = 1 << ((self.pidr & PIDR_4KB_COUNT_MASK) >> PIDR_4KB_COUNT_SHIFT)
         if self.count_4kb > 1:
             address = self.top_address - (4096 * (self.count_4kb - 1))
-#             print "addr=%x" % address
 
         if self.component_class == CIDR_CORESIGHT_CLASS:
-            self.devtype = self.ap.read32(self.top_address + DEVTYPE)
-            self.devid = self.ap.read32(self.top_address + DEVID)
+            self.devid, self.devtype = self.ap.readBlockMemoryAligned32(self.top_address + DEVID, 2)
 
-    def read_id_register_set(self, offset):
+    def _extract_id_register_value(self, regs, offset):
         result = 0
         for i in range(4):
-            value = self.ap.read32(self.top_address + offset + i * 4)
+            value = regs[offset + i]
             result |= (value & 0xff) << (i * 8)
         return result
 
@@ -148,41 +153,39 @@ class ROMTable(CoreSightComponent):
             return
         if self.count_4kb != 1:
             logging.warning("Warning: ROM table @ 0x%08x is larger than 4kB (%d 4kb pages)", self.address, self.count_4kb)
-        self.entry_size = self.get_entry_size()
         self.read_table()
-
-    ## @brief Read the first word to get the size of all entries.
-    #
-    # ROM tables are required to have all entries be the same size.
-    #
-    # @retval 32
-    # @retval 8
-    def get_entry_size(self):
-        data = self.ap.read32(self.address)
-        if data & ROM_TABLE_32BIT_MASK:
-            return 32
-        else:
-            return 8
 
     def read_table(self):
         logging.info("ROM table #%d @ 0x%08x", self.number, self.address)
         self.components = []
-        if self.entry_size == 32:
-            self.read_table_32()
-        else:
+
+        # Switch to the 8-bit table entry reader if we already know the entry size.
+        if self.entry_size == 8:
             self.read_table_8()
 
-    def read_table_32(self):
         entryAddress = self.address
-        while True:
-            entry = self.ap.read32(entryAddress)
+        foundEnd = False
+        while not foundEnd:
+            # Read 9 entries at a time. This is enough entries to cover the standard Cortex-M4
+            # ROM table for devices with ETM.
+            entries = self.ap.readBlockMemoryAligned32(entryAddress, 9)
 
-            # Zero entry indicates the end of the table.
-            if entry == 0:
-                break
-            self.handle_table_entry(entry)
+            # Determine entry size if unknown.
+            if self.entry_size == 0:
+                self.entry_size = 32 if (entries[0] & ROM_TABLE_32BIT_MASK) else 8
+                if self.entry_size == 8:
+                    # Read 8-bit table.
+                    self.read_table_8()
+                    return
 
-            entryAddress += 4
+            for entry in entries:
+                # Zero entry indicates the end of the table.
+                if entry == 0:
+                    foundEnd = True
+                    break
+                self.handle_table_entry(entry)
+
+                entryAddress += 4
 
     def read_table_8(self):
         entryAddress = self.address

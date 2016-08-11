@@ -157,9 +157,6 @@ def main():
             flash = board.flash
             link = board.link
 
-            # Boost speed with deferred transfers
-            link.set_deferred_transfer(True)
-
             progress = print_progress
             if args.hide_progress:
                 progress = None
