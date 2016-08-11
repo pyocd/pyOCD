@@ -155,16 +155,26 @@ class BreakpointManager(object):
         # Clear Thumb bit in case it is set.
         addr = addr & ~1
 
+        in_hw_bkpt_range = addr < 0x20000000
+        fbp_available = ((self._fpb is not None) and
+                         (self._fpb.available_breakpoints() > 0))
+
         # Check for an existing breakpoint at this address.
         bp = self.find_breakpoint(addr)
         if bp is not None:
             return True
 
-        # Look up the memory region for the requested address. If there is no region,
-        # then we can't set a breakpoint.
-        region = self._core.memory_map.getRegionForAddress(addr)
-        if region is None:
-            return False
+        if self._core.memory_map is None:
+            # No memory map - fallback to hardware breakpoints.
+            type = Target.BREAKPOINT_HW
+            is_flash = False
+            is_ram = False
+        else:
+            # Look up the memory type for the requested address.
+            region = self._core.memory_map.getRegionForAddress(addr)
+            if region is not None:
+                is_flash = region.isFlash
+                is_ram = region.isRam
 
         # Determine best type to use if auto.
         if type == Target.BREAKPOINT_AUTO:
@@ -174,22 +184,30 @@ class BreakpointManager(object):
             #  3. No hw breaks are left.
             #
             # Otherwise use hw.
-            if (addr >= 0x20000000) or (region.isRam) or (self._fpb and self._fpb.available_breakpoints() == 0):
+            if not in_hw_bkpt_range or is_ram or fbp_available:
                 type = Target.BREAKPOINT_SW
             else:
                 type = Target.BREAKPOINT_HW
 
             logging.debug("using type %d for auto bp", type)
 
-        # Revert to sw bp above 0x2000_0000.
-        if (type == Target.BREAKPOINT_HW) and (addr >= 0x20000000):
-            logging.debug("using sw bp instead because of unsupported addr")
-            type = Target.BREAKPOINT_SW
+        # Revert to sw bp if out of hardware breakpoint range.
+        if (type == Target.BREAKPOINT_HW) and not in_hw_bkpt_range:
+            if is_ram:
+                logging.debug("using sw bp instead because of unsupported addr")
+                type = Target.BREAKPOINT_SW
+            else:
+                logging.debug("could not fallback to software breakpoint")
+                return False
 
         # Revert to hw bp if region is flash.
-        if region.isFlash:
-            logging.debug("using hw bp instead because addr is flash")
-            type = Target.BREAKPOINT_HW
+        if is_flash:
+            if in_hw_bkpt_range and fbp_available:
+                logging.debug("using hw bp instead because addr is flash")
+                type = Target.BREAKPOINT_HW
+            else:
+                logging.debug("could not fallback to hardware breakpoint")
+                return False
 
         # Set the bp.
         try:
