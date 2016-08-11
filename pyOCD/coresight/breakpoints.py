@@ -216,10 +216,12 @@ class BreakpointManager(object):
         except KeyError:
             raise RuntimeError("Unknown breakpoint type %d" % type)
 
-        # Save the bp.
-        if bp is not None:
-            self._breakpoints[addr] = bp
 
+        if bp is None:
+            return False
+
+        # Save the bp.
+        self._breakpoints[addr] = bp
         return True
 
     ## @brief Remove a breakpoint at a specific location.
