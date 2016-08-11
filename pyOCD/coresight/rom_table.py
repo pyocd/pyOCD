@@ -47,6 +47,10 @@ ROM_TABLE_ADDR_OFFSET_NEG_MASK = 0x80000000
 ROM_TABLE_ADDR_OFFSET_MASK = 0xfffff000
 ROM_TABLE_ADDR_OFFSET_SHIFT = 12
 
+# 9 entries is enough entries to cover the standard Cortex-M4 ROM table for devices with ETM.
+ROM_TABLE_ENTRY_READ_COUNT = 9
+ROM_TABLE_MAX_ENTRIES = 960
+
 # CoreSight devtype
 #  Major Type [3:0]
 #  Minor Type [7:4]
@@ -156,7 +160,7 @@ class ROMTable(CoreSightComponent):
         self.read_table()
 
     def read_table(self):
-        logging.info("ROM table #%d @ 0x%08x", self.number, self.address)
+        logging.info("ROM table #%d @ 0x%08x cidr=%x pidr=%x", self.number, self.address, self.cidr, self.pidr)
         self.components = []
 
         # Switch to the 8-bit table entry reader if we already know the entry size.
@@ -165,10 +169,12 @@ class ROMTable(CoreSightComponent):
 
         entryAddress = self.address
         foundEnd = False
-        while not foundEnd:
-            # Read 9 entries at a time. This is enough entries to cover the standard Cortex-M4
-            # ROM table for devices with ETM.
-            entries = self.ap.readBlockMemoryAligned32(entryAddress, 9)
+        entriesRead = 0
+        while not foundEnd and entriesRead < ROM_TABLE_MAX_ENTRIES:
+            # Read several entries at a time for performance.
+            readCount = min(ROM_TABLE_MAX_ENTRIES - entriesRead, ROM_TABLE_ENTRY_READ_COUNT)
+            entries = self.ap.readBlockMemoryAligned32(entryAddress, readCount)
+            entriesRead += readCount
 
             # Determine entry size if unknown.
             if self.entry_size == 0:
@@ -208,17 +214,19 @@ class ROMTable(CoreSightComponent):
         if (entry & ROM_TABLE_ENTRY_PRESENT_MASK) == 0:
             return
 
+        # Get the component's top 4k address.
         offset = entry & ROM_TABLE_ADDR_OFFSET_MASK
         if (entry & ROM_TABLE_ADDR_OFFSET_NEG_MASK) != 0:
             offset = ~invert32(offset)
         address = self.address + offset
-#         print "Found ROM entry: offset=%x, addr=%x" % (offset, address)
 
+        # Create component instance.
         cmp = CoreSightComponent(self.ap, address)
         cmp.read_id_registers()
 
         logging.info("[%d]%s", len(self.components), str(cmp))
 
+        # Recurse into child ROM tables.
         if cmp.is_rom_table:
             cmp = ROMTable(self.ap, address, parent_table=self)
             cmp.init()
