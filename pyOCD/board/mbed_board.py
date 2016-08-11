@@ -83,7 +83,6 @@ class MbedBoard(Board):
         """
         self.native_target = None
         self.test_binary = None
-        link.set_deferred_transfer(True)
         unique_id = link.get_unique_id()
         board_id = unique_id[0:4]
         self.name = "Unknown Board"

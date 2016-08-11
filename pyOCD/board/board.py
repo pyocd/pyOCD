@@ -47,6 +47,7 @@ class Board(object):
         """
         logging.debug("init board %s", self)
         self.link.set_clock(self.debug_clock_frequency)
+        self.link.set_deferred_transfer(True)
         self.target.init()
 
     def uninit(self, resume=True):

@@ -25,7 +25,7 @@ AP_ROM_TABLE_ADDR_REG = 0xf8
 AP_ROM_TABLE_FORMAT_MASK = 0x2
 AP_ROM_TABLE_ENTRY_PRESENT_MASK = 0x1
 
-AHB_IDR_TO_WRAP_SIZE = {
+MEM_AP_IDR_TO_WRAP_SIZE = {
     0x24770011 : 0x1000,    # Used on m4 & m3 - Documented in arm_cortexm4_processor_trm_100166_0001_00_en.pdf
                             #                   and arm_cortexm3_processor_trm_100165_0201_00_en.pdf
     0x44770001 : 0x400,     # Used on m1 - Documented in DDI0413D_cortexm1_r1p0_trm.pdf
@@ -100,7 +100,21 @@ class AccessPort(object):
 class MEM_AP(AccessPort):
     def __init__(self, dp, ap_num):
         super(MEM_AP, self).__init__(dp, ap_num)
-        self.auto_increment_page_size = 4
+
+        # Default to the smallest size supported by all targets.
+        # A size smaller than the supported size will decrease performance
+        # due to the extra address writes, but will not create any
+        # read/write errors.
+        self.auto_increment_page_size = 0x400
+
+    def init(self, bus_accessible=True):
+        super(MEM_AP, self).init(bus_accessible)
+
+        # Look up the page size based on AP ID.
+        try:
+            self.auto_increment_page_size = MEM_AP_IDR_TO_WRAP_SIZE[self.idr]
+        except KeyError:
+            logging.warning("Unknown MEM-AP IDR: 0x%x" % self.idr)
 
     ## @brief Write a single memory location.
     #
@@ -336,25 +350,6 @@ class MEM_AP(AccessPort):
         self.dp._handle_error(error, num)
 
 class AHB_AP(MEM_AP):
-    def init(self, bus_accessible=True):
-        # Init super first with bus access disabled, so it doesn't read the ROM table.
-        super(AHB_AP, self).init(False)
-
-        # Look up the page size based on AP ID.
-        if self.idr in AHB_IDR_TO_WRAP_SIZE:
-            self.auto_increment_page_size = AHB_IDR_TO_WRAP_SIZE[self.idr]
-        else:
-            # If unknown use the smallest size supported by all targets.
-            # A size smaller than the supported size will decrease performance
-            # due to the extra address writes, but will not create any
-            # read/write errors.
-            self.auto_increment_page_size = 0x400
-            logging.warning("Unknown AHB IDR: 0x%x" % self.idr)
-
-        # Now we can let the ROM table init since the page size is set, which is very
-        # important for performance.
-        if bus_accessible:
-            super(AHB_AP, self).init(bus_accessible)
-
+    pass
 
 

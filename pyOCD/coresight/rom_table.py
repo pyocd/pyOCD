@@ -153,37 +153,30 @@ class ROMTable(CoreSightComponent):
             return
         if self.count_4kb != 1:
             logging.warning("Warning: ROM table @ 0x%08x is larger than 4kB (%d 4kb pages)", self.address, self.count_4kb)
-        self.entry_size = self.get_entry_size()
         self.read_table()
-
-    ## @brief Read the first word to get the size of all entries.
-    #
-    # ROM tables are required to have all entries be the same size.
-    #
-    # @retval 32
-    # @retval 8
-    def get_entry_size(self):
-        data = self.ap.read32(self.address)
-        if data & ROM_TABLE_32BIT_MASK:
-            return 32
-        else:
-            return 8
 
     def read_table(self):
         logging.info("ROM table #%d @ 0x%08x", self.number, self.address)
         self.components = []
-        if self.entry_size == 32:
-            self.read_table_32()
-        else:
+
+        # Switch to the 8-bit table entry reader if we already know the entry size.
+        if self.entry_size == 8:
             self.read_table_8()
 
-    def read_table_32(self):
         entryAddress = self.address
         foundEnd = False
         while not foundEnd:
             # Read 9 entries at a time. This is enough entries to cover the standard Cortex-M4
             # ROM table for devices with ETM.
             entries = self.ap.readBlockMemoryAligned32(entryAddress, 9)
+
+            # Determine entry size if unknown.
+            if self.entry_size == 0:
+                self.entry_size = 32 if (entries[0] & ROM_TABLE_32BIT_MASK) else 8
+                if self.entry_size == 8:
+                    # Read 8-bit table.
+                    self.read_table_8()
+                    return
 
             for entry in entries:
                 # Zero entry indicates the end of the table.
