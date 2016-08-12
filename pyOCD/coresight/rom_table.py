@@ -28,6 +28,9 @@ PIDR4_OFFSET = 0
 PIDR0_OFFSET = 4
 CIDR0_OFFSET = 8
 
+CIDR_PREAMBLE_MASK = 0xffff0fff
+CIDR_PREAMBLE_VALUE = 0xb105000d
+
 CIDR_COMPONENT_CLASS_MASK = 0xf000
 CIDR_COMPONENT_CLASS_SHIFT = 12
 
@@ -105,6 +108,7 @@ class CoreSightComponent(object):
         self.devid = 0
         self.count_4kb = 0
         self.name = ''
+        self.valid = False
 
     def read_id_registers(self):
         # Read Component ID and Peripheral ID registers. This is done as a single block read
@@ -113,17 +117,35 @@ class CoreSightComponent(object):
         self.cidr = self._extract_id_register_value(regs, CIDR0_OFFSET)
         self.pidr = (self._extract_id_register_value(regs, PIDR4_OFFSET) << 32) | self._extract_id_register_value(regs, PIDR0_OFFSET)
 
+        # Check if the component has a valid CIDR value
+        if (self.cidr & CIDR_PREAMBLE_MASK) != CIDR_PREAMBLE_VALUE:
+            logging.warning("Invalid coresight component, cidr=0x%x", self.cidr)
+            return
+
         self.name = PID_TABLE.get(self.pidr, '')
 
-        self.component_class = (self.cidr & CIDR_COMPONENT_CLASS_MASK) >> CIDR_COMPONENT_CLASS_SHIFT
-        self.is_rom_table = (self.component_class == CIDR_ROM_TABLE_CLASS)
+        component_class = (self.cidr & CIDR_COMPONENT_CLASS_MASK) >> CIDR_COMPONENT_CLASS_SHIFT
+        is_rom_table = (component_class == CIDR_ROM_TABLE_CLASS)
 
-        self.count_4kb = 1 << ((self.pidr & PIDR_4KB_COUNT_MASK) >> PIDR_4KB_COUNT_SHIFT)
-        if self.count_4kb > 1:
-            address = self.top_address - (4096 * (self.count_4kb - 1))
+        count_4kb = 1 << ((self.pidr & PIDR_4KB_COUNT_MASK) >> PIDR_4KB_COUNT_SHIFT)
+        if count_4kb > 1:
+            address = self.top_address - (4096 * (count_4kb - 1))
 
-        if self.component_class == CIDR_CORESIGHT_CLASS:
+        # From section 10.4 of ARM Debug InterfaceArchitecture Specification ADIv5.0 to ADIv5.2
+        # In a ROM Table implementation:
+        # - The Component class field, CIDR1.CLASS is 0x1, identifying the component as a ROM Table.
+        # - The PIDR4.SIZE field must be 0. This is because a ROM Table must occupy a single 4KB block of memory.
+        if is_rom_table and count_4kb != 1:
+            logging.warning("Invalid rom table size=%x * 4KB", count_4kb)
+            return
+
+        if component_class == CIDR_CORESIGHT_CLASS:
             self.devid, self.devtype = self.ap.readBlockMemoryAligned32(self.top_address + DEVID, 2)
+
+        self.component_class = component_class
+        self.is_rom_table = is_rom_table
+        self.count_4kb = count_4kb
+        self.valid = True
 
     def _extract_id_register_value(self, regs, offset):
         result = 0
@@ -133,6 +155,8 @@ class CoreSightComponent(object):
         return result
 
     def __str__(self):
+        if not self.valid:
+            return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, self.name, self.cidr, self.pidr)
         if self.component_class == CIDR_CORESIGHT_CLASS:
             return "<%08x:%s cidr=%x, pidr=%x, class=%d, devtype=%x, devid=%x>" % (self.address, self.name, self.cidr, self.pidr, self.component_class, self.devtype, self.devid)
         else:
