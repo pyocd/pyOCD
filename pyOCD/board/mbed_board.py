@@ -29,7 +29,9 @@ class BoardInfo(object):
         self.binary = binary
 
 BOARD_ID_TO_INFO = {
-                        #           Board Name              Target              Test Binary
+              # Note: please keep board list sorted by ID!
+              #
+              # Board ID            Board Name              Target              Test Binary
                 "0200": BoardInfo(  "FRDM-KL25Z",           "kl25z",            "l1_kl25z.bin"          ),
                 "0203": BoardInfo(  "TWR-KL28Z72M",         "kl28z",            "l1_kl28z.bin",         ),
                 "0205": BoardInfo(  "FRDM-KL28Z",           "kl28z",            "l1_kl28z.bin",         ),
