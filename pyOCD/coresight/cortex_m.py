@@ -281,7 +281,7 @@ class CortexM(Target):
         RegisterInfo('s28',     32,         'float',        'float'),
         RegisterInfo('s29',     32,         'float',        'float'),
         RegisterInfo('s30',     32,         'float',        'float'),
-        RegisterInfo('s31',     64,         'float',        'float'),
+        RegisterInfo('s31',     32,         'float',        'float'),
         ]
 
     def __init__(self, link, dp, ap, memoryMap=None, core_num=0):
