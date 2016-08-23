@@ -86,6 +86,9 @@ class PyUSB(Interface):
                 # This can cause an exception to be thrown if the device
                 # is malfunctioning.
                 product = board.product
+            except ValueError:
+                if board.idVendor is 0xd28 and board.idProduct is 0x204:
+                    continue
             except usb.core.USBError as error:
                 logging.warning("Exception getting product string: %s", error)
                 continue
