@@ -118,11 +118,15 @@ class DAPAccessIntf(object):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, port=None):
-        """Connect to target with JTAG or SWD"""
+        """Initailize DAP IO pins for JTAG or SWD"""
+        raise NotImplementedError()
+
+    def swj_sequence(self):
+        """Send seqeunce to activate JTAG or SWD on the target"""
         raise NotImplementedError()
 
     def disconnect(self):
-        """Disconnect from target"""
+        """Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
 
     def set_clock(self, frequency):

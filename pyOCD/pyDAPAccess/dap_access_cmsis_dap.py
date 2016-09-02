@@ -516,6 +516,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._protocol.setSWJClock(self._frequency)
         # configure transfer
         self._protocol.transferConfigure()
+
+    def swj_sequence(self):
         if self._dap_port == DAPAccessIntf.PORT.SWD:
             # configure swd protocol
             self._protocol.swdConfigure()
