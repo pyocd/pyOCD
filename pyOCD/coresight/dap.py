@@ -109,6 +109,7 @@ class DebugPort(object):
     def init(self):
         # Connect to the target.
         self.link.connect()
+        self.link.swj_sequence()
         self.read_id_code()
         self.clear_sticky_err()
 
