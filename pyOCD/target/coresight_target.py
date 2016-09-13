@@ -19,7 +19,6 @@ from .target import Target
 from ..coresight import (dap, ap, cortex_m)
 from ..svd import (SVDFile, SVDLoader)
 import threading
-from cmsis_svd.parser import SVDParser
 import logging
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
