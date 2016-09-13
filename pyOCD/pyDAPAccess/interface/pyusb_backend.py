@@ -86,6 +86,10 @@ class PyUSB(Interface):
                 # This can cause an exception to be thrown if the device
                 # is malfunctioning.
                 product = board.product
+            except ValueError as error:
+                # Permission denied error gets reported as ValueError (langid)
+                logging.debug("Exception getting product string: %s", error)
+                continue
             except usb.core.USBError as error:
                 logging.warning("Exception getting product string: %s", error)
                 continue
