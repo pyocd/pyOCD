@@ -127,6 +127,9 @@ def flash_test(board_id):
         if target_type == "nrf51":
             # Override clock since 10MHz is too fast
             test_clock = 1000000
+        if target_type == "ncs36510":
+            # Override clock since 10MHz is too fast
+            test_clock = 1000000
 
         memory_map = board.target.getMemoryMap()
         ram_regions = [region for region in memory_map if region.type == 'ram']
@@ -243,7 +246,7 @@ def flash_test(board_id):
         print("\r\n\r\n------ Test Basic Page Erase (Entire chip) ------")
         new_data = list(data)
         new_data.extend(unused * [0x77])
-        info = flash.flashBlock(0, new_data, False, False, progress_cb=print_progress)
+        info = flash.flashBlock(addr, new_data, False, False, progress_cb=print_progress)
         if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
@@ -253,7 +256,7 @@ def flash_test(board_id):
         test_count += 1
 
         print("\r\n\r\n------ Test Fast Verify ------")
-        info = flash.flashBlock(0, new_data, progress_cb=print_progress, fast_verify=True)
+        info = flash.flashBlock(addr, new_data, progress_cb=print_progress, fast_verify=True)
         if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
@@ -345,7 +348,7 @@ def flash_test(board_id):
         print("\r\n\r\n------ Test Chip Erase Decision ------")
         new_data = list(data)
         new_data.extend([0xff] * unused) # Pad with 0xFF
-        info = flash.flashBlock(0, new_data, progress_cb=print_progress)
+        info = flash.flashBlock(addr, new_data, progress_cb=print_progress)
         if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
@@ -357,7 +360,7 @@ def flash_test(board_id):
         print("\r\n\r\n------ Test Chip Erase Decision 2 ------")
         new_data = list(data)
         new_data.extend([0x00] * unused) # Pad with 0x00
-        info = flash.flashBlock(0, new_data, progress_cb=print_progress)
+        info = flash.flashBlock(addr, new_data, progress_cb=print_progress)
         if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
@@ -369,7 +372,7 @@ def flash_test(board_id):
         print("\r\n\r\n------ Test Page Erase Decision ------")
         new_data = list(data)
         new_data.extend([0x00] * unused) # Pad with 0x00
-        info = flash.flashBlock(0, new_data, progress_cb=print_progress)
+        info = flash.flashBlock(addr, new_data, progress_cb=print_progress)
         if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1
@@ -387,7 +390,7 @@ def flash_test(board_id):
         size_differ = unused - size_same
         new_data.extend([0x00] * size_same) # Pad 5/6 with 0x00 and 1/6 with 0xFF
         new_data.extend([0x55] * size_differ)
-        info = flash.flashBlock(0, new_data, progress_cb=print_progress)
+        info = flash.flashBlock(addr, new_data, progress_cb=print_progress)
         if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
             print("TEST PASSED")
             test_pass_count += 1

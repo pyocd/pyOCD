@@ -109,6 +109,9 @@ def test_gdb(board_id=None):
             test_clock = 1000000
             # Reading invalid ram returns 0 or nrf51
             error_on_invalid_access = False
+        if target_type == "ncs36510":
+            # Override clock since 10MHz is too fast
+            test_clock = 1000000
 
         # Program with initial test image
         board.flash.flashBinary(binary_file, rom_region.start)
