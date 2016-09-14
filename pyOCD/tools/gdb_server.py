@@ -25,6 +25,7 @@ import pkg_resources
 
 import pyOCD.board.mbed_board
 from pyOCD import __version__
+from pyOCD.svd import isCmsisSvdAvailable
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line
@@ -225,7 +226,7 @@ class GDBServerTool(object):
                     'name' : name,
                     'part_number' : t.part_number,
                     }
-                if t._svd_location is not None:
+                if t._svd_location is not None and isCmsisSvdAvailable:
                     if t._svd_location.is_local:
                         d['svd_path'] = t._svd_location.filename
                     else:
