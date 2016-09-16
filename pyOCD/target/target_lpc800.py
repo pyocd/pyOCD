@@ -22,7 +22,7 @@ from .memory_map import (FlashRegion, RamRegion, MemoryMap)
 class LPC800(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x8000,       blocksize=0x400, isBootMemory=True),
+        FlashRegion(    start=0,           length=0x4000,       blocksize=0x400, isBootMemory=True),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 
