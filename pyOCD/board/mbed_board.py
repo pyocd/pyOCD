@@ -33,6 +33,8 @@ BOARD_ID_TO_INFO = {
               #
               # Board ID            Board Name              Target              Test Binary
                 "0200": BoardInfo(  "FRDM-KL25Z",           "kl25z",            "l1_kl25z.bin"          ),
+                "0201": BoardInfo(  "FRDM-KW41Z",           "kw41z4",           "l1_kw41z4.bin"         ),
+                "0202": BoardInfo(  "USB-KW41Z",            "kw41z4",           "l1_kw41z4.bin"         ),
                 "0203": BoardInfo(  "TWR-KL28Z72M",         "kl28z",            "l1_kl28z.bin",         ),
                 "0205": BoardInfo(  "FRDM-KL28Z",           "kl28z",            "l1_kl28z.bin",         ),
                 "0206": BoardInfo(  "TWR-KE18F",            "ke18f16",          "l1_ke18f16.bin",       ),
