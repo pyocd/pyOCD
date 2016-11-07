@@ -152,7 +152,7 @@ class DAPAccessIntf(object):
         """Write out all unsent commands"""
         raise NotImplementedError()
 
-    def vendor(self, index):
+    def vendor(self, index, data=None):
         """Send a vendor specific command"""
         raise NotImplementedError()
 
