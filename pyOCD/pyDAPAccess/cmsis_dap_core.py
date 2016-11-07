@@ -347,9 +347,10 @@ class CMSIS_DAP_Protocol(object):
                 (resp[4] << 16) | \
                 (resp[5] << 24)
 
-    def vendor(self, index):
+    def vendor(self, index, data):
         cmd = []
         cmd.append(COMMAND_ID['DAP_VENDOR0'] + index)
+        cmd.extend(data)
         self.interface.write(cmd)
 
         resp = self.interface.read()
@@ -357,3 +358,5 @@ class CMSIS_DAP_Protocol(object):
         if resp[0] != COMMAND_ID['DAP_VENDOR0'] + index:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
+
+        return resp[1:]

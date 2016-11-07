@@ -503,8 +503,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         assert isinstance(item, DAPAccessIntf.ID)
         return self._protocol.dapInfo(item.value)
 
-    def vendor(self, index):
-        self._protocol.vendor(index)
+    def vendor(self, index, data=None):
+        if data is None:
+            data = []
+        return self._protocol.vendor(index, data)
 
     # ------------------------------------------- #
     #             Target access functions
