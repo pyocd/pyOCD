@@ -358,13 +358,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             except DAPAccessIntf.TransferError:
                 logger = logging.getLogger(__name__)
                 logger.error('Failed to get unique id', exc_info=True)
-            finally:
-                interface.close()
         return all_daplinks
 
     @staticmethod
     def get_device(device_id):
-        assert isinstance(device_id, str)
+        assert isinstance(device_id, six.string_types)
         return DAPAccessCMSISDAP(device_id)
 
     @staticmethod
@@ -410,25 +408,24 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return
 
     def open(self):
-        assert self._interface is None
-        all_interfaces = _get_interfaces()
-        for interface in all_interfaces:
-            try:
-                unique_id = _get_unique_id(interface)
-                if self._unique_id == unique_id:
-                    # This assert could indicate that two boards
-                    # had the same ID
-                    assert self._interface is None
-                    self._interface = interface
-            except Exception:
-                logger = logging.getLogger(__name__)
-                logger.error('Failed to get unique id for open', exc_info=True)
-            finally:
-                # Close all but the current interface
-                if self._interface is not interface:
-                    interface.close()
-        assert self._interface is not None, "Could not open daplink, not found"
+        if self._interface is None:
+            all_interfaces = _get_interfaces()
+            for interface in all_interfaces:
+                try:
+                    unique_id = _get_unique_id(interface)
+                    if self._unique_id == unique_id:
+                        # This assert could indicate that two boards
+                        # had the same ID
+                        assert self._interface is None
+                        self._interface = interface
+                except Exception:
+                    logger = logging.getLogger(__name__)
+                    logger.error('Failed to get unique id for open',
+                                 exc_info=True)
+            if self._interface is None:
+                raise DAPAccessIntf.DeviceError("Unable to open device")
 
+        self._interface.open()
         self._protocol = CMSIS_DAP_Protocol(self._interface)
         self._packet_count = self._protocol.dapInfo("PACKET_COUNT")
         self._interface.setPacketCount(self._packet_count)
