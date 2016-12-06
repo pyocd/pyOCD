@@ -17,6 +17,7 @@
 
 from interface import Interface
 import logging, os
+from ..dap_access_api import DAPAccessIntf
 
 try:
     import hid
@@ -44,7 +45,10 @@ class HidApiUSB(Interface):
         self.device = None
 
     def open(self):
-        pass
+        try:
+            self.device.open_path(self.device_info['path'])
+        except IOError:
+            raise DAPAccessIntf.DeviceError("Unable to open device")
 
     @staticmethod
     def getAllConnectedInterface():
@@ -83,14 +87,6 @@ class HidApiUSB(Interface):
             new_board.pid = deviceInfo['product_id']
             new_board.device_info = deviceInfo
             new_board.device = dev
-            try:
-                dev.open_path(deviceInfo['path'])
-            except AttributeError:
-                pass
-            except IOError:
-                # Ignore failure to open a device by skipping the device.
-                continue
-
             boards.append(new_board)
 
         return boards

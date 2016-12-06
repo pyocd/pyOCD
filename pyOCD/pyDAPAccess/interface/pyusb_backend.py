@@ -17,6 +17,7 @@
 
 from interface import Interface
 import logging, os, threading
+from ..dap_access_api import DAPAccessIntf
 
 try:
     import usb.core
@@ -28,16 +29,13 @@ except:
 else:
     isAvailable = True
 
+
 class PyUSB(Interface):
     """
     This class provides basic functions to access
     a USB HID device using pyusb:
         - write/read an endpoint
     """
-
-    vid = 0
-    pid = 0
-    intf_number = 0
 
     isAvailable = isAvailable
 
@@ -46,22 +44,102 @@ class PyUSB(Interface):
         self.ep_out = None
         self.ep_in = None
         self.dev = None
-        self.closed = False
+        self.intf_number = None
+        self.serial_number = None
+        self.kernel_driver_was_attached = False
+        self.closed = True
+        self.thread = None
         self.rcv_data = []
         self.read_sem = threading.Semaphore(0)
 
+    def open(self):
+        assert self.closed is True
+
+        # Get device handle
+        dev = usb.core.find(custom_match=FindDap(self.serial_number))
+        if dev is None:
+            raise DAPAccessIntf.DeviceError("Device %s not found" %
+                                            self.serial_number)
+
+        # get active config
+        config = dev.get_active_configuration()
+
+        # Get hid interface
+        interface = None
+        interface_number = None
+        for interface in config:
+            if interface.bInterfaceClass == 0x03:
+                interface_number = interface.bInterfaceNumber
+                break
+        if interface_number is None or interface is None:
+            raise DAPAccessIntf.DeviceError("Device %s has no hid interface" %
+                                            self.serial_number)
+
+        # Find endpoints
+        ep_in, ep_out = None, None
+        for endpoint in interface:
+            if endpoint.bEndpointAddress & 0x80:
+                ep_in = endpoint
+            else:
+                ep_out = endpoint
+
+        # If there is no EP for OUT then we can use CTRL EP.
+        # The IN EP is required
+        if not ep_in:
+            raise DAPAccessIntf.DeviceError("Unable to open device -"
+                                            " no endpoints")
+
+        # Detach kernel driver
+        kernel_driver_was_attached = False
+        try:
+            if dev.is_kernel_driver_active(interface_number):
+                dev.detach_kernel_driver(interface_number)
+                kernel_driver_was_attached = True
+        except NotImplementedError as e:
+            # Some implementations don't don't have kernel attach/detach
+            logging.debug('Exception detaching kernel driver: %s' %
+                          str(e))
+
+        # Explicitly claim the interface
+        try:
+            usb.util.claim_interface(dev, interface_number)
+        except usb.core.USBError:
+            raise DAPAccessIntf.DeviceError("Unable to open device")
+
+        # Update all class variables if we made it here
+        self.ep_out = ep_out
+        self.ep_in = ep_in
+        self.dev = dev
+        self.intf_number = interface_number
+        self.kernel_driver_was_attached = kernel_driver_was_attached
+
+        # Start RX thread as the last step
+        self.closed = False
+        self.start_rx()
+
     def start_rx(self):
+        # Flush the RX buffers by reading until timeout exception
+        try:
+            while True:
+                self.ep_in.read(self.ep_in.wMaxPacketSize, 1)
+        except usb.core.USBError:
+            # USB timeout expected
+            pass
+
+        # Start RX thread
         self.thread = threading.Thread(target=self.rx_task)
         self.thread.daemon = True
         self.thread.start()
 
     def rx_task(self):
-        while not self.closed:
-            self.read_sem.acquire()
-            if not self.closed:
-                # Timeouts appear to corrupt data occasionally.  Because of this the
-                # timeout is set to infinite.
-                self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, -1))
+        try:
+            while not self.closed:
+                self.read_sem.acquire()
+                if not self.closed:
+                    self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, 10 * 1000))
+        finally:
+            # Set last element of rcv_data to None on exit
+            self.rcv_data.append(None)
 
     @staticmethod
     def getAllConnectedInterface():
@@ -69,77 +147,18 @@ class PyUSB(Interface):
         returns all the connected devices which matches PyUSB.vid/PyUSB.pid.
         returns an array of PyUSB (Interface) objects
         """
-        # find all devices matching the vid/pid specified
-        all_devices = usb.core.find(find_all=True)
-
-        if not all_devices:
-            logging.debug("No device connected")
-            return []
-
-        boards = []
+        # find all cmsis-dap devices
+        all_devices = usb.core.find(find_all=True, custom_match=FindDap())
 
         # iterate on all devices found
+        boards = []
         for board in all_devices:
-            interface_number = -1
-            try:
-                # The product string is read over USB when accessed.
-                # This can cause an exception to be thrown if the device
-                # is malfunctioning.
-                product = board.product
-            except ValueError as error:
-                # Permission denied error gets reported as ValueError (langid)
-                logging.debug("Exception getting product string: %s", error)
-                continue
-            except usb.core.USBError as error:
-                logging.warning("Exception getting product string: %s", error)
-                continue
-            if (product is None) or (product.find("CMSIS-DAP") < 0):
-                # Not a cmsis-dap device so close it
-                usb.util.dispose_resources(board)
-                continue
-
-            # get active config
-            config = board.get_active_configuration()
-
-            # iterate on all interfaces:
-            #    - if we found a HID interface -> CMSIS-DAP
-            for interface in config:
-                if interface.bInterfaceClass == 0x03:
-                    interface_number = interface.bInterfaceNumber
-                    break
-
-            if interface_number == -1:
-                continue
-
-            try:
-                if board.is_kernel_driver_active(interface_number):
-                    board.detach_kernel_driver(interface_number)
-            except Exception as e:
-                print e
-
-            ep_in, ep_out = None, None
-            for ep in interface:
-                if ep.bEndpointAddress & 0x80:
-                    ep_in = ep
-                else:
-                    ep_out = ep
-
-            """If there is no EP for OUT then we can use CTRL EP"""
-            if not ep_in:
-                logging.error('Endpoints not found')
-                return None
-
             new_board = PyUSB()
-            new_board.ep_in = ep_in
-            new_board.ep_out = ep_out
-            new_board.dev = board
             new_board.vid = board.idVendor
             new_board.pid = board.idProduct
-            new_board.intf_number = interface_number
-            new_board.product_name = product
+            new_board.product_name = board.product
             new_board.vendor_name = board.manufacturer
             new_board.serial_number = board.serial_number
-            new_board.start_rx()
             boards.append(new_board)
 
         return boards
@@ -154,7 +173,7 @@ class PyUSB(Interface):
             report_size = self.ep_out.wMaxPacketSize
 
         for _ in range(report_size - len(data)):
-           data.append(0)
+            data.append(0)
 
         self.read_sem.release()
 
@@ -178,6 +197,9 @@ class PyUSB(Interface):
         """
         while len(self.rcv_data) == 0:
             pass
+        if self.rcv_data[0] is None:
+            raise DAPAccessIntf.DeviceError("Device %s read thread exited" %
+                                            self.serial_number)
         return self.rcv_data.pop(0)
 
     def setPacketCount(self, count):
@@ -191,8 +213,55 @@ class PyUSB(Interface):
         """
         close the interface
         """
+        assert self.closed is False
+
         logging.debug("closing interface")
         self.closed = True
         self.read_sem.release()
         self.thread.join()
+        assert self.rcv_data[-1] is None
+        self.rcv_data = []
+        usb.util.release_interface(self.dev, self.intf_number)
+        if self.kernel_driver_was_attached:
+            try:
+                self.dev.attach_kernel_driver(self.intf_number)
+            except Exception as exception:
+                logging.warning('Exception attaching kernel driver: %s',
+                                str(exception))
         usb.util.dispose_resources(self.dev)
+        self.ep_out = None
+        self.ep_in = None
+        self.dev = None
+        self.intf_number = None
+        self.kernel_driver_was_attached = False
+        self.thread = None
+
+
+class FindDap(object):
+    """CMSIS-DAP match class to be used with usb.core.find"""
+
+    def __init__(self, serial=None):
+        """Create a new FindDap object with an optional serial number"""
+        self._serial = serial
+
+    def __call__(self, dev):
+        """Return True if this is a DAP device, False otherwise"""
+        try:
+            device_string = dev.product
+        except ValueError:
+            # Permission denied error gets reported as ValueError (langid)
+            return False
+        except usb.core.USBError as error:
+            logging.warning("Exception getting product string: %s", error)
+            return False
+        except IndexError as error:
+            logging.warning("Internal pyusb error: %s", error)
+            return False
+        if device_string is None:
+            return False
+        if device_string.find("CMSIS-DAP") < 0:
+            return False
+        if self._serial is not None:
+            if self._serial != dev.serial_number:
+                return False
+        return True
