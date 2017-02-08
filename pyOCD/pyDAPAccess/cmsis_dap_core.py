@@ -129,10 +129,10 @@ class CMSIS_DAP_Protocol(object):
             raise DAPAccessIntf.CommandError()
 
         if resp[1] == 1:
-            logging.info('DAP SWD MODE initialised')
+            logging.info('DAP SWD MODE initialized')
 
         if resp[1] == 2:
-            logging.info('DAP JTAG MODE initialised')
+            logging.info('DAP JTAG MODE initialized')
 
         return resp[1]
 
