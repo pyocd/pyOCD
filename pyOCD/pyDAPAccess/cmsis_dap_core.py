@@ -65,6 +65,9 @@ DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
 DAP_JTAG_POR = 2
 
+DAP_LED_CONNECT = 0
+DAP_LED_RUNNING = 1
+
 DAP_OK = 0
 DAP_ERROR = 0xff
 
@@ -109,9 +112,23 @@ class CMSIS_DAP_Protocol(object):
             x = x[0:-1]
         return x
 
-    def setLed(self):
-        #not yet implemented
-        return
+    def setLed(self, type, enabled):
+        cmd = []
+        cmd.append(COMMAND_ID['DAP_LED'])
+        cmd.append(type)
+        cmd.append(int(enabled))
+        self.interface.write(cmd)
+
+        resp = self.interface.read()
+        if resp[0] != COMMAND_ID['DAP_LED']:
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
+
+        if resp[1] != 0:
+            # Second response byte must be 0
+            raise DAPAccessIntf.CommandError()
+
+        return resp[1]
 
     def connect(self, mode=DAP_DEFAULT_PORT):
         cmd = []
