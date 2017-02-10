@@ -46,6 +46,10 @@ class DAPAccessIntf(object):
         FW_VER = 4
         DEVICE_VENDOR = 5
         DEVICE_NAME = 6
+        CAPABILITIES = 0xf0
+        SWO_BUFFER_SIZE = 0xfd
+        MAX_PACKET_COUNT = 0xfe
+        MAX_PACKET_SIZE = 0xff
 
     class Error(Exception):
         """Parent of all error DAPAccess can raise"""

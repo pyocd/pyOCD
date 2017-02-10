@@ -48,6 +48,7 @@ ID_INFO = {'VENDOR_ID': 0x01,
            'TARGET_DEVICE_VENDOR': 0x05,
            'TARGET_DEVICE_NAME': 0x06,
            'CAPABILITIES': 0xf0,
+           'SWO_BUFFER_SIZE': 0xfd,
            'PACKET_COUNT': 0xfe,
            'PACKET_SIZE': 0xff
            }
@@ -100,7 +101,7 @@ class CMSIS_DAP_Protocol(object):
             return
 
         # Integer values
-        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
+        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['SWO_BUFFER_SIZE'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
             if resp[1] == 1:
                 return resp[2]
             if resp[1] == 2:
