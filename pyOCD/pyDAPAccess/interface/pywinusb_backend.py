@@ -51,7 +51,7 @@ class PyWinUSB(Interface):
         # comprable to a based list implmentation.
         self.rcv_data = collections.deque()
         self.device = None
-        return
+        self.packet_size = 64
 
     # handler called when a report is received
     def rx_handler(self, data):
@@ -136,7 +136,7 @@ class PyWinUSB(Interface):
         """
         write data on the OUT endpoint associated to the HID interface
         """
-        for _ in range(64 - len(data)):
+        for _ in range(self.packet_size - len(data)):
             data.append(0)
         #logging.debug("send: %s", data)
         self.report.send([0] + data)
@@ -163,6 +163,9 @@ class PyWinUSB(Interface):
     def setPacketCount(self, count):
         # No interface level restrictions on count
         self.packet_count = count
+
+    def setPacketSize(self, size):
+        self.packet_size = size
 
     def getSerialNumber(self):
         return self.serial_number

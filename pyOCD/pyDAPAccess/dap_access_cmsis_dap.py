@@ -125,7 +125,6 @@ class _Transfer(object):
         assert self._result is not None
         return self._result
 
-
 class _Command(object):
     """
     A wrapper object representing a command send to the layer below (ex. USB).
@@ -143,8 +142,8 @@ class _Command(object):
         self._size = size
         self._read_count = 0
         self._write_count = 0
-        # TODO, c1728p9 - add support for DAP_TransferBlock
-        self._block_allowed = False
+        self._block_allowed = True
+        self._block_request = None
         self._data = []
         self._dap_index = None
         self._data_encoded = False
@@ -165,45 +164,76 @@ class _Command(object):
         recv = size - 4 - 4 * self._read_count
         return send, recv
 
-    def get_read_space(self):
+    def _get_free_read_transfer_words(self):
         """
         Return the number of words free in the response packet
         """
-        # Size left if useing DAP_Transfer
         send, recv = self._dap_transfer_free_bytes(self._size)
-        transfer_size = min(send, recv // 4)
+        return min(send, recv // 4)
 
-        # Size left if using DAP_TransferBlock
-        _, recv = self._dap_transfer_block_free_bytes(self._size)
-        transfer_block_size = recv // 4
-
-        # If data does not allow block transfer invalidate it
-        if not self._block_allowed:
-            transfer_block_size = -1
-
-        size = max(transfer_size, transfer_block_size)
-        assert size >= 0
-        return size
-
-    def get_write_space(self):
+    def _get_free_write_transfer_words(self):
         """
         Return the number of words free in the transmit packet
         """
-        # Size left if useing DAP_Transfer
         send, _ = self._dap_transfer_free_bytes(self._size)
-        transfer_size = send // 5
+        return send // 5
 
-        # Size left if using DAP_TransferBlock
+    def _get_free_read_transfer_block_words(self):
+        """
+        Return the number of words free in the response packet
+        """
+        _, recv = self._dap_transfer_block_free_bytes(self._size)
+        return recv // 4
+
+    def _get_free_write_transfer_block_words(self):
+        """
+        Return the number of words free in the transmit packet
+        """
         send, _ = self._dap_transfer_block_free_bytes(self._size)
-        transfer_block_size = (self._size - 5) // 4 - self._write_count
+        return send // 4
 
-        # If data does not allow block transfer invalidate it
-        if not self._block_allowed:
-            transfer_block_size = -1
+    def get_request_space(self, count, request, dap_index):
+        assert self._data_encoded is False
 
-        size = max(transfer_size, transfer_block_size)
-        assert size >= 0
+        # Must create another command if the dap index is different.
+        if self._dap_index is not None and dap_index != self._dap_index:
+            return 0
+
+        is_read = request & READ
+
+        # Block transfers must use the same request.
+        blockAllowed = self._block_allowed
+        if self._block_request is not None and request != self._block_request:
+            blockAllowed = False
+
+        if blockAllowed:
+            if is_read:
+                free = self._get_free_read_transfer_block_words()
+            else:
+                free = self._get_free_write_transfer_block_words()
+        else:
+            if is_read:
+                free = self._get_free_read_transfer_words()
+            else:
+                free = self._get_free_write_transfer_words()
+
+        size = min(count, free)
+
+        # Non-block transfers only have 1 byte for request count.
+        if not blockAllowed:
+            max_count = self._write_count + self._read_count + size
+            delta = max_count - 255
+            size = min(size - delta, size)
+
         return size
+
+    def get_full(self):
+        if self._block_allowed:
+            return (self._get_free_read_transfer_block_words() == 0) or \
+                (self._get_free_write_transfer_block_words() == 0)
+        else:
+            return (self._get_free_read_transfer_words() == 0) or \
+                (self._get_free_write_transfer_words() == 0)
 
     def get_empty(self):
         """
@@ -219,6 +249,13 @@ class _Command(object):
         if self._dap_index is None:
             self._dap_index = dap_index
         assert self._dap_index == dap_index
+
+        if self._block_request is None:
+            self._block_request = request
+        elif request != self._block_request:
+            self._block_allowed = False
+        assert not self._block_allowed or self._block_request == request
+
         if request & READ:
             self._read_count += count
         else:
@@ -293,8 +330,38 @@ class _Command(object):
         The data returned by this function is a bytearray in
         the format that of a DAP_TransferBlock CMSIS-DAP command.
         """
-        # TODO, c1728p9 - future optimization
-        raise NotImplementedError()
+        assert self.get_empty() is False
+        buf = bytearray(self._size)
+        transfer_count = self._read_count + self._write_count
+        assert not (self._read_count != 0 and self._write_count != 0)
+        assert self._block_request is not None
+        pos = 0
+        buf[pos] = COMMAND_ID['DAP_TRANSFER_BLOCK']
+        pos += 1
+        buf[pos] = self._dap_index
+        pos += 1
+        buf[pos] = transfer_count & 0xff
+        pos += 1
+        buf[pos] = (transfer_count >> 8) & 0xff
+        pos += 1
+        buf[pos] = self._block_request
+        pos += 1
+        for count, request, write_list in self._data:
+            assert write_list is None or len(write_list) <= count
+            assert request == self._block_request
+            write_pos = 0
+            if not request & READ:
+                for _ in range(count):
+                    buf[pos] = (write_list[write_pos] >> (8 * 0)) & 0xff
+                    pos += 1
+                    buf[pos] = (write_list[write_pos] >> (8 * 1)) & 0xff
+                    pos += 1
+                    buf[pos] = (write_list[write_pos] >> (8 * 2)) & 0xff
+                    pos += 1
+                    buf[pos] = (write_list[write_pos] >> (8 * 3)) & 0xff
+                    pos += 1
+                    write_pos += 1
+        return buf
 
     def _decode_transfer_block_data(self, data):
         """
@@ -303,8 +370,25 @@ class _Command(object):
         Decode the response returned by a DAP_TransferBlock CMSIS-DAP command
         and return it as an array of bytes.
         """
-        # TODO, c1728p9 - future optimization
-        raise NotImplementedError()
+        assert self.get_empty() is False
+        if data[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
+            raise ValueError('DAP_TRANSFER_BLOCK response error')
+
+        if data[3] != DAP_TRANSFER_OK:
+            if data[3] == DAP_TRANSFER_FAULT:
+                raise DAPAccessIntf.TransferFaultError()
+            elif data[3] == DAP_TRANSFER_WAIT:
+                raise DAPAccessIntf.TransferTimeoutError()
+            raise DAPAccessIntf.TransferError()
+
+        # Check for count mismatch after checking for DAP_TRANSFER_FAULT
+        # This allows TransferFaultError or TransferTimeoutError to get
+        # thrown instead of TransferFaultError
+        transfer_count = data[1] | (data[2] << 8)
+        if transfer_count != self._read_count + self._write_count:
+            raise DAPAccessIntf.TransferError()
+
+        return data[4:4 + 4 * self._read_count]
 
     def encode_data(self):
         """
@@ -338,7 +422,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     An implementation of the DAPAccessIntf layer for DAPLINK boards
     """
 
-    
+
 
     # ------------------------------------------- #
     #          Static Functions
@@ -405,6 +489,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._packet_size = None
         self._commands_to_read = None
         self._command_response_buf = None
+        self._logger = logging.getLogger(__name__)
         return
 
     def open(self):
@@ -419,9 +504,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                         assert self._interface is None
                         self._interface = interface
                 except Exception:
-                    logger = logging.getLogger(__name__)
-                    logger.error('Failed to get unique id for open',
-                                 exc_info=True)
+                    self._logger.error('Failed to get unique id for open', exc_info=True)
             if self._interface is None:
                 raise DAPAccessIntf.DeviceError("Unable to open device")
 
@@ -429,7 +512,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._protocol = CMSIS_DAP_Protocol(self._interface)
         self._packet_count = self._protocol.dapInfo("PACKET_COUNT")
         self._interface.setPacketCount(self._packet_count)
-        self._packet_size = 64
+        self._packet_size = self._protocol.dapInfo("PACKET_SIZE")
+        self._interface.setPacketSize(self._packet_size)
 
         self._init_deferred_buffers()
 
@@ -725,11 +809,17 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         size_to_transfer = transfer_count
         trans_data_pos = 0
         while size_to_transfer > 0:
-            if is_read:
-                free = cmd.get_read_space()
-            else:
-                free = cmd.get_write_space()
-            size = min(size_to_transfer, free)
+            # Get the size remaining in the current packet for the given request.
+            size = cmd.get_request_space(size_to_transfer, transfer_request, dap_index)
+
+            # This request doesn't fit in the packet so send it.
+            if size == 0:
+                self._logger.debug("_write: send packet [0]")
+                self._send_packet()
+                cmd = self._crnt_cmd
+                continue
+
+            # Add request to packet.
             if transfer_data is None:
                 data = None
             else:
@@ -739,14 +829,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             trans_data_pos += size
 
             # Packet has been filled so send it
-            if size == free:
+            if cmd.get_full():
+                self._logger.debug("_write: send packet [1]")
                 self._send_packet()
                 cmd = self._crnt_cmd
-
-            # If the request has been satisfied
-            # then break from the loop
-            if size_to_transfer <= 0:
-                break
 
         if not self._deferred_transfer:
             self.flush()

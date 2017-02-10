@@ -43,6 +43,7 @@ class HidApiUSB(Interface):
         super(HidApiUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.device = None
+        self.packet_size = 64
 
     def open(self):
         try:
@@ -95,7 +96,7 @@ class HidApiUSB(Interface):
         """
         write data on the OUT endpoint associated to the HID interface
         """
-        for _ in range(64 - len(data)):
+        for _ in range(self.packet_size - len(data)):
             data.append(0)
         #logging.debug("send: %s", data)
         self.device.write([0] + data)
@@ -106,7 +107,7 @@ class HidApiUSB(Interface):
         """
         read data on the IN endpoint associated to the HID interface
         """
-        return self.device.read(64)
+        return self.device.read(self.packet_size)
 
     def getSerialNumber(self):
         return self.serial_number
@@ -121,3 +122,6 @@ class HidApiUSB(Interface):
     def setPacketCount(self, count):
         # No interface level restrictions on count
         self.packet_count = count
+
+    def setPacketSize(self, size):
+        self.packet_size = size
