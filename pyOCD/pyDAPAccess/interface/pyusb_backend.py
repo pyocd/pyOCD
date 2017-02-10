@@ -51,6 +51,7 @@ class PyUSB(Interface):
         self.thread = None
         self.rcv_data = []
         self.read_sem = threading.Semaphore(0)
+        self.packet_size = 64
 
     def open(self):
         assert self.closed is True
@@ -168,7 +169,7 @@ class PyUSB(Interface):
         write data on the OUT endpoint associated to the HID interface
         """
 
-        report_size = 64
+        report_size = self.packet_size
         if self.ep_out:
             report_size = self.ep_out.wMaxPacketSize
 
@@ -205,6 +206,9 @@ class PyUSB(Interface):
     def setPacketCount(self, count):
         # No interface level restrictions on count
         self.packet_count = count
+
+    def setPacketSize(self, size):
+        self.packet_size = size
 
     def getSerialNumber(self):
         return self.serial_number
