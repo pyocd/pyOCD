@@ -76,8 +76,7 @@ DAP_ERROR = 0xff
 DAP_TRANSFER_OK = 1
 DAP_TRANSFER_WAIT = 2
 DAP_TRANSFER_FAULT = 4
-
-MAX_PACKET_SIZE = 0x0E
+DAP_TRANSFER_NO_ACK = 7
 
 ## @brief This class implements the CMSIS-DAP wire protocol.
 class CMSIS_DAP_Protocol(object):
@@ -255,8 +254,8 @@ class CMSIS_DAP_Protocol(object):
         try:
             p = PINS[pin]
         except KeyError:
-                logging.error('cannot find %s pin', pin)
-                return
+            logging.error('cannot find %s pin', pin)
+            return
         cmd.append(output & 0xff)
         cmd.append(p)
         cmd.append(wait & 0xff)
