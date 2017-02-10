@@ -26,8 +26,8 @@ class Board(object):
     """
     def __init__(self, target, link, frequency=1000000):
         self.link = link
-        self.target = TARGET[target](self.link)
-        self.flash = FLASH[target](self.target)
+        self.target = TARGET[target.lower()](self.link)
+        self.flash = FLASH[target.lower()](self.target)
         self.target.setFlash(self.flash)
         self.debug_clock_frequency = frequency
         self.closed = False
