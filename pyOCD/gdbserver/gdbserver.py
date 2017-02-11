@@ -828,6 +828,14 @@ class GDBServer(threading.Thread):
 
         return data
 
+    def escape(self, data):
+        result = ''
+        for c in data:
+            if c in '#$}*':
+                result += '}' + chr(ord(c) ^ 0x20)
+            else:
+                result += c
+        return result
 
     def getMemory(self, data):
         split = data.split(',')
@@ -1157,7 +1165,7 @@ class GDBServer(threading.Thread):
             prefix = 'l'
             size = nbBytesAvailable
 
-        resp = prefix + xml[offset:offset + size]
+        resp = prefix + self.escape(xml[offset:offset + size])
 
         return resp
 
