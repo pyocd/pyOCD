@@ -36,6 +36,9 @@ WRITE = 0 << 1
 VALUE_MATCH = 1 << 4
 MATCH_MASK = 1 << 5
 
+# Set to True to enable logging of packet filling logic.
+LOG_PACKET_BUILDS = False
+
 def _get_interfaces():
     """Get the connected USB devices"""
     if DAPSettings.use_ws:
@@ -147,50 +150,50 @@ class _Command(object):
         self._data = []
         self._dap_index = None
         self._data_encoded = False
+        if LOG_PACKET_BUILDS:
+            self._logger = logging.getLogger(__name__)
+            self._logger.debug("New _Command")
 
-    def _dap_transfer_free_bytes(self, size):
-        """
-        Get the number of free bytes left in the packet and response
-        """
-        send = size - 3 - 1 * self._read_count - 5 * self._write_count
-        recv = size - 3 - 4 * self._read_count
-        return send, recv
-
-    def _dap_transfer_block_free_bytes(self, size):
-        """
-        Get the number of free bytes left in the packet and response
-        """
-        send = size - 5 - 4 * self._write_count
-        recv = size - 4 - 4 * self._read_count
-        return send, recv
-
-    def _get_free_read_transfer_words(self):
-        """
-        Return the number of words free in the response packet
-        """
-        send, recv = self._dap_transfer_free_bytes(self._size)
-        return min(send, recv // 4)
-
-    def _get_free_write_transfer_words(self):
+    def _get_free_words(self, blockAllowed, isRead):
         """
         Return the number of words free in the transmit packet
         """
-        send, _ = self._dap_transfer_free_bytes(self._size)
-        return send // 5
+        if blockAllowed:
+            # DAP_TransferBlock request packet:
+            #   BYTE | BYTE *****| SHORT**********| BYTE *************| WORD *********|
+            # > 0x06 | DAP Index | Transfer Count | Transfer Request  | Transfer Data |
+            #  ******|***********|****************|*******************|+++++++++++++++|
+            send = self._size - 5 - 4 * self._write_count
 
-    def _get_free_read_transfer_block_words(self):
-        """
-        Return the number of words free in the response packet
-        """
-        _, recv = self._dap_transfer_block_free_bytes(self._size)
-        return recv // 4
+            # DAP_TransferBlock response packet:
+            #   BYTE | SHORT *********| BYTE *************| WORD *********|
+            # < 0x06 | Transfer Count | Transfer Response | Transfer Data |
+            #  ******|****************|*******************|+++++++++++++++|
+            recv = self._size - 4 - 4 * self._read_count
 
-    def _get_free_write_transfer_block_words(self):
-        """
-        Return the number of words free in the transmit packet
-        """
-        send, _ = self._dap_transfer_block_free_bytes(self._size)
-        return send // 4
+            if isRead:
+                return recv // 4
+            else:
+                return send // 4
+        else:
+            # DAP_Transfer request packet:
+            #   BYTE | BYTE *****| BYTE **********| BYTE *************| WORD *********|
+            # > 0x05 | DAP Index | Transfer Count | Transfer Request  | Transfer Data |
+            #  ******|***********|****************|+++++++++++++++++++++++++++++++++++|
+            send = self._size - 3 - 1 * self._read_count - 5 * self._write_count
+
+            # DAP_Transfer response packet:
+            #   BYTE | BYTE **********| BYTE *************| WORD *********|
+            # < 0x05 | Transfer Count | Transfer Response | Transfer Data |
+            #  ******|****************|*******************|+++++++++++++++|
+            recv = self._size - 3 - 4 * self._read_count
+
+            if isRead:
+                # 1 request byte in request packet, 4 data bytes in response packet
+                return min(send, recv // 4)
+            else:
+                # 1 request byte + 4 data bytes
+                return send // 5
 
     def get_request_space(self, count, request, dap_index):
         assert self._data_encoded is False
@@ -199,24 +202,14 @@ class _Command(object):
         if self._dap_index is not None and dap_index != self._dap_index:
             return 0
 
-        is_read = request & READ
-
         # Block transfers must use the same request.
         blockAllowed = self._block_allowed
         if self._block_request is not None and request != self._block_request:
             blockAllowed = False
 
-        if blockAllowed:
-            if is_read:
-                free = self._get_free_read_transfer_block_words()
-            else:
-                free = self._get_free_write_transfer_block_words()
-        else:
-            if is_read:
-                free = self._get_free_read_transfer_words()
-            else:
-                free = self._get_free_write_transfer_words()
-
+        # Compute the portion of the request that will fit in this packet.
+        is_read = request & READ
+        free = self._get_free_words(blockAllowed, is_read)
         size = min(count, free)
 
         # Non-block transfers only have 1 byte for request count.
@@ -224,16 +217,21 @@ class _Command(object):
             max_count = self._write_count + self._read_count + size
             delta = max_count - 255
             size = min(size - delta, size)
+            if LOG_PACKET_BUILDS:
+                self._logger.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)" %
+                    (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free, delta))
+        elif LOG_PACKET_BUILDS:
+            self._logger.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)" %
+                (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free))
 
-        return size
+        # We can get a negative free count if the packet already contains more data than can be
+        # sent by a DAP_Transfer command, but the new request forces DAP_Transfer. In this case,
+        # just return 0 to force the DAP_Transfer_Block to be sent.
+        return max(size, 0)
 
     def get_full(self):
-        if self._block_allowed:
-            return (self._get_free_read_transfer_block_words() == 0) or \
-                (self._get_free_write_transfer_block_words() == 0)
-        else:
-            return (self._get_free_read_transfer_words() == 0) or \
-                (self._get_free_write_transfer_words() == 0)
+        return (self._get_free_words(self._block_allowed, True) == 0) or \
+            (self._get_free_words(self._block_allowed, False) == 0)
 
     def get_empty(self):
         """
@@ -261,6 +259,10 @@ class _Command(object):
         else:
             self._write_count += count
         self._data.append((count, request, data))
+
+        if LOG_PACKET_BUILDS:
+            self._logger.debug("add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]" %
+                (count, request, 'r' if (request & READ) else 'w', self._write_count, self._read_count, self._block_allowed))
 
     def _encode_transfer_data(self):
         """
@@ -816,7 +818,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
             # This request doesn't fit in the packet so send it.
             if size == 0:
-                self._logger.debug("_write: send packet [0]")
+                if LOG_PACKET_BUILDS:
+                    self._logger.debug("_write: send packet [size==0]")
                 self._send_packet()
                 cmd = self._crnt_cmd
                 continue
@@ -832,7 +835,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
             # Packet has been filled so send it
             if cmd.get_full():
-                self._logger.debug("_write: send packet [1]")
+                if LOG_PACKET_BUILDS:
+                    self._logger.debug("_write: send packet [full]")
                 self._send_packet()
                 cmd = self._crnt_cmd
 
