@@ -135,7 +135,8 @@ class MEM_AP(AccessPort):
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
-            raise DAPAccess.TransferFaultError(addr)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -158,7 +159,8 @@ class MEM_AP(AccessPort):
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
-            raise DAPAccess.TransferFaultError(addr)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -175,7 +177,8 @@ class MEM_AP(AccessPort):
             except DAPAccess.TransferFaultError as error:
                 # Annotate error with target address.
                 self._handle_error(error, num)
-                raise DAPAccess.TransferFaultError(addr)
+                error.fault_address = addr
+                raise
             except DAPAccess.Error as error:
                 self._handle_error(error, num)
                 raise
@@ -201,7 +204,8 @@ class MEM_AP(AccessPort):
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
-            raise DAPAccess.TransferFaultError(addr)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -222,7 +226,8 @@ class MEM_AP(AccessPort):
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
-            raise DAPAccess.TransferFaultError(addr)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
