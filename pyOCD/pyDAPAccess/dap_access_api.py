@@ -81,6 +81,10 @@ class DAPAccessIntf(object):
         def fault_address(self):
             return self._address
 
+        @fault_address.setter
+        def fault_address(self, addr):
+            self._address = addr
+
         def __str__(self):
             desc = "SWD/JTAG Transfer Fault"
             if self._address is not None:
