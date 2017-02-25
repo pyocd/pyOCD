@@ -123,6 +123,9 @@ class DebugPort(object):
     def flush(self):
         try:
             self.link.flush()
+        except DAPAccess.Error as error:
+            self._handle_error(error, self.next_access_number)
+            raise
         finally:
             self._csw = {}
             self._dp_select = -1
