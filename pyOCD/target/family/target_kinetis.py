@@ -15,10 +15,10 @@
  limitations under the License.
 """
 
-from ..coresight import (dap, ap)
-from ..coresight.cortex_m import CortexM
-from ..core.target import Target
-from ..core.coresight_target import CoreSightTarget
+from ...coresight import (dap, ap)
+from ...coresight.cortex_m import CortexM
+from ...core.target import Target
+from ...core.coresight_target import CoreSightTarget
 import logging
 from time import sleep
 

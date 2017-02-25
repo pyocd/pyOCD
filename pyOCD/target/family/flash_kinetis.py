@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..flash.flash import Flash
+from ...flash.flash import Flash
 import logging
 
 # Kinetis security values and addresses
