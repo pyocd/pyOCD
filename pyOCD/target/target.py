@@ -15,6 +15,8 @@
  limitations under the License.
 """
 
+from .memory_map import MemoryMap
+
 class Target(object):
 
     TARGET_RUNNING = 1   # Core is executing code.
@@ -39,7 +41,7 @@ class Target(object):
         self.link = link
         self.flash = None
         self.part_number = ""
-        self.memory_map = memoryMap
+        self.memory_map = memoryMap or MemoryMap()
         self.halt_on_connect = True
         self.has_fpu = False
         self._svd_location = None
