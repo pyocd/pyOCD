@@ -91,6 +91,9 @@ class CoreSightTarget(Target):
     def readIDCode(self):
         return self.dp.dpidr
 
+    def flush(self):
+        self.dp.flush()
+
     def halt(self):
         return self.selected_core.halt()
 

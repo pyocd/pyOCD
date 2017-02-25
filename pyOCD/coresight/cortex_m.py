@@ -386,6 +386,9 @@ class CortexM(Target):
         """
         return self.dp.read_id_code()
 
+    def flush(self):
+        self.dp.flush()
+
     def writeMemory(self, addr, value, transfer_size=32):
         """
         write a memory location.
