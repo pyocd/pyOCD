@@ -25,7 +25,7 @@ import pkg_resources
 
 import pyOCD.board.mbed_board
 from pyOCD import __version__
-from pyOCD.svd import isCmsisSvdAvailable
+from pyOCD.debug.svd import isCmsisSvdAvailable
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
 from pyOCD.utility.cmdline import split_command_line

@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from pyOCD.target.target import Target
+from ..core.target import Target
 import logging
 from struct import unpack
 from time import time

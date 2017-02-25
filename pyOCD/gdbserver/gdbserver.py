@@ -15,13 +15,13 @@
  limitations under the License.
 """
 
-from ..target.target import Target
+from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 from syscall import GDBSyscallIOHandler
-from ..target import semihost
+from ..debug import semihost
 import signals
 import logging, threading, socket
 from struct import unpack

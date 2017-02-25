@@ -27,9 +27,9 @@ import traceback
 import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
-from pyOCD.target import target_kinetis
+from pyOCD.target_family import target_kinetis
 from pyOCD.pyDAPAccess import DAPAccess
-from pyOCD.target.target import Target
+from pyOCD.core.target import Target
 from pyOCD.utility import mask
 
 # Make disasm optional.
@@ -493,7 +493,7 @@ class PyOCDTool(object):
             print "Security:       Locked"
         else:
             print "Security:       Unlocked"
-        if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
+        if isinstance(self.target, pyOCD.target_family.target_kinetis.Kinetis):
             print "MDM-AP Control: 0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_CTRL)
             print "MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS)
         for i, c in enumerate(self.target.cores):

@@ -16,7 +16,7 @@
 """
 
 from .breakpoints import Watchpoint
-from ..target.target import Target
+from ..core.target import Target
 import logging
 
 # Need a local copy to prevent circular import.

@@ -15,8 +15,7 @@
  limitations under the License.
 """
 
-from pyOCD.target import TARGET
-from pyOCD.flash import FLASH
+from pyOCD.target import (TARGET, FLASH)
 
 import logging
 import traceback
