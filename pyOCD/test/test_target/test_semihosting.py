@@ -20,8 +20,8 @@ import os
 import sys
 import logging
 import pyOCD
-from pyOCD.target.target import Target
-from pyOCD.target import semihost
+from pyOCD.core.target import Target
+from pyOCD.debug import semihost
 from elapsedtimer import ElapsedTimer
 import telnetlib
 

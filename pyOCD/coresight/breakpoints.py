@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..target.target import Target
+from ..core.target import Target
 from ..pyDAPAccess import DAPAccess
 import logging
 

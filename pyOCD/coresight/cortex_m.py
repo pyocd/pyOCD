@@ -16,7 +16,7 @@
 """
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
-from ..target.target import Target
+from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
 from ..gdbserver import signals
 from ..utility import conversion
