@@ -649,6 +649,7 @@ class PyOCDTool(object):
             self.target.flash.programPhrase(addr, data)
         else:
             self.target.writeBlockMemoryUnaligned8(addr, data)
+            self.target.flush()
 
     def handle_erase(self, args):
         if len(args) < 1:
