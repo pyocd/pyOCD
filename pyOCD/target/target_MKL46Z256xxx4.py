@@ -15,8 +15,8 @@
  limitations under the License.
 """
 
-from ..target_family.flash_kinetis import Flash_Kinetis
-from ..target_family.target_kinetis import Kinetis
+from .family.target_kinetis import Kinetis
+from .family.flash_kinetis import Flash_Kinetis
 from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ..debug.svd import SVDFile
 import logging

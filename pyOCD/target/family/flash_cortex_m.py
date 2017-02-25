@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..flash.flash import Flash
+from ...flash.flash import Flash
 
 class Flash_cortex_m(Flash):
 

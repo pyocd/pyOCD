@@ -16,7 +16,7 @@
 """
 
 from ..core.coresight_target import CoreSightTarget
-from ..target_family import (target_kinetis, flash_cortex_m)
+from .family import (target_kinetis, flash_cortex_m)
 import target_MKE15Z256xxx7
 import target_MKE18F256xxx16
 import target_MKL02Z32xxx4

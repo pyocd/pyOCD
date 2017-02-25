@@ -15,8 +15,8 @@
  limitations under the License.
 """
 
-from ..target_family.target_kinetis import Kinetis
-from ..target_family.flash_kinetis import Flash_Kinetis
+from .family.target_kinetis import Kinetis
+from .family.flash_kinetis import Flash_Kinetis
 from ..core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ..coresight import ap
 from ..coresight.cortex_m import CortexM
