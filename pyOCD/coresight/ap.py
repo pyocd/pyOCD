@@ -59,6 +59,11 @@ TRANSFER_SIZE = {8: CSW_SIZE8,
                  32: CSW_SIZE32
                  }
 
+# Debug Exception and Monitor Control Register
+DEMCR = 0xE000EDFC
+# DWTENA in armv6 architecture reference manual
+DEMCR_TRCENA = (1 << 24)
+
 class AccessPort(object):
     def __init__(self, dp, ap_num):
         self.dp = dp
@@ -375,6 +380,18 @@ class MEM_AP(AccessPort):
         self.dp._handle_error(error, num)
 
 class AHB_AP(MEM_AP):
-    pass
+    def init_rom_table(self):
+        # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries will
+        # come back as garbage if TRCENA is not set.
+        try:
+            demcr = self.read32(DEMCR)
+            self.write32(DEMCR, demcr | DEMCR_TRCENA)
+            self.dp.flush()
+        except DAPAccess.Error:
+            # Ignore exception and read whatever we can of the ROM table.
+            pass
+
+        # Invoke superclass.
+        super(AHB_AP, self).init_rom_table()
 
 
