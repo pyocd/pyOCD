@@ -37,6 +37,19 @@ class Target(object):
     WATCHPOINT_WRITE = 2
     WATCHPOINT_READ_WRITE = 3
 
+    # Vector catch option masks.
+    CATCH_NONE = 0
+    CATCH_HARD_FAULT = (1 << 0)
+    CATCH_BUS_FAULT = (1 << 1)
+    CATCH_MEM_FAULT = (1 << 2)
+    CATCH_INTERRUPT_ERR = (1 << 3)
+    CATCH_STATE_ERR = (1 << 4)
+    CATCH_CHECK_ERR = (1 << 5)
+    CATCH_COPROCESSOR_ERR = (1 << 6)
+    CATCH_CORE_RESET = (1 << 7)
+    CATCH_ALL = (CATCH_HARD_FAULT | CATCH_BUS_FAULT | CATCH_MEM_FAULT | CATCH_INTERRUPT_ERR \
+                | CATCH_STATE_ERR | CATCH_CHECK_ERR | CATCH_COPROCESSOR_ERR | CATCH_CORE_RESET)
+
     def __init__(self, link, memoryMap=None):
         self.link = link
         self.flash = None
@@ -186,16 +199,10 @@ class Target(object):
     def getMemoryMap(self):
         return self.memory_map
 
-    def setVectorCatchFault(self, enable):
+    def setVectorCatch(self, enableMask):
         raise NotImplementedError()
 
-    def getVectorCatchFault(self):
-        raise NotImplementedError()
-
-    def setVectorCatchReset(self, enable):
-        raise NotImplementedError()
-
-    def getVectorCatchReset(self):
+    def getVectorCatch(self):
         raise NotImplementedError()
 
     # GDB functions
