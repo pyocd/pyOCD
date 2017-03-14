@@ -289,7 +289,7 @@ def cortex_test(board_id):
             return test_passed
 
         print "Installed software breakpoint at 0x%08x" % addr
-        target.setBreakpoint(addr, pyOCD.target.target.Target.BREAKPOINT_SW)
+        target.setBreakpoint(addr, pyOCD.core.target.Target.BREAKPOINT_SW)
         test_passed = test_filters() and test_passed
 
         print "Removed software breakpoint"
