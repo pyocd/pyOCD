@@ -121,7 +121,7 @@ class MbedBoard(Board):
             logging.warning("Unsupported board found %s", board_id)
             target = "cortex_m"
 
-        super(MbedBoard, self).__init__(target, target, link, frequency)
+        super(MbedBoard, self).__init__(target, link, frequency)
         self.unique_id = unique_id
         self.target_type = target
 
