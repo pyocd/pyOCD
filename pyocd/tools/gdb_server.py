@@ -75,6 +75,7 @@ class GDBServerTool(object):
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
         parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
+        parser.add_argument("--pack", metavar="PATH", help="Path to a CMSIS Device Family Pack")
         parser.add_argument("-p", "--port", dest="port_number", type=int, default=3333, help="Set the port number that GDB server will open (default 3333).")
         parser.add_argument("-sc", "--semihost-console", dest="semihost_console_type", default="telnet", choices=('telnet', 'stdx'), help="Console for semihosting.")
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting (default 4444).")
@@ -297,6 +298,7 @@ class GDBServerTool(object):
                     session = ConnectHelper.session_with_chosen_probe(
                         config_file=self.args.config,
                         no_config=self.args.no_config,
+                        pack=self.args.pack,
                         board_id=self.args.board_id,
                         target_override=self.args.target_override,
                         frequency=self.args.frequency,

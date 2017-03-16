@@ -16,6 +16,7 @@
 """
 
 from ..target import TARGET
+from ..target.pack import pack_target
 import logging
 import six
 
@@ -32,6 +33,10 @@ class Board(object):
         self._session = session
         self._target_type = target.lower()
         self._test_binary = session.options.get('test_binary', None)
+        
+        # Create targets from provided CMSIS pack.
+        if ('pack' in session.options) and (session.options['pack'] is not None):
+            pack_target.populate_targets_from_pack(session.options['pack'])
 
         # Create Target and Flash instances.
         try:
