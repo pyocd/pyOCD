@@ -41,7 +41,9 @@ LEVELS = {
     'critical': logging.CRITICAL
 }
 
-supported_targets = pyOCD.target.TARGET.keys()
+builtin_targets = pyOCD.target.TARGET.keys()
+pack_targets = pyOCD.target.pack.pack_target.get_supported_targets()
+all_targets = pack_targets + builtin_targets
 debug_levels = LEVELS.keys()
 
 class GDBServerTool(object):
@@ -62,7 +64,7 @@ class GDBServerTool(object):
         parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
         parser.add_argument("--json", action="store_true", dest="output_json", default=False, help="Output lists in JSON format. Only applies to --list and --list-targets.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
-        parser.add_argument("-t", "--target", dest="target_override", choices=supported_targets, default=None, help="Override target to debug.  Supported targets are: " + ", ".join(supported_targets), metavar="TARGET")
+        parser.add_argument("-t", "--target", dest="target_override", choices=all_targets, default=None, help="Override target to debug. For a full list of targets use the '--list-targets' flag. Built-in targets are: " + ", ".join(builtin_targets), metavar="TARGET")
         parser.add_argument("-n", "--nobreak", dest="break_at_hardfault", default=True, action="store_false", help="Disable halt at hardfault handler.")
         parser.add_argument("-r", "--reset-break", dest="break_on_reset", default=False, action="store_true", help="Halt the target when reset.")
         parser.add_argument("-s", "--step-int", dest="step_into_interrupt", default=False, action="store_true", help="Allow single stepping to step into interrupts.")
@@ -220,7 +222,8 @@ class GDBServerTool(object):
                 'targets' : targets
                 }
 
-            for name in supported_targets:
+            # Note - displaying all_targets here makes eclipse unusably slow
+            for name in builtin_targets:
                 t = pyOCD.target.TARGET[name](None)
                 d = {
                     'name' : name,
@@ -239,7 +242,7 @@ class GDBServerTool(object):
 
             print json.dumps(obj, indent=4) #, sys.stdout)
         else:
-            for t in supported_targets:
+            for t in all_targets:
                 print t
 
     def run(self, args=None):

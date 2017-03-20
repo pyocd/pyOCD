@@ -45,8 +45,10 @@ LEVELS = {
 board = None
 
 supported_formats = ['bin', 'hex']
-supported_targets = pyOCD.target.TARGET.keys()
-supported_targets.remove('cortex_m')  # No generic programming
+builtin_targets = pyOCD.target.TARGET.keys()
+builtin_targets.remove('cortex_m')  # No generic programming
+pack_targets = pyOCD.target.pack.pack_target.get_supported_targets()
+all_targets = pack_targets + builtin_targets
 
 debug_levels = LEVELS.keys()
 
@@ -72,11 +74,12 @@ parser.add_argument("-b", "--board", dest="board_id", default=None,
                     help="Connect to board by board id.  Use -l to list all connected boards.")
 parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False,
                     help="List all connected boards.")
+parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
 parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info',
                     help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels),
                     metavar="LEVEL")
-parser.add_argument("-t", "--target", dest="target_override", choices=supported_targets, default=None,
-                    help="Override target to debug.  Supported targets are: " + ", ".join(supported_targets),
+parser.add_argument("-t", "--target", dest="target_override", choices=all_targets, default=None,
+                    help="OOverride target to debug. For a full list of targets use the '--list-targets' flag. Built-in targets are: " + ", ".join(builtin_targets),
                     metavar="TARGET")
 # reserved: "-n", "--nobreak"
 # reserved: "-r", "--reset-break"
@@ -147,6 +150,9 @@ def main():
 
     if args.list_all:
         MbedBoard.listConnectedBoards()
+    elif args.list_targets:
+        for target in all_targets:
+            print target
     else:
         board_selected = MbedBoard.chooseBoard(board_id=args.board_id, target_override=args.target_override,
                                                frequency=args.frequency, blocking=False)
