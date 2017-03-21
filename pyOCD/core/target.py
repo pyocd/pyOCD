@@ -193,6 +193,10 @@ class Target(object):
     def getState(self):
         raise NotImplementedError()
 
+    @property
+    def run_token(self):
+        return 0
+
     def isRunning(self):
         return self.getState() == Target.TARGET_RUNNING
 

@@ -285,6 +285,7 @@ class CortexM(Target):
         self.dp = dp
         self.ap = ap
         self.core_number = core_num
+        self._run_token = 0
         self._target_context = None
 
         # Set up breakpoints manager.
@@ -478,6 +479,8 @@ class CortexM(Target):
 
         self.dp.flush()
 
+        self._run_token += 1
+
     def clearDebugCauseBits(self):
         self.writeMemory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 
@@ -489,6 +492,8 @@ class CortexM(Target):
         if software_reset == None:
             # Default to software reset if nothing is specified
             software_reset = True
+
+        self._run_token += 1
 
         if software_reset:
             # Perform the reset.
@@ -564,6 +569,10 @@ class CortexM(Target):
         else:
             return Target.TARGET_RUNNING
 
+    @property
+    def run_token(self):
+        return self._run_token
+
     def isRunning(self):
         return self.getState() == Target.TARGET_RUNNING
 
@@ -577,6 +586,7 @@ class CortexM(Target):
         if self.getState() != Target.TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
+        self._run_token += 1
         self.clearDebugCauseBits()
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
         self.dp.flush()
