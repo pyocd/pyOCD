@@ -186,14 +186,14 @@ class KL28x(Kinetis):
             logging.info("KL28 is dual core")
 
             # Add second core's AHB-AP.
-            self.core1_ap = ap.AHB_AP(self.dp, 2)
-            self.aps[2] = self.core1_ap
-            self.core1_ap.init(True)
+            core1_ap = ap.AHB_AP(self.dp, 2)
+            core1_ap.init(True)
+            self.add_ap(core1_ap)
 
             # Add second core. It is held in reset until released by software.
-            self.core1 = CortexM(self.link, self.dp, self.core1_ap, self.memory_map, core_num=1)
-            self.cores[1] = self.core1
-            self.core1.init()
+            core1 = CortexM(self.link, self.dp, core1_ap, self.memory_map, core_num=1)
+            core1.init()
+            self.add_core(core1)
 
         # Disable ROM vector table remapping.
         self.write32(RCM_MR, RCM_MR_BOOTROM_MASK)
