@@ -108,6 +108,9 @@ def cortex_test(board_id):
         test_count = 0
         result = CortexTestResult()
 
+        debugContext = target.getTargetContext()
+        gdbFacade = pyOCD.gdbserver.context_facade.GDBDebugContextFacade(debugContext)
+
         print "\r\n\r\n----- FLASH NEW BINARY BEFORE TEST -----"
         flash.flashBinary(binary_file, addr_bin)
         # Let the target run for a bit so it
@@ -120,7 +123,7 @@ def cortex_test(board_id):
 
 
         print "\r\n\r\n----- TESTING CORTEX-M PERFORMANCE -----"
-        test_time = test_function(board, target.getTResponse)
+        test_time = test_function(board, gdbFacade.getTResponse)
         print("Function getTResponse time: %f" % test_time)
 
         # Step
@@ -135,13 +138,13 @@ def cortex_test(board_id):
         print("Add and remove breakpoint: %f" % test_time)
 
         # getRegisterContext
-        test_time = test_function(board, target.getRegisterContext)
+        test_time = test_function(board, gdbFacade.getRegisterContext)
         print("Function getRegisterContext: %f" % test_time)
 
         # setRegisterContext
-        context = target.getRegisterContext()
+        context = gdbFacade.getRegisterContext()
         def set_register_context():
-            target.setRegisterContext(context)
+            gdbFacade.setRegisterContext(context)
         test_time = test_function(board, set_register_context)
         print("Function setRegisterContext: %f" % test_time)
 
@@ -155,11 +158,11 @@ def cortex_test(board_id):
         # GDB stepping
         def simulate_step():
             target.step()
-            target.getTResponse()
+            gdbFacade.getTResponse()
             target.setBreakpoint(0)
             target.resume()
             target.halt()
-            target.getTResponse()
+            gdbFacade.getTResponse()
             target.removeBreakpoint(0)
         test_time = test_function(board, simulate_step)
         print("Simulated GDB step: %f" % test_time)

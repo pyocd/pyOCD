@@ -200,27 +200,6 @@ class CoreSightTarget(Target):
     def getTargetXML(self):
         return self.selected_core.getTargetXML()
 
-    def getRegisterContext(self):
-        return self.selected_core.getRegisterContext()
-
-    def setRegisterContext(self, data):
-        return self.selected_core.setRegisterContext(data)
-
-    def setRegister(self, reg, data):
-        return self.selected_core.setRegister(reg, data)
-
-    def getTResponse(self, forceSignal=None):
-        return self.selected_core.getTResponse(forceSignal)
-
-    def getSignalValue(self):
-        return self.selected_core.getSignalValue()
-
-    def getThreadsXML(self):
-        root = Element('threads')
-        t = SubElement(root, 'thread', id="1", core="0")
-        t.text = "Thread mode"
-        return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
-
     def getTargetContext(self, core=None):
         if core is None:
             core = self._selected_core
