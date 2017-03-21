@@ -18,7 +18,6 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
-from ..gdbserver import signals
 from ..utility import conversion
 from .fpb import FPB
 from .dwt import DWT
@@ -44,19 +43,6 @@ CORE_TYPE_NAME = {
                  ARM_CortexM4 : "Cortex-M4",
                  ARM_CortexM0p : "Cortex-M0+"
                }
-
-# Maps the fault code found in the IPSR to a GDB signal value.
-FAULT = [
-            signals.SIGSTOP,
-            signals.SIGSTOP,    # Reset
-            signals.SIGINT,     # NMI
-            signals.SIGSEGV,    # HardFault
-            signals.SIGSEGV,    # MemManage
-            signals.SIGBUS,     # BusFault
-            signals.SIGILL,     # UsageFault
-                                                # The rest are not faults
-         ]
-
 
 # Map from register name to DCRSR register index.
 #
@@ -847,111 +833,9 @@ class CortexM(Target):
     def getTargetXML(self):
         return self.targetXML
 
-    def getRegisterContext(self):
-        """
-        return hexadecimal dump of registers as expected by GDB
-        """
-        logging.debug("GDB getting register context")
-        resp = ''
-        reg_num_list = map(lambda reg:reg.reg_num, self.register_list)
-        vals = self.readCoreRegistersRaw(reg_num_list)
-        #print("Vals: %s" % vals)
-        for reg, regValue in zip(self.register_list, vals):
-            resp += conversion.u32beToHex8le(regValue)
-            logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
-
-        return resp
-
-    def setRegisterContext(self, data):
-        """
-        Set registers from GDB hexadecimal string.
-        """
-        logging.debug("GDB setting register context")
-        reg_num_list = []
-        reg_data_list = []
-        for reg in self.register_list:
-            regValue = conversion.hex8leToU32be(data)
-            reg_num_list.append(reg.reg_num)
-            reg_data_list.append(regValue)
-            logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
-            data = data[8:]
-        self.writeCoreRegistersRaw(reg_num_list, reg_data_list)
-
-    def setRegister(self, reg, data):
-        """
-        Set single register from GDB hexadecimal string.
-        reg parameter is the index of register in targetXML sent to GDB.
-        """
-        if reg < 0:
-            return
-        elif reg < len(self.register_list):
-            regName = self.register_list[reg].name
-            value = conversion.hex8leToU32be(data)
-            logging.debug("GDB: write reg %s: 0x%X", regName, value)
-            self.writeCoreRegisterRaw(regName, value)
-
-    def gdbGetRegister(self, reg):
-        resp = ''
-        if reg < len(self.register_list):
-            regName = self.register_list[reg].name
-            regValue = self.readCoreRegisterRaw(regName)
-            resp = conversion.u32beToHex8le(regValue)
-            logging.debug("GDB reg: %s = 0x%X", regName, regValue)
-        return resp
-
-    def getTResponse(self, forceSignal=None):
-        """
-        Returns a GDB T response string.  This includes:
-            The signal encountered.
-            The current value of the important registers (sp, lr, pc).
-        """
-        if forceSignal is not None:
-            response = 'T' + conversion.byteToHex2(forceSignal)
-        else:
-            response = 'T' + conversion.byteToHex2(self.getSignalValue())
-
-        # Append fp(r7), sp(r13), lr(r14), pc(r15)
-        response += self.getRegIndexValuePairs([7, 13, 14, 15])
-
-        # Append thread and core
-        response += "thread:%x;core:%x;" % (self.core_number + 1, self.core_number)
-
-        return response
-
-    def getSignalValue(self):
-        if self.isDebugTrap():
-            return signals.SIGTRAP
-
-        fault = self.readCoreRegister('xpsr') & 0xff
-        try:
-            signal = FAULT[fault]
-        except:
-            # If not a fault then default to SIGSTOP
-            signal = signals.SIGSTOP
-        logging.debug("GDB lastSignal: %d", signal)
-        return signal
-
     def isDebugTrap(self):
         debugEvents = self.readMemory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
         return debugEvents != 0
-
-    def getRegIndexValuePairs(self, regIndexList):
-        """
-        Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
-            for the T response string.  NN is the index of the
-            register to follow MMMMMMMM is the value of the register.
-        """
-        str = ''
-        regList = self.readCoreRegistersRaw(regIndexList)
-        for regIndex, reg in zip(regIndexList, regList):
-            str += conversion.byteToHex2(regIndex) + ':' + conversion.u32beToHex8le(reg) + ';'
-        return str
-
-    def getThreadsXML(self):
-        root = Element('threads')
-        t = SubElement(root, 'thread', id="1", core="0")
-        t.text = "Thread mode"
-        return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
 
     def getTargetContext(self, core=None):
         return self._target_context

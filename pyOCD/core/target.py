@@ -209,29 +209,6 @@ class Target(object):
     def getTargetXML(self):
         raise NotImplementedError()
 
-    def getMemoryMapXML(self):
-        if self.memory_map:
-            return self.memory_map.getXML()
-        elif hasattr(self, 'memoryMapXML'):
-            return self.memoryMapXML
-        else:
-            return None
-
-    def getRegisterContext(self):
-        raise NotImplementedError()
-
-    def setRegisterContext(self, data):
-        raise NotImplementedError()
-
-    def setRegister(self, reg, data):
-        raise NotImplementedError()
-
-    def getTResponse(self, gdbInterrupt=False):
-        raise NotImplementedError()
-
-    def getSignalValue(self):
-        raise NotImplementedError()
-
     def getTargetContext(self, core=None):
         raise NotImplementedError()
 
