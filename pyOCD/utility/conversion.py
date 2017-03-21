@@ -84,6 +84,11 @@ def hex8leToU32be(data):
     return int(data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
 
 
+def hex8leToU32le(data):
+    """Build 32-bit register value from little-endian 8-digit hexadecimal string"""
+    return int(data[0:2] + data[2:4] + data[4:6] + data[6:8], 16)
+
+
 def byteToHex2(val):
     """Create 2-digit hexadecimal string from 8-bit value"""
     return "%02x" % int(val)
