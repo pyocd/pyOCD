@@ -18,6 +18,7 @@
 from .target import Target
 from ..coresight import (dap, ap, cortex_m)
 from ..debug.svd import (SVDFile, SVDLoader)
+from ..debug.context import DebugContext
 import threading
 import logging
 from xml.etree.ElementTree import (Element, SubElement, tostring)
@@ -34,6 +35,7 @@ class CoreSightTarget(Target):
         self.dp = dap.DebugPort(link)
         self._selected_core = 0
         self._svd_load_thread = None
+        self._root_contexts = {}
 
     @property
     def selected_core(self):
@@ -66,6 +68,14 @@ class CoreSightTarget(Target):
             self._svd_load_thread = SVDLoader(self._svd_location, svdLoadCompleted)
             self._svd_load_thread.load()
 
+    def add_ap(self, ap):
+        self.aps[ap.ap_num] = ap
+
+    def add_core(self, core):
+        self.cores[core.core_number] = core
+        self.cores[core.core_number].setTargetContext(DebugContext(core))
+        self._root_contexts[core.core_number] = None
+
     def init(self, bus_accessible=True):
         # Start loading the SVD file
         self.loadSVD()
@@ -75,13 +85,15 @@ class CoreSightTarget(Target):
         self.dp.power_up_debug()
 
         # Create an AHB-AP for the CPU.
-        self.aps[0] = ap.AHB_AP(self.dp, 0)
-        self.aps[0].init(bus_accessible)
+        ap0 = ap.AHB_AP(self.dp, 0)
+        ap0.init(bus_accessible)
+        self.add_ap(ap0)
 
         # Create CortexM core.
-        self.cores[0] = cortex_m.CortexM(self.link, self.dp, self.aps[0], self.memory_map)
+        core0 = cortex_m.CortexM(self.link, self.dp, self.aps[0], self.memory_map)
         if bus_accessible:
-            self.cores[0].init()
+            core0.init()
+        self.add_core(core0)
 
     def disconnect(self):
         for core in self.cores.values():
@@ -208,4 +220,22 @@ class CoreSightTarget(Target):
         t = SubElement(root, 'thread', id="1", core="0")
         t.text = "Thread mode"
         return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
+
+    def getTargetContext(self, core=None):
+        if core is None:
+            core = self._selected_core
+        return self.cores[core].getTargetContext()
+
+    def getRootContext(self, core=None):
+        if core is None:
+            core = self._selected_core
+        if self._root_contexts[core] is None:
+            return self.getTargetContext()
+        else:
+            return self._root_contexts[core]
+
+    def setRootContext(self, context, core=None):
+        if core is None:
+            core = self._selected_core
+        self._root_contexts[core] = context
 

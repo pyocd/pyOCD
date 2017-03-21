@@ -293,6 +293,7 @@ class CortexM(Target):
         self.dp = dp
         self.ap = ap
         self.core_number = core_num
+        self._target_context = None
 
         # Set up breakpoints manager.
         self.fpb = FPB(self.ap)
@@ -915,3 +916,10 @@ class CortexM(Target):
         t = SubElement(root, 'thread', id="1", core="0")
         t.text = "Thread mode"
         return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
+
+    def getTargetContext(self, core=None):
+        return self._target_context
+
+    def setTargetContext(self, context):
+        self._target_context = context
+

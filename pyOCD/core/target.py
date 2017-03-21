@@ -224,3 +224,12 @@ class Target(object):
 
     def getSignalValue(self):
         raise NotImplementedError()
+
+    def getTargetContext(self, core=None):
+        raise NotImplementedError()
+
+    def getRootContext(self, core=None):
+        raise NotImplementedError()
+
+    def setRootContext(self, context, core=None):
+        raise NotImplementedError()
