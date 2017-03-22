@@ -65,7 +65,7 @@ class GDBServerTool(object):
         parser.add_argument("-t", "--target", dest="target_override", choices=supported_targets, default=None, help="Override target to debug.  Supported targets are: " + ", ".join(supported_targets), metavar="TARGET")
         parser.add_argument("-n", "--nobreak", dest="break_at_hardfault", default=True, action="store_false", help="Disable halt at hardfault handler.")
         parser.add_argument("-r", "--reset-break", dest="break_on_reset", default=False, action="store_true", help="Halt the target when reset.")
-        parser.add_argument("-C", "--vector-catch", default=None, help="Select enabled vector catch options, one letter per enabled source in any order. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all)")
+        parser.add_argument("-C", "--vector-catch", default='', help="Select enabled vector catch options, one letter per enabled source in any order. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none)")
         parser.add_argument("-s", "--step-int", dest="step_into_interrupt", default=False, action="store_true", help="Allow single stepping to step into interrupts.")
         parser.add_argument("-f", "--frequency", dest="frequency", default=1000000, type=int, help="Set the SWD clock frequency in Hz.")
         parser.add_argument("-o", "--persist", dest="persist", default=False, action="store_true", help="Keep GDB server running even after remote has detached.")
