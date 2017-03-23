@@ -178,7 +178,7 @@ class DebugPort(object):
                     break
                 logging.info("AP#%d IDR = 0x%08x", ap_num, idr)
             except Exception, e:
-                logging.error("Exception reading AP#%d IDR", ap_num, e)
+                logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
                 break
             ap_num += 1
 

@@ -63,7 +63,7 @@ class Kinetis(CoreSightTarget):
 
         # check MDM-AP ID
         if self.mdm_ap.idr != self.mdm_idr:
-            logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, val, self.mdm_idr)
+            logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, self.mdm_ap.idr, self.mdm_idr)
 
         # check for flash security
         isLocked = self.isLocked()
