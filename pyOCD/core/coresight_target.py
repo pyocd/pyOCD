@@ -31,6 +31,7 @@ class CoreSightTarget(Target):
 
     def __init__(self, link, memoryMap=None):
         super(CoreSightTarget, self).__init__(link, memoryMap)
+        self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
         self.aps = {}
@@ -92,7 +93,7 @@ class CoreSightTarget(Target):
         self.add_ap(ap0)
 
         # Create CortexM core.
-        core0 = cortex_m.CortexM(self.link, self.dp, self.aps[0], self.memory_map)
+        core0 = cortex_m.CortexM(self, self.dp, self.aps[0], self.memory_map)
         if bus_accessible:
             core0.init()
         self.add_core(core0)
