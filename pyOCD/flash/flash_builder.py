@@ -16,6 +16,7 @@
 """
 
 from ..core.target import Target
+from ..utility.notification import Notification
 import logging
 from struct import unpack
 from time import time
@@ -142,6 +143,9 @@ class FlashBuilder(object):
         Data must have already been added with addData
         """
 
+        # Send notification that we're about to program flash.
+        self.flash.target.notify(Notification(event=Target.EVENT_PRE_FLASH_PROGRAM, source=self))
+
         # Assumptions
         # 1. Page erases must be on page boundaries ( page_erase_addr % page_size == 0 )
         # 2. Page erase can have a different size depending on location
@@ -258,6 +262,9 @@ class FlashBuilder(object):
         self.perf.program_type = flash_operation
 
         logging.info("Programmed %d bytes (%d pages) at %.02f kB/s", program_byte_count, len(self.page_list), ((program_byte_count/1024) / self.perf.program_time))
+
+        # Send notification that we're done programming flash.
+        self.flash.target.notify(Notification(event=Target.EVENT_POST_FLASH_PROGRAM, source=self))
 
         return self.perf
 

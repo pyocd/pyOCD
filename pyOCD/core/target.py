@@ -60,6 +60,8 @@ class Target(Notifier):
     EVENT_POST_HALT = 6 # data is halt reason
     EVENT_PRE_RESET = 7
     EVENT_POST_RESET = 8
+    EVENT_PRE_FLASH_PROGRAM = 9
+    EVENT_POST_FLASH_PROGRAM = 10
 
     # Run types
     RUN_TYPE_RESUME = 1
@@ -73,6 +75,7 @@ class Target(Notifier):
         super(Target, self).__init__()
         self.link = link
         self.flash = None
+        self.root_target = None
         self.part_number = ""
         self.memory_map = memoryMap or MemoryMap()
         self.halt_on_connect = True

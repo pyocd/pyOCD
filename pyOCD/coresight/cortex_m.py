@@ -285,9 +285,10 @@ class CortexM(Target):
         RegisterInfo('s31',     32,         'float',        'float'),
         ]
 
-    def __init__(self, link, dp, ap, memoryMap=None, core_num=0):
-        super(CortexM, self).__init__(link, memoryMap)
+    def __init__(self, rootTarget, dp, ap, memoryMap=None, core_num=0):
+        super(CortexM, self).__init__(rootTarget.link, memoryMap)
 
+        self.root_target = rootTarget
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
