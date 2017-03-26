@@ -29,6 +29,8 @@ class HardwareBreakpoint(Breakpoint):
 class FPB(BreakpointProvider, CoreSightComponent):
     FP_CTRL = 0xE0002000
     FP_CTRL_KEY = 1 << 1
+    FP_CTRL_REV_MASK = 0xf0000000
+    FP_CTRL_REV_SHIFT = 28
     FP_COMP0 = 0xE0002008
     
     @classmethod
@@ -47,6 +49,11 @@ class FPB(BreakpointProvider, CoreSightComponent):
         self.nb_lit = 0
         self.num_hw_breakpoint_used = 0
         self.enabled = False
+        self.fpb_rev = 1
+
+    @property
+    def revision(self):
+        return self.fpb_rev
 
     ## @brief Inits the FPB.
     #
@@ -54,7 +61,10 @@ class FPB(BreakpointProvider, CoreSightComponent):
     # (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
     def init(self):
         # setup FPB (breakpoint)
-        fpcr = self.ap.read_memory(FPB.FP_CTRL)
+        fpcr = self.ap.read32(FPB.FP_CTRL)
+        self.fp_rev = 1 + ((fpcr & FPB.FP_CTRL_REV_MASK) >> FPB.FP_CTRL_REV_SHIFT)
+        if self.fp_rev not in (1, 2):
+            logging.warning("Unknown FPB version %d", self.fp_rev)
         self.nb_code = ((fpcr >> 8) & 0x70) | ((fpcr >> 4) & 0xF)
         self.nb_lit = (fpcr >> 7) & 0xf
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
@@ -84,14 +94,19 @@ class FPB(BreakpointProvider, CoreSightComponent):
     def available_breakpoints(self):
         return len(self.hw_breakpoints) - self.num_hw_breakpoint_used
 
+    ## @brief Test whether an address is supported by the FPB.
+    #
+    # For FPBv1, hardware breakpoints are only supported in the range 0x00000000 - 0x1fffffff.
+    # This was fixed for FPBv2, which supports hardware breakpoints at any address.
+    def can_support_address(self, addr):
+        return (self.fpb_rev == 2) or (addr < 0x20000000)
+
     ## @brief Set a hardware breakpoint at a specific location in flash.
     def set_breakpoint(self, addr):
         if not self.enabled:
             self.enable()
 
-        if addr >= 0x20000000:
-            # Hardware breakpoints are only supported in the range
-            # 0x00000000 - 0x1fffffff on cortex-m devices
+        if not self.can_support_address(addr):
             logging.error('Breakpoint out of range 0x%X', addr)
             return None
 
@@ -102,10 +117,16 @@ class FPB(BreakpointProvider, CoreSightComponent):
         for bp in self.hw_breakpoints:
             if not bp.enabled:
                 bp.enabled = True
-                bp_match = (1 << 30)
-                if addr & 0x2:
-                    bp_match = (2 << 30)
-                self.ap.write_memory(bp.comp_register_addr, addr & 0x1ffffffc | bp_match | 1)
+                comp = 0
+                if self.fp_rev == 1:
+                    bp_match = (1 << 30)
+                    if addr & 0x2:
+                        bp_match = (2 << 30)
+                    comp = addr & 0x1ffffffc | bp_match | 1
+                elif self.fp_rev == 2:
+                    comp = (addr & 0xfffffffe) | 1
+                self.ap.write32(bp.comp_register_addr, comp)
+                logging.debug("BP: wrote 0x%08x to comp @ 0x%08x", comp, bp.comp_register_addr)
                 bp.addr = addr
                 self.num_hw_breakpoint_used += 1
                 return bp

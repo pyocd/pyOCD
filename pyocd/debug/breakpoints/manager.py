@@ -52,7 +52,7 @@ class BreakpointManager(object):
         # Clear Thumb bit in case it is set.
         addr = addr & ~1
 
-        in_hw_bkpt_range = addr < 0x20000000
+        in_hw_bkpt_range = (self._fpb is not None) and (self._fpb.can_support_address(addr))
         fbp_available = ((self._fpb is not None) and
                          (self._fpb.available_breakpoints() > 0))
         fbp_below_min = ((self._fpb is None) or

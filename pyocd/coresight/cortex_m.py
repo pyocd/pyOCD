@@ -35,6 +35,7 @@ ARM_CortexM0 = 0xC20
 ARM_CortexM1 = 0xC21
 ARM_CortexM3 = 0xC23
 ARM_CortexM4 = 0xC24
+ARM_CortexM7 = 0xC27
 ARM_CortexM0p = 0xC60
 
 # pylint: enable=invalid_name
@@ -45,6 +46,7 @@ CORE_TYPE_NAME = {
                  ARM_CortexM1 : "Cortex-M1",
                  ARM_CortexM3 : "Cortex-M3",
                  ARM_CortexM4 : "Cortex-M4",
+                 ARM_CortexM7 : "Cortex-M7",
                  ARM_CortexM0p : "Cortex-M0+"
                }
 
@@ -62,6 +64,10 @@ CORE_TYPE_NAME = {
 # indicating which parts of the PSR we're interested in - encoded the same way as MRS's SYSm.
 # (Note that 'XPSR' continues to denote the raw 32 bits of the register, as per previous versions,
 # not the union of the three APSR+IPSR+EPSR masks which don't cover the entire register).
+#
+# The double-precision floating point registers (D0-D15) are composed of two single-precision
+# floating point registers (S0-S31). The value for double-precision registers in this dict is
+# the negated value of the first associated single-precision register.
 CORE_REGISTER = {
                  'r0': 0,
                  'r1': 1,
@@ -129,6 +135,22 @@ CORE_REGISTER = {
                  's29': 0x5d,
                  's30': 0x5e,
                  's31': 0x5f,
+                 'd0': -0x40,
+                 'd1': -0x42,
+                 'd2': -0x44,
+                 'd3': -0x46,
+                 'd4': -0x48,
+                 'd5': -0x4a,
+                 'd6': -0x4c,
+                 'd7': -0x4e,
+                 'd8': -0x50,
+                 'd9': -0x52,
+                 'd10': -0x54,
+                 'd11': -0x56,
+                 'd12': -0x58,
+                 'd13': -0x5a,
+                 'd14': -0x5c,
+                 'd15': -0x5e,
                  }
 
 def register_name_to_index(reg):
@@ -142,6 +164,10 @@ def register_name_to_index(reg):
 # Returns true for registers holding single-precision float values
 def is_float_register(index):
     return 0x40 <= index <= 0x5f
+
+# Returns true for registers holding double-precision float values
+def is_double_float_register(index):
+    return -0x40 >= index > -0x60
 
 def is_fpu_register(index):
     return index == 33 or is_float_register(index)
@@ -251,6 +277,11 @@ class CortexM(Target, CoreSightComponent):
 
     DBGKEY = (0xA05F << 16)
 
+    # Media and FP Feature Register 0
+    MVFR0 = 0xE000EF40
+    MVFR0_DOUBLE_PRECISION_MASK = 0x00000f00
+    MVFR0_DOUBLE_PRECISION_SHIFT = 8
+
     class RegisterInfo(object):
         def __init__(self, name, bitsize, reg_type, reg_group):
             self.name = name
@@ -329,6 +360,26 @@ class CortexM(Target, CoreSightComponent):
         RegisterInfo('s31',     32,         'float',        'float'),
         ]
 
+    regs_float_double = [
+        #            Name       bitsize     type            group
+        RegisterInfo('d0' ,     64,         'float',        'float'),
+        RegisterInfo('d1' ,     64,         'float',        'float'),
+        RegisterInfo('d2' ,     64,         'float',        'float'),
+        RegisterInfo('d3' ,     64,         'float',        'float'),
+        RegisterInfo('d4' ,     64,         'float',        'float'),
+        RegisterInfo('d5' ,     64,         'float',        'float'),
+        RegisterInfo('d6' ,     64,         'float',        'float'),
+        RegisterInfo('d7' ,     64,         'float',        'float'),
+        RegisterInfo('d8' ,     64,         'float',        'float'),
+        RegisterInfo('d9' ,     64,         'float',        'float'),
+        RegisterInfo('d10',     64,         'float',        'float'),
+        RegisterInfo('d11',     64,         'float',        'float'),
+        RegisterInfo('d12',     64,         'float',        'float'),
+        RegisterInfo('d13',     64,         'float',        'float'),
+        RegisterInfo('d14',     64,         'float',        'float'),
+        RegisterInfo('d15',     64,         'float',        'float'),
+        ]
+
     @classmethod
     def factory(cls, ap, cmpid, address):
         # Create a new core instance.
@@ -355,6 +406,7 @@ class CortexM(Target, CoreSightComponent):
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
+        self.has_fpu_double = False
         self.core_number = core_num
         self._run_token = 0
         self._target_context = None
@@ -414,7 +466,7 @@ class CortexM(Target, CoreSightComponent):
             self.register_list.append(reg)
             SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
         # Check if target has ARMv7 registers
-        if self.core_type in  (ARM_CortexM3, ARM_CortexM4):
+        if self.core_type in (ARM_CortexM3, ARM_CortexM4, ARM_CortexM7):
             for reg in self.regs_system_armv7_only:
                 self.register_list.append(reg)
                 SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
@@ -424,6 +476,10 @@ class CortexM(Target, CoreSightComponent):
             for reg in self.regs_float:
                 self.register_list.append(reg)
                 SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
+            if self.has_fpu_double:
+                for reg in self.regs_float_double:
+                    self.register_list.append(reg)
+                    SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
         self.target_xml = b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
 
     ## @brief Read the CPUID register and determine core type.
@@ -450,7 +506,7 @@ class CortexM(Target, CoreSightComponent):
     #
     # The core type must have been identified prior to calling this function.
     def _check_for_fpu(self):
-        if self.core_type != ARM_CortexM4:
+        if self.core_type not in (ARM_CortexM4, ARM_CortexM7):
             self.has_fpu = False
             return
 
@@ -465,7 +521,19 @@ class CortexM(Target, CoreSightComponent):
         self.write32(CortexM.CPACR, originalCpacr)
 
         if self.has_fpu:
-            logging.info("FPU present")
+            # Now check whether double-precision is supported.
+            mvfr0 = self.read32(CortexM.MVFR0)
+            dp_val = (mvfr0 & CortexM.MVFR0_DOUBLE_PRECISION_MASK) >> CortexM.MVFR0_DOUBLE_PRECISION_SHIFT
+            self.has_fpu_double = (dp_val == 2)
+
+            if self.core_type == ARM_CortexM7:
+                if self.has_fpu_double:
+                    fpu_type = "FPv5-DP"
+                else:
+                    fpu_type = "FPv5-SP"
+            else:
+                fpu_type = "FPv4-SP"
+            logging.info("FPU present: " + fpu_type)
 
     def write_memory(self, addr, value, transfer_size=32):
         """
@@ -700,6 +768,8 @@ class CortexM(Target, CoreSightComponent):
         # Convert int to float.
         if is_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
+        elif is_double_float_register(regIndex):
+            regValue = conversion.u64_to_float64(regValue)
         return regValue
 
     def read_core_register(self, reg):
@@ -728,6 +798,23 @@ class CortexM(Target, CoreSightComponent):
                 raise ValueError("unknown reg: %d" % reg)
             elif is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
+            elif is_double_float_register(reg) and (not self.has_fpu_double):
+                raise ValueError("attempt to read double-precision FPU register without FPv5")
+
+        # Handle doubles.
+        doubles = [reg for reg in reg_list if is_double_float_register(reg)]
+        hasDoubles = self.has_fpu_double and len(doubles) > 0
+        if hasDoubles:
+            originalRegList = reg_list
+            
+            # Strip doubles from reg_list.
+            reg_list = [reg for reg in reg_list if not is_double_float_register(reg)]
+            
+            # Read float regs required to build doubles.
+            singleRegList = []
+            for reg in doubles:
+                singleRegList += (-reg, -reg + 1)
+            singleValues = self.read_core_registers_raw(singleRegList)
 
         # Begin all reads and writes
         dhcsr_cb_list = []
@@ -735,8 +822,7 @@ class CortexM(Target, CoreSightComponent):
         for reg in reg_list:
             if is_cfbp_subregister(reg):
                 reg = CORE_REGISTER['cfbp']
-
-            if is_psr_subregister(reg):
+            elif is_psr_subregister(reg):
                 reg = CORE_REGISTER['xpsr']
 
             # write id in DCRSR
@@ -761,11 +847,26 @@ class CortexM(Target, CoreSightComponent):
             # Special handling for registers that are combined into a single DCRSR number.
             if is_cfbp_subregister(reg):
                 val = (val >> ((-reg - 1) * 8)) & 0xff
-
-            if is_psr_subregister(reg):
+            elif is_psr_subregister(reg):
                 val &= sysm_to_psr_mask(reg)
 
             reg_vals.append(val)
+        
+        # Merge double regs back into result list.
+        if hasDoubles:
+            results = []
+            for reg in originalRegList:
+                # Double
+                if is_double_float_register(reg):
+                    doubleIndex = doubles.index(reg)
+                    singleLow = singleValues[doubleIndex * 2]
+                    singleHigh = singleValues[doubleIndex * 2 + 1]
+                    double = (singleHigh << 32) | singleLow
+                    results.append(double)
+                # Other register
+                else:
+                    results.append(reg_vals[reg_list.index(reg)])
+            reg_vals = results
 
         return reg_vals
 
@@ -776,9 +877,11 @@ class CortexM(Target, CoreSightComponent):
         """
         regIndex = register_name_to_index(reg)
         # Convert float to int.
-        if is_float_register(regIndex):
+        if is_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
-        self.write_core_register(regIndex, data)
+        elif is_double_float_register(regIndex) and type(data) is float:
+            data = conversion.float64_to_u64(data)
+        self.write_core_register_raw(regIndex, data)
 
     def write_core_register(self, reg, data):
         """
@@ -806,20 +909,32 @@ class CortexM(Target, CoreSightComponent):
                 raise ValueError("unknown reg: %d" % reg)
             elif is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to write FPU register without FPU")
+            elif is_double_float_register(reg) and (not self.has_fpu_double):
+                raise ValueError("attempt to write double-precision FPU register without FPv5")
 
-        # Read special register if it is present in the list
-        for reg in reg_list:
-            if is_cfbp_subregister(reg):
+        # Read special register if it is present in the list and
+        # convert doubles to single float register writes.
+        cfbpValue = None
+        xpsrValue = None
+        reg_data_list = []
+        for reg, data in zip(reg_list, data_list):
+            if is_double_float_register(reg):
+                # Replace double with two single float register writes. For instance,
+                # a write of D2 gets converted to writes to S4 and S5.
+                singleLow = data & 0xffffffff
+                singleHigh = (data >> 32) & 0xffffffff
+                reg_data_list += [(-reg, singleLow), (-reg + 1, singleHigh)]
+            elif is_cfbp_subregister(reg) and cfbpValue is None:
                 cfbpValue = self.read_core_register(CORE_REGISTER['cfbp'])
-                break
-
-            if is_psr_subregister(reg):
+            elif is_psr_subregister(reg) and xpsrValue is None:
                 xpsrValue = self.read_core_register(CORE_REGISTER['xpsr'])
-                break
-
+            else:
+                # Other register, just copy directly.
+                reg_data_list.append((reg, data))
+        
         # Write out registers
         dhcsr_cb_list = []
-        for reg, data in zip(reg_list, data_list):
+        for reg, data in reg_data_list:
             if is_cfbp_subregister(reg):
                 # Mask in the new special register value so we don't modify the other register
                 # values that share the same DCRSR number.
@@ -828,8 +943,7 @@ class CortexM(Target, CoreSightComponent):
                 data = (cfbpValue & mask) | ((data & 0xff) << shift)
                 cfbpValue = data # update special register for other writes that might be in the list
                 reg = CORE_REGISTER['cfbp']
-
-            if is_psr_subregister(reg):
+            elif is_psr_subregister(reg):
                 mask = sysm_to_psr_mask(reg)
                 data = (xpsrValue & (0xffffffff ^ mask)) | (data & mask)
                 xpsrValue = data
