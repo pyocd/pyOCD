@@ -172,17 +172,11 @@ class CoreSightTarget(Target):
     def getMemoryMap(self):
         return self.memory_map
 
-    def setVectorCatchFault(self, enable):
-        return self.selected_core.setVectorCatchFault(enable)
+    def setVectorCatch(self, enableMask):
+        return self.selected_core.setVectorCatch(enableMask)
 
-    def getVectorCatchFault(self):
-        return self.selected_core.getVectorCatchFault()
-
-    def setVectorCatchReset(self, enable):
-        return self.selected_core.setVectorCatchReset(enable)
-
-    def getVectorCatchReset(self):
-        return self.selected_core.getVectorCatchReset()
+    def getVectorCatch(self):
+        return self.selected_core.getVectorCatch()
 
     # GDB functions
     def getTargetXML(self):

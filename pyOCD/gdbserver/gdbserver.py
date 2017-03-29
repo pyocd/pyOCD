@@ -222,9 +222,18 @@ class GDBServer(threading.Thread):
         else:
             self.port = port_urlWSS
         self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
-        self.board.target.setVectorCatchFault(self.break_at_hardfault)
         self.break_on_reset = options.get('break_on_reset', False)
-        self.board.target.setVectorCatchReset(self.break_on_reset)
+        self.vector_catch = options.get('vector_catch', 'h')
+        mask = ((Target.CATCH_HARD_FAULT if ('h' in self.vector_catch or self.break_at_hardfault) else 0) \
+                | (Target.CATCH_BUS_FAULT if 'b' in self.vector_catch else 0) \
+                | (Target.CATCH_MEM_FAULT if 'm' in self.vector_catch else 0) \
+                | (Target.CATCH_INTERRUPT_ERR if 'i' in self.vector_catch else 0) \
+                | (Target.CATCH_STATE_ERR if 's' in self.vector_catch else 0) \
+                | (Target.CATCH_CHECK_ERR if 'c' in self.vector_catch else 0) \
+                | (Target.CATCH_COPROCESSOR_ERR if 'p' in self.vector_catch else 0) \
+                | (Target.CATCH_CORE_RESET if ('r' in self.vector_catch or self.break_on_reset) else 0) \
+                | (Target.CATCH_ALL if 'a' in self.vector_catch else 0))
+        self.board.target.setVectorCatch(mask)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
         self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
@@ -482,8 +491,7 @@ class GDBServer(threading.Thread):
         logging.debug("GDB kill")
         # Keep target halted and leave vector catches if in persistent mode.
         if not self.persist:
-            self.board.target.setVectorCatchFault(False)
-            self.board.target.setVectorCatchReset(False)
+            self.board.target.setVectorCatch(Target.CATCH_NONE)
             self.board.target.resume()
         return self.createRSPPacket("")
 
