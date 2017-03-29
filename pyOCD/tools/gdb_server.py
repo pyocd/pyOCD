@@ -22,6 +22,7 @@ import traceback
 import argparse
 import json
 import pkg_resources
+import textwrap
 
 import pyOCD.board.mbed_board
 from pyOCD import __version__
@@ -51,8 +52,11 @@ class GDBServerTool(object):
         self.echo_msg = None
 
     def build_parser(self):
+        # Build epilog with list of targets.
+        epilog = "Available targets for use with --target option: " + ", ".join(supported_targets)
+
         # Keep args in snyc with flash_tool.py when possible
-        parser = argparse.ArgumentParser(description='PyOCD GDB Server')
+        parser = argparse.ArgumentParser(description='PyOCD GDB Server', epilog=epilog)
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-p", "--port", dest="port_number", type=int, default=3333, help="Write the port number that GDB server will open.")
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting.")
@@ -62,9 +66,9 @@ class GDBServerTool(object):
         parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
         parser.add_argument("--json", action="store_true", dest="output_json", default=False, help="Output lists in JSON format. Only applies to --list and --list-targets.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
-        parser.add_argument("-t", "--target", dest="target_override", default=None, help="Override target to debug.  Supported targets are: " + ", ".join(supported_targets), metavar="TARGET")
-        parser.add_argument("-n", "--nobreak", dest="break_at_hardfault", default=True, action="store_false", help="Disable halt at hardfault handler.")
-        parser.add_argument("-r", "--reset-break", dest="break_on_reset", default=False, action="store_true", help="Halt the target when reset.")
+        parser.add_argument("-t", "--target", dest="target_override", default=None, help="Override target to debug.", metavar="TARGET")
+        parser.add_argument("-n", "--nobreak", dest="break_at_hardfault", default=True, action="store_false", help="Disable halt at hardfault handler. (Deprecated)")
+        parser.add_argument("-r", "--reset-break", dest="break_on_reset", default=False, action="store_true", help="Halt the target when reset. (Deprecated)")
         parser.add_argument("-C", "--vector-catch", default='', help="Select enabled vector catch options, one letter per enabled source in any order. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none)")
         parser.add_argument("-s", "--step-int", dest="step_into_interrupt", default=False, action="store_true", help="Allow single stepping to step into interrupts.")
         parser.add_argument("-f", "--frequency", dest="frequency", default=1000000, type=int, help="Set the SWD clock frequency in Hz.")
@@ -244,8 +248,21 @@ class GDBServerTool(object):
             for t in supported_targets:
                 print t
 
+    def validate_target(self):
+        if self.args.target_override is None:
+            return
+
+        if self.args.target_override.lower() not in supported_targets:
+            targetList = "Available targets: " + ", ".join(supported_targets)
+            targetList = "\n".join(textwrap.wrap(targetList))
+            msg = "Error: unsupported target '%s' specified" % self.args.target_override
+            msg += "\n\n" + targetList
+            print msg
+            sys.exit(1)
+
     def run(self, args=None):
         self.args = self.build_parser().parse_args(args)
+        self.validate_target()
         self.gdb_server_settings = self.get_gdb_server_settings(self.args)
         self.setup_logging(self.args)
         DAPAccess.set_args(self.args.daparg)
