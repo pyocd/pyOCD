@@ -115,6 +115,14 @@ class CoreSightTarget(Target):
     def resume(self):
         return self.selected_core.resume()
 
+    def massErase(self):
+        if self.flash is not None:
+            self.flash.init()
+            self.flash.eraseAll()
+            return True
+        else:
+            return False
+
     def writeMemory(self, addr, value, transfer_size=32):
         return self.selected_core.writeMemory(addr, value, transfer_size)
 

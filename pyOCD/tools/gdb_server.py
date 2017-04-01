@@ -22,7 +22,6 @@ import traceback
 import argparse
 import json
 import pkg_resources
-import textwrap
 
 import pyOCD.board.mbed_board
 from pyOCD import __version__

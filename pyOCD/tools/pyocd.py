@@ -254,7 +254,6 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "INFO",
             'help' : "Report info about the target",
-            'extra_help' : "Available info names: map, peripherals, uid, cores, target.",
             },
         'set' : {
             'aliases' : [],
