@@ -15,6 +15,8 @@
  limitations under the License.
 """
 
+from ..core.target import Target
+
 ## @brief Split command line by whitespace, supporting quoted strings.
 #
 # Accepts
@@ -49,4 +51,38 @@ def split_command_line(cmd_line):
         if word:
             result.append(word)
     return result
+
+## Map of vector char characters to masks.
+VECTOR_CATCH_CHAR_MAP = {
+        'h': Target.CATCH_HARD_FAULT,
+        'b': Target.CATCH_BUS_FAULT,
+        'm': Target.CATCH_MEM_FAULT,
+        'i': Target.CATCH_INTERRUPT_ERR,
+        's': Target.CATCH_STATE_ERR,
+        'c': Target.CATCH_CHECK_ERR,
+        'p': Target.CATCH_COPROCESSOR_ERR,
+        'r': Target.CATCH_CORE_RESET,
+        'a': Target.CATCH_ALL,
+        'n': Target.CATCH_NONE,
+    }
+
+## @brief Convert a vector catch string to a mask.
+#
+# @exception ValueError Raised if an invalid vector catch character is encountered.
+def convert_vector_catch(value):
+    # Make case insensitive.
+    value = value.lower()
+
+    # Handle special vector catch options.
+    if value == 'all':
+        return Target.CATCH_ALL
+    elif value == 'none':
+        return Target.CATCH_NONE
+
+    # Convert options string to mask.
+    try:
+        return sum([VECTOR_CATCH_CHAR_MAP[c] for c in value])
+    except KeyError as e:
+        # Reraise an error with a more helpful message.
+        raise ValueError("invalid vector catch option '{}'".format(e.args[0]))
 

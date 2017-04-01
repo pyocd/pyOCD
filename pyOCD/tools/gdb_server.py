@@ -29,7 +29,7 @@ from pyOCD import __version__
 from pyOCD.debug.svd import isCmsisSvdAvailable
 from pyOCD.gdbserver import GDBServer
 from pyOCD.board import MbedBoard
-from pyOCD.utility.cmdline import split_command_line
+from pyOCD.utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch)
 from pyOCD.pyDAPAccess.dap_access_cmsis_dap import DAPAccessCMSISDAP
 import pyOCD.board.mbed_board
 from pyOCD.pyDAPAccess import DAPAccess
@@ -44,6 +44,18 @@ LEVELS = {
 
 supported_targets = pyOCD.target.TARGET.keys()
 debug_levels = LEVELS.keys()
+
+class InvalidArgumentError(RuntimeError):
+    pass
+
+## @brief Argparse type function to validate the supplied target device name.
+#
+# If the target name is valid, it is returned unmodified to become the --target option's
+# attribute value.
+def validate_target(value):
+    if value.lower() not in supported_targets:
+        raise InvalidArgumentError("invalid target option '{}'".format(value))
+    return value
 
 class GDBServerTool(object):
     def __init__(self):
@@ -66,10 +78,10 @@ class GDBServerTool(object):
         parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
         parser.add_argument("--json", action="store_true", dest="output_json", default=False, help="Output lists in JSON format. Only applies to --list and --list-targets.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
-        parser.add_argument("-t", "--target", dest="target_override", default=None, help="Override target to debug.", metavar="TARGET")
-        parser.add_argument("-n", "--nobreak", dest="break_at_hardfault", default=True, action="store_false", help="Disable halt at hardfault handler. (Deprecated)")
-        parser.add_argument("-r", "--reset-break", dest="break_on_reset", default=False, action="store_true", help="Halt the target when reset. (Deprecated)")
-        parser.add_argument("-C", "--vector-catch", default='', help="Select enabled vector catch options, one letter per enabled source in any order. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none)")
+        parser.add_argument("-t", "--target", dest="target_override", default=None, help="Override target to debug.", metavar="TARGET", type=validate_target)
+        parser.add_argument("-n", "--nobreak", dest="no_break_at_hardfault", action="store_true", help="Disable halt at hardfault handler. (Deprecated)")
+        parser.add_argument("-r", "--reset-break", dest="break_on_reset", action="store_true", help="Halt the target when reset. (Deprecated)")
+        parser.add_argument("-C", "--vector-catch", default='h', help="Enable vector catch sources, one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none). (Default is hard fault.)")
         parser.add_argument("-s", "--step-int", dest="step_into_interrupt", default=False, action="store_true", help="Allow single stepping to step into interrupts.")
         parser.add_argument("-f", "--frequency", dest="frequency", default=1000000, type=int, help="Set the SWD clock frequency in Hz.")
         parser.add_argument("-o", "--persist", dest="persist", default=False, action="store_true", help="Keep GDB server running even after remote has detached.")
@@ -87,6 +99,7 @@ class GDBServerTool(object):
         parser.add_argument("-G", "--gdb-syscall", dest="semihost_use_syscalls", action="store_true", help="Use GDB syscalls for semihosting file I/O.")
         parser.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+', help="Run command (OpenOCD compatibility).")
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+        self.parser = parser
         return parser
 
     def get_chip_erase(self, args):
@@ -98,13 +111,29 @@ class GDBServerTool(object):
             chip_erase = False
         return chip_erase
 
+    def get_vector_catch(self, args):
+        vector_catch = args.vector_catch.lower()
+
+        # Handle deprecated options.
+        if args.break_on_reset:
+            vector_catch += 'r'
+        if args.no_break_at_hardfault:
+            # Must handle all case specially since we can't just filter 'h'.
+            if vector_catch == 'all' or 'a' in vector_catch:
+                vector_catch = 'bmiscpr' # Does not include 'h'.
+            else:
+                vector_catch = vector_catch.replace('h', '')
+
+        try:
+            return convert_vector_catch(vector_catch)
+        except ValueError as e:
+            # Reraise as an invalid argument error.
+            raise InvalidArgumentError(e.message)
 
     def get_gdb_server_settings(self, args):
         # Set gdb server settings
         return {
-            'break_at_hardfault' : args.break_at_hardfault,
             'step_into_interrupt' : args.step_into_interrupt,
-            'break_on_reset' : args.break_on_reset,
             'persist' : args.persist,
             'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
             'chip_erase': self.get_chip_erase(args),
@@ -115,7 +144,7 @@ class GDBServerTool(object):
             'telnet_port' : args.telnet_port,
             'semihost_use_syscalls' : args.semihost_use_syscalls,
             'serve_local_only' : args.serve_local_only,
-            'vector_catch' : args.vector_catch,
+            'vector_catch' : self.get_vector_catch(args),
         }
 
 
@@ -248,54 +277,45 @@ class GDBServerTool(object):
             for t in supported_targets:
                 print t
 
-    def validate_target(self):
-        if self.args.target_override is None:
-            return
-
-        if self.args.target_override.lower() not in supported_targets:
-            targetList = "Available targets: " + ", ".join(supported_targets)
-            targetList = "\n".join(textwrap.wrap(targetList))
-            msg = "Error: unsupported target '%s' specified" % self.args.target_override
-            msg += "\n\n" + targetList
-            print msg
-            sys.exit(1)
-
     def run(self, args=None):
-        self.args = self.build_parser().parse_args(args)
-        self.validate_target()
-        self.gdb_server_settings = self.get_gdb_server_settings(self.args)
-        self.setup_logging(self.args)
-        DAPAccess.set_args(self.args.daparg)
+        try:
+            self.args = self.build_parser().parse_args(args)
+            self.gdb_server_settings = self.get_gdb_server_settings(self.args)
+            self.setup_logging(self.args)
+            DAPAccess.set_args(self.args.daparg)
 
-        self.process_commands(self.args.commands)
+            self.process_commands(self.args.commands)
 
-        gdb = None
-        if self.args.list_all == True:
-            self.list_boards()
-        elif self.args.list_targets == True:
-            self.list_targets()
-        else:
-            try:
-                board_selected = MbedBoard.chooseBoard(
-                    board_id=self.args.board_id,
-                    target_override=self.args.target_override,
-                    frequency=self.args.frequency)
-                with board_selected as board:
-                    gdb = GDBServer(board, self.args.port_number, self.gdb_server_settings)
-                    while gdb.isAlive():
-                        gdb.join(timeout=0.5)
-            except KeyboardInterrupt:
-                if gdb != None:
-                    gdb.stop()
-            except Exception as e:
-                print "uncaught exception: %s" % e
-                traceback.print_exc()
-                if gdb != None:
-                    gdb.stop()
-                return 1
+            gdb = None
+            if self.args.list_all == True:
+                self.list_boards()
+            elif self.args.list_targets == True:
+                self.list_targets()
+            else:
+                try:
+                    board_selected = MbedBoard.chooseBoard(
+                        board_id=self.args.board_id,
+                        target_override=self.args.target_override,
+                        frequency=self.args.frequency)
+                    with board_selected as board:
+                        gdb = GDBServer(board, self.args.port_number, self.gdb_server_settings)
+                        while gdb.isAlive():
+                            gdb.join(timeout=0.5)
+                except KeyboardInterrupt:
+                    if gdb != None:
+                        gdb.stop()
+                except Exception as e:
+                    print "uncaught exception: %s" % e
+                    traceback.print_exc()
+                    if gdb != None:
+                        gdb.stop()
+                    return 1
 
-        # Successful exit.
-        return 0
+            # Successful exit.
+            return 0
+        except InvalidArgumentError as e:
+            self.parser.error(e)
+            return 1
 
 def main():
     sys.exit(GDBServerTool().run())
