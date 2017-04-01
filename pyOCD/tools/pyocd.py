@@ -24,6 +24,12 @@ import optparse
 from optparse import make_option
 import traceback
 
+# Attempt to import readline.
+try:
+    import readline
+except ImportError:
+    pass
+
 import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
@@ -53,6 +59,24 @@ CORE_STATUS_DESC = {
         Target.TARGET_RESET : "Reset",
         Target.TARGET_SLEEPING : "Sleeping",
         Target.TARGET_LOCKUP : "Lockup",
+        }
+
+VC_NAMES_MAP = {
+        Target.CATCH_HARD_FAULT : "hard fault",
+        Target.CATCH_BUS_FAULT : "bus fault",
+        Target.CATCH_MEM_FAULT : "memory fault",
+        Target.CATCH_INTERRUPT_ERR : "interrupt error",
+        Target.CATCH_STATE_ERR : "state error",
+        Target.CATCH_CHECK_ERR : "check error",
+        Target.CATCH_COPROCESSOR_ERR : "coprocessor error",
+        Target.CATCH_CORE_RESET : "core reset",
+        }
+
+DP_REGS_MAP = {
+        0x0 : DAPAccess.REG.DP_0x0,
+        0x4 : DAPAccess.REG.DP_0x4,
+        0x8 : DAPAccess.REG.DP_0x8,
+        0xc : DAPAccess.REG.DP_0xC
         }
 
 ## Default SWD clock in kHz.
@@ -230,7 +254,47 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "INFO",
             'help' : "Report info about the target",
-            'extra_help' : "",
+            'extra_help' : "Available info names: map, peripherals, uid, cores, target.",
+            },
+        'set' : {
+            'aliases' : [],
+            'args' : "NAME VALUE",
+            'help' : "Set an option value",
+            'extra_help' : "Available info names: vc, vectorcatch.",
+            },
+        }
+
+INFO_HELP = {
+        'map' : {
+            'aliases' : [],
+            'help' : "Target memory map.",
+            },
+        'peripherals' : {
+            'aliases' : [],
+            'help' : "List of target peripheral instances.",
+            },
+        'uid' : {
+            'aliases' : [],
+            'help' : "Target's unique ID",
+            },
+        'cores' : {
+            'aliases' : [],
+            'help' : "Information about CPU cores in the target.",
+            },
+        'target' : {
+            'aliases' : [],
+            'help' : "General target information.",
+            },
+        }
+
+OPTION_HELP = {
+        'vector-catch' : {
+            'aliases' : ['vc'],
+            'help' : "Control enabled vector catch sources. Value is a concatenation of one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none).",
+            },
+        'step-into-interrupt' : {
+            'aliases' : ['si'],
+            'help' : "Set whether to enable or disable interrupts when single stepping. Set to 1 to enable."
             },
         }
 
@@ -361,6 +425,7 @@ class PyOCDTool(object):
     def __init__(self):
         self.board = None
         self.exitCode = 0
+        self.step_into_interrupt = False
         self.command_list = {
                 'list' :    self.handle_list,
                 'erase' :   self.handle_erase,
@@ -419,6 +484,7 @@ class PyOCDTool(object):
                 'wap' :     self.handle_writeap,
                 'reinit' :  self.handle_reinit,
                 'show' :    self.handle_show,
+                'set' :     self.handle_set,
                 'help' :    self.handle_help,
                 '?' :       self.handle_help,
             }
@@ -428,6 +494,12 @@ class PyOCDTool(object):
                 'uid' :         self.handle_show_unique_id,
                 'cores' :       self.handle_show_cores,
                 'target' :      self.handle_show_target,
+            }
+        self.option_list = {
+                'vector-catch' :        self.handle_set_vectorcatch,
+                'vc' :                  self.handle_set_vectorcatch,
+                'step-into-interrupt' : self.handle_set_step_interrupts,
+                'si' :                  self.handle_set_step_interrupts,
             }
 
     def get_args(self):
@@ -469,9 +541,12 @@ class PyOCDTool(object):
                 print "Error: unrecognized command '%s'" % self.cmd
                 return 1
 
-            # List command must be dealt with specially.
+            # Handle certain commands without connecting.
             if self.cmd == 'list':
                 self.handle_list([])
+                return 0
+            elif self.cmd == 'help':
+                self.handle_help(self.args.args)
                 return 0
 
             if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
@@ -814,7 +889,7 @@ class PyOCDTool(object):
             print "Failed to resume device"
 
     def handle_step(self, args):
-        self.target.step()
+        self.target.step(disable_interrupts=not self.step_into_interrupt)
         print "Successfully stepped device"
 
     def handle_halt(self, args):
@@ -926,11 +1001,7 @@ class PyOCDTool(object):
             print "Missing DP address"
             return
         addr_int = self.convert_value(args[0])
-        regs = { 0:DAPAccess.REG.DP_0x0,
-                 4:DAPAccess.REG.DP_0x4,
-                 8:DAPAccess.REG.DP_0x8,
-                 0xc:DAPAccess.REG.DP_0xC }
-        addr = regs[addr_int]
+        addr = DP_REGS_MAP[addr_int]
         result = self.target.dp.read_reg(addr)
         print "DP register 0x%x = 0x%08x" % (addr_int, result)
 
@@ -942,11 +1013,7 @@ class PyOCDTool(object):
             print "Missing value"
             return
         addr_int = self.convert_value(args[0])
-        regs = { 0:DAPAccess.REG.DP_0x0,
-                 4:DAPAccess.REG.DP_0x4,
-                 8:DAPAccess.REG.DP_0x8,
-                 0xc:DAPAccess.REG.DP_0xC }
-        addr = regs[addr_int]
+        addr = DP_REGS_MAP[addr_int]
         data = self.convert_value(args[1])
         self.target.dp.write_reg(addr, data)
 
@@ -1014,6 +1081,36 @@ class PyOCDTool(object):
         for periph in sorted(self.peripherals.values(), key=lambda x:x.base_address):
             print "0x%08x: %s" % (periph.base_address, periph.name)
 
+    def handle_set(self, args):
+        if len(args) < 1:
+            raise ToolError("missing option name argument")
+        name = args[0]
+        try:
+            self.option_list[name](args[1:])
+        except KeyError:
+            raise ToolError("unkown option name '%s'" % name)
+
+    def handle_set_vectorcatch(self, args):
+        if len(args) == 0:
+            catch = self.target.getVectorCatch()
+
+            print "Vector catch:"
+            for mask in sorted(VC_NAMES_MAP.iterkeys()):
+                name = VC_NAMES_MAP[mask]
+                s = "ON" if (catch & mask) else "OFF"
+                print "  {:3} {}".format(s, name)
+        else:
+            try:
+                self.target.setVectorCatch(pyOCD.utility.cmdline.convert_vector_catch(args[0]))
+            except ValueError as e:
+                print e
+
+    def handle_set_step_interrupts(self, args):
+        if len(args) == 0:
+            print "Interrupts while stepping:", ("enabled" if self.step_into_interrupt else "disabled")
+        else:
+            self.step_into_interrupt = (args[0] in ('1', 'true', 'yes', 'on'))
+
     def handle_help(self, args):
         if not args:
             self.list_commands()
@@ -1036,11 +1133,26 @@ class PyOCDTool(object):
             print "{cmd:<25} {args:<20} {help}".format(
                 cmd=', '.join(sorted([cmd] + info['aliases'])),
                 **info)
-        print
-        print "All register names are also available as commands that print the register's value."
-        print "Any ADDR or LEN argument will accept a register name."
-        print "Prefix line with $ to execute a Python expression."
-        print "Prefix line with ! to execute a shell command."
+
+        print "\nInfo:\n---------"
+        for name in sorted(INFO_HELP.keys()):
+            info = INFO_HELP[name]
+            print "{name:<25} {help}".format(
+                name=', '.join(sorted([name] + info['aliases'])),
+                help=info['help'])
+
+        print "\nOptions:\n---------"
+        for name in sorted(OPTION_HELP.keys()):
+            info = OPTION_HELP[name]
+            print "{name:<25} {help}".format(
+                name=', '.join(sorted([name] + info['aliases'])),
+                help=info['help'])
+
+        print """
+All register names are also available as commands that print the register's value.
+Any ADDR or LEN argument will accept a register name.
+Prefix line with $ to execute a Python expression.
+Prefix line with ! to execute a shell command."""
 
     def isFlashWrite(self, addr, width, data):
         mem_map = self.board.target.getMemoryMap()

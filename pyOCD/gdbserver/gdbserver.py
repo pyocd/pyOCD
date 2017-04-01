@@ -17,6 +17,7 @@
 
 from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
+from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
@@ -221,19 +222,8 @@ class GDBServer(threading.Thread):
             self.wss_server = port_urlWSS
         else:
             self.port = port_urlWSS
-        self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
-        self.break_on_reset = options.get('break_on_reset', False)
-        self.vector_catch = options.get('vector_catch', 'h')
-        mask = ((Target.CATCH_HARD_FAULT if ('h' in self.vector_catch or self.break_at_hardfault) else 0) \
-                | (Target.CATCH_BUS_FAULT if 'b' in self.vector_catch else 0) \
-                | (Target.CATCH_MEM_FAULT if 'm' in self.vector_catch else 0) \
-                | (Target.CATCH_INTERRUPT_ERR if 'i' in self.vector_catch else 0) \
-                | (Target.CATCH_STATE_ERR if 's' in self.vector_catch else 0) \
-                | (Target.CATCH_CHECK_ERR if 'c' in self.vector_catch else 0) \
-                | (Target.CATCH_COPROCESSOR_ERR if 'p' in self.vector_catch else 0) \
-                | (Target.CATCH_CORE_RESET if ('r' in self.vector_catch or self.break_on_reset) else 0) \
-                | (Target.CATCH_ALL if 'a' in self.vector_catch else 0))
-        self.board.target.setVectorCatch(mask)
+        self.vector_catch = options.get('vector_catch', Target.CATCH_HARD_FAULT)
+        self.board.target.setVectorCatch(self.vector_catch)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
         self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
@@ -957,6 +947,7 @@ class GDBServer(threading.Thread):
             'help'  : ['Display this help', 0x80],
         }
 
+        cmdList = cmd.split()
         resp = 'OK'
         if cmd == 'help':
             resp = ''.join(['%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
@@ -964,9 +955,20 @@ class GDBServer(threading.Thread):
         elif cmd.startswith('arm semihosting'):
             self.enable_semihosting = 'enable' in cmd
             logging.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
+        elif cmdList[0] == 'set':
+            if len(cmdList) < 3:
+                resp = hexEncode("Error: invalid set command")
+            elif cmdList[1] == 'vector-catch':
+                try:
+                    self.board.target.setVectorCatch(convert_vector_catch(cmdList[2]))
+                except ValueError as e:
+                    resp = hexEncode("Error: " + str(e))
+            elif cmdList[1] == 'step-into-interrupt':
+                self.step_into_interrupt = (cmdList[2].lower() in ("true", "on", "yes", "1"))
+            else:
+                resp = hexEncode("Error: invalid set option")
         else:
             resultMask = 0x00
-            cmdList = cmd.split()
             if cmdList[0] == 'help':
                 # a 'help' is only valid as the first cmd, and only
                 # gives info on the second cmd if it is valid
