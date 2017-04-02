@@ -106,7 +106,7 @@ COMMAND_INFO = {
             },
         'reg' : {
             'aliases' : [],
-            'args' : "[REG]",
+            'args' : "[-f] [REG]",
             'help' : "Print all or one register"
             },
         'wreg' : {
@@ -128,11 +128,6 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "ADDR FILENAME",
             "help" : "Load a binary file to an address in memory"
-            },
-        'setreset' : {
-            'aliases' : [],
-            'args' : "0/1",
-            'help' : "Set nRESET signal state"
             },
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
@@ -204,16 +199,6 @@ COMMAND_INFO = {
             'args' : "[-c/--center] ADDR [LEN]",
             'help' : "Disassemble instructions at an address",
             'extra_help' : "Only available if the capstone library is installed."
-            },
-        'log' : {
-            'aliases' : [],
-            'args' : "LEVEL",
-            'help' : "Set log level to one of debug, info, warning, error, critical"
-            },
-        'clock' : {
-            'aliases' : [],
-            'args' : "KHZ",
-            'help' : "Set SWD or JTAG clock frequency"
             },
         'exit' : {
             'aliases' : ['quit'],
@@ -294,6 +279,18 @@ OPTION_HELP = {
         'step-into-interrupt' : {
             'aliases' : ['si'],
             'help' : "Set whether to enable or disable interrupts when single stepping. Set to 1 to enable."
+            },
+        'nreset' : {
+            'aliases' : [],
+            'help' : "Set nRESET signal state. Accepts a value of 0 or 1."
+            },
+        'log' : {
+            'aliases' : [],
+            'help' : "Set log level to one of debug, info, warning, error, critical"
+            },
+        'clock' : {
+            'aliases' : [],
+            'help' : "Set SWD or JTAG clock frequency"
             },
         }
 
@@ -436,7 +433,6 @@ class PyOCDTool(object):
                 'reset' :   self.handle_reset,
                 'savemem' : self.handle_savemem,
                 'loadmem' : self.handle_loadmem,
-                'setreset' :  self.handle_setreset,
                 'read' :    self.handle_read8,
                 'read8' :   self.handle_read8,
                 'read16' :  self.handle_read16,
@@ -468,8 +464,6 @@ class PyOCDTool(object):
                 'lsbreak' : self.handle_list_breakpoints,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
-                'log' :     self.handle_log,
-                'clock' :   self.handle_clock,
                 'exit' :    self.handle_exit,
                 'quit' :    self.handle_exit,
                 'core' :    self.handle_core,
@@ -499,6 +493,9 @@ class PyOCDTool(object):
                 'vc' :                  self.handle_set_vectorcatch,
                 'step-into-interrupt' : self.handle_set_step_interrupts,
                 'si' :                  self.handle_set_step_interrupts,
+                'nreset' :              self.handle_set_nreset,
+                'log' :                 self.handle_set_log,
+                'clock' :               self.handle_set_clock,
             }
 
     def get_args(self):
@@ -737,7 +734,7 @@ class PyOCDTool(object):
         else:
             self.target.reset()
 
-    def handle_setreset(self, args):
+    def handle_set_nreset(self, args):
         if len(args) != 1:
             print "Missing reset state"
             return
@@ -933,7 +930,7 @@ class PyOCDTool(object):
             for i, addr in enumerate(bps):
                 print "%d: 0x%08x" % (i, addr)
 
-    def handle_log(self, args):
+    def handle_set_log(self, args):
         if len(args) < 1:
             print "Error: no log level provided"
             return 1
@@ -942,7 +939,7 @@ class PyOCDTool(object):
             return 1
         logging.getLogger().setLevel(LEVELS[args[0].lower()])
 
-    def handle_clock(self, args):
+    def handle_set_clock(self, args):
         if len(args) < 1:
             print "Error: no clock frequency provided"
             return 1
