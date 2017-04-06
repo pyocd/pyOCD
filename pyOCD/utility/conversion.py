@@ -22,7 +22,7 @@ import binascii
 def byteListToU32leList(data):
     """Convert a list of bytes to a list of 32-bit integers (little endian)"""
     res = []
-    for i in range(len(data) / 4):
+    for i in range(len(data) // 4):
         res.append(data[i * 4 + 0] |
                    data[i * 4 + 1] << 8 |
                    data[i * 4 + 2] << 16 |
