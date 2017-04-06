@@ -356,9 +356,9 @@ class MEM_AP(AccessPort):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            self._writeBlock32(addr, data[:n/4])
-            data = data[n/4:]
-            size -= n/4
+            self._writeBlock32(addr, data[:n//4])
+            data = data[n//4:]
+            size -= n//4
             addr += n
         return
 
@@ -371,8 +371,8 @@ class MEM_AP(AccessPort):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            resp += self._readBlock32(addr, n/4)
-            size -= n/4
+            resp += self._readBlock32(addr, n//4)
+            size -= n//4
             addr += n
         return resp
 
