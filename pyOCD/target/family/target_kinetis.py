@@ -19,6 +19,7 @@ from ...coresight import (dap, ap)
 from ...coresight.cortex_m import CortexM
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
+from ...utility.timeout import (Timeout, TimeoutException)
 import logging
 from time import sleep
 
@@ -36,12 +37,7 @@ MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS = (1 << 0)
 MDM_CTRL_DEBUG_REQUEST = (1 << 2)
 MDM_CTRL_CORE_HOLD_RESET = (1 << 4)
 
-# Kinetis FCF byte array to disable flash security.
-fcf = [0xff] * 12
-fcf += [0xfe, 0xff, 0xff, 0xff]
-
-# Location of FCF in the memory map.
-FCF_ADDR = 0x400
+MASS_ERASE_TIMEOUT = 10.0
 
 class Kinetis(CoreSightTarget):
 
@@ -130,15 +126,21 @@ class Kinetis(CoreSightTarget):
         else:
             return False
 
-    ## @brief Returns True if mass erase succeeded, False if it failed or is disabled.
-    # Note: reset should be held for the duration of this function
+    ## @brief Perform a mass erase operation.
+    # @note Reset should be held for the duration of this function
+    # @return True Mass erase succeeded.
+    # @return False Mass erase failed or is disabled.
     def massErase(self):
         # Wait until flash is inited.
-        while True:
-            status = self.mdm_ap.read_reg(MDM_STATUS)
-            if status & MDM_STATUS_FLASH_READY:
-                break
-            sleep(0.01)
+        with Timeout(MASS_ERASE_TIMEOUT) as to:
+            while to.check():
+                status = self.mdm_ap.read_reg(MDM_STATUS)
+                if status & MDM_STATUS_FLASH_READY:
+                    break
+                sleep(0.01)
+        if to.did_time_out:
+            logging.error("Mass erase timeout waiting for flash to finish init")
+            return False
 
         # Check if mass erase is enabled.
         status = self.mdm_ap.read_reg(MDM_STATUS)
@@ -150,18 +152,26 @@ class Kinetis(CoreSightTarget):
         self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS)
 
         # Wait for Flash Mass Erase Acknowledge to be set.
-        while True:
-            val = self.mdm_ap.read_reg(MDM_STATUS)
-            if val & MDM_STATUS_FLASH_MASS_ERASE_ACKNOWLEDGE:
-                break
-            sleep(0.01)
+        with Timeout(MASS_ERASE_TIMEOUT) as to:
+            while to.check():
+                val = self.mdm_ap.read_reg(MDM_STATUS)
+                if val & MDM_STATUS_FLASH_MASS_ERASE_ACKNOWLEDGE:
+                    break
+                sleep(0.01)
+        if to.did_time_out:
+            logging.error("Mass erase timeout waiting for Flash Mass Erase Ack to set")
+            return False
 
         # Wait for Flash Mass Erase in Progress bit to clear when erase is completed.
-        while True:
-            val = self.mdm_ap.read_reg(MDM_CTRL)
-            if (val == 0):
-                break
-            sleep(0.01)
+        with Timeout(MASS_ERASE_TIMEOUT) as to:
+            while to.check():
+                val = self.mdm_ap.read_reg(MDM_CTRL)
+                if (val == 0):
+                    break
+                sleep(0.01)
+        if to.did_time_out:
+            logging.error("Mass erase timeout waiting for Flash Mass Erase in Progress to clear")
+            return False
 
         # Confirm the part was unlocked
         val = self.mdm_ap.read_reg(MDM_STATUS)
