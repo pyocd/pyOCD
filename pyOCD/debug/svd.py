@@ -44,6 +44,7 @@ class SVDFile(object):
 class SVDLoader(threading.Thread):
     def __init__(self, svdFile, completionCallback):
         super(SVDLoader, self).__init__(name='load-svd')
+        self.daemon = True
         self._svd_location = svdFile
         self._svd_device = None
         self._callback = completionCallback
