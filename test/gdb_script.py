@@ -225,8 +225,8 @@ def run_test():
             print("Error - target not interrupted as expected")
 
         # Load test program and symbols
-        test_binary = "gdb_test_program/gdb_test.bin"
-        test_elf = "gdb_test_program/gdb_test.elf"
+        test_binary = "../src/gdb_test_program/gdb_test.bin"
+        test_elf = "../src/gdb_test_program/gdb_test.elf"
         gdb.execute("restore %s binary 0x%x" % (test_binary, ram_start))
         gdb.execute("add-symbol-file %s 0x%x" % (test_elf, ram_start))
 
