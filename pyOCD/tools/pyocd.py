@@ -683,7 +683,7 @@ class PyOCDTool(object):
 
         reg = args[0].lower()
         if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
-            if reg.startswith('s'):
+            if reg.startswith('s') and reg != 'sp':
                 value = float(args[1])
             else:
                 value = self.convert_value(args[1])
@@ -886,7 +886,13 @@ class PyOCDTool(object):
 
     def handle_step(self, args):
         self.target.step(disable_interrupts=not self.step_into_interrupt)
-        print "Successfully stepped device"
+        addr = self.target.readCoreRegister('pc')
+        if isCapstoneAvailable:
+            addr &= ~1
+            data = self.target.readBlockMemoryUnaligned8(addr, 4)
+            self.print_disasm(str(bytearray(data)), addr, maxInstructions=1)
+        else:
+            print "PC = 0x%08x" % (addr)
 
     def handle_halt(self, args):
         self.target.halt()
@@ -1253,7 +1259,7 @@ Prefix line with ! to execute a shell command."""
                     f_value_enum_str = ""
                 print "  %s[%s] = %s (%s)%s" % (f.name, bits_str, f_value_str, f_value_bin_str, f_value_enum_str)
 
-    def print_disasm(self, code, startAddr):
+    def print_disasm(self, code, startAddr, maxInstructions=None):
         if not isCapstoneAvailable:
             print "Warning: Disassembly is not available because the Capstone library is not installed"
             return
@@ -1263,12 +1269,16 @@ Prefix line with ! to execute a shell command."""
 
         addrLine = 0
         text = ''
+        n = 0
         for i in md.disasm(code, startAddr):
             hexBytes = ''
             for b in i.bytes:
                 hexBytes += '%02x' % b
             pc_marker = '*' if (pc == i.address) else ' '
             text += "{addr:#010x}:{pc_marker} {bytes:<10}{mnemonic:<8}{args}\n".format(addr=i.address, pc_marker=pc_marker, bytes=hexBytes, mnemonic=i.mnemonic, args=i.op_str)
+            n += 1
+            if (maxInstructions is not None) and (n >= maxInstructions):
+                break
 
         print text
 
