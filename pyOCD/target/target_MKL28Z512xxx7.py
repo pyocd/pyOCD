@@ -182,8 +182,9 @@ class KL28x(Kinetis):
         logging.debug("KEYATTR=0x%x SDID=0x%08x", keyattr, sdid)
         self.is_dual_core = (keyattr == KEYATTR_DUAL_CORE)
         if self.is_dual_core:
-            self.memory_map = self.dualMap
             logging.info("KL28 is dual core")
+            self.memory_map = self.dualMap
+            self.cores[0].memory_map = self.dualMap
 
             # Add second core's AHB-AP.
             core1_ap = ap.AHB_AP(self.dp, 2)
