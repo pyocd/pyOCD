@@ -155,7 +155,7 @@ class DWT(CoreSightComponent):
                 self.watchpoint_used += 1
                 return True
 
-        logging.error('No more available watchpoint!!, dropped watch at 0x%X', addr)
+        logging.error('No more watchpoints are available, dropped watchpoint at 0x%08x', addr)
         return False
 
     ## @brief Remove a hardware watchpoint.

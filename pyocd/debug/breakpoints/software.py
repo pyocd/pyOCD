@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2017 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +36,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
     def init(self):
         pass
 
+    @property
     def bp_type(self):
         return Target.BREAKPOINT_SW
 
@@ -43,6 +44,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
     def do_filter_memory(self):
         return True
 
+    @property
     def available_breakpoints(self):
         return -1
 

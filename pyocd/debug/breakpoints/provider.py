@@ -39,6 +39,7 @@ class BreakpointProvider(object):
     def do_filter_memory(self):
         return False
 
+    @property
     def available_breakpoints(self):
         raise NotImplementedError()
 
