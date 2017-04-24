@@ -19,10 +19,6 @@ from pyOCD.core.memory_map import (check_range, MemoryMap, FlashRegion, RomRegio
 import pytest
 import logging
 
-@pytest.fixture(scope='module', autouse=True)
-def debuglog():
-    logging.basicConfig(level=logging.DEBUG)
-
 @pytest.fixture(scope='function')
 def flash():
     return FlashRegion(start=0, length=1*1024, blocksize=0x100, name='flash', isBootMemory=True)

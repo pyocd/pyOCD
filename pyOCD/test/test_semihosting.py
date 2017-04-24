@@ -25,10 +25,6 @@ from pyOCD.debug import semihost
 from elapsedtimer import ElapsedTimer
 import telnetlib
 
-@pytest.fixture(scope='module', autouse=True)
-def debuglog():
-    logging.basicConfig(level=logging.DEBUG)
-
 @pytest.fixture(scope='module')
 def tgt(request):
     board = None

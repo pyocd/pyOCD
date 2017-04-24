@@ -115,6 +115,14 @@ CORE_REGISTER = {
                  's31': 0x5f,
                  }
 
+def register_name_to_index(reg):
+    if isinstance(reg, str):
+        try:
+            reg = CORE_REGISTER[reg.lower()]
+        except KeyError:
+            raise KeyError('cannot find %s core register' % reg)
+    return reg
+
 class CortexM(Target):
 
     """
@@ -599,26 +607,12 @@ class CortexM(Target):
         read CPU register
         Unpack floating point register values
         """
-        regIndex = self.registerNameToIndex(reg)
+        regIndex = register_name_to_index(reg)
         regValue = self.readCoreRegisterRaw(regIndex)
         # Convert int to float.
         if regIndex >= 0x40:
             regValue = conversion.u32BEToFloat32BE(regValue)
         return regValue
-
-    def registerNameToIndex(self, reg):
-        """
-        return register index based on name.
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
-        """
-        if isinstance(reg, str):
-            try:
-                reg = CORE_REGISTER[reg.lower()]
-            except KeyError:
-                logging.error('cannot find %s core register', reg)
-                return
-        return reg
 
     def readCoreRegisterRaw(self, reg):
         """
@@ -638,13 +632,13 @@ class CortexM(Target):
         associated to this register in the lookup table CORE_REGISTER.
         """
         # convert to index only
-        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
+        reg_list = [register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+            elif ((reg >= 0x40) or (reg == 33)) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Begin all reads and writes
@@ -686,7 +680,7 @@ class CortexM(Target):
         write a CPU register.
         Will need to pack floating point register values before writing.
         """
-        regIndex = self.registerNameToIndex(reg)
+        regIndex = register_name_to_index(reg)
         # Convert float to int.
         if regIndex >= 0x40:
             data = conversion.float32beToU32be(data)
@@ -710,13 +704,13 @@ class CortexM(Target):
         """
         assert len(reg_list) == len(data_list)
         # convert to index only
-        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
+        reg_list = [register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+            elif ((reg >= 0x40) or (reg == 33)) and (not self.has_fpu):
                 raise ValueError("attempt to write FPU register without FPU")
 
         # Read special register if it is present in the list

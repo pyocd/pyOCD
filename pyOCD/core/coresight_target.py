@@ -19,6 +19,7 @@ from .target import Target
 from ..coresight import (dap, ap, cortex_m)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
+from ..debug.cache import CachingDebugContext
 import threading
 import logging
 from xml.etree.ElementTree import (Element, SubElement, tostring)
@@ -73,7 +74,7 @@ class CoreSightTarget(Target):
 
     def add_core(self, core):
         self.cores[core.core_number] = core
-        self.cores[core.core_number].setTargetContext(DebugContext(core))
+        self.cores[core.core_number].setTargetContext(CachingDebugContext(DebugContext(core)))
         self._root_contexts[core.core_number] = None
 
     def init(self, bus_accessible=True):
