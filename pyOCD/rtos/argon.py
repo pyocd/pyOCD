@@ -321,7 +321,6 @@ class ArgonThread(TargetThread):
 class ArgonThreadProvider(ThreadProvider):
     def __init__(self, target):
         super(ArgonThreadProvider, self).__init__(target)
-        self._target_context = self._target.getTargetContext()
         self.g_ar = None
         self.g_ar_objects = None
         self._all_threads = None
@@ -414,9 +413,6 @@ class ArgonThreadProvider(ThreadProvider):
         if not self.is_enabled:
             return None
         return self._target_context.read32(self.g_ar)
-
-    def get_ipsr(self):
-        return self._target_context.readCoreRegister('xpsr') & 0xff
 
     def get_is_running(self):
         if self.g_ar is None:
