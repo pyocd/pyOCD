@@ -46,6 +46,7 @@ class TargetThread(object):
 class ThreadProvider(object):
     def __init__(self, target):
         self._target = target
+        self._target_context = self._target.getTargetContext()
         self._last_run_token = -1
 
     def _lookup_symbols(self, symbolList, symbolProvider):
@@ -94,5 +95,11 @@ class ThreadProvider(object):
         raise NotImplementedError()
 
     def is_valid_thread_id(self, threadId):
+        raise NotImplementedError()
+
+    def get_ipsr(self):
+        return self._target_context.readCoreRegister('xpsr') & 0xff
+
+    def get_current_thread_id(self):
         raise NotImplementedError()
 

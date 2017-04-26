@@ -327,7 +327,6 @@ class FreeRTOSThreadProvider(ThreadProvider):
 
     def __init__(self, target):
         super(FreeRTOSThreadProvider, self).__init__(target)
-        self._target_context = self._target.getTargetContext()
         self._symbols = None
         self._total_priorities = 0
         self._threads = {}
@@ -491,9 +490,6 @@ class FreeRTOSThreadProvider(ThreadProvider):
         if not self.is_enabled:
             return None
         return self._target_context.read32(self._symbols['pxCurrentTCB'])
-
-    def get_ipsr(self):
-        return self._target_context.readCoreRegister('xpsr') & 0xff
 
     def get_is_running(self):
         if self._symbols is None:
