@@ -21,20 +21,6 @@ from ..utility import conversion
 from intervaltree import (Interval, IntervalTree)
 import logging
 
-def register_name_to_index(reg):
-    """
-    return register index based on name.
-    If reg is a string, find the number associated to this register
-    in the lookup table CORE_REGISTER
-    """
-    if isinstance(reg, str):
-        try:
-            reg = CORE_REGISTER[reg.lower()]
-        except KeyError:
-            logging.error('cannot find %s core register', reg)
-            return
-    return reg
-
 ## @brief Generic failure to access memory.
 class MemoryAccessError(RuntimeError):
     pass
@@ -85,6 +71,7 @@ class RegisterCache(object):
     def __init__(self, parentContext):
         self._context = parentContext
         self._run_token = -1
+        self._log = logging.getLogger('regcache')
         self._reset_cache()
 
     def _reset_cache(self):
@@ -93,23 +80,37 @@ class RegisterCache(object):
 
     def _dump_metrics(self):
         if self._metrics.total > 0:
-            logging.debug("Regcache: %d reads [%d%% hits, %d regs]", self._metrics.total, self._metrics.percent_hit, self._metrics.hits)
+            self._log.debug("%d reads [%d%% hits, %d regs]", self._metrics.total, self._metrics.percent_hit, self._metrics.hits)
         else:
-            logging.debug("Regcache: no accesses")
+            self._log.debug("no accesses")
 
     def _check_cache(self):
         if self._context.core.isRunning():
-            logging.debug("Regcache: core is running; invalidating cache")
+            self._log.debug("core is running; invalidating cache")
             self._reset_cache()
         elif self._run_token != self._context.core.run_token:
             self._dump_metrics()
-            logging.debug("Regcache: out of date run token; invalidating cache")
+            self._log.debug("out of date run token; invalidating cache")
             self._reset_cache()
             self._run_token = self._context.core.run_token
 
+    def _register_name_to_index(self, reg):
+        """
+        return register index based on name.
+        If reg is a string, find the number associated to this register
+        in the lookup table CORE_REGISTER
+        """
+        if isinstance(reg, str):
+            try:
+                reg = CORE_REGISTER[reg.lower()]
+            except KeyError:
+                self._log.error('cannot find %s core register', reg)
+                return
+        return reg
+
     def _convert_and_check_registers(self, reg_list):
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self._register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
@@ -203,6 +204,7 @@ class MemoryCache(object):
     def __init__(self, context):
         self._context = context
         self._run_token = -1
+        self._log = logging.getLogger('memcache')
         self._reset_cache()
 
     def _reset_cache(self):
@@ -213,11 +215,11 @@ class MemoryCache(object):
     # @brief Invalidates the cache if appropriate.
     def _check_cache(self):
         if self._context.core.isRunning():
-            logging.debug("Memcache: core is running; invalidating cache")
+            self._log.debug("core is running; invalidating cache")
             self._reset_cache()
         elif self._run_token != self._context.core.run_token:
             self._dump_metrics()
-            logging.debug("Memcache: out of date run token; invalidating cache")
+            self._log.debug("out of date run token; invalidating cache")
             self._reset_cache()
             self._run_token = self._context.core.run_token
 
@@ -280,11 +282,11 @@ class MemoryCache(object):
 
     def _dump_metrics(self):
         if self._metrics.total > 0:
-            logging.debug("Memcache: %d reads, %d bytes [%d%% hits, %d bytes]; %d bytes written",
+            self._log.debug("%d reads, %d bytes [%d%% hits, %d bytes]; %d bytes written",
                 self._metrics.reads, self._metrics.total, self._metrics.percent_hit,
                 self._metrics.hits, self._metrics.writes)
         else:
-            logging.debug("Memcache: no reads")
+            self._log.debug("no reads")
 
     ##
     # @brief Performs a cached read operation of an address range.
@@ -404,7 +406,7 @@ class MemoryCache(object):
 
         # Validate memory regions.
         if not self._check_regions(addr, size):
-            logging.debug("range [%x:%x] is not cacheable", addr, addr+size)
+            self._log.debug("range [%x:%x] is not cacheable", addr, addr+size)
             return self._context.readBlockMemoryUnaligned8(addr, size)
 
         # Get the cached and uncached subranges of the requested read.
