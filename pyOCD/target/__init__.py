@@ -40,6 +40,7 @@ import target_MK64FN1M0xxx12
 import target_MK66FN2M0xxx18
 import target_MK82FN256xxx15
 import target_MK20DX128xxx5
+import target_K32W042S1M2xxx
 import target_lpc800
 import target_LPC11U24FBD64_401
 import target_LPC1768
@@ -88,6 +89,7 @@ TARGET = {
           'k64f': target_MK64FN1M0xxx12.K64F,
           'k66f18': target_MK66FN2M0xxx18.K66F18,
           'k82f25615': target_MK82FN256xxx15.K82F25615,
+          'k32w042s': target_K32W042S1M2xxx.K32W042S,
           'lpc800': target_lpc800.LPC800,
           'lpc11u24': target_LPC11U24FBD64_401.LPC11U24,
           'lpc1768': target_LPC1768.LPC1768,
@@ -137,6 +139,7 @@ FLASH = {
          'k64f': target_MK64FN1M0xxx12.Flash_k64f,
          'k66f18': target_MK66FN2M0xxx18.Flash_k66f18,
          'k82f25615': target_MK82FN256xxx15.Flash_k82f25615,
+         'k32w042s': target_K32W042S1M2xxx.Flash_k32w042s,
          'lpc800': target_lpc800.Flash_lpc800,
          'lpc11u24': target_LPC11U24FBD64_401.Flash_lpc11u24,
          'lpc1768':  target_LPC1768.Flash_lpc1768,
