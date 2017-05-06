@@ -319,7 +319,7 @@ class CortexM(Target):
         self.dwt.init()
         self.sw_bp.init()
 
-    def disconnect(self):
+    def disconnect(self, resume=True):
         # Remove breakpoints.
         self.bp_manager.remove_all_breakpoints()
 
@@ -327,7 +327,9 @@ class CortexM(Target):
         self.write32(CortexM.DEMCR, 0)
 
         # Disable core debug.
-        self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
+        if resume:
+            self.resume()
+            self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
     def buildTargetXML(self):
         # Build register_list and targetXML
