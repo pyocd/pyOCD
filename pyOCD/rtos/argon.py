@@ -17,6 +17,7 @@
 
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
+from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from pyOCD.pyDAPAccess import DAPAccess
@@ -246,6 +247,7 @@ class ArgonThread(TargetThread):
 
             ptr = self._target_context.read32(self._base + THREAD_NAME_OFFSET)
             self._name = read_c_string(self._target_context, ptr)
+            log.debug("Thread@%x name=%x '%s'", self._base, ptr, self._name)
         except DAPAccess.TransferError:
             log.debug("Transfer error while reading thread info")
 
@@ -326,6 +328,9 @@ class ArgonThreadProvider(ThreadProvider):
         self._all_threads = None
         self._threads = {}
 
+        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
+        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
+
     def init(self, symbolProvider):
         self.g_ar = symbolProvider.get_symbol_value("g_ar")
         if self.g_ar is None:
@@ -340,6 +345,14 @@ class ArgonThreadProvider(ThreadProvider):
         self._all_threads = self.g_ar_objects + ALL_OBJECTS_THREADS_OFFSET
 
         return True
+
+    def invalidate(self):
+        self._threads = {}
+
+    def event_handler(self, notification):
+        # Invalidate threads list if flash is reprogrammed.
+        log.debug("Argon: invalidating threads list: %s" % (repr(notification)))
+        self.invalidate();
 
     def _build_thread_list(self):
         allThreads = TargetList(self._target_context, self._all_threads)

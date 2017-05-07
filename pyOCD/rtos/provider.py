@@ -48,6 +48,7 @@ class ThreadProvider(object):
         self._target = target
         self._target_context = self._target.getTargetContext()
         self._last_run_token = -1
+        self._read_from_target = False
 
     def _lookup_symbols(self, symbolList, symbolProvider):
         syms = {}
@@ -77,7 +78,7 @@ class ThreadProvider(object):
         return True
 
     def update_threads(self):
-        if self._is_thread_list_dirty():
+        if self._is_thread_list_dirty() and self._read_from_target:
             self._build_thread_list()
 
     def get_threads(self):
@@ -85,6 +86,19 @@ class ThreadProvider(object):
 
     def get_thread(self, threadId):
         raise NotImplementedError()
+
+    def invalidate(self):
+        raise NotImplementedError()
+
+    @property
+    def read_from_target(self):
+        return self._read_from_target
+
+    @read_from_target.setter
+    def read_from_target(self, value):
+        if value != self._read_from_target:
+            self.invalidate()
+        self._read_from_target = value
 
     @property
     def is_enabled(self):
