@@ -257,12 +257,15 @@ class GDBServer(threading.Thread):
         self.thread_provider = None
         self.did_init_thread_providers = False
         self.current_thread_id = 0
+        self.first_run_after_reset_or_flash = True
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
             if self.serve_local_only:
                 self.abstract_socket.host = 'localhost'
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
+
+        self.target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
 
         # Init semihosting and telnet console.
         if self.semihost_use_syscalls:
@@ -627,6 +630,11 @@ class GDBServer(threading.Thread):
         self.target.resume()
         self.log.debug("target resumed")
 
+        if self.first_run_after_reset_or_flash:
+            self.first_run_after_reset_or_flash = False
+            if self.thread_provider is not None:
+                self.thread_provider.read_from_target = True
+
         val = ''
 
         while True:
@@ -827,6 +835,10 @@ class GDBServer(threading.Thread):
             # Set flash builder to None so that on the next flash command a new
             # object is used.
             self.flashBuilder = None
+
+            self.first_run_after_reset_or_flash = True
+            if self.thread_provider is not None:
+                self.thread_provider.read_from_target = False
 
             return self.createRSPPacket("OK")
 
@@ -1112,6 +1124,9 @@ class GDBServer(threading.Thread):
                 self.step_into_interrupt = (cmdList[2].lower() in ("true", "on", "yes", "1"))
             else:
                 resp = hexEncode("Error: invalid set option")
+        elif cmd == "flush threads":
+            if self.thread_provider is not None:
+                self.thread_provider.invalidate()
         else:
             resultMask = 0x00
             if cmdList[0] == 'help':
@@ -1281,5 +1296,14 @@ class GDBServer(threading.Thread):
     def is_threading_enabled(self):
         return (self.thread_provider is not None) and self.thread_provider.is_enabled \
             and (self.thread_provider.current_thread is not None)
+
+
+    def event_handler(self, notification):
+        if notification.event == Target.EVENT_POST_RESET:
+            # Invalidate threads list if flash is reprogrammed.
+            self.log.debug("Received EVENT_POST_RESET event")
+            self.first_run_after_reset_or_flash = True
+            if self.thread_provider is not None:
+                self.thread_provider.read_from_target = False
 
 

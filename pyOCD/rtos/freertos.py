@@ -17,6 +17,7 @@
 
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
+from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from pyOCD.pyDAPAccess import DAPAccess
@@ -331,6 +332,9 @@ class FreeRTOSThreadProvider(ThreadProvider):
         self._total_priorities = 0
         self._threads = {}
 
+        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
+        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
+
     def init(self, symbolProvider):
         # Lookup required symbols.
         self._symbols = self._lookup_symbols(self.FREERTOS_SYMBOLS, symbolProvider)
@@ -372,6 +376,14 @@ class FreeRTOSThreadProvider(ThreadProvider):
         log.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
 
         return True
+
+    def invalidate(self):
+        self._threads = {}
+
+    def event_handler(self, notification):
+        # Invalidate threads list if flash is reprogrammed.
+        log.info("FreeRTOS: invalidating threads list: %s" % (repr(notification)))
+        self.invalidate();
 
     def _build_thread_list(self):
         newThreads = {}
