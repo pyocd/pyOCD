@@ -1063,7 +1063,7 @@ class PyOCDTool(object):
         try:
             self.info_list[infoName](args[1:])
         except KeyError:
-            raise ToolError("unkown info name '%s'" % infoName)
+            raise ToolError("unknown info name '%s'" % infoName)
 
     def handle_show_unique_id(self, args):
         print "Unique ID:    %s" % self.board.getUniqueID()
