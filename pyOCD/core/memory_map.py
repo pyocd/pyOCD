@@ -265,10 +265,10 @@ class MemoryMap(object):
     def getXML(self):
         root = ElementTree.Element('memory-map')
         for r in self._regions:
-            mem = ElementTree.SubElement(root, 'memory', type=r.type, start=hex(r.start), length=hex(r.length))
+            mem = ElementTree.SubElement(root, 'memory', type=r.type, start=hex(r.start).rstrip("L"), length=hex(r.length).rstrip("L"))
             if r.isFlash:
                 prop = ElementTree.SubElement(mem, 'property', name='blocksize')
-                prop.text = hex(r.blocksize)
+                prop.text = hex(r.blocksize).rstrip("L")
         return MAP_XML_HEADER + ElementTree.tostring(root)
 
     ## @brief Enable iteration over the memory map.
