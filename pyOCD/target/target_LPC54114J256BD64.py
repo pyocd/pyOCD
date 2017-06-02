@@ -108,6 +108,6 @@ class LPC54114(CoreSightTarget):
             self.core1_ap.init(True)
 
             # Add second core.
-            self.core1 = CortexM(self.link, self.dp, self.core1_ap, self.memory_map, core_num=1)
+            self.core1 = CortexM(self, self.dp, self.core1_ap, self.memory_map, core_num=1)
             self.cores[1] = self.core1
             self.core1.init()
