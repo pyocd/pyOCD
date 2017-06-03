@@ -306,12 +306,12 @@ def hex_width(value, width):
     elif width == 32:
         return "%08x" % value
     else:
-        raise ToolError("unrecognized register width (%d)" % reg.size)
+        raise ToolError("unrecognized register width (%d)" % width)
 
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
     while i < len(data):
-        print "%08x: " % (startAddress + i),
+        print "%08x: " % (startAddress + (i * (width / 8))),
 
         while i < len(data):
             d = data[i]
