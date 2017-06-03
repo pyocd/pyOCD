@@ -36,6 +36,8 @@ ARM_CortexM3 = 0xC23
 ARM_CortexM4 = 0xC24
 ARM_CortexM7 = 0xC27
 ARM_CortexM0p = 0xC60
+ARM_CortexM23 = 0xD20
+ARM_CortexM33 = 0xD21
 
 # pylint: enable=invalid_name
 
@@ -46,7 +48,9 @@ CORE_TYPE_NAME = {
                  ARM_CortexM3 : "Cortex-M3",
                  ARM_CortexM4 : "Cortex-M4",
                  ARM_CortexM7 : "Cortex-M7",
-                 ARM_CortexM0p : "Cortex-M0+"
+                 ARM_CortexM0p : "Cortex-M0+",
+                 ARM_CortexM23 : "Cortex-M23",
+                 ARM_CortexM33 : "Cortex-M33",
                }
 
 # Map from register name to DCRSR register index.

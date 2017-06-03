@@ -142,12 +142,13 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a02) : CmpInfo('DWT',       DWT.factory     ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x2a04) : CmpInfo('SCS-M23',   CortexM.factory ), # M23
-    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a01) : CmpInfo('ITM',       ITM.factory     ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x43, 0x1a01) : CmpInfo('ITM',       ITM.factory     ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a02) : CmpInfo('DWT',       DWT.factory     ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M33
-    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a14) : CmpInfo('CTI',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x14, 0x1a14) : CmpInfo('CTI',       None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS-M33',   CortexM.factory ), # M33
-    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x4a13) : CmpInfo('ETM',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x11, 0)      : CmpInfo('TPIU-M33',  TPIU.factory    ), # M33
     (ARM_ID, GENERIC_CLASS,   0x000, 0x00, 0)      : CmpInfo('SCS-M3',    CortexM.factory ),
     (ARM_ID, GENERIC_CLASS,   0x001, 0x00, 0)      : CmpInfo('ITM',       ITM.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x002, 0x00, 0)      : CmpInfo('DWT',       DWT.factory     ),
