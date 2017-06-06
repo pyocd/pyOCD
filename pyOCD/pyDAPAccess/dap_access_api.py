@@ -46,6 +46,10 @@ class DAPAccessIntf(object):
         FW_VER = 4
         DEVICE_VENDOR = 5
         DEVICE_NAME = 6
+        CAPABILITIES = 0xf0
+        SWO_BUFFER_SIZE = 0xfd
+        MAX_PACKET_COUNT = 0xfe
+        MAX_PACKET_SIZE = 0xff
 
     class Error(Exception):
         """Parent of all error DAPAccess can raise"""
@@ -69,7 +73,23 @@ class DAPAccessIntf(object):
 
     class TransferFaultError(TransferError):
         """A SWD Fault occurred"""
-        pass
+        def __init__(self, faultAddress=None):
+            super(DAPAccessIntf.TransferFaultError, self).__init__(faultAddress)
+            self._address = faultAddress
+
+        @property
+        def fault_address(self):
+            return self._address
+
+        @fault_address.setter
+        def fault_address(self, addr):
+            self._address = addr
+
+        def __str__(self):
+            desc = "SWD/JTAG Transfer Fault"
+            if self._address is not None:
+                desc += " @ 0x%08x" % self._address
+            return desc
 
     class TransferProtocolError(TransferError):
         """A SWD protocol error occurred"""
@@ -118,11 +138,15 @@ class DAPAccessIntf(object):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, port=None):
-        """Connect to target with JTAG or SWD"""
+        """Initailize DAP IO pins for JTAG or SWD"""
+        raise NotImplementedError()
+
+    def swj_sequence(self):
+        """Send seqeunce to activate JTAG or SWD on the target"""
         raise NotImplementedError()
 
     def disconnect(self):
-        """Disconnect from target"""
+        """Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
 
     def set_clock(self, frequency):
@@ -152,7 +176,7 @@ class DAPAccessIntf(object):
         """Write out all unsent commands"""
         raise NotImplementedError()
 
-    def vendor(self, index):
+    def vendor(self, index, data=None):
         """Send a vendor specific command"""
         raise NotImplementedError()
 

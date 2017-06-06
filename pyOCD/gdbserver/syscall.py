@@ -17,7 +17,7 @@
 
 import os
 import logging
-from ..target.semihost import SemihostIOHandler
+from ..debug.semihost import SemihostIOHandler
 
 # Open mode flags
 O_RDONLY = 0x0

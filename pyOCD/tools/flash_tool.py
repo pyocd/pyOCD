@@ -99,6 +99,7 @@ parser.add_argument("-hp", "--hide_progress", action="store_true", help="Don't d
 parser.add_argument("-fp", "--fast_program", action="store_true",
                     help="Use only the CRC of each page to determine if it already has the same data.")
 parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+parser.add_argument("--mass-erase", action="store_true", help="Mass erase the target device.")
 
 # Notes
 # -Currently "--unlock" does nothing since kinetis parts will automatically get unlocked
@@ -168,6 +169,14 @@ def main():
                 chip_erase = True
             elif args.sector_erase:
                 chip_erase = False
+
+            if args.mass_erase:
+                print("Mass erasing device...")
+                if board.target.massErase():
+                    print("Successfully erased.")
+                else:
+                    print("Failed.")
+                return
 
             if not has_file:
                 if chip_erase:

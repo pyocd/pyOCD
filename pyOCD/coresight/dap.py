@@ -109,6 +109,7 @@ class DebugPort(object):
     def init(self):
         # Connect to the target.
         self.link.connect()
+        self.link.swj_sequence()
         self.read_id_code()
         self.clear_sticky_err()
 
@@ -122,6 +123,9 @@ class DebugPort(object):
     def flush(self):
         try:
             self.link.flush()
+        except DAPAccess.Error as error:
+            self._handle_error(error, self.next_access_number)
+            raise
         finally:
             self._csw = {}
             self._dp_select = -1
@@ -174,7 +178,7 @@ class DebugPort(object):
                     break
                 logging.info("AP#%d IDR = 0x%08x", ap_num, idr)
             except Exception, e:
-                logging.error("Exception reading AP#%d IDR", ap_num, e)
+                logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
                 break
             ap_num += 1
 

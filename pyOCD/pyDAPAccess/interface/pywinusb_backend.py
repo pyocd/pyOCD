@@ -18,6 +18,9 @@
 from interface import Interface
 import logging, os, collections
 from time import time
+from ..dap_access_api import DAPAccessIntf
+
+OPEN_TIMEOUT_S = 60.0
 
 try:
     import pywinusb.hid as hid
@@ -48,7 +51,7 @@ class PyWinUSB(Interface):
         # comprable to a based list implmentation.
         self.rcv_data = collections.deque()
         self.device = None
-        return
+        self.packet_size = 64
 
     # handler called when a report is received
     def rx_handler(self, data):
@@ -57,7 +60,39 @@ class PyWinUSB(Interface):
 
     def open(self):
         self.device.set_raw_data_handler(self.rx_handler)
-        self.device.open(shared=False)
+
+        # Attempt to open the device.
+        # Note - this operation must be retried since
+        # other instances of pyOCD listing board can prevent
+        # opening this device with exclusive access.
+        start = time()
+        while True:
+
+            # Attempt to open the device
+            try:
+                self.device.open(shared=False)
+                break
+            except hid.HIDError:
+                pass
+
+            # Attempt to open the device in shared mode to make
+            # sure it is still there
+            try:
+                self.device.open(shared=True)
+                self.device.close()
+            except hid.HIDError:
+                # If the device could not be opened in read only mode
+                # Then it either has been disconnected or is in use
+                # by another thread/process
+                raise DAPAccessIntf.DeviceError("Unable to open device")
+
+            if time() - start > OPEN_TIMEOUT_S:
+                # If this timeout has elapsed then another process
+                # has locked this device in shared mode. This should
+                # not happen.
+                assert False
+                break
+
 
     @staticmethod
     def getAllConnectedInterface():
@@ -75,22 +110,24 @@ class PyWinUSB(Interface):
         boards = []
         for dev in all_mbed_devices:
             try:
-                dev.open(shared=False)
+                dev.open(shared=True)
                 report = dev.find_output_reports()
-                if (len(report) == 1):
-                    new_board = PyWinUSB()
-                    new_board.report = report[0]
-                    new_board.vendor_name = dev.vendor_name
-                    new_board.product_name = dev.product_name
-                    new_board.serial_number = dev.serial_number
-                    new_board.vid = dev.vendor_id
-                    new_board.pid = dev.product_id
-                    new_board.device = dev
-                    new_board.device.set_raw_data_handler(new_board.rx_handler)
-
-                    boards.append(new_board)
+                if len(report) != 1:
+                    dev.close()
+                    continue
+                new_board = PyWinUSB()
+                new_board.report = report[0]
+                new_board.vendor_name = dev.vendor_name
+                new_board.product_name = dev.product_name
+                new_board.serial_number = dev.serial_number
+                new_board.vid = dev.vendor_id
+                new_board.pid = dev.product_id
+                new_board.device = dev
+                dev.close()
+                boards.append(new_board)
             except Exception as e:
-                logging.error("Receiving Exception: %s", e)
+                if (str(e) != "Failure to get HID pre parsed data"):
+                    logging.error("Receiving Exception: %s", e)
                 dev.close()
 
         return boards
@@ -99,14 +136,14 @@ class PyWinUSB(Interface):
         """
         write data on the OUT endpoint associated to the HID interface
         """
-        for _ in range(64 - len(data)):
+        for _ in range(self.packet_size - len(data)):
             data.append(0)
         #logging.debug("send: %s", data)
         self.report.send([0] + data)
         return
 
 
-    def read(self, timeout=1.0):
+    def read(self, timeout=20.0):
         """
         read data on the IN endpoint associated to the HID interface
         """
@@ -126,6 +163,9 @@ class PyWinUSB(Interface):
     def setPacketCount(self, count):
         # No interface level restrictions on count
         self.packet_count = count
+
+    def setPacketSize(self, size):
+        self.packet_size = size
 
     def getSerialNumber(self):
         return self.serial_number

@@ -59,6 +59,11 @@ TRANSFER_SIZE = {8: CSW_SIZE8,
                  32: CSW_SIZE32
                  }
 
+# Debug Exception and Monitor Control Register
+DEMCR = 0xE000EDFC
+# DWTENA in armv6 architecture reference manual
+DEMCR_TRCENA = (1 << 24)
+
 class AccessPort(object):
     def __init__(self, dp, ap_num):
         self.dp = dp
@@ -132,6 +137,11 @@ class MEM_AP(AccessPort):
         try:
             self.write_reg(AP_REG['TAR'], addr)
             self.write_reg(AP_REG['DRW'], data)
+        except DAPAccess.TransferFaultError as error:
+            # Annotate error with target address.
+            self._handle_error(error, num)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -151,6 +161,11 @@ class MEM_AP(AccessPort):
                          TRANSFER_SIZE[transfer_size])
             self.write_reg(AP_REG['TAR'], addr)
             result_cb = self.read_reg(AP_REG['DRW'], now=False)
+        except DAPAccess.TransferFaultError as error:
+            # Annotate error with target address.
+            self._handle_error(error, num)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -164,6 +179,11 @@ class MEM_AP(AccessPort):
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
                 if LOG_DAP:
                     self.logger.info("readMem:%06d %s(addr=0x%08x, size=%d) -> 0x%08x }", num, "" if now else "...", addr, transfer_size, res)
+            except DAPAccess.TransferFaultError as error:
+                # Annotate error with target address.
+                self._handle_error(error, num)
+                error.fault_address = addr
+                raise
             except DAPAccess.Error as error:
                 self._handle_error(error, num)
                 raise
@@ -186,6 +206,11 @@ class MEM_AP(AccessPort):
         try:
             reg = _ap_addr_to_reg((self.ap_num << APSEL_SHIFT) | WRITE | AP_ACC | AP_REG['DRW'])
             self.link.reg_write_repeat(len(data), reg, data)
+        except DAPAccess.TransferFaultError as error:
+            # Annotate error with target address.
+            self._handle_error(error, num)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -203,6 +228,11 @@ class MEM_AP(AccessPort):
         try:
             reg = _ap_addr_to_reg((self.ap_num << APSEL_SHIFT) | READ | AP_ACC | AP_REG['DRW'])
             resp = self.link.reg_read_repeat(size, reg)
+        except DAPAccess.TransferFaultError as error:
+            # Annotate error with target address.
+            self._handle_error(error, num)
+            error.fault_address = addr
+            raise
         except DAPAccess.Error as error:
             self._handle_error(error, num)
             raise
@@ -350,6 +380,18 @@ class MEM_AP(AccessPort):
         self.dp._handle_error(error, num)
 
 class AHB_AP(MEM_AP):
-    pass
+    def init_rom_table(self):
+        # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries will
+        # come back as garbage if TRCENA is not set.
+        try:
+            demcr = self.read32(DEMCR)
+            self.write32(DEMCR, demcr | DEMCR_TRCENA)
+            self.dp.flush()
+        except DAPAccess.Error:
+            # Ignore exception and read whatever we can of the ROM table.
+            pass
+
+        # Invoke superclass.
+        super(AHB_AP, self).init_rom_table()
 
 

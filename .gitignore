@@ -71,6 +71,6 @@ output.txt
 gdb_test_raw.txt
 test_results.txt
 
-
+.cache
 .eggs/
 pyOCD/_version.py

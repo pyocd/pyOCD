@@ -24,12 +24,18 @@ import optparse
 from optparse import make_option
 import traceback
 
+# Attempt to import readline.
+try:
+    import readline
+except ImportError:
+    pass
+
 import pyOCD
 from pyOCD import __version__
 from pyOCD.board import MbedBoard
-from pyOCD.target import target_kinetis
+from pyOCD.target.family import target_kinetis
 from pyOCD.pyDAPAccess import DAPAccess
-from pyOCD.target.target import Target
+from pyOCD.core.target import Target
 from pyOCD.utility import mask
 
 # Make disasm optional.
@@ -55,6 +61,24 @@ CORE_STATUS_DESC = {
         Target.TARGET_LOCKUP : "Lockup",
         }
 
+VC_NAMES_MAP = {
+        Target.CATCH_HARD_FAULT : "hard fault",
+        Target.CATCH_BUS_FAULT : "bus fault",
+        Target.CATCH_MEM_FAULT : "memory fault",
+        Target.CATCH_INTERRUPT_ERR : "interrupt error",
+        Target.CATCH_STATE_ERR : "state error",
+        Target.CATCH_CHECK_ERR : "check error",
+        Target.CATCH_COPROCESSOR_ERR : "coprocessor error",
+        Target.CATCH_CORE_RESET : "core reset",
+        }
+
+DP_REGS_MAP = {
+        0x0 : DAPAccess.REG.DP_0x0,
+        0x4 : DAPAccess.REG.DP_0x4,
+        0x8 : DAPAccess.REG.DP_0x8,
+        0xc : DAPAccess.REG.DP_0xC
+        }
+
 ## Default SWD clock in kHz.
 DEFAULT_CLOCK_FREQ_KHZ = 1000
 
@@ -75,11 +99,6 @@ COMMAND_INFO = {
             'args' : "",
             'help' : "Unlock security on the target"
             },
-        'info' : {
-            'aliases' : ['i'],
-            'args' : "",
-            'help' : "Display target type and IDs"
-            },
         'status' : {
             'aliases' : ['stat'],
             'args' : "",
@@ -87,7 +106,7 @@ COMMAND_INFO = {
             },
         'reg' : {
             'aliases' : [],
-            'args' : "[REG]",
+            'args' : "[-f] [REG]",
             'help' : "Print all or one register"
             },
         'wreg' : {
@@ -100,33 +119,43 @@ COMMAND_INFO = {
             'args' : "[-h/--halt]",
             'help' : "Reset the target"
             },
+        'savemem' : {
+            'aliases' : [],
+            'args' : "ADDR LEN FILENAME",
+            "help" : "Save a range of memory to a binary file"
+            },
+        'loadmem' : {
+            'aliases' : [],
+            'args' : "ADDR FILENAME",
+            "help" : "Load a binary file to an address in memory"
+            },
         'read8' : {
-            'aliases' : ['read', 'r'],
+            'aliases' : ['read', 'r', 'rb'],
             'args' : "ADDR [LEN]",
             'help' : "Read 8-bit bytes"
             },
         'read16' : {
-            'aliases' : ['r16'],
+            'aliases' : ['r16', 'rh'],
             'args' : "ADDR [LEN]",
             'help' : "Read 16-bit halfwords"
             },
         'read32' : {
-            'aliases' : ['r32'],
+            'aliases' : ['r32', 'rw'],
             'args' : "ADDR [LEN]",
             'help' : "Read 32-bit words"
             },
         'write8' : {
-            'aliases' : ['write', 'w'],
+            'aliases' : ['write', 'w', 'wb'],
             'args' : "ADDR DATA...",
             'help' : "Write 8-bit bytes"
             },
         'write16' : {
-            'aliases' : ['w16'],
+            'aliases' : ['w16', 'wh'],
             'args' : "ADDR DATA...",
             'help' : "Write 16-bit halfwords"
             },
         'write32' : {
-            'aliases' : ['w32'],
+            'aliases' : ['w32', 'ww'],
             'args' : "ADDR DATA...",
             'help' : "Write 32-bit words"
             },
@@ -145,6 +174,21 @@ COMMAND_INFO = {
             'args' : "",
             'help' : "Halt the target"
             },
+        'break' : {
+            'aliases' : [],
+            'args' : "ADDR",
+            'help' : "Set a breakpoint address"
+            },
+        'rmbreak' : {
+            'aliases' : [],
+            'args' : "ADDR",
+            'help' : "Remove a breakpoint"
+            },
+        'lsbreak' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "List breakpoints"
+            },
         'help' : {
             'aliases' : ['?'],
             'args' : "[CMD]",
@@ -153,17 +197,8 @@ COMMAND_INFO = {
         'disasm' : {
             'aliases' : ['d'],
             'args' : "[-c/--center] ADDR [LEN]",
-            'help' : "Disassemble instructions at an address"
-            },
-        'log' : {
-            'aliases' : [],
-            'args' : "LEVEL",
-            'help' : "Set log level to one of debug, info, warning, error, critical"
-            },
-        'clock' : {
-            'aliases' : [],
-            'args' : "KHZ",
-            'help' : "Set SWD or JTAG clock frequency"
+            'help' : "Disassemble instructions at an address",
+            'extra_help' : "Only available if the capstone library is installed."
             },
         'exit' : {
             'aliases' : ['quit'],
@@ -174,6 +209,88 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "[NUM]",
             'help' : "Select CPU core by number or print selected core"
+            },
+        'readdp' : {
+            'aliases' : ['rdp'],
+            'args' : "ADDR",
+            'help' : "Read DP register"
+            },
+        'writedp' : {
+            'aliases' : ['wdp'],
+            'args' : "ADDR DATA",
+            'help' : "Read DP register"
+            },
+        'readap' : {
+            'aliases' : ['rap'],
+            'args' : "[APSEL] ADDR",
+            'help' : "Read AP register"
+            },
+        'writeap' : {
+            'aliases' : ['wap'],
+            'args' : "[APSEL] ADDR DATA",
+            'help' : "Read AP register"
+            },
+        'reinit' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "Reinitialize the target object"
+            },
+        'show' : {
+            'aliases' : [],
+            'args' : "INFO",
+            'help' : "Report info about the target",
+            },
+        'set' : {
+            'aliases' : [],
+            'args' : "NAME VALUE",
+            'help' : "Set an option value",
+            'extra_help' : "Available info names: vc, vectorcatch.",
+            },
+        }
+
+INFO_HELP = {
+        'map' : {
+            'aliases' : [],
+            'help' : "Target memory map.",
+            },
+        'peripherals' : {
+            'aliases' : [],
+            'help' : "List of target peripheral instances.",
+            },
+        'uid' : {
+            'aliases' : [],
+            'help' : "Target's unique ID",
+            },
+        'cores' : {
+            'aliases' : [],
+            'help' : "Information about CPU cores in the target.",
+            },
+        'target' : {
+            'aliases' : [],
+            'help' : "General target information.",
+            },
+        }
+
+OPTION_HELP = {
+        'vector-catch' : {
+            'aliases' : ['vc'],
+            'help' : "Control enabled vector catch sources. Value is a concatenation of one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none).",
+            },
+        'step-into-interrupt' : {
+            'aliases' : ['si'],
+            'help' : "Set whether to enable or disable interrupts when single stepping. Set to 1 to enable."
+            },
+        'nreset' : {
+            'aliases' : [],
+            'help' : "Set nRESET signal state. Accepts a value of 0 or 1."
+            },
+        'log' : {
+            'aliases' : [],
+            'help' : "Set log level to one of debug, info, warning, error, critical"
+            },
+        'clock' : {
+            'aliases' : [],
+            'help' : "Set SWD or JTAG clock frequency"
             },
         }
 
@@ -260,19 +377,18 @@ class PyOCDConsole(object):
 
     def process_command(self, cmd):
         try:
-            if (cmd.strip())[0] == '$':
+            firstChar = (cmd.strip())[0]
+            if firstChar in '$!':
                 cmd = cmd[1:].strip()
-                self.tool.handle_python(cmd)
+                if firstChar == '$':
+                    self.tool.handle_python(cmd)
+                elif firstChar == '!':
+                    os.system(cmd)
                 return
 
-            args = cmd.split()
+            args = pyOCD.utility.cmdline.split_command_line(cmd)
             cmd = args[0].lower()
             args = args[1:]
-
-            # Handle help.
-            if cmd in ['?', 'help']:
-                self.show_help(args)
-                return
 
             # Handle register name as command.
             if cmd in pyOCD.coresight.cortex_m.CORE_REGISTER:
@@ -290,74 +406,96 @@ class PyOCDConsole(object):
         except ValueError:
             print "Error: invalid argument"
             traceback.print_exc()
-        except DAPAccess.TransferError:
-            print "Error: transfer failed"
+        except DAPAccess.TransferError as e:
+            print "Error:", e
             traceback.print_exc()
         except ToolError as e:
             print "Error:", e
+        except ToolExitException:
+            raise
         except Exception as e:
             print "Unexpected exception:", e
             traceback.print_exc()
-
-    def show_help(self, args):
-        if not args:
-            self.list_commands()
-
-    def list_commands(self):
-        cmds = sorted(COMMAND_INFO.keys())
-        print "Commands:\n---------"
-        for cmd in cmds:
-            info = COMMAND_INFO[cmd]
-            print "{cmd:<25} {args:<20} {help}".format(
-                cmd=', '.join(sorted([cmd] + info['aliases'])),
-                **info)
-        print
-        print "All register names are also available as commands that print the register's value."
-        print "Any ADDR or LEN argument will accept a register name."
 
 class PyOCDTool(object):
     def __init__(self):
         self.board = None
         self.exitCode = 0
+        self.step_into_interrupt = False
         self.command_list = {
                 'list' :    self.handle_list,
                 'erase' :   self.handle_erase,
                 'unlock' :  self.handle_unlock,
-                'info' :    self.handle_info,
-                'i' :       self.handle_info,
                 'status' :  self.handle_status,
                 'stat' :    self.handle_status,
                 'reg' :     self.handle_reg,
                 'wreg' :    self.handle_write_reg,
                 'reset' :   self.handle_reset,
+                'savemem' : self.handle_savemem,
+                'loadmem' : self.handle_loadmem,
                 'read' :    self.handle_read8,
                 'read8' :   self.handle_read8,
                 'read16' :  self.handle_read16,
                 'read32' :  self.handle_read32,
                 'r' :       self.handle_read8,
+                'rb' :      self.handle_read8,
                 'r16' :     self.handle_read16,
+                'rh' :      self.handle_read16,
                 'r32' :     self.handle_read32,
+                'rw' :      self.handle_read32,
                 'write' :   self.handle_write8,
                 'write8' :  self.handle_write8,
                 'write16' : self.handle_write16,
                 'write32' : self.handle_write32,
                 'w' :       self.handle_write8,
+                'wb' :      self.handle_write8,
                 'w16' :     self.handle_write16,
+                'wh' :      self.handle_write16,
                 'w32' :     self.handle_write32,
+                'ww' :      self.handle_write32,
                 'go' :      self.handle_go,
                 'g' :       self.handle_go,
                 'step' :    self.handle_step,
                 's' :       self.handle_step,
                 'halt' :    self.handle_halt,
                 'h' :       self.handle_halt,
+                'break' :   self.handle_breakpoint,
+                'rmbreak' : self.handle_remove_breakpoint,
+                'lsbreak' : self.handle_list_breakpoints,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
-                'map' :     self.handle_memory_map,
-                'log' :     self.handle_log,
-                'clock' :   self.handle_clock,
                 'exit' :    self.handle_exit,
                 'quit' :    self.handle_exit,
                 'core' :    self.handle_core,
+                'readdp' :  self.handle_readdp,
+                'writedp' : self.handle_writedp,
+                'readap' :  self.handle_readap,
+                'writeap' : self.handle_writeap,
+                'rdp' :     self.handle_readdp,
+                'wdp' :     self.handle_writedp,
+                'rap' :     self.handle_readap,
+                'wap' :     self.handle_writeap,
+                'reinit' :  self.handle_reinit,
+                'show' :    self.handle_show,
+                'set' :     self.handle_set,
+                'help' :    self.handle_help,
+                '?' :       self.handle_help,
+            }
+        self.info_list = {
+                'map' :         self.handle_show_map,
+                'peripherals' : self.handle_show_peripherals,
+                'uid' :         self.handle_show_unique_id,
+                'cores' :       self.handle_show_cores,
+                'target' :      self.handle_show_target,
+            }
+        self.option_list = {
+                'vector-catch' :        self.handle_set_vectorcatch,
+                'vc' :                  self.handle_set_vectorcatch,
+                'step-into-interrupt' : self.handle_set_step_interrupts,
+                'si' :                  self.handle_set_step_interrupts,
+                'nreset' :              self.handle_set_nreset,
+                'log' :                 self.handle_set_log,
+                'clock' :               self.handle_set_clock,
             }
 
     def get_args(self):
@@ -368,6 +506,7 @@ class PyOCDTool(object):
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
+        parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
@@ -398,9 +537,12 @@ class PyOCDTool(object):
                 print "Error: unrecognized command '%s'" % self.cmd
                 return 1
 
-            # List command must be dealt with specially.
+            # Handle certain commands without connecting.
             if self.cmd == 'list':
                 self.handle_list([])
+                return 0
+            elif self.cmd == 'help':
+                self.handle_help(self.args.args)
                 return 0
 
             if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
@@ -411,7 +553,14 @@ class PyOCDTool(object):
             self.board.target.setAutoUnlock(False)
             self.board.target.setHaltOnConnect(False)
             try:
-                self.board.init()
+                if not self.args.no_init:
+                    self.board.init()
+            except DAPAccess.TransferFaultError as e:
+                if not self.board.target.isLocked():
+                    print "Transfer fault while initing board: %s" % e
+                    traceback.print_exc()
+                    self.exitCode = 1
+                    return self.exitCode
             except Exception as e:
                 print "Exception while initing board: %s" % e
                 traceback.print_exc()
@@ -434,20 +583,18 @@ class PyOCDTool(object):
 
             # Handle a device with flash security enabled.
             self.didErase = False
-            if self.target.isLocked() and self.cmd != 'unlock':
-                print "Error: Target is locked, cannot complete operation. Use unlock command to mass erase and unlock."
-                if self.cmd and self.cmd not in ['reset', 'info']:
-                    return 1
+            if not self.args.no_init and self.target.isLocked() and self.cmd != 'unlock':
+                print "Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock."
 
             # If no command, enter interactive mode.
             if not self.cmd:
-                # Say what we're connected to.
-                print "Connected to %s [%s]: %s" % (self.target.part_number,
-                    CORE_STATUS_DESC[self.target.getState()], self.board.getUniqueID())
-
-                # Remove list command that disrupts the connection.
-                self.command_list.pop('list')
-                COMMAND_INFO.pop('list')
+                if not self.args.no_init:
+                    try:
+                        # Say what we're connected to.
+                        print "Connected to %s [%s]: %s" % (self.target.part_number,
+                            CORE_STATUS_DESC[self.target.getState()], self.board.getUniqueID())
+                    except DAPAccess.TransferFaultError:
+                        pass
 
                 # Run the command line.
                 console = PyOCDConsole(self)
@@ -479,26 +626,17 @@ class PyOCDTool(object):
     def handle_list(self, args):
         MbedBoard.listConnectedBoards()
 
-    def handle_info(self, args):
-        print "Target:       %s" % self.target.part_number
-        print "Unique ID:    %s" % self.board.getUniqueID()
-        print "DAP IDCODE:   0x%08x" % self.target.readIDCode()
-        print "Cores:        %d" % len(self.target.cores)
-        for i, c in enumerate(self.target.cores):
-            core = self.target.cores[c]
-            print "Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type])
-
     def handle_status(self, args):
         if self.target.isLocked():
             print "Security:       Locked"
         else:
             print "Security:       Unlocked"
-        if isinstance(self.target, pyOCD.target.target_kinetis.Kinetis):
-            print "MDM-AP Control: 0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_CTRL)
+        if isinstance(self.target, target_kinetis.Kinetis):
             print "MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS)
-        for i, c in enumerate(self.target.cores):
-            core = self.target.cores[c]
-            print "Core %d status:  %s" % (i, CORE_STATUS_DESC[core.getState()])
+        if not self.target.isLocked():
+            for i, c in enumerate(self.target.cores):
+                core = self.target.cores[c]
+                print "Core %d status:  %s" % (i, CORE_STATUS_DESC[core.getState()])
 
     def handle_reg(self, args):
         # If there are no args, print all register values.
@@ -544,11 +682,43 @@ class PyOCDTool(object):
             raise ToolError("No value specified")
 
         reg = args[0].lower()
-        if reg.startswith('s'):
-            value = float(args[1])
+        if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+            if reg.startswith('s') and reg != 'sp':
+                value = float(args[1])
+            else:
+                value = self.convert_value(args[1])
+            self.target.writeCoreRegister(reg, value)
         else:
             value = self.convert_value(args[1])
-        self.target.writeCoreRegister(reg, value)
+            subargs = reg.split('.')
+            if len(subargs) < 2:
+                raise ToolError("no register specified")
+            if self.peripherals.has_key(subargs[0]):
+                p = self.peripherals[subargs[0]]
+                r = [x for x in p.registers if x.name.lower() == subargs[1]]
+                if len(r):
+                    r = r[0]
+                    addr = p.base_address + r.address_offset
+                    if len(subargs) == 2:
+                        print "writing 0x%x to 0x%x:%d (%s)" % (value, addr, r.size, r.name)
+                        self.target.writeMemory(addr, value, r.size)
+                    elif len(subargs) == 3:
+                        f = [x for x in r.fields if x.name.lower() == subargs[2]]
+                        if len(f):
+                            f = f[0]
+                            msb = f.bit_offset + f.bit_width - 1
+                            lsb = f.bit_offset
+                            originalValue = self.target.readMemory(addr, r.size)
+                            value = mask.bfi(originalValue, msb, lsb, value)
+                            print "writing 0x%x to 0x%x[%d:%d]:%d (%s.%s)" % (value, addr, msb, lsb, r.size, r.name, f.name)
+                            self.target.writeMemory(addr, value, r.size)
+                    else:
+                        raise ToolError("too many dots")
+                    self._dump_peripheral_register(p, r, True)
+                else:
+                    raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
+            else:
+                raise ToolError("invalid peripheral '%s'" % (subargs[0]))
 
     @cmdoptions([make_option('-h', "--halt", action="store_true")])
     def handle_reset(self, args, other):
@@ -563,6 +733,14 @@ class PyOCDTool(object):
                 print "Successfully halted device on reset"
         else:
             self.target.reset()
+
+    def handle_set_nreset(self, args):
+        if len(args) != 1:
+            print "Missing reset state"
+            return
+        state = int(args[0], base=0)
+        print "nRESET = %d" % (state)
+        self.target.dp.assert_reset((state == 0))
 
     @cmdoptions([make_option('-c', "--center", action="store_true")])
     def handle_disasm(self, args, other):
@@ -603,13 +781,39 @@ class PyOCDTool(object):
     def handle_write32(self, args):
         return self.do_write(args, 32)
 
+    def handle_savemem(self, args):
+        if len(args) < 3:
+            print "Error: missing argument"
+            return 1
+        addr = self.convert_value(args[0])
+        count = self.convert_value(args[1])
+        filename = args[2]
+
+        data = bytearray(self.target.readBlockMemoryUnaligned8(addr, count))
+
+        with open(filename, 'wb') as f:
+            f.write(data)
+            print "Saved %d bytes to %s" % (count, filename)
+
+    def handle_loadmem(self, args):
+        if len(args) < 2:
+            print "Error: missing argument"
+            return 1
+        addr = self.convert_value(args[0])
+        filename = args[1]
+
+        with open(filename, 'rb') as f:
+            data = bytearray(f.read())
+            self.target.writeBlockMemoryUnaligned8(addr, data)
+            print "Loaded %d bytes to 0x%08x" % (len(data), addr)
+
     def do_read(self, args, width):
         if len(args) == 0:
             print "Error: no address specified"
             return 1
         addr = self.convert_value(args[0])
         if len(args) < 2:
-            count = 4
+            count = width // 8
         else:
             count = self.convert_value(args[1])
 
@@ -649,15 +853,16 @@ class PyOCDTool(object):
             self.target.flash.programPhrase(addr, data)
         else:
             self.target.writeBlockMemoryUnaligned8(addr, data)
+            self.target.flush()
 
     def handle_erase(self, args):
         if len(args) < 1:
             raise ToolError("invalid arguments")
-        addr = int(args[0], base=0)
+        addr = self.convert_value(args[0])
         if len(args) < 2:
             count = 1
         else:
-            count = int(args[1], base=0)
+            count = self.convert_value(args[1])
         self.flash.init()
         while count:
             info = self.flash.getPageInfo(addr)
@@ -680,8 +885,14 @@ class PyOCDTool(object):
             print "Failed to resume device"
 
     def handle_step(self, args):
-        self.target.step()
-        print "Successfully stepped device"
+        self.target.step(disable_interrupts=not self.step_into_interrupt)
+        addr = self.target.readCoreRegister('pc')
+        if isCapstoneAvailable:
+            addr &= ~1
+            data = self.target.readBlockMemoryUnaligned8(addr, 4)
+            self.print_disasm(str(bytearray(data)), addr, maxInstructions=1)
+        else:
+            print "PC = 0x%08x" % (addr)
 
     def handle_halt(self, args):
         self.target.halt()
@@ -693,10 +904,39 @@ class PyOCDTool(object):
         else:
             print "Successfully halted device"
 
-    def handle_memory_map(self, args):
-        self.print_memory_map()
+    def handle_breakpoint(self, args):
+        if len(args) < 1:
+            raise ToolError("no breakpoint address provided")
+        addr = self.convert_value(args[0])
+        if self.target.setBreakpoint(addr):
+            self.target.selected_core.bp_manager.flush()
+            print "Set breakpoint at 0x%08x" % addr
+        else:
+            print "Failed to set breakpoint at 0x%08x" % addr
 
-    def handle_log(self, args):
+    def handle_remove_breakpoint(self, args):
+        if len(args) < 1:
+            raise ToolError("no breakpoint address provided")
+        addr = self.convert_value(args[0])
+        try:
+            type = self.target.getBreakpointType(addr)
+            self.target.removeBreakpoint(addr)
+            self.target.selected_core.bp_manager.flush()
+            print "Removed breakpoint at 0x%08x" % addr
+        except:
+            print "Failed to remove breakpoint at 0x%08x" % addr
+
+    def handle_list_breakpoints(self, args):
+        availableBpCount = self.target.selected_core.availableBreakpoint()
+        print "%d hardware breakpoints available" % availableBpCount
+        bps = self.target.selected_core.bp_manager.get_breakpoints()
+        if not len(bps):
+            print "No breakpoints installed"
+        else:
+            for i, addr in enumerate(bps):
+                print "%d: 0x%08x" % (i, addr)
+
+    def handle_set_log(self, args):
         if len(args) < 1:
             print "Error: no log level provided"
             return 1
@@ -705,12 +945,12 @@ class PyOCDTool(object):
             return 1
         logging.getLogger().setLevel(LEVELS[args[0].lower()])
 
-    def handle_clock(self, args):
+    def handle_set_clock(self, args):
         if len(args) < 1:
             print "Error: no clock frequency provided"
             return 1
         try:
-            freq_Hz = int(args[0]) * 1000
+            freq_Hz = self.convert_value(args[0]) * 1000
         except:
             print "Error: invalid frequency"
             return 1
@@ -757,6 +997,164 @@ class PyOCDTool(object):
         core = int(args[0], base=0)
         self.target.select_core(core)
         print "Selected core %d" % core
+
+    def handle_readdp(self, args):
+        if len(args) < 1:
+            print "Missing DP address"
+            return
+        addr_int = self.convert_value(args[0])
+        addr = DP_REGS_MAP[addr_int]
+        result = self.target.dp.read_reg(addr)
+        print "DP register 0x%x = 0x%08x" % (addr_int, result)
+
+    def handle_writedp(self, args):
+        if len(args) < 1:
+            print "Missing DP address"
+            return
+        if len(args) < 2:
+            print "Missing value"
+            return
+        addr_int = self.convert_value(args[0])
+        addr = DP_REGS_MAP[addr_int]
+        data = self.convert_value(args[1])
+        self.target.dp.write_reg(addr, data)
+
+    def handle_readap(self, args):
+        if len(args) < 1:
+            print "Missing AP address"
+            return
+        if len(args) == 1:
+            addr = self.convert_value(args[0])
+        elif len(args) == 2:
+            addr = (self.convert_value(args[0]) << 24) | self.convert_value(args[1])
+        result = self.target.dp.readAP(addr)
+        print "AP register 0x%x = 0x%08x" % (addr, result)
+
+    def handle_writeap(self, args):
+        if len(args) < 1:
+            print "Missing AP address"
+            return
+        if len(args) < 2:
+            print "Missing value"
+            return
+        if len(args) == 2:
+            addr = self.convert_value(args[0])
+            data_arg = 1
+        elif len(args) == 3:
+            addr = (self.convert_value(args[0]) << 24) | self.convert_value(args[1])
+            data_arg = 2
+        data = self.convert_value(args[data_arg])
+        self.target.dp.writeAP(addr, data)
+
+    def handle_reinit(self, args):
+        self.target.init()
+
+    def handle_show(self, args):
+        if len(args) < 1:
+            raise ToolError("missing info name argument")
+        infoName = args[0]
+        try:
+            self.info_list[infoName](args[1:])
+        except KeyError:
+            raise ToolError("unkown info name '%s'" % infoName)
+
+    def handle_show_unique_id(self, args):
+        print "Unique ID:    %s" % self.board.getUniqueID()
+
+    def handle_show_target(self, args):
+        print "Target:       %s" % self.target.part_number
+        print "DAP IDCODE:   0x%08x" % self.target.readIDCode()
+
+    def handle_show_cores(self, args):
+        if self.target.isLocked():
+            print "Target is locked"
+        else:
+            print "Cores:        %d" % len(self.target.cores)
+            for i, c in enumerate(self.target.cores):
+                core = self.target.cores[c]
+                print "Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type])
+
+    def handle_show_map(self, args):
+        print "Region          Start         End                 Size    Blocksize"
+        for region in self.target.getMemoryMap():
+            print "{:<15} {:#010x}    {:#010x}    {:#10x}    {}".format(region.name, region.start, region.end, region.length, region.blocksize if region.isFlash else '-')
+
+    def handle_show_peripherals(self, args):
+        for periph in sorted(self.peripherals.values(), key=lambda x:x.base_address):
+            print "0x%08x: %s" % (periph.base_address, periph.name)
+
+    def handle_set(self, args):
+        if len(args) < 1:
+            raise ToolError("missing option name argument")
+        name = args[0]
+        try:
+            self.option_list[name](args[1:])
+        except KeyError:
+            raise ToolError("unkown option name '%s'" % name)
+
+    def handle_set_vectorcatch(self, args):
+        if len(args) == 0:
+            catch = self.target.getVectorCatch()
+
+            print "Vector catch:"
+            for mask in sorted(VC_NAMES_MAP.iterkeys()):
+                name = VC_NAMES_MAP[mask]
+                s = "ON" if (catch & mask) else "OFF"
+                print "  {:3} {}".format(s, name)
+        else:
+            try:
+                self.target.setVectorCatch(pyOCD.utility.cmdline.convert_vector_catch(args[0]))
+            except ValueError as e:
+                print e
+
+    def handle_set_step_interrupts(self, args):
+        if len(args) == 0:
+            print "Interrupts while stepping:", ("enabled" if self.step_into_interrupt else "disabled")
+        else:
+            self.step_into_interrupt = (args[0] in ('1', 'true', 'yes', 'on'))
+
+    def handle_help(self, args):
+        if not args:
+            self.list_commands()
+        else:
+            cmd = args[0]
+            for name, info in COMMAND_INFO.iteritems():
+                if cmd == name or cmd in info['aliases']:
+                    print "Usage: {cmd} {args}".format(cmd=cmd, args=info['args'])
+                    if len(info['aliases']):
+                        print "Aliases:", ", ".join(info['aliases'])
+                    print info['help']
+                    if info.has_key('extra_help'):
+                        print info['extra_help']
+
+    def list_commands(self):
+        cmds = sorted(COMMAND_INFO.keys())
+        print "Commands:\n---------"
+        for cmd in cmds:
+            info = COMMAND_INFO[cmd]
+            print "{cmd:<25} {args:<20} {help}".format(
+                cmd=', '.join(sorted([cmd] + info['aliases'])),
+                **info)
+
+        print "\nInfo:\n---------"
+        for name in sorted(INFO_HELP.keys()):
+            info = INFO_HELP[name]
+            print "{name:<25} {help}".format(
+                name=', '.join(sorted([name] + info['aliases'])),
+                help=info['help'])
+
+        print "\nOptions:\n---------"
+        for name in sorted(OPTION_HELP.keys()):
+            info = OPTION_HELP[name]
+            print "{name:<25} {help}".format(
+                name=', '.join(sorted([name] + info['aliases'])),
+                help=info['help'])
+
+        print """
+All register names are also available as commands that print the register's value.
+Any ADDR or LEN argument will accept a register name.
+Prefix line with $ to execute a Python expression.
+Prefix line with ! to execute a shell command."""
 
     def isFlashWrite(self, addr, width, data):
         mem_map = self.board.target.getMemoryMap()
@@ -861,12 +1259,7 @@ class PyOCDTool(object):
                     f_value_enum_str = ""
                 print "  %s[%s] = %s (%s)%s" % (f.name, bits_str, f_value_str, f_value_bin_str, f_value_enum_str)
 
-    def print_memory_map(self):
-        print "Region          Start         End           Blocksize"
-        for region in self.target.getMemoryMap():
-            print "{:<15} {:#010x}    {:#010x}    {}".format(region.name, region.start, region.end, region.blocksize if region.isFlash else '-')
-
-    def print_disasm(self, code, startAddr):
+    def print_disasm(self, code, startAddr, maxInstructions=None):
         if not isCapstoneAvailable:
             print "Warning: Disassembly is not available because the Capstone library is not installed"
             return
@@ -876,12 +1269,16 @@ class PyOCDTool(object):
 
         addrLine = 0
         text = ''
+        n = 0
         for i in md.disasm(code, startAddr):
             hexBytes = ''
             for b in i.bytes:
                 hexBytes += '%02x' % b
             pc_marker = '*' if (pc == i.address) else ' '
             text += "{addr:#010x}:{pc_marker} {bytes:<10}{mnemonic:<8}{args}\n".format(addr=i.address, pc_marker=pc_marker, bytes=hexBytes, mnemonic=i.mnemonic, args=i.op_str)
+            n += 1
+            if (maxInstructions is not None) and (n >= maxInstructions):
+                break
 
         print text
 

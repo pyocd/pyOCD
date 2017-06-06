@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from pyOCD.target.target import Target
+from ..core.target import Target
 import logging
 from struct import unpack
 from time import time
@@ -309,10 +309,8 @@ class Flash(object):
 
         if self.flash_algo_debug:
             # Save vector catch state for use in waitForCompletion()
-            self._vector_catch_enabled = self.target.getVectorCatchFault()
-            self._reset_catch_enabled = self.target.getVectorCatchReset()
-            self.target.setVectorCatchFault(True)
-            self.target.setVectorCatchReset(True)
+            self._saved_vector_catch = self.target.getVectorCatch()
+            self.target.setVectorCatch(Target.CATCH_ALL)
 
         if init:
             # download flash algo in RAM
@@ -390,8 +388,7 @@ class Flash(object):
             #    logging.error("Analyzer overwritten!")
             #    error = True
             assert error == False
-            self.target.setVectorCatchFault(self._vector_catch_enabled)
-            self.target.setVectorCatchReset(self._reset_catch_enabled)
+            self.target.setVectorCatch(self._saved_vector_catch)
 
         return self.target.readCoreRegister('r0')
 

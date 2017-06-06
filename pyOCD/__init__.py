@@ -16,6 +16,8 @@
 """
 
 import board
+import core
+import debug
 import flash
 import gdbserver
 import target

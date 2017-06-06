@@ -15,8 +15,7 @@
  limitations under the License.
 """
 
-from pyOCD.target import TARGET
-from pyOCD.flash import FLASH
+from pyOCD.target import (TARGET, FLASH)
 
 import logging
 import traceback
@@ -25,10 +24,10 @@ class Board(object):
     """
     This class associates a target, a flash and a link to create a board
     """
-    def __init__(self, target, flash, link, frequency=1000000):
+    def __init__(self, target, link, frequency=1000000):
         self.link = link
-        self.target = TARGET[target](self.link)
-        self.flash = FLASH[flash](self.target)
+        self.target = TARGET[target.lower()](self.link)
+        self.flash = FLASH[target.lower()](self.target)
         self.target.setFlash(self.flash)
         self.debug_clock_frequency = frequency
         self.closed = False

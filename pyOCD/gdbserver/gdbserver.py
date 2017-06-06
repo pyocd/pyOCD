@@ -15,13 +15,15 @@
  limitations under the License.
 """
 
-from ..target.target import Target
+from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
+from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 from syscall import GDBSyscallIOHandler
-from ..target import semihost
+from ..debug import semihost
+from .context_facade import GDBDebugContextFacade
 import signals
 import logging, threading, socket
 from struct import unpack
@@ -29,6 +31,7 @@ from time import sleep, time
 import sys
 import traceback
 import Queue
+from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 CTRL_C = '\x03'
 
@@ -221,10 +224,8 @@ class GDBServer(threading.Thread):
             self.wss_server = port_urlWSS
         else:
             self.port = port_urlWSS
-        self.break_at_hardfault = bool(options.get('break_at_hardfault', True))
-        self.board.target.setVectorCatchFault(self.break_at_hardfault)
-        self.break_on_reset = options.get('break_on_reset', False)
-        self.board.target.setVectorCatchReset(self.break_on_reset)
+        self.vector_catch = options.get('vector_catch', Target.CATCH_HARD_FAULT)
+        self.board.target.setVectorCatch(self.vector_catch)
         self.step_into_interrupt = options.get('step_into_interrupt', False)
         self.persist = options.get('persist', False)
         self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
@@ -245,6 +246,8 @@ class GDBServer(threading.Thread):
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
         self.detach_event = threading.Event()
+        self.target_context = self.target.getTargetContext()
+        self.target_facade = GDBDebugContextFacade(self.target_context)
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
             if self.serve_local_only:
@@ -259,7 +262,7 @@ class GDBServer(threading.Thread):
             # Use internal IO handler.
             semihost_io_handler = semihost.InternalSemihostIOHandler()
         self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
-        self.semihost = semihost.SemihostAgent(self.target, io_handler=semihost_io_handler, console=self.telnet_console)
+        self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=self.telnet_console)
 
         self.setDaemon(True)
         self.start()
@@ -482,8 +485,7 @@ class GDBServer(threading.Thread):
         logging.debug("GDB kill")
         # Keep target halted and leave vector catches if in persistent mode.
         if not self.persist:
-            self.board.target.setVectorCatchFault(False)
-            self.board.target.setVectorCatchReset(False)
+            self.board.target.setVectorCatch(Target.CATCH_NONE)
             self.board.target.resume()
         return self.createRSPPacket("")
 
@@ -537,7 +539,7 @@ class GDBServer(threading.Thread):
         if self.non_stop and self.is_target_running:
             return self.createRSPPacket("OK")
 
-        return self.createRSPPacket(self.target.getTResponse())
+        return self.createRSPPacket(self.getTResponse())
 
     def _get_resume_step_addr(self, data):
         if data is None:
@@ -570,7 +572,7 @@ class GDBServer(threading.Thread):
                 logging.debug("receive CTRL-C")
                 self.packet_io.interrupt_event.clear()
                 self.target.halt()
-                val = self.target.getTResponse(forceSignal=signals.SIGINT)
+                val = self.getTResponse(forceSignal=signals.SIGINT)
                 break
 
             try:
@@ -583,8 +585,9 @@ class GDBServer(threading.Thread):
                             self.target.resume()
                             continue
 
-                    logging.debug("state halted")
-                    val = self.target.getTResponse()
+                    pc = self.target_context.readCoreRegister('pc')
+                    logging.debug("state halted; pc=0x%08x", pc)
+                    val = self.getTResponse()
                     break
             except Exception as e:
                 try:
@@ -593,7 +596,7 @@ class GDBServer(threading.Thread):
                     pass
                 traceback.print_exc()
                 logging.debug('Target is unavailable temporarily.')
-                val = 'S%02x' % self.target.getSignalValue()
+                val = 'S%02x' % self.target_facade.getSignalValue()
                 break
 
         return self.createRSPPacket(val)
@@ -602,14 +605,14 @@ class GDBServer(threading.Thread):
         addr = self._get_resume_step_addr(data)
         logging.debug("GDB step: %s", data)
         self.target.step(not self.step_into_interrupt)
-        return self.createRSPPacket(self.target.getTResponse())
+        return self.createRSPPacket(self.getTResponse())
 
     def halt(self):
         self.target.halt()
-        return self.createRSPPacket(self.target.getTResponse())
+        return self.createRSPPacket(self.getTResponse())
 
     def sendStopNotification(self, forceSignal=None):
-        data = self.target.getTResponse(forceSignal=forceSignal)
+        data = self.getTResponse(forceSignal=forceSignal)
         packet = '%Stop:' + data + '#' + checksum(data)
         self.packet_io.send(packet)
 
@@ -784,9 +787,9 @@ class GDBServer(threading.Thread):
 
         try:
             val = ''
-            mem = self.target.readBlockMemoryUnaligned8(addr, length)
+            mem = self.target_context.readBlockMemoryUnaligned8(addr, length)
             # Flush so an exception is thrown now if invalid memory was accesses
-            self.target.flush()
+            self.target_context.flush()
             for x in mem:
                 if x >= 0x10:
                     val += hex(x)[2:4]
@@ -812,9 +815,9 @@ class GDBServer(threading.Thread):
 
         try:
             if length > 0:
-                self.target.writeBlockMemoryUnaligned8(addr, data)
+                self.target_context.writeBlockMemoryUnaligned8(addr, data)
                 # Flush so an exception is thrown now if invalid memory was accessed
-                self.target.flush()
+                self.target_context.flush()
             resp = "OK"
         except DAPAccess.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
@@ -842,9 +845,9 @@ class GDBServer(threading.Thread):
 
         try:
             if length > 0:
-                self.target.writeBlockMemoryUnaligned8(addr, data)
+                self.target_context.writeBlockMemoryUnaligned8(addr, data)
                 # Flush so an exception is thrown now if invalid memory was accessed
-                self.target.flush()
+                self.target_context.flush()
             resp = "OK"
         except DAPAccess.TransferError:
             logging.debug("writeMemory failed at 0x%x" % addr)
@@ -853,19 +856,19 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(resp)
 
     def readRegister(self, which):
-        return self.createRSPPacket(self.target.gdbGetRegister(which))
+        return self.createRSPPacket(self.target_facade.gdbGetRegister(which))
 
     def writeRegister(self, data):
         reg = int(data.split('=')[0], 16)
         val = data.split('=')[1].split('#')[0]
-        self.target.setRegister(reg, val)
+        self.target_facade.setRegister(reg, val)
         return self.createRSPPacket("OK")
 
     def getRegisters(self):
-        return self.createRSPPacket(self.target.getRegisterContext())
+        return self.createRSPPacket(self.target_facade.getRegisterContext())
 
     def setRegisters(self, data):
-        self.target.setRegisterContext(data)
+        self.target_facade.setRegisterContext(data)
         return self.createRSPPacket("OK")
 
     def handleQuery(self, msg):
@@ -883,7 +886,7 @@ class GDBServer(threading.Thread):
             # Build our list of features.
             features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+']
             features.append('PacketSize=' + hex(self.packet_size)[2:])
-            if self.target.getMemoryMapXML() is not None:
+            if self.target_facade.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')
             resp = ';'.join(features)
             return self.createRSPPacket(resp)
@@ -949,6 +952,7 @@ class GDBServer(threading.Thread):
             'help'  : ['Display this help', 0x80],
         }
 
+        cmdList = cmd.split()
         resp = 'OK'
         if cmd == 'help':
             resp = ''.join(['%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
@@ -956,9 +960,20 @@ class GDBServer(threading.Thread):
         elif cmd.startswith('arm semihosting'):
             self.enable_semihosting = 'enable' in cmd
             logging.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
+        elif cmdList[0] == 'set':
+            if len(cmdList) < 3:
+                resp = hexEncode("Error: invalid set command")
+            elif cmdList[1] == 'vector-catch':
+                try:
+                    self.board.target.setVectorCatch(convert_vector_catch(cmdList[2]))
+                except ValueError as e:
+                    resp = hexEncode("Error: " + str(e))
+            elif cmdList[1] == 'step-into-interrupt':
+                self.step_into_interrupt = (cmdList[2].lower() in ("true", "on", "yes", "1"))
+            else:
+                resp = hexEncode("Error: invalid set option")
         else:
             resultMask = 0x00
-            cmdList = cmd.split()
             if cmdList[0] == 'help':
                 # a 'help' is only valid as the first cmd, and only
                 # gives info on the second cmd if it is valid
@@ -1015,11 +1030,11 @@ class GDBServer(threading.Thread):
         logging.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
         xml = ''
         if query == 'memory_map':
-            xml = self.target.getMemoryMapXML()
+            xml = self.target_facade.getMemoryMapXML()
         elif query == 'read_feature':
             xml = self.target.getTargetXML()
         elif query == 'threads':
-            xml = self.target.getThreadsXML()
+            xml = self.getThreadsXML()
         else:
             raise RuntimeError("Invalid XML query (%s)" % query)
 
@@ -1086,4 +1101,16 @@ class GDBServer(threading.Thread):
                 break
 
         return -1, 0
+
+    def getThreadsXML(self):
+        root = Element('threads')
+        t = SubElement(root, 'thread', id="1", core="0")
+        t.text = "Thread mode"
+        return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
+
+    def getTResponse(self, forceSignal=None):
+        response = self.target_facade.getTResponse(forceSignal)
+
+        logging.debug("Tresponse=%s", response)
+        return response
 

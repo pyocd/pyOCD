@@ -48,6 +48,7 @@ ID_INFO = {'VENDOR_ID': 0x01,
            'TARGET_DEVICE_VENDOR': 0x05,
            'TARGET_DEVICE_NAME': 0x06,
            'CAPABILITIES': 0xf0,
+           'SWO_BUFFER_SIZE': 0xfd,
            'PACKET_COUNT': 0xfe,
            'PACKET_SIZE': 0xff
            }
@@ -65,6 +66,9 @@ DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
 DAP_JTAG_POR = 2
 
+DAP_LED_CONNECT = 0
+DAP_LED_RUNNING = 1
+
 DAP_OK = 0
 DAP_ERROR = 0xff
 
@@ -72,8 +76,7 @@ DAP_ERROR = 0xff
 DAP_TRANSFER_OK = 1
 DAP_TRANSFER_WAIT = 2
 DAP_TRANSFER_FAULT = 4
-
-MAX_PACKET_SIZE = 0x0E
+DAP_TRANSFER_NO_ACK = 7
 
 ## @brief This class implements the CMSIS-DAP wire protocol.
 class CMSIS_DAP_Protocol(object):
@@ -97,7 +100,7 @@ class CMSIS_DAP_Protocol(object):
             return
 
         # Integer values
-        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
+        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['SWO_BUFFER_SIZE'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
             if resp[1] == 1:
                 return resp[2]
             if resp[1] == 2:
@@ -109,9 +112,23 @@ class CMSIS_DAP_Protocol(object):
             x = x[0:-1]
         return x
 
-    def setLed(self):
-        #not yet implemented
-        return
+    def setLed(self, type, enabled):
+        cmd = []
+        cmd.append(COMMAND_ID['DAP_LED'])
+        cmd.append(type)
+        cmd.append(int(enabled))
+        self.interface.write(cmd)
+
+        resp = self.interface.read()
+        if resp[0] != COMMAND_ID['DAP_LED']:
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError()
+
+        if resp[1] != 0:
+            # Second response byte must be 0
+            raise DAPAccessIntf.CommandError()
+
+        return resp[1]
 
     def connect(self, mode=DAP_DEFAULT_PORT):
         cmd = []
@@ -129,10 +146,10 @@ class CMSIS_DAP_Protocol(object):
             raise DAPAccessIntf.CommandError()
 
         if resp[1] == 1:
-            logging.info('DAP SWD MODE initialised')
+            logging.info('DAP SWD MODE initialized')
 
         if resp[1] == 2:
-            logging.info('DAP JTAG MODE initialised')
+            logging.info('DAP JTAG MODE initialized')
 
         return resp[1]
 
@@ -237,8 +254,8 @@ class CMSIS_DAP_Protocol(object):
         try:
             p = PINS[pin]
         except KeyError:
-                logging.error('cannot find %s pin', pin)
-                return
+            logging.error('cannot find %s pin', pin)
+            return
         cmd.append(output & 0xff)
         cmd.append(p)
         cmd.append(wait & 0xff)
@@ -347,9 +364,10 @@ class CMSIS_DAP_Protocol(object):
                 (resp[4] << 16) | \
                 (resp[5] << 24)
 
-    def vendor(self, index):
+    def vendor(self, index, data):
         cmd = []
         cmd.append(COMMAND_ID['DAP_VENDOR0'] + index)
+        cmd.extend(data)
         self.interface.write(cmd)
 
         resp = self.interface.read()
@@ -357,3 +375,5 @@ class CMSIS_DAP_Protocol(object):
         if resp[0] != COMMAND_ID['DAP_VENDOR0'] + index:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
+
+        return resp[1:]

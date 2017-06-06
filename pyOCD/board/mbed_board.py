@@ -122,7 +122,7 @@ class MbedBoard(Board):
             logging.warning("Unsupported board found %s", board_id)
             target = "cortex_m"
 
-        super(MbedBoard, self).__init__(target, target, link, frequency)
+        super(MbedBoard, self).__init__(target, link, frequency)
         self.unique_id = unique_id
         self.target_type = target
 
@@ -208,17 +208,15 @@ class MbedBoard(Board):
         """
         Allow you to select a board among all boards connected
         """
-        all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, False, blocking,
+        all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, True, blocking,
                                                     target_override, frequency)
 
-        # If a board ID is specified close all other boards
+        # If a board ID is specified remove all other boards
         if board_id != None:
             new_mbed_list = []
             for mbed in all_mbeds:
                 if mbed.unique_id == (board_id):
                     new_mbed_list.append(mbed)
-                else:
-                    mbed.link.close()
             assert len(new_mbed_list) <= 1
             all_mbeds = new_mbed_list
 
@@ -230,10 +228,8 @@ class MbedBoard(Board):
                 print("Board %s is not connected" % board_id)
             return None # No boards to close so it is safe to return
 
-        # Select first board and close others if True
+        # Select first board
         if return_first:
-            for i in range(1, len(all_mbeds)):
-                all_mbeds[i].link.close()
             all_mbeds = all_mbeds[0:1]
 
         # Ask use to select boards if there is more than 1 left
@@ -260,14 +256,11 @@ class MbedBoard(Board):
                         index += 1
                 else:
                     break
-            # close all others mbed connected
-            for mbed in all_mbeds:
-                if mbed != all_mbeds[ch]:
-                    mbed.link.close()
             all_mbeds = all_mbeds[ch:ch + 1]
 
         assert len(all_mbeds) == 1
         mbed = all_mbeds[0]
+        mbed.link.open()
         if init_board:
             try:
                 mbed.init()
