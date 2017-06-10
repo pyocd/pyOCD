@@ -269,6 +269,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "General target information.",
             },
+        'fault' : {
+            'aliases' : [],
+            'help' : "Fault status information. Add -a to command to show all fields.",
+            },
         }
 
 OPTION_HELP = {
@@ -487,6 +491,7 @@ class PyOCDTool(object):
                 'uid' :         self.handle_show_unique_id,
                 'cores' :       self.handle_show_cores,
                 'target' :      self.handle_show_target,
+                'fault' :       self.handle_show_fault,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -1084,6 +1089,82 @@ class PyOCDTool(object):
     def handle_show_peripherals(self, args):
         for periph in sorted(self.peripherals.values(), key=lambda x:x.base_address):
             print "0x%08x: %s" % (periph.base_address, periph.name)
+
+    def handle_show_fault(self, args):
+        showAll = ('-a' in args)
+        
+        CFSR = 0xe000ed28
+        HFSR = 0xe000ed2c
+        DFSR = 0xe000ed30
+        MMFAR = 0xe000ed34
+        BFAR = 0xe000ed38
+        AFSR = 0xe000ed3c
+        
+        MMFSR_fields = [
+                ('IACCVIOL', 0),
+                ('DACCVIOL', 1),
+                ('MUNSTKERR', 3),
+                ('MSTKERR', 4),
+#                 ('MMARVALID', 7),
+            ]
+        BFSR_fields = [
+                ('IBUSERR', 0),
+                ('PRECISERR', 1),
+                ('IMPRECISERR', 2),
+                ('UNSTKERR', 3),
+                ('STKERR', 4),
+                ('LSPERR', 5),
+#                 ('BFARVALID', 7),
+            ]
+        UFSR_fields = [
+                ('UNDEFINSTR', 0),
+                ('INVSTATE', 1),
+                ('INVPC', 2),
+                ('NOCP', 3),
+                ('STKOF', 4),
+                ('UNALIGNED', 8),
+                ('DIVBYZERO', 9),
+            ]
+        HFSR_fields = [
+                ('VECTTBL', 1),
+                ('FORCED', 30),
+                ('DEBUGEVT', 31),
+            ]
+        DFSR_fields = [
+                ('HALTED', 0),
+                ('BKPT', 1),
+                ('DWTTRAP', 2),
+                ('VCATCH', 3),
+                ('EXTERNAL', 4),
+            ]
+        
+        def print_fields(regname, value, fields, showAll):
+            if value == 0 and not showAll:
+                return
+            print "  %s = 0x%08x" % (regname, value)
+            for name, bitpos in fields:
+                bit = (value >> bitpos) & 1
+                if showAll or bit != 0:
+                    print "    %s = 0x%x" % (name, bit)
+        
+        cfsr = self.target.read32(CFSR)
+        mmfsr = cfsr & 0xff
+        bfsr = (cfsr >> 8) & 0xff
+        ufsr = (cfsr >> 16) & 0xffff
+        hfsr = self.target.read32(HFSR)
+        dfsr = self.target.read32(DFSR)
+        mmfar = self.target.read32(MMFAR)
+        bfar = self.target.read32(BFAR)
+        
+        print_fields('MMFSR', mmfsr, MMFSR_fields, showAll)
+        if showAll or mmfsr & (1 << 7): # MMFARVALID
+            print "  MMFAR = 0x%08x" % (mmfar)
+        print_fields('BFSR', bfsr, BFSR_fields, showAll)
+        if showAll or bfsr & (1 << 7): # BFARVALID
+            print "  BFAR = 0x%08x" % (bfar)
+        print_fields('UFSR', ufsr, UFSR_fields, showAll)
+        print_fields('HFSR', hfsr, HFSR_fields, showAll)
+        print_fields('DFSR', dfsr, DFSR_fields, showAll)
 
     def handle_set(self, args):
         if len(args) < 1:
