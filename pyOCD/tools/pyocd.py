@@ -271,14 +271,24 @@ INFO_HELP = {
             },
         'fault' : {
             'aliases' : [],
-            'help' : "Fault status information. Add -a to command to show all fields.",
+            'help' : "Fault status information.",
+            'extra_help' : "By default, only asserted fields are shown. Add -a to command to show all fields.",
+            },
+        'vector-catch' : {
+            'aliases' : ['vc'],
+            'help' : "Show current vector catch settings.",
+            },
+        'step-into-interrupt' : {
+            'aliases' : ['si'],
+            'help' : "Display whether interrupts are enabled when single stepping."
             },
         }
 
 OPTION_HELP = {
         'vector-catch' : {
             'aliases' : ['vc'],
-            'help' : "Control enabled vector catch sources. Value is a concatenation of one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none).",
+            'help' : "Control enabled vector catch sources.",
+            'extra_help' : "Value is a concatenation of one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none).",
             },
         'step-into-interrupt' : {
             'aliases' : ['si'],
@@ -294,7 +304,7 @@ OPTION_HELP = {
             },
         'clock' : {
             'aliases' : [],
-            'help' : "Set SWD or JTAG clock frequency"
+            'help' : "Set SWD or JTAG clock frequency in kilohertz."
             },
         }
 
@@ -486,12 +496,16 @@ class PyOCDTool(object):
                 '?' :       self.handle_help,
             }
         self.info_list = {
-                'map' :         self.handle_show_map,
-                'peripherals' : self.handle_show_peripherals,
-                'uid' :         self.handle_show_unique_id,
-                'cores' :       self.handle_show_cores,
-                'target' :      self.handle_show_target,
-                'fault' :       self.handle_show_fault,
+                'map' :                 self.handle_show_map,
+                'peripherals' :         self.handle_show_peripherals,
+                'uid' :                 self.handle_show_unique_id,
+                'cores' :               self.handle_show_cores,
+                'target' :              self.handle_show_target,
+                'fault' :               self.handle_show_fault,
+                'vector-catch' :        self.handle_show_vectorcatch,
+                'vc' :                  self.handle_show_vectorcatch,
+                'step-into-interrupt' : self.handle_show_step_interrupts,
+                'si' :                  self.handle_show_step_interrupts,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -1175,69 +1189,85 @@ class PyOCDTool(object):
         except KeyError:
             raise ToolError("unkown option name '%s'" % name)
 
+    def handle_show_vectorcatch(self, args):
+        catch = self.target.getVectorCatch()
+
+        print "Vector catch:"
+        for mask in sorted(VC_NAMES_MAP.iterkeys()):
+            name = VC_NAMES_MAP[mask]
+            s = "ON" if (catch & mask) else "OFF"
+            print "  {:3} {}".format(s, name)
+
     def handle_set_vectorcatch(self, args):
         if len(args) == 0:
-            catch = self.target.getVectorCatch()
+            print "Missing vector catch setting"
+            return
+    
+        try:
+            self.target.setVectorCatch(pyOCD.utility.cmdline.convert_vector_catch(args[0]))
+        except ValueError as e:
+            print e
 
-            print "Vector catch:"
-            for mask in sorted(VC_NAMES_MAP.iterkeys()):
-                name = VC_NAMES_MAP[mask]
-                s = "ON" if (catch & mask) else "OFF"
-                print "  {:3} {}".format(s, name)
-        else:
-            try:
-                self.target.setVectorCatch(pyOCD.utility.cmdline.convert_vector_catch(args[0]))
-            except ValueError as e:
-                print e
+    def handle_show_step_interrupts(self, args):
+        print "Interrupts while stepping:", ("enabled" if self.step_into_interrupt else "disabled")
 
     def handle_set_step_interrupts(self, args):
         if len(args) == 0:
-            print "Interrupts while stepping:", ("enabled" if self.step_into_interrupt else "disabled")
-        else:
-            self.step_into_interrupt = (args[0] in ('1', 'true', 'yes', 'on'))
+            print "Missing argument"
+            return
+        
+        self.step_into_interrupt = (args[0] in ('1', 'true', 'yes', 'on'))
 
     def handle_help(self, args):
         if not args:
-            self.list_commands()
-        else:
-            cmd = args[0]
-            for name, info in COMMAND_INFO.iteritems():
-                if cmd == name or cmd in info['aliases']:
-                    print "Usage: {cmd} {args}".format(cmd=cmd, args=info['args'])
-                    if len(info['aliases']):
-                        print "Aliases:", ", ".join(info['aliases'])
-                    print info['help']
-                    if info.has_key('extra_help'):
-                        print info['extra_help']
-
-    def list_commands(self):
-        cmds = sorted(COMMAND_INFO.keys())
-        print "Commands:\n---------"
-        for cmd in cmds:
-            info = COMMAND_INFO[cmd]
-            print "{cmd:<25} {args:<20} {help}".format(
-                cmd=', '.join(sorted([cmd] + info['aliases'])),
-                **info)
-
-        print "\nInfo:\n---------"
-        for name in sorted(INFO_HELP.keys()):
-            info = INFO_HELP[name]
-            print "{name:<25} {help}".format(
-                name=', '.join(sorted([name] + info['aliases'])),
-                help=info['help'])
-
-        print "\nOptions:\n---------"
-        for name in sorted(OPTION_HELP.keys()):
-            info = OPTION_HELP[name]
-            print "{name:<25} {help}".format(
-                name=', '.join(sorted([name] + info['aliases'])),
-                help=info['help'])
-
-        print """
+            self._list_commands("Commands", COMMAND_INFO, "{cmd:<25} {args:<20} {help}")
+            print """
 All register names are also available as commands that print the register's value.
 Any ADDR or LEN argument will accept a register name.
 Prefix line with $ to execute a Python expression.
 Prefix line with ! to execute a shell command."""
+            print
+            self._list_commands("Info", INFO_HELP, "{cmd:<25} {help}")
+            print
+            self._list_commands("Options", OPTION_HELP, "{cmd:<25} {help}")
+        else:
+            cmd = args[0].lower()
+            try:
+                subcmd = args[1].lower()
+            except IndexError:
+                subcmd = None
+            
+            def print_help(cmd, commandList, usageFormat):
+                for name, info in commandList.iteritems():
+                    if cmd == name or cmd in info['aliases']:
+                        print ("Usage: " + usageFormat).format(cmd=name, **info)
+                        if len(info['aliases']):
+                            print "Aliases:", ", ".join(info['aliases'])
+                        print info['help']
+                        if info.has_key('extra_help'):
+                            print info['extra_help']
+            
+            if subcmd is None:
+                print_help(cmd, COMMAND_INFO, "{cmd} {args}")
+                if cmd == "show":
+                    print
+                    self._list_commands("Info", INFO_HELP, "{cmd:<25} {help}")
+                elif cmd == "set":
+                    print
+                    self._list_commands("Options", OPTION_HELP, "{cmd:<25} {help}")
+            elif cmd == 'show':
+                print_help(subcmd, INFO_HELP, "show {cmd}")
+            elif cmd == 'set':
+                print_help(subcmd, OPTION_HELP, "set {cmd} VALUE")
+            else:
+                print "Error: invalid arguments"
+
+    def _list_commands(self, title, commandList, helpFormat):
+        print title + ":\n" + ("-" * len(title))
+        for cmd in sorted(commandList.keys()):
+            info = commandList[cmd]
+            aliases = ', '.join(sorted([cmd] + info['aliases']))
+            print helpFormat.format(cmd=aliases, **info)
 
     def isFlashWrite(self, addr, width, data):
         mem_map = self.board.target.getMemoryMap()
