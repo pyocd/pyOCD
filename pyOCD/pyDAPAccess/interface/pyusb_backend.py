@@ -252,8 +252,11 @@ class FindDap(object):
         """Return True if this is a DAP device, False otherwise"""
         try:
             device_string = dev.product
-        except ValueError:
+        except ValueError as error:
             # Permission denied error gets reported as ValueError (langid)
+            logging.debug(("ValueError \"{}\" while trying to access dev.product "
+                           "for idManufacturer=0x{:04x} idProduct=0x{:04x}. "
+                           "This is probably a permission issue.").format(error, dev.idVendor, dev.idProduct))
             return False
         except usb.core.USBError as error:
             logging.warning("Exception getting product string: %s", error)
