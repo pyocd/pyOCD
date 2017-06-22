@@ -50,6 +50,24 @@ You have a few options here:
 #. Run the command in a `virtualenv <https://virtualenv.pypa.io/en/latest/>`__ 
    local to a specific project working set.
 
+If you encounter issue where ``pyocd-tool list`` won't detect attached boards without sudo, the reason could be in access permissions. In Ubuntu 16.04 these are handled with udev and can be solved by adding a new udev rule.
+
+Example udev rule for NXP FRDM-K64F:
+
+-  Create or append file ``/etc/udev/rules.d/50-mbed.rules`` with the following contents:
+
+.. code::
+
+   # 0d28:0204 NXP FRDM-K64F
+   SUBSYSTEM=="usb", ATTR{idVendor}=="0d28", ATTR{idProduct}=="0204", MODE:="666"
+
+-  If you use different board, you can check the IDs with ``dmesg`` command.
+
+   -  Run ``dmesg``
+   -  Plug in your board
+   -  Run ``dmesg`` again and check what was added
+   -  Look for line similar to ``usb 2-2.1: New USB device found, idVendor=0d28, idProduct=0204``
+
 You can also install from source by cloning the git repository and running
 
 .. code:: shell
