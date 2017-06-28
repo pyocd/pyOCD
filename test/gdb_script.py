@@ -245,10 +245,16 @@ def run_test():
             print("Error - could not set pc to function")
         breakpoint.delete()
 
-        # Test the speed of the different step types
-        test_result["step_time_si"] = test_step_type("si")
-        test_result["step_time_s"] = test_step_type("s")
-        test_result["step_time_n"] = test_step_type("n")
+## Stepping removed as a workaround for a GDB bug. Launchpad issue tracking this is here:
+## https://bugs.launchpad.net/gcc-arm-embedded/+bug/1700595
+#
+#        # Test the speed of the different step types
+#        test_result["step_time_si"] = test_step_type("si")
+#        test_result["step_time_s"] = test_step_type("s")
+#        test_result["step_time_n"] = test_step_type("n")
+        test_result["step_time_si"] = -1
+        test_result["step_time_s"] = -1
+        test_result["step_time_n"] = -1
         # TODO,c1728p9 - test speed getting stack trace
         # TODO,c1728p9 - test speed with cache turned on
         # TODO,c1728p9 - check speed vs breakpoints
