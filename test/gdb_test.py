@@ -37,16 +37,7 @@ from test_util import Test, TestResult
 
 TEST_PARAM_FILE = "test_params.txt"
 TEST_RESULT_FILE = "test_results.txt"
-PYTHON_GDB_FOR_OS = {
-    "linux": "arm-none-eabi-gdb",
-    "darwin": "arm-none-eabi-gdb-py",
-    "win": "arm-none-eabi-gdb-py",
-}
-PYTHON_GDB = None
-for prefix, program in PYTHON_GDB_FOR_OS.iteritems():
-    if sys.platform.startswith(prefix):
-        PYTHON_GDB = program
-        break
+PYTHON_GDB = "arm-none-eabi-gdb-py"
 
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
