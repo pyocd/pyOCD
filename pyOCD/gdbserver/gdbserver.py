@@ -1117,7 +1117,7 @@ class GDBServer(threading.Thread):
 
             # Run cmds in proper order
             if resultMask & 0x1:
-                self.target.init()
+                pass
             if (resultMask & 0x6) == 0x6:
                 self.target.resetStopOnReset()
             elif resultMask & 0x2:
