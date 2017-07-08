@@ -272,28 +272,40 @@ class GDBServer(threading.Thread):
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=self.telnet_console)
 
         # Command handler table.
+        #
+        # The dict keys are the first character of the incoming command from gdb. Values are a
+        # bi-tuple. The first element is the handler method, and the second element is the start
+        # offset of the command string passed to the handler.
+        #
+        # Start offset values:
+        #  0 - Special case: handler method does not take any parameters.
+        #  1 - Strip off leading "$" from command.
+        #  2 - Strip leading "$" plus character matched through this table.
+        #  3+ - Supported, but not very useful.
+        #
         self.COMMANDS = {
-                '?' : (self.stopReasonQuery, 0),        # Stop reason query.
-                'C' : (self.resume, 1),                 # Continue (at addr)
-                'c' : (self.resume, 1),                 # Continue with signal.
-                'D' : (self.detach, 1),                 # Detach.
-                'g' : (self.getRegisters, 0),           # Read general registers.
-                'G' : (self.setRegisters, 2),           # Write general registers.
-                'H' : (self.setThread, 2),              # Set thread for subsequent operations.
-                'k' : (self.kill, 0),                   # Kill.
-                'm' : (self.getMemory, 2),              # Read memory.
-                'M' : (self.writeMemoryHex, 2),         # Write memory (hex).
-                'p' : (self.readRegister, 2),           # Read register.
-                'P' : (self.writeRegister, 2),          # Write register.
-                'q' : (self.handleQuery, 2),            # General query.
-                'Q' : (self.handleGeneralSet, 2),       # General set.
-                's' : (self.step, 1),                   # Single step.
-                'S' : (self.step, 1),                   # Step with signal.
-                'T' : (self.isThreadAlive, 1),          # Thread liveness query.
-                'v' : (self.vCommand, 2),               # v command.
-                'X' : (self.writeMemory, 2),            # Write memory (binary).
-                'z' : (self.breakpoint, 1),             # Insert breakpoint/watchpoint.
-                'Z' : (self.breakpoint, 1),             # Remove breakpoint/watchpoint.
+        #       CMD    HANDLER                  START    DESCRIPTION
+                '?' : (self.stopReasonQuery,    0   ), # Stop reason query.
+                'C' : (self.resume,             1   ), # Continue (at addr)
+                'c' : (self.resume,             1   ), # Continue with signal.
+                'D' : (self.detach,             1   ), # Detach.
+                'g' : (self.getRegisters,       0   ), # Read general registers.
+                'G' : (self.setRegisters,       2   ), # Write general registers.
+                'H' : (self.setThread,          2   ), # Set thread for subsequent operations.
+                'k' : (self.kill,               0   ), # Kill.
+                'm' : (self.getMemory,          2   ), # Read memory.
+                'M' : (self.writeMemoryHex,     2   ), # Write memory (hex).
+                'p' : (self.readRegister,       2   ), # Read register.
+                'P' : (self.writeRegister,      2   ), # Write register.
+                'q' : (self.handleQuery,        2   ), # General query.
+                'Q' : (self.handleGeneralSet,   2   ), # General set.
+                's' : (self.step,               1   ), # Single step.
+                'S' : (self.step,               1   ), # Step with signal.
+                'T' : (self.isThreadAlive,      1   ), # Thread liveness query.
+                'v' : (self.vCommand,           2   ), # v command.
+                'X' : (self.writeMemory,        2   ), # Write memory (binary).
+                'z' : (self.breakpoint,         1   ), # Insert breakpoint/watchpoint.
+                'Z' : (self.breakpoint,         1   ), # Remove breakpoint/watchpoint.
             }
 
         # Commands that kill the connection to gdb.
