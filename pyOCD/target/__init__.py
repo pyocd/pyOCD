@@ -58,6 +58,7 @@ import target_ncs36510
 import target_LPC4088FBD144
 import target_lpc4088qsb
 import target_lpc4088dm
+import target_tz10xx
 
 TARGET = {
           'cortex_m': CoreSightTarget,
@@ -103,6 +104,7 @@ TARGET = {
           'ncs36510': target_ncs36510.NCS36510,
           'lpc4088qsb': target_lpc4088qsb.LPC4088qsb,
           'lpc4088dm': target_lpc4088dm.LPC4088dm,
+          'tz10xx': target_tz10xx.TZ10xx,
          }
 
 FLASH = {
@@ -149,4 +151,5 @@ FLASH = {
          'ncs36510': target_ncs36510.Flash_ncs36510,
          'lpc4088qsb': target_lpc4088qsb.Flash_lpc4088qsb_dm,
          'lpc4088dm': target_lpc4088dm.Flash_lpc4088qsb_dm,
+         'tz10xx': target_tz10xx.Flash_tz10xx,
          }
