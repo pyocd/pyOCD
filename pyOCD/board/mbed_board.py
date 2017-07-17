@@ -87,6 +87,7 @@ BOARD_ID_TO_INFO = {
                 "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
                 "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
                 "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
+                "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
                 "7402": BoardInfo(  "mbed 6LoWPAN Border Router HAT", "k64f",   "l1_k64f.bin",          ),
                 "9004": BoardInfo(  "Arch Pro",             "lpc1768",          "l1_lpc1768.bin",       ),
                 "9009": BoardInfo(  "Arch BLE",             "nrf51",            "l1_nrf51.bin",         ),
