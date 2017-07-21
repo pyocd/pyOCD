@@ -94,6 +94,7 @@ BOARD_ID_TO_INFO = {
                 "9012": BoardInfo(  "Seeed Tiny BLE",       "nrf51",            "l1_nrf51.bin",         ),
                 "9900": BoardInfo(  "Microbit",             "nrf51",            "l1_microbit.bin",      ),
                 "C004": BoardInfo(  "tinyK20",              "k20d50m",          "l1_k20d50m.bin",       ),
+                "C006": BoardInfo(  "VBLUno51",             "nrf51",            "l1_nrf51.bin",         ),
               }
 
 mbed_vid = 0x0d28
