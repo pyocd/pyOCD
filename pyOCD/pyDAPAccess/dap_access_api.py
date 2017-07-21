@@ -167,6 +167,10 @@ class DAPAccessIntf(object):
     def assert_reset(self, asserted):
         """Assert or de-assert target reset line"""
         raise NotImplementedError()
+    
+    def is_reset_asserted(self):
+        """Returns True if the target reset line is asserted or False if de-asserted"""
+        raise NotImplementedError()
 
     def set_deferred_transfer(self, enable):
         """Allow reads and writes to be buffered for increased speed"""

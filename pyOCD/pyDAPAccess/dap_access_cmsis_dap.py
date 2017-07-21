@@ -546,6 +546,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._protocol.setSWJPins(0, 'nRESET')
         else:
             self._protocol.setSWJPins(0x80, 'nRESET')
+    
+    def is_reset_asserted(self):
+        self.flush()
+        pins = self._protocol.setSWJPins(0, 'None')
+        return (pins & 0x80) == 0
 
     def set_clock(self, frequency):
         self.flush()
