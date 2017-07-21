@@ -572,7 +572,7 @@ class PyOCDTool(object):
             if self.board is None:
                 return 1
             self.board.target.setAutoUnlock(False)
-            self.board.target.setHaltOnConnect(False)
+            self.board.target.setHaltOnConnect(self.args.halt)
             try:
                 if not self.args.no_init:
                     self.board.init()
@@ -594,10 +594,6 @@ class PyOCDTool(object):
 
             self._peripherals = {}
             self._loaded_peripherals = False
-
-            # Halt if requested.
-            if self.args.halt:
-                self.handle_halt([])
 
             # Handle a device with flash security enabled.
             self.didErase = False
