@@ -180,7 +180,10 @@ class RegisterCache(object):
         # Just remove all cached CFBP based register values.
         if writing_cfbp:
             for r in self.CFBP_REGS:
-                del self._cache[r]
+                try:
+                    del self._cache[r]
+                except KeyError:
+                    pass
 
         # Write new register values to target.
         self._context.writeCoreRegistersRaw(reg_list, data_list)
