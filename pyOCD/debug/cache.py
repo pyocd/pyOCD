@@ -116,7 +116,7 @@ class RegisterCache(object):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self._context.core.has_fpu):
+            elif ((reg >= 0x40) or (reg == 33)) and (not self._context.core.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         return reg_list

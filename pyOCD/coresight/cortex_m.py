@@ -644,7 +644,7 @@ class CortexM(Target):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+            elif ((reg >= 0x40) or (reg == 33)) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Begin all reads and writes
@@ -716,7 +716,7 @@ class CortexM(Target):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
+            elif ((reg >= 0x40) or (reg == 33)) and (not self.has_fpu):
                 raise ValueError("attempt to write FPU register without FPU")
 
         # Read special register if it is present in the list
