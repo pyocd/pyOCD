@@ -213,6 +213,11 @@ class TestMemoryMap:
             )
         rgns = dualMap.getIntersectingRegions(0x1fffc9f8, end=0x1fffc9fc)
         assert len(rgns) > 0
+    
+    def test_get_type_iter(self, memmap, flash, rom, ram1, ram2):
+        assert list(memmap.getRegionsOfType('flash')) == [flash]
+        assert list(memmap.getRegionsOfType('rom')) == [rom]
+        assert list(memmap.getRegionsOfType('ram')) == [ram1, ram2]
 
 
 
