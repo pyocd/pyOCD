@@ -18,7 +18,7 @@
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
 from ..debug.context import DebugContext
-from ..coresight.cortex_m import CORE_REGISTER
+from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from pyOCD.pyDAPAccess import DAPAccess
 import logging
 
@@ -161,7 +161,7 @@ class FreeRTOSThreadContext(DebugContext):
         self._has_fpu = parentContext.core.has_fpu
 
     def readCoreRegistersRaw(self, reg_list):
-        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
+        reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
         inException = self._get_ipsr() > 0

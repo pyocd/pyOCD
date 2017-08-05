@@ -17,13 +17,12 @@
 
 from pyOCD.debug.cache import RegisterCache
 from pyOCD.debug.context import DebugContext
-from pyOCD.coresight.cortex_m import CORE_REGISTER
+from pyOCD.coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from pyOCD.core import memory_map
 from pyOCD.utility import conversion
 from pyOCD.utility import mask
 import pytest
 import logging
-from ..mockcore import register_name_to_index
 
 @pytest.fixture(scope='function')
 def regcache(mockcore):
