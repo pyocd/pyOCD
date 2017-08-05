@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..coresight.cortex_m import CORE_REGISTER
+from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from ..utility import conversion
 import logging
 
@@ -78,26 +78,12 @@ class DebugContext(object):
     def read8(self, addr, now=True):
         return self.readMemory(addr, 8, now)
 
-    def registerNameToIndex(self, reg):
-        """
-        return register index based on name.
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
-        """
-        if isinstance(reg, str):
-            try:
-                reg = CORE_REGISTER[reg.lower()]
-            except KeyError:
-                logging.error('cannot find %s core register', reg)
-                return
-        return reg
-
     def readCoreRegister(self, reg):
         """
         read CPU register
         Unpack floating point register values
         """
-        regIndex = self.registerNameToIndex(reg)
+        regIndex = register_name_to_index(reg)
         regValue = self.readCoreRegisterRaw(regIndex)
         # Convert int to float.
         if regIndex >= 0x40:
@@ -121,7 +107,7 @@ class DebugContext(object):
         write a CPU register.
         Will need to pack floating point register values before writing.
         """
-        regIndex = self.registerNameToIndex(reg)
+        regIndex = register_name_to_index(reg)
         # Convert float to int.
         if regIndex >= 0x40:
             data = conversion.float32beToU32be(data)

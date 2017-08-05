@@ -17,20 +17,12 @@
 
 from pyOCD.debug.cache import MemoryCache
 from pyOCD.debug.context import DebugContext
-from pyOCD.coresight.cortex_m import CORE_REGISTER
+from pyOCD.coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from pyOCD.core import memory_map
 from pyOCD.utility import conversion
 from pyOCD.utility import mask
 import pytest
 import logging
-
-def register_name_to_index(reg):
-    if isinstance(reg, str):
-        try:
-            reg = CORE_REGISTER[reg.lower()]
-        except KeyError:
-            raise RuntimeError('cannot find %s core register' % reg)
-    return reg
 
 class MockCore(object):
     def __init__(self):
