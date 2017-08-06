@@ -1,5 +1,6 @@
 How to Build PyOCD into Single Executable File
 ==============================================
+
 This manual provides a step-by-step guide on how to build a single
 file executable using
 [pyinstaller](http://pythonhosted.org/PyInstaller/).  It should be
@@ -39,7 +40,8 @@ pip install https://github.com/pyinstaller/pyinstaller/archive/develop.zip
 # Create single-file executables
 pyinstaller --onefile pyOCD/tools/gdb_server.py
 pyinstaller --onefile pyOCD/tools/flash_tool.py
+pyinstaller --onefile pyOCD/tools/pyocd.py
 ```
 
-In ./dist folder, there will be a single executable file which is
+In ./dist folder, there will be a single executable file per tool which is
 ready to use or distribute it to other library.
