@@ -29,6 +29,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
+from pyOCD.pyDAPAccess import DAPAccess
 from pyOCD.utility.conversion import float32beToU32be
 from pyOCD.flash.flash import Flash
 from pyOCD.flash.flash_builder import FlashBuilder
@@ -413,9 +414,11 @@ def flash_test(board_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='pyOCD flash test')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
+    DAPAccess.set_args(args.daparg)
     # Set to debug to print some of the decisions made while flashing
     board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close=True)[0]
     test = FlashTest()
