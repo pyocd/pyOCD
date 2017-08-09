@@ -512,7 +512,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         self._interface.open()
         self._protocol = CMSIS_DAP_Protocol(self._interface)
-        self._packet_count = self._protocol.dapInfo("PACKET_COUNT")
+
+        if DAPSettings.limit_packets:
+            self._packet_count = 1
+            self._logger.debug("Limiting packet count to %d", self._packet_count)
+        else:
+            self._packet_count = self._protocol.dapInfo("PACKET_COUNT")
+
         self._interface.setPacketCount(self._packet_count)
         self._packet_size = self._protocol.dapInfo("PACKET_SIZE")
         self._interface.setPacketSize(self._packet_size)
