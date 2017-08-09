@@ -27,6 +27,7 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD.board import MbedBoard
+from pyOCD.pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 
@@ -158,9 +159,11 @@ def speed_test(board_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='pyOCD speed test')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
+    DAPAccess.set_args(args.daparg)
     board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close=True)[0]
     test = SpeedTest()
     result = [test.run(board)]
