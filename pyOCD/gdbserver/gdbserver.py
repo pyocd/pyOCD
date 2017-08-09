@@ -295,8 +295,8 @@ class GDBServer(threading.Thread):
         self.COMMANDS = {
         #       CMD    HANDLER                  START    DESCRIPTION
                 '?' : (self.stopReasonQuery,    0   ), # Stop reason query.
-                'C' : (self.resume,             1   ), # Continue (at addr)
-                'c' : (self.resume,             1   ), # Continue with signal.
+                'c' : (self.resume,             1   ), # Continue (at addr)
+                'C' : (self.resume,             1   ), # Continue with signal.
                 'D' : (self.detach,             1   ), # Detach.
                 'g' : (self.getRegisters,       0   ), # Read general registers.
                 'G' : (self.setRegisters,       2   ), # Write general registers.
