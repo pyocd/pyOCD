@@ -319,3 +319,23 @@ class STLink(object):
         response = self._device.transfer(cmd, readSize=2)
         self._check_status(response)
 
+    def swo_start(self, baudrate):
+        bufferSize = 4096
+        cmd = [Commands.JTAG_COMMAND, Commands.SWV_START_TRACE_RECEPTION]
+        cmd.extend(six.iterbytes(struct.pack('<HI', bufferSize, baudrate)))
+        response = self._device.transfer(cmd, readSize=2)
+        self._check_status(response)
+
+    def swo_stop(self):
+        cmd = [Commands.JTAG_COMMAND, Commands.SWV_STOP_TRACE_RECEPTION]
+        response = self._device.transfer(cmd, readSize=2)
+        self._check_status(response)
+    
+    def swo_read(self):
+        cmd = [Commands.JTAG_COMMAND, Commands.SWV_GET_TRACE_NEW_RECORD_NB]
+        response = self._device.transfer(cmd, readSize=2)
+        bytesAvailable, = struct.unpack('<H', response)
+        if bytesAvailable:
+            return self._device.read_swv(bytesAvailable)
+        else:
+            return bytearray()

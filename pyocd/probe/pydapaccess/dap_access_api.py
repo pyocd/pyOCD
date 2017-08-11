@@ -189,6 +189,32 @@ class DAPAccessIntf(object):
     def vendor(self, index, data=None):
         """Send a vendor specific command"""
         raise NotImplementedError()
+    
+    def has_swo(self):
+        """Returns bool indicating whether the link supports SWO."""
+        raise NotImplementedError()
+
+    def swo_configure(self, enabled, rate):
+        """Enable or disable SWO and set the baud rate."""
+        raise NotImplementedError()
+
+    def swo_control(self, start):
+        """Pass True to start recording SWO data, False to stop."""
+        raise NotImplementedError()
+
+    def get_swo_status(self):
+        """Returns a 2-tuple with a status mask at index 0, and the number of buffered
+        SWO data bytes at index 1."""
+        raise NotImplementedError()
+
+    def swo_read(self, count=None):
+        """Read buffered SWO data from the target. The count parameter is optional. If
+        provided, it is the number of bytes to read, which must be less than the packet size.
+        If count is not provided, the packet size will be used instead.
+        
+        Returns a 3-tuple containing the status mask at index 0, the number of buffered
+        SWO data bytes at index 1, and a list of the received data bytes at index 2."""
+        raise NotImplementedError()
 
     # ------------------------------------------- #
     #          DAP Access functions

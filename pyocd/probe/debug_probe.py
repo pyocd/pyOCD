@@ -140,5 +140,24 @@ class DebugProbe(object):
     
     def get_memory_interface_for_ap(self, apsel):
         return None
+    
+    def has_swo(self):
+        """! @brief Returns bool indicating whether the link supports SWO."""
+        raise NotImplementedError()
+
+    def swo_start(self, baudrate):
+        """! @brief Start receiving SWO data at the given baudrate."""
+        raise NotImplementedError()
+
+    def swo_stop(self):
+        """! @brief Stop receiving SWO data."""
+        raise NotImplementedError()
+
+    def swo_read(self):
+        """! @brief Read buffered SWO data from the target.
+        
+        @eturn Bytearray of the received data.
+        """
+        raise NotImplementedError()
   
 

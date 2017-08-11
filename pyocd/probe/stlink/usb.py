@@ -212,7 +212,7 @@ class STLinkUSBInterface(object):
         return None
 
     def read_swv(self, size, timeout=1000):
-        return self._ep_swv.read(size, timeout)
+        return bytearray(self._ep_swv.read(size, timeout))
     
     def __repr__(self):
         return "<{} @ {:#x} vid={:#06x} pid={:#06x} sn={} version={}>".format(

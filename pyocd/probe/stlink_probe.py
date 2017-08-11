@@ -222,6 +222,34 @@ class StlinkProbe(DebugProbe):
         else:
             return exc
 
+    def has_swo(self):
+        """! @brief Returns bool indicating whether the link supports SWO."""
+        return True
+
+    def swo_start(self, baudrate):
+        """! @brief Start receiving SWO data at the given baudrate."""
+        try:
+            self._link.swo_start(baudrate)
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
+    def swo_stop(self):
+        """! @brief Stop receiving SWO data."""
+        try:
+            self._link.swo_stop()
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
+    def swo_read(self):
+        """! @brief Read as much buffered SWO data from the target as possible.
+        
+        @eturn Bytearray of the received data.
+        """
+        try:
+            return self._link.swo_read()
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
 ## @brief Concrete memory interface for a single AP.
 class STLinkMemoryInterface(MemoryInterface):
     def __init__(self, link, apsel):
