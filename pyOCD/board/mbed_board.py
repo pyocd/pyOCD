@@ -17,8 +17,8 @@
 
 import sys, os
 import logging, array
-
 from time import sleep
+import colorama
 from board import Board
 from pyOCD.pyDAPAccess import DAPAccess
 
@@ -172,11 +172,9 @@ class MbedBoard(Board):
         """
         all_mbeds = MbedBoard.getAllConnectedBoards(dap_class, close=True,
                                                     blocking=False)
-        index = 0
         if len(all_mbeds) > 0:
-            for mbed in all_mbeds:
+            for index, mbed in enumerate(sorted(all_mbeds, key=lambda x:x.getInfo())):
                 print("%d => %s boardId => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'), mbed.unique_id))
-                index += 1
         else:
             print("No available boards are connected")
 
@@ -243,26 +241,31 @@ class MbedBoard(Board):
 
         # Ask use to select boards if there is more than 1 left
         if len(all_mbeds) > 1:
-            index = 0
-            print "id => usbinfo | boardname"
-            for mbed in all_mbeds:
-                print "%d => %s" % (index, mbed.getInfo().encode('ascii', 'ignore'))
-                index += 1
+            all_mbeds = sorted(all_mbeds, key=lambda x:x.getInfo())
+            print colorama.Fore.BLUE + "## => Board Name | Unique ID"
+            print "-- -- ----------------------"
+            for index, mbed in enumerate(all_mbeds):
+                print colorama.Fore.GREEN + "%2d => %s | %s" % (
+                    index, mbed.getInfo().encode('ascii', 'ignore'),
+                    colorama.Fore.CYAN + mbed.unique_id)
+            print colorama.Fore.RED + " q => Quit"
             while True:
-                print "input id num to choice your board want to connect"
-                line = sys.stdin.readline()
+                print colorama.Style.RESET_ALL
+                print "Enter the number of the board to connect:"
+                line = raw_input("> ")
                 valid = False
+                if line.strip().lower() == 'q':
+                    sys.exit(0)
                 try:
                     ch = int(line)
                     valid = 0 <= ch < len(all_mbeds)
                 except ValueError:
                     pass
                 if not valid:
-                    logging.info("BAD CHOICE: %s", line)
-                    index = 0
-                    for mbed in all_mbeds:
-                        print "%d => %s" % (index, mbed.getInfo())
-                        index += 1
+                    print colorama.Fore.YELLOW + "Invalid choice: %s\n" % line
+                    for index, mbed in enumerate(all_mbeds):
+                        print colorama.Fore.GREEN + "%d => %s" % (index, mbed.getInfo())
+                    print colorama.Fore.RED + "q => Exit"
                 else:
                     break
             all_mbeds = all_mbeds[ch:ch + 1]
