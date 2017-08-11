@@ -94,7 +94,7 @@ class Target(object):
     def halt(self):
         raise NotImplementedError()
 
-    def step(self, disable_interrupts=True):
+    def step(self, disable_interrupts=True, start=0, end=0):
         raise NotImplementedError()
 
     def resume(self):

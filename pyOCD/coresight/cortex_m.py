@@ -441,7 +441,7 @@ class CortexM(Target):
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.dp.flush()
 
-    def step(self, disable_interrupts=True):
+    def step(self, disable_interrupts=True, start=0, end=0):
         """
         perform an instruction level step.  This function preserves the previous
         interrupt mask state
@@ -462,15 +462,29 @@ class CortexM(Target):
         if not interrupts_masked and disable_interrupts:
             self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT | CortexM.C_MASKINTS)
 
-        # Single step using current C_MASKINTS setting
-        if disable_interrupts or interrupts_masked:
-            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)
-        else:
-            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP)
+        while True:
+            # Single step using current C_MASKINTS setting
+            if disable_interrupts or interrupts_masked:
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)
+            else:
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP)
 
-        # Wait for halt to auto set (This should be done before the first read)
-        while not self.readMemory(CortexM.DHCSR) & CortexM.C_HALT:
-            pass
+            # Wait for halt to auto set (This should be done before the first read)
+            while not self.readMemory(CortexM.DHCSR) & CortexM.C_HALT:
+                pass
+
+            # Range is empty, 'range step' will degenerate to 'step'
+            if start == end:
+                break
+
+            # Read program counter and compare to [start, end)
+            program_counter = self.readCoreRegister(CORE_REGISTER['pc'])
+            if program_counter < start or end <= program_counter:
+                break
+
+            # Check other stop reasons
+            if self.readMemory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT):
+                break
 
         # Restore interrupt mask state
         if not interrupts_masked and disable_interrupts:

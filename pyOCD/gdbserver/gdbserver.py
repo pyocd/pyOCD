@@ -659,10 +659,10 @@ class GDBServer(threading.Thread):
 
         return self.createRSPPacket(val)
 
-    def step(self, data):
+    def step(self, data, start=0, end=0):
         addr = self._get_resume_step_addr(data)
         self.log.debug("GDB step: %s", data)
-        self.target.step(not self.step_into_interrupt)
+        self.target.step(not self.step_into_interrupt, start, end)
         return self.createRSPPacket(self.getTResponse())
 
     def halt(self):
@@ -683,7 +683,7 @@ class GDBServer(threading.Thread):
 
         # vCont capabilities query.
         elif 'Cont?' == cmd:
-            return self.createRSPPacket("vCont;c;C;s;S;t")
+            return self.createRSPPacket("vCont;c;C;s;S;r;t")
 
         # vCont, thread action command.
         elif cmd.startswith('Cont'):
@@ -739,14 +739,19 @@ class GDBServer(threading.Thread):
                 return self.createRSPPacket("OK")
             else:
                 return self.resume(None)
-        elif thread_actions[currentThread][0] in ('s', 'S'):
+        elif thread_actions[currentThread][0] in ('s', 'S', 'r'):
+            start = 0
+            end = 0
+            if thread_actions[currentThread][0] == 'r':
+                start, end = [int(addr, base=16) for addr in thread_actions[currentThread][1:].split(',')]
+
             if self.non_stop:
-                self.target.step(not self.step_into_interrupt)
+                self.target.step(not self.step_into_interrupt, start, end)
                 self.packet_io.send(self.createRSPPacket("OK"))
                 self.sendStopNotification()
                 return None
             else:
-                return self.step(None)
+                return self.step(None, start, end)
         elif thread_actions[currentThread] == 't':
             # Must ignore t command in all-stop mode.
             if not self.non_stop:
