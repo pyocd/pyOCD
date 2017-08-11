@@ -3,5 +3,5 @@
 
 pytest
 pytest-catchlog
-coverage
+pytest-cov
 elapsedtimer
