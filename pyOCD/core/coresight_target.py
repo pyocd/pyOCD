@@ -58,12 +58,12 @@ class CoreSightTarget(Target):
 
     def loadSVD(self):
         def svdLoadCompleted(svdDevice):
-            logging.debug("Completed loading SVD")
+#             logging.debug("Completed loading SVD")
             self._svd_device = svdDevice
             self._svd_load_thread = None
 
         if not self._svd_device and self._svd_location:
-            logging.debug("Started loading SVD")
+#             logging.debug("Started loading SVD")
 
             # Spawn thread to load SVD in background.
             self._svd_load_thread = SVDLoader(self._svd_location, svdLoadCompleted)

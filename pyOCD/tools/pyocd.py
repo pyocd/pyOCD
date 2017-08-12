@@ -592,11 +592,8 @@ class PyOCDTool(object):
             self.link = self.board.link
             self.flash = self.board.flash
 
-            self.svd_device = self.target.svd_device
-            self.peripherals = {}
-            if self.svd_device:
-                for p in self.svd_device.peripherals:
-                    self.peripherals[p.name.lower()] = p
+            self._peripherals = {}
+            self._loaded_peripherals = False
 
             # Halt if requested.
             if self.args.halt:
@@ -643,6 +640,14 @@ class PyOCDTool(object):
                 self.board.uninit(False)
 
         return self.exitCode
+    
+    @property
+    def peripherals(self):
+        if self.target.svd_device and not self._loaded_peripherals:
+            for p in self.target.svd_device.peripherals:
+                self._peripherals[p.name.lower()] = p
+            self._loaded_peripherals = True
+        return self._peripherals
 
     def handle_list(self, args):
         MbedBoard.listConnectedBoards()
