@@ -17,6 +17,7 @@
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
+from ..core.instruction import Instruction
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility import conversion
 from .fpb import FPB
@@ -463,6 +464,16 @@ class CortexM(Target):
             self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT | CortexM.C_MASKINTS)
 
         while True:
+            # Before step, check the instruction is out of instruction record or not.
+            if not self.instruction_record.next():
+                # If there is no next instruction in instruction record, append it.
+                pc = self.readCoreRegister(CORE_REGISTER['pc'])
+                instr = self.read16(pc)
+                # TODO: process thumb2 instructions
+
+                instruction = Instruction(instr, self)
+                self.instruction_record.append(instruction)
+
             # Single step using current C_MASKINTS setting
             if disable_interrupts or interrupts_masked:
                 self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)

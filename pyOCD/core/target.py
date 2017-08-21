@@ -16,6 +16,7 @@
 """
 
 from .memory_map import MemoryMap
+from .instruction_record import InstructionRecord
 
 class Target(object):
 
@@ -59,6 +60,8 @@ class Target(object):
         self.has_fpu = False
         self._svd_location = None
         self._svd_device = None
+        self.instruction_record = InstructionRecord()
+
 
     @property
     def svd_device(self):
