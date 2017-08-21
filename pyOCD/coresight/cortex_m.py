@@ -506,6 +506,9 @@ class CortexM(Target):
 
         self._run_token += 1
 
+    def reverse_step(self):
+        self.instruction_record.prev()
+
     def clearDebugCauseBits(self):
         self.writeMemory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 

@@ -100,6 +100,9 @@ class Target(object):
     def step(self, disable_interrupts=True, start=0, end=0):
         raise NotImplementedError()
 
+    def reverse_step(self):
+        raise NotImplementedError()
+
     def resume(self):
         raise NotImplementedError()
 

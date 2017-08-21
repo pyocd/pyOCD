@@ -116,6 +116,9 @@ class CoreSightTarget(Target):
     def step(self, disable_interrupts=True, start=0, end=0):
         return self.selected_core.step(disable_interrupts, start, end)
 
+    def reverse_step(self):
+        return self.selected_core.reverse_step()
+
     def resume(self):
         return self.selected_core.resume()
 
