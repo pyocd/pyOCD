@@ -514,6 +514,8 @@ class CortexM(Target):
         reset a core. After a call to this function, the core
         is running
         """
+        self.instruction_record.flush()
+
         if software_reset == None:
             # Default to software reset if nothing is specified
             software_reset = True
@@ -549,6 +551,8 @@ class CortexM(Target):
         perform a reset and stop the core on the reset handler
         """
         logging.debug("reset stop on Reset")
+
+        self.instruction_record.flush()
 
         # halt the target
         self.halt()
@@ -608,6 +612,8 @@ class CortexM(Target):
         """
         resume the execution
         """
+        self.instruction_record.flush()
+
         if self.getState() != Target.TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
