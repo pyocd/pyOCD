@@ -286,6 +286,7 @@ class GDBServer(threading.Thread):
         self.COMMANDS = {
         #       CMD    HANDLER                  START    DESCRIPTION
                 '?' : (self.stopReasonQuery,    0   ), # Stop reason query.
+                'b' : (self.reverse_step,       1   ), # Reverse step.
                 'C' : (self.resume,             1   ), # Continue (at addr)
                 'c' : (self.resume,             1   ), # Continue with signal.
                 'D' : (self.detach,             1   ), # Detach.
@@ -665,6 +666,10 @@ class GDBServer(threading.Thread):
         self.target.step(not self.step_into_interrupt, start, end)
         return self.createRSPPacket(self.getTResponse())
 
+    def reverse_step(self, data):
+        self.target.reverse_step()
+        return self.createRSPPacket(self.getTResponse())
+
     def halt(self):
         self.target.halt()
         return self.createRSPPacket(self.getTResponse())
@@ -962,7 +967,7 @@ class GDBServer(threading.Thread):
             self.gdb_features = query[1].split(';')
 
             # Build our list of features.
-            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+']
+            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+', 'ReverseStep+']
             features.append('PacketSize=' + hex(self.packet_size)[2:])
             if self.target_facade.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')
