@@ -248,6 +248,17 @@ COMMAND_INFO = {
             'help' : "Set an option value",
             'extra_help' : "Available info names: vc, vectorcatch.",
             },
+        'initdp' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "Init DP and power up debug.",
+            },
+        'makeap' : {
+            'aliases' : [],
+            'args' : "APSEL [mem]",
+            'help' : "Creates a new AP object for the given APSEL and optional type.",
+            'extra_help' : "Either a generic AP or a MEM-AP will be created depending on whether 'mem' is passed for the second, optional parameter.",
+            },
         }
 
 INFO_HELP = {
@@ -496,6 +507,8 @@ class PyOCDTool(object):
                 'set' :     self.handle_set,
                 'help' :    self.handle_help,
                 '?' :       self.handle_help,
+                'initdp' :  self.handle_initdp,
+                'makeap' :  self.handle_makeap,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -1003,6 +1016,7 @@ class PyOCDTool(object):
                     'target' : self.target,
                     'link' : self.link,
                     'flash' : self.flash,
+                    'dp' : self.target.dp,
                 }
             result = eval(args, globals(), env)
             if result is not None:
@@ -1069,6 +1083,26 @@ class PyOCDTool(object):
             data_arg = 2
         data = self.convert_value(args[data_arg])
         self.target.dp.writeAP(addr, data)
+
+    def handle_initdp(self, args):
+        self.target.dp.init()
+        self.target.dp.power_up_debug()
+
+    def handle_makeap(self, args):
+        if len(args) < 1:
+            print("Missing APSEL")
+            return
+        apsel = self.convert_value(args[0])
+        makeMemAp = (len(args) == 2 and args[1].lower() == 'mem')
+        if self.target.aps.has_key(apsel):
+            print("AP with APSEL=%d already exists" % apsel)
+            return
+        if makeMemAp:
+            ap = pyOCD.coresight.ap.MEM_AP(self.target.dp, apsel)
+        else:
+            ap = pyOCD.coresight.ap.AccessPort(self.target.dp, apsel)
+        ap.init(bus_accessible=False)
+        self.target.aps[apsel] = ap
 
     def handle_reinit(self, args):
         self.target.init()
