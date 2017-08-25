@@ -469,9 +469,13 @@ class CortexM(Target):
                 # If there is no next instruction in instruction record, append it.
                 pc = self.readCoreRegister(CORE_REGISTER['pc'])
                 instr = self.read16(pc)
-                # TODO: process thumb2 instructions
+                size = 16
+                if not Instruction.is_thumb16(instr):
+                    instr_high = self.read16(pc+2)
+                    instr = (instr_high << 16) | instr
+                    size = 32
 
-                instruction = Instruction(instr, self)
+                instruction = Instruction(instr, size, self)
                 self.instruction_record.append(instruction)
 
             # Single step using current C_MASKINTS setting

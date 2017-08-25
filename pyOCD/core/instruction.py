@@ -14,20 +14,19 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-thumb16_decoder_registry = {}
-def thumb16_decoder(cls):
-    thumb16_decoder_registry[cls.group] = cls
+decoder_registry = {}
+def decoder(cls):
+    decoder_registry[cls.group] = cls
     return cls
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_0(object):
     group = 0
     def decode(self, instr):
         rd = instr.instruction & 0x7
         instr.append_reg(rd)
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_1(object):
     group = 1
     def decode(self, instr):
@@ -38,7 +37,7 @@ class thumb16_decode_1(object):
             rd = (instr.instruction >> 8) & 0x7
             instr.append_reg(rd)
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_2(object):
     group = 2
     def decode(self, instr):
@@ -75,7 +74,7 @@ class thumb16_decode_2(object):
             rt = instruction & 0x7
             instr.append_reg(rt)
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_3(object):
     group = 3
     def decode(self, instr):
@@ -97,7 +96,7 @@ class thumb16_decode_3(object):
             rt = instruction & 0x7
             instr.append_reg(rt)
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_4(object):
     group = 4
     def decode(self, instr):
@@ -121,7 +120,7 @@ class thumb16_decode_4(object):
             rt = (instruction >> 8) & 0x7
             instr.append_reg(rt)
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_5(object):
     group = 5
     def decode(self, instr):
@@ -160,7 +159,7 @@ class thumb16_decode_5(object):
                         reg_no = reg_no + 1
                         register_list = register_list >> 1
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_6(object):
     group = 6
     def decode(self, instr):
@@ -200,11 +199,210 @@ class thumb16_decode_6(object):
             else:  # B
                 pass
 
-@thumb16_decoder
+@decoder
 class thumb16_decode_7(object):
     group = 7
     def decode(self, instr):
         pass
+
+@decoder
+class thumb32_decode_1(object):
+    group = 8
+    def decode(self, instr):
+        instruction = instr.instruction
+        opcode_9_10 = (instruction >> 9) & 0x3
+        if opcode_9_10 == 0:
+            opcode_6_8 = (instruction >> 6) & 0x7
+            opcode_4_8 = (instruction >> 4) & 0x1F
+            if opcode_6_8 == 0x2:  # STM, LDM, POP
+                rn = instruction & 0xF
+                register_list = (instruction >> 16) & 0xFFFF
+                if (instruction >> 4) & 0x1:  # POP, LDM
+                    reg_no = 0
+                    while register_list != 0:
+                        if register_list & 0x1:
+                            instr.append_reg(reg_no)
+                        reg_no = reg_no + 1
+                        register_list = register_list >> 1
+                    instr.append_reg(rn)
+                else:  # STM
+                    address = instr.core.readCoreRegisterRaw(rn)
+                    bit_count = 0
+                    while register_list != 0:
+                        if register_list & 0x1:
+                            instr.append_mem(address + 4 * bit_count, 32)
+                            bit_count = bit_count + 1
+                        register_list = register_list >> 1
+                    instr.append(rn)
+            elif opcode_6_8 == 0x4:  # STMDB, PUSH, LDMDB
+                rn = instruction & 0xF
+                register_list = (instruction >> 16) & 0xFFFF
+                if (instruction >> 4) & 0x1:  # LDMDB
+                    reg_no = 0
+                    while register_list != 0:
+                        if register_list & 0x1:
+                            instr.append_reg(reg_no)
+                        reg_no = reg_no + 1
+                        register_list = register_list >> 1
+                else:  # PUSH, STMDB
+                    address = instr.core.readCoreRegisterRaw(rn)
+                    bit_count = 0
+                    while register_list != 0:
+                        if register_list & 0x1:
+                            bit_count = bit_count + 1
+                            instr.append_mem(address - 4 * bit_count, 32)
+                        register_list = register_list >> 1
+                    instr.append_reg(rn)
+            elif opcode_4_8 == 0x4:   # STREX
+                imm = (instruction >> 16) & 0xFF
+                rd = (instruction >> 24) & 0xF
+                rn = instruction & 0xF
+                rn_value = instr.core.readCoreRegisterRaw(rn)
+                address = rn_value + (imm << 2)
+                instr.append_mem(address, 32)
+                instr.append_reg(rd)
+            elif opcode_4_8 == 0x5:   # LDREX
+                rt = (instruction >> 28) & 0xF
+                instr.append_reg(rt)
+            elif opcode_4_8 == 0xC:  # STREXB, STREXH
+                rn = instruction & 0xF
+                address = instr.core.readCoreRegisterRaw(rn)
+                op3 = (instruction >> 20) & 0xF
+                if op3 == 0b0100:  # STREXB
+                    instr.append_mem(address, 8)
+                elif op3 == 0b0101:  # STREXH
+                    instr.append_mem(address, 16)
+
+                rd = (instruction >> 16) & 0xF
+                instr.append_reg(rd)
+            elif opcode_4_8 == 0xD:  # TBB, LDREXB, LDREXH
+                rt = (instruction >> 28) & 0xF
+                if rt != 0xF:  #  LDREXB, LDREXH
+                    instr.append_reg(rt)
+            else:
+                if (instruction >> 4) & 0x1:  # LDRD
+                    rn = instruction & 0xF
+                    rt = (instruction >> 28) & 0xF
+                    rt2 = (instruction >> 24) & 0xF
+                    instr.append_reg(rn)
+                    instr.append_reg(rt)
+                    instr.append_reg(rt2)
+                else:  # STRD
+                    index = (instruction >> 8) & 0x1
+                    add = (instruction >> 7) & 0x1
+                    rn = instruction & 0xF
+                    rn_value = instr.core.readCoreRegisterRaw(rn)
+                    imm = (instruction >> 16) & 0xFF
+
+                    offset = 0
+                    if add:
+                        offset = rn_value + (imm << 2)
+                    else:
+                        offset = rn_value - (imm << 2)
+
+                    address = 0
+                    if index:
+                        address = offset
+                    else:
+                        address = rn_value
+
+                    instr.append_mem(address, 32)
+                    instr.append_mem(address + 4, 32)
+                    instr.append_reg(rn)
+        elif opcode_9_10 == 1:
+            rd = (instruction >> 24) & 0xF
+            if rd != 0xF:
+                instr.append_reg(rd)
+        elif opcode_9_10 == 2 or opcode_9_10 == 3:  # Coprocessor instructions
+            pass
+
+@decoder
+class thumb32_decode_2(object):
+    group = 9
+    def decode(self, instr):
+        instruction = instr.instruction
+        if (instruction >> 31) & 0x1:
+            if ((instruction >> 28) & 0x1) and ((instruction >> 30) & 0x1):  # BL
+                instr.append_reg('lr')
+        else:
+            opcode = (instruction >> 4) & 0x3F
+            rd = (instruction >> 24) & 0xF
+            if (opcode == 0x1) and (rd == 0xF):     # TST(imm)
+                return
+            elif (opcode == 0x9) and (rd == 0xF):   # TEQ(imm)
+                return
+            elif (opcode == 0x11) and (rd == 0xF):  # CMN(imm)
+                return
+            elif (opcode == 0x1B) and (rd == 0xF):  # CMP(imm)
+                return
+
+            instr.append_reg(rd)
+
+@decoder
+class thumb32_decode_3(object):
+    group = 10
+    def decode(self, instr):
+        instruction = instr.instruction
+        opcode = (instruction >> 9) & 0x3
+        if opcode == 0x0:
+            if (instruction >> 4) & 0x1:
+                rt = (instruction >> 28) & 0xF
+                if rt != 0xF:
+                    instr.append_reg(rt)
+                    rn = instruction & 0xF
+                    if rn != 0xF:
+                        instr.append_reg(rn)
+            else:  # Store single data item.
+                rn = instruction & 0xF
+                rn_value = instr.core.readCoreRegisterRaw(rn)
+                opcode_4_6 = (instruction >> 4) & 0x7
+                if (instruction >> 7) & 0x1:  # STRB(imm)(2), STRH(imm)(2), STR(imm)(2)
+                    imm = (instruction >> 16) & 0xFFF
+                    address = rn_value + imm
+                else:
+                    if (instruction >> 27) & 0x1:  # STRB(imm)(3), STRH(imm)(3), STR(imm)(3)
+                        index = (instruction >> 26) & 0x1
+                        add = (instruction >> 25) & 0x1
+                        imm = (instruction >> 16) & 0xFF
+                        offset = 0
+                        if add:
+                            offset = rn_value + imm
+                        else:
+                            offset = rn_value - imm
+
+                        address = 0
+                        if index:
+                            address = offset
+                        else:
+                            address = rn_value
+
+                        instr.append_reg(rn)
+                    else:  # STRB(reg), STRH(reg), STR(reg)
+                        shift_n = (instruction >> 20) & 0x3
+                        rm = (instruction >> 16) & 0xF
+                        rm_value = instr.core.readCoreRegisterRaw(rm)
+                        offset = rm_value << shift_n
+                        address = rn_value + offset
+
+                if opcode_4_6 == 0:
+                    instr.append_mem(address, 8)
+                elif opcode_4_6 == 2:
+                    instr.append_mem(address, 16)
+                elif opcode_4_6 == 4:
+                    instr.append_mem(address, 32)
+        elif opcode == 0x1:
+            rd = (instruction >> 24) & 0xF
+            instr.append_reg(rd)
+            opcode_4_8 = (instruction >> 4) & 0x1F
+            if ((opcode_4_8 == 0x18) or  # SMULL
+                (opcode_4_8 == 0x1A) or  # UMULL
+                (opcode_4_8 == 0x1C) or  # SMLAL, SMLALBB, SMLALD
+                (opcode_4_8 == 0x1D) or  # SMLSLD
+                (opcode_4_8 == 0x1E)):   # UMLAL, UMAAL
+                rdlo = (instruction >> 28) & 0xF
+                instr.append_reg(rdlo)
+        elif (opcode == 0x2) or (opcode == 0x3):  # Coprocessor instructions.
+            pass
 
 class Instruction(object):
     class RegisterAccess(object):
@@ -218,11 +416,15 @@ class Instruction(object):
             self.size = size
             self.value = value
 
-    def __init__(self, instruction, core):
+    def __init__(self, instruction, size, core):
         self.core = core 
         self.instruction = instruction
+        self.size = size
         group_id = (self.instruction >> 13) & 0x7
-        self.decoder = thumb16_decoder_registry[group_id]()
+        if self.size == 32:
+            op1 = (self.instruction >> 11) & 0x3
+            group_id = group_id + op1
+        self.decoder = decoder_registry[group_id]()
         self.registers = []
         self.memory_access = []
 
@@ -240,6 +442,13 @@ class Instruction(object):
 
     def decode(self):
         self.decoder.decode(self)
+
+    @staticmethod
+    def is_thumb16(instruction):
+        opcode = (instruction >> 11) & 0x1F
+        if (opcode == 0b11101) or (opcode == 0b11110) or (opcode == 0b11111):
+            return False
+        return True
 
     def append_reg(self, reg):
         reg_no = self.core.registerNameToIndex(reg)
