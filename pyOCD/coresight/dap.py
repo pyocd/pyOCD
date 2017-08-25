@@ -110,7 +110,13 @@ class DebugPort(object):
         # Connect to the target.
         self.link.connect()
         self.link.swj_sequence()
-        self.read_id_code()
+        try:
+            self.read_id_code()
+        except DAPAccess.TransferError:
+            # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
+            # in a state where it thought the SWJ sequence was an invalid transfer.
+            self.link.swj_sequence()
+            self.read_id_code()
         self.clear_sticky_err()
 
     def read_id_code(self):
