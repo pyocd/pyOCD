@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,12 +37,42 @@ class Watchpoint(HardwareBreakpoint):
         self.func = 0
 
 class DWT(CoreSightComponent):
-    # DWT (data watchpoint & trace)
-    DWT_CTRL = 0xE0001000
-    DWT_COMP_BASE = 0xE0001020
+    """! @brief Data Watchpoint and Trace unit"""
+    
+    # DWT registers
+    #
+    # The addresses are offsets from the base address.
+    DWT_CTRL = 0x00000000
+    DWT_CYCCNT = 0x00000004
+    DWT_CPICNT = 0x00000008
+    DWT_EXCCNT = 0x0000000C
+    DWT_SLEEPCNT = 0x00000010
+    DWT_LSUCNT = 0x00000014
+    DWT_FOLDCNT = 0x00000018
+    DWT_PCSR = 0x0000001C
+    DWT_COMP_BASE = 0x00000020
     DWT_MASK_OFFSET = 4
     DWT_FUNCTION_OFFSET = 8
     DWT_COMP_BLOCK_SIZE = 0x10
+    
+    DWT_CTRL_NUM_COMP_MASK = (0xF << 28)
+    DWT_CTRL_NUM_COMP_SHIFT = 28
+    DWT_CTRL_CYCEVTENA_MASK = (1 << 22)
+    DWT_CTRL_FOLDEVTENA_MASK = (1 << 21)
+    DWT_CTRL_LSUEVTENA_MASK = (1 << 20)
+    DWT_CTRL_SLEEPEVTENA_MASK = (1 << 19)
+    DWT_CTRL_EXCEVTENA_MASK = (1 << 18)
+    DWT_CTRL_CPIEVTENA_MASK = (1 << 17)
+    DWT_CTRL_EXCTRCENA_MASK = (1 << 16)
+    DWT_CTRL_PCSAMPLENA_MASK = (1 << 12)
+    DWT_CTRL_SYNCTAP_MASK = (0x3 << 10)
+    DWT_CTRL_SYNCTAP_SHIFT = 10
+    DWT_CTRL_CYCTAP_MASK = (1 << 9)
+    DWT_CTRL_POSTINIT_MASK = (0xF << 5)
+    DWT_CTRL_POSTINIT_SHIFT = 5
+    DWT_CTRL_POSTRESET_MASK = (0xF << 1)
+    DWT_CTRL_POSTRESET_SHIFT = 1
+    DWT_CTRL_CYCCNTENA_MASK = (1 << 0)
 
     WATCH_TYPE_TO_FUNCT = {
                             Target.WATCHPOINT_READ: 5,
@@ -54,16 +84,8 @@ class DWT(CoreSightComponent):
     # Breakpoint size = MASK**2
     WATCH_SIZE_TO_MASK = dict((2**i, i) for i in range(0,32))
 
-    @classmethod
-    def factory(cls, ap, cmpid, address):
-        dwt = cls(ap, cmpid, address)
-        assert ap.core
-        ap.core.add_child(dwt)
-        return dwt
-
     def __init__(self, ap, cmpid=None, addr=None):
         super(DWT, self).__init__(ap, cmpid, addr)
-        assert self.address == DWT.DWT_CTRL, "Unexpected DWT base address 0x%08x" % self.address
         self.watchpoints = []
         self.watchpoint_used = 0
         self.dwt_configured = False
@@ -73,15 +95,22 @@ class DWT(CoreSightComponent):
     # Reads the number of hardware watchpoints available on the core  and makes sure that they
     # are all disabled and ready for future use.
     def init(self):
+        # Make sure trace is enabled.
         demcr = self.ap.read_memory(DEMCR)
-        demcr = demcr | DEMCR_TRCENA
-        self.ap.write_memory(DEMCR, demcr)
-        dwt_ctrl = self.ap.read_memory(DWT.DWT_CTRL)
-        watchpoint_count = (dwt_ctrl >> 28) & 0xF
+        if (demcr & DEMCR_TRCENA) == 0:
+            demcr |= DEMCR_TRCENA
+            self.ap.write_memory(DEMCR, demcr)
+        
+        dwt_ctrl = self.ap.read_memory(self.address + DWT.DWT_CTRL)
+        watchpoint_count = (dwt_ctrl & DWT.DWT_CTRL_NUM_COMP_MASK) >> DWT.DWT_CTRL_NUM_COMP_SHIFT
         logging.info("%d hardware watchpoints", watchpoint_count)
         for i in range(watchpoint_count):
-            self.watchpoints.append(Watchpoint(DWT.DWT_COMP_BASE + DWT.DWT_COMP_BLOCK_SIZE*i, self))
-            self.ap.write_memory(DWT.DWT_COMP_BASE + DWT.DWT_COMP_BLOCK_SIZE*i + DWT.DWT_FUNCTION_OFFSET, 0)
+            comparatorAddress = self.address + DWT.DWT_COMP_BASE + DWT.DWT_COMP_BLOCK_SIZE * i
+            self.watchpoints.append(Watchpoint(comparatorAddress, self))
+            self.ap.write_memory(comparatorAddress + DWT.DWT_FUNCTION_OFFSET, 0)
+        
+        # Enable cycle counter.
+        self.ap.write32(self.address + DWT.DWT_CTRL, DWT.DWT_CTRL_CYCCNTENA_MASK)
         self.dwt_configured = True
 
     def find_watchpoint(self, addr, size, type):
@@ -136,4 +165,12 @@ class DWT(CoreSightComponent):
         watch.func = 0
         self.ap.write_memory(watch.comp_register_addr + DWT.DWT_FUNCTION_OFFSET, 0)
         self.watchpoint_used -= 1
+    
+    @property
+    def cycle_count(self):
+        return self.ap.read32(self.address + DWT.DWT_CYCCNT)
+    
+    @cycle_count.setter
+    def cycle_count(self, value):
+        self.ap.write32(self.address + DWT.DWT_CYCCNT, value)
 
