@@ -286,7 +286,7 @@ class GDBServer(threading.Thread):
         self.COMMANDS = {
         #       CMD    HANDLER                  START    DESCRIPTION
                 '?' : (self.stopReasonQuery,    0   ), # Stop reason query.
-                'b' : (self.reverse_step,       1   ), # Reverse step.
+                'b' : (self.reverse_exec,       1   ), # Reverse execution.
                 'C' : (self.resume,             1   ), # Continue (at addr)
                 'c' : (self.resume,             1   ), # Continue with signal.
                 'D' : (self.detach,             1   ), # Detach.
@@ -666,8 +666,14 @@ class GDBServer(threading.Thread):
         self.target.step(not self.step_into_interrupt, start, end)
         return self.createRSPPacket(self.getTResponse())
 
-    def reverse_step(self, data):
-        self.target.reverse_step()
+    def reverse_exec(self, data):
+        data = data.split('#')[0]
+
+        # Only support 'bs' now.
+        if data[1] == 's':
+            self.target.reverse_step()
+        elif data[1] == 'c':
+            self.createRSPPacket('E01')
         return self.createRSPPacket(self.getTResponse())
 
     def halt(self):
