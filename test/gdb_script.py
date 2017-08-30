@@ -435,20 +435,22 @@ def run_test():
             # -test reset catch
         # TODO,c1728p9 - test signals/hard fault
 
+## Stepping removed as a workaround for a GDB bug. Launchpad issue tracking this is here:
+## https://bugs.launchpad.net/gcc-arm-embedded/+bug/1700595
         # Test reverse stepping
-        recorded_pc = []
-        for i in range(TEST_STEP_COUNT):
-            pc = gdb.selected_frame().pc()
-            recorded_pc.append(pc)
-            gdb.execute("si")
+        # recorded_pc = []
+        # for i in range(TEST_STEP_COUNT):
+        #     pc = gdb.selected_frame().pc()
+        #     recorded_pc.append(pc)
+        #     gdb.execute("si")
 
-        for i in range(TEST_STEP_COUNT):
-            gdb.execute("rsi")
-            pc = gdb.selected_frame().pc()
-            if pc != recorded_pc.pop():
-                fail_count += 1
-                print("Error - reverse step to wrong $pc")
-                break
+        # for i in range(TEST_STEP_COUNT):
+        #     gdb.execute("rsi")
+        #     pc = gdb.selected_frame().pc()
+        #     if pc != recorded_pc.pop():
+        #         fail_count += 1
+        #         print("Error - reverse step to wrong $pc")
+        #         break
 
         if fail_count:
             print("Test completed with %i errors" % fail_count)
