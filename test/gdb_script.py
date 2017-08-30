@@ -58,6 +58,7 @@ STACK_OFFSET = 0x800
 TEST_RAM_OFFSET = 0x800
 MAX_TEST_SIZE = 0x1000
 MAX_BKPT = 10
+TEST_STEP_COUNT = 20
 
 assert STACK_OFFSET < MAX_TEST_SIZE
 assert TEST_RAM_OFFSET < MAX_TEST_SIZE
@@ -433,6 +434,21 @@ def run_test():
             # -test hard fault handling
             # -test reset catch
         # TODO,c1728p9 - test signals/hard fault
+
+        # Test reverse stepping
+        recorded_pc = []
+        for i in range(TEST_STEP_COUNT):
+            pc = gdb.selected_frame().pc()
+            recorded_pc.append(pc)
+            gdb.execute("si")
+
+        for i in range(TEST_STEP_COUNT):
+            gdb.execute("rsi")
+            pc = gdb.selected_frame().pc()
+            if pc != recorded_pc.pop():
+                fail_count += 1
+                print("Error - reverse step to wrong $pc")
+                break
 
         if fail_count:
             print("Test completed with %i errors" % fail_count)
