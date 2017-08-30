@@ -241,6 +241,7 @@ class GDBServer(threading.Thread):
         self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
         self.server_listening_callback = options.get('server_listening_callback', None)
         self.serve_local_only = options.get('serve_local_only', True)
+        self.reverse_debugging = options.get('reverse_debugging', False)
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -973,7 +974,9 @@ class GDBServer(threading.Thread):
             self.gdb_features = query[1].split(';')
 
             # Build our list of features.
-            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+', 'ReverseStep+']
+            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+']
+            if self.reverse_debugging:
+                features.append('ReverseStep+')
             features.append('PacketSize=' + hex(self.packet_size)[2:])
             if self.target_facade.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')
