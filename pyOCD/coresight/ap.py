@@ -148,6 +148,9 @@ class MEM_AP(AccessPort):
         if LOG_DAP:
             self.logger.info("writeMem:%06d }", num)
 
+    def readBaseAddress(self):
+        return self.read_reg(AP_REG['BASE'])
+
     ## @brief Read a memory location.
     #
     # By default, a word will be read.

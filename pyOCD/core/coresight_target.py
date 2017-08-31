@@ -16,7 +16,7 @@
 """
 
 from .target import Target
-from ..coresight import (dap, ap, cortex_m)
+from ..coresight import (dap, ap, cortex_m, cortex_a)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 import threading
@@ -84,13 +84,61 @@ class CoreSightTarget(Target):
         self.dp.init()
         self.dp.power_up_debug()
 
+        print('found this dp: ' + hex(self.readIDCode()))
+        imp_code = (self.readIDCode() & (0x3ff << 1)) >> 1
+
+        if imp_code != 0x23b:
+            print('DP implementer code (%x) != 0x23b (i.e. not ARM?)' % imp_code)
+
+        # dp version:
+        dp_version = (self.readIDCode() >> 12) & 0xf
+
+        print("DP version = %d" % dp_version)
+
+        if dp_version == 2:
+            # this probably means we're using a Cortex-A CPU, like the NXP iMX.7
+            print('Are you using a Cortex-A? ;)')
+            
+            # read DP_TARGETID
+            self.dp.write_reg(dap.DP_REG['SELECT'], 0x2)
+            dp_targetid = self.dp.read_reg(dap.DP_REG['CTRL_STAT'])
+
+            print('DP_TARGETID = %x' % dp_targetid)
+            imp_code = (self.readIDCode() >> 1) & 0x3ff
+            print('Core Implementer: %x' % imp_code)
+
+            # for bw-compatibility, reset DP_SELECT to 0
+            self.dp.write_reg(dap.DP_REG['SELECT'], 0x2)
+
+            # 5 AP's in the Warp 7
+            for i in range(5):
+                idr = self.dp.readAP((i << ap.APSEL_SHIFT) | ap.AP_REG['IDR'], True)
+                print('AP %d: idr= %x' % (i, idr))
+
+                typ = idr & 0xf
+                var = (idr >> 4) & 0xf
+                cls = (idr >> 13) & 0xf
+
+                types = ['JTAG', 'AMBA AHB', 'AMBA APB2/APB3', '', 'AMBA AXI3/AXI4']
+
+                print(' type: %x (%s)' % (typ, '' if typ >= len(types) else types[typ]))
+                print(' variant: %x' % var)
+                print(' class: %x%s' % (cls, ' (mem-ap)' if cls == 8 else ''))
+
+
         # Create an AHB-AP for the CPU.
-        ap0 = ap.AHB_AP(self.dp, 0)
-        ap0.init(bus_accessible)
+        ap0 = ap.AHB_AP(self.dp, 4)
+        # ap0.init(bus_accessible)
         self.add_ap(ap0)
 
+        # print(self.read32(0x80070000))
+
         # Create CortexM core.
-        core0 = cortex_m.CortexM(self.link, self.dp, self.aps[0], self.memory_map)
+        core0 = cortex_a.CortexA(self.link, self.dp, ap0)
+        cpu_id = core0.readCoreType()
+
+        # raise RuntimeError("yayyy")
+        # core0 = cortex_m.CortexM(self.link, self.dp, self.aps[0], self.memory_map)
         if bus_accessible:
             core0.init()
         self.add_core(core0)

@@ -504,8 +504,8 @@ class SemihostAgent(object):
     #   debugging breakpoint.
     def check_and_handle_semihost_request(self):
         # Nothing to do if this is not a bkpt.
-        if (self.context.read32(pyOCD.coresight.cortex_m.CortexM.DFSR) &
-                pyOCD.coresight.cortex_m.CortexM.DFSR_BKPT) == 0:
+        if (self.context.read32(pyOCD.coresight.cortex_m.CortexTarget.DFSR) &
+                pyOCD.coresight.cortex_m.CortexTarget.DFSR_BKPT) == 0:
             return False
 
         pc = self.context.readCoreRegister('pc')

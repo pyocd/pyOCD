@@ -31,7 +31,8 @@ DP_REG = {'IDCODE': DAPAccess.REG.DP_0x0,
 AP_REG = {'CSW' : 0x00,
           'TAR' : 0x04,
           'DRW' : 0x0C,
-          'IDR' : 0xFC
+          'IDR' : 0xFC,
+          'BASE': 0xF0
           }
 
 # DP Control / Status Register bit definitions

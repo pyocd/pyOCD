@@ -17,7 +17,7 @@
 
 from .provider import (TargetThread, ThreadProvider)
 from ..debug.context import DebugContext
-from ..coresight.cortex_m import CORE_REGISTER
+from ..coresight.cortex_target import CORE_REGISTER
 from pyOCD.pyDAPAccess import DAPAccess
 import logging
 

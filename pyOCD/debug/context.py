@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..coresight.cortex_m import CORE_REGISTER
+from ..coresight.cortex_target import CORE_REGISTER
 from ..utility import conversion
 import logging
 

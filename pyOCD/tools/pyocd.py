@@ -391,7 +391,7 @@ class PyOCDConsole(object):
             args = args[1:]
 
             # Handle register name as command.
-            if cmd in pyOCD.coresight.cortex_m.CORE_REGISTER:
+            if cmd in pyOCD.coresight.cortex_target.CORE_REGISTER:
                 self.tool.handle_reg([cmd])
                 return
 
@@ -651,7 +651,7 @@ class PyOCDTool(object):
             show_fields = False
 
         reg = args[0].lower()
-        if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+        if reg in pyOCD.coresight.cortex_target.CORE_REGISTER:
             value = self.target.readCoreRegister(reg)
             if type(value) is int:
                 print "%s = 0x%08x (%d)" % (reg, value, value)
@@ -682,7 +682,7 @@ class PyOCDTool(object):
             raise ToolError("No value specified")
 
         reg = args[0].lower()
-        if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+        if reg in pyOCD.coresight.cortex_target.CORE_REGISTER:
             if reg.startswith('s') and reg != 'sp':
                 value = float(args[1])
             else:
@@ -1072,7 +1072,7 @@ class PyOCDTool(object):
             print "Cores:        %d" % len(self.target.cores)
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print "Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type])
+                print "Core %d type:  %s" % (i, pyOCD.coresight.cortex_target.CORE_TYPE_NAME[core.core_type])
 
     def handle_show_map(self, args):
         print "Region          Start         End                 Size    Blocksize"
@@ -1189,7 +1189,7 @@ Prefix line with ! to execute a shell command."""
                 arg = arg.strip()
                 offset = int(offset.strip(), base=0)
 
-        if arg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+        if arg in pyOCD.coresight.cortex_target.CORE_REGISTER:
             value = self.target.readCoreRegister(arg)
             print "%s = 0x%08x" % (arg, value)
         else:
