@@ -95,6 +95,15 @@ class CortexA(CortexTarget):
     PRSR_RESET_MASK = 0x1 << 2
     PRSR_HALTED_MASK = 0x1 << 4
 
+    DSCCR = 0x028
+    DSCCR_FORCE_WRITE_THROUGH = 0x1 << 2
+    DSCCR_INSTRUCTION_LINEFILL_EVICTION = 0x1 << 1
+    DSCCR_DATA_CACHE_LINEFILL_EVICTION = 0x1 << 0
+
+    DSMCR = 0x02C
+    OSLSR = 0x304
+    OSLAR = 0x300
+
     def __init__(self, link, dp, ap, memoryMap=None, core_num=0):
         super(CortexA, self).__init__(link, dp, ap, memoryMap, core_num)
 
@@ -103,7 +112,23 @@ class CortexA(CortexTarget):
         Writing to LAR allows us to write to debug registers (including halting
         the core in CortexA.halt).
         """
+        # Check whether OS Lock is enabled
+        oslsr = self.read32(self.DEBUG_BASE + CortexA.OSLSR)
+        
+        if oslsr & 0x2:
+            # Disable OS Lock
+            self.write32(self.DEBUG_BASE + CortexA.OSLAR, 0)
+            oslsr = self.read32(self.DEBUG_BASE + CortexA.OSLSR)
+
+        # Acquire write lock to debug registers
         self.write32(self.DEBUG_BASE + CortexA.LAR, 0xC5ACCE55)
+        
+        # Enable Halting Debug Mode
+        dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
+        dscr |= CortexA.DSCR_HALTING_DEBUG_MODE_MASK
+
+        self.write32(self.DEBUG_BASE + CortexA.DSCR, dscr)
+
         self.halt()
 
     def halt(self):
@@ -155,15 +180,16 @@ class CortexA(CortexTarget):
         """
         dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
 
-        print('halted: %x' % (dscr & 0x1))
-        print('moe: %x' % ((dscr & CortexA.DSCR_MOE_MASK) >> CortexA.DSCR_MOE_SHIFT))
-
         complete = dscr & CortexA.DSCR_INSTRCOMPL_MASK
         itren = dscr & CortexA.DSCR_EXECUTE_INSTRUCTION_ENABLE_MASK
         
-        if not complete:
-            # TODO: wait!
-            pass# raise RuntimeError("Instruction not complete yet")
+        count = 0
+        while not complete:
+            if count == 10:
+                raise RuntimeError("Register read timed out")
+            complete = dscr & CortexA.DSCR_INSTRCOMPL_MASK
+            time.sleep(0.5)
+            count += 1
         
         if not itren:
             # Enable instruction execution
@@ -194,16 +220,14 @@ class CortexA(CortexTarget):
         rIndex = self.registerNameToIndex(reg)
         instruction = MCR(14, 0, rIndex, 0, 5, 0)
 
-        assert ((instruction & ~0xEE000E15) >> 12) == rIndex
+        assert ((instruction & 0x0000f000) >> 12) == rIndex
+        assert (instruction &  0xffff0fff) == 0xEE000E15
 
         self.executeInstruction(instruction)
 
         dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
 
         if not(dscr & CortexA.DSCR_DTRTXFULL_MASK):
-            print('value not read from register yet...')
+            raise RuntimeError("Unable to read register")
 
-        reg_value = self.read32(self.DEBUG_BASE + CortexA.DTRTX)
-
-        return reg_value
-
+        return self.read32(self.DEBUG_BASE + CortexA.DTRTX)

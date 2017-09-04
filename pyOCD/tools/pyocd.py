@@ -653,7 +653,7 @@ class PyOCDTool(object):
         reg = args[0].lower()
         if reg in pyOCD.coresight.cortex_target.CORE_REGISTER:
             value = self.target.readCoreRegister(reg)
-            if type(value) is int:
+            if type(value) is int or type(value) is long:
                 print "%s = 0x%08x (%d)" % (reg, value, value)
             elif type(value) is float:
                 print "%s = %g" % (reg, value)
