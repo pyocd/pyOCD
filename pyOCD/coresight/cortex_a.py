@@ -126,27 +126,21 @@ class CortexA(CortexTarget):
         # Enable Halting Debug Mode
         dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
         dscr |= CortexA.DSCR_HALTING_DEBUG_MODE_MASK
-
         self.write32(self.DEBUG_BASE + CortexA.DSCR, dscr)
 
         self.halt()
 
     def halt(self):
         """
+        Halt the CPU core
+
         C11.11.17: Set DBGDRCR.HRQ to 1
         """
         self.write32(self.DEBUG_BASE + CortexA.DRCR, 1)
-
         dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
 
-        count = 0
-
-        while not (dscr & 0x1):
-            if count >= 10:
-                raise RuntimeError("Unable to halt core.")
-            dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
-            count += 1
-            time.sleep(0.5)
+        if not (dscr & 0x1):
+            raise RuntimeError("Unable to halt core.")
 
     def getState(self):
         """
