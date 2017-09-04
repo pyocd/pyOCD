@@ -158,9 +158,6 @@ class CortexA(CortexTarget):
             return Target.TARGET_RESET
         else:
             return Target.TARGET_RUNNING
-    
-    def getDebugReason(self):
-        pass
 
     def executeInstruction(self, instr):
         """
@@ -220,7 +217,6 @@ class CortexA(CortexTarget):
         self.executeInstruction(instruction)
 
         dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
-
         if not(dscr & CortexA.DSCR_DTRTXFULL_MASK):
             raise RuntimeError("Unable to read register")
 
