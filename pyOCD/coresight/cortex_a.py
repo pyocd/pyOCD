@@ -36,6 +36,14 @@ def MCR(cp, opc1, core_reg, cp_reg_n, cp_reg_m, opc_2=0):
 
     return inst
 
+def MOV(dest, src):
+    inst = src & 0xff # rm
+    inst |= (dest & 0xff) << 12 # rd
+    inst |= 0xD << 21 # mov
+    inst |= 0xE << 28 # no condition code
+
+    return inst
+
 class CortexA(CortexTarget):
     
     DEBUG_BASE = 0x30070000
@@ -209,6 +217,12 @@ class CortexA(CortexTarget):
         """
         # Compute the instruction we're using.
         rIndex = self.registerNameToIndex(reg)
+
+        if rIndex == 15:
+            # mov r0, pc
+            self.executeInstruction(MOV(0, 15))
+            rIndex = 0
+
         instruction = MCR(14, 0, rIndex, 0, 5, 0)
 
         assert ((instruction & 0x0000f000) >> 12) == rIndex
