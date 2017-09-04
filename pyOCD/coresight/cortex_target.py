@@ -129,27 +129,6 @@ class CortexTarget(Target):
 
     DEBUG_BASE = 0xE000E000
 
-    # Debug Fault Status Register
-    DFSR = 0xE000ED30
-    DFSR_EXTERNAL = (1 << 4)
-    DFSR_VCATCH = (1 << 3)
-    DFSR_DWTTRAP = (1 << 2)
-    DFSR_BKPT = (1 << 1)
-    DFSR_HALTED = (1 << 0)
-
-    # Debug Exception and Monitor Control Register
-    DEMCR = 0xE000EDFC
-    # DWTENA in armv6 architecture reference manual
-    DEMCR_TRCENA = (1 << 24)
-    DEMCR_VC_HARDERR = (1 << 10)
-    DEMCR_VC_INTERR = (1 << 9)
-    DEMCR_VC_BUSERR = (1 << 8)
-    DEMCR_VC_STATERR = (1 << 7)
-    DEMCR_VC_CHKERR = (1 << 6)
-    DEMCR_VC_NOCPERR = (1 << 5)
-    DEMCR_VC_MMERR = (1 << 4)
-    DEMCR_VC_CORERESET = (1 << 0)
-
     # CPUID Register
     CPUID = 0xD00
 
@@ -168,39 +147,6 @@ class CortexTarget(Target):
     CPUID_IMPLEMENTER_ARM = 0x41
     ARMv6M = 0xC
     ARMv7M = 0xF
-
-    # Debug Core Register Selector Register
-    DCRSR = 0xE000EDF4
-    DCRSR_REGWnR = (1 << 16)
-    DCRSR_REGSEL = 0x1F
-
-    # Debug Halting Control and Status Register
-    DHCSR = 0xE000EDF0
-    C_DEBUGEN = (1 << 0)
-    C_HALT = (1 << 1)
-    C_STEP = (1 << 2)
-    C_MASKINTS = (1 << 3)
-    C_SNAPSTALL = (1 << 5)
-    S_REGRDY = (1 << 16)
-    S_HALT = (1 << 17)
-    S_SLEEP = (1 << 18)
-    S_LOCKUP = (1 << 19)
-    S_RETIRE_ST = (1 << 24)
-    S_RESET_ST = (1 << 25)
-
-    # Debug Core Register Data Register
-    DCRDR = 0xE000EDF8
-
-    # Coprocessor Access Control Register
-    CPACR = 0xE000ED88
-    CPACR_CP10_CP11_MASK = (3 << 20) | (3 << 22)
-
-    NVIC_AIRCR = (0xE000ED0C)
-    NVIC_AIRCR_VECTKEY = (0x5FA << 16)
-    NVIC_AIRCR_VECTRESET = (1 << 0)
-    NVIC_AIRCR_SYSRESETREQ = (1 << 2)
-
-    DBGKEY = (0xA05F << 16)
 
     class RegisterInfo(object):
         def __init__(self, name, bitsize, reg_type, reg_group):
@@ -313,16 +259,6 @@ class CortexTarget(Target):
         self.dwt.init()
         self.sw_bp.init()
 
-    def disconnect(self):
-        # Remove breakpoints.
-        self.bp_manager.remove_all_breakpoints()
-
-        # Disable other debug blocks.
-        self.write32(CortexTarget.DEMCR, 0)
-
-        # Disable core debug.
-        self.write32(CortexTarget.DHCSR, CortexTarget.DBGKEY | 0x0000)
-
     def buildTargetXML(self):
         # Build register_list and targetXML
         self.register_list = []
@@ -346,7 +282,6 @@ class CortexTarget(Target):
 
     ## @brief Read the CPUID register and determine core type.
     def readCoreType(self):
-        print(hex(self.DEBUG_BASE + CortexTarget.CPUID))
         # Read CPUID register
         cpuid = self.readMemory(self.DEBUG_BASE + CortexTarget.CPUID)
 
@@ -356,28 +291,7 @@ class CortexTarget(Target):
 
         self.arch = (cpuid & CortexTarget.CPUID_ARCHITECTURE_MASK) >> CortexTarget.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexTarget.CPUID_PARTNO_MASK) >> CortexTarget.CPUID_PARTNO_POS
-        print("CPU core is %s" % CORE_TYPE_NAME[self.core_type])
-
-    ## @brief Determine if a Cortex-M4 has an FPU.
-    #
-    # The core type must have been identified prior to calling this function.
-    def checkForFPU(self):
-        if self.core_type != ARM_CortexM4:
-            self.has_fpu = False
-            return
-
-        originalCpacr = self.read32(CortexTarget.CPACR)
-        cpacr = originalCpacr | CortexTarget.CPACR_CP10_CP11_MASK
-        self.write32(CortexTarget.CPACR, cpacr)
-
-        cpacr = self.read32(CortexTarget.CPACR)
-        self.has_fpu = (cpacr & CortexTarget.CPACR_CP10_CP11_MASK) != 0
-
-        # Restore previous value.
-        self.write32(CortexTarget.CPACR, originalCpacr)
-
-        if self.has_fpu:
-            logging.info("FPU present")
+        logging.info("CPU core is %s" % CORE_TYPE_NAME[self.core_type])
 
     def readIDCode(self):
         """
@@ -439,141 +353,6 @@ class CortexTarget(Target):
         data = self.ap.readBlockMemoryAligned32(addr, size)
         return self.bp_manager.filter_memory_aligned_32(addr, size, data)
 
-    def halt(self):
-        """
-        halt the core
-        """
-        self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN | CortexTarget.C_HALT)
-        self.dp.flush()
-
-    def step(self, disable_interrupts=True):
-        """
-        perform an instruction level step.  This function preserves the previous
-        interrupt mask state
-        """
-        # Was 'if self.getState() != TARGET_HALTED:'
-        # but now value of dhcsr is saved
-        dhcsr = self.readMemory(CortexTarget.DHCSR)
-        if not (dhcsr & (CortexTarget.C_STEP | CortexTarget.C_HALT)):
-            logging.error('cannot step: target not halted')
-            return
-
-        self.clearDebugCauseBits()
-
-        # Save previous interrupt mask state
-        interrupts_masked = (CortexTarget.C_MASKINTS & dhcsr) != 0
-
-        # Mask interrupts - C_HALT must be set when changing to C_MASKINTS
-        if not interrupts_masked and disable_interrupts:
-            self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN | CortexTarget.C_HALT | CortexTarget.C_MASKINTS)
-
-        # Single step using current C_MASKINTS setting
-        if disable_interrupts or interrupts_masked:
-            self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN | CortexTarget.C_MASKINTS | CortexTarget.C_STEP)
-        else:
-            self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN | CortexTarget.C_STEP)
-
-        # Wait for halt to auto set (This should be done before the first read)
-        while not self.readMemory(CortexTarget.DHCSR) & CortexTarget.C_HALT:
-            pass
-
-        # Restore interrupt mask state
-        if not interrupts_masked and disable_interrupts:
-            # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
-            self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN | CortexTarget.C_HALT)
-
-        self.dp.flush()
-
-        self._run_token += 1
-
-    def clearDebugCauseBits(self):
-        self.writeMemory(CortexTarget.DFSR, CortexTarget.DFSR_DWTTRAP | CortexTarget.DFSR_BKPT | CortexTarget.DFSR_HALTED)
-
-    def reset(self, software_reset=None):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        if software_reset == None:
-            # Default to software reset if nothing is specified
-            software_reset = True
-
-        self._run_token += 1
-
-        if software_reset:
-            # Perform the reset.
-            try:
-                self.writeMemory(CortexTarget.NVIC_AIRCR, CortexTarget.NVIC_AIRCR_VECTKEY | CortexTarget.NVIC_AIRCR_SYSRESETREQ)
-                # Without a flush a transfer error can occur
-                self.dp.flush()
-            except DAPAccess.TransferError:
-                self.dp.flush()
-
-        else:
-            self.dp.reset()
-
-        # Now wait for the system to come out of reset. Keep reading the DHCSR until
-        # we get a good response with S_RESET_ST cleared, or we time out.
-        startTime = time()
-        while time() - startTime < 2.0:
-            try:
-                dhcsr = self.read32(CortexTarget.DHCSR)
-                if (dhcsr & CortexTarget.S_RESET_ST) == 0:
-                    break
-            except DAPAccess.TransferError:
-                self.dp.flush()
-                sleep(0.01)
-
-    def resetStopOnReset(self, software_reset=None):
-        """
-        perform a reset and stop the core on the reset handler
-        """
-        logging.debug("reset stop on Reset")
-
-        # halt the target
-        self.halt()
-
-        # Save CortexM.DEMCR
-        demcr = self.readMemory(CortexTarget.DEMCR)
-
-        # enable the vector catch
-        self.writeMemory(CortexTarget.DEMCR, demcr | CortexTarget.DEMCR_VC_CORERESET)
-
-        self.reset(software_reset)
-
-        # wait until the unit resets
-        while (self.isRunning()):
-            pass
-
-        # restore vector catch setting
-        self.writeMemory(CortexTarget.DEMCR, demcr)
-
-    def setTargetState(self, state):
-        if state == "PROGRAM":
-            self.resetStopOnReset(True)
-            # Write the thumb bit in case the reset handler
-            # points to an ARM address
-            self.writeCoreRegister('xpsr', 0x1000000)
-
-    def getState(self):
-        dhcsr = self.readMemory(CortexTarget.DHCSR)
-        if dhcsr & CortexTarget.S_RESET_ST:
-            # Reset is a special case because the bit is sticky and really means
-            # "core was reset since last read of DHCSR". We have to re-read the
-            # DHCSR, check if S_RESET_ST is still set and make sure no instructions
-            # were executed by checking S_RETIRE_ST.
-            newDhcsr = self.readMemory(CortexTarget.DHCSR)
-            if (newDhcsr & CortexTarget.S_RESET_ST) and not (newDhcsr & CortexTarget.S_RETIRE_ST):
-                return Target.TARGET_RESET
-        if dhcsr & CortexTarget.S_LOCKUP:
-            return Target.TARGET_LOCKUP
-        elif dhcsr & CortexTarget.S_SLEEP:
-            return Target.TARGET_SLEEPING
-        elif dhcsr & CortexTarget.S_HALT:
-            return Target.TARGET_HALTED
-        else:
-            return Target.TARGET_RUNNING
-
     @property
     def run_token(self):
         return self._run_token
@@ -599,18 +378,6 @@ class CortexTarget(Target):
     def findBreakpoint(self, addr):
         return self.bp_manager.find_breakpoint(addr)
 
-    def readCoreRegister(self, reg):
-        """
-        read CPU register
-        Unpack floating point register values
-        """
-        regIndex = self.registerNameToIndex(reg)
-        regValue = self.readCoreRegisterRaw(regIndex)
-        # Convert int to float.
-        if regIndex >= 0x40:
-            regValue = conversion.u32BEToFloat32BE(regValue)
-        return regValue
-
     def registerNameToIndex(self, reg):
         """
         return register index based on name.
@@ -624,141 +391,6 @@ class CortexTarget(Target):
                 logging.error('cannot find %s core register', reg)
                 return
         return reg
-
-    def readCoreRegisterRaw(self, reg):
-        """
-        read a core register (r0 .. r16).
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
-        """
-        vals = self.readCoreRegistersRaw([reg])
-        return vals[0]
-
-    def readCoreRegistersRaw(self, reg_list):
-        """
-        Read one or more core registers
-
-        Read core registers in reg_list and return a list of values.
-        If any register in reg_list is a string, find the number
-        associated to this register in the lookup table CORE_REGISTER.
-        """
-        # convert to index only
-        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
-
-        # Sanity check register values
-        for reg in reg_list:
-            if reg not in CORE_REGISTER.values():
-                raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
-                raise ValueError("attempt to read FPU register without FPU")
-
-        # Begin all reads and writes
-        dhcsr_cb_list = []
-        reg_cb_list = []
-        for reg in reg_list:
-            if (reg < 0) and (reg >= -4):
-                reg = CORE_REGISTER['cfbp']
-
-            # write id in DCRSR
-            self.writeMemory(CortexTarget.DCRSR, reg)
-
-            # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
-            # we're running so slow compared to the target that it's not necessary.
-            # Read it and assert that S_REGRDY is set
-
-            dhcsr_cb = self.readMemory(CortexTarget.DHCSR, now=False)
-            reg_cb = self.readMemory(CortexTarget.DCRDR, now=False)
-            dhcsr_cb_list.append(dhcsr_cb)
-            reg_cb_list.append(reg_cb)
-
-        # Read all results
-        reg_vals = []
-        for reg, reg_cb, dhcsr_cb in zip(reg_list, reg_cb_list, dhcsr_cb_list):
-            dhcsr_val = dhcsr_cb()
-            assert dhcsr_val & CortexTarget.S_REGRDY
-            val = reg_cb()
-
-            # Special handling for registers that are combined into a single DCRSR number.
-            if (reg < 0) and (reg >= -4):
-                val = (val >> ((-reg - 1) * 8)) & 0xff
-
-            reg_vals.append(val)
-
-        return reg_vals
-
-    def writeCoreRegister(self, reg, data):
-        """
-        write a CPU register.
-        Will need to pack floating point register values before writing.
-        """
-        regIndex = self.registerNameToIndex(reg)
-        # Convert float to int.
-        if regIndex >= 0x40:
-            data = conversion.float32beToU32be(data)
-        self.writeCoreRegisterRaw(regIndex, data)
-
-    def writeCoreRegisterRaw(self, reg, data):
-        """
-        write a core register (r0 .. r16)
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
-        """
-        self.writeCoreRegistersRaw([reg], [data])
-
-    def writeCoreRegistersRaw(self, reg_list, data_list):
-        """
-        Write one or more core registers
-
-        Write core registers in reg_list with the associated value in
-        data_list.  If any register in reg_list is a string, find the number
-        associated to this register in the lookup table CORE_REGISTER.
-        """
-        assert len(reg_list) == len(data_list)
-        # convert to index only
-        reg_list = [self.registerNameToIndex(reg) for reg in reg_list]
-
-        # Sanity check register values
-        for reg in reg_list:
-            if reg not in CORE_REGISTER.values():
-                raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 128) or (reg == 33)) and (not self.has_fpu):
-                raise ValueError("attempt to write FPU register without FPU")
-
-        # Read special register if it is present in the list
-        for reg in reg_list:
-            if (reg < 0) and (reg >= -4):
-                specialRegValue = self.readCoreRegister(CORE_REGISTER['cfbp'])
-                break
-
-        # Write out registers
-        dhcsr_cb_list = []
-        for reg, data in zip(reg_list, data_list):
-            if (reg < 0) and (reg >= -4):
-                # Mask in the new special register value so we don't modify the other register
-                # values that share the same DCRSR number.
-                shift = (-reg - 1) * 8
-                mask = 0xffffffff ^ (0xff << shift)
-                data = (specialRegValue & mask) | ((data & 0xff) << shift)
-                specialRegValue = data # update special register for other writes that might be in the list
-                reg = CORE_REGISTER['cfbp']
-
-            # write DCRDR
-            self.writeMemory(CortexTarget.DCRDR, data)
-
-            # write id in DCRSR and flag to start write transfer
-            self.writeMemory(CortexTarget.DCRSR, reg | CortexTarget.DCRSR_REGWnR)
-
-            # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
-            # register write has completed.
-            # Read it and assert that S_REGRDY is set
-            dhcsr_cb = self.readMemory(CortexTarget.DHCSR, now=False)
-            dhcsr_cb_list.append(dhcsr_cb)
-
-        # Make sure S_REGRDY was set for all register
-        # writes
-        for dhcsr_cb in dhcsr_cb_list:
-            dhcsr_val = dhcsr_cb()
-            assert dhcsr_val & CortexTarget.S_REGRDY
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
     #
@@ -792,65 +424,9 @@ class CortexTarget(Target):
         """
         return self.dwt.remove_watchpoint(addr, size, type)
 
-    @staticmethod
-    def _map_to_vector_catch_mask(mask):
-        result = 0
-        if mask & Target.CATCH_HARD_FAULT:
-            result |= CortexTarget.DEMCR_VC_HARDERR
-        if mask & Target.CATCH_BUS_FAULT:
-            result |= CortexTarget.DEMCR_VC_BUSERR
-        if mask & Target.CATCH_MEM_FAULT:
-            result |= CortexTarget.DEMCR_VC_MMERR
-        if mask & Target.CATCH_INTERRUPT_ERR:
-            result |= CortexTarget.DEMCR_VC_INTERR
-        if mask & Target.CATCH_STATE_ERR:
-            result |= CortexTarget.DEMCR_VC_STATERR
-        if mask & Target.CATCH_CHECK_ERR:
-            result |= CortexTarget.DEMCR_VC_CHKERR
-        if mask & Target.CATCH_COPROCESSOR_ERR:
-            result |= CortexTarget.DEMCR_VC_NOCPERR
-        if mask & Target.CATCH_CORE_RESET:
-            result |= CortexTarget.DEMCR_VC_CORERESET
-        return result
-
-    @staticmethod
-    def _map_from_vector_catch_mask(mask):
-        result = 0
-        if mask & CortexTarget.DEMCR_VC_HARDERR:
-            result |= Target.CATCH_HARD_FAULT
-        if mask & CortexTarget.DEMCR_VC_BUSERR:
-            result |= Target.CATCH_BUS_FAULT
-        if mask & CortexTarget.DEMCR_VC_MMERR:
-            result |= Target.CATCH_MEM_FAULT
-        if mask & CortexTarget.DEMCR_VC_INTERR:
-            result |= Target.CATCH_INTERRUPT_ERR
-        if mask & CortexTarget.DEMCR_VC_STATERR:
-            result |= Target.CATCH_STATE_ERR
-        if mask & CortexTarget.DEMCR_VC_CHKERR:
-            result |= Target.CATCH_CHECK_ERR
-        if mask & CortexTarget.DEMCR_VC_NOCPERR:
-            result |= Target.CATCH_COPROCESSOR_ERR
-        if mask & CortexTarget.DEMCR_VC_CORERESET:
-            result |= Target.CATCH_CORE_RESET
-        return result
-
-    def setVectorCatch(self, enableMask):
-        demcr = self.readMemory(CortexTarget.DEMCR)
-        demcr |= CortexTarget._map_to_vector_catch_mask(enableMask)
-        demcr &= ~CortexTarget._map_to_vector_catch_mask(~enableMask)
-        self.writeMemory(CortexTarget.DEMCR, demcr)
-
-    def getVectorCatch(self):
-        demcr = self.readMemory(CortexTarget.DEMCR)
-        return CortexTarget._map_from_vector_catch_mask(demcr)
-
     # GDB functions
     def getTargetXML(self):
         return self.targetXML
-
-    def isDebugTrap(self):
-        debugEvents = self.readMemory(CortexTarget.DFSR) & (CortexTarget.DFSR_DWTTRAP | CortexTarget.DFSR_BKPT | CortexTarget.DFSR_HALTED)
-        return debugEvents != 0
 
     def getTargetContext(self, core=None):
         return self._target_context
