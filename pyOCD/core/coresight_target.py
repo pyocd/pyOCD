@@ -86,9 +86,6 @@ class CoreSightTarget(Target):
 
         imp_code = (self.readIDCode() & (0x3ff << 1)) >> 1
 
-        if imp_code != 0x23b:
-            print('DP implementer code (%x) != 0x23b (i.e. not ARM?)' % imp_code)
-
         # dp version:
         dp_version = (self.readIDCode() >> 12) & 0xf
 
@@ -97,27 +94,10 @@ class CoreSightTarget(Target):
             self.dp.write_reg(dap.DP_REG['SELECT'], 0x2)
             dp_targetid = self.dp.read_reg(dap.DP_REG['CTRL_STAT'])
 
-            print('DP_TARGETID = %x' % dp_targetid)
             imp_code = (self.readIDCode() >> 1) & 0x3ff
-            print('Core Implementer: %x' % imp_code)
 
             # for bw-compatibility, reset DP_SELECT to 0
             self.dp.write_reg(dap.DP_REG['SELECT'], 0x2)
-
-            # 5 AP's in the Warp 7
-            for i in range(5):
-                idr = self.dp.readAP((i << ap.APSEL_SHIFT) | ap.AP_REG['IDR'], True)
-                print('AP %d: idr= %x' % (i, idr))
-
-                typ = idr & 0xf
-                var = (idr >> 4) & 0xf
-                cls = (idr >> 13) & 0xf
-
-                types = ['JTAG', 'AMBA AHB', 'AMBA APB2/APB3', '', 'AMBA AXI3/AXI4']
-
-                print(' type: %x (%s)' % (typ, '' if typ >= len(types) else types[typ]))
-                print(' variant: %x' % var)
-                print(' class: %x%s' % (cls, ' (mem-ap)' if cls == 8 else ''))
             
             # Create an AHB-AP for the CPU.
             ap0 = ap.AHB_AP(self.dp, 4)
