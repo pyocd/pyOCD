@@ -84,7 +84,6 @@ class CoreSightTarget(Target):
         self.dp.init()
         self.dp.power_up_debug()
 
-        print('found this dp: ' + hex(self.readIDCode()))
         imp_code = (self.readIDCode() & (0x3ff << 1)) >> 1
 
         if imp_code != 0x23b:
@@ -93,12 +92,7 @@ class CoreSightTarget(Target):
         # dp version:
         dp_version = (self.readIDCode() >> 12) & 0xf
 
-        print("DP version = %d" % dp_version)
-
         if dp_version == 2:
-            # this probably means we're using a Cortex-A CPU, like the NXP iMX.7
-            print('Are you using a Cortex-A? ;)')
-            
             # read DP_TARGETID
             self.dp.write_reg(dap.DP_REG['SELECT'], 0x2)
             dp_targetid = self.dp.read_reg(dap.DP_REG['CTRL_STAT'])
@@ -124,21 +118,20 @@ class CoreSightTarget(Target):
                 print(' type: %x (%s)' % (typ, '' if typ >= len(types) else types[typ]))
                 print(' variant: %x' % var)
                 print(' class: %x%s' % (cls, ' (mem-ap)' if cls == 8 else ''))
-
-
-        # Create an AHB-AP for the CPU.
-        ap0 = ap.AHB_AP(self.dp, 4)
-        # ap0.init(bus_accessible)
-        self.add_ap(ap0)
-
-        # print(self.read32(0x80070000))
-
-        # Create CortexM core.
-        core0 = cortex_a.CortexA(self.link, self.dp, ap0)
-        cpu_id = core0.readCoreType()
-
-        # raise RuntimeError("yayyy")
-        # core0 = cortex_m.CortexM(self.link, self.dp, self.aps[0], self.memory_map)
+            
+            # Create an AHB-AP for the CPU.
+            ap0 = ap.AHB_AP(self.dp, 4)
+            # ap0.init(bus_accessible)
+            self.add_ap(ap0)
+            core0 = cortex_a.CortexA(self.link, self.dp, ap0)
+            core0.init()
+        else:
+            # Create an AHB-AP for the CPU.
+            ap0 = ap.AHB_AP(self.dp, 0)
+            ap0.init(bus_accessible)
+            self.add_ap(ap0)
+            core0 = cortex_m.CortexM(self.link, self.dp, ap0)
+        
         if bus_accessible:
             core0.init()
         self.add_core(core0)
