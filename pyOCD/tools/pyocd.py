@@ -23,6 +23,7 @@ import sys
 import optparse
 from optparse import make_option
 import traceback
+import six
 
 # Attempt to import readline.
 try:
@@ -675,7 +676,7 @@ class PyOCDTool(object):
         reg = args[0].lower()
         if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
             value = self.target.readCoreRegister(reg)
-            if type(value) is int:
+            if type(value) in six.integer_types:
                 print "%s = 0x%08x (%d)" % (reg, value, value)
             elif type(value) is float:
                 print "%s = %g" % (reg, value)
@@ -1004,7 +1005,7 @@ class PyOCDTool(object):
                 }
             result = eval(args, globals(), env)
             if result is not None:
-                if type(result) is int:
+                if type(result) in six.integer_types:
                     print "0x%08x (%d)" % (result, result)
                 else:
                     print result
