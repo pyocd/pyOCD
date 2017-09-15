@@ -50,6 +50,7 @@ class CoreSightTarget(Target):
         self._root_contexts = {}
         self._new_core_num = 0
         self._elf = None
+        self._irq_table = None
 
     @property
     def selected_core(self):
@@ -279,3 +280,14 @@ class CoreSightTarget(Target):
             core = self._selected_core
         self._root_contexts[core] = context
 
+    @property
+    def irq_table(self):
+        if self._irq_table is None:
+            self._irq_table = cortex_m.CORE_EXCEPTIONS.copy()
+            if self.svd_device is not None:
+                allIrqs = {i.value + 16 : i.name for i in 
+                    [i for p in self.svd_device.peripherals for i in p.interrupts]}
+                self._irq_table.update(allIrqs)
+        return self._irq_table
+        
+        

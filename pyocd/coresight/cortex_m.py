@@ -131,6 +131,20 @@ CORE_REGISTER = {
                  's31': 0x5f,
                  }
 
+CORE_EXCEPTIONS = {
+    0 : "Thread mode",
+    1 : "Reset",
+    2 : "NMI",
+    3 : "HardFault",
+    4 : "MemManageFault",
+    5 : "BusFault",
+    6 : "UsageFault",
+    11 : "SVCall",
+    12 : "DebugMon",
+    14 : "PendSV",
+    15 : "SysTick",
+}
+
 def register_name_to_index(reg):
     if isinstance(reg, str):
         try:
