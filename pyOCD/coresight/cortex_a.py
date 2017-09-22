@@ -16,6 +16,8 @@
 """
 from ..core.target import Target
 from .cortex_target import CortexTarget
+from .fpb import CortexABreakpointProvider
+
 import time
 
 def MCR(cp, opc1, core_reg, cp_reg_n, cp_reg_m, opc_2=0):
@@ -30,9 +32,21 @@ def MCR(cp, opc1, core_reg, cp_reg_n, cp_reg_m, opc_2=0):
     inst |= (core_reg & 0xf) << 12
     inst |= (cp_reg_n & 0xf) << 16
     inst |= (cp_reg_m & 0xf) << 0
-    inst |= (opc_2 & 0x7) << 21
+    inst |= (opc_2 & 0x7) << 5
     inst |= 0xEE << 24
     inst |= 1 << 4
+
+    return inst
+
+def MRC(cp, opc1, core_reg, cp_reg_n, cp_reg_m, opc_2=0):
+    """
+    Assemble a MRC instruction (move to core register from coprocessor
+    register) for ARMv7.
+
+    See ARMv7 A/R Architecture Manual A8.8.98 
+    """
+    inst = MCR(cp, opc1, core_reg, cp_reg_n, cp_reg_m, opc_2)
+    inst |= 1 << 20
 
     return inst
 
@@ -48,9 +62,17 @@ class CortexA(CortexTarget):
     
     DEBUG_BASE = 0x30070000
 
+    IDR = 0x0
+    IDR_WP_OFFSET = 28
+    IDR_WP_MASK = 0xF << IDR_WP_OFFSET
+
+    IDR_BP_OFFSET = 24
+    IDR_BP_MASK = 0xF << IDR_BP_OFFSET
+
     # Debug run control register
     DRCR = 0x090
     DRCR_HALT_MASK = 0x1
+    DRCR_RESTART_MASK = 0x2
 
     # Debug status and control register
     DSCR = 0x088
@@ -115,6 +137,8 @@ class CortexA(CortexTarget):
     def __init__(self, link, dp, ap, memoryMap=None, core_num=0):
         super(CortexA, self).__init__(link, dp, ap, memoryMap, core_num)
 
+        self.fpb = CortexABreakpointProvider(self)
+
     def init(self):
         """
         Writing to LAR allows us to write to debug registers (including halting
@@ -131,10 +155,15 @@ class CortexA(CortexTarget):
         # Acquire write lock to debug registers
         self.write32(self.DEBUG_BASE + CortexA.LAR, 0xC5ACCE55)
         
-        # Enable Halting Debug Mode
+        # Enable Halting Debug Mode and disable interrupts
         dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
         dscr |= CortexA.DSCR_HALTING_DEBUG_MODE_MASK
+        dscr |= CortexA.DSCR_INTERRUPT_DISABLE_MASK
         self.write32(self.DEBUG_BASE + CortexA.DSCR, dscr)
+
+        # wpts = (idr & CortexA.IDR_WP_MASK) >> CortexA.IDR_WP_OFFSET
+
+        # print('%d hw breakpoints and %d hw watchpoints' % (bkpts, wpts))
 
         self.halt()
 
@@ -149,6 +178,15 @@ class CortexA(CortexTarget):
 
         if not (dscr & 0x1):
             raise RuntimeError("Unable to halt core.")
+
+    def resume(self):
+        """
+        Resume the CPU core. Hopefully we can do this by just writing 0 to the
+        halt bit we wrote above, without having to restart the core (well that
+        would be stupid)
+        """
+        self.write32(self.DEBUG_BASE + CortexA.DRCR, CortexA.DRCR_RESTART_MASK)
+        dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
 
     def getState(self):
         """
@@ -215,7 +253,6 @@ class CortexA(CortexTarget):
         - Works by executing the following instruction
         - MCR p14, 0, r<reg>, c0, c5, 0
         """
-        # Compute the instruction we're using.
         rIndex = self.registerNameToIndex(reg)
 
         if rIndex == 15:
@@ -223,7 +260,8 @@ class CortexA(CortexTarget):
             self.executeInstruction(MOV(0, 15))
             rIndex = 0
 
-        instruction = MCR(14, 0, rIndex, 0, 5, 0)
+        # Compute the instruction we're using.
+        instruction = MCR(14, 0, rIndex, 0, 5)
 
         assert ((instruction & 0x0000f000) >> 12) == rIndex
         assert (instruction &  0xffff0fff) == 0xEE000E15
@@ -235,3 +273,80 @@ class CortexA(CortexTarget):
             raise RuntimeError("Unable to read register")
 
         return self.read32(self.DEBUG_BASE + CortexA.DTRTX)
+
+    def writeCoreRegister(self, reg, value):
+        """
+        Write a value to a core register. We do this by writing to the DTRRX
+        register, then copying the value from the coprocessor register to the
+        core register, effectively doing the opposite of readCoreRegister.
+        """
+        rIndex = self.registerNameToIndex(reg)
+
+        dscr = self.read32(self.DEBUG_BASE + CortexA.DSCR)
+
+        if dscr & (1 << 30):
+            # clear RX full flag
+            # copy the value to r0 (clobber r0)
+            print('RX full flag set')
+            self.executeInstruction(MRC(14, 0, 0, 0, 5))
+            self.executeInstruction(0xE3000DEA)
+
+        # print('Writing %x to offset %x' % (value, CortexA.DTRRX))
+        self.write32(self.DEBUG_BASE + CortexA.DTRRX, value)
+
+        if rIndex == 15:
+            self.executeInstruction(MRC(14, 0, 0, 0, 5))
+            self.executeInstruction(MOV(15, 0))
+        else:
+            instr = MRC(14, 0, rIndex, 0, 5)
+
+            print("Executing %x" % instr)
+
+            self.executeInstruction(instr)
+
+    def setWatchpoint(self, address, mask_bit_count = 0, type = Target.WATCHPOINT_READ_WRITE):
+        """Sets a watchpoint at the specified address.
+
+        :param address: memory address to watch
+        :param mask_bit_count: (optional) number of address bits to mask
+        :param type: events to watch for (read/write/read or write)
+
+        See C11.11.44 in the ARMv7 A/R reference manual (DBGWCR, Watchpoint
+        Control Registers).
+
+        TODO: the manual states that after reset a debugger must ensure that
+        all watchpoint control registers must be set to a defined value, before
+        monitor or halting debug mode is enabled.
+        """
+        wp_index = None
+
+        if (addr, mask_bit_count) in self.used_wpts:
+            # wpt @ addr, mask_bit_count already set
+            existing_type, wp_index = self.used_wpts[addr, mask_bit_count]
+
+            if type != existing_type:
+                # update the existing watchpoint to look for both reads and writes
+                type = Target.WATCHPOINT_READ_WRITE
+            else:
+                # we already have an identical watchpoint
+                return
+    
+        if wp_index is not None:
+            if len(self.available_wpts) > 0:
+                wp_index = self.available_wpts.pop()
+            else:
+                raise RuntimeError("No remaining watchpoints available")
+
+        if type == Target.WATCHPOINT_READ:
+            lsc = 1 # match on load, load exc, swap
+        elif type == Target.WATCHPOINT_WRITE:
+            lsc = 2 # match on store, store cond, swap
+        else:
+            lsc = 3 # match on all
+
+        wp_conf = 1 # en
+        wp_conf |= lsc << 3
+        wp_conf |= (mask & 0xf) << 24
+
+        self.write32(self.DEBUG_BASE + CortexA.WCR + (4 * wp_index), wp_conf)
+        self.write32(self.DEBUG_BASE + CortexA.WVR + (4 * wp_index), address)

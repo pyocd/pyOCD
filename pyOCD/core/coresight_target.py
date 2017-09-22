@@ -90,10 +90,6 @@ class CoreSightTarget(Target):
         dp_version = (self.readIDCode() >> 12) & 0xf
 
         if dp_version == 2:
-            # read DP_TARGETID
-            self.dp.write_reg(dap.DP_REG['SELECT'], 0x2)
-            dp_targetid = self.dp.read_reg(dap.DP_REG['CTRL_STAT'])
-
             imp_code = (self.readIDCode() >> 1) & 0x3ff
 
             # for bw-compatibility, reset DP_SELECT to 0

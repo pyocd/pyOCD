@@ -15,6 +15,7 @@
  limitations under the License.
 """
 
+# from .cortex_a import CortexA
 from ..core.target import Target
 from ..debug.breakpoints.provider import (Breakpoint, BreakpointProvider)
 import logging
@@ -111,3 +112,104 @@ class FPB(BreakpointProvider):
                 self.num_hw_breakpoint_used -= 1
                 return
 
+class CortexABreakpointProvider(BreakpointProvider):
+    """Breakpoint manager for Arm Cortex-A.
+    
+    NOTE: this takes the CPU core as an argument, rather than the AP (as with
+    FPB above).
+    """
+
+    IDR = 0x0
+    IDR_BP_OFFSET = 24
+    IDR_BP_MASK = 0xF << IDR_BP_OFFSET
+
+    BCR = 0x140
+    BVR = 0x100
+    
+    def __init__(self, core):
+        self.core = core
+
+        self.available_breakpoints = set()
+        self.used_breakpoints = {}
+    
+    def read(self, offset):
+        """Read from the specified offset from the Debug base address.
+
+        :param offset: Memory offset to read from
+        :return Value read from core (32-bit unsigned integer)
+        """
+        assert offset >= 0
+        assert offset < 0x1000 # rough limit of the debug registers
+
+        return self.core.read32(self.core.DEBUG_BASE + offset)
+
+    def write(self, offset, value):
+        """Write a value to the specified memory offset, measured from the
+        debug base address.
+
+        :param offset: 4-byte aligned memory offset to write to
+        :param value: 32-bit unsigned value to write to memory
+        """
+        assert offset >= 0
+        assert offset < 0x1000 # rough limit of the debug registers
+
+        self.core.write32(self.core.DEBUG_BASE + offset, value)
+    
+    def init(self):
+        """Initialize the hardware breakpoint provider. This should only be
+        called once.
+
+        - Read available breakpoint count from the CPU
+        - Disable all available breakpoints (NOTE: do we need to do this?)
+        """
+        idr = self.read(CortexABreakpointProvider.IDR)
+        bkpts = (idr & CortexABreakpointProvider.IDR_BP_MASK) >> CortexABreakpointProvider.IDR_BP_OFFSET
+
+        self.available_breakpoints = {i for i in range(bkpts)}
+        self.used_bkpts = {}
+    
+    def disable(self):
+        """Disable all managed breakpoints."""
+        for address, index in self.used_bkpts.items():
+            bcr = self.read(CortexABreakpointProvider.BCR + (index * 4))
+
+            if bcr & 1:
+                bcr &= ~1
+                self.write(CortexABreakpointProvider.BCR + (index * 4), bcr)
+        
+    def enable(self):
+        """Enable all of our managed breakpoints."""
+        for address, index in self.used_bkpts.items():
+            bcr = self.read(CortexABreakpointProvider.BCR + (index * 4))
+            bcr |= 1
+            
+            self.write(CortexABreakpointProvider.BCR + (index * 4), bcr)
+
+    def setBreakpoint(self, address):
+        """Sets a breakpoint at the specified address.
+
+        :param address: Physical address to break at
+        """
+        if address in self.used_breakpoints:
+            # bkpt @ address already set
+            return
+
+        bkpt_ix = self.available_breakpoints.pop()
+        self.used_breakpoints[address] = bkpt_ix
+
+        self.write(CortexABreakpointProvider.BVR + (4 * bkpt_ix), address)
+        self.write(CortexABreakpointProvider.BCR + (4 * bkpt_ix), 1)
+
+    def removeBreakpoint(self, address):
+        """Clears a breakpoint at the specified address.
+
+        :param address: Address at which to clear a breakpoint
+
+        If a breakpoint was previously set at that address, disable it, and
+        return the breakpoint to the pool of available breakpoints.
+        """
+        if address in self.used_breakpoints:
+            self.available_breakpoints.add(self.used_breakpoints[address])
+            del self.used_breakpoints[address]
+        
+            self.write(CortexABreakpointProvider.BCR + (4 * bkpt_ix), 0)

@@ -14,10 +14,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from time import time
 import logging
 
 from ..core.target import Target
-from .cortex_target import CortexTarget, ARM_CortexM4
+from .cortex_target import CortexTarget, ARM_CortexM4, CORE_REGISTER
 
 class CortexM(CortexTarget):
 
@@ -346,14 +347,14 @@ class CortexM(CortexTarget):
                 reg = CORE_REGISTER['cfbp']
 
             # write id in DCRSR
-            self.writeMemory(CortexTarget.DCRSR, reg)
+            self.writeMemory(CortexM.DCRSR, reg)
 
             # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
             # we're running so slow compared to the target that it's not necessary.
             # Read it and assert that S_REGRDY is set
 
-            dhcsr_cb = self.readMemory(CortexTarget.DHCSR, now=False)
-            reg_cb = self.readMemory(CortexTarget.DCRDR, now=False)
+            dhcsr_cb = self.readMemory(CortexM.DHCSR, now=False)
+            reg_cb = self.readMemory(CortexM.DCRDR, now=False)
             dhcsr_cb_list.append(dhcsr_cb)
             reg_cb_list.append(reg_cb)
 
@@ -361,7 +362,7 @@ class CortexM(CortexTarget):
         reg_vals = []
         for reg, reg_cb, dhcsr_cb in zip(reg_list, reg_cb_list, dhcsr_cb_list):
             dhcsr_val = dhcsr_cb()
-            assert dhcsr_val & CortexTarget.S_REGRDY
+            assert dhcsr_val & CortexM.S_REGRDY
             val = reg_cb()
 
             # Special handling for registers that are combined into a single DCRSR number.
@@ -429,19 +430,67 @@ class CortexM(CortexTarget):
                 reg = CORE_REGISTER['cfbp']
 
             # write DCRDR
-            self.writeMemory(CortexTarget.DCRDR, data)
+            self.writeMemory(CortexM.DCRDR, data)
 
             # write id in DCRSR and flag to start write transfer
-            self.writeMemory(CortexTarget.DCRSR, reg | CortexTarget.DCRSR_REGWnR)
+            self.writeMemory(CortexM.DCRSR, reg | CortexM.DCRSR_REGWnR)
 
             # Technically, we need to poll S_REGRDY in DHCSR here to ensure the
             # register write has completed.
             # Read it and assert that S_REGRDY is set
-            dhcsr_cb = self.readMemory(CortexTarget.DHCSR, now=False)
+            dhcsr_cb = self.readMemory(CortexM.DHCSR, now=False)
             dhcsr_cb_list.append(dhcsr_cb)
 
         # Make sure S_REGRDY was set for all register
         # writes
         for dhcsr_cb in dhcsr_cb_list:
             dhcsr_val = dhcsr_cb()
-            assert dhcsr_val & CortexTarget.S_REGRDY
+            assert dhcsr_val & CortexM.S_REGRDY
+    
+
+    ## @brief Set a hardware or software breakpoint at a specific location in memory.
+    #
+    # @retval True Breakpoint was set.
+    # @retval False Breakpoint could not be set.
+    def setBreakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
+        return self.bp_manager.set_breakpoint(addr, type)
+
+    ## @brief Remove a breakpoint at a specific location.
+    def removeBreakpoint(self, addr):
+        self.bp_manager.remove_breakpoint(addr)
+
+    def getBreakpointType(self, addr):
+        return self.bp_manager.get_breakpoint_type(addr)
+
+    def availableBreakpoint(self):
+        return self.fpb.available_breakpoints()
+
+    def findWatchpoint(self, addr, size, type):
+        return self.dwt.find_watchpoint(addr, size, type)
+
+    def resume(self):
+        """
+        resume the execution
+        """
+        if self.getState() != Target.TARGET_HALTED:
+            logging.debug('cannot resume: target not halted')
+            return
+        self._run_token += 1
+        self.clearDebugCauseBits()
+        self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+        self.dp.flush()
+
+    def setWatchpoint(self, addr, size, type):
+        """
+        set a hardware watchpoint
+        """
+        return self.dwt.set_watchpoint(addr, size, type)
+
+    def removeWatchpoint(self, addr, size, type):
+        """
+        remove a hardware watchpoint
+        """
+        return self.dwt.remove_watchpoint(addr, size, type)
+
+    def findBreakpoint(self, addr):
+        return self.bp_manager.find_breakpoint(addr)

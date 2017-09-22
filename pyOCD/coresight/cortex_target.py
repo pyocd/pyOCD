@@ -363,21 +363,6 @@ class CortexTarget(Target):
     def isHalted(self):
         return self.getState() == Target.TARGET_HALTED
 
-    def resume(self):
-        """
-        resume the execution
-        """
-        if self.getState() != Target.TARGET_HALTED:
-            logging.debug('cannot resume: target not halted')
-            return
-        self._run_token += 1
-        self.clearDebugCauseBits()
-        self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN)
-        self.dp.flush()
-
-    def findBreakpoint(self, addr):
-        return self.bp_manager.find_breakpoint(addr)
-
     def registerNameToIndex(self, reg):
         """
         return register index based on name.
@@ -391,38 +376,6 @@ class CortexTarget(Target):
                 logging.error('cannot find %s core register', reg)
                 return
         return reg
-
-    ## @brief Set a hardware or software breakpoint at a specific location in memory.
-    #
-    # @retval True Breakpoint was set.
-    # @retval False Breakpoint could not be set.
-    def setBreakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
-        return self.bp_manager.set_breakpoint(addr, type)
-
-    ## @brief Remove a breakpoint at a specific location.
-    def removeBreakpoint(self, addr):
-        self.bp_manager.remove_breakpoint(addr)
-
-    def getBreakpointType(self, addr):
-        return self.bp_manager.get_breakpoint_type(addr)
-
-    def availableBreakpoint(self):
-        return self.fpb.available_breakpoints()
-
-    def findWatchpoint(self, addr, size, type):
-        return self.dwt.find_watchpoint(addr, size, type)
-
-    def setWatchpoint(self, addr, size, type):
-        """
-        set a hardware watchpoint
-        """
-        return self.dwt.set_watchpoint(addr, size, type)
-
-    def removeWatchpoint(self, addr, size, type):
-        """
-        remove a hardware watchpoint
-        """
-        return self.dwt.remove_watchpoint(addr, size, type)
 
     # GDB functions
     def getTargetXML(self):

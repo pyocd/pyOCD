@@ -16,7 +16,7 @@
 """
 
 from ...coresight import (dap, ap)
-from ...coresight.cortex_m import CortexM
+from ...coresight.cortex_m import CortexM, CortexM
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
 import logging
@@ -79,7 +79,7 @@ class Kinetis(CoreSightTarget):
                 # Use the MDM to keep the target halted after reset has been released
                 self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
                 # Enable debug
-                self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN)
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
                 self.dp.assert_reset(False)
                 while self.mdm_ap.read_reg(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
                     logging.debug("Waiting for mdm halt (erase)")
@@ -104,7 +104,7 @@ class Kinetis(CoreSightTarget):
             while self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                 self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             # Enable debug
-            self.writeMemory(CortexTarget.DHCSR, CortexTarget.DBGKEY | CortexTarget.C_DEBUGEN)
+            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
             # Disable holding the core in reset, leave MDM halt on
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
