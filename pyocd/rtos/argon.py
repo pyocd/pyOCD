@@ -21,6 +21,8 @@ from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..trace import events
+from ..trace.sink import TraceEventFilter
 import logging
 
 IS_RUNNING_OFFSET = 0x54
@@ -427,4 +429,78 @@ class ArgonThreadProvider(ThreadProvider):
         flag = self._target_context.read8(self.g_ar + IS_RUNNING_OFFSET)
         return flag != 0
 
+## @brief Argon kernel trace event.
+class ArgonTraceEvent(events.TraceEvent):
+    kArTraceThreadSwitch = 1 # 2 value: 0=previous thread's new state, 1=new thread id
+    kArTraceThreadCreated = 2 # 1 value
+    kArTraceThreadDeleted = 3 # 1 value
+    
+    def __init__(self, eventID, threadID, name, state, ts=0):
+        super(ArgonTraceEvent, self).__init__("argon", ts)
+        self._event_id = eventID
+        self._thread_id = threadID
+        self._thread_name = name
+        self._prev_thread_state = state
+    
+    @property
+    def event_id(self):
+        return self._event_id
+    
+    @property
+    def thread_id(self):
+        return self._thread_id
+    
+    @property
+    def thread_name(self):
+        return self._thread_name
+    
+    @property
+    def prev_thread_state(self):
+        return self._prev_thread_state
+    
+    def __str__(self):
+        if self.event_id == ArgonTraceEvent.kArTraceThreadSwitch:
+            stateName = ArgonThread.STATE_NAMES.get(self.prev_thread_state, "<invalid state>")
+            desc = "New thread = {}; old thread state = {}".format(self.thread_name, stateName)
+        elif self.event_id == ArgonTraceEvent.kArTraceThreadCreated:
+            desc = "Created thread {}".format(self.thread_id)
+        elif self.event_id == ArgonTraceEvent.kArTraceThreadDeleted:
+            desc = "Deleted thread {}".format(self.thread_id)
+        else:
+            desc = "Unknown kernel event #{}".format(self.event_id)
+        return "[{}] Argon: {}".format(self.timestamp, desc)
+
+## @brief Trace event filter to identify Argon kernel trace events sent via ITM.
+#
+# As Argon kernel trace events are identified, the ITM trace events are replaced with instances
+# of ArgonTraceEvent.
+class ArgonTraceEventFilter(TraceEventFilter):
+    def __init__(self, threads):
+        super(ArgonTraceEventFilter, self).__init__()
+        self._threads = threads
+        self._is_thread_event_pending = False
+        self._pending_event = None
+        
+    def filter(self, event):
+        if isinstance(event, events.TraceITMEvent):
+            if event.port == 31:
+                eventID = event.data >> 24
+                if eventID in (ArgonTraceEvent.kArTraceThreadSwitch, ArgonTraceEvent.kArTraceThreadCreated, ArgonTraceEvent.kArTraceThreadDeleted):
+                    self._is_thread_event_pending = True
+                    self._pending_event = event
+                    # Swallow the event.
+                    return
+            elif event.port == 30 and self._is_thread_event_pending:
+                eventID = self._pending_event.data >> 24
+                threadID = event.data
+                name = self._threads.get(threadID, "<unknown thread>")
+                state = self._pending_event.data & 0x00ffffff
+                
+                # Create the Argon event.
+                event = ArgonTraceEvent(eventID, threadID, name, state, self._pending_event.timestamp)
+
+                self._is_thread_event_pending = False
+                self._pending_event = None
+
+        return event        
 
