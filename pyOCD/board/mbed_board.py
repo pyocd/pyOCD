@@ -220,11 +220,21 @@ class MbedBoard(Board):
 
         # If a board ID is specified remove all other boards
         if board_id != None:
+            board_id = board_id.lower()
             new_mbed_list = []
             for mbed in all_mbeds:
-                if mbed.unique_id == (board_id):
+                if board_id in mbed.unique_id.lower():
                     new_mbed_list.append(mbed)
-            assert len(new_mbed_list) <= 1
+            if len(new_mbed_list) > 1:
+                print(colorama.Fore.RED + "More than one board matches board ID '%s'" % board_id + colorama.Style.RESET_ALL)
+                all_mbeds = sorted(all_mbeds, key=lambda x:x.getInfo())
+                for mbed in all_mbeds:
+                    head, sep, tail = mbed.unique_id.lower().rpartition(board_id)
+                    highlightedId = head + colorama.Fore.RED + sep + colorama.Style.RESET_ALL + tail
+                    print "%s | %s" % (
+                        mbed.getInfo().encode('ascii', 'ignore'),
+                        highlightedId)
+                return None
             all_mbeds = new_mbed_list
 
         # Return if no boards are connected
@@ -255,7 +265,7 @@ class MbedBoard(Board):
                 line = raw_input("> ")
                 valid = False
                 if line.strip().lower() == 'q':
-                    sys.exit(0)
+                    return None
                 try:
                     ch = int(line)
                     valid = 0 <= ch < len(all_mbeds)

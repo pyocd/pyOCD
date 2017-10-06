@@ -508,7 +508,7 @@ class PyOCDTool(object):
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
         parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
-        parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. ")
+        parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
         parser.add_argument("cmd", nargs='?', default=None, help="Command")
@@ -550,6 +550,8 @@ class PyOCDTool(object):
 
             # Connect to board.
             self.board = MbedBoard.chooseBoard(board_id=self.args.board, target_override=self.args.target, init_board=False, frequency=(self.args.clock * 1000))
+            if self.board is None:
+                return 1
             self.board.target.setAutoUnlock(False)
             self.board.target.setHaltOnConnect(False)
             try:

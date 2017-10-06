@@ -69,7 +69,7 @@ parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-p", "--port"
 # reserved: "-c", "--cmd-port"
 parser.add_argument("-b", "--board", dest="board_id", default=None,
-                    help="Connect to board by board id.  Use -l to list all connected boards.")
+                    help="Connect to board by board ID. Use -l to list all connected boards. Only a unique part of the board ID needs to be provided.")
 parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False,
                     help="List all connected boards.")
 parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info',
