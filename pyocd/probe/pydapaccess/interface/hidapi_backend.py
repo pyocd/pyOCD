@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from .interface import Interface
+from .common import filter_device
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
 import logging
@@ -74,6 +75,9 @@ class HidApiUSB(Interface):
             product_name = to_str_safe(deviceInfo['product_string'])
             if (product_name.find("CMSIS-DAP") < 0):
                 # Skip non cmsis-dap devices
+                continue
+            # Perform device-specific filtering.
+            if filter_device(deviceInfo['vendor_id'], deviceInfo['product_id'], deviceInfo['usage_page']):
                 continue
 
             try:
