@@ -163,7 +163,7 @@ class KW36Z4(Kinetis):
         FlashRegion(name="Dflash",       start=0x10040000,  length=0x40000,      blocksize=0x800)
     memoryMap = MemoryMap(
         FlashRegion(name="Pflash",       start=0,           length=0x40000,      blocksize=0x800, is_boot_memory=True),
-        AliasRegion(name="Dflash alias", start=0x00040000,  length=0x40000,      blocksize=0x800, aliasOf=_dflash),
+        AliasRegion(name="Dflash alias", start=0x00040000,  length=0x40000,      blocksize=0x800, alias_of=_dflash),
         _dflash,
         RamRegion(  name="FlexRAM",      start=0x14000000,  length=0x2000),
         RamRegion(  name="SRAM",         start=0x1fffc000,  length=0x10000)

@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 
 from ..core.coresight_target import CoreSightTarget
 from .family import (target_kinetis, flash_cortex_m)
+from . import target_MIMXRT1021xxxxx
+from . import target_MIMXRT1052xxxxB
 from . import target_MKE15Z256xxx7
 from . import target_MKE18F256xxx16
 from . import target_MKL02Z32xxx4
@@ -101,6 +103,10 @@ TARGET = {
           'lpc11u24': target_LPC11U24FBD64_401.LPC11U24,
           'lpc1768': target_LPC1768.LPC1768,
           'lpc4330': target_LPC4330.LPC4330,
+          'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
+          'mimxrt1050_quadspi': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB,
+          'mimxrt1050_hyperflash': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB,
+          'mimxrt1050': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB, # Alias for default external flash.
           'nrf51': target_nRF51822_xxAA.NRF51,
           'nrf52' : target_nRF52832_xxAA.NRF52,
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
@@ -160,6 +166,10 @@ FLASH = {
          'lpc11u24': target_LPC11U24FBD64_401.Flash_lpc11u24,
          'lpc1768':  target_LPC1768.Flash_lpc1768,
          'lpc4330':  target_LPC4330.Flash_lpc4330,
+         'mimxrt1020': target_MIMXRT1021xxxxx.Flash_MIMXRT1021xxxxx_quadspi,
+         'mimxrt1050_quadspi': target_MIMXRT1052xxxxB.Flash_MIMXRT1052xxxxB_quadspi,
+         'mimxrt1050_hyperflash': target_MIMXRT1052xxxxB.Flash_MIMXRT1052xxxxB_hyperflash,
+         'mimxrt1050': target_MIMXRT1052xxxxB.Flash_MIMXRT1052xxxxB_hyperflash, # Alias for default external flash.
          'nrf51': target_nRF51822_xxAA.Flash_nrf51,
          'nrf52': target_nRF52832_xxAA.Flash_nrf52,
          'nrf52840': target_nRF52840_xxAA.Flash_nrf52840,
