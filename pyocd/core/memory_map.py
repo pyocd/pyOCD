@@ -18,7 +18,7 @@
 from xml.etree import ElementTree
 
 __all__ = ['MemoryRange', 'MemoryRegion', 'MemoryMap', 'RamRegion', 'RomRegion',
-            'FlashRegion', 'DeviceRegion', 'AliasRegion']
+            'FlashRegion', 'DeviceRegion', 'AliasRegion', 'ExternalRegion']
 
 MAP_XML_HEADER = b"""<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
@@ -132,6 +132,10 @@ class MemoryRegion(MemoryRangeBase):
         return self._type == 'flash'
 
     @property
+    def is_external(self):
+        return self._type == 'external'
+
+    @property
     def is_ram(self):
         return self._type == 'ram'
 
@@ -194,6 +198,14 @@ class FlashRegion(MemoryRegion):
             blocksize=blocksize, name=name, is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot,
             is_cacheable=is_cacheable, invalidate_cache_on_run=invalidate_cache_on_run, is_testable=is_testable)
 
+## @brief Contiguous region of external memory.
+class ExternalRegion(MemoryRegion):
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', is_boot_memory=False,
+                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True, is_testable=False):
+        super(ExternalRegion, self).__init__(type='external', start=start, end=end, length=length,
+            blocksize=blocksize, name=name, is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot,
+            is_cacheable=is_cacheable, invalidate_cache_on_run=invalidate_cache_on_run, is_testable=is_testable)
+
 ## @brief Device or peripheral memory.
 class DeviceRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, name='', is_powered_on_boot=True):
@@ -203,12 +215,12 @@ class DeviceRegion(MemoryRegion):
 
 ## @brief Alias of another region.
 class AliasRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', aliasOf=None, is_boot_memory=False,
+    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', alias_of=None, is_boot_memory=False,
                 is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True):
         super(AliasRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
             is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot, is_cacheable=is_cacheable,
             invalidate_cache_on_run=invalidate_cache_on_run, is_testable=False)
-        self._alias_reference = aliasOf
+        self._alias_reference = alias_of
 
     @property
     def aliased_region(self):
