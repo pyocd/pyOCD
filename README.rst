@@ -102,20 +102,20 @@ On Windows, the virtualenv would be activated by executing
 ``env\Scripts\activate``.
 
 To run the unittests, you can execute the following.  Because of how
-nose searches for tests, specifying the directory is important as it
+pytest searches for tests, specifying the directory is important as it
 will otherwise attempt to run non-unit tests as well (which will
 hang).
 
 .. code:: console
 
-    $ nosetests pyOCD/tests
+    $ py.test pyOCD/test
 
 To get code coverage results, do the following:
 
 .. code:: console
 
-    $ nosetests --with-coverage --cover-html --cover-package=pyOCD pyOCD/tests
-    $ firefox cover/index.html
+    $ py.test --cov-report=html --cov=pyOCD pyOCD/test
+    $ firefox htmlcov/index.html
 
 Examples
 --------
