@@ -238,6 +238,7 @@ class GDBServer(threading.Thread):
         self.hide_programming_progress = options.get('hide_programming_progress', False)
         self.fast_program = options.get('fast_program', False)
         self.enable_semihosting = options.get('enable_semihosting', False)
+        self.semihost_console_type = options.get('semihost_console_type', 'telnet')
         self.telnet_port = options.get('telnet_port', 4444)
         self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
         self.server_listening_callback = options.get('server_listening_callback', None)
@@ -269,8 +270,15 @@ class GDBServer(threading.Thread):
         else:
             # Use internal IO handler.
             semihost_io_handler = semihost.InternalSemihostIOHandler()
-        self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
-        self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=self.telnet_console)
+
+        self.log.error("semihosting console = %s" % self.semihost_console_type)
+        if self.semihost_console_type == 'telnet':
+            self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
+            semihost_console = self.telnet_console
+        else:
+            self.telnet_console = None
+            semihost_console = semihost_io_handler
+        self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
 
         # Command handler table.
         #
