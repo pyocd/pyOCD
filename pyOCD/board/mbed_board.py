@@ -77,6 +77,7 @@ BOARD_ID_TO_INFO = {
                 "1080": BoardInfo(  "DT01 + MB2001",        "stm32f103rc",      "l1_stm32f103rc.bin",   ),
                 "1090": BoardInfo(  "DT01 + MB00xx",        "stm32f051",        "l1_stm32f051.bin",     ),
                 "1090": BoardInfo(  "RedBearLab-nRF51822",  "nrf51",            "l1_nrf51.bin",         ),
+                "1093": BoardInfo(  "RedBearLab-BLE-Nano2", "nrf52",            "l1_nrf52-dk.bin",      ),
                 "1095": BoardInfo(  "RedBearLab-BLE-Nano",  "nrf51",            "l1_nrf51.bin",         ),
                 "1100": BoardInfo(  "nRF51-DK",             "nrf51",            "l1_nrf51-dk.bin",      ),
                 "1101": BoardInfo(  "nRF52-DK",             "nrf52",            "l1_nrf52-dk.bin",      ),
