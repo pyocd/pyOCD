@@ -16,6 +16,7 @@
 """
 
 from .memory_map import MemoryMap
+from .instruction_record import InstructionRecord
 
 class Target(object):
 
@@ -59,6 +60,8 @@ class Target(object):
         self.has_fpu = False
         self._svd_location = None
         self._svd_device = None
+        self.instruction_record = InstructionRecord()
+
 
     @property
     def svd_device(self):
@@ -94,7 +97,10 @@ class Target(object):
     def halt(self):
         raise NotImplementedError()
 
-    def step(self, disable_interrupts=True):
+    def step(self, disable_interrupts=True, start=0, end=0):
+        raise NotImplementedError()
+
+    def reverse_step(self):
         raise NotImplementedError()
 
     def resume(self):

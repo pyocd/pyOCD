@@ -242,6 +242,7 @@ class GDBServer(threading.Thread):
         self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
         self.server_listening_callback = options.get('server_listening_callback', None)
         self.serve_local_only = options.get('serve_local_only', True)
+        self.reverse_debugging = options.get('reverse_debugging', False)
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -287,6 +288,7 @@ class GDBServer(threading.Thread):
         self.COMMANDS = {
         #       CMD    HANDLER                  START    DESCRIPTION
                 '?' : (self.stopReasonQuery,    0   ), # Stop reason query.
+                'b' : (self.reverse_exec,       1   ), # Reverse execution.
                 'C' : (self.resume,             1   ), # Continue (at addr)
                 'c' : (self.resume,             1   ), # Continue with signal.
                 'D' : (self.detach,             1   ), # Detach.
@@ -660,10 +662,20 @@ class GDBServer(threading.Thread):
 
         return self.createRSPPacket(val)
 
-    def step(self, data):
+    def step(self, data, start=0, end=0):
         addr = self._get_resume_step_addr(data)
         self.log.debug("GDB step: %s", data)
-        self.target.step(not self.step_into_interrupt)
+        self.target.step(not self.step_into_interrupt, start, end)
+        return self.createRSPPacket(self.getTResponse())
+
+    def reverse_exec(self, data):
+        data = data.split('#')[0]
+
+        # Only support 'bs' now.
+        if data[1] == 's':
+            self.target.reverse_step()
+        elif data[1] == 'c':
+            self.createRSPPacket('E01')
         return self.createRSPPacket(self.getTResponse())
 
     def halt(self):
@@ -684,7 +696,7 @@ class GDBServer(threading.Thread):
 
         # vCont capabilities query.
         elif 'Cont?' == cmd:
-            return self.createRSPPacket("vCont;c;C;s;S;t")
+            return self.createRSPPacket("vCont;c;C;s;S;r;t")
 
         # vCont, thread action command.
         elif cmd.startswith('Cont'):
@@ -740,14 +752,19 @@ class GDBServer(threading.Thread):
                 return self.createRSPPacket("OK")
             else:
                 return self.resume(None)
-        elif thread_actions[currentThread][0] in ('s', 'S'):
+        elif thread_actions[currentThread][0] in ('s', 'S', 'r'):
+            start = 0
+            end = 0
+            if thread_actions[currentThread][0] == 'r':
+                start, end = [int(addr, base=16) for addr in thread_actions[currentThread][1:].split(',')]
+
             if self.non_stop:
-                self.target.step(not self.step_into_interrupt)
+                self.target.step(not self.step_into_interrupt, start, end)
                 self.packet_io.send(self.createRSPPacket("OK"))
                 self.sendStopNotification()
                 return None
             else:
-                return self.step(None)
+                return self.step(None, start, end)
         elif thread_actions[currentThread] == 't':
             # Must ignore t command in all-stop mode.
             if not self.non_stop:
@@ -968,6 +985,8 @@ class GDBServer(threading.Thread):
 
             # Build our list of features.
             features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+']
+            if self.reverse_debugging:
+                features.append('ReverseStep+')
             features.append('PacketSize=' + hex(self.packet_size)[2:])
             if self.target_facade.getMemoryMapXML() is not None:
                 features.append('qXfer:memory-map:read+')

@@ -98,6 +98,7 @@ class GDBServerTool(object):
         parser.add_argument("-G", "--gdb-syscall", dest="semihost_use_syscalls", action="store_true", help="Use GDB syscalls for semihosting file I/O.")
         parser.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+', help="Run command (OpenOCD compatibility).")
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+        parser.add_argument("-R", "--reverse_debugging", dest="reverse_debugging", action="store_true", help="Enable reverse debugging.")
         self.parser = parser
         return parser
 
@@ -144,6 +145,7 @@ class GDBServerTool(object):
             'semihost_use_syscalls' : args.semihost_use_syscalls,
             'serve_local_only' : args.serve_local_only,
             'vector_catch' : self.get_vector_catch(args),
+            'reverse_debugging' : args.reverse_debugging,
         }
 
 

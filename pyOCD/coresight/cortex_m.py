@@ -17,6 +17,7 @@
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
+from ..core.instruction import Instruction
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility import conversion
 from .fpb import FPB
@@ -449,7 +450,7 @@ class CortexM(Target):
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.dp.flush()
 
-    def step(self, disable_interrupts=True):
+    def step(self, disable_interrupts=True, start=0, end=0):
         """
         perform an instruction level step.  This function preserves the previous
         interrupt mask state
@@ -470,15 +471,43 @@ class CortexM(Target):
         if not interrupts_masked and disable_interrupts:
             self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT | CortexM.C_MASKINTS)
 
-        # Single step using current C_MASKINTS setting
-        if disable_interrupts or interrupts_masked:
-            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)
-        else:
-            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP)
+        while True:
+            # Before step, check the instruction is out of instruction record or not.
+            if not self.instruction_record.next():
+                # If there is no next instruction in instruction record, append it.
+                pc = self.readCoreRegister(CORE_REGISTER['pc'])
+                instr = self.read16(pc)
+                size = 16
+                if not Instruction.is_thumb16(instr):
+                    instr_high = self.read16(pc+2)
+                    instr = (instr_high << 16) | instr
+                    size = 32
 
-        # Wait for halt to auto set (This should be done before the first read)
-        while not self.readMemory(CortexM.DHCSR) & CortexM.C_HALT:
-            pass
+                instruction = Instruction(instr, size, self)
+                self.instruction_record.append(instruction)
+
+            # Single step using current C_MASKINTS setting
+            if disable_interrupts or interrupts_masked:
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)
+            else:
+                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP)
+
+            # Wait for halt to auto set (This should be done before the first read)
+            while not self.readMemory(CortexM.DHCSR) & CortexM.C_HALT:
+                pass
+
+            # Range is empty, 'range step' will degenerate to 'step'
+            if start == end:
+                break
+
+            # Read program counter and compare to [start, end)
+            program_counter = self.readCoreRegister(CORE_REGISTER['pc'])
+            if program_counter < start or end <= program_counter:
+                break
+
+            # Check other stop reasons
+            if self.readMemory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT):
+                break
 
         # Restore interrupt mask state
         if not interrupts_masked and disable_interrupts:
@@ -489,6 +518,9 @@ class CortexM(Target):
 
         self._run_token += 1
 
+    def reverse_step(self):
+        self.instruction_record.prev()
+
     def clearDebugCauseBits(self):
         self.writeMemory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 
@@ -497,6 +529,8 @@ class CortexM(Target):
         reset a core. After a call to this function, the core
         is running
         """
+        self.instruction_record.flush()
+
         if software_reset == None:
             # Default to software reset if nothing is specified
             software_reset = True
@@ -532,6 +566,8 @@ class CortexM(Target):
         perform a reset and stop the core on the reset handler
         """
         logging.debug("reset stop on Reset")
+
+        self.instruction_record.flush()
 
         # halt the target
         self.halt()
@@ -591,6 +627,8 @@ class CortexM(Target):
         """
         resume the execution
         """
+        self.instruction_record.flush()
+
         if self.getState() != Target.TARGET_HALTED:
             logging.debug('cannot resume: target not halted')
             return
