@@ -92,6 +92,7 @@ BOARD_ID_TO_INFO = {
                 "9004": BoardInfo(  "Arch Pro",             "lpc1768",          "l1_lpc1768.bin",       ),
                 "9009": BoardInfo(  "Arch BLE",             "nrf51",            "l1_nrf51.bin",         ),
                 "9012": BoardInfo(  "Seeed Tiny BLE",       "nrf51",            "l1_nrf51.bin",         ),
+                "9014": BoardInfo(  "Seeed 96Boards Nitrogen", "nrf52",         "l1_nrf52-dk.bin",      ),
                 "9900": BoardInfo(  "Microbit",             "nrf51",            "l1_microbit.bin",      ),
                 "C004": BoardInfo(  "tinyK20",              "k20d50m",          "l1_k20d50m.bin",       ),
                 "C006": BoardInfo(  "VBLUno51",             "nrf51",            "l1_nrf51.bin",         ),
