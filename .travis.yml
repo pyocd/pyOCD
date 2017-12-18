@@ -1,7 +1,7 @@
 language: python
 sudo: false
 python:
-  - "2.7"
+  - "2.7.9"
 # command to install dependencies
 install: "pip install -r dev-requirements.txt"
 # command to run tests
