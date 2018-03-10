@@ -333,11 +333,19 @@ class CortexM(Target, CoreSightCoreComponent):
         RegisterInfo('sp',      32,         'data_ptr',     'general'),
         RegisterInfo('lr',      32,         'int',          'general'),
         RegisterInfo('pc',      32,         'code_ptr',     'general'),
-        RegisterInfo('xpsr',    32,         'int',          'general'),
         RegisterInfo('msp',     32,         'data_ptr',     'system'),
         RegisterInfo('psp',     32,         'data_ptr',     'system'),
         RegisterInfo('primask', 32,         'int',          'system'),
+        ]
+    
+    regs_xpsr_control_plain = [
+        RegisterInfo('xpsr',    32,         'int',          'general'),
         RegisterInfo('control', 32,         'int',          'system'),
+        ]
+    
+    regs_xpsr_control_fields = [
+        RegisterInfo('xpsr',    32,         'xpsr',         'general'),
+        RegisterInfo('control', 32,         'control',      'system'),
         ]
 
     regs_system_armv7_only = [
@@ -504,13 +512,45 @@ class CortexM(Target, CoreSightCoreComponent):
         self.register_list = []
         xml_root = Element('target')
         xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
-
+        
         def append_regs(regs, xml_element):
             for reg in regs:
                 self.register_list.append(reg)
                 SubElement(xml_element, 'reg', **reg.gdb_xml_attrib)
 
+        # Add general purpose registers.
         append_regs(self.regs_general, xml_regs_general)
+        
+        # Depending on the xpsr_control_fields setting, the XPSR and CONTROL registers are
+        # added as either plain int regs or structured registers with fields defined in the XML.
+        if self.session.options.get('xpsr_control_fields'):
+            # Define XPSR and CONTROL register fields.
+            control = SubElement(xml_regs_general, 'flags', id="control", size="4")
+            SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
+            SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")
+            if self.has_fpu:
+                SubElement(control, "field", name="FPCS", start="2", end="2", type="bool")
+
+            apsr = SubElement(xml_regs_general, 'flags', id="apsr", size="4")
+            SubElement(apsr, "field", name="N", start="31", end="31", type="bool")
+            SubElement(apsr, "field", name="Z", start="30", end="30", type="bool")
+            SubElement(apsr, "field", name="C", start="29", end="29", type="bool")
+            SubElement(apsr, "field", name="V", start="28", end="28", type="bool")
+            SubElement(apsr, "field", name="Q", start="27", end="27", type="bool")
+
+            ipsr = SubElement(xml_regs_general, 'struct', id="ipsr", size="4")
+            SubElement(ipsr, "field", name="EXC", start="0", end="8", type="int")
+        
+            xpsr = SubElement(xml_regs_general, 'union', id="xpsr")
+            SubElement(xpsr, "field", name="xpsr", type="uint32")
+            SubElement(xpsr, "field", name="apsr", type="apsr")
+            SubElement(xpsr, "field", name="ipsr", type="ipsr")
+            
+            append_regs(self.regs_xpsr_control_fields, xml_regs_general)
+        else:
+            # Add XPSR and CONTROL as plain int registers.
+            append_regs(self.regs_xpsr_control_plain, xml_regs_general)
+        
         # Check if target has ARMv7 registers
         if self.arch == CortexM.ARMv7M:
             append_regs(self.regs_system_armv7_only, xml_regs_general)

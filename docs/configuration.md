@@ -217,3 +217,6 @@ These user options are currently only applied when running the GDB server.
     - `n`=none
 
     Default is only hard fault enabled.
+
+- `xpsr_control_fields`: (bool) When set to True, XPSR and CONTROL registers will have
+    their respective bitfields defined for presentation in gdb. Default is False.
