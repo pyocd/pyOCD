@@ -849,8 +849,9 @@ class PyOCDTool(object):
             data = pyOCD.utility.conversion.u32leListToByteList(data)
 
         if self.isFlashWrite(addr, width, data):
-            self.target.flash.init()
+            self.target.flash.init(fnc=self.target.flash.INIT_FUNCTION_PROGRAM)
             self.target.flash.programPhrase(addr, data)
+            self.target.flash.uninit(self.target.flash.INIT_FUNCTION_PROGRAM)
         else:
             self.target.writeBlockMemoryUnaligned8(addr, data)
             self.target.flush()
@@ -863,13 +864,14 @@ class PyOCDTool(object):
             count = 1
         else:
             count = self.convert_value(args[1])
-        self.flash.init()
+        self.flash.init(fnc=self.flash.INIT_FUNCTION_ERASE)
         while count:
             info = self.flash.getPageInfo(addr)
             self.flash.erasePage(info.base_addr)
             print "Erased page 0x%08x" % info.base_addr
             count -= 1
             addr += info.size
+        self.flash.uninit(self.flash.INIT_FUNCTION_ERASE)
 
     def handle_unlock(self, args):
         # Currently the same as erase.

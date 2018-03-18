@@ -187,7 +187,6 @@ def basic_test(board_id, file):
         # Fill 3 pages with 0x55
         page_size = flash.getPageInfo(addr_flash).size
         fill = [0x55] * page_size
-        flash.init()
         for i in range(0, 3):
             address = addr_flash + page_size * i
             # Test only supports a location with 3 aligned
@@ -195,10 +194,18 @@ def basic_test(board_id, file):
             current_page_size = flash.getPageInfo(addr_flash).size
             assert page_size == current_page_size
             assert address % current_page_size == 0
+
+            flash.init(fnc=flash.INIT_FUNCTION_ERASE)
             flash.erasePage(address)
+            flash.uninit(flash.INIT_FUNCTION_ERASE)
+
+            flash.init(fnc=flash.INIT_FUNCTION_PROGRAM)
             flash.programPage(address, fill)
+            flash.uninit(flash.INIT_FUNCTION_PROGRAM)
         # Erase the middle page
+        flash.init(fnc=flash.INIT_FUNCTION_ERASE)
         flash.erasePage(addr_flash + page_size)
+        flash.uninit(flash.INIT_FUNCTION_ERASE)
         # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
         data = target.readBlockMemoryUnaligned8(addr_flash, page_size * 3)
         expected = fill + [0xFF] * page_size + fill

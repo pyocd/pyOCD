@@ -181,11 +181,12 @@ def main():
             if not has_file:
                 if chip_erase:
                     print("Erasing chip...")
-                    flash.init()
+                    flash.init(fnc=flash.INIT_FUNCTION_ERASE)
                     flash.eraseAll()
+                    flash.uninit(flash.INIT_FUNCTION_ERASE)
                     print("Done")
                 elif args.sector_erase and args.address is not None:
-                    flash.init()
+                    flash.init(fnc=flash.INIT_FUNCTION_ERASE)
                     page_addr = args.address
                     for i in range(args.count):
                         page_info = flash.getPageInfo(page_addr)
@@ -200,6 +201,7 @@ def main():
                         print("Erasing sector 0x%08x" % page_addr)
                         flash.erasePage(page_addr)
                         page_addr += page_info.size
+                    flash.unInit(flash.INIT_FUNCTION_ERASE)
                 else:
                     print("No operation performed")
                 return

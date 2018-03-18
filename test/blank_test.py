@@ -34,8 +34,9 @@ print "\r\n\r\n------ Test attaching to locked board ------"
 for i in range(0, 10):
     with MbedBoard.chooseBoard() as board:
         # Erase and then reset - This locks Kinetis devices
-        board.flash.init()
+        board.flash.init(fnc=board.flash.INIT_FUNCTION_ERASE)
         board.flash.eraseAll()
+        board.flash.uninit(board.flash.INIT_FUNCTION_ERASE)
         board.target.reset()
 
 print "\r\n\r\n------ Testing Attaching to board ------"

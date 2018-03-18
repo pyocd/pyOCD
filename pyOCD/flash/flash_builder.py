@@ -209,8 +209,6 @@ class FlashBuilder(object):
             elif chip_erase is True:
                 logging.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x', self.page_list[0].addr, self.flash_start)
 
-        self.flash.init()
-
         chip_erase_count, chip_erase_program_time = self._compute_chip_erase_pages_and_weight()
         page_erase_min_program_time = self._compute_page_erase_pages_weight_min()
 
@@ -362,6 +360,7 @@ class FlashBuilder(object):
         page_erase_count = 0
         page_erase_weight = 0
         if len(page_list) > 0:
+            self.flash.init(fnc=self.flash.INIT_FUNCTION_PROGRAM)
             crc_list = self.flash.computeCrcs(sector_list)
             for page, crc in zip(page_list, crc_list):
                 page_same = page.crc == crc
@@ -369,6 +368,7 @@ class FlashBuilder(object):
                     page.same = page_same
                 elif page_same is False:
                     page.same = False
+            self.flash.uninit(fnc=self.flash.INIT_FUNCTION_PROGRAM)
 
         # Put together page and time estimate
         for page in self.page_list:
@@ -394,13 +394,19 @@ class FlashBuilder(object):
         logging.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
         progress_cb(0.0)
         progress = 0
+
+        self.flash.init(fnc=self.flash.INIT_FUNCTION_ERASE)
         self.flash.eraseAll()
+        self.flash.uninit(self.flash.INIT_FUNCTION_ERASE)
+        
         progress += self.flash.getFlashInfo().erase_weight
+        self.flash.init(fnc=self.flash.INIT_FUNCTION_PROGRAM)
         for page in self.page_list:
             if not page.erased:
                 self.flash.programPage(page.addr, page.data)
                 progress += page.getProgramWeight()
                 progress_cb(float(progress) / float(self.chip_erase_weight))
+        self.flash.uninit(self.flash.INIT_FUNCTION_PROGRAM)
         progress_cb(1.0)
         return FlashBuilder.FLASH_CHIP_ERASE
 
@@ -423,7 +429,11 @@ class FlashBuilder(object):
         logging.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
         progress_cb(0.0)
         progress = 0
+
+        self.flash.init(fnc=self.flash.INIT_FUNCTION_ERASE)
         self.flash.eraseAll()
+        self.flash.uninit(self.flash.INIT_FUNCTION_ERASE)
+        
         progress += self.flash.getFlashInfo().erase_weight
 
         # Set up page and buffer info.
@@ -436,12 +446,12 @@ class FlashBuilder(object):
         # Load first page buffer
         self.flash.loadPageBuffer(current_buf, page.addr, page.data)
 
+        self.flash.init(fnc=self.flash.INIT_FUNCTION_PROGRAM)
         while page is not None:
             # Kick off this page program.
             current_addr = page.addr
             current_weight = page.getProgramWeight()
             self.flash.startProgramPageWithBuffer(current_buf, current_addr)
-
             # Get next page and load it.
             page, i = self._next_unerased_page(i)
             if page is not None:
@@ -466,7 +476,8 @@ class FlashBuilder(object):
             # Update progress.
             progress += current_weight
             progress_cb(float(progress) / float(self.chip_erase_weight))
-
+        
+        self.flash.uninit(self.flash.INIT_FUNCTION_PROGRAM)
         progress_cb(1.0)
         return FlashBuilder.FLASH_CHIP_ERASE
 
@@ -494,8 +505,14 @@ class FlashBuilder(object):
 
             # Program page if not the same
             if page.same is False:
+                self.flash.init(fnc=self.flash.INIT_FUNCTION_ERASE)
                 self.flash.erasePage(page.addr)
+                self.flash.uninit(self.flash.INIT_FUNCTION_ERASE)
+
+                self.flash.init(fnc=self.flash.INIT_FUNCTION_PROGRAM)
                 self.flash.programPage(page.addr, page.data)
+                self.flash.uninit(self.flash.INIT_FUNCTION_PROGRAM)
+                
                 actual_page_erase_count += 1
                 actual_page_erase_weight += page.getEraseProgramWeight()
 
@@ -574,8 +591,14 @@ class FlashBuilder(object):
                 # Kick off this page program.
                 current_addr = page.addr
                 current_weight = page.getEraseProgramWeight()
+
+                self.flash.init(fnc=self.flash.INIT_FUNCTION_ERASE)
                 self.flash.erasePage(current_addr)
+                self.flash.uninit(self.flash.INIT_FUNCTION_ERASE)
+
+                self.flash.init(fnc=self.flash.INIT_FUNCTION_PROGRAM)
                 self.flash.startProgramPageWithBuffer(current_buf, current_addr) #, erase_page=True)
+                
                 actual_page_erase_count += 1
                 actual_page_erase_weight += page.getEraseProgramWeight()
 
@@ -594,7 +617,9 @@ class FlashBuilder(object):
                     if error_count > self.max_errors:
                         logging.error("Too many page programming errors, aborting program operation")
                         break
-
+                
+                self.flash.uninit(self.flash.INIT_FUNCTION_PROGRAM)
+                
                 # Swap buffers.
                 temp = current_buf
                 current_buf = next_buf

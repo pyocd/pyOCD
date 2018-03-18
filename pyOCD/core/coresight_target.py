@@ -122,8 +122,9 @@ class CoreSightTarget(Target):
 
     def massErase(self):
         if self.flash is not None:
-            self.flash.init()
+            self.flash.init(fnc=self.flash.INIT_FUNCTION_ERASE)
             self.flash.eraseAll()
+            self.flash.uninit(self.flash.INIT_FUNCTION_ERASE)
             return True
         else:
             return False
