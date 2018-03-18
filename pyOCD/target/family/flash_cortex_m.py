@@ -22,7 +22,10 @@ class Flash_cortex_m(Flash):
     def __init__(self, target):
         super(Flash_cortex_m, self).__init__(target, None)
 
-    def init(self):
+    def init(self, adr=None, clk=0, fnc=None):
+        raise Exception("Unsupported flash operation on generic cortex_m")
+
+    def uninit(self, fnc):
         raise Exception("Unsupported flash operation on generic cortex_m")
 
     def computeCrcs(self, sectors):

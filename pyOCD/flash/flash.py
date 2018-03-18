@@ -75,11 +75,16 @@ class Flash(object):
     """
     This class is responsible to flash a new binary in a target
     """
+    INIT_FUNCTION_ERASE = 1
+    INIT_FUNCTION_PROGRAM = 2
+    INIT_FUNCTION_VERIFY = 3
+    INIT_FUNCTIONS = [INIT_FUNCTION_ERASE, INIT_FUNCTION_PROGRAM, INIT_FUNCTION_VERIFY]
 
     def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
         self.flash_algo_debug = False
+        self.init_called_num = 0
         if flash_algo is not None:
             self.end_flash_algo = flash_algo['load_address'] + len(flash_algo) * 4
             self.begin_stack = flash_algo['begin_stack']
@@ -105,20 +110,42 @@ class Flash(object):
     def minimumProgramLength(self):
         return self.min_program_length
 
-    def init(self):
+    def init(self, adr=None, clk=0, fnc=None):
         """
         Download the flash algorithm in RAM
         """
+        if adr is None:
+            adr = self.getFlashInfo().rom_start 
+        
+        assert fnc in self.INIT_FUNCTIONS
+        
         self.target.halt()
-        self.target.setTargetState("PROGRAM")
+        if self.init_called_num == 0:
+            self.target.setTargetState("PROGRAM")
+        self.init_called_num += 1
 
         # update core register to execute the init subroutine
-        result = self.callFunctionAndWait(self.flash_algo['pc_init'], init=True)
+        result = self.callFunctionAndWait(self.flash_algo['pc_init'], 
+                                          r0=adr, r1=clk, r2=fnc, init=True)
 
         # check the return code
         if result != 0:
             logging.error('init error: %i', result)
 
+    def uninit(self, fnc):
+        """
+        Download the flash algorithm in RAM
+        """
+        assert fnc in self.INIT_FUNCTIONS
+        
+        if hasattr(self.flash_algo, 'pc_unInit'):
+            # update core register to execute the init subroutine
+            result = self.callFunctionAndWait(self.flash_algo['pc_unInit'], r0=fnc)
+        
+            # check the return code
+            if result != 0:
+                logging.error('init error: %i', result)    
+    
     def computeCrcs(self, sectors):
         data = []
 

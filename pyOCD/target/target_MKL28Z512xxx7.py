@@ -133,8 +133,8 @@ class Flash_kl28z(Flash_Kinetis):
     # This function sets up target clocks to ensure that flash is clocked at the maximum
     # of 24MHz. Doing so gets the best flash programming performance. The FIRC clock source
     # is used so that there is no dependency on an external crystal frequency.
-    def init(self):
-        super(Flash_kl28z, self).init()
+    def init(self, adr=None, clk=0, fnc=None):
+        super(Flash_kl28z, self).init(adr, clk, fnc)
 
         # Enable FIRC.
         value = self.target.read32(SCG_FIRCCSR)
