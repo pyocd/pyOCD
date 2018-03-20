@@ -250,7 +250,7 @@ class FlashBuilder(object):
                 flash_operation = self._page_erase_program(progress_cb)
 
         self.flash.target.resetStopOnReset()
-        self.flash.init_called_num = 0
+        self.flash.initiated = False
 
         program_finish = time()
         self.perf.program_time = program_finish - program_start

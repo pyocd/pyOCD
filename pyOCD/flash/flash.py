@@ -84,7 +84,7 @@ class Flash(object):
         self.target = target
         self.flash_algo = flash_algo
         self.flash_algo_debug = False
-        self.init_called_num = 0
+        self.initiated = False
         if flash_algo is not None:
             self.end_flash_algo = flash_algo['load_address'] + len(flash_algo) * 4
             self.begin_stack = flash_algo['begin_stack']
@@ -120,9 +120,9 @@ class Flash(object):
         assert fnc in self.INIT_FUNCTIONS
         
         self.target.halt()
-        if self.init_called_num == 0:
+        if not self.initiated:
             self.target.setTargetState("PROGRAM")
-        self.init_called_num += 1
+        self.initiated = True
 
         # update core register to execute the init subroutine
         result = self.callFunctionAndWait(self.flash_algo['pc_init'], 
