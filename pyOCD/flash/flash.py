@@ -139,7 +139,7 @@ class Flash(object):
         assert fnc in self.INIT_FUNCTIONS
         
         if hasattr(self.flash_algo, 'pc_unInit'):
-            # update core register to execute the init subroutine
+            # update core register to execute the uninit subroutine
             result = self.callFunctionAndWait(self.flash_algo['pc_unInit'], r0=fnc)
         
             # check the return code
