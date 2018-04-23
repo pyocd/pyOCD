@@ -91,19 +91,9 @@ class Flash_k82f25615(Flash_Kinetis):
 class K82F25615(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,          length=0x40000,     blocksize=0x1000, isBootMemory=True),
-        RomRegion(      start=0x04000000, end=0x07ffffff), # QSPI0 alias
-        RamRegion(      start=0x08000000, end=0x0fffffff), # SDRAM alias
-        RamRegion(      start=0x1fff0000, length=0x40000), # RAM
-        RomRegion(      start=0x1c000000, end=0x1c007fff), # ROM
-        RamRegion(      start=0x18000000, end=0x1bffffff), # FlexBus alias
-        RomRegion(      start=0x68000000, end=0x6fffffff), # QSPI0
-        RamRegion(      start=0x70000000, end=0x7fffffff), # SDRAM (write-back)
-        RamRegion(      start=0x80000000, end=0x8fffffff), # SDRAM (write-through)
-        RamRegion(      start=0x98000000, end=0x9fffffff), # FlexBus (write-through)
-        RamRegion(      start=0xa0000000, end=0xdfffffff)  # FlexBus (not executable)
+        FlashRegion(    start=0,           length=0x40000,     blocksize=0x1000, isBootMemory=True),
+        RamRegion(      start=0x1fff0000,  length=0x40000)
         )
-
     def __init__(self, transport):
         super(K82F25615, self).__init__(transport, self.memoryMap)
         self.mdm_idr = 0x001c0000
