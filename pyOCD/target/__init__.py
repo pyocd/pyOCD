@@ -46,6 +46,7 @@ import target_LPC1768
 import target_LPC4330
 import target_nRF51822_xxAA
 import target_nRF52832_xxAA
+import target_nRF52840_xxAA
 import target_STM32F103RC
 import target_STM32F051T8
 import target_maxwsnenv
@@ -92,6 +93,7 @@ TARGET = {
           'lpc4330': target_LPC4330.LPC4330,
           'nrf51': target_nRF51822_xxAA.NRF51,
           'nrf52' : target_nRF52832_xxAA.NRF52,
+          'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
           'maxwsnenv': target_maxwsnenv.MAXWSNENV,
@@ -139,6 +141,7 @@ FLASH = {
          'lpc4330':  target_LPC4330.Flash_lpc4330,
          'nrf51': target_nRF51822_xxAA.Flash_nrf51,
          'nrf52': target_nRF52832_xxAA.Flash_nrf52,
+         'nrf52840': target_nRF52840_xxAA.Flash_nrf52840,
          'stm32f103rc': target_STM32F103RC.Flash_stm32f103rc,
          'stm32f051': target_STM32F051T8.Flash_stm32f051,
          'maxwsnenv': target_maxwsnenv.Flash_maxwsnenv,

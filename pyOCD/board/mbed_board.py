@@ -80,6 +80,7 @@ BOARD_ID_TO_INFO = {
                 "1095": BoardInfo(  "RedBearLab-BLE-Nano",  "nrf51",            "l1_nrf51.bin",         ),
                 "1100": BoardInfo(  "nRF51-DK",             "nrf51",            "l1_nrf51-dk.bin",      ),
                 "1101": BoardInfo(  "nRF52-DK",             "nrf52",            "l1_nrf52-dk.bin",      ),
+                "1102": BoardInfo(  "nRF52840-DK",          "nrf52840",         "l1_nrf52840-dk.bin",   ),
                 "1200": BoardInfo(  "NCS36510-EVK",         "ncs36510",         "l1_ncs36510-evk.bin",  ),
                 "1114": BoardInfo(  "mbed LPC1114FN28",     "lpc11xx_32",       "l1_mbed_LPC1114FN28.bin",),
                 "1120": BoardInfo(  "nRF51-Dongle",         "nrf51",            "l1_nrf51.bin",         ),
