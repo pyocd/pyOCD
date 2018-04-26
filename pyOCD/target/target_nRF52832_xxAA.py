@@ -52,6 +52,8 @@ class NRF52(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(    start=0x0,         length=0x80000,      blocksize=0x1000, isBootMemory=True),
+        # User Information Configation Registers (UICR) as a flash region
+        FlashRegion(    start=0x10001000,  length=0x100,        blocksize=0x100),
         RamRegion(      start=0x20000000,  length=0x10000)
         )
 
