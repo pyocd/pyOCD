@@ -88,7 +88,7 @@ class Flash_kw41z4(Flash_Kinetis):
 class KW41Z4(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x28000,      blocksize=0x400, isBootMemory=True),
+        FlashRegion(    start=0,           length=0x28000,      blocksize=0x800, isBootMemory=True),
         RamRegion(      start=0x1ffff000,  length=0x5000)
         )
 
