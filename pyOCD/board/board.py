@@ -49,7 +49,7 @@ class Board(object):
         self.link.set_deferred_transfer(True)
         self.target.init()
 
-    def uninit(self, resume=True):
+    def uninit(self, resume=True, disconnect=True):
         """
         Uninitialize the board: link and target.
         This function resumes the target
@@ -65,11 +65,12 @@ class Board(object):
             except:
                 logging.error("target exception during uninit:")
                 traceback.print_exc()
-        try:
-            self.target.disconnect()
-        except:
-            logging.error("link exception during target disconnect:")
-            traceback.print_exc()
+        if disconnect:
+            try:
+                self.target.disconnect()
+            except:
+                logging.error("link exception during target disconnect:")
+                traceback.print_exc()
         try:
             self.link.disconnect()
         except:
