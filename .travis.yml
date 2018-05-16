@@ -1,5 +1,6 @@
 language: python
 sudo: false
+dist: precise
 python:
   - "2.7"
 # command to install dependencies
