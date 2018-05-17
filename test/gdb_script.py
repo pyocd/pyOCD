@@ -359,9 +359,10 @@ def run_test():
         invalid_addr_list = [invalid_addr + i * 4 for i in range(4)]
         for addr in invalid_addr_list:
             try:
-                gdb.execute("x 0x%x" % addr)
+                gdb.execute("set *((int *) 0x%x) = 0x%x" % (addr, randrange(1, 50)))
                 if error_on_invalid_access:
                     fail_count += 1
+                    print("Error - invalid memory write did not fault @ 0x%x" % addr)
             except gdb.MemoryError:
                 pass
 
@@ -377,6 +378,7 @@ def run_test():
                 gdb.execute("x 0x%x" % addr)
                 if error_on_invalid_access:
                     fail_count += 1
+                    print("Error - invalid memory read did not fault @ 0x%x" % addr)
             except gdb.MemoryError:
                 pass
 

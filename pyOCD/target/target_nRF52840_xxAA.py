@@ -43,22 +43,22 @@ flash_algo = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x20004000  # Analyzer 0x20004000..0x20004600
               }
 
-class Flash_nrf52(Flash):
+class Flash_nrf52840(Flash):
 
     def __init__(self, target):
-        super(Flash_nrf52, self).__init__(target, flash_algo)
+        super(Flash_nrf52840, self).__init__(target, flash_algo)
 
-class NRF52(CoreSightTarget):
+class NRF52840(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0x0,         length=0x80000,      blocksize=0x1000, isBootMemory=True),
+        FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, isBootMemory=True),
         # User Information Configation Registers (UICR) as a flash region
         FlashRegion(    start=0x10001000,  length=0x100,        blocksize=0x100),
-        RamRegion(      start=0x20000000,  length=0x10000)
+        RamRegion(      start=0x20000000,  length=0x40000)
         )
 
     def __init__(self, link):
-        super(NRF52, self).__init__(link, self.memoryMap)
+        super(NRF52840, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile(vendor="Nordic", filename="nrf52.svd", is_local=False)
 
     def resetn(self):

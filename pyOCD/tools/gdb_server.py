@@ -70,6 +70,7 @@ class GDBServerTool(object):
         parser = argparse.ArgumentParser(description='PyOCD GDB Server', epilog=epilog)
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument("-p", "--port", dest="port_number", type=int, default=3333, help="Write the port number that GDB server will open.")
+        parser.add_argument("-sc", "--semihost-console", dest="semihost_console_type", default="telnet", choices=('telnet', 'stdx'), help="Console for semihosting.")
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting.")
         parser.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false", help="Allow remote TCP/IP connections (default is no).")
         parser.add_argument("-b", "--board", dest="board_id", default=None, help="Connect to board by board id.  Use -l to list all connected boards.")
@@ -140,6 +141,7 @@ class GDBServerTool(object):
             'fast_program' : args.fast_program,
             'server_listening_callback' : self.server_listening,
             'enable_semihosting' : args.enable_semihosting,
+            'semihost_console_type' : args.semihost_console_type,
             'telnet_port' : args.telnet_port,
             'semihost_use_syscalls' : args.semihost_use_syscalls,
             'serve_local_only' : args.serve_local_only,

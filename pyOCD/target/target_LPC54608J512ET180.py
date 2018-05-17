@@ -20,9 +20,6 @@ from ..core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ..coresight import ap
 from ..coresight.cortex_m import CortexM
 
-SYSCON_DEVICE_ID0 = 0x400000FF8
-LPC54114J256 = 0x36454114
-
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
     0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
@@ -45,7 +42,6 @@ flash_algo = { 'load_address' : 0x20000000,
 
     # Relative function addresses
     'pc_init': 0x20000021,
-    'pc_unInit': 0x20000053,
     'pc_program_page': 0x20000095,
     'pc_erase_sector': 0x20000075,
     'pc_eraseAll': 0x20000057,
@@ -58,9 +54,9 @@ flash_algo = { 'load_address' : 0x20000000,
     'analyzer_supported' : False
 };
 
-class Flash_lpc54114(Flash):
+class Flash_lpc54608(Flash):
     def __init__(self, target):
-        super(Flash_lpc54114, self).__init__(target, flash_algo)
+        super(Flash_lpc54608, self).__init__(target, flash_algo)
         self.target.setFlash(self)
 
     def programPage(self, flashPtr, bytes):
@@ -69,7 +65,7 @@ class Flash_lpc54114(Flash):
             data = bytes[i * write_size : (i + 1) * write_size]
             Flash.programPage(self, flashPtr + i * write_size, data)
 
-class LPC54114(CoreSightTarget):
+class LPC54608(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(name='flash',   start=0,           length=0x40000,       blocksize=0x8000, isBootMemory=True),
@@ -80,12 +76,12 @@ class LPC54114(CoreSightTarget):
         )
 
     def __init__(self, link):
-        super(LPC54114, self).__init__(link, self.memoryMap)
+        super(LPC54608, self).__init__(link, self.memoryMap)
         self.ignoreReset = False
-        self._svd_location = SVDFile(vendor="NXP", filename="LPC54114_cm0plus.svd", is_local=False)
+        self._svd_location = SVDFile(vendor="NXP", filename="LPC54608.svd", is_local=False)
 
     def resetStopOnReset(self, software_reset=None, map_to_user=True):
-        super(LPC54114, self).resetStopOnReset(software_reset)
+        super(LPC54608, self).resetStopOnReset(software_reset)
 
         # Remap to use flash and set SP and SP accordingly
         if map_to_user:
@@ -94,20 +90,3 @@ class LPC54114(CoreSightTarget):
             pc = self.readMemory(0x4)
             self.writeCoreRegisterRaw('sp', sp)
             self.writeCoreRegisterRaw('pc', pc)
-
-    def init(self):
-        super(LPC54114, self).init()
-
-        # Check if this is the dual core part.
-        devid = self.readMemory(SYSCON_DEVICE_ID0)
-        self.is_dual_core = (devid == LPC54114J256)
-        if self.is_dual_core:
-            # Add second core's AHB-AP.
-            self.core1_ap = ap.AHB_AP(self.dp, 1)
-            self.aps[1] = self.core1_ap
-            self.core1_ap.init(True)
-
-            # Add second core.
-            self.core1 = CortexM(self.link, self.dp, self.core1_ap, self.memory_map, core_num=1)
-            self.cores[1] = self.core1
-            self.core1.init()

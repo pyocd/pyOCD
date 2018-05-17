@@ -46,6 +46,7 @@ import target_LPC1768
 import target_LPC4330
 import target_nRF51822_xxAA
 import target_nRF52832_xxAA
+import target_nRF52840_xxAA
 import target_STM32F103RC
 import target_STM32F051T8
 import target_maxwsnenv
@@ -54,6 +55,7 @@ import target_w7500
 import target_LPC1114FN28_102
 import target_LPC824M201JHI33
 import target_LPC54114J256BD64
+import target_LPC54608J512ET180
 import target_ncs36510
 import target_LPC4088FBD144
 import target_lpc4088qsb
@@ -92,6 +94,7 @@ TARGET = {
           'lpc4330': target_LPC4330.LPC4330,
           'nrf51': target_nRF51822_xxAA.NRF51,
           'nrf52' : target_nRF52832_xxAA.NRF52,
+          'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
           'maxwsnenv': target_maxwsnenv.MAXWSNENV,
@@ -100,6 +103,7 @@ TARGET = {
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
           'lpc824': target_LPC824M201JHI33.LPC824,
           'lpc54114': target_LPC54114J256BD64.LPC54114,
+          'lpc54608': target_LPC54608J512ET180.LPC54608,
           'lpc4088': target_LPC4088FBD144.LPC4088,
           'ncs36510': target_ncs36510.NCS36510,
           'lpc4088qsb': target_lpc4088qsb.LPC4088qsb,
@@ -139,6 +143,7 @@ FLASH = {
          'lpc4330':  target_LPC4330.Flash_lpc4330,
          'nrf51': target_nRF51822_xxAA.Flash_nrf51,
          'nrf52': target_nRF52832_xxAA.Flash_nrf52,
+         'nrf52840': target_nRF52840_xxAA.Flash_nrf52840,
          'stm32f103rc': target_STM32F103RC.Flash_stm32f103rc,
          'stm32f051': target_STM32F051T8.Flash_stm32f051,
          'maxwsnenv': target_maxwsnenv.Flash_maxwsnenv,
@@ -148,6 +153,7 @@ FLASH = {
          'lpc824': target_LPC824M201JHI33.Flash_lpc824,
          'lpc4088': target_LPC4088FBD144.Flash_lpc4088,
          'lpc54114': target_LPC54114J256BD64.Flash_lpc54114,
+         'lpc54608': target_LPC54608J512ET180.Flash_lpc54608,
          'ncs36510': target_ncs36510.Flash_ncs36510,
          'lpc4088qsb': target_lpc4088qsb.Flash_lpc4088qsb_dm,
          'lpc4088dm': target_lpc4088dm.Flash_lpc4088qsb_dm,
