@@ -30,9 +30,8 @@ class Board(object):
         self.flash = FLASH[target.lower()](self.target)
         self.target.setFlash(self.flash)
         self.debug_clock_frequency = frequency
-        self.initiated = True
+        self.initiated = False
         self.closed = False
-        return
 
     def __enter__(self):
         return self
@@ -49,6 +48,7 @@ class Board(object):
         self.link.set_clock(self.debug_clock_frequency)
         self.link.set_deferred_transfer(True)
         self.target.init()
+        self.initiated = True
 
     def uninit(self, resume=True):
         """
