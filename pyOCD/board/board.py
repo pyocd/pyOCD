@@ -30,8 +30,8 @@ class Board(object):
         self.flash = FLASH[target.lower()](self.target)
         self.target.setFlash(self.flash)
         self.debug_clock_frequency = frequency
+        self.initiated = False
         self.closed = False
-        return
 
     def __enter__(self):
         return self
@@ -48,6 +48,7 @@ class Board(object):
         self.link.set_clock(self.debug_clock_frequency)
         self.link.set_deferred_transfer(True)
         self.target.init()
+        self.initiated = True
 
     def uninit(self, resume=True):
         """
@@ -59,17 +60,19 @@ class Board(object):
         self.closed = True
 
         logging.debug("uninit board %s", self)
-        if resume:
+        if resume and self.initiated:
             try:
                 self.target.resume()
             except:
                 logging.error("target exception during uninit:")
                 traceback.print_exc()
-        try:
-            self.target.disconnect()
-        except:
-            logging.error("link exception during target disconnect:")
-            traceback.print_exc()
+        if self.initiated:
+            try:
+                self.target.disconnect()
+                self.initiated = False
+            except:
+                logging.error("link exception during target disconnect:")
+                traceback.print_exc()
         try:
             self.link.disconnect()
         except:
