@@ -16,6 +16,7 @@
  limitations under the License.
 """
 
+from __future__ import print_function
 import argparse
 import logging
 import os
@@ -322,26 +323,26 @@ def hex_width(value, width):
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
     while i < len(data):
-        print "%08x: " % (startAddress + (i * (width / 8))),
+        print("%08x: " % (startAddress + (i * (width / 8))), end=' ')
 
         while i < len(data):
             d = data[i]
             i += 1
             if width == 8:
-                print "%02x" % d,
+                print("%02x" % d, end=' ')
                 if i % 4 == 0:
-                    print "",
+                    print("", end=' ')
                 if i % 16 == 0:
                     break
             elif width == 16:
-                print "%04x" % d,
+                print("%04x" % d, end=' ')
                 if i % 8 == 0:
                     break
             elif width == 32:
-                print "%08x" % d,
+                print("%08x" % d, end=' ')
                 if i % 4 == 0:
                     break
-        print
+        print()
 
 class ToolError(Exception):
     pass
@@ -379,12 +380,12 @@ class PyOCDConsole(object):
                     elif self.last_command:
                         self.process_command(self.last_command)
                 except KeyboardInterrupt:
-                    print
+                    print()
         except EOFError:
             # Print a newline when we get a Ctrl-D on a Posix system.
             # Windows exits with a Ctrl-Z+Return, so there is no need for this.
             if os.name != "nt":
-                print
+                print()
 
     def process_command_line(self, line):
         for cmd in line.split(';'):
@@ -412,24 +413,24 @@ class PyOCDConsole(object):
 
             # Check for valid command.
             if cmd not in self.tool.command_list:
-                print "Error: unrecognized command '%s'" % cmd
+                print("Error: unrecognized command '%s'" % cmd)
                 return
 
             # Run command.
             handler = self.tool.command_list[cmd]
             handler(args)
         except ValueError:
-            print "Error: invalid argument"
+            print("Error: invalid argument")
             traceback.print_exc()
         except DAPAccess.TransferError as e:
-            print "Error:", e
+            print("Error:", e)
             traceback.print_exc()
         except ToolError as e:
-            print "Error:", e
+            print("Error:", e)
         except ToolExitException:
             raise
         except Exception as e:
-            print "Unexpected exception:", e
+            print("Unexpected exception:", e)
             traceback.print_exc()
 
 class PyOCDTool(object):
@@ -554,7 +555,7 @@ class PyOCDTool(object):
 
             # Check for a valid command.
             if self.cmd and self.cmd not in self.command_list:
-                print "Error: unrecognized command '%s'" % self.cmd
+                print("Error: unrecognized command '%s'" % self.cmd)
                 return 1
 
             # Handle certain commands without connecting.
@@ -566,7 +567,7 @@ class PyOCDTool(object):
                 return 0
 
             if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
-                print "Setting SWD clock to %d kHz" % self.args.clock
+                print("Setting SWD clock to %d kHz" % self.args.clock)
 
             # Connect to board.
             self.board = MbedBoard.chooseBoard(board_id=self.args.board, target_override=self.args.target, init_board=False, frequency=(self.args.clock * 1000))
@@ -579,12 +580,12 @@ class PyOCDTool(object):
                     self.board.init()
             except DAPAccess.TransferFaultError as e:
                 if not self.board.target.isLocked():
-                    print "Transfer fault while initing board: %s" % e
+                    print("Transfer fault while initing board: %s" % e)
                     traceback.print_exc()
                     self.exitCode = 1
                     return self.exitCode
             except Exception as e:
-                print "Exception while initing board: %s" % e
+                print("Exception while initing board: %s" % e)
                 traceback.print_exc()
                 self.exitCode = 1
                 return self.exitCode
@@ -599,15 +600,15 @@ class PyOCDTool(object):
             # Handle a device with flash security enabled.
             self.didErase = False
             if not self.args.no_init and self.target.isLocked() and self.cmd != 'unlock':
-                print "Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock."
+                print("Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock.")
 
             # If no command, enter interactive mode.
             if not self.cmd:
                 if not self.args.no_init:
                     try:
                         # Say what we're connected to.
-                        print "Connected to %s [%s]: %s" % (self.target.part_number,
-                            CORE_STATUS_DESC[self.target.getState()], self.board.getUniqueID())
+                        print("Connected to %s [%s]: %s" % (self.target.part_number,
+                            CORE_STATUS_DESC[self.target.getState()], self.board.getUniqueID()))
                     except DAPAccess.TransferFaultError:
                         pass
 
@@ -623,13 +624,13 @@ class PyOCDTool(object):
         except ToolExitException:
             self.exitCode = 0
         except ValueError:
-            print "Error: invalid argument"
+            print("Error: invalid argument")
         except DAPAccess.TransferError:
-            print "Error: transfer failed"
+            print("Error: transfer failed")
             traceback.print_exc()
             self.exitCode = 2
         except ToolError as e:
-            print "Error:", e
+            print("Error:", e)
             self.exitCode = 1
         finally:
             if self.board != None:
@@ -651,15 +652,15 @@ class PyOCDTool(object):
 
     def handle_status(self, args):
         if self.target.isLocked():
-            print "Security:       Locked"
+            print("Security:       Locked")
         else:
-            print "Security:       Unlocked"
+            print("Security:       Unlocked")
         if isinstance(self.target, target_kinetis.Kinetis):
-            print "MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS)
+            print("MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS))
         if not self.target.isLocked():
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print "Core %d status:  %s" % (i, CORE_STATUS_DESC[core.getState()])
+                print("Core %d status:  %s" % (i, CORE_STATUS_DESC[core.getState()]))
 
     def handle_reg(self, args):
         # If there are no args, print all register values.
@@ -677,9 +678,9 @@ class PyOCDTool(object):
         if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
             value = self.target.readCoreRegister(reg)
             if type(value) in six.integer_types:
-                print "%s = 0x%08x (%d)" % (reg, value, value)
+                print("%s = 0x%08x (%d)" % (reg, value, value))
             elif type(value) is float:
-                print "%s = %g" % (reg, value)
+                print("%s = %g" % (reg, value))
             else:
                 raise ToolError("Unknown register value type")
         else:
@@ -723,7 +724,7 @@ class PyOCDTool(object):
                     r = r[0]
                     addr = p.base_address + r.address_offset
                     if len(subargs) == 2:
-                        print "writing 0x%x to 0x%x:%d (%s)" % (value, addr, r.size, r.name)
+                        print("writing 0x%x to 0x%x:%d (%s)" % (value, addr, r.size, r.name))
                         self.target.writeMemory(addr, value, r.size)
                     elif len(subargs) == 3:
                         f = [x for x in r.fields if x.name.lower() == subargs[2]]
@@ -733,7 +734,7 @@ class PyOCDTool(object):
                             lsb = f.bit_offset
                             originalValue = self.target.readMemory(addr, r.size)
                             value = mask.bfi(originalValue, msb, lsb, value)
-                            print "writing 0x%x to 0x%x[%d:%d]:%d (%s.%s)" % (value, addr, msb, lsb, r.size, r.name, f.name)
+                            print("writing 0x%x to 0x%x[%d:%d]:%d (%s.%s)" % (value, addr, msb, lsb, r.size, r.name, f.name))
                             self.target.writeMemory(addr, value, r.size)
                     else:
                         raise ToolError("too many dots")
@@ -745,30 +746,30 @@ class PyOCDTool(object):
 
     @cmdoptions([make_option('-h', "--halt", action="store_true")])
     def handle_reset(self, args, other):
-        print "Resetting target"
+        print("Resetting target")
         if args.halt:
             self.target.resetStopOnReset()
 
             status = self.target.getState()
             if status != Target.TARGET_HALTED:
-                print "Failed to halt device on reset"
+                print("Failed to halt device on reset")
             else:
-                print "Successfully halted device on reset"
+                print("Successfully halted device on reset")
         else:
             self.target.reset()
 
     def handle_set_nreset(self, args):
         if len(args) != 1:
-            print "Missing reset state"
+            print("Missing reset state")
             return
         state = int(args[0], base=0)
-        print "nRESET = %d" % (state)
+        print("nRESET = %d" % (state))
         self.target.dp.assert_reset((state == 0))
 
     @cmdoptions([make_option('-c', "--center", action="store_true")])
     def handle_disasm(self, args, other):
         if len(other) == 0:
-            print "Error: no address specified"
+            print("Error: no address specified")
             return 1
         addr = self.convert_value(other[0])
         if len(other) < 2:
@@ -806,7 +807,7 @@ class PyOCDTool(object):
 
     def handle_savemem(self, args):
         if len(args) < 3:
-            print "Error: missing argument"
+            print("Error: missing argument")
             return 1
         addr = self.convert_value(args[0])
         count = self.convert_value(args[1])
@@ -816,11 +817,11 @@ class PyOCDTool(object):
 
         with open(filename, 'wb') as f:
             f.write(data)
-            print "Saved %d bytes to %s" % (count, filename)
+            print("Saved %d bytes to %s" % (count, filename))
 
     def handle_loadmem(self, args):
         if len(args) < 2:
-            print "Error: missing argument"
+            print("Error: missing argument")
             return 1
         addr = self.convert_value(args[0])
         filename = args[1]
@@ -828,11 +829,11 @@ class PyOCDTool(object):
         with open(filename, 'rb') as f:
             data = bytearray(f.read())
             self.target.writeBlockMemoryUnaligned8(addr, data)
-            print "Loaded %d bytes to 0x%08x" % (len(data), addr)
+            print("Loaded %d bytes to 0x%08x" % (len(data), addr))
 
     def do_read(self, args, width):
         if len(args) == 0:
-            print "Error: no address specified"
+            print("Error: no address specified")
             return 1
         addr = self.convert_value(args[0])
         if len(args) < 2:
@@ -855,11 +856,11 @@ class PyOCDTool(object):
 
     def do_write(self, args, width):
         if len(args) == 0:
-            print "Error: no address specified"
+            print("Error: no address specified")
             return 1
         addr = self.convert_value(args[0])
         if len(args) <= 1:
-            print "Error: no data for write"
+            print("Error: no data for write")
             return 1
         else:
             data = [self.convert_value(d) for d in args[1:]]
@@ -890,7 +891,7 @@ class PyOCDTool(object):
         while count:
             info = self.flash.getPageInfo(addr)
             self.flash.erasePage(info.base_addr)
-            print "Erased page 0x%08x" % info.base_addr
+            print("Erased page 0x%08x" % info.base_addr)
             count -= 1
             addr += info.size
 
@@ -903,9 +904,9 @@ class PyOCDTool(object):
         self.target.resume()
         status = self.target.getState()
         if status == Target.TARGET_RUNNING:
-            print "Successfully resumed device"
+            print("Successfully resumed device")
         else:
-            print "Failed to resume device"
+            print("Failed to resume device")
 
     def handle_step(self, args):
         self.target.step(disable_interrupts=not self.step_into_interrupt)
@@ -915,17 +916,17 @@ class PyOCDTool(object):
             data = self.target.readBlockMemoryUnaligned8(addr, 4)
             self.print_disasm(str(bytearray(data)), addr, maxInstructions=1)
         else:
-            print "PC = 0x%08x" % (addr)
+            print("PC = 0x%08x" % (addr))
 
     def handle_halt(self, args):
         self.target.halt()
 
         status = self.target.getState()
         if status != Target.TARGET_HALTED:
-            print "Failed to halt device"
+            print("Failed to halt device")
             return 1
         else:
-            print "Successfully halted device"
+            print("Successfully halted device")
 
     def handle_breakpoint(self, args):
         if len(args) < 1:
@@ -933,9 +934,9 @@ class PyOCDTool(object):
         addr = self.convert_value(args[0])
         if self.target.setBreakpoint(addr):
             self.target.selected_core.bp_manager.flush()
-            print "Set breakpoint at 0x%08x" % addr
+            print("Set breakpoint at 0x%08x" % addr)
         else:
-            print "Failed to set breakpoint at 0x%08x" % addr
+            print("Failed to set breakpoint at 0x%08x" % addr)
 
     def handle_remove_breakpoint(self, args):
         if len(args) < 1:
@@ -945,37 +946,37 @@ class PyOCDTool(object):
             type = self.target.getBreakpointType(addr)
             self.target.removeBreakpoint(addr)
             self.target.selected_core.bp_manager.flush()
-            print "Removed breakpoint at 0x%08x" % addr
+            print("Removed breakpoint at 0x%08x" % addr)
         except:
-            print "Failed to remove breakpoint at 0x%08x" % addr
+            print("Failed to remove breakpoint at 0x%08x" % addr)
 
     def handle_list_breakpoints(self, args):
         availableBpCount = self.target.selected_core.availableBreakpoint()
-        print "%d hardware breakpoints available" % availableBpCount
+        print("%d hardware breakpoints available" % availableBpCount)
         bps = self.target.selected_core.bp_manager.get_breakpoints()
         if not len(bps):
-            print "No breakpoints installed"
+            print("No breakpoints installed")
         else:
             for i, addr in enumerate(bps):
-                print "%d: 0x%08x" % (i, addr)
+                print("%d: 0x%08x" % (i, addr))
 
     def handle_set_log(self, args):
         if len(args) < 1:
-            print "Error: no log level provided"
+            print("Error: no log level provided")
             return 1
         if args[0].lower() not in LEVELS:
-            print "Error: log level must be one of {%s}" % ','.join(LEVELS.keys())
+            print("Error: log level must be one of {%s}" % ','.join(LEVELS.keys()))
             return 1
         logging.getLogger().setLevel(LEVELS[args[0].lower()])
 
     def handle_set_clock(self, args):
         if len(args) < 1:
-            print "Error: no clock frequency provided"
+            print("Error: no clock frequency provided")
             return 1
         try:
             freq_Hz = self.convert_value(args[0]) * 1000
         except:
-            print "Error: invalid frequency"
+            print("Error: invalid frequency")
             return 1
         self.link.set_clock(freq_Hz)
         if self.link.get_swj_mode() == DAPAccess.PORT.SWD:
@@ -990,7 +991,7 @@ class PyOCDTool(object):
         else:
             nice_freq = "%d Hz" % freq_Hz
 
-        print "Changed %s frequency to %s" % (swd_jtag, nice_freq)
+        print("Changed %s frequency to %s" % (swd_jtag, nice_freq))
 
     def handle_exit(self, args):
         raise ToolExitException()
@@ -1006,36 +1007,36 @@ class PyOCDTool(object):
             result = eval(args, globals(), env)
             if result is not None:
                 if type(result) in six.integer_types:
-                    print "0x%08x (%d)" % (result, result)
+                    print("0x%08x (%d)" % (result, result))
                 else:
-                    print result
+                    print(result)
         except Exception as e:
-            print "Exception while executing expression:", e
+            print("Exception while executing expression:", e)
             traceback.print_exc()
 
     def handle_core(self, args):
         if len(args) < 1:
-            print "Core %d is selected" % self.target.selected_core.core_number
+            print("Core %d is selected" % self.target.selected_core.core_number)
             return
         core = int(args[0], base=0)
         self.target.select_core(core)
-        print "Selected core %d" % core
+        print("Selected core %d" % core)
 
     def handle_readdp(self, args):
         if len(args) < 1:
-            print "Missing DP address"
+            print("Missing DP address")
             return
         addr_int = self.convert_value(args[0])
         addr = DP_REGS_MAP[addr_int]
         result = self.target.dp.read_reg(addr)
-        print "DP register 0x%x = 0x%08x" % (addr_int, result)
+        print("DP register 0x%x = 0x%08x" % (addr_int, result))
 
     def handle_writedp(self, args):
         if len(args) < 1:
-            print "Missing DP address"
+            print("Missing DP address")
             return
         if len(args) < 2:
-            print "Missing value"
+            print("Missing value")
             return
         addr_int = self.convert_value(args[0])
         addr = DP_REGS_MAP[addr_int]
@@ -1044,21 +1045,21 @@ class PyOCDTool(object):
 
     def handle_readap(self, args):
         if len(args) < 1:
-            print "Missing AP address"
+            print("Missing AP address")
             return
         if len(args) == 1:
             addr = self.convert_value(args[0])
         elif len(args) == 2:
             addr = (self.convert_value(args[0]) << 24) | self.convert_value(args[1])
         result = self.target.dp.readAP(addr)
-        print "AP register 0x%x = 0x%08x" % (addr, result)
+        print("AP register 0x%x = 0x%08x" % (addr, result))
 
     def handle_writeap(self, args):
         if len(args) < 1:
-            print "Missing AP address"
+            print("Missing AP address")
             return
         if len(args) < 2:
-            print "Missing value"
+            print("Missing value")
             return
         if len(args) == 2:
             addr = self.convert_value(args[0])
@@ -1082,29 +1083,29 @@ class PyOCDTool(object):
             raise ToolError("unknown info name '%s'" % infoName)
 
     def handle_show_unique_id(self, args):
-        print "Unique ID:    %s" % self.board.getUniqueID()
+        print("Unique ID:    %s" % self.board.getUniqueID())
 
     def handle_show_target(self, args):
-        print "Target:       %s" % self.target.part_number
-        print "DAP IDCODE:   0x%08x" % self.target.readIDCode()
+        print("Target:       %s" % self.target.part_number)
+        print("DAP IDCODE:   0x%08x" % self.target.readIDCode())
 
     def handle_show_cores(self, args):
         if self.target.isLocked():
-            print "Target is locked"
+            print("Target is locked")
         else:
-            print "Cores:        %d" % len(self.target.cores)
+            print("Cores:        %d" % len(self.target.cores))
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print "Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type])
+                print("Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
 
     def handle_show_map(self, args):
-        print "Region          Start         End                 Size    Blocksize"
+        print("Region          Start         End                 Size    Blocksize")
         for region in self.target.getMemoryMap():
-            print "{:<15} {:#010x}    {:#010x}    {:#10x}    {}".format(region.name, region.start, region.end, region.length, region.blocksize if region.isFlash else '-')
+            print("{:<15} {:#010x}    {:#010x}    {:#10x}    {}".format(region.name, region.start, region.end, region.length, region.blocksize if region.isFlash else '-'))
 
     def handle_show_peripherals(self, args):
         for periph in sorted(self.peripherals.values(), key=lambda x:x.base_address):
-            print "0x%08x: %s" % (periph.base_address, periph.name)
+            print("0x%08x: %s" % (periph.base_address, periph.name))
 
     def handle_show_fault(self, args):
         showAll = ('-a' in args)
@@ -1157,11 +1158,11 @@ class PyOCDTool(object):
         def print_fields(regname, value, fields, showAll):
             if value == 0 and not showAll:
                 return
-            print "  %s = 0x%08x" % (regname, value)
+            print("  %s = 0x%08x" % (regname, value))
             for name, bitpos in fields:
                 bit = (value >> bitpos) & 1
                 if showAll or bit != 0:
-                    print "    %s = 0x%x" % (name, bit)
+                    print("    %s = 0x%x" % (name, bit))
         
         cfsr = self.target.read32(CFSR)
         mmfsr = cfsr & 0xff
@@ -1174,10 +1175,10 @@ class PyOCDTool(object):
         
         print_fields('MMFSR', mmfsr, MMFSR_fields, showAll)
         if showAll or mmfsr & (1 << 7): # MMFARVALID
-            print "  MMFAR = 0x%08x" % (mmfar)
+            print("  MMFAR = 0x%08x" % (mmfar))
         print_fields('BFSR', bfsr, BFSR_fields, showAll)
         if showAll or bfsr & (1 << 7): # BFARVALID
-            print "  BFAR = 0x%08x" % (bfar)
+            print("  BFAR = 0x%08x" % (bfar))
         print_fields('UFSR', ufsr, UFSR_fields, showAll)
         print_fields('HFSR', hfsr, HFSR_fields, showAll)
         print_fields('DFSR', dfsr, DFSR_fields, showAll)
@@ -1194,28 +1195,28 @@ class PyOCDTool(object):
     def handle_show_vectorcatch(self, args):
         catch = self.target.getVectorCatch()
 
-        print "Vector catch:"
+        print("Vector catch:")
         for mask in sorted(VC_NAMES_MAP.iterkeys()):
             name = VC_NAMES_MAP[mask]
             s = "ON" if (catch & mask) else "OFF"
-            print "  {:3} {}".format(s, name)
+            print("  {:3} {}".format(s, name))
 
     def handle_set_vectorcatch(self, args):
         if len(args) == 0:
-            print "Missing vector catch setting"
+            print("Missing vector catch setting")
             return
     
         try:
             self.target.setVectorCatch(pyOCD.utility.cmdline.convert_vector_catch(args[0]))
         except ValueError as e:
-            print e
+            print(e)
 
     def handle_show_step_interrupts(self, args):
-        print "Interrupts while stepping:", ("enabled" if self.step_into_interrupt else "disabled")
+        print("Interrupts while stepping:", ("enabled" if self.step_into_interrupt else "disabled"))
 
     def handle_set_step_interrupts(self, args):
         if len(args) == 0:
-            print "Missing argument"
+            print("Missing argument")
             return
         
         self.step_into_interrupt = (args[0] in ('1', 'true', 'yes', 'on'))
@@ -1223,14 +1224,14 @@ class PyOCDTool(object):
     def handle_help(self, args):
         if not args:
             self._list_commands("Commands", COMMAND_INFO, "{cmd:<25} {args:<20} {help}")
-            print """
+            print("""
 All register names are also available as commands that print the register's value.
 Any ADDR or LEN argument will accept a register name.
 Prefix line with $ to execute a Python expression.
-Prefix line with ! to execute a shell command."""
-            print
+Prefix line with ! to execute a shell command.""")
+            print()
             self._list_commands("Info", INFO_HELP, "{cmd:<25} {help}")
-            print
+            print()
             self._list_commands("Options", OPTION_HELP, "{cmd:<25} {help}")
         else:
             cmd = args[0].lower()
@@ -1242,34 +1243,34 @@ Prefix line with ! to execute a shell command."""
             def print_help(cmd, commandList, usageFormat):
                 for name, info in commandList.iteritems():
                     if cmd == name or cmd in info['aliases']:
-                        print ("Usage: " + usageFormat).format(cmd=name, **info)
+                        print(("Usage: " + usageFormat).format(cmd=name, **info))
                         if len(info['aliases']):
-                            print "Aliases:", ", ".join(info['aliases'])
-                        print info['help']
+                            print("Aliases:", ", ".join(info['aliases']))
+                        print(info['help'])
                         if info.has_key('extra_help'):
-                            print info['extra_help']
+                            print(info['extra_help'])
             
             if subcmd is None:
                 print_help(cmd, COMMAND_INFO, "{cmd} {args}")
                 if cmd == "show":
-                    print
+                    print()
                     self._list_commands("Info", INFO_HELP, "{cmd:<25} {help}")
                 elif cmd == "set":
-                    print
+                    print()
                     self._list_commands("Options", OPTION_HELP, "{cmd:<25} {help}")
             elif cmd == 'show':
                 print_help(subcmd, INFO_HELP, "show {cmd}")
             elif cmd == 'set':
                 print_help(subcmd, OPTION_HELP, "set {cmd} VALUE")
             else:
-                print "Error: invalid arguments"
+                print("Error: invalid arguments")
 
     def _list_commands(self, title, commandList, helpFormat):
-        print title + ":\n" + ("-" * len(title))
+        print(title + ":\n" + ("-" * len(title)))
         for cmd in sorted(commandList.keys()):
             info = commandList[cmd]
             aliases = ', '.join(sorted([cmd] + info['aliases']))
-            print helpFormat.format(cmd=aliases, **info)
+            print(helpFormat.format(cmd=aliases, **info))
 
     def isFlashWrite(self, addr, width, data):
         mem_map = self.board.target.getMemoryMap()
@@ -1306,7 +1307,7 @@ Prefix line with ! to execute a shell command."""
 
         if arg in pyOCD.coresight.cortex_m.CORE_REGISTER:
             value = self.target.readCoreRegister(arg)
-            print "%s = 0x%08x" % (arg, value)
+            print("%s = 0x%08x" % (arg, value))
         else:
             subargs = arg.split('.')
             if self.peripherals.has_key(subargs[0]) and len(subargs) > 1:
@@ -1321,7 +1322,7 @@ Prefix line with ! to execute a shell command."""
 
         if deref:
             value = pyOCD.utility.conversion.byteListToU32leList(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
-            print "[%s,%d] = 0x%08x" % (arg, offset, value)
+            print("[%s,%d] = 0x%08x" % (arg, offset, value))
 
         return value
 
@@ -1336,15 +1337,15 @@ Prefix line with ! to execute a shell command."""
 
         for i, reg in enumerate(regs):
             regValue = self.target.readCoreRegister(reg)
-            print "{:>8} {:#010x} ".format(reg + ':', regValue),
+            print("{:>8} {:#010x} ".format(reg + ':', regValue), end=' ')
             if i % 3 == 2:
-                print
+                print()
 
     def _dump_peripheral_register(self, periph, reg, show_fields):
         addr = periph.base_address + reg.address_offset
         value = self.target.readMemory(addr, reg.size)
         value_str = hex_width(value, reg.size)
-        print "%s.%s @ %08x = %s" % (periph.name, reg.name, addr, value_str)
+        print("%s.%s @ %08x = %s" % (periph.name, reg.name, addr, value_str))
 
         if show_fields:
             for f in reg.fields:
@@ -1372,11 +1373,11 @@ Prefix line with ! to execute a shell command."""
                     f_value_enum_str = " %s: %s" % (v.name, v_enum.description)
                 else:
                     f_value_enum_str = ""
-                print "  %s[%s] = %s (%s)%s" % (f.name, bits_str, f_value_str, f_value_bin_str, f_value_enum_str)
+                print("  %s[%s] = %s (%s)%s" % (f.name, bits_str, f_value_str, f_value_bin_str, f_value_enum_str))
 
     def print_disasm(self, code, startAddr, maxInstructions=None):
         if not isCapstoneAvailable:
-            print "Warning: Disassembly is not available because the Capstone library is not installed"
+            print("Warning: Disassembly is not available because the Capstone library is not installed")
             return
 
         pc = self.target.readCoreRegister('pc') & ~1
@@ -1395,7 +1396,7 @@ Prefix line with ! to execute a shell command."""
             if (maxInstructions is not None) and (n >= maxInstructions):
                 break
 
-        print text
+        print(text)
 
 
 def main():

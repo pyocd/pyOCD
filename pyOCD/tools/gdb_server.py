@@ -16,6 +16,7 @@
  limitations under the License.
 """
 
+from __future__ import print_function
 import sys
 import logging
 import traceback
@@ -164,24 +165,24 @@ class GDBServerTool(object):
                 cmd = cmd_list[0]
                 if cmd == 'gdb_port':
                     if len(cmd_list) < 2:
-                        print "Missing port argument"
+                        print("Missing port argument")
                     else:
                         self.args.port_number = int(cmd_list[1], base=0)
                 elif cmd == 'telnet_port':
                     if len(cmd_list) < 2:
-                        print "Missing port argument"
+                        print("Missing port argument")
                     else:
                         self.gdb_server_settings['telnet_port'] = int(cmd_list[1], base=0)
                 elif cmd == 'echo':
                     self.echo_msg = ' '.join(cmd_list[1:])
                 else:
-                    print "Unsupported command: %s" % ' '.join(cmd_list)
+                    print("Unsupported command: %s" % ' '.join(cmd_list))
             except IndexError:
                 pass
 
     def server_listening(self, server):
         if self.echo_msg is not None:
-            print >> sys.stderr, self.echo_msg
+            print(self.echo_msg, file=sys.stderr)
             sys.stderr.flush()
 
     def disable_logging(self):
@@ -235,7 +236,7 @@ class GDBServerTool(object):
                         pass
                 boards.append(d)
 
-            print json.dumps(obj, indent=4)
+            print(json.dumps(obj, indent=4))
         else:
             index = 0
             if len(all_mbeds) > 0:
@@ -274,10 +275,10 @@ class GDBServerTool(object):
                         d['svd_path'] = pkg_resources.resource_filename("cmsis_svd", resource)
                 targets.append(d)
 
-            print json.dumps(obj, indent=4) #, sys.stdout)
+            print(json.dumps(obj, indent=4)) #, sys.stdout)
         else:
             for t in supported_targets:
-                print t
+                print(t)
 
     def run(self, args=None):
         try:
@@ -300,7 +301,7 @@ class GDBServerTool(object):
                         target_override=self.args.target_override,
                         frequency=self.args.frequency)
                     if board_selected is None:
-                        print "No board selected"
+                        print("No board selected")
                         return 1
                     with board_selected as board:
                         gdb = GDBServer(board, self.args.port_number, self.gdb_server_settings)
@@ -310,7 +311,7 @@ class GDBServerTool(object):
                     if gdb != None:
                         gdb.stop()
                 except Exception as e:
-                    print "uncaught exception: %s" % e
+                    print("uncaught exception: %s" % e)
                     traceback.print_exc()
                     if gdb != None:
                         gdb.stop()
