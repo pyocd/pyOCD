@@ -79,6 +79,7 @@ BOARD_ID_TO_INFO = {
     "1120": BoardInfo(  "nRF51-Dongle",         "nrf51",            "l1_nrf51.bin",         ),
     "1200": BoardInfo(  "NCS36510-EVK",         "ncs36510",         "l1_ncs36510-evk.bin",  ),
     "1234": BoardInfo(  "u-blox-C027",          "lpc1768",          "l1_lpc1768.bin",       ),
+    "1237": BoardInfo(  "u-blox-EVK-NINA-B1",   "nrf52",            "l1_nrf52-dk.bin",      ),
     "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
     "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
     "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
