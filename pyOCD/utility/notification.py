@@ -41,7 +41,7 @@ class Notification(object):
         return "<Notification@0x%08x event=%s source=%s data=%s>" % (id(self), repr(self.event), repr(self.source), repr(self.data))
 
 ##
-# @brief
+# @brief Mix-in class that provides notification capabilities.
 class Notifier(object):
     def __init__(self):
         self._subscribers = {}
@@ -60,7 +60,9 @@ class Notifier(object):
 
     def notify(self, *notifications):
         for note in notifications:
-            logging.debug("Sending notification: %s", repr(note))
+            # This debug log is commented out because it produces too much output unless you
+            # are specifically working on notifications.
+#             logging.debug("Sending notification: %s", repr(note))
             for cb in self._subscribers.get(note.event, []):
                 cb(note)
 
