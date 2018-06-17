@@ -252,7 +252,7 @@ class Flash(object):
         Override this function if variable page sizes are supported
         """
         region = self.target.getMemoryMap().getRegionForAddress(addr)
-        if not region:
+        if not region or not region.isFlash:
             return None
 
         info = PageInfo()
