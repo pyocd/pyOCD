@@ -101,7 +101,7 @@ class MemoryRange(MemoryRangeBase):
 ## @brief One contiguous range of memory.
 class MemoryRegion(MemoryRangeBase):
     def __init__(self, type='ram', start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False,
-                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True, isTestable=True):
         super(MemoryRegion, self).__init__(start=start, end=end, length=length)
         self._type = type
         self._blocksize = blocksize
@@ -113,6 +113,7 @@ class MemoryRegion(MemoryRangeBase):
         self._isPoweredOnBoot = isPoweredOnBoot
         self._isCacheable = isCacheable
         self._invalidateCacheOnRun = invalidateCacheOnRun
+        self._isTestable = isTestable
 
     @property
     def type(self):
@@ -161,6 +162,10 @@ class MemoryRegion(MemoryRangeBase):
     @property
     def invalidateCacheOnRun(self):
         return self._invalidateCacheOnRun
+    
+    @property
+    def isTestable(self):
+        return self._isTestable
 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.blocksize)
@@ -168,33 +173,33 @@ class MemoryRegion(MemoryRangeBase):
 ## @brief Contiguous region of RAM.
 class RamRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, name='', isBootMemory=False,
-                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True, isTestable=True):
         super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
             isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot, isCacheable=isCacheable,
-            invalidateCacheOnRun=invalidateCacheOnRun)
+            invalidateCacheOnRun=invalidateCacheOnRun, isTestable=isTestable)
 
 ## @brief Contiguous region of ROM.
 class RomRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, name='', isBootMemory=False,
-                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=False):
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=False, isTestable=True):
         super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name,
             isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot, isCacheable=isCacheable,
-            invalidateCacheOnRun=invalidateCacheOnRun)
+            invalidateCacheOnRun=invalidateCacheOnRun, isTestable=isTestable)
 
 ## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, blocksize=0, name='', isBootMemory=False,
-                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
+                isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True, isTestable=True):
         super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length,
             blocksize=blocksize, name=name, isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot,
-            isCacheable=isCacheable, invalidateCacheOnRun=invalidateCacheOnRun)
+            isCacheable=isCacheable, invalidateCacheOnRun=invalidateCacheOnRun, isTestable=isTestable)
 
 ## @brief Device or peripheral memory.
 class DeviceRegion(MemoryRegion):
     def __init__(self, start=0, end=0, length=0, name='', isPoweredOnBoot=True):
         super(DeviceRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
             isBootMemory=False, isPoweredOnBoot=isPoweredOnBoot, isCacheable=False,
-            invalidateCacheOnRun=True)
+            invalidateCacheOnRun=True, isTestable=False)
 
 ## @brief Alias of another region.
 class AliasRegion(MemoryRegion):
@@ -202,7 +207,7 @@ class AliasRegion(MemoryRegion):
                 isPoweredOnBoot=True, isCacheable=True, invalidateCacheOnRun=True):
         super(AliasRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
             isBootMemory=isBootMemory, isPoweredOnBoot=isPoweredOnBoot, isCacheable=isCacheable,
-            invalidateCacheOnRun=invalidateCacheOnRun)
+            invalidateCacheOnRun=invalidateCacheOnRun, isTestable=False)
         self._alias_reference = aliasOf
 
     @property

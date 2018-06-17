@@ -182,9 +182,11 @@ def flash_test(board_id):
         test_pass_count = 0
         test_count = 0
         result = FlashTestResult()
-
+        
         # Test each flash region separately.
         for rom_region in memory_map.getRegionsOfType('flash'):
+            if not rom_region.isTestable:
+                continue
             rom_start = rom_region.start
             rom_size = rom_region.length
 
@@ -197,6 +199,11 @@ def flash_test(board_id):
                 data = f.read()
             data = struct.unpack("%iB" % len(data), data)
             unused = rom_size - len(data)
+            
+            # Make sure data doesn't overflow this region.
+            if unused < 0:
+                data = data[:rom_size]
+                unused = 0
 
             addr = rom_start
             size = len(data)
