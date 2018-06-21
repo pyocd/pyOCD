@@ -201,7 +201,7 @@ def main():
                         print("Erasing sector 0x%08x" % page_addr)
                         flash.erasePage(page_addr)
                         page_addr += page_info.size
-                    flash.unInit(flash.INIT_FUNCTION_ERASE)
+                    flash.uninit(flash.INIT_FUNCTION_ERASE)
                 else:
                     print("No operation performed")
                 return
