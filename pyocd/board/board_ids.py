@@ -107,6 +107,8 @@ BOARD_ID_TO_INFO = {
     "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
     "3300": BoardInfo(  "CC3220SF_LaunchXL",    "cc3220sf",         "l1_cc3220sf.bin",      ),
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
+    "5006": BoardInfo(  "Arm Musca-A1",         "musca_a1",         "l1_musca_a1.bin",      ),
+    "5007": BoardInfo(  "Arm Musca-B1",         "musca_b1",         "l1_musca_b1.bin",      ),
     "7402": BoardInfo(  "mbed 6LoWPAN Border Router HAT", "k64f",   "l1_k64f.bin",          ),
     "9004": BoardInfo(  "Arch Pro",             "lpc1768",          "l1_lpc1768.bin",       ),
     "9009": BoardInfo(  "Arch BLE",             "nrf51",            "l1_nrf51.bin",         ),
