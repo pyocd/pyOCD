@@ -274,11 +274,11 @@ class GDBServer(threading.Thread):
             # Use internal IO handler.
             semihost_io_handler = semihost.InternalSemihostIOHandler()
 
-        self.log.error("semihosting console = %s" % self.semihost_console_type)
         if self.semihost_console_type == 'telnet':
             self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
             semihost_console = self.telnet_console
         else:
+            self.log.info("Semihosting will be output to console")
             self.telnet_console = None
             semihost_console = semihost_io_handler
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
