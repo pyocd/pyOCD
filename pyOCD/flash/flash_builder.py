@@ -27,6 +27,10 @@ PAGE_ESTIMATE_SIZE = 32
 PAGE_READ_WEIGHT = 0.3
 DATA_TRANSFER_B_PER_S = 40 * 1000 # ~40KB/s, depends on clock speed, theoretical limit for HID is 56,000 B/s
 
+## @brief Exception raised when flashing fails outright. 
+class FlashFailure(RuntimeError):
+    pass
+
 class ProgrammingInfo(object):
     def __init__(self):
         self.program_type = None                # Type of programming performed - FLASH_PAGE_ERASE or FLASH_CHIP_ERASE
@@ -169,6 +173,8 @@ class FlashBuilder(object):
         program_byte_count = 0
         flash_addr = self.flash_operation_list[0].addr
         info = self.flash.getPageInfo(flash_addr)
+        if info is None:
+            raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
         page_addr = flash_addr - (flash_addr % info.size)
         current_page = flash_page(page_addr, info.size, [], info.erase_weight, info.program_weight)
         self.page_list.append(current_page)
@@ -180,6 +186,8 @@ class FlashBuilder(object):
                 flash_addr = flash_operation.addr + pos
                 if flash_addr >= current_page.addr + current_page.size:
                     info = self.flash.getPageInfo(flash_addr)
+                    if info is None:
+                        raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
                     page_addr = flash_addr - (flash_addr % info.size)
                     current_page = flash_page(page_addr, info.size, [], info.erase_weight, info.program_weight)
                     self.page_list.append(current_page)

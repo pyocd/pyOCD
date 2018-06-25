@@ -192,7 +192,7 @@ class KL28x(Kinetis):
             self.add_ap(core1_ap)
 
             # Add second core. It is held in reset until released by software.
-            core1 = CortexM(self.link, self.dp, core1_ap, self.memory_map, core_num=1)
+            core1 = CortexM(self, self.dp, core1_ap, self.memory_map, core_num=1)
             core1.init()
             self.add_core(core1)
 
