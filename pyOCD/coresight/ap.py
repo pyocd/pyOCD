@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,11 +17,30 @@
 
 from ..pyDAPAccess import DAPAccess
 from .rom_table import ROMTable
-from .dap import (AP_REG, _ap_addr_to_reg, READ, WRITE, AP_ACC, APSEL_SHIFT, LOG_DAP)
 from ..utility import conversion
 import logging
 
-AP_ROM_TABLE_ADDR_REG = 0xf8
+# Set to True to enable logging of all DP and AP accesses.
+LOG_DAP = False
+
+# Common AP register addresses
+AP_BASE = 0xF8
+AP_IDR = 0xFC
+
+# MEM-AP register addresses
+MEM_AP_CSW = 0x00
+MEM_AP_TAR = 0x04
+MEM_AP_DRW = 0x0C
+
+A32 = 0x0c
+APSEL_SHIFT = 24
+APSEL = 0xff000000
+APBANKSEL = 0x000000f0
+APREG_MASK = 0x000000fc
+
+def _ap_addr_to_reg(addr):
+    return DAPAccess.REG(4 + ((addr & A32) >> 2))
+
 AP_ROM_TABLE_FORMAT_MASK = 0x2
 AP_ROM_TABLE_ENTRY_PRESENT_MASK = 0x1
 
@@ -81,10 +100,10 @@ class AccessPort(object):
 
     def init(self, bus_accessible=True):
         if not self.inited_primary:
-            self.idr = self.read_reg(AP_REG['IDR'])
+            self.idr = self.read_reg(AP_IDR)
 
             # Init ROM table
-            self.rom_addr = self.read_reg(AP_ROM_TABLE_ADDR_REG)
+            self.rom_addr = self.read_reg(AP_BASE)
             self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
             self.rom_addr &= 0xfffffffc # clear format and present bits
 
@@ -129,15 +148,15 @@ class MEM_AP(AccessPort):
         num = self.dp.next_access_number
         if LOG_DAP:
             self.logger.info("writeMem:%06d (addr=0x%08x, size=%d) = 0x%08x {", num, addr, transfer_size, data)
-        self.write_reg(AP_REG['CSW'], CSW_VALUE | TRANSFER_SIZE[transfer_size])
+        self.write_reg(MEM_AP_CSW, CSW_VALUE | TRANSFER_SIZE[transfer_size])
         if transfer_size == 8:
             data = data << ((addr & 0x03) << 3)
         elif transfer_size == 16:
             data = data << ((addr & 0x02) << 3)
 
         try:
-            self.write_reg(AP_REG['TAR'], addr)
-            self.write_reg(AP_REG['DRW'], data)
+            self.write_reg(MEM_AP_TAR, addr)
+            self.write_reg(MEM_AP_DRW, data)
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -158,10 +177,9 @@ class MEM_AP(AccessPort):
             self.logger.info("readMem:%06d (addr=0x%08x, size=%d) {", num, addr, transfer_size)
         res = None
         try:
-            self.write_reg(AP_REG['CSW'], CSW_VALUE |
-                         TRANSFER_SIZE[transfer_size])
-            self.write_reg(AP_REG['TAR'], addr)
-            result_cb = self.read_reg(AP_REG['DRW'], now=False)
+            self.write_reg(MEM_AP_CSW, CSW_VALUE | TRANSFER_SIZE[transfer_size])
+            self.write_reg(MEM_AP_TAR, addr)
+            result_cb = self.read_reg(MEM_AP_DRW, now=False)
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -202,10 +220,10 @@ class MEM_AP(AccessPort):
         if LOG_DAP:
             self.logger.info("_writeBlock32:%06d (addr=0x%08x, size=%d) {", num, addr, len(data))
         # put address in TAR
-        self.write_reg(AP_REG['CSW'], CSW_VALUE | CSW_SIZE32)
-        self.write_reg(AP_REG['TAR'], addr)
+        self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
+        self.write_reg(MEM_AP_TAR, addr)
         try:
-            reg = _ap_addr_to_reg((self.ap_num << APSEL_SHIFT) | WRITE | AP_ACC | AP_REG['DRW'])
+            reg = _ap_addr_to_reg(MEM_AP_DRW)
             self.link.reg_write_repeat(len(data), reg, data)
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.
@@ -224,10 +242,10 @@ class MEM_AP(AccessPort):
         if LOG_DAP:
             self.logger.info("_readBlock32:%06d (addr=0x%08x, size=%d) {", num, addr, size)
         # put address in TAR
-        self.write_reg(AP_REG['CSW'], CSW_VALUE | CSW_SIZE32)
-        self.write_reg(AP_REG['TAR'], addr)
+        self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
+        self.write_reg(MEM_AP_TAR, addr)
         try:
-            reg = _ap_addr_to_reg((self.ap_num << APSEL_SHIFT) | READ | AP_ACC | AP_REG['DRW'])
+            reg = _ap_addr_to_reg(MEM_AP_DRW)
             resp = self.link.reg_read_repeat(size, reg)
         except DAPAccess.TransferFaultError as error:
             # Annotate error with target address.

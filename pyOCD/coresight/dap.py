@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,42 +16,25 @@
 """
 
 from ..pyDAPAccess import DAPAccess
+from .ap import (MEM_AP_CSW, _ap_addr_to_reg, LOG_DAP,
+                APSEL, APBANKSEL, APREG_MASK, AccessPort)
 import logging
 import logging.handlers
 import os
 import os.path
 import six
 
-# !! This value are A[2:3] and not A[3:2]
-DP_REG = {'IDCODE': DAPAccess.REG.DP_0x0,
-          'ABORT': DAPAccess.REG.DP_0x0,
-          'CTRL_STAT': DAPAccess.REG.DP_0x4,
-          'SELECT': DAPAccess.REG.DP_0x8
-          }
-AP_REG = {'CSW' : 0x00,
-          'TAR' : 0x04,
-          'DRW' : 0x0C,
-          'IDR' : 0xFC
-          }
+# DP register addresses.
+# !! These values are A[2:3] and not A[3:2]
+DP_IDCODE = DAPAccess.REG.DP_0x0
+DP_ABORT = DAPAccess.REG.DP_0x0
+DP_CTRL_STAT = DAPAccess.REG.DP_0x4
+DP_SELECT = DAPAccess.REG.DP_0x8
 
 # DP Control / Status Register bit definitions
 CTRLSTAT_STICKYORUN = 0x00000002
 CTRLSTAT_STICKYCMP = 0x00000010
 CTRLSTAT_STICKYERR = 0x00000020
-
-IDCODE = 0 << 2
-AP_ACC = 1 << 0
-DP_ACC = 0 << 0
-READ = 1 << 1
-WRITE = 0 << 1
-VALUE_MATCH = 1 << 4
-MATCH_MASK = 1 << 5
-
-A32 = 0x0c
-APSEL_SHIFT = 24
-APSEL = 0xff000000
-APBANKSEL = 0x000000f0
-APREG_MASK = 0x000000fc
 
 DPIDR_MIN_MASK = 0x10000
 DPIDR_VERSION_MASK = 0xf000
@@ -64,12 +47,6 @@ CDBGPWRUPREQ = 0x10000000
 
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
-
-# Set to True to enable logging of all DP and AP accesses.
-LOG_DAP = False
-
-def _ap_addr_to_reg(addr):
-    return DAPAccess.REG(4 + ((addr & A32) >> 2))
 
 class DebugPort(object):
     # DAP log file name.
@@ -121,7 +98,7 @@ class DebugPort(object):
 
     def read_id_code(self):
         # Read ID register and get DP version
-        self.dpidr = self.read_reg(DP_REG['IDCODE'])
+        self.dpidr = self.read_reg(DP_IDCODE)
         self.dp_version = (self.dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
         self.is_mindp = (self.dpidr & DPIDR_MIN_MASK) != 0
         return self.dpidr
@@ -144,21 +121,21 @@ class DebugPort(object):
 
     def power_up_debug(self):
         # select bank 0 (to access DRW and TAR)
-        self.write_reg(DP_REG['SELECT'], 0)
-        self.write_reg(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ)
+        self.write_reg(DP_SELECT, 0)
+        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ)
 
         while True:
-            r = self.read_reg(DP_REG['CTRL_STAT'])
+            r = self.read_reg(DP_CTRL_STAT)
             if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
                 break
 
-        self.write_reg(DP_REG['CTRL_STAT'], CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
-        self.write_reg(DP_REG['SELECT'], 0)
+        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
+        self.write_reg(DP_SELECT, 0)
 
     def power_down_debug(self):
         # select bank 0 (to access DRW and TAR)
-        self.write_reg(DP_REG['SELECT'], 0)
-        self.write_reg(DP_REG['CTRL_STAT'], 0)
+        self.write_reg(DP_SELECT, 0)
+        self.write_reg(DP_CTRL_STAT, 0)
 
     def reset(self):
         try:
@@ -221,7 +198,7 @@ class DebugPort(object):
         num = self.next_access_number
 
         # Skip writing DP SELECT register if its value is not changing.
-        if addr == DP_REG['SELECT']:
+        if addr == DP_SELECT:
             if data == self._dp_select:
                 if LOG_DAP:
                     self.logger.info("writeDP:%06d cached (addr=0x%08x) = 0x%08x", num, addr.value, data)
@@ -247,7 +224,7 @@ class DebugPort(object):
         ap_regaddr = addr & APREG_MASK
 
         # Don't need to write CSW if it's not changing value.
-        if ap_regaddr == AP_REG['CSW']:
+        if ap_regaddr == MEM_AP_CSW:
             if ap_sel in self._csw and data == self._csw[ap_sel]:
                 if LOG_DAP:
                     self.logger.info("writeAP:%06d cached (addr=0x%08x) = 0x%08x", num, addr, data)
@@ -255,10 +232,10 @@ class DebugPort(object):
             self._csw[ap_sel] = data
 
         # Select the AP and bank.
-        self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
+        self.writeDP(DP_SELECT, ap_sel | bank_sel)
 
         # Perform the AP register write.
-        ap_reg = _ap_addr_to_reg(WRITE | AP_ACC | (addr & A32))
+        ap_reg = _ap_addr_to_reg(addr)
         try:
             if LOG_DAP:
                 self.logger.info("writeAP:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
@@ -273,12 +250,12 @@ class DebugPort(object):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
         res = None
-        ap_reg = _ap_addr_to_reg(READ | AP_ACC | (addr & A32))
+        ap_reg = _ap_addr_to_reg(addr)
 
         try:
             ap_sel = addr & APSEL
             bank_sel = addr & APBANKSEL
-            self.writeDP(DP_REG['SELECT'], ap_sel | bank_sel)
+            self.writeDP(DP_SELECT, ap_sel | bank_sel)
             result_cb = self.link.read_reg(ap_reg, now=False)
         except DAPAccess.Error as error:
             self._handle_error(error, num)
@@ -317,7 +294,7 @@ class DebugPort(object):
         if mode == DAPAccess.PORT.SWD:
             self.link.write_reg(DAPAccess.REG.DP_0x0, (1 << 2))
         elif mode == DAPAccess.PORT.JTAG:
-            self.link.write_reg(DP_REG['CTRL_STAT'], CTRLSTAT_STICKYERR)
+            self.link.write_reg(DP_CTRL_STAT, CTRLSTAT_STICKYERR)
         else:
             assert False
 
