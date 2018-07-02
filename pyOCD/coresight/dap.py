@@ -18,6 +18,7 @@
 from ..pyDAPAccess import DAPAccess
 from .ap import (MEM_AP_CSW, _ap_addr_to_reg, LOG_DAP,
                 APSEL, APBANKSEL, APREG_MASK, AccessPort)
+from ..utility.sequencer import CallSequence
 import logging
 import logging.handlers
 import os
@@ -54,6 +55,8 @@ class DebugPort(object):
 
     def __init__(self, link):
         self.link = link
+        self.valid_aps = []
+        self.aps = {}
         self._csw = {}
         self._dp_select = -1
         self._access_number = 0
@@ -101,6 +104,7 @@ class DebugPort(object):
         self.dpidr = self.read_reg(DP_IDCODE)
         self.dp_version = (self.dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
         self.is_mindp = (self.dpidr & DPIDR_MIN_MASK) != 0
+        logging.info("DP IDR = 0x%08x", self.dpidr)
         return self.dpidr
 
     def flush(self):
@@ -151,19 +155,49 @@ class DebugPort(object):
 
     def set_clock(self, frequency):
         self.link.set_clock(frequency)
-
+        
+    ## @brief Find valid APs.
+    #
+    # Scans for valid APs starting at APSEL=0 and stopping the first time a 0 is returned
+    # when reading the AP's IDR.
+    #
+    # Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
+    # modify the init call sequence to substitute a fixed list of valid APs. In fact, that
+    # is a major reason this method is separated from create_aps().
     def find_aps(self):
         ap_num = 0
         while True:
             try:
-                idr = self.readAP((ap_num << APSEL_SHIFT) | AP_REG['IDR'])
-                if idr == 0:
-                    break
-                logging.info("AP#%d IDR = 0x%08x", ap_num, idr)
-            except Exception as e:
-                logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
+                isValid = AccessPort.probe(self, ap_num)
+                if not isValid:
+                    return
+                self.valid_aps.append(ap_num)
+            except Exception, e:
+                logging.error("Exception while probing AP#%d: %s", ap_num, repr(e))
                 break
             ap_num += 1
+
+    ## @brief Create APs.
+    #
+    # For each AP in the #valid_aps list, an AccessPort object is created. The new objects
+    # are added to the #aps dict, keyed by their AP number.
+    def create_aps(self):
+        for ap_num in self.valid_aps:
+            try:
+                ap = AccessPort.create(self, ap_num)
+                logging.info("AP#%d IDR = 0x%08x", ap_num, ap.idr)
+                self.aps[ap_num] = ap
+            except Exception, e:
+                logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
+                break
+    
+    def init_ap_roms(self):
+        seq = CallSequence()
+        for ap in [x for x in self.aps.values() if x.has_rom_table]:
+            seq.append(
+                ('init_ap.{}'.format(ap.ap_num), ap.init_rom_table)
+                )
+        return seq
 
     def readDP(self, addr, now=True):
         assert addr in DAPAccess.REG

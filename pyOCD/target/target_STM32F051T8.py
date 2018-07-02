@@ -83,9 +83,17 @@ class STM32F051(CoreSightTarget):
         super(STM32F051, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile(vendor="STMicro", filename="STM32F0xx.svd", is_local=False)
 
-    def init(self):
+    def create_init_sequence(self):
+        seq = super(STM32F051, self).create_init_sequence()
+
+        seq.insert_after('create_cores',
+            ('setup_dbgmcu', self.setup_dbgmcu)
+            )
+
+        return seq
+        
+    def setup_dbgmcu(self):
         logging.debug('stm32f051 init')
-        super(STM32F051, self).init()
         enclock = self.readMemory(RCC_APB2ENR_CR)
         enclock |= RCC_APB2ENR_DBGMCU
         self.writeMemory(RCC_APB2ENR_CR, enclock);

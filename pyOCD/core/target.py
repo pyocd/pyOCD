@@ -99,6 +99,9 @@ class Target(Notifier):
     def setFlash(self, flash):
         self.flash = flash
 
+    def create_init_sequence(self):
+        raise NotImplementedError()
+
     def init(self):
         raise NotImplementedError()
 

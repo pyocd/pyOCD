@@ -100,9 +100,16 @@ class KE15Z7(Kinetis):
         self.mdm_idr = 0x001c0020
         self._svd_location = SVDFile(vendor="Freescale", filename="MKE15Z7.svd")
 
-    def init(self):
-        super(KE15Z7, self).init()
+    def create_init_sequence(self):
+        seq = super(KE15Z7, self).create_init_sequence()
 
+        seq.insert_after('create_cores',
+            ('disable_rom_remap', self.disable_rom_remap)
+            )
+
+        return seq
+
+    def disable_rom_remap(self):
         # Disable ROM vector table remapping.
         self.write32(RCM_MR, RCM_MR_BOOTROM_MASK)
 

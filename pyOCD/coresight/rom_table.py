@@ -106,35 +106,38 @@ DEVARCH_ARCHID_MASK = 0xffff
 #  0x14 = ECT/CTI/CTM
 #  0x34 = Granular Power Requestor
 
-# Map from (class, designer, part, archid) to component name (eventually class).
+# Map from (designer, class, part, archid) to component name (eventually class).
 COMPONENT_MAP = {
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x906, 0)       : 'CTI',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x907, 0)       : 'ETB',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x908, 0)       : 'CSTF',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x912, 0)       : 'TPIU',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x923, 0)       : 'TPIU-M3',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x924, 0)       : 'ETM-M3',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x925, 0)       : 'ETM-M4',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x932, 0x0a31)  : 'MTB-M0+',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x9a1, 0)       : 'TPIU-M4',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x9a4, 0x0a34)  : 'GPR', # Granular Power Requestor
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0x9a6, 0)       : 'CTI',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0xd21, 0x1a01)  : 'ITM',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0xd21, 0x1a02)  : 'DWT',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0xd21, 0x1a03)  : 'BPU',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0xd21, 0x1a14)  : 'CTI',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0xd21, 0x2a04)  : 'SCS-M33',
-    (CIDR_CORESIGHT_CLASS,  ARM_ID, 0xd21, 0x4a13)  : 'ETM',
-    (CIDR_GENERIC_IP_CLASS, FSL_ID, 0x000, 0)       : 'MTBDWT',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x000, 0)       : 'SCS-M3',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x001, 0)       : 'ITM',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x002, 0)       : 'DWT',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x003, 0)       : 'FPB',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x008, 0)       : 'SCS-M0+',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x00a, 0)       : 'DWT-M0+',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x00b, 0)       : 'BPU',
-    (CIDR_GENERIC_IP_CLASS, ARM_ID, 0x00c, 0)       : 'SCS-M4',
-    (CIDR_SYSTEM_CLASS,     ARM_ID, 0x101, 0)       : 'TSGEN', # Timestamp Generator
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x906, 0)      : 'CTI',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x907, 0)      : 'ETB',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x908, 0)      : 'CSTF',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x912, 0)      : 'TPIU',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x923, 0)      : 'TPIU-M3',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x924, 0)      : 'ETM-M3',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x925, 0)      : 'ETM-M4',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x932, 0x0a31) : 'MTB-M0+',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x975, 0)      : 'ETM-M7',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a1, 0)      : 'TPIU-M4',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a4, 0x0a34) : 'GPR', # Granular Power Requestor
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a6, 0x1a14) : 'CTI',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a9, 0)      : 'TPIU-M7',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a01) : 'ITM',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a02) : 'DWT',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a03) : 'BPU',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a14) : 'CTI',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x2a04) : 'SCS-M33',
+    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x4a13) : 'ETM',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x000, 0)      : 'SCS-M3',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x001, 0)      : 'ITM',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x002, 0)      : 'DWT',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x003, 0)      : 'FPB',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x008, 0)      : 'SCS-M0+',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00a, 0)      : 'DWT-M0+',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00b, 0)      : 'BPU',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00c, 0)      : 'SCS-M4',
+    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00e, 0)      : 'FPB',
+    (ARM_ID, CIDR_SYSTEM_CLASS,     0x101, 0)      : 'TSGEN', # Timestamp Generator
+    (FSL_ID, CIDR_CORESIGHT_CLASS,  0x000, 0)      : 'MTBDWT',
     }
 
 class CoreSightComponent(object):
@@ -189,7 +192,7 @@ class CoreSightComponent(object):
         if is_rom_table:
             self.name = 'ROM'
         else:
-            key = (component_class, self.designer, self.part, self.archid)
+            key = (self.designer, component_class, self.part, self.archid)
             self.name = COMPONENT_MAP.get(key, '')
 
         self.component_class = component_class
@@ -237,8 +240,8 @@ class ROMTable(CoreSightComponent):
         self.read_table()
 
     def read_table(self):
-        logging.info("%sROM table #%d @ 0x%08x (designer=%03x part=%03x)",
-            self.depth_indent, self.number, self.address, self.designer, self.part)
+        logging.info("%sAP#%d ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
+            self.depth_indent, self.ap.ap_num, self.number, self.address, self.designer, self.part)
         self.components = []
 
         entryAddress = self.address

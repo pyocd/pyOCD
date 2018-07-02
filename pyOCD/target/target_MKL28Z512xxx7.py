@@ -173,31 +173,41 @@ class KL28x(Kinetis):
 
         self._svd_location = SVDFile(vendor="Freescale", filename="MKL28T7_CORE0.svd", is_local=False)
 
-    def init(self):
-        super(KL28x, self).init()
+    def create_init_sequence(self):
+        seq = super(KL28x, self).create_init_sequence()
 
+        # The KL28 will lock up if an invalid AP is accessed, so replace the AP scan with a
+        # fixed list of known APs.
+        seq.replace_task('find_aps', self.create_kl28_aps)
+
+        # Before creating cores, determine which memory map should be used.
+        seq.insert_before('create_cores',
+            ('detect_dual_core', self.detect_dual_core)
+            )
+
+        seq.insert_after('create_cores',
+            ('disable_rom_remap', self.disable_rom_remap)
+            )
+
+        return seq
+
+    ## @brief Set the fixed list of valid AP numbers for KL28.
+    def create_kl28_aps(self):
+        self.dp.valid_aps = [0, 1, 2]
+        
+    def detect_dual_core(self):
         # Check if this is the dual core part.
-        sdid = self.readMemory(SIM_SDID)
+        sdid = self.aps[0].readMemory(SIM_SDID)
         keyattr = (sdid & SIM_SDID_KEYATTR_MASK) >> SIM_SDID_KEYATTR_SHIFT
         logging.debug("KEYATTR=0x%x SDID=0x%08x", keyattr, sdid)
         self.is_dual_core = (keyattr == KEYATTR_DUAL_CORE)
         if self.is_dual_core:
             logging.info("KL28 is dual core")
             self.memory_map = self.dualMap
-            self.cores[0].memory_map = self.dualMap
 
-            # Add second core's AHB-AP.
-            core1_ap = ap.AHB_AP(self.dp, 2)
-            core1_ap.init(True)
-            self.add_ap(core1_ap)
-
-            # Add second core. It is held in reset until released by software.
-            core1 = CortexM(self, self.dp, core1_ap, self.memory_map, core_num=1)
-            core1.init()
-            self.add_core(core1)
-
+    def disable_rom_remap(self):
         # Disable ROM vector table remapping.
-        self.write32(RCM_MR, RCM_MR_BOOTROM_MASK)
+        self.aps[0].write32(RCM_MR, RCM_MR_BOOTROM_MASK)
 
 
 
