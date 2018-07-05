@@ -16,7 +16,7 @@
 """
 
 from .target import Target
-from ..coresight import (dap, ap, cortex_m)
+from ..coresight import (dap, cortex_m)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
@@ -25,7 +25,16 @@ from ..utility.sequencer import CallSequence
 import logging
 
 ##
-# @brief Debug target that uses CoreSight classes.
+# @brief Represents a chip that uses CoreSight debug infrastructure.
+#
+# An instance of this class is the root of the chip-level object graph. It has child
+# nodes for the DP and all cores. As a concrete subclass of Target, it provides methods
+# to control the device, access memory, adjust breakpoints, and so on.
+#
+# For single core devices, the CoreSightTarget has mostly equivalent functionality to
+# the CortexM object for the core. Multicore devices work differently. This class tracks
+# a "selected core", to which all actions are directed. The selected core can be changed
+# at any time. You may also directly access specific cores and perform operations on them.
 class CoreSightTarget(Target):
 
     def __init__(self, link, memoryMap=None):
@@ -33,10 +42,11 @@ class CoreSightTarget(Target):
         self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
-        self.dp = dap.DebugPort(link)
+        self.dp = dap.DebugPort(link, self)
         self._selected_core = 0
         self._svd_load_thread = None
         self._root_contexts = {}
+        self._new_core_num = 0
 
     @property
     def selected_core(self):
@@ -90,9 +100,9 @@ class CoreSightTarget(Target):
             ('notify',          lambda : self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self)))
             )
         
-        return seq        
+        return seq
     
-    def init(self, bus_accessible=True):
+    def init(self):
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
         seq.invoke()
@@ -101,21 +111,22 @@ class CoreSightTarget(Target):
     def create_cores(self):
         self._new_core_num = 0
         
-        def scan_rom_table(tbl):
-            for component in tbl.components:
-                if component.name.startswith('SCS'):
-                    logging.debug("Creating core #%d on AP#%d", self._new_core_num, ap.ap_num)
-                    core = cortex_m.CortexM(self, self.dp, ap, self.memory_map, core_num=self._new_core_num)
-                    core0.setHaltOnConnect(self.halt_on_connect)
-                    core.init()
-                    self.add_core(core)
-                    
-                    self._new_core_num += 1
-                elif component.name == 'ROM':
-                    scan_rom_table(component)
-        
-        for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
-            scan_rom_table(ap.rom_table)
+#         def scan_rom_table(tbl):
+#             logging.debug("%r", tbl.components)
+#             for component in tbl.components:
+#                 if component.name.startswith('SCS'):
+#                     logging.debug("Creating core #%d on AP#%d", self._new_core_num, ap.ap_num)
+#                     core = cortex_m.CortexM(self, self.dp, ap, self.memory_map, core_num=self._new_core_num)
+#                     core0.setHaltOnConnect(self.halt_on_connect)
+#                     core.init()
+#                     self.add_core(core)
+#                     
+#                     self._new_core_num += 1
+#                 elif component.name == 'ROM':
+#                     scan_rom_table(component)
+#         
+#         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
+#             scan_rom_table(ap.rom_table)
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))

@@ -143,7 +143,7 @@ class AccessPort(object):
         klass = AP_TYPE_MAP.get(key, AccessPort)
         
         ap = klass(dp, ap_num)
-        ap.init() #False)
+        ap.init()
         return ap
     
     def __init__(self, dp, ap_num):
@@ -154,6 +154,7 @@ class AccessPort(object):
         self.rom_addr = 0
         self.has_rom_table = False
         self.rom_table = None
+        self.core = None
         if LOG_DAP:
             self.logger = self.dp.logger.getChild('ap%d' % ap_num)
 

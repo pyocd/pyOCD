@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,24 +15,34 @@
  limitations under the License.
 """
 
+from .component import CoreSightComponent
+from .cortex_m import CortexM
+from .fpb import FPB
+from .dwt import DWT
 from ..utility.mask import invert32
+from collections import namedtuple
 import logging
 
 # CoreSight identification register offsets.
+DEVARCH = 0xfbc
+DEVID = 0xfc8
+DEVTYPE = 0xfcc
 PIDR4 = 0xfd0
 PIDR0 = 0xfe0
 CIDR0 = 0xff0
-DEVTYPE = 0xfcc
-DEVID = 0xfc8
-DEVARCH = 0xfbc
+IDR_END = 0x1000
 
-# Number of identification registers to read at once and offsets in results.
-IDR_COUNT = 17
-DEVARCH_OFFSET = 0
-DEVTYPE_OFFSET = 4
-PIDR4_OFFSET = 5
-PIDR0_OFFSET = 9
-CIDR0_OFFSET = 13
+# Range of identification registers to read at once and offsets in results.
+#
+# To improve component identification performance, we read all of a components
+# CoreSight ID registers in a single read. Reading starts at the DEVARCH register.
+IDR_READ_START = DEVARCH
+IDR_READ_COUNT = (IDR_END - IDR_READ_START) // 4
+DEVARCH_OFFSET = (DEVARCH - IDR_READ_START) // 4
+DEVTYPE_OFFSET = (DEVTYPE - IDR_READ_START) // 4
+PIDR4_OFFSET = (PIDR4 - IDR_READ_START) // 4
+PIDR0_OFFSET = (PIDR0 - IDR_READ_START) // 4
+CIDR0_OFFSET = (CIDR0 - IDR_READ_START) // 4
 
 # Component ID register fields.
 CIDR_PREAMBLE_MASK = 0xffff0fff
@@ -42,10 +52,10 @@ CIDR_COMPONENT_CLASS_MASK = 0x0000f000
 CIDR_COMPONENT_CLASS_SHIFT = 12
 
 # Component classes.
-CIDR_ROM_TABLE_CLASS = 0x1
-CIDR_CORESIGHT_CLASS = 0x9
-CIDR_GENERIC_IP_CLASS = 0xe
-CIDR_SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no standard register layout.
+ROM_TABLE_CLASS = 0x1
+CORESIGHT_CLASS = 0x9
+GENERIC_CLASS = 0xe
+SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no standard register layout.
 
 # Peripheral ID register fields.
 PIDR_PART_MASK = 0x00000fff
@@ -104,43 +114,58 @@ DEVARCH_ARCHID_MASK = 0xffff
 #  0x13 = CPU trace source (ETM, MTB?)
 #  0x43 = ITM
 #  0x14 = ECT/CTI/CTM
+#  0x31 = MTB
 #  0x34 = Granular Power Requestor
 
-# Map from (designer, class, part, archid) to component name (eventually class).
+## Pairs a component name with a factory method.
+CmpInfo = namedtuple('ComponentInfo', 'name factory')
+
+## Map from (designer, class, part, devtype, archid) to component name and class.
 COMPONENT_MAP = {
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x906, 0)      : 'CTI',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x907, 0)      : 'ETB',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x908, 0)      : 'CSTF',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x912, 0)      : 'TPIU',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x923, 0)      : 'TPIU-M3',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x924, 0)      : 'ETM-M3',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x925, 0)      : 'ETM-M4',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x932, 0x0a31) : 'MTB-M0+',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x975, 0)      : 'ETM-M7',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a1, 0)      : 'TPIU-M4',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a4, 0x0a34) : 'GPR', # Granular Power Requestor
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a6, 0x1a14) : 'CTI',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a9, 0)      : 'TPIU-M7',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a01) : 'ITM',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a02) : 'DWT',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a03) : 'BPU',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a14) : 'CTI',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x2a04) : 'SCS-M33',
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x4a13) : 'ETM',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x000, 0)      : 'SCS-M3',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x001, 0)      : 'ITM',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x002, 0)      : 'DWT',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x003, 0)      : 'FPB',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x008, 0)      : 'SCS-M0+',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00a, 0)      : 'DWT-M0+',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00b, 0)      : 'BPU',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00c, 0)      : 'SCS-M4',
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00e, 0)      : 'FPB',
-    (ARM_ID, CIDR_SYSTEM_CLASS,     0x101, 0)      : 'TSGEN', # Timestamp Generator
-    (FSL_ID, CIDR_CORESIGHT_CLASS,  0x000, 0)      : 'MTBDWT',
+  # Designer|Component Class |Part  |Type |Archid 
+    (ARM_ID, CORESIGHT_CLASS, 0x906, 0x14, 0)      : CmpInfo('CTI',       None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x907, 0x21, 0)      : CmpInfo('ETB',       None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('CSTF',      None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',      None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x923, 0x11, 0)      : CmpInfo('TPIU-M3',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x924, 0x13, 0)      : CmpInfo('ETM-M3',    None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x925, 0x13, 0)      : CmpInfo('ETM-M4',    None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x932, 0x31, 0x0a31) : CmpInfo('MTB-M0+',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x975, 0x13, 0)      : CmpInfo('ETM-M7',    None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9a1, 0x11, 0)      : CmpInfo('TPIU-M4',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9a4, 0x34, 0x0a34) : CmpInfo('GPR',       None            ), # Granular Power Requestor
+    (ARM_ID, CORESIGHT_CLASS, 0x9a6, 0x14, 0x1a14) : CmpInfo('CTI',       None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9a9, 0x11, 0)      : CmpInfo('TPIU-M7',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x11, 0)      : CmpInfo('TPIU-M23',  None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x13, 0)      : CmpInfo('ETM-M23',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a02) : CmpInfo('DWT',       DWT.factory     ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x2a04) : CmpInfo('SCS-M23',   CortexM.factory ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a01) : CmpInfo('ITM',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a02) : CmpInfo('DWT',       DWT.factory     ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a14) : CmpInfo('CTI',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS-M33',   CortexM.factory ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x4a13) : CmpInfo('ETM',       None            ), # M33
+    (ARM_ID, GENERIC_CLASS,   0x000, 0x00, 0)      : CmpInfo('SCS-M3',    CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x001, 0x00, 0)      : CmpInfo('ITM',       None            ),
+    (ARM_ID, GENERIC_CLASS,   0x002, 0x00, 0)      : CmpInfo('DWT',       DWT.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x003, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x008, 0x00, 0)      : CmpInfo('SCS-M0+',   CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x00a, 0x00, 0)      : CmpInfo('DWT-M0+',   DWT.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x00b, 0x00, 0)      : CmpInfo('BPU',       FPB.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x00c, 0x00, 0)      : CmpInfo('SCS-M4',    CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x00e, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
+    (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',     None            ), # Timestamp Generator
+    (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',    None            ),
     }
 
-class CoreSightComponent(object):
+## @brief Reads and parses CoreSight architectural component ID registers.
+#
+# Reads the CIDR, PIDR, DEVID, and DEVARCH registers present at well known offsets
+# in the memory map of all CoreSight components. The various fields from these
+# registers are made available as attributes.
+class CoreSightComponentID(object):
     def __init__(self, ap, top_addr):
         self.ap = ap
         self.address = top_addr
@@ -156,12 +181,13 @@ class CoreSightComponent(object):
         self.devtype = 0
         self.devid = 0
         self.name = ''
+        self.factory = None
         self.valid = False
 
     def read_id_registers(self):
         # Read Component ID, Peripheral ID, and DEVID/DEVARCH registers. This is done as a single
         # block read for performance reasons.
-        regs = self.ap.readBlockMemoryAligned32(self.top_address + DEVARCH, IDR_COUNT)
+        regs = self.ap.readBlockMemoryAligned32(self.top_address + IDR_READ_START, IDR_READ_COUNT)
         self.cidr = self._extract_id_register_value(regs, CIDR0_OFFSET)
         self.pidr = (self._extract_id_register_value(regs, PIDR4_OFFSET) << 32) | self._extract_id_register_value(regs, PIDR0_OFFSET)
 
@@ -172,7 +198,7 @@ class CoreSightComponent(object):
 
         # Extract class and determine if this is a ROM table.
         component_class = (self.cidr & CIDR_COMPONENT_CLASS_MASK) >> CIDR_COMPONENT_CLASS_SHIFT
-        is_rom_table = (component_class == CIDR_ROM_TABLE_CLASS)
+        is_rom_table = (component_class == ROM_TABLE_CLASS)
         
         # Extract JEP106 designer ID.
         self.designer = ((self.pidr & PIDR_DESIGNER_MASK) >> PIDR_DESIGNER_SHIFT) \
@@ -180,7 +206,7 @@ class CoreSightComponent(object):
         self.part = self.pidr & PIDR_PART_MASK
         
         # For CoreSight-class components, extract additional fields.
-        if component_class == CIDR_CORESIGHT_CLASS:
+        if component_class == CORESIGHT_CLASS:
              self.devarch = regs[DEVARCH_OFFSET]
              self.devid = regs[1:4]
              self.devtype = regs[DEVTYPE_OFFSET]
@@ -191,9 +217,15 @@ class CoreSightComponent(object):
         # Determine component name.
         if is_rom_table:
             self.name = 'ROM'
+            self.factory = ROMTable
         else:
-            key = (self.designer, component_class, self.part, self.archid)
-            self.name = COMPONENT_MAP.get(key, '')
+            key = (self.designer, component_class, self.part, self.devtype, self.archid)
+            info = COMPONENT_MAP.get(key, None)
+            if info is not None:
+                self.name = info.name
+                self.factory = info.factory
+            else:
+                self.name = '???'
 
         self.component_class = component_class
         self.is_rom_table = is_rom_table
@@ -206,10 +238,10 @@ class CoreSightComponent(object):
             result |= (value & 0xff) << (i * 8)
         return result
 
-    def __str__(self):
+    def __repr__(self):
         if not self.valid:
             return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, self.name, self.cidr, self.pidr)
-        if self.component_class == CIDR_CORESIGHT_CLASS:
+        if self.component_class == CORESIGHT_CLASS:
             return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x>" % (
                 self.address, self.name, self.component_class, self.designer, self.part,
                 self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2])
@@ -219,29 +251,32 @@ class CoreSightComponent(object):
 
 
 class ROMTable(CoreSightComponent):
-    def __init__(self, ap, top_addr=None, parent_table=None):
+    def __init__(self, ap, cmpid=None, addr=None, parent_table=None):
         # If no table address is provided, use the root ROM table for the AP.
-        if top_addr is None:
-            top_addr = ap.rom_addr
-        super(ROMTable, self).__init__(ap, top_addr)
+        if addr is None:
+            addr = ap.rom_addr
+        super(ROMTable, self).__init__(ap, cmpid, addr)
         self.parent = parent_table
         self.number = (self.parent.number + 1) if self.parent else 0
         self.components = []
+        self.name = 'ROM'
     
     @property
     def depth_indent(self):
         return "  " * self.number
 
     def init(self):
-        self.read_id_registers()
-        if not self.is_rom_table:
-            logging.warning("Warning: ROM table @ 0x%08x has unexpected CIDR component class (0x%x)", self.address, self.component_class)
+        if self.cmpid is None:
+            self.cmpid = CoreSightComponentID(self.ap, self.address)
+            self.cmpid.read_id_registers()
+        if not self.cmpid.is_rom_table:
+            logging.warning("Warning: ROM table @ 0x%08x has unexpected CIDR component class (0x%x)", self.address, self.cmpid.component_class)
             return
         self.read_table()
 
     def read_table(self):
         logging.info("%sAP#%d ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
-            self.depth_indent, self.ap.ap_num, self.number, self.address, self.designer, self.part)
+            self.depth_indent, self.ap.ap_num, self.number, self.address, self.cmpid.designer, self.cmpid.part)
         self.components = []
 
         entryAddress = self.address
@@ -277,16 +312,22 @@ class ROMTable(CoreSightComponent):
         address = self.address + offset
 
         # Create component instance.
-        cmp = CoreSightComponent(self.ap, address)
-        cmp.read_id_registers()
+        cmpid = CoreSightComponentID(self.ap, address)
+        cmpid.read_id_registers()
 
-        logging.info("%s[%d]%s", self.depth_indent, len(self.components), str(cmp))
+        logging.info("%s[%d]%s", self.depth_indent, len(self.components), str(cmpid))
 
         # Recurse into child ROM tables.
-        if cmp.is_rom_table:
-            cmp = ROMTable(self.ap, address, parent_table=self)
+        if cmpid.is_rom_table:
+            cmp = ROMTable(self.ap, cmpid, address, parent_table=self)
             cmp.init()
+        elif cmpid.factory is not None:
+            cmp = cmpid.factory(self.ap, cmpid, address)
+            cmp.init()
+        else:
+            cmp = cmpid
 
-        self.components.append(cmp)
+        if cmp is not None:
+            self.components.append(cmp)
 
 

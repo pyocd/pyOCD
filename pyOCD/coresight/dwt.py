@@ -17,6 +17,7 @@
 
 from .fpb import HardwareBreakpoint
 from ..core.target import Target
+from .component import CoreSightComponent
 import logging
 
 # Need a local copy to prevent circular import.
@@ -35,7 +36,7 @@ class Watchpoint(HardwareBreakpoint):
         self.size = 0
         self.func = 0
 
-class DWT(object):
+class DWT(CoreSightComponent):
     # DWT (data watchpoint & trace)
     DWT_CTRL = 0xE0001000
     DWT_COMP_BASE = 0xE0001020
@@ -53,9 +54,16 @@ class DWT(object):
     # Breakpoint size = MASK**2
     WATCH_SIZE_TO_MASK = dict((2**i, i) for i in range(0,32))
 
-    def __init__(self, ap):
-        super(DWT, self).__init__()
-        self.ap = ap
+    @classmethod
+    def factory(cls, ap, cmpid, address):
+        dwt = cls(ap, cmpid, address)
+        assert ap.core
+        ap.core.connect(dwt)
+        return dwt
+
+    def __init__(self, ap, cmpid=None, addr=None):
+        super(DWT, self).__init__(ap, cmpid, addr)
+        assert self.address == DWT.DWT_CTRL, "Unexpected DWT base address 0x%08x" % self.address
         self.watchpoints = []
         self.watchpoint_used = 0
         self.dwt_configured = False
