@@ -27,6 +27,8 @@ import os
 import json
 import sys
 from subprocess import Popen, STDOUT, PIPE
+import argparse
+import logging
 
 from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.board import MbedBoard
@@ -155,4 +157,9 @@ def test_gdb(board_id=None):
     return result
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='pyOCD gdb test')
+    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    args = parser.parse_args()
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level)
     test_gdb()
