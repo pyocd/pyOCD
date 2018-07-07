@@ -290,6 +290,7 @@ class GDBServerTool(object):
             self.process_commands(self.args.commands)
 
             gdb = None
+            gdbs = []
             if self.args.list_all == True:
                 self.list_boards()
             elif self.args.list_targets == True:
@@ -304,16 +305,21 @@ class GDBServerTool(object):
                         print("No board selected")
                         return 1
                     with board_selected as board:
-                        gdb = GDBServer(board, self.args.port_number, self.gdb_server_settings)
+                        baseTelnetPort = self.gdb_server_settings['telnet_port']
+                        for core_number, core in board.target.cores.iteritems():
+                            self.gdb_server_settings['telnet_port'] = baseTelnetPort + core_number
+                            gdb = GDBServer(board, self.args.port_number + core_number, self.gdb_server_settings, core=core_number)
+                            gdbs.append(gdb)
+                        gdb = gdbs[0]
                         while gdb.isAlive():
                             gdb.join(timeout=0.5)
                 except KeyboardInterrupt:
-                    if gdb != None:
+                    for gdb in gdbs:
                         gdb.stop()
                 except Exception as e:
                     print("uncaught exception: %s" % e)
                     traceback.print_exc()
-                    if gdb != None:
+                    for gdb in gdbs:
                         gdb.stop()
                     return 1
 
