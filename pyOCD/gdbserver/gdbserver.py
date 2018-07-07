@@ -18,23 +18,23 @@
 from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility.cmdline import convert_vector_catch
-from ..utility.conversion import hexToByteList, hexEncode, hexDecode, hex8leToU32le
+from ..utility.conversion import (hexToByteList, hexEncode, hexDecode, hex8leToU32le)
 from ..utility.progress import print_progress
-from gdb_socket import GDBSocket
-from gdb_websocket import GDBWebSocket
-from syscall import GDBSyscallIOHandler
+from .gdb_socket import GDBSocket
+from .gdb_websocket import GDBWebSocket
+from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
 from ..debug.cache import MemoryAccessError
 from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
-import signals
+from . import signals
 import logging, threading, socket
 from struct import unpack
-from time import sleep, time
+from time import (sleep, time)
 import sys
 import traceback
-import Queue
+from six.moves import queue
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 CTRL_C = '\x03'
@@ -62,7 +62,7 @@ class GDBServerPacketIOThread(threading.Thread):
         super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
         self.log = logging.getLogger('gdbpacket.%d' % abstract_socket.port)
         self._abstract_socket = abstract_socket
-        self._receive_queue = Queue.Queue()
+        self._receive_queue = queue.Queue()
         self._shutdown_event = threading.Event()
         self.interrupt_event = threading.Event()
         self.send_acks = True
@@ -103,7 +103,7 @@ class GDBServerPacketIOThread(threading.Thread):
                 # are no packets in the queue. Same if block is true and it times out
                 # waiting on an empty queue.
                 return self._receive_queue.get(block, 0.1)
-            except Queue.Empty:
+            except queue.Empty:
                 # Only exit the loop if block is false or connection closed.
                 if not block:
                     return None
@@ -1040,7 +1040,7 @@ class GDBServer(threading.Thread):
     def initThreadProviders(self):
         symbol_provider = GDBSymbolProvider(self)
 
-        for rtosName, rtosClass in RTOS.iteritems():
+        for rtosName, rtosClass in RTOS.items():
             try:
                 self.log.info("Attempting to load %s", rtosName)
                 rtos = rtosClass(self.target)

@@ -32,13 +32,13 @@ try:
 except ImportError:
     pass
 
-import pyOCD
-from pyOCD import __version__
-from pyOCD.board import MbedBoard
-from pyOCD.target.family import target_kinetis
-from pyOCD.pyDAPAccess import DAPAccess
-from pyOCD.core.target import Target
-from pyOCD.utility import mask
+from .. import __version__
+from .. import (utility, coresight)
+from ..board import MbedBoard
+from ..target.family import target_kinetis
+from ..pyDAPAccess import DAPAccess
+from ..core.target import Target
+from ..utility import mask
 
 # Make disasm optional.
 try:
@@ -383,7 +383,7 @@ class PyOCDConsole(object):
         try:
             while True:
                 try:
-                    line = raw_input(self.PROMPT)
+                    line = six.moves.input(self.PROMPT)
                     line = line.strip()
                     if line:
                         self.process_command_line(line)
@@ -413,12 +413,12 @@ class PyOCDConsole(object):
                     os.system(cmd)
                 return
 
-            args = pyOCD.utility.cmdline.split_command_line(cmd)
+            args = utility.cmdline.split_command_line(cmd)
             cmd = args[0].lower()
             args = args[1:]
 
             # Handle register name as command.
-            if cmd in pyOCD.coresight.cortex_m.CORE_REGISTER:
+            if cmd in coresight.cortex_m.CORE_REGISTER:
                 self.tool.handle_reg([cmd])
                 return
 
@@ -533,7 +533,7 @@ class PyOCDTool(object):
             }
 
     def get_args(self):
-        debug_levels = LEVELS.keys()
+        debug_levels = list(LEVELS.keys())
 
         epi = "Available commands:\n" + ', '.join(sorted(self.command_list.keys()))
 
@@ -688,7 +688,7 @@ class PyOCDTool(object):
             show_fields = False
 
         reg = args[0].lower()
-        if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+        if reg in coresight.cortex_m.CORE_REGISTER:
             value = self.target.readCoreRegister(reg)
             if type(value) in six.integer_types:
                 print("%s = 0x%08x (%d)" % (reg, value, value))
@@ -698,7 +698,7 @@ class PyOCDTool(object):
                 raise ToolError("Unknown register value type")
         else:
             subargs = reg.split('.')
-            if self.peripherals.has_key(subargs[0]):
+            if subargs[0] in self.peripherals:
                 p = self.peripherals[subargs[0]]
                 if len(subargs) > 1:
                     r = [x for x in p.registers if x.name.lower() == subargs[1]]
@@ -719,7 +719,7 @@ class PyOCDTool(object):
             raise ToolError("No value specified")
 
         reg = args[0].lower()
-        if reg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+        if reg in coresight.cortex_m.CORE_REGISTER:
             if reg.startswith('s') and reg != 'sp':
                 value = float(args[1])
             else:
@@ -730,7 +730,7 @@ class PyOCDTool(object):
             subargs = reg.split('.')
             if len(subargs) < 2:
                 raise ToolError("no register specified")
-            if self.peripherals.has_key(subargs[0]):
+            if subargs[0] in self.peripherals:
                 p = self.peripherals[subargs[0]]
                 r = [x for x in p.registers if x.name.lower() == subargs[1]]
                 if len(r):
@@ -859,10 +859,10 @@ class PyOCDTool(object):
             byteData = data
         elif width == 16:
             byteData = self.target.readBlockMemoryUnaligned8(addr, count)
-            data = pyOCD.utility.conversion.byteListToU16leList(byteData)
+            data = utility.conversion.byteListToU16leList(byteData)
         elif width == 32:
             byteData = self.target.readBlockMemoryUnaligned8(addr, count)
-            data = pyOCD.utility.conversion.byteListToU32leList(byteData)
+            data = utility.conversion.byteListToU32leList(byteData)
 
         # Print hex dump of output.
         dumpHexData(data, addr, width=width)
@@ -881,9 +881,9 @@ class PyOCDTool(object):
         if width == 8:
             pass
         elif width == 16:
-            data = pyOCD.utility.conversion.u16leListToByteList(data)
+            data = utility.conversion.u16leListToByteList(data)
         elif width == 32:
-            data = pyOCD.utility.conversion.u32leListToByteList(data)
+            data = utility.conversion.u32leListToByteList(data)
 
         if self.isFlashWrite(addr, width, data):
             self.target.flash.init()
@@ -1094,13 +1094,13 @@ class PyOCDTool(object):
             return
         apsel = self.convert_value(args[0])
         makeMemAp = (len(args) == 2 and args[1].lower() == 'mem')
-        if self.target.aps.has_key(apsel):
+        if apsel in self.target.aps:
             print("AP with APSEL=%d already exists" % apsel)
             return
         if makeMemAp:
-            ap = pyOCD.coresight.ap.MEM_AP(self.target.dp, apsel)
+            ap = coresight.ap.MEM_AP(self.target.dp, apsel)
         else:
-            ap = pyOCD.coresight.ap.AccessPort(self.target.dp, apsel)
+            ap = coresight.ap.AccessPort(self.target.dp, apsel)
         ap.init(bus_accessible=False)
         self.target.aps[apsel] = ap
 
@@ -1130,7 +1130,7 @@ class PyOCDTool(object):
             print("Cores:        %d" % len(self.target.cores))
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d type:  %s" % (i, pyOCD.coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
+                print("Core %d type:  %s" % (i, coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
 
     def handle_show_map(self, args):
         print("Region          Start         End                 Size    Blocksize")
@@ -1230,7 +1230,7 @@ class PyOCDTool(object):
         catch = self.target.getVectorCatch()
 
         print("Vector catch:")
-        for mask in sorted(VC_NAMES_MAP.iterkeys()):
+        for mask in sorted(VC_NAMES_MAP.keys()):
             name = VC_NAMES_MAP[mask]
             s = "ON" if (catch & mask) else "OFF"
             print("  {:3} {}".format(s, name))
@@ -1241,7 +1241,7 @@ class PyOCDTool(object):
             return
     
         try:
-            self.target.setVectorCatch(pyOCD.utility.cmdline.convert_vector_catch(args[0]))
+            self.target.setVectorCatch(utility.cmdline.convert_vector_catch(args[0]))
         except ValueError as e:
             print(e)
 
@@ -1275,13 +1275,13 @@ Prefix line with ! to execute a shell command.""")
                 subcmd = None
             
             def print_help(cmd, commandList, usageFormat):
-                for name, info in commandList.iteritems():
+                for name, info in commandList.items():
                     if cmd == name or cmd in info['aliases']:
                         print(("Usage: " + usageFormat).format(cmd=name, **info))
                         if len(info['aliases']):
                             print("Aliases:", ", ".join(info['aliases']))
                         print(info['help'])
-                        if info.has_key('extra_help'):
+                        if 'extra_help' in info:
                             print(info['extra_help'])
             
             if subcmd is None:
@@ -1339,12 +1339,12 @@ Prefix line with ! to execute a shell command.""")
                 arg = arg.strip()
                 offset = int(offset.strip(), base=0)
 
-        if arg in pyOCD.coresight.cortex_m.CORE_REGISTER:
+        if arg in coresight.cortex_m.CORE_REGISTER:
             value = self.target.readCoreRegister(arg)
             print("%s = 0x%08x" % (arg, value))
         else:
             subargs = arg.split('.')
-            if self.peripherals.has_key(subargs[0]) and len(subargs) > 1:
+            if subargs[0] in self.peripherals and len(subargs) > 1:
                 p = self.peripherals[subargs[0]]
                 r = [x for x in p.registers if x.name.lower() == subargs[1]]
                 if len(r):
@@ -1355,7 +1355,7 @@ Prefix line with ! to execute a shell command.""")
                 value = int(arg, base=0)
 
         if deref:
-            value = pyOCD.utility.conversion.byteListToU32leList(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
+            value = utility.conversion.byteListToU32leList(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
             print("[%s,%d] = 0x%08x" % (arg, offset, value))
 
         return value
@@ -1399,7 +1399,7 @@ Prefix line with ! to execute a shell command.""")
                 else:
                     bits_str = "%d:%d" % (msb, lsb)
                 f_value_str = "%x" % f_value
-                digits = (f.bit_width + 3) / 4
+                digits = (f.bit_width + 3) // 4
                 f_value_str = "0" * (digits - len(f_value_str)) + f_value_str
                 f_value_bin_str = bin(f_value)[2:]
                 f_value_bin_str = "0" * (f.bit_width - len(f_value_bin_str)) + f_value_bin_str

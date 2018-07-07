@@ -19,7 +19,7 @@ from ..core.target import Target
 import logging
 from struct import unpack
 from time import time
-from flash_builder import FlashBuilder
+from .flash_builder import FlashBuilder
 
 DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
 DEFAULT_PAGE_ERASE_WEIGHT = 0.048
@@ -88,7 +88,7 @@ class Flash(object):
             self.min_program_length = flash_algo.get('min_program_length', 0)
 
             # Check for double buffering support.
-            if flash_algo.has_key('page_buffers'):
+            if 'page_buffers' in flash_algo:
                 self.page_buffers = flash_algo['page_buffers']
             else:
                 self.page_buffers = [self.begin_data]

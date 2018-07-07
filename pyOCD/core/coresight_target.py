@@ -45,7 +45,7 @@ class CoreSightTarget(Target):
         return self.cores[self._selected_core]
 
     def select_core(self, num):
-        if not self.cores.has_key(num):
+        if num not in self.cores:
             raise ValueError("invalid core number")
         logging.debug("selected core #%d" % num)
         self._selected_core = num

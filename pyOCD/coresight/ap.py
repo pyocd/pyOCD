@@ -287,7 +287,7 @@ class MEM_AP(AccessPort):
 
         # try to read aligned block of 32bits
         if (size >= 4):
-            mem = self.readBlockMemoryAligned32(addr, size/4)
+            mem = self.readBlockMemoryAligned32(addr, size//4)
             res += conversion.u32leListToByteList(mem)
             size -= 4*len(mem)
             addr += 4*len(mem)

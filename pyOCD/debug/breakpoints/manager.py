@@ -146,18 +146,18 @@ class BreakpointManager(object):
         return bp.type if (bp is not None) else None
 
     def filter_memory(self, addr, size, data):
-        for provider in [p for p in self._providers.itervalues() if p.do_filter_memory]:
+        for provider in [p for p in self._providers.values() if p.do_filter_memory]:
             data = provider.filter_memory(addr, size, data)
         return data
 
     def filter_memory_unaligned_8(self, addr, size, data):
-        for provider in [p for p in self._providers.itervalues() if p.do_filter_memory]:
+        for provider in [p for p in self._providers.values() if p.do_filter_memory]:
             for i, d in enumerate(data):
                 data[i] = provider.filter_memory(addr + i, 8, d)
         return data
 
     def filter_memory_aligned_32(self, addr, size, data):
-        for provider in [p for p in self._providers.itervalues() if p.do_filter_memory]:
+        for provider in [p for p in self._providers.values() if p.do_filter_memory]:
             for i, d in enumerate(data):
                 data[i] = provider.filter_memory(addr + i, 32, d)
         return data
@@ -170,7 +170,7 @@ class BreakpointManager(object):
 
     def _flush_all(self):
         # Flush all providers.
-        for provider in self._providers.itervalues():
+        for provider in self._providers.values():
             provider.flush()
 
     def flush(self):

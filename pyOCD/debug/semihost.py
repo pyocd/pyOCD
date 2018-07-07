@@ -24,6 +24,7 @@ import datetime
 import threading
 import socket
 import traceback
+import six
 import pyOCD
 from ..gdbserver.gdb_socket import GDBSocket
 from ..gdbserver.gdb_websocket import GDBWebSocket
@@ -171,7 +172,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             }
 
     def _is_valid_fd(self, fd):
-         return self.open_files.has_key(fd) and self.open_files[fd] is not None
+         return fd in self.open_files and self.open_files[fd] is not None
 
     def cleanup(self):
         for f in (self.open_files[k] for k in self.open_files if k > STDERR_FD):
@@ -217,7 +218,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         try:
             f = self.open_files[fd]
             if 'b' not in f.mode:
-                data = unicode(data)
+                data = six.text_type(data)
             f.write(data)
             f.flush()
             return 0

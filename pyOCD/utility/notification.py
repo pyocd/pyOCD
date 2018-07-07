@@ -50,7 +50,7 @@ class Notifier(object):
         if not type(events) in (list, tuple):
             events = [events]
         for event in events:
-            if self._subscribers.has_key(event):
+            if event in self._subscribers:
                 self._subscribers[event].append(cb)
             else:
                 self._subscribers[event] = [cb]

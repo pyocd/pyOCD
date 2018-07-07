@@ -177,7 +177,7 @@ class DebugPort(object):
                 if idr == 0:
                     break
                 logging.info("AP#%d IDR = 0x%08x", ap_num, idr)
-            except Exception, e:
+            except Exception as e:
                 logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
                 break
             ap_num += 1
@@ -242,7 +242,7 @@ class DebugPort(object):
 
         # Don't need to write CSW if it's not changing value.
         if ap_regaddr == AP_REG['CSW']:
-            if self._csw.has_key(ap_sel) and data == self._csw[ap_sel]:
+            if ap_sel in self._csw and data == self._csw[ap_sel]:
                 if LOG_DAP:
                     self.logger.info("writeAP:%06d cached (addr=0x%08x) = 0x%08x", num, addr, data)
                 return

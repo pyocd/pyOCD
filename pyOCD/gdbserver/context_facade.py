@@ -50,7 +50,7 @@ class GDBDebugContextFacade(object):
         """
         logging.debug("GDB getting register context")
         resp = ''
-        reg_num_list = map(lambda reg:reg.reg_num, self._register_list)
+        reg_num_list = [reg.reg_num for reg in self._register_list]
         vals = self._context.readCoreRegistersRaw(reg_num_list)
         #print("Vals: %s" % vals)
         for reg, regValue in zip(self._register_list, vals):

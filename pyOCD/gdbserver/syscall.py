@@ -65,7 +65,7 @@ class GDBSyscallIOHandler(SemihostIOHandler):
             else:
                 modeval |= O_WRONLY | O_APPEND | O_CREAT
 
-        result, self._errno = self._server.syscall('open,%x/%x,%x,%x' % (fnptr, fnlen + 1, modeval, 0777))
+        result, self._errno = self._server.syscall('open,%x/%x,%x,%x' % (fnptr, fnlen + 1, modeval, 0o777))
         if result != -1:
             result += FD_OFFSET
         return result

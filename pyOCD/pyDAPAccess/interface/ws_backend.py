@@ -1,10 +1,10 @@
-from __future__ import print_function
+
 from future.utils import bytes_to_native_str
 from future.builtins import bytes
 
 from base64 import b64encode, b64decode
 from websocket import create_connection
-from interface import Interface
+from .interface import Interface
 
 class WebSocketInterface(Interface):
     def __init__(self, host='localhost', port=8081):

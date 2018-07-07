@@ -15,5 +15,5 @@
  limitations under the License.
 """
 
-import mbed_board
-from mbed_board import MbedBoard
+from . import mbed_board
+from .mbed_board import MbedBoard

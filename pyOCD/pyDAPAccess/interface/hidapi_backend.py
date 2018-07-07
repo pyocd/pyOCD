@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from interface import Interface
+from .interface import Interface
 import logging, os
 from ..dap_access_api import DAPAccessIntf
 
