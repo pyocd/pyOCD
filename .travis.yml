@@ -1,8 +1,12 @@
-language: python
+dist: trusty
 sudo: false
+language: python
 python:
   - "2.7"
+  - "3.6"
 # command to install dependencies
-install: "pip install -r dev-requirements.txt"
+install:
+  - pip install -r dev-requirements.txt
 # command to run tests
-script: pytest --cache-clear
+script:
+  - pytest --cache-clear
