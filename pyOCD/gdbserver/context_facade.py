@@ -18,6 +18,7 @@
 from ..utility import conversion
 from . import signals
 import logging
+import six
 
 # Maps the fault code found in the IPSR to a GDB signal value.
 FAULT = [
@@ -49,12 +50,12 @@ class GDBDebugContextFacade(object):
         return hexadecimal dump of registers as expected by GDB
         """
         logging.debug("GDB getting register context")
-        resp = ''
+        resp = b''
         reg_num_list = [reg.reg_num for reg in self._register_list]
         vals = self._context.readCoreRegistersRaw(reg_num_list)
         #print("Vals: %s" % vals)
         for reg, regValue in zip(self._register_list, vals):
-            resp += conversion.u32beToHex8le(regValue)
+            resp += six.b(conversion.u32beToHex8le(regValue))
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
 
         return resp
@@ -92,7 +93,7 @@ class GDBDebugContextFacade(object):
         if reg < len(self._register_list):
             regName = self._register_list[reg].name
             regValue = self._context.readCoreRegisterRaw(regName)
-            resp = conversion.u32beToHex8le(regValue)
+            resp = six.b(conversion.u32beToHex8le(regValue))
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 
@@ -103,9 +104,9 @@ class GDBDebugContextFacade(object):
             The current value of the important registers (sp, lr, pc).
         """
         if forceSignal is not None:
-            response = 'T' + conversion.byteToHex2(forceSignal)
+            response = six.b('T' + conversion.byteToHex2(forceSignal))
         else:
-            response = 'T' + conversion.byteToHex2(self.getSignalValue())
+            response = six.b('T' + conversion.byteToHex2(self.getSignalValue()))
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self.getRegIndexValuePairs([7, 13, 14, 15])
@@ -131,10 +132,10 @@ class GDBDebugContextFacade(object):
             for the T response string.  NN is the index of the
             register to follow MMMMMMMM is the value of the register.
         """
-        str = ''
+        str = b''
         regList = self._context.readCoreRegistersRaw(regIndexList)
         for regIndex, reg in zip(regIndexList, regList):
-            str += conversion.byteToHex2(regIndex) + ':' + conversion.u32beToHex8le(reg) + ';'
+            str += six.b(conversion.byteToHex2(regIndex) + ':' + conversion.u32beToHex8le(reg) + ';')
         return str
 
     def getMemoryMapXML(self):

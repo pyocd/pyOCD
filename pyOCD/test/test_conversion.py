@@ -1,5 +1,6 @@
 # mbed CMSIS-DAP debugger
 # Copyright (c) 2015 Paul Osborne <osbpau@gmail.com>
+# Copyright (c) 2018 Arm Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,13 +13,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import unittest
-from pyOCD.utility.conversion import byteListToU32leList, u32leListToByteList, u16leListToByteList, \
-    byteListToU16leList, u32BEToFloat32BE, float32beToU32be, u32beToHex8le, hex8leToU32be, byteToHex2, hexToByteList, \
-    hexDecode, hexEncode
 
+from pyOCD.utility.conversion import (
+    byteListToU32leList,
+    u32leListToByteList,
+    u16leListToByteList,
+    byteListToU16leList,
+    u32BEToFloat32BE,
+    float32beToU32be,
+    u32beToHex8le,
+    hex8leToU32be,
+    byteToHex2,
+    hexToByteList,
+    hexDecode,
+    hexEncode,
+)
+from pyOCD.gdbserver.gdbserver import (
+    escape,
+    unescape,
+)
+import pytest
+import six
 
-class TestConversionUtilities(unittest.TestCase):
+class TestConversionUtilities(object):
     def test_byteListToU32leList(self):
         data = range(32)
         self.assertEqual(byteListToU32leList(data), [
@@ -87,3 +104,45 @@ class TestConversionUtilities(unittest.TestCase):
     def test_hexEncode(self):
         self.assertEqual(hexEncode('\xab\xcd\xef\x12\x34'),
                          'abcdef1234')
+
+# Characters that must be escaped.
+ESCAPEES = (0x23, 0x24, 0x2a, 0x7d) # == ('#', '$', '}', '*')
+
+# Test the gdbserver binary data escape/unescape routines.
+class TestGdbEscape(object):
+    # Verify all chars that shouldn't be escaped pass through unmodified.
+    @pytest.mark.parametrize("data",
+        [six.int2byte(x) for x in range(256) if (x not in ESCAPEES)])
+    def test_escape_passthrough(self, data):
+        assert escape(data) == data
+    
+    @pytest.mark.parametrize(("data", "expected"), [
+            (b'#', b'}\x03'),
+            (b'$', b'}\x04'),
+            (b'}', b'}]'),
+            (b'*', b'}\x0a')
+        ])
+    def test_escape_1(self, data, expected):
+        assert escape(data) == expected
+    
+    def test_escape_2(self):
+        assert escape(b'1234#09*xyz') == b'1234}\x0309}\x0axyz'
+    
+    # Verify all chars that shouldn't be escaped pass through unmodified.
+    @pytest.mark.parametrize("data",
+        [six.int2byte(x) for x in range(256) if (x not in ESCAPEES)])
+    def test_unescape_passthrough(self, data):
+        assert unescape(data) == [six.byte2int(data)]
+    
+    @pytest.mark.parametrize(("expected", "data"), [
+            (0x23, b'}\x03'),
+            (0x24, b'}\x04'),
+            (0x7d, b'}]'),
+            (0x2a, b'}\x0a')
+        ])
+    def test_unescape_1(self, data, expected):
+        assert unescape(data) == [expected]
+    
+    def test_unescape_2(self):
+        assert unescape(b'1234}\x0309}\x0axyz') == \
+            [0x31, 0x32, 0x33, 0x34, 0x23, 0x30, 0x39, 0x2a, 0x78, 0x79, 0x7a]
