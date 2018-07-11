@@ -31,6 +31,7 @@ import target_MKL82Z128xxx7
 import target_MKV10Z128xxx7
 import target_MKV11Z128xxx7
 import target_MKW01Z128xxx4
+import target_MKW24D512xxx5
 import target_MKW40Z160xxx4
 import target_MKW41Z512xxx4
 import target_MK22FN1M0Axxx12
@@ -81,6 +82,7 @@ TARGET = {
           'kv10z7': target_MKV10Z128xxx7.KV10Z7,
           'kv11z7': target_MKV11Z128xxx7.KV11Z7,
           'kw01z4': target_MKW01Z128xxx4.KW01Z4,
+          'kw24d5': target_MKW24D512xxx5.KW24D5,
           'kw40z4': target_MKW40Z160xxx4.KW40Z4,
           'kw41z4': target_MKW41Z512xxx4.KW41Z4,
           'k20d50m': target_MK20DX128xxx5.K20D50M,
@@ -132,6 +134,7 @@ FLASH = {
          'kv10z7': target_MKV10Z128xxx7.Flash_kv10z7,
          'kv11z7': target_MKV11Z128xxx7.Flash_kv11z7,
          'kw01z4': target_MKW01Z128xxx4.Flash_kw01z4,
+         'kw24d5': target_MKW24D512xxx5.Flash_kw24d5,
          'kw40z4': target_MKW40Z160xxx4.Flash_kw40z4,
          'kw41z4': target_MKW41Z512xxx4.Flash_kw41z4,
          'k20d50m': target_MK20DX128xxx5.Flash_k20d50m,
