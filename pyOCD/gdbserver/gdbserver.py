@@ -19,6 +19,7 @@ from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import hexToByteList, hexEncode, hexDecode, hex8leToU32le
+from ..utility.progress import print_progress
 from gdb_socket import GDBSocket
 from gdb_websocket import GDBWebSocket
 from syscall import GDBSyscallIOHandler
@@ -813,30 +814,10 @@ class GDBServer(threading.Thread):
 
         # we need to flash everything
         elif 'FlashDone' in ops :
-
-            def print_progress(progress):
-                # Reset state on 0.0
-                if progress == 0.0:
-                    print_progress.done = False
-
-                # print progress bar
-                if not print_progress.done:
-                    sys.stdout.write('\r')
-                    i = int(progress * 20.0)
-                    sys.stdout.write("[%-20s] %3d%%" % ('=' * i, round(progress * 100)))
-                    sys.stdout.flush()
-
-                # Finish on 1.0
-                if progress >= 1.0:
-                    if not print_progress.done:
-                        print_progress.done = True
-                        sys.stdout.write("\r\n")
-                        sys.stdout.flush()
-
             if self.hide_programming_progress:
                 progress_cb = None
             else:
-                 progress_cb = print_progress
+                progress_cb = print_progress()
 
             self.flashBuilder.program(chip_erase=self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
 
