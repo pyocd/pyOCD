@@ -81,7 +81,7 @@ class TestMemoryCache:
 
     def test_11_full_overlap(self, mockcore, memcache):
         memcache.writeBlockMemoryUnaligned8(0, range(8))
-        assert memcache.readBlockMemoryUnaligned8(0, 8) == range(8)
+        assert memcache.readBlockMemoryUnaligned8(0, 8) == list(range(8))
 
     def test_12_begin(self, mockcore, memcache):
         memcache.writeBlockMemoryUnaligned8(8, [1, 2, 3, 4])

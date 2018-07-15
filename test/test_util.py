@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import pyOCD
 import logging, os, sys
+import traceback
 
 class Logger(object):
     def __init__(self, filename="Default.log"):
@@ -57,6 +58,7 @@ class Test(object):
             passed = True
         except Exception as e:
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            traceback.print_exc(file=sys.stdout)
         return TestResult(board, self, passed)
 
     def print_perf_info(self, result_list, output_file=None):
@@ -68,7 +70,7 @@ class Test(object):
     @staticmethod
     def print_results(result_list, output_file=None):
         msg_format_str = "{:<15}{:<21}{:<15}{:<15}"
-        print("\r\n\r\n------ TEST RESULTS ------")
+        print("\n\n------ TEST RESULTS ------")
         print(msg_format_str .format("Target", "Test", "Result", "Time"),
               file=output_file)
         print("", file=output_file)
@@ -76,7 +78,7 @@ class Test(object):
             status_str = "Pass" if result.passed else "Fail"
             print(msg_format_str.format(result.board.target_type,
                                         result.test.name,
-                                        status_str, result.time),
+                                        status_str, "%.3f" % result.time),
                   file=output_file)
 
     @staticmethod

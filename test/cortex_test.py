@@ -14,12 +14,14 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
 
 import argparse, os, sys
 from time import sleep, time
 from random import randrange
 import math
 import argparse
+import traceback
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -52,6 +54,7 @@ class CortexTest(Test):
             result = CortexTestResult()
             result.passed = False
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
         return result
@@ -111,7 +114,7 @@ def cortex_test(board_id):
         debugContext = target.getTargetContext()
         gdbFacade = pyOCD.gdbserver.context_facade.GDBDebugContextFacade(debugContext)
 
-        print "\r\n\r\n----- FLASH NEW BINARY BEFORE TEST -----"
+        print("\n\n----- FLASH NEW BINARY BEFORE TEST -----")
         flash.flashBinary(binary_file, addr_bin)
         # Let the target run for a bit so it
         # can initialize the watchdog if it needs to
@@ -119,10 +122,10 @@ def cortex_test(board_id):
         sleep(0.2)
         target.halt()
 
-        print "PROGRAMMING COMPLETE"
+        print("PROGRAMMING COMPLETE")
 
 
-        print "\r\n\r\n----- TESTING CORTEX-M PERFORMANCE -----"
+        print("\n\n----- TESTING CORTEX-M PERFORMANCE -----")
         test_time = test_function(board, gdbFacade.getTResponse)
         print("Function getTResponse time: %f" % test_time)
 
@@ -173,7 +176,7 @@ def cortex_test(board_id):
         print("TEST PASSED")
 
 
-        print "\r\n\r\n------ Testing Invalid Memory Access Recovery ------"
+        print("\n\n------ Testing Invalid Memory Access Recovery ------")
         memory_access_pass = True
         try:
             target.readBlockMemoryUnaligned8(addr_invalid, 0x1000)
@@ -217,7 +220,7 @@ def cortex_test(board_id):
         target.writeBlockMemoryUnaligned8(addr, data)
         block = target.readBlockMemoryUnaligned8(addr, size)
         if same(data, block):
-            print "Aligned access pass"
+            print("Aligned access pass")
         else:
             print("Memory read does not match memory written")
             memory_access_pass = False
@@ -226,7 +229,7 @@ def cortex_test(board_id):
         target.writeBlockMemoryUnaligned8(addr + 1, data)
         block = target.readBlockMemoryUnaligned8(addr + 1, size)
         if same(data, block):
-            print "Unaligned access pass"
+            print("Unaligned access pass")
         else:
             print("Unaligned memory read does not match memory written")
             memory_access_pass = False
@@ -234,11 +237,11 @@ def cortex_test(board_id):
         test_count += 1
         if memory_access_pass:
             test_pass_count += 1
-            print "TEST PASSED"
+            print("TEST PASSED")
         else:
-            print "TEST FAILED"
+            print("TEST FAILED")
 
-        print "\r\n\r\n------ Testing Software Breakpoints ------"
+        print("\n\n------ Testing Software Breakpoints ------")
         test_passed = True
         orig8x2 = target.readBlockMemoryUnaligned8(addr, 2)
         orig8 = target.read8(addr)
@@ -250,9 +253,9 @@ def cortex_test(board_id):
             test_passed = True
             filtered = target.readBlockMemoryUnaligned8(addr, 2)
             if same(orig8x2, filtered):
-                print "2 byte unaligned passed"
+                print("2 byte unaligned passed")
             else:
-                print "2 byte unaligned failed (read %x-%x, expected %x-%x)" % (filtered[0], filtered[1], orig8x2[0], orig8x2[1])
+                print("2 byte unaligned failed (read %x-%x, expected %x-%x)" % (filtered[0], filtered[1], orig8x2[0], orig8x2[1]))
                 test_passed = False
 
             for now in (True, False):
@@ -260,51 +263,51 @@ def cortex_test(board_id):
                 if not now:
                     filtered = filtered()
                 if filtered == orig8:
-                    print "8-bit passed [now=%s]" % now
+                    print("8-bit passed [now=%s]" % now)
                 else:
-                    print "8-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig8)
+                    print("8-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig8))
                     test_passed = False
 
                 filtered = target.read16(addr & ~1, now)
                 if not now:
                     filtered = filtered()
                 if filtered == orig16:
-                    print "16-bit passed [now=%s]" % now
+                    print("16-bit passed [now=%s]" % now)
                 else:
-                    print "16-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig16)
+                    print("16-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig16))
                     test_passed = False
 
                 filtered = target.read32(addr & ~3, now)
                 if not now:
                     filtered = filtered()
                 if filtered == orig32:
-                    print "32-bit passed [now=%s]" % now
+                    print("32-bit passed [now=%s]" % now)
                 else:
-                    print "32-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig32)
+                    print("32-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig32))
                     test_passed = False
 
             filtered = target.readBlockMemoryAligned32(addr & ~3, 1)
             if same(filtered, origAligned32):
-                print "32-bit aligned passed"
+                print("32-bit aligned passed")
             else:
-                print "32-bit aligned failed (read %x, expected %x)" % (filtered[0], origAligned32[0])
+                print("32-bit aligned failed (read %x, expected %x)" % (filtered[0], origAligned32[0]))
                 test_passed = False
             return test_passed
 
-        print "Installed software breakpoint at 0x%08x" % addr
+        print("Installed software breakpoint at 0x%08x" % addr)
         target.setBreakpoint(addr, pyOCD.core.target.Target.BREAKPOINT_SW)
         test_passed = test_filters() and test_passed
 
-        print "Removed software breakpoint"
+        print("Removed software breakpoint")
         target.removeBreakpoint(addr)
         test_passed = test_filters() and test_passed
 
         test_count += 1
         if test_passed:
             test_pass_count += 1
-            print "TEST PASSED"
+            print("TEST PASSED")
         else:
-            print "TEST FAILED"
+            print("TEST FAILED")
 
         target.reset()
 

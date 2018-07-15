@@ -15,7 +15,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from __future__ import print_function
 import os, sys
 from time import sleep
 from random import randrange
@@ -30,7 +30,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-print "\r\n\r\n------ Test attaching to locked board ------"
+print("\n\n------ Test attaching to locked board ------")
 for i in range(0, 10):
     with MbedBoard.chooseBoard() as board:
         # Erase and then reset - This locks Kinetis devices
@@ -38,7 +38,7 @@ for i in range(0, 10):
         board.flash.eraseAll()
         board.target.reset()
 
-print "\r\n\r\n------ Testing Attaching to board ------"
+print("\n\n------ Testing Attaching to board ------")
 for i in range(0, 100):
     with MbedBoard.chooseBoard() as board:
         board.target.halt()
@@ -46,12 +46,12 @@ for i in range(0, 100):
         board.target.resume()
         sleep(0.01)
 
-print "\r\n\r\n------ Flashing new code ------"
+print("\n\n------ Flashing new code ------")
 with MbedBoard.chooseBoard() as board:
     binary_file = os.path.join(parentdir, 'binaries', board.getTestBinary())
     board.flash.flashBinary(binary_file)
 
-print "\r\n\r\n------ Testing Attaching to regular board ------"
+print("\n\n------ Testing Attaching to regular board ------")
 for i in range(0, 10):
     with MbedBoard.chooseBoard() as board:
         board.target.resetStopOnReset()

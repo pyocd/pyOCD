@@ -238,14 +238,6 @@ class GDBServerTool(object):
                 boards.append(d)
 
             print(json.dumps(obj, indent=4))
-#         else:
-#             index = 0
-#             if len(all_mbeds) > 0:
-#                 for mbed in all_mbeds:
-#                     print("%d => %s boardId => %s" % (index, mbed.getInfo(), mbed.unique_id))
-#                     index += 1
-#             else:
-#                 print("No available boards are connected")
 
     def list_targets(self):
         self.disable_logging()

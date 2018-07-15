@@ -31,8 +31,6 @@ from pyOCD.pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 
-USB_TEST_XFER_COUNT = 128 * 1024 / 64  # 128 KB = 2K usb packets
-
 class SpeedTestResult(TestResult):
     def __init__(self):
         super(SpeedTestResult, self).__init__(None, None, None)
@@ -44,14 +42,14 @@ class SpeedTest(Test):
     def print_perf_info(self, result_list, output_file=None):
         format_str = "{:<10}{:<16}{:<16}"
         result_list = filter(lambda x: isinstance(x, SpeedTestResult), result_list)
-        print("\r\n\r\n------ Speed Test Performance ------", file=output_file)
+        print("\n\n------ Speed Test Performance ------", file=output_file)
         print(format_str.format("Target", "Read Speed", "Write Speed"),
               file=output_file)
         print("", file=output_file)
         for result in result_list:
             if result.passed:
-                read_speed = "%f KB/s" % (float(result.read_speed) / float(1000))
-                write_speed = "%f KB/s" % (float(result.write_speed) / float(1000))
+                read_speed = "%.3f KB/s" % (float(result.read_speed) / float(1000))
+                write_speed = "%.3f KB/s" % (float(result.write_speed) / float(1000))
             else:
                 read_speed = "Fail"
                 write_speed = "Fail"
@@ -108,7 +106,7 @@ def speed_test(board_id):
         link.set_clock(test_clock)
         link.set_deferred_transfer(True)
 
-        print("\r\n\r\n------ TEST RAM READ / WRITE SPEED ------")
+        print("\n\n------ TEST RAM READ / WRITE SPEED ------")
         test_addr = ram_start
         test_size = ram_size
         data = [randrange(1, 50) for x in range(test_size)]
@@ -118,14 +116,14 @@ def speed_test(board_id):
         stop = time()
         diff = stop - start
         result.write_speed = test_size / diff
-        print("Writing %i byte took %s seconds: %s B/s" % (test_size, diff, result.write_speed))
+        print("Writing %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, result.write_speed))
         start = time()
         block = target.readBlockMemoryUnaligned8(test_addr, test_size)
         target.flush()
         stop = time()
         diff = stop - start
         result.read_speed = test_size / diff
-        print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff, result.read_speed))
+        print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, result.read_speed))
         error = False
         for i in range(len(block)):
             if (block[i] != data[i]):
@@ -138,7 +136,7 @@ def speed_test(board_id):
             test_pass_count += 1
         test_count += 1
 
-        print("\r\n\r\n------ TEST ROM READ SPEED ------")
+        print("\n\n------ TEST ROM READ SPEED ------")
         test_addr = rom_start
         test_size = rom_size
         start = time()
@@ -146,7 +144,7 @@ def speed_test(board_id):
         target.flush()
         stop = time()
         diff = stop - start
-        print("Reading %i byte took %s seconds: %s B/s" % (test_size, diff, test_size / diff))
+        print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, test_size / diff))
         print("TEST PASSED")
         test_pass_count += 1
         test_count += 1

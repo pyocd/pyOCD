@@ -14,6 +14,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
 
 # Note
 #  To run this script GNU Tools ARM Embedded must be installed,
@@ -29,6 +30,7 @@ import sys
 from subprocess import Popen, STDOUT, PIPE
 import argparse
 import logging
+import traceback
 
 from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.board import MbedBoard
@@ -65,6 +67,7 @@ class GdbTest(Test):
             result.passed = False
             print("Exception %s when testing board %s" %
                   (e, board.getUniqueID()))
+            traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
         return result
@@ -120,12 +123,12 @@ def test_gdb(board_id=None):
     test_params["invalid_length"] = 0x1000
     test_params["expect_error_on_invalid_access"] = error_on_invalid_access
     test_params["ignore_hw_bkpt_result"] = ignore_hw_bkpt_result
-    with open(TEST_PARAM_FILE, "wb") as f:
+    with open(TEST_PARAM_FILE, "w") as f:
         f.write(json.dumps(test_params))
 
     # Run the test
     gdb = [PYTHON_GDB, "--command=gdb_script.py"]
-    with open("output.txt", "wb") as f:
+    with open("output.txt", "w") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
         args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id]
         server = GDBServerTool()
@@ -133,7 +136,7 @@ def test_gdb(board_id=None):
         program.wait()
 
     # Read back the result
-    with open(TEST_RESULT_FILE, "rb") as f:
+    with open(TEST_RESULT_FILE, "r") as f:
         test_result = json.loads(f.read())
 
     # Print results
