@@ -16,6 +16,7 @@
 
 from pyOCD.utility.sequencer import CallSequence
 import pytest
+import six
 
 class TestCallSequence:
     def test_empty(self):
@@ -122,10 +123,11 @@ class TestCallSequence:
                 )
         assert cs.count == 2
         it = iter(cs)
-        assert it.next() == ('a', task_a)
-        assert it.next() == ('b', task_b)
+        print("it=",repr(it),dir(it))
+        assert six.next(it) == ('a', task_a)
+        assert six.next(it) == ('b', task_b)
         with pytest.raises(StopIteration):
-            it.next()
+            six.next(it)
 
     def test_get(self):
         results = []

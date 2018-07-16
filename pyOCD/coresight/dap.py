@@ -173,7 +173,7 @@ class DebugPort(object):
                 if not isValid:
                     return
                 self.valid_aps.append(ap_num)
-            except Exception, e:
+            except Exception as e:
                 logging.error("Exception while probing AP#%d: %s", ap_num, repr(e))
                 break
             ap_num += 1
@@ -188,7 +188,7 @@ class DebugPort(object):
                 ap = AccessPort.create(self, ap_num)
                 logging.info("AP#%d IDR = 0x%08x", ap_num, ap.idr)
                 self.aps[ap_num] = ap
-            except Exception, e:
+            except Exception as e:
                 logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
                 break
     

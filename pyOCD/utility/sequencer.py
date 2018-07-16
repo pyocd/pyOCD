@@ -81,7 +81,7 @@ class CallSequence(object):
     
     ## @brief Returns a boolean indicating presence of the named task in the sequence.
     def has_task(self, name):
-        return self._calls.has_key(name)
+        return name in self._calls
     
     ## @brief Return the callable for the named task.
     # @exception KeyError Raised if no task with the specified name exists.
@@ -91,7 +91,7 @@ class CallSequence(object):
     ## @brief Change the callable associated with a task.
     def replace_task(self, name, replacement):
         assert isinstance(replacement, Callable)
-        if not self._calls.has_key(name):
+        if name not in self._calls:
             raise KeyError(name)
         else:
             # OrderedDict preserves the order when changing the value of a key
@@ -105,7 +105,7 @@ class CallSequence(object):
     # original task. This allows for easy filtering of a new call sequence returned by
     # the original task.
     def wrap_task(self, name, wrapper):
-        if not self._calls.has_key(name):
+        if name not in self._calls:
             raise KeyError(name)
 
         # Get original callable.
@@ -142,7 +142,7 @@ class CallSequence(object):
         if not self.has_task(beforeTaskName):
             raise KeyError(beforeTaskName)
 
-        seq = self._calls.items()
+        seq = list(self._calls.items())
         for i, v in enumerate(seq):
             if v[0] == beforeTaskName:
                 for c in args:
@@ -168,7 +168,7 @@ class CallSequence(object):
         if not self.has_task(afterTaskName):
             raise KeyError(afterTaskName)
 
-        seq = self._calls.items()
+        seq = list(self._calls.items())
         for i, v in enumerate(seq):
             if v[0] == afterTaskName:
                 for c in args:
@@ -184,7 +184,7 @@ class CallSequence(object):
     # A task may return a CallSequence, in which case the new sequence is immediately
     # executed.
     def invoke(self):
-        for name, call in self._calls.iteritems():
+        for name, call in self._calls.items():
             log.debug("Running task %s", name)
             resultSequence = call()
             
@@ -201,11 +201,11 @@ class CallSequence(object):
     
     ## @brief Iterate over the sequence.
     def __iter__(self):
-        return self._calls.iteritems()
+        return iter(self._calls.items())
     
     def __repr__(self):
         s = "<%s@%x: " % (self.__class__.__name__, id(self))
-        for name, task in self._calls.iteritems():
+        for name, task in self._calls.items():
             s += "\n%s: %s" % (name, task)
         s += ">"
         return s

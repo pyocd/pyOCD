@@ -383,7 +383,7 @@ class CortexM(Target, CoreSightComponent):
 
         self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
-        if not CORE_TYPE_NAME.has_key(self.core_type):
+        if self.core_type not in CORE_TYPE_NAME:
             raise RuntimeError("Unknown CPU type 0x%x" % self.core_type)
         logging.info("CPU core is %s", CORE_TYPE_NAME[self.core_type])
 

@@ -1103,11 +1103,11 @@ class PyOCDTool(object):
         if apsel in self.target.aps:
             print("AP with APSEL=%d already exists" % apsel)
             return
-        exists = pyOCD.coresight.ap.AccessPort.probe(self.target.dp, apsel)
+        exists = coresight.ap.AccessPort.probe(self.target.dp, apsel)
         if not exists:
             print("Error: no AP with APSEL={}} exists".format(apsel))
             return
-        ap = pyOCD.coresight.ap.AccessPort.create(self.target.dp, apsel)
+        ap = coresight.ap.AccessPort.create(self.target.dp, apsel)
         self.target.dp.aps[apsel] = ap
 
     def handle_reinit(self, args):
