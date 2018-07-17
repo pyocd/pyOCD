@@ -114,7 +114,7 @@ class RegisterCache(object):
         reg_set = set(reg_list)
 
         # Get list of values we have cached.
-        cached_set = set(r for r in reg_list if self._cache.has_key(r))
+        cached_set = set(r for r in reg_list if r in self._cache)
         self._metrics.hits += len(cached_set)
 
         # Read uncached registers from the target.

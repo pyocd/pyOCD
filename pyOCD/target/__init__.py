@@ -17,53 +17,53 @@
 
 from ..core.coresight_target import CoreSightTarget
 from .family import (target_kinetis, flash_cortex_m)
-import target_MKE15Z256xxx7
-import target_MKE18F256xxx16
-import target_MKL02Z32xxx4
-import target_MKL05Z32xxx4
-import target_MKL25Z128xxx4
-import target_MKL26Z256xxx4
-import target_MKL27Z256xxx4
-import target_MKL28Z512xxx7
-import target_MKL43Z256xxx4
-import target_MKL46Z256xxx4
-import target_MKL82Z128xxx7
-import target_MKV10Z128xxx7
-import target_MKV11Z128xxx7
-import target_MKW01Z128xxx4
-import target_MKW24D512xxx5
-import target_MKW40Z160xxx4
-import target_MKW41Z512xxx4
-import target_MK22FN1M0Axxx12
-import target_MK22FN512xxx12
-import target_MK28FN2M0xxx15
-import target_MK64FN1M0xxx12
-import target_MK66FN2M0xxx18
-import target_MK82FN256xxx15
-import target_MK20DX128xxx5
-import target_K32W042S1M2xxx
-import target_lpc800
-import target_LPC11U24FBD64_401
-import target_LPC1768
-import target_LPC4330
-import target_nRF51822_xxAA
-import target_nRF52832_xxAA
-import target_nRF52840_xxAA
-import target_STM32F103RC
-import target_STM32F051T8
-import target_maxwsnenv
-import target_max32600mbed
-import target_w7500
-import target_LPC1114FN28_102
-import target_LPC824M201JHI33
-import target_LPC54114J256BD64
-import target_LPC54608J512ET180
-import target_ncs36510
-import target_LPC4088FBD144
-import target_lpc4088qsb
-import target_lpc4088dm
-import target_RTL8195AM
-import target_CC3220SF
+from . import target_MKE15Z256xxx7
+from . import target_MKE18F256xxx16
+from . import target_MKL02Z32xxx4
+from . import target_MKL05Z32xxx4
+from . import target_MKL25Z128xxx4
+from . import target_MKL26Z256xxx4
+from . import target_MKL27Z256xxx4
+from . import target_MKL28Z512xxx7
+from . import target_MKL43Z256xxx4
+from . import target_MKL46Z256xxx4
+from . import target_MKL82Z128xxx7
+from . import target_MKV10Z128xxx7
+from . import target_MKV11Z128xxx7
+from . import target_MKW01Z128xxx4
+from . import target_MKW24D512xxx5
+from . import target_MKW40Z160xxx4
+from . import target_MKW41Z512xxx4
+from . import target_MK22FN1M0Axxx12
+from . import target_MK22FN512xxx12
+from . import target_MK28FN2M0xxx15
+from . import target_MK64FN1M0xxx12
+from . import target_MK66FN2M0xxx18
+from . import target_MK82FN256xxx15
+from . import target_MK20DX128xxx5
+from . import target_K32W042S1M2xxx
+from . import target_lpc800
+from . import target_LPC11U24FBD64_401
+from . import target_LPC1768
+from . import target_LPC4330
+from . import target_nRF51822_xxAA
+from . import target_nRF52832_xxAA
+from . import target_nRF52840_xxAA
+from . import target_STM32F103RC
+from . import target_STM32F051T8
+from . import target_maxwsnenv
+from . import target_max32600mbed
+from . import target_w7500
+from . import target_LPC1114FN28_102
+from . import target_LPC824M201JHI33
+from . import target_LPC54114J256BD64
+from . import target_LPC54608J512ET180
+from . import target_ncs36510
+from . import target_LPC4088FBD144
+from . import target_lpc4088qsb
+from . import target_lpc4088dm
+from . import target_RTL8195AM
+from . import target_CC3220SF
 
 TARGET = {
           'cortex_m': CoreSightTarget,

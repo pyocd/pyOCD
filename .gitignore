@@ -61,7 +61,7 @@ htmlcov
 # Common virtualenv environment names
 /env
 /env3
-/venv
+/venv*
 /dev
 /windev
 

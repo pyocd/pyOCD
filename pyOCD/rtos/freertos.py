@@ -418,9 +418,9 @@ class FreeRTOSThreadProvider(ThreadProvider):
         listsToRead.append((self._symbols['xDelayedTaskList1'], FreeRTOSThread.BLOCKED))
         listsToRead.append((self._symbols['xDelayedTaskList2'], FreeRTOSThread.BLOCKED))
         listsToRead.append((self._symbols['xPendingReadyList'], FreeRTOSThread.READY))
-        if self._symbols.has_key('xSuspendedTaskList'):
+        if 'xSuspendedTaskList' in self._symbols:
             listsToRead.append((self._symbols['xSuspendedTaskList'], FreeRTOSThread.SUSPENDED))
-        if self._symbols.has_key('xTasksWaitingTermination'):
+        if 'xTasksWaitingTermination' in self._symbols:
             listsToRead.append((self._symbols['xTasksWaitingTermination'], FreeRTOSThread.DELETED))
 
         for listPtr, state in listsToRead:
@@ -462,7 +462,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
         if not self.is_enabled:
             return []
         self.update_threads()
-        return self._threads.values()
+        return list(self._threads.values())
 
     def get_thread(self, threadId):
         if not self.is_enabled:

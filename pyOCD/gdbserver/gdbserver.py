@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,26 +18,28 @@
 from ..core.target import Target
 from pyOCD.pyDAPAccess import DAPAccess
 from ..utility.cmdline import convert_vector_catch
-from ..utility.conversion import hexToByteList, hexEncode, hexDecode, hex8leToU32le
+from ..utility.conversion import (hexToByteList, hexEncode, hexDecode, hex8leToU32le)
 from ..utility.progress import print_progress
-from gdb_socket import GDBSocket
-from gdb_websocket import GDBWebSocket
-from syscall import GDBSyscallIOHandler
+from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe)
+from .gdb_socket import GDBSocket
+from .gdb_websocket import GDBWebSocket
+from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
 from ..debug.cache import MemoryAccessError
 from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
-import signals
+from . import signals
 import logging, threading, socket
 from struct import unpack
-from time import sleep, time
+from time import (sleep, time)
 import sys
 import traceback
-import Queue
+import six
+from six.moves import queue
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
-CTRL_C = '\x03'
+CTRL_C = b'\x03'
 
 # Logging options. Set to True to enable.
 LOG_MEM = False # Log memory accesses.
@@ -45,7 +47,41 @@ LOG_ACK = False # Log ack or nak.
 LOG_PACKETS = False # Log all packets sent and received.
 
 def checksum(data):
-    return "%02x" % (sum([ord(c) for c in data]) % 256)
+    return b"%02x" % (sum(six.iterbytes(data)) % 256)
+
+## @brief De-escapes binary data from Gdb.
+#
+# @param data Bytes-like object with possibly escaped values.
+# @return List of integers in the range 0-255, with all escaped bytes de-escaped.
+def unescape(data):
+    data_idx = 0
+
+    # unpack the data into binary array
+    str_unpack = str(len(data)) + 'B'
+    data = unpack(str_unpack, data)
+    data = list(data)
+
+    # check for escaped characters
+    while data_idx < len(data):
+        if data[data_idx] == 0x7d:
+            data.pop(data_idx)
+            data[data_idx] = data[data_idx] ^ 0x20
+        data_idx += 1
+
+    return data
+
+## @brief Escape binary data to be sent to Gdb.
+#
+# @param data Bytes-like object containing raw binary.
+# @return Bytes object with the characters in '#$}*' escaped as required by Gdb.
+def escape(data):
+    result = b''
+    for c in iter_single_bytes(data):
+        if c in b'#$}*':
+            result += b'}' + six.int2byte(six.byte2int(c) ^ 0x20)
+        else:
+            result += c
+    return result
 
 ## @brief Exception used to signal the GDB server connection closed.
 class ConnectionClosedException(Exception):
@@ -62,15 +98,15 @@ class GDBServerPacketIOThread(threading.Thread):
         super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
         self.log = logging.getLogger('gdbpacket.%d' % abstract_socket.port)
         self._abstract_socket = abstract_socket
-        self._receive_queue = Queue.Queue()
+        self._receive_queue = queue.Queue()
         self._shutdown_event = threading.Event()
         self.interrupt_event = threading.Event()
         self.send_acks = True
         self._clear_send_acks = False
-        self._buffer = ''
+        self._buffer = b''
         self._expecting_ack = False
         self.drop_reply = False
-        self._last_packet = ''
+        self._last_packet = b''
         self._closed = False
         self.setDaemon(True)
         self.start()
@@ -103,7 +139,7 @@ class GDBServerPacketIOThread(threading.Thread):
                 # are no packets in the queue. Same if block is true and it times out
                 # waiting on an empty queue.
                 return self._receive_queue.get(block, 0.1)
-            except Queue.Empty:
+            except queue.Empty:
                 # Only exit the loop if block is false or connection closed.
                 if not block:
                     return None
@@ -154,8 +190,8 @@ class GDBServerPacketIOThread(threading.Thread):
 
     def _check_expected_ack(self):
         # Handle expected ack.
-        c = self._buffer[0]
-        if c in ('+', '-'):
+        c = self._buffer[0:1]
+        if c in (b'+', b'-'):
             self._buffer = self._buffer[1:]
             if LOG_ACK:
                 self.log.debug('got ack: %s', c)
@@ -179,14 +215,14 @@ class GDBServerPacketIOThread(threading.Thread):
                 self._check_expected_ack()
 
             # Check for a ctrl-c.
-            if len(self._buffer) and self._buffer[0] == CTRL_C:
+            if len(self._buffer) and self._buffer[0:1] == CTRL_C:
                 self.interrupt_event.set()
                 self._buffer = self._buffer[1:]
 
             try:
                 # Look for complete packet and extract from buffer.
-                pkt_begin = self._buffer.index("$")
-                pkt_end = self._buffer.index("#") + 2
+                pkt_begin = self._buffer.index(b"$")
+                pkt_end = self._buffer.index(b"#") + 2
                 if pkt_begin >= 0 and pkt_end < len(self._buffer):
                     pkt = self._buffer[pkt_begin:pkt_end + 1]
                     self._buffer = self._buffer[pkt_end + 1:]
@@ -199,12 +235,12 @@ class GDBServerPacketIOThread(threading.Thread):
 
     def _handling_incoming_packet(self, packet):
         # Compute checksum
-        data, cksum = packet[1:].split('#')
+        data, cksum = packet[1:].split(b'#')
         computedCksum = checksum(data)
         goodPacket = (computedCksum.lower() == cksum.lower())
 
         if self.send_acks:
-            ack = '+' if goodPacket else '-'
+            ack = b'+' if goodPacket else b'-'
             self._abstract_socket.write(ack)
             if LOG_ACK:
                 self.log.debug(ack)
@@ -306,31 +342,31 @@ class GDBServer(threading.Thread):
         #
         self.COMMANDS = {
         #       CMD    HANDLER                  START    DESCRIPTION
-                '?' : (self.stopReasonQuery,    0   ), # Stop reason query.
-                'c' : (self.resume,             1   ), # Continue (at addr)
-                'C' : (self.resume,             1   ), # Continue with signal.
-                'D' : (self.detach,             1   ), # Detach.
-                'g' : (self.getRegisters,       0   ), # Read general registers.
-                'G' : (self.setRegisters,       2   ), # Write general registers.
-                'H' : (self.setThread,          2   ), # Set thread for subsequent operations.
-                'k' : (self.kill,               0   ), # Kill.
-                'm' : (self.getMemory,          2   ), # Read memory.
-                'M' : (self.writeMemoryHex,     2   ), # Write memory (hex).
-                'p' : (self.readRegister,       2   ), # Read register.
-                'P' : (self.writeRegister,      2   ), # Write register.
-                'q' : (self.handleQuery,        2   ), # General query.
-                'Q' : (self.handleGeneralSet,   2   ), # General set.
-                's' : (self.step,               1   ), # Single step.
-                'S' : (self.step,               1   ), # Step with signal.
-                'T' : (self.isThreadAlive,      1   ), # Thread liveness query.
-                'v' : (self.vCommand,           2   ), # v command.
-                'X' : (self.writeMemory,        2   ), # Write memory (binary).
-                'z' : (self.breakpoint,         1   ), # Insert breakpoint/watchpoint.
-                'Z' : (self.breakpoint,         1   ), # Remove breakpoint/watchpoint.
+                b'?' : (self.stopReasonQuery,    0   ), # Stop reason query.
+                b'c' : (self.resume,             1   ), # Continue (at addr)
+                b'C' : (self.resume,             1   ), # Continue with signal.
+                b'D' : (self.detach,             1   ), # Detach.
+                b'g' : (self.getRegisters,       0   ), # Read general registers.
+                b'G' : (self.setRegisters,       2   ), # Write general registers.
+                b'H' : (self.setThread,          2   ), # Set thread for subsequent operations.
+                b'k' : (self.kill,               0   ), # Kill.
+                b'm' : (self.getMemory,          2   ), # Read memory.
+                b'M' : (self.writeMemoryHex,     2   ), # Write memory (hex).
+                b'p' : (self.readRegister,       2   ), # Read register.
+                b'P' : (self.writeRegister,      2   ), # Write register.
+                b'q' : (self.handleQuery,        2   ), # General query.
+                b'Q' : (self.handleGeneralSet,   2   ), # General set.
+                b's' : (self.step,               1   ), # Single step.
+                b'S' : (self.step,               1   ), # Step with signal.
+                b'T' : (self.isThreadAlive,      1   ), # Thread liveness query.
+                b'v' : (self.vCommand,           2   ), # v command.
+                b'X' : (self.writeMemory,        2   ), # Write memory (binary).
+                b'z' : (self.breakpoint,         1   ), # Insert breakpoint/watchpoint.
+                b'Z' : (self.breakpoint,         1   ), # Remove breakpoint/watchpoint.
             }
 
         # Commands that kill the connection to gdb.
-        self.DETACH_COMMANDS = ('D', 'k')
+        self.DETACH_COMMANDS = (b'D', b'k')
 
         self.setDaemon(True)
         self.start()
@@ -482,28 +518,28 @@ class GDBServer(threading.Thread):
 
     def handleMsg(self, msg):
         try:
-            assert msg[0] == '$', "invalid first char of message (!= $"
+            assert msg[0:1] == b'$', "invalid first char of message (!= $"
 
             try:
-                handler, msgStart = self.COMMANDS[msg[1]]
+                handler, msgStart = self.COMMANDS[msg[1:2]]
                 if msgStart == 0:
                     reply = handler()
                 else:
                     reply = handler(msg[msgStart:])
-                detach = 1 if msg[1] in self.DETACH_COMMANDS else 0
+                detach = 1 if msg[1:2] in self.DETACH_COMMANDS else 0
                 return reply, detach
             except (KeyError, IndexError):
                 self.log.error("Unknown RSP packet: %s", msg)
-                return self.createRSPPacket(""), 0
+                return self.createRSPPacket(b""), 0
 
         except Exception as e:
             self.log.error("Unhandled exception in handleMsg: %s", e)
             traceback.print_exc()
-            return self.createRSPPacket("E01"), 0
+            return self.createRSPPacket(b"E01"), 0
 
     def detach(self, data):
         self.log.info("Client detached")
-        resp = "OK"
+        resp = b"OK"
         return self.createRSPPacket(resp)
 
     def kill(self):
@@ -512,66 +548,66 @@ class GDBServer(threading.Thread):
         if not self.persist:
             self.board.target.setVectorCatch(Target.CATCH_NONE)
             self.board.target.resume()
-        return self.createRSPPacket("")
+        return self.createRSPPacket(b"")
 
     def breakpoint(self, data):
         # handle breakpoint/watchpoint commands
-        split = data.split('#')[0].split(',')
+        split = data.split(b'#')[0].split(b',')
         addr = int(split[1], 16)
-        self.log.debug("GDB breakpoint %s%d @ %x" % (data[0], int(data[1]), addr))
+        self.log.debug("GDB breakpoint %s%d @ %x" % (data[0:1], int(data[1:2]), addr))
 
         # handle software breakpoint Z0/z0
-        if data[1] == '0' and not self.soft_bkpt_as_hard:
-            if data[0] == 'Z':
+        if data[1:2] == b'0' and not self.soft_bkpt_as_hard:
+            if data[0:1] == b'Z':
                 if not self.target.setBreakpoint(addr, Target.BREAKPOINT_SW):
-                    return self.createRSPPacket('E01') #EPERM
+                    return self.createRSPPacket(b'E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
         # handle hardware breakpoint Z1/z1
-        if data[1] == '1' or (self.soft_bkpt_as_hard and data[1] == '0'):
-            if data[0] == 'Z':
+        if data[1:2] == b'1' or (self.soft_bkpt_as_hard and data[1:2] == b'0'):
+            if data[0:1] == b'Z':
                 if self.target.setBreakpoint(addr, Target.BREAKPOINT_HW) == False:
-                    return self.createRSPPacket('E01') #EPERM
+                    return self.createRSPPacket(b'E01') #EPERM
             else:
                 self.target.removeBreakpoint(addr)
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
         # handle hardware watchpoint Z2/z2/Z3/z3/Z4/z4
-        if data[1] == '2':
+        if data[1:2] == b'2':
             # Write-only watch
             watchpoint_type = Target.WATCHPOINT_WRITE
-        elif data[1] == '3':
+        elif data[1:2] == b'3':
             # Read-only watch
             watchpoint_type = Target.WATCHPOINT_READ
-        elif data[1] == '4':
+        elif data[1:2] == b'4':
             # Read-Write watch
             watchpoint_type = Target.WATCHPOINT_READ_WRITE
         else:
-            return self.createRSPPacket('E01') #EPERM
+            return self.createRSPPacket(b'E01') #EPERM
 
         size = int(split[2], 16)
-        if data[0] == 'Z':
+        if data[0:1] == b'Z':
             if self.target.setWatchpoint(addr, size, watchpoint_type) == False:
-                return self.createRSPPacket('E01') #EPERM
+                return self.createRSPPacket(b'E01') #EPERM
         else:
             self.target.removeWatchpoint(addr, size, watchpoint_type)
-        return self.createRSPPacket("OK")
+        return self.createRSPPacket(b"OK")
 
     def setThread(self, data):
         if not self.is_threading_enabled():
-            return self.createRSPPacket('OK')
+            return self.createRSPPacket(b'OK')
 
         self.log.debug("setThread:%s", data)
-        op = data[0]
+        op = data[0:1]
         thread_id = int(data[1:-3], 16)
         if not (thread_id in (0, -1) or self.thread_provider.is_valid_thread_id(thread_id)):
-            return self.createRSPPacket('E01')
+            return self.createRSPPacket(b'E01')
 
-        if op == 'c':
+        if op == b'c':
             pass
-        elif op == 'g':
+        elif op == b'g':
             if thread_id == -1:
                 self.target_facade.set_context(self.target_context)
             else:
@@ -582,10 +618,10 @@ class GDBServer(threading.Thread):
                     thread = self.thread_provider.get_thread(thread_id)
                 self.target_facade.set_context(thread.context)
         else:
-            return self.createRSPPacket('E01')
+            return self.createRSPPacket(b'E01')
 
         self.current_thread_id = thread_id
-        return self.createRSPPacket('OK')
+        return self.createRSPPacket(b'OK')
 
     def isThreadAlive(self, data):
         threadId = int(data[1:-3], 16)
@@ -596,10 +632,10 @@ class GDBServer(threading.Thread):
             isAlive = (threadId == 1)
 
         if isAlive:
-            return self.createRSPPacket('OK')
+            return self.createRSPPacket(b'OK')
         else:
             self.validateDebugContext()
-            return self.createRSPPacket('E00')
+            return self.createRSPPacket(b'E00')
 
     def validateDebugContext(self):
         if self.is_threading_enabled():
@@ -616,22 +652,22 @@ class GDBServer(threading.Thread):
     def stopReasonQuery(self):
         # In non-stop mode, if no threads are stopped we need to reply with OK.
         if self.non_stop and self.is_target_running:
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
         return self.createRSPPacket(self.getTResponse())
 
     def _get_resume_step_addr(self, data):
         if data is None:
             return None
-        data = data.split('#')[0]
-        if ';' not in data:
+        data = data.split(b'#')[0]
+        if b';' not in data:
             return None
         # c[;addr]
-        if data[0] in ('c', 's'):
+        if data[0:1] in (b'c', b's'):
             addr = int(data[2:], base=16)
         # Csig[;addr]
-        elif data[0] in ('C', 'S'):
-            addr = int(data[1:].split(';')[1], base=16)
+        elif data[0:1] in (b'C', b'S'):
+            addr = int(data[1:].split(b';')[1], base=16)
         return addr
 
     def resume(self, data):
@@ -644,7 +680,7 @@ class GDBServer(threading.Thread):
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = True
 
-        val = ''
+        val = b''
 
         while True:
             if self.shutdown_event.isSet():
@@ -680,7 +716,7 @@ class GDBServer(threading.Thread):
                     pass
                 traceback.print_exc()
                 self.log.debug('Target is unavailable temporarily.')
-                val = 'S%02x' % self.target_facade.getSignalValue()
+                val = b'S%02x' % self.target_facade.getSignalValue()
                 break
 
         return self.createRSPPacket(val)
@@ -697,36 +733,36 @@ class GDBServer(threading.Thread):
 
     def sendStopNotification(self, forceSignal=None):
         data = self.getTResponse(forceSignal=forceSignal)
-        packet = '%Stop:' + data + '#' + checksum(data)
+        packet = b'%Stop:' + data + b'#' + checksum(data)
         self.packet_io.send(packet)
 
     def vCommand(self, data):
-        cmd = data.split('#')[0]
+        cmd = data.split(b'#')[0]
 
         # Flash command.
-        if cmd.startswith('Flash'):
+        if cmd.startswith(b'Flash'):
             return self.flashOp(data)
 
         # vCont capabilities query.
-        elif 'Cont?' == cmd:
-            return self.createRSPPacket("vCont;c;C;s;S;t")
+        elif b'Cont?' == cmd:
+            return self.createRSPPacket(b"vCont;c;C;s;S;t")
 
         # vCont, thread action command.
-        elif cmd.startswith('Cont'):
+        elif cmd.startswith(b'Cont'):
             return self.vCont(cmd)
 
         # vStopped, part of thread stop state notification sequence.
-        elif 'Stopped' in cmd:
+        elif b'Stopped' in cmd:
             # Because we only support one thread for now, we can just reply OK to vStopped.
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
-        return self.createRSPPacket("")
+        return self.createRSPPacket(b"")
 
     # Example: $vCont;s:1;c#c1
     def vCont(self, cmd):
-        ops = cmd.split(';')[1:] # split and remove 'Cont' from list
+        ops = cmd.split(b';')[1:] # split and remove 'Cont' from list
         if not ops:
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
         if self.is_threading_enabled():
             thread_actions = {}
@@ -740,7 +776,7 @@ class GDBServer(threading.Thread):
         default_action = None
 
         for op in ops:
-            args = op.split(':')
+            args = op.split(b':')
             action = args[0]
             if len(args) > 1:
                 thread_id = int(args[1], 16)
@@ -755,50 +791,50 @@ class GDBServer(threading.Thread):
         # Only the current thread is supported at the moment.
         if thread_actions[currentThread] is None:
             if default_action is None:
-                return self.createRSPPacket('E01')
+                return self.createRSPPacket(b'E01')
             thread_actions[currentThread] = default_action
 
-        if thread_actions[currentThread][0] in ('c', 'C'):
+        if thread_actions[currentThread][0:1] in (b'c', b'C'):
             if self.non_stop:
                 self.target.resume()
                 self.is_target_running = True
-                return self.createRSPPacket("OK")
+                return self.createRSPPacket(b"OK")
             else:
                 return self.resume(None)
-        elif thread_actions[currentThread][0] in ('s', 'S'):
+        elif thread_actions[currentThread][0:1] in (b's', b'S'):
             if self.non_stop:
                 self.target.step(not self.step_into_interrupt)
-                self.packet_io.send(self.createRSPPacket("OK"))
+                self.packet_io.send(self.createRSPPacket(b"OK"))
                 self.sendStopNotification()
                 return None
             else:
                 return self.step(None)
-        elif thread_actions[currentThread] == 't':
+        elif thread_actions[currentThread] == b't':
             # Must ignore t command in all-stop mode.
             if not self.non_stop:
-                return self.createRSPPacket("")
-            self.packet_io.send(self.createRSPPacket("OK"))
+                return self.createRSPPacket(b"")
+            self.packet_io.send(self.createRSPPacket(b"OK"))
             self.target.halt()
             self.is_target_running = False
             self.sendStopNotification(forceSignal=0)
         else:
-            self.log.error("Unsupported vCont action '%s'" % thread_actions[1])
+            self.log.error("Unsupported vCont action '%s'" % thread_actions[1:2])
 
     def flashOp(self, data):
-        ops = data.split(':')[0]
+        ops = data.split(b':')[0]
         self.log.debug("flash op: %s", ops)
 
-        if ops == 'FlashErase':
-            return self.createRSPPacket("OK")
+        if ops == b'FlashErase':
+            return self.createRSPPacket(b"OK")
 
-        elif ops == 'FlashWrite':
-            write_addr = int(data.split(':')[1], 16)
+        elif ops == b'FlashWrite':
+            write_addr = int(data.split(b':')[1], 16)
             self.log.debug("flash write addr: 0x%x", write_addr)
             # search for second ':' (beginning of data encoded in the message)
             second_colon = 0
             idx_begin = 0
             while second_colon != 2:
-                if data[idx_begin] == ':':
+                if data[idx_begin] == b':':
                     second_colon += 1
                 idx_begin += 1
 
@@ -807,13 +843,12 @@ class GDBServer(threading.Thread):
                 self.flashBuilder = self.flash.getFlashBuilder()
 
             # Add data to flash builder
-            self.flashBuilder.addData(write_addr, self.unescape(data[idx_begin:len(data) - 3]))
+            self.flashBuilder.addData(write_addr, unescape(data[idx_begin:len(data) - 3]))
 
-
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
         # we need to flash everything
-        elif 'FlashDone' in ops :
+        elif b'FlashDone' in ops :
             if self.hide_programming_progress:
                 progress_cb = None
             else:
@@ -829,71 +864,45 @@ class GDBServer(threading.Thread):
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = False
 
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
         return None
 
-    def unescape(self, data):
-        data_idx = 0
-
-        # unpack the data into binary array
-        str_unpack = str(len(data)) + 'B'
-        data = unpack(str_unpack, data)
-        data = list(data)
-
-        # check for escaped characters
-        while data_idx < len(data):
-            if data[data_idx] == 0x7d:
-                data.pop(data_idx)
-                data[data_idx] = data[data_idx] ^ 0x20
-            data_idx += 1
-
-        return data
-
-    def escape(self, data):
-        result = ''
-        for c in data:
-            if c in '#$}*':
-                result += '}' + chr(ord(c) ^ 0x20)
-            else:
-                result += c
-        return result
-
     def getMemory(self, data):
-        split = data.split(',')
+        split = data.split(b',')
         addr = int(split[0], 16)
-        length = split[1].split('#')[0]
+        length = split[1].split(b'#')[0]
         length = int(length, 16)
 
         if LOG_MEM:
             self.log.debug("GDB getMem: addr=%x len=%x", addr, length)
 
         try:
-            val = ''
+            val = b''
             mem = self.target_context.readBlockMemoryUnaligned8(addr, length)
             # Flush so an exception is thrown now if invalid memory was accesses
             self.target_context.flush()
             for x in mem:
                 if x >= 0x10:
-                    val += hex(x)[2:4]
+                    val += six.b(hex(x)[2:4])
                 else:
-                    val += '0' + hex(x)[2:3]
+                    val += b'0' + six.b(hex(x)[2:3])
         except DAPAccess.TransferError:
             self.log.debug("getMemory failed at 0x%x" % addr)
-            val = 'E01' #EPERM
+            val = b'E01' #EPERM
         except MemoryAccessError as e:
             logging.debug("getMemory failed at 0x%x: %s", addr, str(e))
-            val = 'E01' #EPERM
+            val = b'E01' #EPERM
         return self.createRSPPacket(val)
 
     def writeMemoryHex(self, data):
-        split = data.split(',')
+        split = data.split(b',')
         addr = int(split[0], 16)
 
-        split = split[1].split(':')
+        split = split[1].split(b':')
         length = int(split[0], 16)
 
-        split = split[1].split('#')
+        split = split[1].split(b'#')
         data = hexToByteList(split[0])
 
         if LOG_MEM:
@@ -904,46 +913,40 @@ class GDBServer(threading.Thread):
                 self.target_context.writeBlockMemoryUnaligned8(addr, data)
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target_context.flush()
-            resp = "OK"
+            resp = b"OK"
         except DAPAccess.TransferError:
             self.log.debug("writeMemory failed at 0x%x" % addr)
-            resp = 'E01' #EPERM
+            resp = b'E01' #EPERM
         except MemoryAccessError as e:
             logging.debug("getMemory failed at 0x%x: %s", addr, str(e))
-            val = 'E01' #EPERM
+            val = b'E01' #EPERM
 
         return self.createRSPPacket(resp)
 
     def writeMemory(self, data):
-        split = data.split(',')
+        split = data.split(b',')
         addr = int(split[0], 16)
-        length = int(split[1].split(':')[0], 16)
+        length = int(split[1].split(b':')[0], 16)
 
         if LOG_MEM:
             self.log.debug("GDB writeMem: addr=%x len=%x", addr, length)
 
-        idx_begin = 0
-        for i in range(len(data)):
-            if data[i] == ':':
-                idx_begin += 1
-                break
-            idx_begin += 1
-
+        idx_begin = data.index(b':') + 1
         data = data[idx_begin:len(data) - 3]
-        data = self.unescape(data)
+        data = unescape(data)
 
         try:
             if length > 0:
                 self.target_context.writeBlockMemoryUnaligned8(addr, data)
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target_context.flush()
-            resp = "OK"
+            resp = b"OK"
         except DAPAccess.TransferError:
             self.log.debug("writeMemory failed at 0x%x" % addr)
-            resp = 'E01' #EPERM
+            resp = b'E01' #EPERM
         except MemoryAccessError as e:
             logging.debug("getMemory failed at 0x%x: %s", addr, str(e))
-            val = 'E01' #EPERM
+            val = b'E01' #EPERM
 
         return self.createRSPPacket(resp)
 
@@ -951,96 +954,96 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(self.target_facade.gdbGetRegister(which))
 
     def writeRegister(self, data):
-        reg = int(data.split('=')[0], 16)
-        val = data.split('=')[1].split('#')[0]
+        reg = int(data.split(b'=')[0], 16)
+        val = data.split(b'=')[1].split(b'#')[0]
         self.target_facade.setRegister(reg, val)
-        return self.createRSPPacket("OK")
+        return self.createRSPPacket(b"OK")
 
     def getRegisters(self):
         return self.createRSPPacket(self.target_facade.getRegisterContext())
 
     def setRegisters(self, data):
         self.target_facade.setRegisterContext(data)
-        return self.createRSPPacket("OK")
+        return self.createRSPPacket(b"OK")
 
     def handleQuery(self, msg):
-        query = msg.split(':')
+        query = msg.split(b':')
         self.log.debug('GDB received query: %s', query)
 
         if query is None:
             self.log.error('GDB received query packet malformed')
             return None
 
-        if query[0] == 'Supported':
+        if query[0] == b'Supported':
             # Save features sent by gdb.
-            self.gdb_features = query[1].split(';')
+            self.gdb_features = query[1].split(b';')
 
             # Build our list of features.
-            features = ['qXfer:features:read+', 'QStartNoAckMode+', 'qXfer:threads:read+', 'QNonStop+']
-            features.append('PacketSize=' + hex(self.packet_size)[2:])
+            features = [b'qXfer:features:read+', b'QStartNoAckMode+', b'qXfer:threads:read+', b'QNonStop+']
+            features.append(b'PacketSize=' + six.b(hex(self.packet_size))[2:])
             if self.target_facade.getMemoryMapXML() is not None:
-                features.append('qXfer:memory-map:read+')
-            resp = ';'.join(features)
+                features.append(b'qXfer:memory-map:read+')
+            resp = b';'.join(features)
             return self.createRSPPacket(resp)
 
-        elif query[0] == 'Xfer':
+        elif query[0] == b'Xfer':
 
-            if query[1] == 'features' and query[2] == 'read' and \
-               query[3] == 'target.xml':
-                data = query[4].split(',')
-                resp = self.handleQueryXML('read_feature', int(data[0], 16), int(data[1].split('#')[0], 16))
+            if query[1] == b'features' and query[2] == b'read' and \
+               query[3] == b'target.xml':
+                data = query[4].split(b',')
+                resp = self.handleQueryXML(b'read_feature', int(data[0], 16), int(data[1].split(b'#')[0], 16))
                 return self.createRSPPacket(resp)
 
-            elif query[1] == 'memory-map' and query[2] == 'read':
-                data = query[4].split(',')
-                resp = self.handleQueryXML('memory_map', int(data[0], 16), int(data[1].split('#')[0], 16))
+            elif query[1] == b'memory-map' and query[2] == b'read':
+                data = query[4].split(b',')
+                resp = self.handleQueryXML(b'memory_map', int(data[0], 16), int(data[1].split(b'#')[0], 16))
                 return self.createRSPPacket(resp)
 
-            elif query[1] == 'threads' and query[2] == 'read':
-                data = query[4].split(',')
-                resp = self.handleQueryXML('threads', int(data[0], 16), int(data[1].split('#')[0], 16))
+            elif query[1] == b'threads' and query[2] == b'read':
+                data = query[4].split(b',')
+                resp = self.handleQueryXML(b'threads', int(data[0], 16), int(data[1].split(b'#')[0], 16))
                 return self.createRSPPacket(resp)
 
             else:
                 self.log.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
                 return None
 
-        elif query[0].startswith('C'):
+        elif query[0].startswith(b'C'):
             if not self.is_threading_enabled():
-                return self.createRSPPacket("QC1")
+                return self.createRSPPacket(b"QC1")
             else:
                 self.validateDebugContext()
-                return self.createRSPPacket("QC%x" % self.current_thread_id)
+                return self.createRSPPacket(b"QC%x" % self.current_thread_id)
 
-        elif query[0].find('Attached') != -1:
-            return self.createRSPPacket("1")
+        elif query[0].find(b'Attached') != -1:
+            return self.createRSPPacket(b"1")
 
-        elif query[0].find('TStatus') != -1:
-            return self.createRSPPacket("")
+        elif query[0].find(b'TStatus') != -1:
+            return self.createRSPPacket(b"")
 
-        elif query[0].find('Tf') != -1:
-            return self.createRSPPacket("")
+        elif query[0].find(b'Tf') != -1:
+            return self.createRSPPacket(b"")
 
-        elif 'Offsets' in query[0]:
-            resp = "Text=0;Data=0;Bss=0"
+        elif b'Offsets' in query[0]:
+            resp = b"Text=0;Data=0;Bss=0"
             return self.createRSPPacket(resp)
 
-        elif 'Symbol' in query[0]:
+        elif b'Symbol' in query[0]:
             if self.did_init_thread_providers:
-                return self.createRSPPacket("OK")
+                return self.createRSPPacket(b"OK")
             return self.initThreadProviders()
 
-        elif query[0].startswith('Rcmd,'):
-            cmd = hexDecode(query[0][5:].split('#')[0])
+        elif query[0].startswith(b'Rcmd,'):
+            cmd = hexDecode(query[0][5:].split(b'#')[0])
             return self.handleRemoteCommand(cmd)
 
         else:
-            return self.createRSPPacket("")
+            return self.createRSPPacket(b"")
 
     def initThreadProviders(self):
         symbol_provider = GDBSymbolProvider(self)
 
-        for rtosName, rtosClass in RTOS.iteritems():
+        for rtosName, rtosClass in RTOS.items():
             try:
                 self.log.info("Attempting to load %s", rtosName)
                 rtos = rtosClass(self.target)
@@ -1055,11 +1058,11 @@ class GDBServer(threading.Thread):
         self.did_init_thread_providers = True
 
         # Done with symbol processing.
-        return self.createRSPPacket("OK")
+        return self.createRSPPacket(b"OK")
 
     def getSymbol(self, name):
         # Send the symbol request.
-        request = self.createRSPPacket('qSymbol:' + hexEncode(name))
+        request = self.createRSPPacket(b'qSymbol:' + hexEncode(name))
         self.packet_io.send(request)
 
         # Read a packet.
@@ -1067,10 +1070,10 @@ class GDBServer(threading.Thread):
 
         # Parse symbol value reply packet.
         packet = packet[1:-3]
-        if not packet.startswith('qSymbol:'):
+        if not packet.startswith(b'qSymbol:'):
             raise RuntimeError("Got unexpected response from gdb when asking for symbol value")
         packet = packet[8:]
-        symValue, symName = packet.split(':')
+        symValue, symName = packet.split(b':')
 
         symName = hexDecode(symName)
         if symName != name:
@@ -1086,39 +1089,39 @@ class GDBServer(threading.Thread):
         self.log.debug('Remote command: %s', cmd)
 
         safecmd = {
-            'init'  : ['Init reset sequence', 0x1],
-            'reset' : ['Reset and halt the target', 0x2],
-            'halt'  : ['Halt target', 0x4],
+            b'init'  : [b'Init reset sequence', 0x1],
+            b'reset' : [b'Reset and halt the target', 0x2],
+            b'halt'  : [b'Halt target', 0x4],
             # 'resume': ['Resume target', 0x8],
-            'help'  : ['Display this help', 0x80],
+            b'help'  : [b'Display this help', 0x80],
         }
 
         cmdList = cmd.split()
-        resp = 'OK'
-        if cmd == 'help':
-            resp = ''.join(['%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
+        resp = b'OK'
+        if cmd == b'help':
+            resp = b''.join([b'%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
             resp = hexEncode(resp)
-        elif cmd.startswith('arm semihosting'):
-            self.enable_semihosting = 'enable' in cmd
+        elif cmd.startswith(b'arm semihosting'):
+            self.enable_semihosting = b'enable' in cmd
             self.log.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
-        elif cmdList[0] == 'set':
+        elif cmdList[0] == b'set':
             if len(cmdList) < 3:
                 resp = hexEncode("Error: invalid set command")
-            elif cmdList[1] == 'vector-catch':
+            elif cmdList[1] == b'vector-catch':
                 try:
                     self.target.setVectorCatch(convert_vector_catch(cmdList[2]))
                 except ValueError as e:
                     resp = hexEncode("Error: " + str(e))
-            elif cmdList[1] == 'step-into-interrupt':
-                self.step_into_interrupt = (cmdList[2].lower() in ("true", "on", "yes", "1"))
+            elif cmdList[1] == b'step-into-interrupt':
+                self.step_into_interrupt = (cmdList[2].lower() in (b"true", b"on", b"yes", b"1"))
             else:
                 resp = hexEncode("Error: invalid set option")
-        elif cmd == "flush threads":
+        elif cmd == b"flush threads":
             if self.thread_provider is not None:
                 self.thread_provider.invalidate()
         else:
             resultMask = 0x00
-            if cmdList[0] == 'help':
+            if cmdList[0] == b'help':
                 # a 'help' is only valid as the first cmd, and only
                 # gives info on the second cmd if it is valid
                 resultMask |= 0x80
@@ -1127,13 +1130,13 @@ class GDBServer(threading.Thread):
             for cmd_sub in cmdList:
                 if cmd_sub not in safecmd:
                     self.log.warning("Invalid mon command '%s'", cmd_sub)
-                    resp = 'Invalid Command: "%s"\n' % cmd_sub
+                    resp = b'Invalid Command: "%s"\n' % cmd_sub
                     resp = hexEncode(resp)
                     return self.createRSPPacket(resp)
                 elif resultMask == 0x80:
                     # if the first command was a 'help', we only need
                     # to return info about the first cmd after it
-                    resp = hexEncode(safecmd[cmd_sub][0]+'\n')
+                    resp = hexEncode(safecmd[cmd_sub][0]+b'\n')
                     return self.createRSPPacket(resp)
                 resultMask |= safecmd[cmd_sub][1]
 
@@ -1160,37 +1163,37 @@ class GDBServer(threading.Thread):
         return self.createRSPPacket(resp)
 
     def handleGeneralSet(self, msg):
-        feature = msg.split('#')[0]
+        feature = msg.split(b'#')[0]
         self.log.debug("GDB general set: %s", feature)
 
-        if feature == 'StartNoAckMode':
+        if feature == b'StartNoAckMode':
             # Disable acks after the reply and ack.
             self.packet_io.set_send_acks(False)
-            return self.createRSPPacket("OK")
+            return self.createRSPPacket(b"OK")
 
-        elif feature.startswith('NonStop'):
-            enable = feature.split(':')[1]
-            self.non_stop = (enable == '1')
-            return self.createRSPPacket("OK")
+        elif feature.startswith(b'NonStop'):
+            enable = feature.split(b':')[1]
+            self.non_stop = (enable == b'1')
+            return self.createRSPPacket(b"OK")
 
         else:
-            return self.createRSPPacket("")
+            return self.createRSPPacket(b"")
 
     def handleQueryXML(self, query, offset, size):
         self.log.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
         xml = ''
-        if query == 'memory_map':
+        if query == b'memory_map':
             xml = self.target_facade.getMemoryMapXML()
-        elif query == 'read_feature':
+        elif query == b'read_feature':
             xml = self.target.getTargetXML()
-        elif query == 'threads':
+        elif query == b'threads':
             xml = self.getThreadsXML()
         else:
             raise RuntimeError("Invalid XML query (%s)" % query)
 
         size_xml = len(xml)
 
-        prefix = 'm'
+        prefix = b'm'
 
         if offset > size_xml:
             self.log.error('GDB: xml offset > size for %s!', query)
@@ -1202,21 +1205,22 @@ class GDBServer(threading.Thread):
         nbBytesAvailable = size_xml - offset
 
         if size > nbBytesAvailable:
-            prefix = 'l'
+            prefix = b'l'
             size = nbBytesAvailable
 
-        resp = prefix + self.escape(xml[offset:offset + size])
+        resp = prefix + escape(xml[offset:offset + size])
 
         return resp
 
 
     def createRSPPacket(self, data):
-        resp = '$' + data + '#' + checksum(data)
+        resp = b'$' + data + b'#' + checksum(data)
         return resp
 
     def syscall(self, op):
+        op = to_bytes_safe(op)
         self.log.debug("GDB server syscall: %s", op)
-        request = self.createRSPPacket('F' + op)
+        request = self.createRSPPacket(b'F' + op)
         self.packet_io.send(request)
 
         while not self.packet_io.interrupt_event.is_set():
@@ -1227,13 +1231,13 @@ class GDBServer(threading.Thread):
                 continue
 
             # Check for file I/O response.
-            if packet[0] == '$' and packet[1] == 'F':
+            if packet[0:1] == b'$' and packet[1:2] == b'F':
                 self.log.debug("Syscall: got syscall response " + packet)
-                args = packet[2:packet.index('#')].split(',')
+                args = packet[2:packet.index(b'#')].split(b',')
                 result = int(args[0], base=16)
                 errno = int(args[1], base=16) if len(args) > 1 else 0
-                ctrl_c = args[2] if len(args) > 2 else ''
-                if ctrl_c == 'C':
+                ctrl_c = args[2] if len(args) > 2 else b''
+                if ctrl_c == b'C':
                     self.packet_io.interrupt_event.set()
                     self.packet_io.drop_reply = True
                 return result, errno
@@ -1258,12 +1262,12 @@ class GDBServer(threading.Thread):
 
         # Append thread and core
         if not self.is_threading_enabled():
-            response += "thread:1;core:0;"
+            response += b"thread:1;core:0;"
         else:
             if self.current_thread_id in (-1, 0, 1):
-                response += "thread:%x;core:0;" % self.thread_provider.current_thread.unique_id
+                response += b"thread:%x;core:0;" % self.thread_provider.current_thread.unique_id
             else:
-                response += "thread:%x;core:0;" % self.current_thread_id
+                response += b"thread:%x;core:0;" % self.current_thread_id
         self.log.debug("Tresponse=%s", response)
         return response
 
@@ -1289,7 +1293,7 @@ class GDBServer(threading.Thread):
                     desc = thread.name
                 t.text = desc
 
-        return '<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
+        return b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
 
     def is_threading_enabled(self):
         return (self.thread_provider is not None) and self.thread_provider.is_enabled \

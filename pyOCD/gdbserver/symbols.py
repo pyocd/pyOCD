@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2016 ARM Limited
+ Copyright (c) 2016-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 """
 
 from ..debug.symbols import SymbolProvider
+from ..utility.py3_helpers import to_bytes_safe
 
 ## @brief Request symbol information from gdb.
 class GDBSymbolProvider(SymbolProvider):
@@ -23,4 +24,4 @@ class GDBSymbolProvider(SymbolProvider):
         self._gdbserver = gdbserver
 
     def get_symbol_value(self, name):
-        return self._gdbserver.getSymbol(name)
+        return self._gdbserver.getSymbol(to_bytes_safe(name))

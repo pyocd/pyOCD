@@ -43,7 +43,7 @@ def print_summary(test_list, result_list, test_time, output_file=None):
 
     Test.print_results(result_list, output_file=output_file)
     print("", file=output_file)
-    print("Test Time: %s" % test_time, file=output_file)
+    print("Test Time: %.3f" % test_time, file=output_file)
     if Test.all_tests_pass(result_list):
         print("All tests passed", file=output_file)
     else:
@@ -99,7 +99,7 @@ def main():
     test_time = (stop - start)
 
     print_summary(test_list, result_list, test_time)
-    with open(summary_file, "wb") as output_file:
+    with open(summary_file, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
 
     exit_val = 0 if Test.all_tests_pass(result_list) else -1

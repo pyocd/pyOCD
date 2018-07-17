@@ -30,11 +30,11 @@ try:
 except ImportError:
     intelhex_available = False
 
-import pyOCD
-from pyOCD import __version__
-from pyOCD.board import MbedBoard
-from pyOCD.pyDAPAccess import DAPAccess
-from pyOCD.utility.progress import print_progress
+from .. import __version__
+from .. import target
+from ..board.mbed_board import MbedBoard
+from ..pyDAPAccess import DAPAccess
+from ..utility.progress import print_progress
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -47,10 +47,10 @@ LEVELS = {
 board = None
 
 supported_formats = ['bin', 'hex']
-supported_targets = pyOCD.target.TARGET.keys()
+supported_targets = list(target.TARGET.keys())
 supported_targets.remove('cortex_m')  # No generic programming
 
-debug_levels = LEVELS.keys()
+debug_levels = list(LEVELS.keys())
 
 def int_base_0(x):
     return int(x, base=0)
@@ -113,7 +113,7 @@ def setup_logging(args):
 
 
 def ranges(i):
-    for a, b in itertools.groupby(enumerate(i), lambda (x, y): y - x):
+    for a, b in itertools.groupby(enumerate(i), lambda x, y: y - x):
         b = list(b)
         yield b[0][1], b[-1][1]
 

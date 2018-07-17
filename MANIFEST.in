@@ -1,3 +1,8 @@
+include pytest.ini
+include Doxyfile
+include dev-requirements.txt
 recursive-include binaries *
 recursive-include elf_files *
-recursive-include pyOCD *.ld *.txt *.c *.bat
+recursive-include src *.ld *.txt *.c *.bat *.py
+recursive-include test *.py *.sh
+global-exclude .DS_Store

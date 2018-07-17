@@ -21,7 +21,7 @@ from pyOCD.utility import conversion
 from pyOCD.utility import mask
 import pytest
 import logging
-from mockcore import MockCore
+from .mockcore import MockCore
 
 # @pytest.fixture(scope='function')
 # def mockcore():

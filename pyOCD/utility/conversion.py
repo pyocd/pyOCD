@@ -17,7 +17,7 @@
 
 import struct
 import binascii
-
+import six
 
 def byteListToU32leList(data):
     """Convert a list of bytes to a list of 32-bit integers (little endian)"""
@@ -96,7 +96,7 @@ def byteToHex2(val):
 
 def hexToByteList(data):
     """Convert string of hex bytes to list of integers"""
-    return [ord(i) for i in binascii.unhexlify(data)]
+    return list(six.iterbytes(binascii.unhexlify(data)))
 
 
 def hexDecode(cmd):

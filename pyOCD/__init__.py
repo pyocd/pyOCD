@@ -15,14 +15,14 @@
  limitations under the License.
 """
 
-import board
-import core
-import debug
-import flash
-import gdbserver
-import target
-import utility
-import coresight
+from . import board
+from . import core
+from . import debug
+from . import flash
+from . import gdbserver
+from . import target
+from . import utility
+from . import coresight
 
 from ._version import version as __version__
 

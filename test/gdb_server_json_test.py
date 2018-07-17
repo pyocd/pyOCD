@@ -14,6 +14,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
 
 import argparse, os, sys
 from time import sleep, time
@@ -22,6 +23,7 @@ import math
 import argparse
 import subprocess
 import json
+import traceback
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -53,6 +55,7 @@ class GdbServerJsonTest(Test):
             result = GdbServerJsonTestResult()
             result.passed = False
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
         return result
@@ -65,53 +68,53 @@ def gdb_server_json_test(board_id):
     def validate_basic_keys(data):
         did_pass = True
 
-        print 'pyocd_version',
-        p = data.has_key('pyocd_version')
+        print('pyocd_version', end=' ')
+        p = 'pyocd_version' in data
         if p:
             p = data['pyocd_version'] == __version__
         if p:
-            print "PASSED"
+            print("PASSED")
         else:
             did_pass = False
-            print"FAILED"
+            print("FAILED")
 
-        print 'version',
-        p = data.has_key('version')
+        print('version', end=' ')
+        p = 'version' in data
         if p:
             v = data['version']
-            p = v.has_key('major') and v.has_key('minor')
+            p = 'major' in v and 'minor' in v
         if p:
             p = v['major'] == 1 and v['minor'] == 0
         if p:
-            print "PASSED"
+            print("PASSED")
         else:
             did_pass = False
-            print"FAILED"
+            print("FAILED")
 
-        print 'status',
-        p = data.has_key('status')
+        print('status', end=' ')
+        p = 'status' in data
         if p:
             p = data['status'] == 0
         if p:
-            print "PASSED"
+            print("PASSED")
         else:
             did_pass = False
-            print"FAILED"
+            print("FAILED")
 
         return did_pass
 
     def validate_boards(data):
         did_pass = True
 
-        print 'boards',
-        p = data.has_key('boards') and type(data['boards']) is list
+        print('boards', end=' ')
+        p = 'boards' in data and type(data['boards']) is list
         if p:
             b = data['boards']
         if p:
-            print "PASSED"
+            print("PASSED")
         else:
             did_pass = False
-            print"FAILED"
+            print("FAILED")
 
         try:
             all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
@@ -122,19 +125,20 @@ def gdb_server_json_test(board_id):
                     for brd in b:
                         if mbed.unique_id == brd['unique_id']:
                             matching_boards += 1
-                            p = brd.has_key('info') and brd.has_key('target') and brd.has_key('board_name')
+                            p = 'info' in brd and 'target' in brd and 'board_name' in brd
                             if not p:
                                 break
                     if not p:
                         break
                 p = matching_boards == len(all_mbeds)
             if p:
-                print "PASSED"
+                print("PASSED")
             else:
                 did_pass = False
-                print"FAILED"
-        except Exception:
-            print "FAILED"
+                print("FAILED")
+        except Exception as e:
+            print("FAILED")
+            traceback.print_exc(file=sys.stdout)
             did_pass = False
 
         return did_pass
@@ -142,26 +146,26 @@ def gdb_server_json_test(board_id):
     def validate_targets(data):
         did_pass = True
 
-        print 'targets',
-        p = data.has_key('targets') and type(data['targets']) is list
+        print('targets', end=' ')
+        p = 'targets' in data and type(data['targets']) is list
         if p:
             targets = data['targets']
             for t in targets:
-                p = t.has_key('name') and t.has_key('part_number')
+                p = 'name' in t and 'part_number' in t
                 if not p:
                     break
         if p:
-            print "PASSED"
+            print("PASSED")
         else:
             did_pass = False
-            print"FAILED"
+            print("FAILED")
 
         return did_pass
 
 
     result = GdbServerJsonTestResult()
 
-    print "\r\n\r\n----- TESTING BOARDS LIST -----"
+    print("\n\n----- TESTING BOARDS LIST -----")
     out = subprocess.check_output(['pyocd-gdbserver', '--list', '--json'])
     data = json.loads(out)
     test_count += 2
@@ -170,7 +174,7 @@ def gdb_server_json_test(board_id):
     if validate_boards(data):
         test_pass_count += 1
 
-    print "\r\n\r\n----- TESTING TARGETS LIST -----"
+    print("\n\n----- TESTING TARGETS LIST -----")
     out = subprocess.check_output(['pyocd-gdbserver', '--list-targets', '--json'])
     data = json.loads(out)
     test_count += 2

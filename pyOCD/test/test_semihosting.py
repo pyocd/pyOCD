@@ -108,20 +108,20 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
         self._in_data[fd] = data
 
     def get_output_data(self, fd):
-        if self._out_data.has_key(fd):
+        if fd in self._out_data:
             return self._out_data[fd]
         else:
             return None
 
     def write(self, fd, ptr, length):
-        if not self._out_data.has_key(fd):
+        if fd not in self._out_data:
             self._out_data[fd] = ''
         s = self.agent._get_string(ptr, length)
         self._out_data[fd] += s
         return 0
 
     def read(self, fd, ptr, length):
-        if not self._in_data.has_key(fd):
+        if fd not in self._in_data:
             return length
         d = self._in_data[fd][:length]
         self._in_data[fd] = self._in_data[fd][length:]
@@ -129,7 +129,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
         return length - len(d)
 
     def readc(self):
-        if not self._in_data.has_key(semihost.STDIN_FD):
+        if semihost.STDIN_FD not in self._in_data:
             return -1
         d = self._in_data[semihost.STDIN_FD][:1]
         self._in_data[semihost.STDIN_FD] = self._in_data[semihost.STDIN_FD][1:]

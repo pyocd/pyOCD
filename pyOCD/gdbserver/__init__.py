@@ -15,4 +15,4 @@
  limitations under the License.
 """
 
-from gdbserver import GDBServer
+from .gdbserver import GDBServer

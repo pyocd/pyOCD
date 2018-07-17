@@ -384,7 +384,7 @@ class ArgonThreadProvider(ThreadProvider):
         if not self.is_enabled:
             return []
         self.update_threads()
-        return self._threads.values()
+        return list(self._threads.values())
 
     def get_thread(self, threadId):
         if not self.is_enabled:
