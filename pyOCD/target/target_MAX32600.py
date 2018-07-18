@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 from ..flash.flash import Flash
 from ..core.coresight_target import CoreSightTarget
-from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ..core.memory_map import (FlashRegion, RamRegion, DeviceRegion, MemoryMap)
 import logging
 
 flash_algo = { 'load_address' : 0x20000000,
@@ -53,22 +53,22 @@ flash_algo = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x20004000  # Analyzer 0x20004000..0x20004600
               };
 
-class Flash_maxwsnenv(Flash):
+class Flash_max32600(Flash):
 
     def __init__(self, target):
-        super(Flash_maxwsnenv, self).__init__(target, flash_algo)
+        super(Flash_max32600mbed, self).__init__(target, flash_algo)
 
-class MAXWSNENV(CoreSightTarget):
+class MAX32600(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x40000,      blocksize=0x800, isBootMemory=True),
         RamRegion(      start=0x20000000,  length=0x8000),
-        RamRegion(      start=0x40000000,  length=0x100000),
-        RamRegion(      start=0xe0000000,  length=0x100000)
+        DeviceRegion(   start=0x40000000,  length=0x100000),
+        DeviceRegion(   start=0xe0000000,  length=0x100000)
         )
 
     def __init__(self, link):
-        super(MAXWSNENV, self).__init__(link, self.memoryMap)
+        super(MAX32600, self).__init__(link, self.memoryMap)
 
     def dsb(self):
         logging.info("Triggering Destructive Security Bypass...")
