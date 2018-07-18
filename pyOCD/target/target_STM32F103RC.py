@@ -77,7 +77,7 @@ class STM32F103RC(CoreSightTarget):
 
     def setup_dbgmcu(self):
         logging.debug('stm32f103rc init')
-        self.writeMemory(DBGMCU_CR, DBGMCU_VAL);
+        self.writeMemory(DBGMCU_CR, DBGMCU_VAL)
 
 
 
