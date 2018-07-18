@@ -51,8 +51,7 @@ from . import target_nRF52832_xxAA
 from . import target_nRF52840_xxAA
 from . import target_STM32F103RC
 from . import target_STM32F051T8
-from . import target_maxwsnenv
-from . import target_max32600mbed
+from . import target_MAX32600
 from . import target_w7500
 from . import target_LPC1114FN28_102
 from . import target_LPC824M201JHI33
@@ -102,8 +101,7 @@ TARGET = {
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
-          'maxwsnenv': target_maxwsnenv.MAXWSNENV,
-          'max32600mbed': target_max32600mbed.MAX32600MBED,
+          'max32600': target_MAX32600.MAX32600,
           'w7500': target_w7500.W7500,
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
           'lpc824': target_LPC824M201JHI33.LPC824,
@@ -154,8 +152,7 @@ FLASH = {
          'nrf52840': target_nRF52840_xxAA.Flash_nrf52840,
          'stm32f103rc': target_STM32F103RC.Flash_stm32f103rc,
          'stm32f051': target_STM32F051T8.Flash_stm32f051,
-         'maxwsnenv': target_maxwsnenv.Flash_maxwsnenv,
-         'max32600mbed': target_max32600mbed.Flash_max32600mbed,
+         'max32600': target_MAX32600.Flash_max32600,
          'w7500': target_w7500.Flash_w7500,
          'lpc11xx_32': target_LPC1114FN28_102.Flash_lpc11xx_32,
          'lpc824': target_LPC824M201JHI33.Flash_lpc824,
