@@ -23,6 +23,7 @@ from ..core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ..debug.svd import SVDFile
 from ..coresight import ap
 from ..coresight.cortex_m import CortexM
+from ..utility.timeout import Timeout
 import logging
 import os.path
 from time import sleep
@@ -44,10 +45,15 @@ MDM_STATUS_CORE_HALTED = (1 << 16)
 
 MDM_CTRL_FLASH_MASS_ERASE_IN_PROGRESS = (1 << 0)
 MDM_CTRL_DEBUG_REQUEST = (1 << 2)
+MDM_CTRL_SYSTEM_RESET_REQUEST = (1 << 3)
 MDM_CTRL_CORE_HOLD_RESET = (1 << 4)
 
 MDM_CORE_STATUS_CM4_HALTED = (1 << 7)
 MDM_CORE_STATUS_CM0P_HALTED = (1 << 15)
+
+HALT_TIMEOUT = 2.0
+
+log = logging.getLogger("target.k32w042s")
 
 flash_algo = {
     'load_address' : 0x20000000,
@@ -177,83 +183,54 @@ class K32W042S(Kinetis):
         if os.path.exists(svdPath):
             self._svd_location = SVDFile(vendor="NXP", filename=svdPath, is_local=True)
 
-    def check_flash_security(self):
-        # check for flash security
-        isLocked = self.isLocked()
-        if isLocked:
-            if self.do_auto_unlock:
-                logging.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
-                # keep the target in reset until is had been erased and halted
-                self.dp.assert_reset(True)
-                if not self.massErase():
-                    self.dp.assert_reset(False)
-                    logging.error("%s: mass erase failed", self.part_number)
-                    raise Exception("unable to unlock device")
-                # Use the MDM to keep the target halted after reset has been released
-                self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
-                # Enable debug
-                self.aps[0].writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
-                self.dp.assert_reset(False)
-                while self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED != MDM_CORE_STATUS_CM4_HALTED:
-                    logging.debug("Waiting for mdm halt (erase)")
-                    sleep(0.01)
+    def create_init_sequence(self):
+        seq = super(K32W042S, self).create_init_sequence()
 
-                # release MDM halt once it has taken effect in the DHCSR
-                self.mdm_ap.write_reg(MDM_CTRL, 0)
+        seq.insert_after('create_cores',
+            ('disable_rom_remap', self.disable_rom_remap)
+            )
 
-                isLocked = False
-            else:
-                logging.warning("%s in secure state: not automatically unlocking", self.part_number)
-        else:
-            logging.info("%s not in secure state", self.part_number)
-
-        # Can't do anything more if the target is secure
-        if isLocked:
-            return
+        return seq
 
     def perform_halt_on_connect(self):
         if self.halt_on_connect:
             # Prevent the target from resetting if it has invalid code
-            self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
-            while self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
-                self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
+            with Timeout(HALT_TIMEOUT) as to:
+                while to.check():
+                    self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
+                    if self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) == (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
+                        break
+                else:
+                    raise RuntimeError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
+
+            # We can now deassert reset.
+            self.dp.assert_reset(False)
+
             # Enable debug
             self.aps[0].writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+
             # Disable holding the core in reset, leave MDM halt on
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
             # Wait until the target is halted
-            while self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED != MDM_CORE_STATUS_CM4_HALTED:
-                logging.debug("Waiting for mdm halt")
-                sleep(0.01)
+            with Timeout(HALT_TIMEOUT) as to:
+                while to.check():
+                    if self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED != MDM_CORE_STATUS_CM4_HALTED:
+                        break
+                    log.debug("Waiting for mdm halt")
+                    sleep(0.01)
+                else:
+                    raise RuntimeError("Timed out waiting for core to halt")
 
             # release MDM halt once it has taken effect in the DHCSR
             self.mdm_ap.write_reg(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
             if self.getState() == Target.TARGET_RUNNING:
-                raise Exception("Target failed to stay halted during init sequence")
+                raise RuntimeError("Target failed to stay halted during init sequence")
 
-#         self.aps[0].init(bus_accessible=True)
-#         self.cores[0].init()
-# 
-#         # Add second core's AHB-AP.
-#         core1_ap = ap.AHB_AP(self.dp, 2)
-#         core1_ap.init(True)
-#         self.add_ap(core1_ap)
-# 
-#         # Add second core. It is held in reset until released by software.
-#         core1 = CortexM(self, self.dp, core1_ap, self.memory_map, core_num=1)
-#         core1.init()
-#         self.add_core(core1)
-
+    def disable_rom_remap(self):
         # Disable ROM vector table remapping.
         self.aps[0].write32(SMC0_MR, SMC_MR_BOOTCFG_MASK)
         self.aps[0].write32(SMC1_MR, SMC_MR_BOOTCFG_MASK)
-
-    def massErase(self):
-        self.dp.assert_reset(True)
-        result = super(K32W042S, self).massErase()
-        self.dp.assert_reset(False)
-        return result
 
