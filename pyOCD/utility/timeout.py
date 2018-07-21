@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2017-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,36 +17,34 @@
 
 from time import time
 
-## @brief Exception raised when a timeout occurs.
-class TimeoutException(Exception):
-    pass
-
 ## @brief Timeout helper context manager.
 #
-# One way to use this class is demonstrated here:
+# The recommended way to use this class is demonstrated here. It uses an else block on a
+# while loop to handle the timeout. The code in the while loop must use a break statement
+# to exit in the successful case.
+#
 # @code
 # with Timeout(5) as t_o:
-#     while t_o.check():
+#     while t_o.check(): # or "while not t_o.did_time_out"
 #         # Perform some operation, check, etc.
 #         if foobar:
 #             break
 #         sleep(0.1)
-# if t_o.did_time_out:
-#     print "Timed out!"
+#     else:
+#         print("Timed out!")
 # @endcode
 #
-# Another way to detect and handle a timeout occurring is to check for the TimeoutException
-# using a try statement inside the with statement block. This is shown below.
+# Another method of using the class is to check the `did_time_out` property from within the
+# while loop, as shown below.
+#
 # @code
 # with Timeout(5) as t_o:
-#     try:
-#         while t_o.check():
-#             # Perform some operation, check, etc.
-#             if foobar:
-#                 break
-#             sleep(0.1)
-#     except TimeoutException:
-#         print "Timed out!"
+#     while perform_some_test():
+#         # Check for timeout.
+#         if t_o.did_time_out:
+#             print("Timed out!")
+#             break
+#         sleep(0.1)
 # @endcode
 #
 # You may also combine the call to check() in the while loop with other boolean expressions
@@ -62,16 +60,15 @@ class Timeout(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Suppress timeout exceptions from being reraised.
-        return (exc_type is TimeoutException)
+        pass
 
     def check(self):
         if (time() - self._start) > self._timeout:
             self._timed_out = True
-            raise TimeoutException()
-        return True
+        return not self._timed_out
 
     @property
     def did_time_out(self):
+        self.check()
         return self._timed_out
 

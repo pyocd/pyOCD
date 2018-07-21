@@ -19,7 +19,7 @@ from ...coresight import (dap, ap)
 from ...coresight.cortex_m import CortexM
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
-from ...utility.timeout import (Timeout, TimeoutException)
+from ...utility.timeout import Timeout
 import logging
 from time import sleep
 
