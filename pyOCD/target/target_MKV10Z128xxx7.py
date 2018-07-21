@@ -106,6 +106,5 @@ class KV10Z7(Kinetis):
 
     def __init__(self, transport):
         super(KV10Z7, self).__init__(transport, self.memoryMap)
-        self.mdm_idr = 0x001c0020
         self._svd_location = SVDFile(vendor="Freescale", filename="MKV10Z7.svd")
 

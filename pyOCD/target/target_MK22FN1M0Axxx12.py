@@ -104,7 +104,6 @@ class K22FA12(Kinetis):
 
     def __init__(self, link):
         super(K22FA12, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MK22FA12.svd", is_local=False)
 
     def create_init_sequence(self):

@@ -97,7 +97,6 @@ class KE15Z7(Kinetis):
 
     def __init__(self, link):
         super(KE15Z7, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0020
         self._svd_location = SVDFile(vendor="Freescale", filename="MKE15Z7.svd")
 
     def create_init_sequence(self):

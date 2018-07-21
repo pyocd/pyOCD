@@ -177,7 +177,6 @@ class K32W042S(Kinetis):
 
     def __init__(self, link):
         super(K32W042S, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0040
 
         svdPath = os.path.join(os.path.dirname(__file__), "K32W042S1M2_M4.xml")
         if os.path.exists(svdPath):

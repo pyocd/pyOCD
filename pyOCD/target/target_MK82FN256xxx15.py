@@ -96,6 +96,5 @@ class K82F25615(Kinetis):
         )
     def __init__(self, transport):
         super(K82F25615, self).__init__(transport, self.memoryMap)
-        self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MK82F25615.svd")
 

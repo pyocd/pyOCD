@@ -88,6 +88,5 @@ class K20D50M(Kinetis):
 
     def __init__(self, link):
         super(K20D50M, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MK20D5.svd", is_local=False)
 

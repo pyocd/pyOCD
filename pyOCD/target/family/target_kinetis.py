@@ -39,6 +39,10 @@ MDM_CTRL_DEBUG_REQUEST = (1 << 2)
 MDM_CTRL_SYSTEM_RESET_REQUEST = (1 << 3)
 MDM_CTRL_CORE_HOLD_RESET = (1 << 4)
 
+MDM_IDR_EXPECTED = 0x001c0000
+MDM_IDR_VERSION_MASK = 0xf0
+MDM_IDR_VERSION_SHIFT = 4
+
 HALT_TIMEOUT = 2.0
 MASS_ERASE_TIMEOUT = 10.0
 
@@ -50,7 +54,6 @@ class Kinetis(CoreSightTarget):
 
     def __init__(self, link, memoryMap=None):
         super(Kinetis, self).__init__(link, memoryMap)
-        self.mdm_idr = 0
         self.mdm_ap = None
         self.do_auto_unlock = True
 
@@ -77,10 +80,12 @@ class Kinetis(CoreSightTarget):
     def check_mdm_ap_idr(self):
         self.mdm_ap = self.dp.aps[1]
         
-        # Check MDM-AP ID. If mdm_idr is 0 then it means this class is being used directly
-        # as a generic Kinetis target, so we don't want to do this check and report an error.
-        if self.mdm_idr != 0 and self.mdm_ap.idr != self.mdm_idr:
-            logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, self.mdm_ap.idr, self.mdm_idr)
+        # Check MDM-AP ID.
+        if (self.mdm_ap.idr & ~MDM_IDR_VERSION_MASK) != MDM_IDR_EXPECTED:
+            log.error("%s: bad MDM-AP IDR (is 0x%08x)", self.part_number, self.mdm_ap.idr)
+        
+        self.mdm_ap_version = (self.mdm_ap.idr & MDM_IDR_VERSION_MASK) >> MDM_IDR_VERSION_SHIFT
+        log.debug("MDM-AP version %d", self.mdm_ap_version)
 
     ## @brief Check security and unlock device.
     #

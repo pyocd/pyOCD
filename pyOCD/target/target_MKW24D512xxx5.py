@@ -96,6 +96,5 @@ class KW24D5(Kinetis):
 
     def __init__(self, transport):
         super(KW24D5, self).__init__(transport, self.memoryMap)
-        self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MKW24D5.svd")
 
