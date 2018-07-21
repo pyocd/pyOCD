@@ -16,7 +16,7 @@
 """
 
 from .target import Target
-from ..coresight import (dap, cortex_m)
+from ..coresight import (dap, cortex_m, rom_table)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
@@ -84,20 +84,22 @@ class CoreSightTarget(Target):
             self._svd_load_thread.load()
 
     def add_core(self, core):
+        core.setHaltOnConnect(self.halt_on_connect)
+        core.setTargetContext(CachingDebugContext(DebugContext(core)))
         self.cores[core.core_number] = core
-        self.cores[core.core_number].setTargetContext(CachingDebugContext(DebugContext(core)))
         self._root_contexts[core.core_number] = None
 
     def create_init_sequence(self):
         seq = CallSequence(
-            ('load_svd',        self.loadSVD),
-            ('dp_init',         self.dp.init),
-            ('power_up',        self.dp.power_up_debug),
-            ('find_aps',        self.dp.find_aps),
-            ('create_aps',      self.dp.create_aps),
-            ('init_ap_roms',    self.dp.init_ap_roms),
-            ('create_cores',    self.create_cores),
-            ('notify',          lambda : self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self)))
+            ('load_svd',            self.loadSVD),
+            ('dp_init',             self.dp.init),
+            ('power_up',            self.dp.power_up_debug),
+            ('find_aps',            self.dp.find_aps),
+            ('create_aps',          self.dp.create_aps),
+            ('init_ap_roms',        self.dp.init_ap_roms),
+            ('create_cores',        self.create_cores),
+            ('create_components',   self.create_components),
+            ('notify',              lambda : self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self)))
             )
         
         return seq
@@ -107,26 +109,35 @@ class CoreSightTarget(Target):
         seq = self.create_init_sequence()
         seq.invoke()
     
-    # Temporary hack to dynamically create core objects.
+    def _create_component(self, cmpid):
+        cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
+        cmp.init()
+
     def create_cores(self):
         self._new_core_num = 0
-        
-#         def scan_rom_table(tbl):
-#             logging.debug("%r", tbl.components)
-#             for component in tbl.components:
-#                 if component.name.startswith('SCS'):
-#                     logging.debug("Creating core #%d on AP#%d", self._new_core_num, ap.ap_num)
-#                     core = cortex_m.CortexM(self, self.dp, ap, self.memory_map, core_num=self._new_core_num)
-#                     core0.setHaltOnConnect(self.halt_on_connect)
-#                     core.init()
-#                     self.add_core(core)
-#                     
-#                     self._new_core_num += 1
-#                 elif component.name == 'ROM':
-#                     scan_rom_table(component)
-#         
-#         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
-#             scan_rom_table(ap.rom_table)
+        self._apply_to_all_components(self._create_component, filter=lambda c: c.factory == cortex_m.CortexM.factory)
+
+    def create_components(self):
+        self._apply_to_all_components(self._create_component, filter=lambda c: c.factory is not None and c.factory != cortex_m.CortexM.factory)
+    
+    def _apply_to_all_components(self, action, filter=None):
+        def scan_rom_table(tbl):
+            for component in tbl.components:
+                # Recurse into child ROM tables.
+                if isinstance(component, rom_table.ROMTable):
+                    scan_rom_table(component)
+                    continue
+                
+                # Skip component if the filter returns False.
+                if filter is not None and not filter(component):
+                    continue
+                
+                # Perform the action.
+                action(component)
+                
+        # Iterate over every top-level ROM table.
+        for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
+            scan_rom_table(ap.rom_table)
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))

@@ -56,7 +56,7 @@ class DebugPort(object):
     def __init__(self, link, target):
         self.link = link
         self.target = target
-        self.valid_aps = []
+        self.valid_aps = None
         self.aps = {}
         self._csw = {}
         self._dp_select = -1
@@ -166,6 +166,9 @@ class DebugPort(object):
     # modify the init call sequence to substitute a fixed list of valid APs. In fact, that
     # is a major reason this method is separated from create_aps().
     def find_aps(self):
+        if self.valid_aps is not None:
+            return
+        self.valid_aps = []
         ap_num = 0
         while True:
             try:
@@ -178,20 +181,28 @@ class DebugPort(object):
                 break
             ap_num += 1
 
-    ## @brief Create APs.
+    ## @brief Init task that returns a call sequence to create APs.
     #
     # For each AP in the #valid_aps list, an AccessPort object is created. The new objects
     # are added to the #aps dict, keyed by their AP number.
     def create_aps(self):
+        seq = CallSequence()
         for ap_num in self.valid_aps:
-            try:
-                ap = AccessPort.create(self, ap_num)
-                logging.info("AP#%d IDR = 0x%08x", ap_num, ap.idr)
-                self.aps[ap_num] = ap
-            except Exception as e:
-                logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
-                break
+            seq.append(
+                ('create_ap.{}'.format(ap_num), lambda ap_num=ap_num: self.create_1_ap(ap_num))
+                )
+        return seq
     
+    ## @brief Init task to create a single AP object.
+    def create_1_ap(self, ap_num):
+        try:
+            ap = AccessPort.create(self, ap_num)
+            logging.info("AP#%d IDR = 0x%08x", ap_num, ap.idr)
+            self.aps[ap_num] = ap
+        except Exception as e:
+            logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
+    
+    ## @brief Init task that generates a call sequence to init all AP ROMs.
     def init_ap_roms(self):
         seq = CallSequence()
         for ap in [x for x in self.aps.values() if x.has_rom_table]:

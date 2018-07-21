@@ -321,9 +321,6 @@ class ROMTable(CoreSightComponent):
         if cmpid.is_rom_table:
             cmp = ROMTable(self.ap, cmpid, address, parent_table=self)
             cmp.init()
-        elif cmpid.factory is not None:
-            cmp = cmpid.factory(self.ap, cmpid, address)
-            cmp.init()
         else:
             cmp = cmpid
 
