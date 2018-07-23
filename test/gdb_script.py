@@ -192,6 +192,7 @@ def run_test():
     invalid_addr = test_params["invalid_start"]
     error_on_invalid_access = test_params["expect_error_on_invalid_access"]
     ignore_hw_bkpt_result = test_params["ignore_hw_bkpt_result"]
+    target_test_elf = test_params["test_elf"]
 
     assert ram_length >= MAX_TEST_SIZE
     stack_addr = ram_start + STACK_OFFSET
@@ -236,6 +237,9 @@ def run_test():
         if not is_event_signal(event, "SIGINT"):
             fail_count += 1
             print("Error - target not interrupted as expected")
+
+        # Load target-specific test program into flash.
+        gdb_execute("load %s" % target_test_elf)
 
         # Load test program and symbols
         test_binary = "../src/gdb_test_program/gdb_test.bin"
