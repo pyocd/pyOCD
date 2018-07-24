@@ -44,3 +44,19 @@ else:
         else:
             return v
 
+# to_str_safe() converts a bytes object to a unicode string by decoding from
+# latin-1. It will also accept a value that is already a str object and
+# return it unmodified.
+if PY3:
+    def to_str_safe(v):
+        if type(v) is str:
+            return v
+        else:
+            return v.decode('latin-1')
+else:
+    def to_str_safe(v):
+        if type(v) is unicode:
+            return v.decode('latin-1')
+        else:
+            return v
+

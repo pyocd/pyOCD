@@ -834,7 +834,7 @@ class GDBServer(threading.Thread):
             second_colon = 0
             idx_begin = 0
             while second_colon != 2:
-                if data[idx_begin] == b':':
+                if data[idx_begin:idx_begin+1] == b':':
                     second_colon += 1
                 idx_begin += 1
 

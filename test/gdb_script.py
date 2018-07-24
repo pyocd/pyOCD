@@ -83,10 +83,10 @@ monitor_commands = [
     "halt",
     "arm semihosting enable",
     "arm semihosting disable",
-#     "set vector-catch all",
-#     "set vector-catch none",
-#     "set step-into-interrupt on",
-#     "set step-into-interrupt off",
+    "set vector-catch n",
+    "set vector-catch a",
+    "set step-into-interrupt on",
+    "set step-into-interrupt off",
     # Invalid Command
     "fawehfawoefhad"
 ]
@@ -192,6 +192,7 @@ def run_test():
     invalid_addr = test_params["invalid_start"]
     error_on_invalid_access = test_params["expect_error_on_invalid_access"]
     ignore_hw_bkpt_result = test_params["ignore_hw_bkpt_result"]
+    target_test_elf = test_params["test_elf"]
 
     assert ram_length >= MAX_TEST_SIZE
     stack_addr = ram_start + STACK_OFFSET
@@ -227,6 +228,9 @@ def run_test():
         # Test running the monitor commands
         for command in monitor_commands:
             gdb_execute("mon %s" % command)
+
+        # Load target-specific test program into flash.
+        gdb_execute("load %s" % target_test_elf)
 
         # Reset the target and let it run so it has
         # a chance to disable the watchdog

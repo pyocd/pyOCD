@@ -334,7 +334,7 @@ def hex_width(value, width):
 def dumpHexData(data, startAddress=0, width=8):
     i = 0
     while i < len(data):
-        print("%08x: " % (startAddress + (i * (width / 8))), end=' ')
+        print("%08x: " % (startAddress + (i * (width // 8))), end=' ')
 
         while i < len(data):
             d = data[i]

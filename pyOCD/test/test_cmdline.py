@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,9 +15,16 @@
  limitations under the License.
 """
 
-from pyOCD.utility.cmdline import split_command_line
+from pyOCD.utility.cmdline import (
+    split_command_line,
+    convert_vector_catch,
+    VECTOR_CATCH_CHAR_MAP
+    )
+from pyOCD.core.target import Target
+import pytest
+import six
 
-class TestSplitCommandLine:
+class TestSplitCommandLine(object):
     def test_split(self):
         assert split_command_line('foo') == ['foo']
         assert split_command_line(['foo']) == ['foo']
@@ -38,3 +45,26 @@ class TestSplitCommandLine:
         assert split_command_line('a\nb') == ['a', 'b']
         assert split_command_line('a   \tb') == ['a', 'b']
 
+class TestConvertVectorCatch(object):
+    def test_none_str(self):
+        assert convert_vector_catch('none') == 0
+
+    def test_all_str(self):
+        assert convert_vector_catch('all') == Target.CATCH_ALL
+
+    def test_none_b(self):
+        assert convert_vector_catch(b'none') == 0
+
+    def test_all_b(self):
+        assert convert_vector_catch(b'all') == Target.CATCH_ALL
+
+    @pytest.mark.parametrize(("vc", "msk"),
+        list(VECTOR_CATCH_CHAR_MAP.items()))
+    def test_vc_str(self, vc, msk):
+        assert convert_vector_catch(vc) == msk
+
+    @pytest.mark.parametrize(("vc", "msk"),
+        [(six.b(x), y) for x,y in VECTOR_CATCH_CHAR_MAP.items()])
+    def test_vc_b(self, vc, msk):
+        assert convert_vector_catch(vc) == msk
+        

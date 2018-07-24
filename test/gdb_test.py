@@ -27,10 +27,11 @@ from __future__ import print_function
 import os
 import json
 import sys
-from subprocess import Popen, STDOUT, PIPE
+from subprocess import Popen, STDOUT, PIPE, check_call
 import argparse
 import logging
 import traceback
+import tempfile
 
 from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.board import MbedBoard
@@ -42,7 +43,7 @@ from test_util import Test, TestResult
 TEST_PARAM_FILE = "test_params.txt"
 TEST_RESULT_FILE = "test_results.txt"
 PYTHON_GDB = "arm-none-eabi-gdb-py"
-
+OBJCOPY = "arm-none-eabi-objcopy"
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -83,6 +84,7 @@ TEST_RESULT_KEYS = [
 
 
 def test_gdb(board_id=None):
+    temp_test_elf_name = None
     result = GdbTestResult()
     with MbedBoard.chooseBoard(board_id=board_id) as board:
         memory_map = board.target.getMemoryMap()
@@ -113,6 +115,14 @@ def test_gdb(board_id=None):
         board.flash.flashBinary(binary_file, rom_region.start)
         board.uninit(False)
 
+    # Generate an elf from the binary test file.
+    temp_test_elf_name = tempfile.mktemp('.elf')
+    check_call([OBJCOPY, "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
+        "--set-start", "0x%x" % rom_region.start, binary_file, temp_test_elf_name])
+    # Need to escape backslashes on Windows.
+    if sys.platform.startswith('win'):
+        temp_test_elf_name = temp_test_elf_name.replace('\\', '\\\\')
+
     # Write out the test configuration
     test_params = {}
     test_params["rom_start"] = rom_region.start
@@ -123,6 +133,7 @@ def test_gdb(board_id=None):
     test_params["invalid_length"] = 0x1000
     test_params["expect_error_on_invalid_access"] = error_on_invalid_access
     test_params["ignore_hw_bkpt_result"] = ignore_hw_bkpt_result
+    test_params["test_elf"] = temp_test_elf_name
     with open(TEST_PARAM_FILE, "w") as f:
         f.write(json.dumps(test_params))
 
@@ -154,6 +165,8 @@ def test_gdb(board_id=None):
         result.passed = False
 
     # Cleanup
+    if temp_test_elf_name and os.path.exists(temp_test_elf_name):
+        os.remove(temp_test_elf_name)
     os.remove(TEST_RESULT_FILE)
     os.remove(TEST_PARAM_FILE)
 
