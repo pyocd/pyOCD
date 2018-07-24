@@ -28,6 +28,9 @@ from .board_ids import BOARD_ID_TO_INFO
 mbed_vid = 0x0d28
 mbed_pid = 0x0204
 
+# Init colorama here since this is currently the only module that uses it.
+colorama.init()
+
 class MbedBoard(Board):
     """
     This class inherits from Board and is specific to mbed boards.
