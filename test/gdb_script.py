@@ -83,10 +83,10 @@ monitor_commands = [
     "halt",
     "arm semihosting enable",
     "arm semihosting disable",
-#     "set vector-catch all",
-#     "set vector-catch none",
-#     "set step-into-interrupt on",
-#     "set step-into-interrupt off",
+    "set vector-catch n",
+    "set vector-catch a",
+    "set step-into-interrupt on",
+    "set step-into-interrupt off",
     # Invalid Command
     "fawehfawoefhad"
 ]
@@ -229,6 +229,9 @@ def run_test():
         for command in monitor_commands:
             gdb_execute("mon %s" % command)
 
+        # Load target-specific test program into flash.
+        gdb_execute("load %s" % target_test_elf)
+
         # Reset the target and let it run so it has
         # a chance to disable the watchdog
         gdb_execute("mon reset halt")
@@ -237,9 +240,6 @@ def run_test():
         if not is_event_signal(event, "SIGINT"):
             fail_count += 1
             print("Error - target not interrupted as expected")
-
-        # Load target-specific test program into flash.
-        gdb_execute("load %s" % target_test_elf)
 
         # Load test program and symbols
         test_binary = "../src/gdb_test_program/gdb_test.bin"

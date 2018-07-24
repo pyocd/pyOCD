@@ -119,6 +119,9 @@ def test_gdb(board_id=None):
     temp_test_elf_name = tempfile.mktemp('.elf')
     check_call([OBJCOPY, "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
         "--set-start", "0x%x" % rom_region.start, binary_file, temp_test_elf_name])
+    # Need to escape backslashes on Windows.
+    if sys.platform.startswith('win'):
+        temp_test_elf_name = temp_test_elf_name.replace('\\', '\\\\')
 
     # Write out the test configuration
     test_params = {}
