@@ -16,6 +16,7 @@
 """
 
 from ..core.target import Target
+from ..utility.py3_helpers import to_str_safe
 
 ## @brief Split command line by whitespace, supporting quoted strings.
 #
@@ -71,7 +72,7 @@ VECTOR_CATCH_CHAR_MAP = {
 # @exception ValueError Raised if an invalid vector catch character is encountered.
 def convert_vector_catch(value):
     # Make case insensitive.
-    value = value.lower()
+    value = to_str_safe(value).lower()
 
     # Handle special vector catch options.
     if value == 'all':
