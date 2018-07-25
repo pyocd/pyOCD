@@ -1,4 +1,7 @@
 *.py[cod]
+*.o
+*.d
+*.map
 
 # Private settings
 private_settings.py
