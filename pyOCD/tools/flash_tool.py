@@ -113,7 +113,7 @@ def setup_logging(args):
 
 
 def ranges(i):
-    for a, b in itertools.groupby(enumerate(i), lambda x, y: y - x):
+    for a, b in itertools.groupby(enumerate(i), lambda x: x[1] - x[0]):
         b = list(b)
         yield b[0][1], b[-1][1]
 
