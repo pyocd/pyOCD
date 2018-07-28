@@ -94,16 +94,17 @@ class CoreSightTarget(Target):
 
         # Create CortexM core.
         core0 = cortex_m.CortexM(self, self.dp, self.aps[0], self.memory_map)
+        core0.setHaltOnConnect(self.halt_on_connect)
         if bus_accessible:
             core0.init()
         self.add_core(core0)
 
         self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self))
 
-    def disconnect(self):
+    def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))
         for core in self.cores.values():
-            core.disconnect()
+            core.disconnect(resume)
         self.dp.power_down_debug()
 
     def readIDCode(self):

@@ -35,7 +35,7 @@ from cortex_test import CortexTest
 from flash_test import FlashTest
 from gdb_test import GdbTest
 from gdb_server_json_test import GdbServerJsonTest
-
+from connect_test import ConnectTest
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -76,6 +76,7 @@ def main():
     test = Test("Basic Test", lambda board: basic_test(board, None))
     test_list.append(test)
     test_list.append(GdbServerJsonTest())
+    test_list.append(ConnectTest())
     test_list.append(SpeedTest())
     test_list.append(CortexTest())
     test_list.append(FlashTest())
