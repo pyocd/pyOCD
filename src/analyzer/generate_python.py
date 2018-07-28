@@ -14,12 +14,19 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from __future__ import print_function
+import sys
 from struct import unpack
 
-with open("main.bin", "rb") as f:
+INPUT_FILENAME = sys.argv[1]
+OUTPUT_FILENAME = sys.argv[2]
+
+with open(INPUT_FILENAME, "rb") as f:
     data = f.read()
 
-words = len(data) / 4
+words = len(data) // 4
+if len(data) % 4 != 0:
+    print("Warning: input length not word aligned")
 str = "<L%i" % words
 print("Data length %i" % len(data))
 data = unpack("<%iL" % words, data)
@@ -35,5 +42,5 @@ for val in data:
 str += "\n    )"
 data = str
 
-with open("main.py", "wb") as f:
+with open(OUTPUT_FILENAME, "w") as f:
     f.write(data)
