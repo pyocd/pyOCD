@@ -70,9 +70,6 @@ MAX_BKPT = 10
 assert STACK_OFFSET < MAX_TEST_SIZE
 assert TEST_RAM_OFFSET < MAX_TEST_SIZE
 
-TEST_PARAM_FILE = "test_params.txt"
-TEST_RESULT_FILE = "test_results.txt"
-
 monitor_commands = [
     "help",
     "help reset",
@@ -179,13 +176,17 @@ def valid_watchpoint(bkpt_size, bkpt_access, bkpt_addr):
 
 
 # Initial setup
-with open(TEST_PARAM_FILE, "rb") as f:
+testn = int(gdb.parse_and_eval("$testn"))
+
+test_param_filename = "test_params%d.txt" % testn
+with open(test_param_filename, "rb") as f:
     test_params = json.loads(f.read())
 
 
 def run_test():
 
     test_result = {}
+    test_port = test_params["test_port"]
     rom_start = test_params['rom_start']
     ram_start = test_params['ram_start']
     ram_length = test_params['ram_length']
@@ -208,10 +209,10 @@ def run_test():
         gdb_execute("set mem inaccessible-by-default off")
 
         # Set raw logging
-        gdb_execute("set remotelogfile gdb_test_raw.txt")
+        gdb_execute("set remotelogfile gdb_test_raw%d.txt" % testn)
 
         # Connect to server
-        gdb_execute("target remote localhost:3334")
+        gdb_execute("target remote localhost:%d" % test_port)
 
         # Possibly useful other commands for reference:
         # info breakpoints
@@ -463,7 +464,8 @@ def run_test():
         fail_count += 1
     finally:
         test_result["fail_count"] = fail_count
-        with open(TEST_RESULT_FILE, "wb") as f:
+        test_result_filename = "test_results%d.txt" % testn
+        with open(test_result_filename, "wb") as f:
             f.write(json.dumps(test_result))
         gdb_execute("detach")
         gdb_execute("quit %i" % fail_count)

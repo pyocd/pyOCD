@@ -121,7 +121,8 @@ def connect_test(board):
     ConnectTestCase( RUNNING,    False,            RUNNING,         False,              RUNNING  ),
     ]
 
-    print("\n\n----- FLASH NEW BINARY -----")
+    print("\n\n----- TESTING CONNECT/DISCONNECT -----")
+    print("Flashing new binary")
     live_board.flash.flashBinary(binary_file, rom_start)
     live_board.target.reset()
     test_count += 1

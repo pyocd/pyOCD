@@ -153,4 +153,5 @@ def parallel_test():
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('spawn')
     parallel_test()

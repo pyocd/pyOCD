@@ -27,7 +27,7 @@ from __future__ import print_function
 import os
 import json
 import sys
-from subprocess import Popen, STDOUT, PIPE, check_call
+from subprocess import Popen, STDOUT, PIPE, check_output
 import argparse
 import logging
 import traceback
@@ -35,13 +35,12 @@ import tempfile
 
 from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.board import MbedBoard
+from pyOCD.utility.py3_helpers import to_str_safe
 from test_util import Test, TestResult
 
 # TODO, c1728p9 - run script several times with
 #       with different command line parameters
 
-TEST_PARAM_FILE = "test_params.txt"
-TEST_RESULT_FILE = "test_results.txt"
 PYTHON_GDB = "arm-none-eabi-gdb-py"
 OBJCOPY = "arm-none-eabi-objcopy"
 
@@ -57,13 +56,14 @@ class GdbTestResult(TestResult):
 class GdbTest(Test):
     def __init__(self):
         super(self.__class__, self).__init__("Gdb Test", test_gdb)
+        self.n = 0
 
     def print_perf_info(self, result_list, output_file=None):
         pass
 
     def run(self, board):
         try:
-            result = self.test_function(board.getUniqueID())
+            result = self.test_function(board.getUniqueID(), self.n)
         except Exception as e:
             result = GdbTestResult()
             result.passed = False
@@ -84,7 +84,7 @@ TEST_RESULT_KEYS = [
 ]
 
 
-def test_gdb(board_id=None):
+def test_gdb(board_id=None, n=0):
     temp_test_elf_name = None
     result = GdbTestResult()
     with MbedBoard.chooseBoard(board_id=board_id) as board:
@@ -98,7 +98,8 @@ def test_gdb(board_id=None):
         if board_id is None:
             board_id = board.getUniqueID()
         test_clock = 10000000
-        test_port = 3334
+        test_port = 3333 + n
+        telnet_port = 4444 + n
         error_on_invalid_access = True
         # Hardware breakpoints are not supported above 0x20000000 on
         # CortexM devices
@@ -118,37 +119,43 @@ def test_gdb(board_id=None):
 
     # Generate an elf from the binary test file.
     temp_test_elf_name = tempfile.mktemp('.elf')
-    check_call([OBJCOPY, "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
-        "--set-start", "0x%x" % rom_region.start, binary_file, temp_test_elf_name])
+    objcopyOutput = check_output([OBJCOPY, "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
+        "--set-start", "0x%x" % rom_region.start, binary_file, temp_test_elf_name], stderr=STDOUT)
+    print(to_str_safe(objcopyOutput))
     # Need to escape backslashes on Windows.
     if sys.platform.startswith('win'):
         temp_test_elf_name = temp_test_elf_name.replace('\\', '\\\\')
 
     # Write out the test configuration
-    test_params = {}
-    test_params["rom_start"] = rom_region.start
-    test_params["rom_length"] = rom_region.length
-    test_params["ram_start"] = ram_region.start
-    test_params["ram_length"] = ram_region.length
-    test_params["invalid_start"] = 0x3E000000
-    test_params["invalid_length"] = 0x1000
-    test_params["expect_error_on_invalid_access"] = error_on_invalid_access
-    test_params["ignore_hw_bkpt_result"] = ignore_hw_bkpt_result
-    test_params["test_elf"] = temp_test_elf_name
-    with open(TEST_PARAM_FILE, "w") as f:
+    test_params = {
+        "test_port" : test_port,
+        "rom_start" : rom_region.start,
+        "rom_length" : rom_region.length,
+        "ram_start" : ram_region.start,
+        "ram_length" : ram_region.length,
+        "invalid_start" : 0x3E000000,
+        "invalid_length" : 0x1000,
+        "expect_error_on_invalid_access" : error_on_invalid_access,
+        "ignore_hw_bkpt_result" : ignore_hw_bkpt_result,
+        "test_elf" : temp_test_elf_name,
+        }
+    test_param_filename = "test_params%d.txt" % n
+    with open(test_param_filename, "w") as f:
         f.write(json.dumps(test_params))
 
     # Run the test
-    gdb = [PYTHON_GDB, "--command=gdb_script.py"]
-    with open("output.txt", "w") as f:
+    gdb = [PYTHON_GDB, "-ex", "set $testn=%d" % n, "--command=gdb_script.py"]
+    output_filename = "output_%s_%d.txt" % (board.target_type, n)
+    with open(output_filename, "w") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
-        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id]
+        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id, "-T=%i" % telnet_port]
         server = GDBServerTool()
         server.run(args)
         program.wait()
 
     # Read back the result
-    with open(TEST_RESULT_FILE, "r") as f:
+    test_result_filename = "test_results%d.txt" % n
+    with open(test_result_filename, "r") as f:
         test_result = json.loads(f.read())
 
     # Print results
@@ -168,8 +175,8 @@ def test_gdb(board_id=None):
     # Cleanup
     if temp_test_elf_name and os.path.exists(temp_test_elf_name):
         os.remove(temp_test_elf_name)
-    os.remove(TEST_RESULT_FILE)
-    os.remove(TEST_PARAM_FILE)
+    os.remove(test_result_filename)
+    os.remove(test_param_filename)
 
     return result
 

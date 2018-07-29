@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ from time import time
 from test_util import TestResult, Test, Logger
 import argparse
 from xml.etree import ElementTree
+import multiprocessing as mp
 
 from basic_test import BasicTest
 from speed_test import SpeedTest
@@ -40,6 +41,21 @@ from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
 
 XML_RESULTS = "test_results.xml"
+
+LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
+
+JOB_TIMEOUT = 30 * 60 # 30 minutes
+
+# Put together list of tests.
+test_list = [
+             BasicTest(),
+             GdbServerJsonTest(),
+             ConnectTest(),
+             SpeedTest(),
+             CortexTest(),
+             FlashTest(),
+             GdbTest(),
+             ]
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -105,6 +121,62 @@ def generate_xml_results(result_list):
     
     ElementTree.ElementTree(root).write(XML_RESULTS, encoding="UTF-8", xml_declaration=True)
 
+# Function executed in subprocesses to run all tests on a given board.
+#
+# An loglevel of None indicates we're running in the parent process, and should not
+# modify stdout/stderr.
+def test_board(board_id, n, loglevel):
+    board = MbedBoard.chooseBoard(board_id=board_id, open_board=False)
+
+    originalStdout = sys.stdout
+    originalStderr = sys.stderr
+    if loglevel is not None:
+        log_filename = "automated_test_results_%s_%d.txt" % (board.target_type, n)
+        if os.path.exists(log_filename):
+            os.remove(log_filename)
+        log_file = open(log_filename, "a", buffering=1)
+        sys.stdout = log_file
+        sys.stderr = log_file
+        
+        log_handler = logging.FileHandler(log_filename)
+        log_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        root_logger = logging.getLogger()
+        root_logger.setLevel(loglevel)
+        root_logger.addHandler(log_handler)
+
+    result_list = []
+    try:
+        print("--------------------------")
+        print("TESTING BOARD {} [{}] #{}".format(board.getUniqueID(), board.target_type, n))
+        print("--------------------------")
+        if loglevel is not None:
+            print("TESTING BOARD {} [{}] #{}".format(board.getUniqueID(), board.target_type, n), file=originalStdout)
+        for test in test_list:
+            print("{} #{}: starting {}...".format(board.target_type, n, test.name), file=originalStdout)
+            
+            # Set a unique port for the GdbTest.
+            if isinstance(test, GdbTest):
+                test.n = n
+            
+            test_start = time()
+            result = test.run(board)
+            test_stop = time()
+            result.time = test_stop - test_start
+            result_list.append(result)
+            
+            passFail = "PASSED" if result.passed else "FAILED"
+            print("{} #{}: finished {}... {}".format(board.target_type, n, test.name, passFail), file=originalStdout)
+    finally:
+        # Restore stdout/stderr in case we're running in the parent process (1 job).
+        sys.stdout = originalStdout
+        sys.stderr = originalStderr
+        
+        if loglevel is not None:
+            root_logger.removeHandler(log_handler)
+            log_handler.flush()
+            log_handler.close()
+    return result_list
+
 def main():
     log_file = "automated_test_result.txt"
     summary_file = "automated_test_summary.txt"
@@ -115,43 +187,55 @@ def main():
     parser.add_argument('-j', '--jobs', action="store", default=1, type=int, metavar="JOBS",
         help='Set number of concurrent board tests (default is 1)')
     args = parser.parse_args()
+    
+    # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
+    # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()
+    # to be used in order to init correctly (CoreFoundation is used in hidapi). Only on Python
+    # version 3.4+ is the multiprocessing.set_start_method() API available that lets us
+    # switch to the 'spawn' method, i.e. exec().
+    if args.jobs > 1 and sys.platform.startswith('darwin') and sys.version_info[0:2] < (3, 4):
+        print("WARNING: Cannot support multiple jobs on macOS prior to Python 3.4. Forcing 1 job.")
+        args.jobs = 1
 
     # Setup logging
-    if os.path.exists(log_file):
-        os.remove(log_file)
     level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(level=level)
-    logger = Logger(log_file)
-    sys.stdout = logger
-    sys.stderr = logger
+    if args.jobs == 1 and not args.quiet:
+        logging.basicConfig(level=level)
+        if os.path.exists(log_file):
+            os.remove(log_file)
+        logger = Logger(log_file)
+        sys.stdout = logger
+        sys.stderr = logger
 
-    test_list = []
     board_list = []
     result_list = []
 
-    # Put together list of tests
-    test_list.append(BasicTest())
-    test_list.append(GdbServerJsonTest())
-    test_list.append(ConnectTest())
-    test_list.append(SpeedTest())
-    test_list.append(CortexTest())
-    test_list.append(FlashTest())
-    test_list.append(GdbTest())
-
     # Put together list of boards to test
     board_list = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+    board_id_list = sorted(b.getUniqueID() for b in board_list)
 
+    # If only 1 job was requested, don't bother spawning processes.
     start = time()
-    for board in board_list:
-        print("--------------------------")
-        print("TESTING BOARD %s" % board.getUniqueID())
-        print("--------------------------")
-        for test in test_list:
-            test_start = time()
-            result = test.run(board)
-            test_stop = time()
-            result.time = test_stop - test_start
-            result_list.append(result)
+    if args.jobs == 1:
+        if not args.quiet:
+            level = None
+        for board_id in board_id_list:
+            result_list += test_board(board_id, 0, level)
+    else:
+        # Create a pool of processes to run tests.
+        try:
+            pool = mp.Pool(args.jobs)
+            
+            # Issue board test job to process pool.
+            async_results = [pool.apply_async(test_board, (board_id, n, level))
+                             for n, board_id in enumerate(board_id_list)]
+            
+            # Gather results.
+            for r in async_results:
+                result_list += r.get(timeout=JOB_TIMEOUT)
+        finally:
+            pool.close()
+            pool.join()
     stop = time()
     test_time = (stop - start)
 
@@ -166,5 +250,8 @@ def main():
     #TODO - check if any threads are still running?
 
 if __name__ == "__main__":
+    # set_start_method is only available in Python 3.4+.
+    if sys.version_info[0:2] >= (3, 4):
+        mp.set_start_method('spawn')
     main()
 

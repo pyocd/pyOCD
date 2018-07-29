@@ -61,7 +61,7 @@ class GdbServerJsonTest(Test):
         result.test = self
         return result
 
-def gdb_server_json_test(board_id):
+def gdb_server_json_test(board_id, testing_standalone=False):
 
     test_count = 0
     test_pass_count = 0
@@ -117,30 +117,51 @@ def gdb_server_json_test(board_id):
             did_pass = False
             print("FAILED")
 
-        try:
-            all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
-            p = len(all_mbeds) == len(b)
-            matching_boards = 0
-            if p:
-                for mbed in all_mbeds:
-                    for brd in b:
-                        if mbed.unique_id == brd['unique_id']:
-                            matching_boards += 1
-                            p = 'info' in brd and 'target' in brd and 'board_name' in brd
-                            if not p:
-                                break
-                    if not p:
-                        break
-                p = matching_boards == len(all_mbeds)
+        # Only if we're running this test standalone do we want to compare against the list
+        # of boards returned by MbedBoard.getAllConnectedBoards(). When running in the full
+        # automated test suite, there could be other test jobs running concurrently that have
+        # exclusive access to the boards they are testing. Thus, those boards will not show up
+        # in the return list and this test will fail.
+        if testing_standalone:
+            try:
+                all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+                p = len(all_mbeds) == len(b)
+                matching_boards = 0
+                if p:
+                    for mbed in all_mbeds:
+                        for brd in b:
+                            if mbed.unique_id == brd['unique_id']:
+                                matching_boards += 1
+                                p = 'info' in brd and 'target' in brd and 'board_name' in brd
+                                if not p:
+                                    break
+                        if not p:
+                            break
+                    p = matching_boards == len(all_mbeds)
+                if p:
+                    print("PASSED")
+                else:
+                    did_pass = False
+                    print("FAILED")
+            except Exception as e:
+                print("FAILED")
+                traceback.print_exc(file=sys.stdout)
+                did_pass = False
+        else:
+            # Check for required keys in all board info dicts.
+            p = True
+            for brd in b:
+                p = ('unique_id' in brd and
+                    'info' in brd and
+                    'target' in brd and
+                    'board_name' in brd)
+                if not p:
+                    break
             if p:
                 print("PASSED")
             else:
                 did_pass = False
                 print("FAILED")
-        except Exception as e:
-            print("FAILED")
-            traceback.print_exc(file=sys.stdout)
-            did_pass = False
 
         return did_pass
 
@@ -193,4 +214,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    gdb_server_json_test(None)
+    gdb_server_json_test(None, testing_standalone=True)

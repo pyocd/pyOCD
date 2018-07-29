@@ -38,7 +38,7 @@ class TestResult(object):
 
     def __init__(self, test_board, test, result):
         self.passed = result
-        self._board = test_board
+        self._board = test_board.target_type if test_board else 'unknown'
         self.board_name = test_board.getBoardName() if test_board else ""
         self.test = test
         self.name = "test"
@@ -50,13 +50,13 @@ class TestResult(object):
     
     @board.setter
     def board(self, newBoard):
-        self._board = newBoard
+        self._board = newBoard.target_type if newBoard else 'unknown'
         self.board_name = newBoard.getBoardName()
 
     def get_test_case(self):
         case = ElementTree.Element('testcase',
                     name=self.name,
-                    classname="{}.{}.{}".format(self.board_name, self.board.target_type, self.name),
+                    classname="{}.{}.{}".format(self.board_name, self.board, self.name),
                     status=("passed" if self.passed else "failed"),
                     time="%.3f" % self.time
                     )
@@ -99,7 +99,7 @@ class Test(object):
         print("", file=output_file)
         for result in result_list:
             status_str = "Pass" if result.passed else "Fail"
-            print(msg_format_str.format(result.board.target_type,
+            print(msg_format_str.format(result.board,
                                         result.test.name,
                                         status_str, "%.3f" % result.time),
                   file=output_file)
