@@ -104,7 +104,7 @@ def test_gdb(board_id=None, n=0):
         # Hardware breakpoints are not supported above 0x20000000 on
         # CortexM devices
         ignore_hw_bkpt_result = 1 if ram_region.start >= 0x20000000 else 0
-        if target_type == "nrf51":
+        if target_type in ("nrf51", "nrf52", "nrf52840"):
             # Override clock since 10MHz is too fast
             test_clock = 1000000
             # Reading invalid ram returns 0 or nrf51

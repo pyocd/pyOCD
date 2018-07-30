@@ -85,10 +85,12 @@ def cortex_test(board_id):
 
         test_clock = 10000000
         addr_invalid = 0x3E000000 # Last 16MB of ARM SRAM region - typically empty
-        if target_type == "nrf51":
+        expect_invalid_access_to_fail = True
+        if target_type in ("nrf51", "nrf52", "nrf52840"):
             # Override clock since 10MHz is too fast
             test_clock = 1000000
-        if target_type == "ncs36510":
+            expect_invalid_access_to_fail = False
+        elif target_type == "ncs36510":
             # Override clock since 10MHz is too fast
             test_clock = 1000000
 
@@ -183,7 +185,7 @@ def cortex_test(board_id):
             target.readBlockMemoryUnaligned8(addr_invalid, 0x1000)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
-            if target_type != "nrf51":
+            if expect_invalid_access_to_fail:
                 memory_access_pass = False
         except DAPAccess.TransferFaultError:
             pass
@@ -192,7 +194,7 @@ def cortex_test(board_id):
             target.readBlockMemoryUnaligned8(addr_invalid + 1, 0x1000)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
-            if target_type != "nrf51":
+            if expect_invalid_access_to_fail:
                 memory_access_pass = False
         except DAPAccess.TransferFaultError:
             pass
@@ -202,7 +204,7 @@ def cortex_test(board_id):
             target.writeBlockMemoryUnaligned8(addr_invalid, data)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
-            if target_type != "nrf51":
+            if expect_invalid_access_to_fail:
                 memory_access_pass = False
         except DAPAccess.TransferFaultError:
             pass
@@ -212,7 +214,7 @@ def cortex_test(board_id):
             target.writeBlockMemoryUnaligned8(addr_invalid + 1, data)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
-            if target_type != "nrf51":
+            if expect_invalid_access_to_fail:
                 memory_access_pass = False
         except DAPAccess.TransferFaultError:
             pass
