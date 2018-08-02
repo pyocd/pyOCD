@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
  Copyright (c) 2015-2015 ARM Limited
@@ -55,8 +56,10 @@ def main():
     summary_file = "automated_test_summary.txt"
 
     parser = argparse.ArgumentParser(description='pyOCD automated testing')
-    parser.add_argument('-d', '--debug',
-                        action="store_true", help='Enable debug logging')
+    parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
+    parser.add_argument('-q', '--quiet', action="store_true", help='Hide test progress for 1 job')
+    parser.add_argument('-j', '--jobs', action="store", default=1, type=int, metavar="JOBS",
+        help='Set number of concurrent board tests (default is 1)')
     args = parser.parse_args()
 
     # Setup logging
