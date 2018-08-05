@@ -39,6 +39,7 @@ TEST_COUNT = 20
 class CortexTestResult(TestResult):
     def __init__(self):
         super(CortexTestResult, self).__init__(None, None, None)
+        self.name = "cortex"
 
 class CortexTest(Test):
     def __init__(self):

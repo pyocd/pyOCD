@@ -46,6 +46,7 @@ import logging
 class FlashTestResult(TestResult):
     def __init__(self):
         super(FlashTestResult, self).__init__(None, None, None)
+        self.name = "flash"
         self.chip_erase_rate_erased = None
         self.page_erase_rate_same = None
         self.page_erase_rate = None

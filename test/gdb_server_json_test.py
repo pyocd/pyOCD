@@ -40,6 +40,7 @@ from random import randrange
 class GdbServerJsonTestResult(TestResult):
     def __init__(self):
         super(GdbServerJsonTestResult, self).__init__(None, None, None)
+        self.name = "gdb_server_json"
 
 class GdbServerJsonTest(Test):
     def __init__(self):

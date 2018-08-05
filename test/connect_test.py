@@ -52,6 +52,7 @@ class ConnectTestCase(object):
 class ConnectTestResult(TestResult):
     def __init__(self):
         super(ConnectTestResult, self).__init__(None, None, None)
+        self.name = "connect"
 
 class ConnectTest(Test):
     def __init__(self):

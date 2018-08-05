@@ -27,7 +27,16 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
+from test_util import Test
 import logging
+
+class BasicTest(Test):
+    def __init__(self):
+        super(BasicTest, self).__init__("Basic Test", run_basic_test)
+        self.name = "basic"
+    
+def run_basic_test(board_id):
+    return basic_test(board_id, None)
 
 def basic_test(board_id, file):
     with MbedBoard.chooseBoard(board_id=board_id) as board:
