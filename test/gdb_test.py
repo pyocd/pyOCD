@@ -51,6 +51,7 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class GdbTestResult(TestResult):
     def __init__(self):
         super(self.__class__, self).__init__(None, None, None)
+        self.name = "gdbserver"
 
 
 class GdbTest(Test):

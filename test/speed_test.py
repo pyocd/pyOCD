@@ -34,6 +34,7 @@ import logging
 class SpeedTestResult(TestResult):
     def __init__(self):
         super(SpeedTestResult, self).__init__(None, None, None)
+        self.name = "speed"
 
 class SpeedTest(Test):
     def __init__(self):

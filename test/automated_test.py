@@ -29,14 +29,17 @@ import logging
 from time import time
 from test_util import TestResult, Test, Logger
 import argparse
+from xml.etree import ElementTree
 
-from basic_test import basic_test
+from basic_test import BasicTest
 from speed_test import SpeedTest
 from cortex_test import CortexTest
 from flash_test import FlashTest
 from gdb_test import GdbTest
 from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
+
+XML_RESULTS = "test_results.xml"
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -50,6 +53,57 @@ def print_summary(test_list, result_list, test_time, output_file=None):
     else:
         print("One or more tests has failed!", file=output_file)
 
+def split_results_by_board(result_list):
+    boards = {}
+    for result in result_list:
+        if result.board_name in boards:
+            boards[result.board_name].append(result)
+        else:
+            boards[result.board_name] = [result]
+    return boards
+
+def generate_xml_results(result_list):
+    board_results = split_results_by_board(result_list)
+    
+    suite_id = 0
+    total_failures = 0
+    total_tests = 0
+    total_time = 0
+    
+    root = ElementTree.Element('testsuites',
+            name="pyocd"
+            )
+
+    for board_name, results in board_results.items():
+        total = 0
+        failures = 0
+        suite_time = 0
+        suite = ElementTree.SubElement(root, 'testsuite',
+                    name=board_name,
+                    id=str(suite_id))
+        suite_id += 1
+        
+        for result in results:
+
+            total += 1
+            if not result.passed:
+                failures += 1
+            case = result.get_test_case()
+            suite.append(case)
+            suite_time += result.time
+
+        suite.set('tests', str(total))
+        suite.set('failures', str(failures))
+        suite.set('time', "%.3f" % suite_time)
+        total_tests += total
+        total_failures += failures
+        total_time += suite_time
+    
+    root.set('tests', str(total_tests))
+    root.set('failures', str(total_failures))
+    root.set('time', "%.3f" % total_time)
+    
+    ElementTree.ElementTree(root).write(XML_RESULTS, encoding="UTF-8", xml_declaration=True)
 
 def main():
     log_file = "automated_test_result.txt"
@@ -76,8 +130,7 @@ def main():
     result_list = []
 
     # Put together list of tests
-    test = Test("Basic Test", lambda board: basic_test(board, None))
-    test_list.append(test)
+    test_list.append(BasicTest())
     test_list.append(GdbServerJsonTest())
     test_list.append(ConnectTest())
     test_list.append(SpeedTest())
@@ -105,7 +158,8 @@ def main():
     print_summary(test_list, result_list, test_time)
     with open(summary_file, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
-
+    generate_xml_results(result_list)
+    
     exit_val = 0 if Test.all_tests_pass(result_list) else -1
     exit(exit_val)
 
