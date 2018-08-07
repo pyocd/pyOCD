@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,17 +16,25 @@
 """
 
 from .target import Target
-from ..coresight import (dap, ap, cortex_m)
+from ..coresight import (dap, cortex_m, rom_table)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
 from ..utility.notification import Notification
-import threading
+from ..utility.sequencer import CallSequence
 import logging
-from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 ##
-# @brief Debug target that uses CoreSight classes.
+# @brief Represents a chip that uses CoreSight debug infrastructure.
+#
+# An instance of this class is the root of the chip-level object graph. It has child
+# nodes for the DP and all cores. As a concrete subclass of Target, it provides methods
+# to control the device, access memory, adjust breakpoints, and so on.
+#
+# For single core devices, the CoreSightTarget has mostly equivalent functionality to
+# the CortexM object for the core. Multicore devices work differently. This class tracks
+# a "selected core", to which all actions are directed. The selected core can be changed
+# at any time. You may also directly access specific cores and perform operations on them.
 class CoreSightTarget(Target):
 
     def __init__(self, link, memoryMap=None):
@@ -34,11 +42,11 @@ class CoreSightTarget(Target):
         self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
-        self.aps = {}
-        self.dp = dap.DebugPort(link)
+        self.dp = dap.DebugPort(link, self)
         self._selected_core = 0
         self._svd_load_thread = None
         self._root_contexts = {}
+        self._new_core_num = 0
 
     @property
     def selected_core(self):
@@ -49,6 +57,10 @@ class CoreSightTarget(Target):
             raise ValueError("invalid core number")
         logging.debug("selected core #%d" % num)
         self._selected_core = num
+
+    @property
+    def aps(self):
+        return self.dp.aps
 
     @property
     ## @brief Waits for SVD file to complete loading before returning.
@@ -71,35 +83,61 @@ class CoreSightTarget(Target):
             self._svd_load_thread = SVDLoader(self._svd_location, svdLoadCompleted)
             self._svd_load_thread.load()
 
-    def add_ap(self, ap):
-        self.aps[ap.ap_num] = ap
-
     def add_core(self, core):
+        core.setHaltOnConnect(self.halt_on_connect)
+        core.setTargetContext(CachingDebugContext(DebugContext(core)))
         self.cores[core.core_number] = core
-        self.cores[core.core_number].setTargetContext(CachingDebugContext(DebugContext(core)))
         self._root_contexts[core.core_number] = None
 
-    def init(self, bus_accessible=True):
-        # Start loading the SVD file
-        self.loadSVD()
+    def create_init_sequence(self):
+        seq = CallSequence(
+            ('load_svd',            self.loadSVD),
+            ('dp_init',             self.dp.init),
+            ('power_up',            self.dp.power_up_debug),
+            ('find_aps',            self.dp.find_aps),
+            ('create_aps',          self.dp.create_aps),
+            ('init_ap_roms',        self.dp.init_ap_roms),
+            ('create_cores',        self.create_cores),
+            ('create_components',   self.create_components),
+            ('notify',              lambda : self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self)))
+            )
+        
+        return seq
+    
+    def init(self):
+        # Create and execute the init sequence.
+        seq = self.create_init_sequence()
+        seq.invoke()
+    
+    def _create_component(self, cmpid):
+        cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
+        cmp.init()
 
-        # Create the DP and turn on debug.
-        self.dp.init()
-        self.dp.power_up_debug()
+    def create_cores(self):
+        self._new_core_num = 0
+        self._apply_to_all_components(self._create_component, filter=lambda c: c.factory == cortex_m.CortexM.factory)
 
-        # Create an AHB-AP for the CPU.
-        ap0 = ap.AHB_AP(self.dp, 0)
-        ap0.init(bus_accessible)
-        self.add_ap(ap0)
-
-        # Create CortexM core.
-        core0 = cortex_m.CortexM(self, self.dp, self.aps[0], self.memory_map)
-        core0.setHaltOnConnect(self.halt_on_connect)
-        if bus_accessible:
-            core0.init()
-        self.add_core(core0)
-
-        self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self))
+    def create_components(self):
+        self._apply_to_all_components(self._create_component, filter=lambda c: c.factory is not None and c.factory != cortex_m.CortexM.factory)
+    
+    def _apply_to_all_components(self, action, filter=None):
+        def scan_rom_table(tbl):
+            for component in tbl.components:
+                # Recurse into child ROM tables.
+                if isinstance(component, rom_table.ROMTable):
+                    scan_rom_table(component)
+                    continue
+                
+                # Skip component if the filter returns False.
+                if filter is not None and not filter(component):
+                    continue
+                
+                # Perform the action.
+                action(component)
+                
+        # Iterate over every top-level ROM table.
+        for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
+            scan_rom_table(ap.rom_table)
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))

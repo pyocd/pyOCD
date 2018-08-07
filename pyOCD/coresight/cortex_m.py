@@ -17,16 +17,15 @@
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
-from pyOCD.pyDAPAccess import DAPAccess
+from ..pyDAPAccess import DAPAccess
 from ..utility import conversion
 from ..utility.notification import Notification
+from .component import CoreSightComponent
 from .fpb import FPB
 from .dwt import DWT
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
-from . import (dap, ap)
 import logging
-import struct
 from time import (time, sleep)
 
 # CPUID PARTNO values
@@ -124,7 +123,7 @@ def register_name_to_index(reg):
             raise KeyError('cannot find %s core register' % reg)
     return reg
 
-class CortexM(Target):
+class CortexM(Target, CoreSightComponent):
 
     """
     This class has basic functions to access a Cortex M core:
@@ -285,26 +284,49 @@ class CortexM(Target):
         RegisterInfo('s31',     32,         'float',        'float'),
         ]
 
-    def __init__(self, rootTarget, dp, ap, memoryMap=None, core_num=0):
-        super(CortexM, self).__init__(rootTarget.link, memoryMap)
+    @classmethod
+    def factory(cls, ap, cmpid, address):
+        # Create a new core instance.
+        root = ap.dp.target
+        core = cls(root, ap, root.memory_map, root._new_core_num, cmpid, address)
+        
+        # Associate this core with the AP.
+        if ap.core is not None:
+            raise RuntimeError("AP#%d has multiple cores associated with it" % ap.ap_num)
+        ap.core = core
+        
+        # Add the new core to the root target.
+        root.add_core(core)
+        
+        root._new_core_num += 1
+        
+        return core
+
+    def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
+        Target.__init__(self, rootTarget.link, memoryMap)
+        CoreSightComponent.__init__(self, ap, cmpid, address)
 
         self.root_target = rootTarget
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
-        self.dp = dp
-        self.ap = ap
+        self.dp = ap.dp
         self.core_number = core_num
         self._run_token = 0
         self._target_context = None
 
         # Set up breakpoints manager.
-        self.fpb = FPB(self.ap)
-        self.dwt = DWT(self.ap)
         self.sw_bp = SoftwareBreakpointProvider(self)
         self.bp_manager = BreakpointManager(self)
-        self.bp_manager.add_provider(self.fpb, Target.BREAKPOINT_HW)
         self.bp_manager.add_provider(self.sw_bp, Target.BREAKPOINT_SW)
+
+    ## @brief Connect related CoreSight components.
+    def connect(self, cmp):
+        if isinstance(cmp, FPB):
+            self.fpb = cmp
+            self.bp_manager.add_provider(cmp, Target.BREAKPOINT_HW)
+        elif isinstance(cmp, DWT):
+            self.dwt = cmp
 
     def init(self):
         """
@@ -315,8 +337,6 @@ class CortexM(Target):
         self.readCoreType()
         self.checkForFPU()
         self.buildTargetXML()
-        self.fpb.init()
-        self.dwt.init()
         self.sw_bp.init()
 
     def disconnect(self, resume=True):
@@ -363,6 +383,8 @@ class CortexM(Target):
 
         self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
+        if self.core_type not in CORE_TYPE_NAME:
+            raise RuntimeError("Unknown CPU type 0x%x" % self.core_type)
         logging.info("CPU core is %s", CORE_TYPE_NAME[self.core_type])
 
     ## @brief Determine if a Cortex-M4 has an FPU.

@@ -50,17 +50,32 @@ class Kinetis(CoreSightTarget):
     def setAutoUnlock(self, doAutoUnlock):
         self.do_auto_unlock = doAutoUnlock
 
-    def init(self):
-        super(Kinetis, self).init(bus_accessible=False)
+    def create_init_sequence(self):
+        seq = super(Kinetis, self).create_init_sequence()
+        
+        # Must check whether security is enabled, and potentially auto-unlock, before
+        # any init tasks that require system bus access.
+        seq.insert_before('init_ap_roms',
+            ('check_mdm_ap_idr',        self.check_mdm_ap_idr),
+            ('check_flash_security',    self.check_flash_security),
+            )
+        
+        # Perform the halt sequence after cores are created. (This needs work.)
+        seq.insert_after('create_cores',
+            ('halt_on_connect',         self.perform_halt_on_connect)
+            )
+        
+        return seq
 
-        self.mdm_ap = ap.AccessPort(self.dp, 1)
-        self.aps[1] = self.mdm_ap
-        self.mdm_ap.init(False)
-
-        # check MDM-AP ID
-        if self.mdm_ap.idr != self.mdm_idr:
+    def check_mdm_ap_idr(self):
+        self.mdm_ap = self.dp.aps[1]
+        
+        # Check MDM-AP ID. If mdm_idr is 0 then it means this class is being used directly
+        # as a generic Kinetis target, so we don't want to do this check and report an error.
+        if self.mdm_idr != 0 and self.mdm_ap.idr != self.mdm_idr:
             logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, self.mdm_ap.idr, self.mdm_idr)
 
+    def check_flash_security(self):
         # check for flash security
         isLocked = self.isLocked()
         if isLocked:
@@ -75,7 +90,7 @@ class Kinetis(CoreSightTarget):
                 # Use the MDM to keep the target halted after reset has been released
                 self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
                 # Enable debug
-                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+                self.aps[0].writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
                 self.dp.assert_reset(False)
                 while self.mdm_ap.read_reg(MDM_STATUS) & MDM_STATUS_CORE_HALTED != MDM_STATUS_CORE_HALTED:
                     logging.debug("Waiting for mdm halt (erase)")
@@ -94,13 +109,14 @@ class Kinetis(CoreSightTarget):
         if isLocked:
             return
 
+    def perform_halt_on_connect(self):
         if self.halt_on_connect:
             # Prevent the target from resetting if it has invalid code
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             while self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                 self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             # Enable debug
-            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+            self.aps[0].writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
             # Disable holding the core in reset, leave MDM halt on
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
@@ -115,9 +131,6 @@ class Kinetis(CoreSightTarget):
             # sanity check that the target is still halted
             if self.getState() == Target.TARGET_RUNNING:
                 raise Exception("Target failed to stay halted during init sequence")
-
-        self.aps[0].init(bus_accessible=True)
-        self.cores[0].init()
 
     def isLocked(self):
         val = self.mdm_ap.read_reg(MDM_STATUS)

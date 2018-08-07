@@ -105,11 +105,19 @@ class K22FA12(Kinetis):
         self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MK22FA12.svd", is_local=False)
 
-    def init(self):
-        super(K22FA12, self).init()
+    def create_init_sequence(self):
+        seq = super(K22FA12, self).create_init_sequence()
 
+        # Modify the memory map for FlexNVM devices.
+        seq.insert_before('create_cores',
+            ('fixup_memory_map', self.fixup_memory_map)
+            )
+
+        return seq
+
+    def fixup_memory_map(self):
         # If the device has FlexNVM, then it has half-sized program flash.
-        fcfg2 = self.read32(SIM_FCFG2)
+        fcfg2 = self.dp.aps[0].read32(SIM_FCFG2)
         if (fcfg2 & SIM_FCFG2_PFLSH) == 0:
             rgn = self.memory_map.getRegionForAddress(0)
             rgn._end = 0x7ffff

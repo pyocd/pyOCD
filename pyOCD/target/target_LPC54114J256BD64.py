@@ -94,20 +94,3 @@ class LPC54114(CoreSightTarget):
             pc = self.readMemory(0x4)
             self.writeCoreRegisterRaw('sp', sp)
             self.writeCoreRegisterRaw('pc', pc)
-
-    def init(self):
-        super(LPC54114, self).init()
-
-        # Check if this is the dual core part.
-        devid = self.readMemory(SYSCON_DEVICE_ID0)
-        self.is_dual_core = (devid == LPC54114J256)
-        if self.is_dual_core:
-            # Add second core's AHB-AP.
-            self.core1_ap = ap.AHB_AP(self.dp, 1)
-            self.aps[1] = self.core1_ap
-            self.core1_ap.init(True)
-
-            # Add second core.
-            self.core1 = CortexM(self, self.dp, self.core1_ap, self.memory_map, core_num=1)
-            self.cores[1] = self.core1
-            self.core1.init()

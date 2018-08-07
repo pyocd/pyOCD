@@ -177,17 +177,7 @@ class K32W042S(Kinetis):
         if os.path.exists(svdPath):
             self._svd_location = SVDFile(vendor="NXP", filename=svdPath, is_local=True)
 
-    def init(self):
-        CoreSightTarget.init(self, bus_accessible=False)
-
-        self.mdm_ap = ap.AccessPort(self.dp, 1)
-        self.aps[1] = self.mdm_ap
-        self.mdm_ap.init(False)
-
-        # check MDM-AP ID
-        if self.mdm_ap.idr != self.mdm_idr:
-            logging.error("%s: bad MDM-AP IDR (is 0x%08x, expected 0x%08x)", self.part_number, self.mdm_ap.idr, self.mdm_idr)
-
+    def check_flash_security(self):
         # check for flash security
         isLocked = self.isLocked()
         if isLocked:
@@ -202,7 +192,7 @@ class K32W042S(Kinetis):
                 # Use the MDM to keep the target halted after reset has been released
                 self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
                 # Enable debug
-                self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+                self.aps[0].writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
                 self.dp.assert_reset(False)
                 while self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED != MDM_CORE_STATUS_CM4_HALTED:
                     logging.debug("Waiting for mdm halt (erase)")
@@ -221,13 +211,14 @@ class K32W042S(Kinetis):
         if isLocked:
             return
 
+    def perform_halt_on_connect(self):
         if self.halt_on_connect:
             # Prevent the target from resetting if it has invalid code
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             while self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) != (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                 self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET)
             # Enable debug
-            self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+            self.aps[0].writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
             # Disable holding the core in reset, leave MDM halt on
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
 
@@ -243,22 +234,22 @@ class K32W042S(Kinetis):
             if self.getState() == Target.TARGET_RUNNING:
                 raise Exception("Target failed to stay halted during init sequence")
 
-        self.aps[0].init(bus_accessible=True)
-        self.cores[0].init()
-
-        # Add second core's AHB-AP.
-        core1_ap = ap.AHB_AP(self.dp, 2)
-        core1_ap.init(True)
-        self.add_ap(core1_ap)
-
-        # Add second core. It is held in reset until released by software.
-        core1 = CortexM(self, self.dp, core1_ap, self.memory_map, core_num=1)
-        core1.init()
-        self.add_core(core1)
+#         self.aps[0].init(bus_accessible=True)
+#         self.cores[0].init()
+# 
+#         # Add second core's AHB-AP.
+#         core1_ap = ap.AHB_AP(self.dp, 2)
+#         core1_ap.init(True)
+#         self.add_ap(core1_ap)
+# 
+#         # Add second core. It is held in reset until released by software.
+#         core1 = CortexM(self, self.dp, core1_ap, self.memory_map, core_num=1)
+#         core1.init()
+#         self.add_core(core1)
 
         # Disable ROM vector table remapping.
-        self.write32(SMC0_MR, SMC_MR_BOOTCFG_MASK)
-        self.write32(SMC1_MR, SMC_MR_BOOTCFG_MASK)
+        self.aps[0].write32(SMC0_MR, SMC_MR_BOOTCFG_MASK)
+        self.aps[0].write32(SMC1_MR, SMC_MR_BOOTCFG_MASK)
 
     def massErase(self):
         self.dp.assert_reset(True)

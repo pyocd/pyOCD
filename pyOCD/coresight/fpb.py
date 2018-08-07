@@ -16,6 +16,7 @@
 """
 
 from ..core.target import Target
+from .component import CoreSightComponent
 from ..debug.breakpoints.provider import (Breakpoint, BreakpointProvider)
 import logging
 
@@ -25,14 +26,22 @@ class HardwareBreakpoint(Breakpoint):
         self.comp_register_addr = comp_register_addr
         self.type = Target.BREAKPOINT_HW
 
-class FPB(BreakpointProvider):
+class FPB(BreakpointProvider, CoreSightComponent):
     FP_CTRL = 0xE0002000
     FP_CTRL_KEY = 1 << 1
     FP_COMP0 = 0xE0002008
+    
+    @classmethod
+    def factory(cls, ap, cmpid, address):
+        fpb = cls(ap, cmpid, address)
+        assert ap.core
+        ap.core.connect(fpb)
+        return fpb
 
-    def __init__(self, ap):
-        super(FPB, self).__init__()
-        self.ap = ap
+    def __init__(self, ap, cmpid=None, addr=None):
+        CoreSightComponent.__init__(self, ap, cmpid, addr)
+        BreakpointProvider.__init__(self)
+        assert self.address == FPB.FP_CTRL, "Unexpected FPB base address 0x%08x" % self.address
         self.hw_breakpoints = []
         self.nb_code = 0
         self.nb_lit = 0
