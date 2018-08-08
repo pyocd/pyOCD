@@ -332,9 +332,6 @@ class FreeRTOSThreadProvider(ThreadProvider):
         self._total_priorities = 0
         self._threads = {}
 
-        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
-        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
-
     def init(self, symbolProvider):
         # Lookup required symbols.
         self._symbols = self._lookup_symbols(self.FREERTOS_SYMBOLS, symbolProvider)
@@ -374,6 +371,9 @@ class FreeRTOSThreadProvider(ThreadProvider):
             log.warning("FreeRTOS: number of priorities is too large (%d)", self._total_priorities)
             return False
         log.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
+
+        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
+        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
 
         return True
 

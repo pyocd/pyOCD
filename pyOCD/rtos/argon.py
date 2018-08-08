@@ -328,9 +328,6 @@ class ArgonThreadProvider(ThreadProvider):
         self._all_threads = None
         self._threads = {}
 
-        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
-        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
-
     def init(self, symbolProvider):
         self.g_ar = symbolProvider.get_symbol_value("g_ar")
         if self.g_ar is None:
@@ -343,6 +340,9 @@ class ArgonThreadProvider(ThreadProvider):
         log.debug("Argon: g_ar_objects = 0x%08x", self.g_ar_objects)
 
         self._all_threads = self.g_ar_objects + ALL_OBJECTS_THREADS_OFFSET
+
+        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
+        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
 
         return True
 
