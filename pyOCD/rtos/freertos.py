@@ -382,7 +382,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
 
     def event_handler(self, notification):
         # Invalidate threads list if flash is reprogrammed.
-        log.info("FreeRTOS: invalidating threads list: %s" % (repr(notification)))
+        log.debug("FreeRTOS: invalidating threads list: %s" % (repr(notification)))
         self.invalidate();
 
     def _build_thread_list(self):
