@@ -17,8 +17,11 @@
 
 from ..flash.flash import Flash
 from ..core.coresight_target import (SVDFile, CoreSightTarget)
+from ..coresight.cortex_m import (CortexM)
+from ..coresight import(ap, dap)
 from ..core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 import logging
+import time
 
 flash_algo = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -57,25 +60,92 @@ flash_algo = { 'load_address' : 0x20000000,
                'begin_data'       : 0x20002000, # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
                'page_buffers'    : [0x20002000, 0x20004000],   # Enable double buffering
                'begin_stack'      : 0x20000800,
-               'static_base'      : 0x20000170,
+               'static_base'      : 0x20000368,
                'min_program_length' : 4,
                'analyzer_supported' : False,
                'analyzer_address' : 0x20003000  # Analyzer 0x20003000..0x20003600
               }
+
 
 class Flash_cc3220sf(Flash):
 
     def __init__(self, target):
         super(Flash_cc3220sf, self).__init__(target, flash_algo)
 
-class CC3220SF(CoreSightTarget):
+    def init(self):
+        """
+        Download the flash algorithm in RAM
+        """
 
+        self.target.halt()
+        self.target.setTargetState("PROGRAM")
+
+        # update core register to execute the init subroutine
+
+        result = self.callFunctionAndWait(self.flash_algo['pc_init'], init=True)
+
+        # check the return code
+        if result != 0:
+            logging.error('init error: %i', result)
+
+        # erase the cookie which take up one page
+        self.erasePage(0x01000000)
+        time.sleep(.5)
+
+        #do a hardware reset which will put the pc looping in rom
+        self.target.dp.reset()
+        time.sleep(1.3)
+
+        # reconnect to the board
+        self.target.dp.init()
+        self.target.dp.power_up_debug()
+
+        self.target.halt()
+        self.target.setTargetState("PROGRAM")
+
+        # update core register to execute the init subroutine
+        result = self.callFunctionAndWait(self.flash_algo['pc_init'], init=True)
+
+        # check the return code
+        if result != 0:
+            logging.error('init error: %i', result)
+
+
+class CC3220SF(CoreSightTarget):
     memoryMap = MemoryMap(
-        RomRegion(      start=0x00000000, length=0x00080000),
-        FlashRegion(    start=0x01000000,  length=0x00100000,        blocksize=0x800, isBootMemory=True),
-        RamRegion(      start=0x20000000,  length=0x40000)
-        )
+        RomRegion(start=0x00000000, length=0x00080000),
+        FlashRegion(start=0x01000000, length=0x00100000, blocksize=0x800, isBootMemory=True),
+        RamRegion(start=0x20000000, length=0x40000)
+    )
 
     def __init__(self, link):
         super(CC3220SF, self).__init__(link, self.memoryMap)
 
+    def create_init_sequence(self):
+        seq = super(CC3220SF,self).create_init_sequence()
+        seq.replace_task('create_cores', self.create_CC3220SF_core)
+        return seq
+
+    def create_CC3220SF_core(self):
+        core0 = CortexM_CC3220SF(self, self.aps[0], self.memory_map)
+        self.aps[0].core = core0
+        core0.init()
+        self.add_core(core0)
+        
+
+
+
+class CortexM_CC3220SF(CortexM):
+
+    def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
+        super(CortexM_CC3220SF, self).__init__(rootTarget, ap, memoryMap, core_num, cmpid, address)
+
+    def reset(self, software_reset=None):
+        if software_reset:
+            # Perform the reset.
+            try:
+                self.writeMemory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_VECTRESET)
+                # Without a flush a transfer error can occur
+                self.dp.flush()
+            except DAPAccess.TransferError:
+                self.dp.flush()
