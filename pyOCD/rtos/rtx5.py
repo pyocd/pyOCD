@@ -259,6 +259,8 @@ class RTX5ThreadProvider(ThreadProvider):
             return False
         log.debug('init(), found osRtxInfo')
         self._threads = {}
+        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
+        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
         return True
 
     def get_threads(self):
@@ -312,6 +314,12 @@ class RTX5ThreadProvider(ThreadProvider):
             if not thread in self._threads:
                 self._threads[thread] = RTXTargetThread(self._target_context, self, thread)
             thread = self._target_context.read32(thread+DELAYNEXT_OFFSET)
+
+        # Create fake handler mode thread.
+        if self.get_ipsr() > 0:
+            log.debug("creating handler mode thread")
+            t = HandlerModeThread(self._target_context, self)
+            self._threads[t.unique_id] = t
 
         log.debug('found %d threads' % len(self._threads))
 
