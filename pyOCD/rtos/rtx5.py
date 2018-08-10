@@ -23,7 +23,7 @@ from pyOCD.pyDAPAccess import DAPAccess
 import logging
 
 # Create a logger for this module.
-log = logging.getLogger("RTX")
+log = logging.getLogger("rtx5")
 
 ## @brief
 class RTXThreadContext(DebugContext):
@@ -199,7 +199,7 @@ class RTXTargetThread(TargetThread):
         self._has_fpu = self._thread_context.core.has_fpu
         name_ptr = self._target_context.read32(self._base + NAME_OFFSET)
         self._name = read_c_string(self._target_context, name_ptr)
-        log.info('RTXTargetThread 0x%x' % base)
+        log.debug('RTXTargetThread 0x%x' % base)
 
     @property
     def unique_id(self):
@@ -248,9 +248,9 @@ THREADNEXT_OFFSET = 8
 DELAYNEXT_OFFSET = 16
 
 ## @brief Base class for RTOS support plugins.
-class RTXThreadProvider(ThreadProvider):
+class RTX5ThreadProvider(ThreadProvider):
     def __init__(self, target):
-        super(RTXThreadProvider, self).__init__(target)
+        super(RTX5ThreadProvider, self).__init__(target)
 
     def init(self, symbolProvider):
         # Lookup required symbols.

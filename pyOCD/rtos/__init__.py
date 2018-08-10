@@ -18,11 +18,11 @@
 from .argon import ArgonThreadProvider
 from .freertos import FreeRTOSThreadProvider
 from .zephyr import ZephyrThreadProvider
-from .rtx import RTXThreadProvider
+from .rtx5 import RTX5ThreadProvider
 
 RTOS = {
           'Argon' : ArgonThreadProvider,
           'FreeRTOS' : FreeRTOSThreadProvider,
           'Zephyr' : ZephyrThreadProvider,
-          'RTX' : RTXThreadProvider,
+          'RTX5' : RTX5ThreadProvider,
          }
