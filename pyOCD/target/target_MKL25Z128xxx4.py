@@ -102,6 +102,5 @@ class KL25Z(Kinetis):
 
     def __init__(self, link):
         super(KL25Z, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0020
         self._svd_location = SVDFile(vendor="Freescale", filename="MKL25Z4.svd", is_local=False)
 

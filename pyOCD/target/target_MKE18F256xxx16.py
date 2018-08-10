@@ -98,7 +98,6 @@ class KE18F16(Kinetis):
 
     def __init__(self, link):
         super(KE18F16, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MKE18F16.svd")
 
     def create_init_sequence(self):

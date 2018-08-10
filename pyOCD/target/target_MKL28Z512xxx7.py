@@ -168,7 +168,6 @@ class KL28x(Kinetis):
 
     def __init__(self, link):
         super(KL28x, self).__init__(link, self.singleMap)
-        self.mdm_idr = 0x001c0020
         self.is_dual_core = False
 
         self._svd_location = SVDFile(vendor="Freescale", filename="MKL28T7_CORE0.svd", is_local=False)

@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2017 ARM Limited
+ Copyright (c) 2017-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,28 +15,53 @@
  limitations under the License.
 """
 
-from pyOCD.utility.timeout import (Timeout, TimeoutException)
+from pyOCD.utility.timeout import Timeout
 from time import (time, sleep)
 import pytest
 
 class TestTimeout:
     def test_no_timeout(self):
-        with Timeout(0.5) as to:
+        with Timeout(0.05) as to:
+            cnt = 0
             while to.check():
-                sleep(0.4)
-                break
+                sleep(0.01)
+                cnt += 1
+                if cnt == 4:
+                    break
+            else:
+                assert False
         assert not to.did_time_out
 
     def test_timeout_a(self):
         s = time()
-        with Timeout(0.5) as to:
+        with Timeout(0.05) as to:
             while to.check():
-                sleep(0.1)
+                sleep(0.01)
         assert to.did_time_out
-        assert (time() - s) >= 0.5
-
-    def test_pass_exception(self):
-        with pytest.raises(RuntimeError):
-            with Timeout(0.5) as to:
-                raise RuntimeError()
+        assert (time() - s) >= 0.05
+    
+    def test_timeout_b(self):
+        timedout = False
+        s = time()
+        with Timeout(0.05) as to:
+            cnt = 0
+            while cnt < 10:
+                if to.did_time_out:
+                    timedout = True
+                sleep(0.02)
+                cnt += 1
+        assert timedout
+        assert to.did_time_out
+        assert (time() - s) >= 0.05
+    
+    def test_timeout_c(self):
+        timedout = False
+        with Timeout(0.05) as to:
+            cnt = 0
+            while cnt < 10:
+                if to.did_time_out:
+                    timedout = True
+                cnt += 1
+        assert not timedout
+        assert not to.did_time_out
 

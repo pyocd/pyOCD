@@ -154,6 +154,9 @@ class DebugPort(object):
         self._csw = {}
         self._dp_select = -1
 
+    def is_reset_asserted(self):
+        return self.link.is_reset_asserted()
+
     def set_clock(self, frequency):
         self.link.set_clock(frequency)
         

@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ import logging
 SIM_FCFG1 = 0x4004804C
 SIM_FCFG2 = 0x40048050
 SIM_FCFG2_PFLSH = (1 << 23)
+
+log = logging.getLogger("target.k22fa12")
 
 flash_algo = {
     'load_address' : 0x20000000,
@@ -102,7 +104,6 @@ class K22FA12(Kinetis):
 
     def __init__(self, link):
         super(K22FA12, self).__init__(link, self.memoryMap)
-        self.mdm_idr = 0x001c0000
         self._svd_location = SVDFile(vendor="Freescale", filename="MK22FA12.svd", is_local=False)
 
     def create_init_sequence(self):
@@ -119,6 +120,9 @@ class K22FA12(Kinetis):
         # If the device has FlexNVM, then it has half-sized program flash.
         fcfg2 = self.dp.aps[0].read32(SIM_FCFG2)
         if (fcfg2 & SIM_FCFG2_PFLSH) == 0:
+            log.debug("%s: device has FlexNVM", self.part_number)
             rgn = self.memory_map.getRegionForAddress(0)
             rgn._end = 0x7ffff
+        else:
+            log.debug("%s: device does not have FlexNVM", self.part_number)
 

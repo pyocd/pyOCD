@@ -295,6 +295,10 @@ INFO_HELP = {
             'aliases' : ['si'],
             'help' : "Display whether interrupts are enabled when single stepping."
             },
+        'nreset' : {
+            'aliases' : [],
+            'help' : "Current nRESET signal state.",
+            },
         }
 
 OPTION_HELP = {
@@ -521,6 +525,7 @@ class PyOCDTool(object):
                 'vc' :                  self.handle_show_vectorcatch,
                 'step-into-interrupt' : self.handle_show_step_interrupts,
                 'si' :                  self.handle_show_step_interrupts,
+                'nreset' :              self.handle_show_nreset,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -1105,7 +1110,7 @@ class PyOCDTool(object):
             return
         exists = coresight.ap.AccessPort.probe(self.target.dp, apsel)
         if not exists:
-            print("Error: no AP with APSEL={}} exists".format(apsel))
+            print("Error: no AP with APSEL={} exists".format(apsel))
             return
         ap = coresight.ap.AccessPort.create(self.target.dp, apsel)
         self.target.dp.aps[apsel] = ap
@@ -1222,6 +1227,10 @@ class PyOCDTool(object):
         print_fields('UFSR', ufsr, UFSR_fields, showAll)
         print_fields('HFSR', hfsr, HFSR_fields, showAll)
         print_fields('DFSR', dfsr, DFSR_fields, showAll)
+
+    def handle_show_nreset(self, args):
+        rst = int(not self.target.link.is_reset_asserted())
+        print("nRESET = {}".format(rst))
 
     def handle_set(self, args):
         if len(args) < 1:
