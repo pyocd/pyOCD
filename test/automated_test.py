@@ -234,6 +234,12 @@ def main():
         help='Set number of concurrent board tests (default is 1)')
     args = parser.parse_args()
     
+    # Force jobs to 1 when running under CI until concurrency issues with enumerating boards are
+    # solved. Specifically, the connect test has intermittently failed to open boards on Linux and
+    # Win7. This is only done under CI, and in this script, to make testing concurrent runs easy.
+    if 'CI_TEST' in os.environ:
+        args.jobs = 1
+    
     # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
     # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()
     # to be used in order to init correctly (CoreFoundation is used in hidapi). Only on Python
