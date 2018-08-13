@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,9 +27,11 @@ from pyOCD.board import MbedBoard
 from pyOCD.utility.conversion import float32beToU32be
 import logging
 from time import time
-from test_util import TestResult, Test, Logger
+from test_util import (TestResult, Test, IOTee, RecordingLogHandler)
 import argparse
 from xml.etree import ElementTree
+import multiprocessing as mp
+import io
 
 from basic_test import BasicTest
 from speed_test import SpeedTest
@@ -40,6 +42,24 @@ from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
 
 XML_RESULTS = "test_results.xml"
+
+LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
+
+LOG_FILE = "automated_test_result.txt"
+SUMMARY_FILE = "automated_test_summary.txt"
+
+JOB_TIMEOUT = 30 * 60 # 30 minutes
+
+# Put together list of tests.
+test_list = [
+             BasicTest(),
+             GdbServerJsonTest(),
+             ConnectTest(),
+             SpeedTest(),
+             CortexTest(),
+             FlashTest(),
+             GdbTest(),
+             ]
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -73,6 +93,7 @@ def generate_xml_results(result_list):
     root = ElementTree.Element('testsuites',
             name="pyocd"
             )
+    root.text = "\n"
 
     for board_name, results in board_results.items():
         total = 0
@@ -81,6 +102,8 @@ def generate_xml_results(result_list):
         suite = ElementTree.SubElement(root, 'testsuite',
                     name=board_name,
                     id=str(suite_id))
+        suite.text = "\n"
+        suite.tail = "\n"
         suite_id += 1
         
         for result in results:
@@ -105,58 +128,171 @@ def generate_xml_results(result_list):
     
     ElementTree.ElementTree(root).write(XML_RESULTS, encoding="UTF-8", xml_declaration=True)
 
-def main():
-    log_file = "automated_test_result.txt"
-    summary_file = "automated_test_summary.txt"
+def print_board_header(outputFile, board, n, includeDividers=True, includeLeadingNewline=False):
+    header = "TESTING BOARD {name} [{target}] [{uid}] #{n}".format(
+        name=board.name, target=board.target_type, uid=board.getUniqueID(), n=n)
+    if includeDividers:
+        divider = "=" * len(header)
+        if includeLeadingNewline:
+            print("\n" + divider, file=outputFile)
+        else:
+            print(divider, file=outputFile)
+    print(header, file=outputFile)
+    if includeDividers:
+        print(divider + "\n", file=outputFile)
 
+## @brief Run all tests on a given board.
+#
+# When multiple test jobs are being used, this function is the entry point executed in
+# child processes.
+#
+# Always writes both stdout and log messages of tests to a board-specific log file, and saves
+# the output for each test to a string that is stored in the TestResult object. Depending on
+# the logToConsole and commonLogFile parameters, output may also be copied to the console
+# (sys.stdout) and/or a common log file for all boards.
+#
+# @param board_id Unique ID of the board to test.
+# @param n Unique index of the test run.
+# @param loglevel Log level passed to logger instance. Usually INFO or DEBUG.
+# @param logToConsole Boolean indicating whether output should be copied to sys.stdout.
+# @param commonLogFile If not None, an open file object to which output should be copied.
+def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
+    board = MbedBoard.chooseBoard(board_id=board_id, open_board=False)
+
+    originalStdout = sys.stdout
+    originalStderr = sys.stderr
+
+    # Open board-specific output file.
+    log_filename = "automated_test_results_%s_%d.txt" % (board.name, n)
+    if os.path.exists(log_filename):
+        os.remove(log_filename)
+    log_file = open(log_filename, "a", buffering=1) # 1=Unbuffered
+    
+    # Setup logging.
+    log_handler = RecordingLogHandler(None)
+    log_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    root_logger = logging.getLogger()
+    root_logger.setLevel(loglevel)
+    root_logger.addHandler(log_handler)
+
+    result_list = []
+    try:
+        # Write board header to board log file, common log file, and console.
+        print_board_header(log_file, board, n)
+        if commonLogFile:
+            print_board_header(commonLogFile, board, n, includeLeadingNewline=(n != 0))
+        print_board_header(originalStdout, board, n, logToConsole, includeLeadingNewline=(n != 0))
+
+        # Run all tests on this board.
+        for test in test_list:
+            print("{} #{}: starting {}...".format(board.name, n, test.name), file=originalStdout)
+            
+            # Set a unique port for the GdbTest.
+            if isinstance(test, GdbTest):
+                test.n = n
+            
+            # Create a StringIO object to record the test's output, an IOTee to copy
+            # output to both the log file and StringIO, then set the log handler and
+            # stdio to write to the tee.
+            testOutput = io.StringIO()
+            tee = IOTee(log_file, testOutput)
+            if logToConsole:
+                tee.add(originalStdout)
+            if commonLogFile is not None:
+                tee.add(commonLogFile)
+            log_handler.stream = tee
+            sys.stdout = tee
+            sys.stderr = tee
+            
+            test_start = time()
+            result = test.run(board)
+            test_stop = time()
+            result.time = test_stop - test_start
+            tee.flush()
+            result.output = testOutput.getvalue()
+            result_list.append(result)
+            
+            passFail = "PASSED" if result.passed else "FAILED"
+            print("{} #{}: finished {}... {} ({:.3f} s)".format(
+                board.name, n, test.name, passFail, result.time),
+                file=originalStdout)
+    finally:
+        # Restore stdout/stderr in case we're running in the parent process (1 job).
+        sys.stdout = originalStdout
+        sys.stderr = originalStderr
+
+        root_logger.removeHandler(log_handler)
+        log_handler.flush()
+        log_handler.close()
+    return result_list
+
+def main():
     parser = argparse.ArgumentParser(description='pyOCD automated testing')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
     parser.add_argument('-q', '--quiet', action="store_true", help='Hide test progress for 1 job')
     parser.add_argument('-j', '--jobs', action="store", default=1, type=int, metavar="JOBS",
         help='Set number of concurrent board tests (default is 1)')
     args = parser.parse_args()
+    
+    # Force jobs to 1 when running under CI until concurrency issues with enumerating boards are
+    # solved. Specifically, the connect test has intermittently failed to open boards on Linux and
+    # Win7. This is only done under CI, and in this script, to make testing concurrent runs easy.
+    if 'CI_TEST' in os.environ:
+        args.jobs = 1
+    
+    # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
+    # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()
+    # to be used in order to init correctly (CoreFoundation is used in hidapi). Only on Python
+    # version 3.4+ is the multiprocessing.set_start_method() API available that lets us
+    # switch to the 'spawn' method, i.e. exec().
+    if args.jobs > 1 and sys.platform.startswith('darwin') and sys.version_info[0:2] < (3, 4):
+        print("WARNING: Cannot support multiple jobs on macOS prior to Python 3.4. Forcing 1 job.")
+        args.jobs = 1
 
-    # Setup logging
-    if os.path.exists(log_file):
-        os.remove(log_file)
+    # Setup logging based on concurrency and quiet option.
     level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(level=level)
-    logger = Logger(log_file)
-    sys.stdout = logger
-    sys.stderr = logger
+    if args.jobs == 1 and not args.quiet:
+        # Create common log file.
+        if os.path.exists(LOG_FILE):
+            os.remove(LOG_FILE)
+        logToConsole = True
+        commonLogFile = open(LOG_FILE, "a")
+    else:
+        logToConsole = False
+        commonLogFile = None
 
-    test_list = []
     board_list = []
     result_list = []
 
-    # Put together list of tests
-    test_list.append(BasicTest())
-    test_list.append(GdbServerJsonTest())
-    test_list.append(ConnectTest())
-    test_list.append(SpeedTest())
-    test_list.append(CortexTest())
-    test_list.append(FlashTest())
-    test_list.append(GdbTest())
-
     # Put together list of boards to test
     board_list = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+    board_id_list = sorted(b.getUniqueID() for b in board_list)
 
+    # If only 1 job was requested, don't bother spawning processes.
     start = time()
-    for board in board_list:
-        print("--------------------------")
-        print("TESTING BOARD %s" % board.getUniqueID())
-        print("--------------------------")
-        for test in test_list:
-            test_start = time()
-            result = test.run(board)
-            test_stop = time()
-            result.time = test_stop - test_start
-            result_list.append(result)
+    if args.jobs == 1:
+        for n, board_id in enumerate(board_id_list):
+            result_list += test_board(board_id, n, level, logToConsole, commonLogFile)
+    else:
+        # Create a pool of processes to run tests.
+        try:
+            pool = mp.Pool(args.jobs)
+            
+            # Issue board test job to process pool.
+            async_results = [pool.apply_async(test_board, (board_id, n, level, logToConsole, commonLogFile))
+                             for n, board_id in enumerate(board_id_list)]
+            
+            # Gather results.
+            for r in async_results:
+                result_list += r.get(timeout=JOB_TIMEOUT)
+        finally:
+            pool.close()
+            pool.join()
     stop = time()
     test_time = (stop - start)
 
     print_summary(test_list, result_list, test_time)
-    with open(summary_file, "w") as output_file:
+    with open(SUMMARY_FILE, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
     generate_xml_results(result_list)
     
@@ -166,5 +302,8 @@ def main():
     #TODO - check if any threads are still running?
 
 if __name__ == "__main__":
+    # set_start_method is only available in Python 3.4+.
+    if sys.version_info[0:2] >= (3, 4):
+        mp.set_start_method('spawn')
     main()
 

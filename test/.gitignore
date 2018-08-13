@@ -1,7 +1,8 @@
-output.txt
-gdb_test_raw.txt
-test_params.txt
-test_results.txt
+output*.txt
+gdb_test_raw*.txt
+test_params*.txt
+test_results*.txt
+automated_test_results*.txt
 automated_test_summary.txt
 test_results.xml
 

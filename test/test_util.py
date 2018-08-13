@@ -20,29 +20,48 @@ import pyOCD
 import logging, os, sys
 import traceback
 from xml.etree import ElementTree
+import six
 
-class Logger(object):
-    def __init__(self, filename="Default.log"):
-        self.terminal = sys.stdout
-        self.log = open(filename, "a")
+isPy2 = (sys.version_info[0] == 2)
+
+class IOTee(object):
+    def __init__(self, *args):
+        self.outputs = list(args)
+    
+    def add(self, output):
+        self.outputs.append(output)
 
     def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
+        if isPy2 and isinstance(message, str):
+            message = message.decode('UTF-8')
+        for out in self.outputs:
+            out.write(message)
 
     def flush(self):
-        self.terminal.flush()
-        self.log.flush()
+        for out in self.outputs:
+            out.flush()
+
+class RecordingLogHandler(logging.Handler):
+    def __init__(self, iostream, level=logging.NOTSET):
+        super(RecordingLogHandler, self).__init__(level)
+        self.stream = iostream
+    
+    def emit(self, record):
+        try:
+            self.stream.write(six.u(self.format(record) + "\n"))
+        except:
+            self.handleError(record)
 
 class TestResult(object):
 
     def __init__(self, test_board, test, result):
         self.passed = result
-        self._board = test_board
+        self._board = test_board.target_type if test_board else 'unknown'
         self.board_name = test_board.getBoardName() if test_board else ""
         self.test = test
         self.name = "test"
         self.time = 0
+        self.output = ""
     
     @property
     def board(self):
@@ -50,17 +69,25 @@ class TestResult(object):
     
     @board.setter
     def board(self, newBoard):
-        self._board = newBoard
+        self._board = newBoard.target_type if newBoard else 'unknown'
         self.board_name = newBoard.getBoardName()
 
     def get_test_case(self):
         case = ElementTree.Element('testcase',
                     name=self.name,
-                    classname="{}.{}.{}".format(self.board_name, self.board.target_type, self.name),
+                    classname="{}.{}.{}".format(self.board_name, self.board, self.name),
                     status=("passed" if self.passed else "failed"),
                     time="%.3f" % self.time
                     )
+        case.text = "\n"
         case.tail = "\n"
+        if not self.passed:
+            failed = ElementTree.SubElement(case, 'failure',
+                        message="failure",
+                        type="failure"
+                        )
+        system_out = ElementTree.SubElement(case, 'system-out')
+        system_out.text = self.output
         return case
 
 class Test(object):
@@ -82,7 +109,9 @@ class Test(object):
         except Exception as e:
             print("Exception %s when testing board %s" % (e, board.getUniqueID()))
             traceback.print_exc(file=sys.stdout)
-        return TestResult(board, self, passed)
+        result = TestResult(board, self, passed)
+        result.name = self.name
+        return result
 
     def print_perf_info(self, result_list, output_file=None):
         """
@@ -99,7 +128,7 @@ class Test(object):
         print("", file=output_file)
         for result in result_list:
             status_str = "Pass" if result.passed else "Fail"
-            print(msg_format_str.format(result.board.target_type,
+            print(msg_format_str.format(result.board,
                                         result.test.name,
                                         status_str, "%.3f" % result.time),
                   file=output_file)

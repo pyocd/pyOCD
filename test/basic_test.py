@@ -33,7 +33,6 @@ import logging
 class BasicTest(Test):
     def __init__(self):
         super(BasicTest, self).__init__("Basic Test", run_basic_test)
-        self.name = "basic"
     
 def run_basic_test(board_id):
     return basic_test(board_id, None)

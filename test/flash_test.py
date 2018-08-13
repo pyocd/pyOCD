@@ -73,7 +73,7 @@ class FlashTest(Test):
             else:
                 analyze_rate = "Fail"
                 analyze_time = "Fail"
-            print(perf_format_str.format(result.board.target_type,
+            print(perf_format_str.format(result.board,
                                          result.analyze, analyze_rate,
                                          analyze_time),
                   file=output_file)
@@ -94,7 +94,7 @@ class FlashTest(Test):
                 chip_erase_rate = "Fail"
                 page_erase_rate = "Fail"
                 page_erase_rate_same = "Fail"
-            print(rate_format_str.format(result.board.target_type,
+            print(rate_format_str.format(result.board,
                                          chip_erase_rate, page_erase_rate,
                                          page_erase_rate_same),
                   file=output_file)

@@ -93,7 +93,10 @@ def connect_test(board):
         live_board.init()
         print("Verifying target is", STATE_NAMES.get(expected_state, "unknown"))
         actualState = live_board.target.getState()
-        if actualState == expected_state:
+        # Accept sleeping for running, as a hack to work around nRF52840-DK test binary.
+        # TODO remove sleeping hack.
+        if (actualState == expected_state) \
+                or (expected_state == RUNNING and actualState == Target.TARGET_SLEEPING):
             passed = 1
             print("TEST PASSED")
         else:
@@ -121,7 +124,8 @@ def connect_test(board):
     ConnectTestCase( RUNNING,    False,            RUNNING,         False,              RUNNING  ),
     ]
 
-    print("\n\n----- FLASH NEW BINARY -----")
+    print("\n\n----- TESTING CONNECT/DISCONNECT -----")
+    print("Flashing new binary")
     live_board.flash.flashBinary(binary_file, rom_start)
     live_board.target.reset()
     test_count += 1

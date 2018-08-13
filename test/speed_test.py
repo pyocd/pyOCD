@@ -54,7 +54,7 @@ class SpeedTest(Test):
             else:
                 read_speed = "Fail"
                 write_speed = "Fail"
-            print(format_str.format(result.board.target_type,
+            print(format_str.format(result.board,
                                     read_speed, write_speed),
                   file=output_file)
         print("", file=output_file)

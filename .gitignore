@@ -69,6 +69,7 @@ htmlcov
 /windev
 
 automated_test_result.txt
+automated_test_results_*.txt
 automated_test_summary.txt
 test_params.txt
 output.txt

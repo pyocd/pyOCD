@@ -144,7 +144,7 @@ class MbedBoard(Board):
     @staticmethod
     def chooseBoard(dap_class=DAPAccess, blocking=True, return_first=False,
                     board_id=None, target_override=None, frequency=1000000,
-                    init_board=True):
+                    init_board=True, open_board=True):
         """
         Allow you to select a board among all boards connected
         """
@@ -215,11 +215,12 @@ class MbedBoard(Board):
 
         assert len(all_mbeds) == 1
         mbed = all_mbeds[0]
-        mbed.link.open()
-        if init_board:
-            try:
-                mbed.init()
-            except:
-                mbed.link.close()
-                raise
+        if open_board:
+            mbed.link.open()
+            if init_board:
+                try:
+                    mbed.init()
+                except:
+                    mbed.link.close()
+                    raise
         return mbed
