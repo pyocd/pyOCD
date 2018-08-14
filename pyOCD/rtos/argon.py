@@ -405,8 +405,8 @@ class ArgonThreadProvider(ThreadProvider):
         try:
             return self._threads[id]
         except KeyError:
-            log.debug("key error getting current thread id=%x", id)
-            log.debug("self._threads = %s", repr(self._threads))
+            log.debug("key error getting current thread id=%s; self._threads = %s",
+                ("%x" % id) if (id is not None) else id, repr(self._threads))
             return None
 
     def is_valid_thread_id(self, threadId):
