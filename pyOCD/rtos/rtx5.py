@@ -259,6 +259,8 @@ class RTX5ThreadProvider(ThreadProvider):
             return False
         log.debug('init(), found osRtxInfo')
         self._threads = {}
+        self._current = None
+        self._current_id = None
         self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
         self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
         return True
@@ -337,10 +339,16 @@ class RTX5ThreadProvider(ThreadProvider):
 
     @property
     def current_thread(self):
-        return self._current
+        if self.is_enabled:
+            return self._current
+        else:
+            return None
 
     def is_valid_thread_id(self, threadId):
         return self._threads[threadId] is not None
 
     def get_current_thread_id(self):
-        return self._current_id
+        if self.is_enabled:
+            return self._current_id
+        else:
+            return None
