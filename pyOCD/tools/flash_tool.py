@@ -17,6 +17,7 @@
 """
 
 import argparse
+import json
 import os
 import sys
 import logging
@@ -72,6 +73,8 @@ parser.add_argument("-b", "--board", dest="board_id", default=None,
                     help="Connect to board by board id.  Use -l to list all connected boards.")
 parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False,
                     help="List all connected boards.")
+parser.add_argument("-lb", "--list-boards", action="store_true", dest="list_all_boards", default=False,
+                    help="List all supported boards.")
 parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='info',
                     help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels),
                     metavar="LEVEL")
@@ -147,6 +150,21 @@ def main():
 
     if args.list_all:
         MbedBoard.listConnectedBoards()
+    elif args.list_all_boards:
+        supported_boards = MbedBoard.listSupportedBoards()
+        boards = []
+        obj = {
+            'boards': boards
+        }
+        for board_id, board_info in supported_boards.iteritems():
+            boards.append({
+                'id': board_id,
+                'name': board_info.name,
+                'target': board_info.target,
+                'binary': board_info.binary
+            })
+        print json.dumps(obj, indent=4)
+
     else:
         board_selected = MbedBoard.chooseBoard(board_id=args.board_id, target_override=args.target_override,
                                                frequency=args.frequency, blocking=False)

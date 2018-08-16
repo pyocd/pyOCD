@@ -135,6 +135,13 @@ class MbedBoard(Board):
         return self.name + " [" + self.target_type + "]"
 
     @staticmethod
+    def listSupportedBoards():
+        """
+        List supported boards
+        """
+        return BOARD_ID_TO_INFO
+
+    @staticmethod
     def listConnectedBoards(dap_class=DAPAccess):
         """
         List the connected board info
