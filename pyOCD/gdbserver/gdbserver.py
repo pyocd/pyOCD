@@ -47,7 +47,7 @@ LOG_ACK = False # Log ack or nak.
 LOG_PACKETS = False # Log all packets sent and received.
 
 def checksum(data):
-    return b"%02x" % (sum(six.iterbytes(data)) % 256)
+    return ("%02x" % (sum(six.iterbytes(data)) % 256)).encode()
 
 ## @brief De-escapes binary data from Gdb.
 #
@@ -716,7 +716,7 @@ class GDBServer(threading.Thread):
                     pass
                 traceback.print_exc()
                 self.log.debug('Target is unavailable temporarily.')
-                val = b'S%02x' % self.target_facade.getSignalValue()
+                val = ('S%02x' % self.target_facade.getSignalValue()).encode()
                 break
 
         return self.createRSPPacket(val)
@@ -1013,7 +1013,7 @@ class GDBServer(threading.Thread):
                 return self.createRSPPacket(b"QC1")
             else:
                 self.validateDebugContext()
-                return self.createRSPPacket(b"QC%x" % self.current_thread_id)
+                return self.createRSPPacket(("QC%x" % self.current_thread_id).encode())
 
         elif query[0].find(b'Attached') != -1:
             return self.createRSPPacket(b"1")
@@ -1130,7 +1130,7 @@ class GDBServer(threading.Thread):
             for cmd_sub in cmdList:
                 if cmd_sub not in safecmd:
                     self.log.warning("Invalid mon command '%s'", cmd_sub)
-                    resp = b'Invalid Command: "%s"\n' % cmd_sub
+                    resp = ('Invalid Command: "%s"\n' % cmd_sub).encode()
                     resp = hexEncode(resp)
                     return self.createRSPPacket(resp)
                 elif resultMask == 0x80:
@@ -1265,9 +1265,9 @@ class GDBServer(threading.Thread):
             response += b"thread:1;core:0;"
         else:
             if self.current_thread_id in (-1, 0, 1):
-                response += b"thread:%x;core:0;" % self.thread_provider.current_thread.unique_id
+                response += ("thread:%x;core:0;" % self.thread_provider.current_thread.unique_id).encode()
             else:
-                response += b"thread:%x;core:0;" % self.current_thread_id
+                response += ("thread:%x;core:0;" % self.current_thread_id).encode()
         self.log.debug("Tresponse=%s", response)
         return response
 
