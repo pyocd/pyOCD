@@ -99,6 +99,7 @@ class GDBServerTool(object):
         parser.add_argument("-G", "--gdb-syscall", dest="semihost_use_syscalls", action="store_true", help="Use GDB syscalls for semihosting file I/O.")
         parser.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+', help="Run command (OpenOCD compatibility).")
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+        parser.add_argument("--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
         self.parser = parser
         return parser
 
@@ -298,6 +299,9 @@ class GDBServerTool(object):
                         print("No board selected")
                         return 1
                     with board_selected as board:
+                        # Set ELF if provided.
+                        if self.args.elf:
+                            board.target.elf = self.args.elf
                         baseTelnetPort = self.gdb_server_settings['telnet_port']
                         for core_number, core in board.target.cores.items():
                             self.gdb_server_settings['telnet_port'] = baseTelnetPort + core_number
