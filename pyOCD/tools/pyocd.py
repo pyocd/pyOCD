@@ -259,6 +259,18 @@ COMMAND_INFO = {
             'help' : "Creates a new AP object for the given APSEL.",
             'extra_help' : "The type of AP, MEM-AP or generic, is autodetected.",
             },
+        'where' : {
+            'aliases' : [],
+            'args' : "[ADDR]",
+            'help' : "Show symbol, file, and line for address.",
+            'extra_help' : "The symbol name, source file path, and line number are displayed for the specified address. If no address is given then current PC is used. An ELF file must have been specified with the --elf option.",
+            },
+        'symbol' : {
+            'aliases' : [],
+            'args' : "NAME",
+            'help' : "Show a symbol's value.",
+            'extra_help' : "An ELF file must have been specified with the --elf option.",
+            },
         }
 
 INFO_HELP = {
@@ -510,9 +522,11 @@ class PyOCDTool(object):
                 'show' :    self.handle_show,
                 'set' :     self.handle_set,
                 'help' :    self.handle_help,
+                'where' :   self.handle_where,
                 '?' :       self.handle_help,
                 'initdp' :  self.handle_initdp,
                 'makeap' :  self.handle_makeap,
+                'symbol' :  self.handle_symbol,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -549,6 +563,7 @@ class PyOCDTool(object):
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")
         parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
+        parser.add_argument('-e', "--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
         parser.add_argument("cmd", nargs='?', default=None, help="Command")
         parser.add_argument("args", nargs='*', help="Arguments for the command.")
@@ -612,6 +627,13 @@ class PyOCDTool(object):
             self.link = self.board.link
             self.flash = self.board.flash
 
+            # Set elf file if provided.
+            if self.args.elf:
+                self.target.elf = self.args.elf
+                self.elf = self.target.elf
+            else:
+                self.elf = None
+        
             self._peripherals = {}
             self._loaded_peripherals = False
 
@@ -1029,6 +1051,7 @@ class PyOCDTool(object):
                     'flash' : self.flash,
                     'dp' : self.target.dp,
                     'aps' : self.target.dp.aps,
+                    'elf' : self.elf,
                 }
             result = eval(args, globals(), env)
             if result is not None:
@@ -1114,6 +1137,48 @@ class PyOCDTool(object):
             return
         ap = coresight.ap.AccessPort.create(self.target.dp, apsel)
         self.target.dp.aps[apsel] = ap
+
+    def handle_where(self, args):
+        if self.elf is None:
+            print("No ELF available")
+            return
+        
+        if len(args) >= 1:
+            addr = self.convert_value(args[0])
+        else:
+            addr = self.target.readCoreRegister('pc')
+        
+        lineInfo = self.elf.address_decoder.get_line_for_address(addr)
+        if lineInfo is not None:
+            path = os.path.join(lineInfo.dirname, lineInfo.filename).decode()
+            line = lineInfo.line
+            pathline = "{}:{}".format(path, line)
+        else:
+            pathline = "<unknown file>"
+        
+        fnInfo = self.elf.address_decoder.get_function_for_address(addr)
+        if fnInfo is not None:
+            name = fnInfo.name.decode()
+        else:
+            name = "<unknown symbol>"
+        
+        print("{addr:#10x} : {fn} : {pathline}".format(addr=addr, fn=name, pathline=pathline))
+
+    def handle_symbol(self, args):
+        if self.elf is None:
+            print("No ELF available")
+            return
+        if len(args) < 1:
+            raise ToolError("missing symbol name argument")
+        name = args[0]
+        
+        sym = self.elf.symbol_decoder.get_symbol_for_name(name)
+        if sym is not None:
+            if sym.type == 'STT_FUNC':
+                name += "()"
+            print("{name}: {addr:#10x} {sz:#x}".format(name=name, addr=sym.address, sz=sym.size))
+        else:
+            print("No symbol named '{}' was found".format(name))
 
     def handle_reinit(self, args):
         self.target.init()
@@ -1344,7 +1409,6 @@ Prefix line with ! to execute a shell command.""")
     # '[0x1040]'. You can also use put an offset in the brackets after a comma, such as
     # '[r3,8]'. The offset can be positive or negative, and any supported base.
     def convert_value(self, arg):
-        arg = arg.lower().replace('_', '')
         deref = (arg[0] == '[')
         if deref:
             arg = arg[1:-1]
@@ -1354,11 +1418,12 @@ Prefix line with ! to execute a shell command.""")
                 arg = arg.strip()
                 offset = int(offset.strip(), base=0)
 
-        if arg in coresight.cortex_m.CORE_REGISTER:
-            value = self.target.readCoreRegister(arg)
-            print("%s = 0x%08x" % (arg, value))
+        value = None
+        if arg.lower() in coresight.cortex_m.CORE_REGISTER:
+            value = self.target.readCoreRegister(arg.lower())
+            print("%s = 0x%08x" % (arg.lower(), value))
         else:
-            subargs = arg.split('.')
+            subargs = arg.lower().split('.')
             if subargs[0] in self.peripherals and len(subargs) > 1:
                 p = self.peripherals[subargs[0]]
                 r = [x for x in p.registers if x.name.lower() == subargs[1]]
@@ -1366,8 +1431,14 @@ Prefix line with ! to execute a shell command.""")
                     value = p.base_address + r[0].address_offset
                 else:
                     raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
-            else:
-                value = int(arg, base=0)
+            elif self.elf is not None:
+                sym = self.elf.symbol_decoder.get_symbol_for_name(arg)
+                if sym is not None:
+                    value = sym.address
+
+        if value is None:
+            arg = arg.lower().replace('_', '')
+            value = int(arg, base=0)
 
         if deref:
             value = utility.conversion.byteListToU32leList(self.target.readBlockMemoryUnaligned8(value + offset, 4))[0]
