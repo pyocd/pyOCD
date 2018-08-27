@@ -314,6 +314,7 @@ class CortexM(Target, CoreSightComponent):
         self.core_number = core_num
         self._run_token = 0
         self._target_context = None
+        self._elf = None
 
         # Set up breakpoints manager.
         self.sw_bp = SoftwareBreakpointProvider(self)
@@ -327,6 +328,14 @@ class CortexM(Target, CoreSightComponent):
             self.bp_manager.add_provider(cmp, Target.BREAKPOINT_HW)
         elif isinstance(cmp, DWT):
             self.dwt = cmp
+
+    @property
+    def elf(self):
+        return self._elf
+
+    @elf.setter
+    def elf(self, elffile):
+        self._elf = elffile
 
     def init(self):
         """

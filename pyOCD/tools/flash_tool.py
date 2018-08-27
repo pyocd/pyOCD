@@ -35,6 +35,7 @@ from .. import target
 from ..board.mbed_board import MbedBoard
 from ..pyDAPAccess import DAPAccess
 from ..utility.progress import print_progress
+from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -46,7 +47,7 @@ LEVELS = {
 
 board = None
 
-supported_formats = ['bin', 'hex']
+supported_formats = ['bin', 'hex', 'elf']
 supported_targets = list(target.TARGET.keys())
 supported_targets.remove('cortex_m')  # No generic programming
 
@@ -66,7 +67,7 @@ sector to erase and the number of sectors to erase.
 # Keep args in snyc with gdb_server.py when possible
 parser = argparse.ArgumentParser(description='Flash utility', epilog=epi)
 parser.add_argument("file", nargs='?', default=None, help="File to program")
-parser.add_argument("format", nargs='?', choices=supported_formats, default=None, help="File format. Default is to use the file extension (.bin or .hex)")
+parser.add_argument("format", nargs='?', choices=supported_formats, default=None, help="File format. Default is to use the file extension (.bin, .hex, .elf, .afx)")
 parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-p", "--port"
 # reserved: "-c", "--cmd-port"
@@ -190,6 +191,8 @@ def main():
             # If no format provided, use the file's extension.
             if not args.format:
                 args.format = os.path.splitext(args.file)[1][1:]
+                if args.format == 'axf':
+                    args.format = 'elf'
 
             # Binary file format
             if args.format == 'bin':
@@ -207,8 +210,8 @@ def main():
 
             # Intel hex file format
             elif args.format == 'hex':
-                hex = IntelHex(args.file)
-                addresses = hex.addresses()
+                hexfile = IntelHex(args.file)
+                addresses = hexfile.addresses()
                 addresses.sort()
 
                 flash_builder = flash.getFlashBuilder()
@@ -216,8 +219,26 @@ def main():
                 data_list = list(ranges(addresses))
                 for start, end in data_list:
                     size = end - start + 1
-                    data = list(hex.tobinarray(start=start, size=size))
+                    data = list(hexfile.tobinarray(start=start, size=size))
                     flash_builder.addData(start, data)
+                flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
+            
+            # ELF format
+            elif args.format == 'elf':
+                flash_builder = flash.getFlashBuilder()
+
+                with open(args.file, "rb") as f:
+                    elf = ELFBinaryFile(f, board.target.memory_map)
+                    for section in elf.sections:
+                        if ((section.type == 'SHT_PROGBITS')
+                                and ((section.flags & (SH_FLAGS.SHF_ALLOC | SH_FLAGS.SHF_WRITE)) == SH_FLAGS.SHF_ALLOC)
+                                and (section.length > 0)
+                                and (section.region.isFlash)):
+                            logging.debug("Writing section %s", repr(section))
+                            flash_builder.addData(section.start, section.data)
+                        else:
+                            logging.debug("Skipping section %s", repr(section))
+                            
                 flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
 
             else:

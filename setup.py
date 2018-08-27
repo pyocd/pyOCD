@@ -26,6 +26,7 @@ install_requires = [
     'websocket-client',
     'intervaltree',
     'colorama',
+    'pyelftools',
     ]
 if sys.platform.startswith('linux'):
     install_requires.extend([
@@ -48,7 +49,7 @@ setup(
     },
     setup_requires=['setuptools_scm!=1.5.3,!=1.5.4', 'setuptools_scm_git_archive'],
     description="CMSIS-DAP debugger for Python",
-    long_description=open('README.rst', 'Ur').read(),
+    long_description=open('README.rst', 'r').read(),
     author="Chris Reed, Martin Kojtal, Russ Butler",
     author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
     url='https://github.com/mbedmicro/pyOCD',

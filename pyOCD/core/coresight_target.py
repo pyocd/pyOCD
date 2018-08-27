@@ -20,6 +20,8 @@ from ..coresight import (dap, cortex_m, rom_table)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
+from ..debug.elf.elf import ELFBinaryFile
+from ..debug.elf.flash_reader import FlashReaderContext
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
 import logging
@@ -47,10 +49,24 @@ class CoreSightTarget(Target):
         self._svd_load_thread = None
         self._root_contexts = {}
         self._new_core_num = 0
+        self._elf = None
 
     @property
     def selected_core(self):
         return self.cores[self._selected_core]
+
+    @property
+    def elf(self):
+        return self._elf
+
+    @elf.setter
+    def elf(self, filename):
+        if filename is None:
+            self._elf = None
+        else:
+            self._elf = ELFBinaryFile(filename, self.memory_map)
+            self.cores[0].elf = self._elf
+            self.cores[0].setTargetContext(FlashReaderContext(self.cores[0].getTargetContext(), self._elf))
 
     def select_core(self, num):
         if num not in self.cores:
