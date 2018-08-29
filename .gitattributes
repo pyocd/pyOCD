@@ -1,0 +1,21 @@
+*.py        text
+*.c         text
+*.cpp       text
+*.h         text
+*.s         text
+*.S         text
+*.ld        text
+*.txt       text
+*.xml       text
+*.yml       text
+*.yaml      text
+*.md        text
+*.rst       text
+*.json      text
+*.ini       text
+Makefile    text
+*.bat       text eol=crlf
+*.map       text
+*.elf       binary
+*.bin       binary
+.git_archival.txt   export-subst
