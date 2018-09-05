@@ -96,6 +96,6 @@ class STM32F051(CoreSightTarget):
         logging.debug('stm32f051 init')
         enclock = self.readMemory(RCC_APB2ENR_CR)
         enclock |= RCC_APB2ENR_DBGMCU
-        self.writeMemory(RCC_APB2ENR_CR, enclock);
-        self.writeMemory(DBGMCU_APB1_CR, DBGMCU_APB1_VAL);
-        self.writeMemory(DBGMCU_APB2_CR, DBGMCU_APB2_VAL);
+        self.writeMemory(RCC_APB2ENR_CR, enclock)
+        self.writeMemory(DBGMCU_APB1_CR, DBGMCU_APB1_VAL)
+        self.writeMemory(DBGMCU_APB2_CR, DBGMCU_APB2_VAL)
