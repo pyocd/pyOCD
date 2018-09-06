@@ -33,7 +33,7 @@ class STM32F412xG(CoreSightTarget):
         self._svd_location = SVDFile(vendor="STMicro", filename="STM32F41x.svd")
         
     def init(self):
-        super(STM32F412RG, self).init()
+        super(STM32F412xG, self).init()
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
         self.write32(DBGMCU.APB1_FZ, DBGMCU.APB1_FZ_VALUE)
         self.write32(DBGMCU.APB2_FZ, DBGMCU.APB2_FZ_VALUE)

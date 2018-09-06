@@ -65,7 +65,7 @@ flash_algo = { 'load_address' : 0x20000000,
 class Flash_stm32f412xx(Flash):
 
     def __init__(self, target):
-        super(Flash_stm32f412rx, self).__init__(target, flash_algo)
+        super(Flash_stm32f412xx, self).__init__(target, flash_algo)
 
 class STM32F412xE(CoreSightTarget):
 
@@ -81,7 +81,7 @@ class STM32F412xE(CoreSightTarget):
         self._svd_location = SVDFile(vendor="STMicro", filename="STM32F41x.svd")
         
     def init(self):
-        super(STM32F412RE, self).init()
+        super(STM32F412xE, self).init()
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
         self.write32(DBGMCU.APB1_FZ, DBGMCU.APB1_FZ_VALUE)
         self.write32(DBGMCU.APB2_FZ, DBGMCU.APB2_FZ_VALUE)
