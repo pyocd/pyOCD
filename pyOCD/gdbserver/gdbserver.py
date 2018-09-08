@@ -518,19 +518,20 @@ class GDBServer(threading.Thread):
 
     def handleMsg(self, msg):
         try:
-            assert msg[0:1] == b'$', "invalid first char of message (!= $"
+            assert msg[0:1] == b'$', "invalid first char of message != $"
 
             try:
                 handler, msgStart = self.COMMANDS[msg[1:2]]
-                if msgStart == 0:
-                    reply = handler()
-                else:
-                    reply = handler(msg[msgStart:])
-                detach = 1 if msg[1:2] in self.DETACH_COMMANDS else 0
-                return reply, detach
             except (KeyError, IndexError):
                 self.log.error("Unknown RSP packet: %s", msg)
                 return self.createRSPPacket(b""), 0
+
+            if msgStart == 0:
+                reply = handler()
+            else:
+                reply = handler(msg[msgStart:])
+            detach = 1 if msg[1:2] in self.DETACH_COMMANDS else 0
+            return reply, detach
 
         except Exception as e:
             self.log.error("Unhandled exception in handleMsg: %s", e)
