@@ -419,7 +419,7 @@ class ArgonThreadProvider(ThreadProvider):
         if not self.is_enabled:
             return None
         if self.get_ipsr() > 0:
-            return 2
+            return HandlerModeThread.UNIQUE_ID
         return self.get_actual_current_thread_id()
 
     def get_actual_current_thread_id(self):

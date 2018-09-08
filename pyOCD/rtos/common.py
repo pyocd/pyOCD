@@ -59,109 +59,10 @@ def read_c_string(context, ptr):
 
     return s
 
-## @brief Standard Cortex-M register stacking context.
-class CommonThreadContext(DebugContext):
-    # SP is handled specially, so it is not in this dict.
-    CORE_REGISTER_OFFSETS = {
-                 0: 32, # r0
-                 1: 36, # r1
-                 2: 40, # r2
-                 3: 44, # r3
-                 4: 0, # r4
-                 5: 4, # r5
-                 6: 8, # r6
-                 7: 12, # r7
-                 8: 16, # r8
-                 9: 20, # r9
-                 10: 24, # r10
-                 11: 28, # r11
-                 12: 48, # r12
-                 14: 52, # lr
-                 15: 56, # pc
-                 16: 60, # xpsr
-            }
-
-    def __init__(self, parentContext, thread):
-        super(CommonThreadContext, self).__init__(parentContext.core)
-        self._parent = parentContext
-        self._thread = thread
-
-    def readCoreRegistersRaw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
-        reg_vals = []
-
-        inException = self._get_ipsr() > 0
-        isCurrent = self._is_current()
-
-        sp = self._get_stack_pointer()
-        saveSp = sp
-        if not isCurrent:
-            sp -= 0x40
-        elif inException:
-            sp -= 0x20
-
-        for reg in reg_list:
-            if isCurrent:
-                if not inException:
-                    # Not in an exception, so just read the live register.
-                    reg_vals.append(self._core.readCoreRegisterRaw(reg))
-                    continue
-                else:
-                    # Check for regs we can't access.
-                    if reg in (4, 5, 6, 7, 8, 9, 10, 11):
-                        reg_vals.append(0)
-                        continue
-
-            # Must handle stack pointer specially.
-            if reg == 13:
-                reg_vals.append(saveSp)
-                continue
-
-            spOffset = self.CORE_REGISTER_OFFSETS.get(reg, None)
-            if spOffset is None:
-                reg_vals.append(self._core.readCoreRegisterRaw(reg))
-                continue
-            if isCurrent and inException:
-                spOffset -= 0x20
-
-            try:
-                reg_vals.append(self._core.read32(sp + spOffset))
-            except DAPAccess.TransferError:
-                reg_vals.append(0)
-
-        return reg_vals
-
-    def _get_stack_pointer(self):
-        sp = 0
-        if self._is_current():
-            # Read live process stack.
-            sp = self._core.readCoreRegister('sp')
-
-            # In IRQ context, we have to adjust for hw saved state.
-            if self._get_ipsr() > 0:
-                sp += 0x20
-        else:
-            # Get stack pointer saved in thread struct.
-            sp = self._core.read32(self._thread._base + THREAD_STACK_POINTER_OFFSET)
-
-            # Skip saved thread state.
-            sp += 0x40
-        return sp
-
-    def _get_ipsr(self):
-        return self._core.readCoreRegister('xpsr') & 0xff
-
-    def _has_extended_frame(self):
-        return False
-
-    def _is_current(self):
-        return self._thread.is_current
-
-    def writeCoreRegistersRaw(self, reg_list, data_list):
-        self._core.writeCoreRegistersRaw(reg_list, data_list)
-
 ## @brief Class representing the handler mode.
 class HandlerModeThread(TargetThread):
+    UNIQUE_ID = 2
+    
     def __init__(self, targetContext, provider):
         super(HandlerModeThread, self).__init__()
         self._target_context = targetContext
@@ -176,7 +77,7 @@ class HandlerModeThread(TargetThread):
 
     @property
     def unique_id(self):
-        return 2
+        return self.UNIQUE_ID
 
     @property
     def name(self):
