@@ -189,7 +189,7 @@ class DebugProbe(object):
         
         This API may be a no-op for certain debug probe types.
         """
-        raise NotImplementedError()
+        pass
 
     ##@}
 
