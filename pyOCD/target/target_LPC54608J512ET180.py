@@ -68,7 +68,7 @@ class Flash_lpc54608(Flash):
 class LPC54608(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash',   start=0,           length=0x40000,       blocksize=0x8000, isBootMemory=True),
+        FlashRegion(name='flash',   start=0,           length=0x80000,       blocksize=0x8000, isBootMemory=True),
         RamRegion(  name='sramx',   start=0x04000000,  length=0x8000),
         RamRegion(  name='sram0',   start=0x20000000,  length=0x10000),
         RamRegion(  name='sram1',   start=0x20010000,  length=0x10000),
