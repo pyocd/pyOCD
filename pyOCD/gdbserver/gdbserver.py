@@ -1287,7 +1287,7 @@ class GDBServer(threading.Thread):
             threads = self.thread_provider.get_threads()
             for thread in threads:
                 hexId = "%x" % thread.unique_id
-                t = SubElement(root, 'thread', id=hexId, core="0")
+                t = SubElement(root, 'thread', id=hexId, core="0", name=thread.name, handle=hexId)
 
                 desc = thread.description
                 if desc:
