@@ -232,6 +232,7 @@ def main():
     parser.add_argument('-q', '--quiet', action="store_true", help='Hide test progress for 1 job')
     parser.add_argument('-j', '--jobs', action="store", default=1, type=int, metavar="JOBS",
         help='Set number of concurrent board tests (default is 1)')
+    parser.add_argument('-b', '--board', action="append", metavar="ID", help="Limit testing to boards with specified unique IDs. Multiple boards can be listed.")
     args = parser.parse_args()
     
     # Force jobs to 1 when running under CI until concurrency issues with enumerating boards are
@@ -267,6 +268,10 @@ def main():
     # Put together list of boards to test
     board_list = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
     board_id_list = sorted(b.getUniqueID() for b in board_list)
+    
+    # Filter boards.
+    if args.board:
+        board_id_list = [b for b in board_id_list if any(c for c in args.board if c.lower() in b.lower())]
 
     # If only 1 job was requested, don't bother spawning processes.
     start = time()
