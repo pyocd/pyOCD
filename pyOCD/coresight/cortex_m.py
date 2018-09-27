@@ -392,9 +392,14 @@ class CortexM(Target, CoreSightComponent):
 
         self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
-        if self.core_type not in CORE_TYPE_NAME:
-            raise RuntimeError("Unknown CPU type 0x%x" % self.core_type)
-        logging.info("CPU core is %s", CORE_TYPE_NAME.get(self.core_type, "unknown"))
+        
+        self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
+        self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
+        
+        if self.core_type in CORE_TYPE_NAME:
+            logging.info("CPU core is %s r%dp%d", CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
+        else:
+            logging.info("CPU core is unknown")
 
     ## @brief Determine if a Cortex-M4 has an FPU.
     #
