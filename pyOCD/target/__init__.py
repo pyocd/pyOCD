@@ -53,6 +53,7 @@ from . import target_nRF52840_xxAA
 from . import target_STM32F103RC
 from . import target_STM32F051T8
 from . import target_STM32F412xx
+from . import target_STM32L475xx
 from . import target_MAX32600
 from . import target_w7500
 from . import target_LPC1114FN28_102
@@ -106,6 +107,9 @@ TARGET = {
           'stm32f051': target_STM32F051T8.STM32F051,
           'stm32f412xe' : target_STM32F412xx.STM32F412xE,
           'stm32f412xg' : target_STM32F412xx.STM32F412xG,
+          'stm32l475xc' : target_STM32L475xx.STM32L475xC,
+          'stm32l475xe' : target_STM32L475xx.STM32L475xE,
+          'stm32l475xg' : target_STM32L475xx.STM32L475xG,
           'max32600': target_MAX32600.MAX32600,
           'w7500': target_w7500.W7500,
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
@@ -160,6 +164,9 @@ FLASH = {
          'stm32f051': target_STM32F051T8.Flash_stm32f051,
          'stm32f412xe' : target_STM32F412xx.Flash_stm32f412xx,
          'stm32f412xg' : target_STM32F412xx.Flash_stm32f412xx,
+         'stm32l475xc' : target_STM32L475xx.Flash_stm32l475xx,
+         'stm32l475xe' : target_STM32L475xx.Flash_stm32l475xx,
+         'stm32l475xg' : target_STM32L475xx.Flash_stm32l475xx,
          'max32600': target_MAX32600.Flash_max32600,
          'w7500': target_w7500.Flash_w7500,
          'lpc11xx_32': target_LPC1114FN28_102.Flash_lpc11xx_32,
