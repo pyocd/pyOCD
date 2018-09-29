@@ -63,6 +63,7 @@ BOARD_ID_TO_INFO = {
     "0459": BoardInfo(  "MTB Advantech WISE-1530", "stm32f412xg",   "mtb_wise-1530.bin",    ),
     "0462": BoardInfo(  "MTB USI WM-BN-BM-22",  "stm32f412xg",      "mtb_usi_wm-bn-bm-22.bin",),
     "0824": BoardInfo(  "LPCXpresso824-MAX",    "lpc824",           "l1_lpc824.bin",        ),
+    "0826": BoardInfo(  "ST NUCLEO-F412ZG",     "stm32f412xg",      "nucleo_f412zg.bin",    ),
     "1010": BoardInfo(  "mbed NXP LPC1768",     "lpc1768",          "l1_lpc1768.bin",       ),
     "1017": BoardInfo(  "mbed HRM1017",         "nrf51",            "l1_nrf51.bin",         ),
     "1018": BoardInfo(  "Switch-Science-mbed-LPC824", "lpc824",     "l1_lpc824.bin",        ),
