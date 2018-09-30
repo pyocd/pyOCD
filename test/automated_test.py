@@ -29,7 +29,7 @@ from pyOCD.utility.conversion import float32beToU32be
 from pyOCD.probe.aggregator import DebugProbeAggregator
 import logging
 from time import time
-from test_util import (TestResult, Test, IOTee, RecordingLogHandler)
+from test_util import (TestResult, Test, IOTee, RecordingLogHandler, get_session_options)
 import argparse
 from xml.etree import ElementTree
 import multiprocessing as mp
@@ -161,7 +161,7 @@ def print_board_header(outputFile, board, n, includeDividers=True, includeLeadin
 def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     probe = DebugProbeAggregator.get_probe_with_id(board_id)
     assert probe is not None
-    session = Session(probe)
+    session = Session(probe, **get_session_options())
     board = session.board
 
     originalStdout = sys.stdout

@@ -24,6 +24,13 @@ import six
 
 isPy2 = (sys.version_info[0] == 2)
 
+# Returns common option values passed in when creating test sessions.
+def get_session_options():
+    return {
+        'board_config_file' : 'test_boards.json',
+        'frequency' : 1000000, # 1 MHz
+        }
+
 class IOTee(object):
     def __init__(self, *args):
         self.outputs = list(args)

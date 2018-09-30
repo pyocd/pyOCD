@@ -17,6 +17,7 @@
 
 from ..target import (TARGET, FLASH)
 import logging
+import json
 import six
 
 log = logging.getLogger('board')
@@ -29,16 +30,40 @@ class Board(object):
         if target is None:
             target = 'cortex_m'
         self._session = session
-        self._target_type = target
+        self._target_type = target.lower()
+        self._test_binary = None
+        
+        # Pick up any settings for this board from a config file.
+        boardConfig = self._load_board_config()
+        for uid, settings in boardConfig.items():
+            if uid.lower() in self.unique_id.lower():
+                log.info("Using board config settings for board %s: %s" % (session.probe.unique_id, settings))
+                if 'target_type' in settings:
+                    self._target_type = settings['target_type']
+                if 'test_binary' in settings:
+                    self._test_binary = settings['test_binary']
+
+        # Create Target and Flash instances.
         try:
-            target = target.lower()
-            self.target = TARGET[target](session)
-            self.flash = FLASH[target](self.target)
+            self.target = TARGET[self._target_type](session)
+            self.flash = FLASH[self._target_type](self.target)
         except KeyError as exc:
-            log.error("target '%s' not recognized", target)
-            six.raise_from(KeyError("target '%s' not recognized" % target), exc)
+            log.error("target '%s' not recognized", self._target_type)
+            six.raise_from(KeyError("target '%s' not recognized" % self._target_type), exc)
         self.target.setFlash(self.flash)
         self._inited = False
+    
+    def _load_board_config(self):
+        # Load board config file if one was provided via options.
+        if self._session.options.get('board_config_file', None) is not None:
+            configPath = self._session.options['board_config_file']
+            try:
+                with open(configPath, 'r') as configFile:
+                    return json.load(configFile)
+            except IOError:
+                pass
+        
+        return {}
 
     ## @brief Initialize the board.
     def init(self):
@@ -70,7 +95,7 @@ class Board(object):
     
     @property
     def test_binary(self):
-        return None
+        return self._test_binary
     
     @property
     def name(self):

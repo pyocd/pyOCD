@@ -27,7 +27,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.core.helpers import ConnectHelper
 from pyOCD.utility.conversion import float32beToU32be
-from test_util import Test
+from test_util import (Test, get_session_options)
 import logging
 
 class BasicTest(Test):
@@ -38,7 +38,7 @@ def run_basic_test(board_id):
     return basic_test(board_id, None)
 
 def basic_test(board_id, file):
-    with ConnectHelper.session_with_chosen_probe(unique_id=board_id) as session:
+    with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
         addr = 0
         size = 0

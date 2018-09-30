@@ -36,7 +36,7 @@ import tempfile
 from pyOCD.tools.gdb_server import GDBServerTool
 from pyOCD.core.helpers import ConnectHelper
 from pyOCD.utility.py3_helpers import to_str_safe
-from test_util import Test, TestResult
+from test_util import (Test, TestResult, get_session_options)
 
 # TODO, c1728p9 - run script several times with
 #       with different command line parameters
@@ -87,7 +87,7 @@ TEST_RESULT_KEYS = [
 def test_gdb(board_id=None, n=0):
     temp_test_elf_name = None
     result = GdbTestResult()
-    with ConnectHelper.session_with_chosen_probe(board_id=board_id) as session:
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
         memory_map = board.target.getMemoryMap()
         ram_regions = [region for region in memory_map if region.type == 'ram']
