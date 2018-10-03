@@ -39,12 +39,12 @@ import logging
 # at any time. You may also directly access specific cores and perform operations on them.
 class CoreSightTarget(Target):
 
-    def __init__(self, link, memoryMap=None):
-        super(CoreSightTarget, self).__init__(link, memoryMap)
+    def __init__(self, session, memoryMap=None):
+        super(CoreSightTarget, self).__init__(session, memoryMap)
         self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
-        self.dp = dap.DebugPort(link, self)
+        self.dp = dap.DebugPort(session.probe, self)
         self._selected_core = 0
         self._svd_load_thread = None
         self._root_contexts = {}
@@ -161,15 +161,9 @@ class CoreSightTarget(Target):
             core.disconnect(resume)
         self.dp.power_down_debug()
 
-    def readIDCode(self):
-        return self.dp.dpidr
-
     @property
     def run_token(self):
         return self.selected_core.run_token
-
-    def flush(self):
-        self.dp.flush()
 
     def halt(self):
         return self.selected_core.halt()

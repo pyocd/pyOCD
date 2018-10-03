@@ -18,6 +18,7 @@
 
 from __future__ import print_function
 import sys
+import os
 import logging
 import traceback
 import argparse
@@ -26,12 +27,15 @@ import pkg_resources
 
 from .. import __version__
 from .. import target
+from ..core.session import Session
+from ..core.helpers import ConnectHelper
 from ..debug.svd import isCmsisSvdAvailable
 from ..gdbserver import GDBServer
-from ..board.mbed_board import MbedBoard
 from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch)
+from ..probe.cmsis_dap_probe import CMSISDAPProbe
 from ..pyDAPAccess.dap_access_cmsis_dap import DAPAccessCMSISDAP
 from ..pyDAPAccess import DAPAccess
+from ..core.session import Session
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -41,7 +45,7 @@ LEVELS = {
     'critical': logging.CRITICAL
 }
 
-supported_targets = list(target.TARGET.keys())
+supported_targets = list(sorted(target.TARGET.keys()))
 debug_levels = list(LEVELS.keys())
 
 class InvalidArgumentError(RuntimeError):
@@ -192,10 +196,10 @@ class GDBServerTool(object):
         self.disable_logging()
 
         if not self.args.output_json:
-            MbedBoard.listConnectedBoards()
+            ConnectHelper.list_connected_probes()
         else:
             try:
-                all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+                all_mbeds = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
                 status = 0
                 error = ""
             except Exception as e:
@@ -218,24 +222,13 @@ class GDBServerTool(object):
 
             for mbed in all_mbeds:
                 d = {
-                    'unique_id' : mbed.unique_id,
-                    'info' : mbed.getInfo(),
-                    'board_name' : mbed.getBoardName(),
-                    'target' : mbed.getTargetType(),
-                    'vendor_name' : '',
-                    'product_name' : '',
+                    'unique_id' : mbed.probe.unique_id,
+                    'info' : mbed.board.description,
+                    'board_name' : mbed.board.name,
+                    'target' : mbed.board.target_type,
+                    'vendor_name' : mbed.probe.vendor_name,
+                    'product_name' : mbed.probe.product_name,
                     }
-
-                # Reopen the link so we can access the USB vendor and product names from the inteface.
-                # If it's not a USB based link, then we don't attempt this.
-                if isinstance(mbed.link, DAPAccessCMSISDAP):
-                    try:
-                        mbed.link.open()
-                        d['vendor_name'] = mbed.link._interface.vendor_name
-                        d['product_name'] = mbed.link._interface.product_name
-                        mbed.link.close()
-                    except Exception:
-                        pass
                 boards.append(d)
 
             print(json.dumps(obj, indent=4))
@@ -253,23 +246,26 @@ class GDBServerTool(object):
                 }
 
             for name in supported_targets:
-                t = target.TARGET[name](None)
+                s = Session(None) # Create empty session
+                t = target.TARGET[name](s)
                 d = {
                     'name' : name,
                     'part_number' : t.part_number,
                     }
                 if t._svd_location is not None and isCmsisSvdAvailable:
                     if t._svd_location.is_local:
-                        d['svd_path'] = t._svd_location.filename
+                        svdPath = t._svd_location.filename
                     else:
                         resource = "data/{vendor}/{filename}".format(
                             vendor=t._svd_location.vendor,
                             filename=t._svd_location.filename
                         )
-                        d['svd_path'] = pkg_resources.resource_filename("cmsis_svd", resource)
+                        svdPath = pkg_resources.resource_filename("cmsis_svd", resource)
+                    if os.path.exists(svdPath):
+                        d['svd_path'] = svdPath
                 targets.append(d)
 
-            print(json.dumps(obj, indent=4)) #, sys.stdout)
+            print(json.dumps(obj, indent=4))
         else:
             for t in supported_targets:
                 print(t)
@@ -291,21 +287,21 @@ class GDBServerTool(object):
                 self.list_targets()
             else:
                 try:
-                    board_selected = MbedBoard.chooseBoard(
+                    session = ConnectHelper.session_with_chosen_probe(
                         board_id=self.args.board_id,
                         target_override=self.args.target_override,
                         frequency=self.args.frequency)
-                    if board_selected is None:
+                    if session is None:
                         print("No board selected")
                         return 1
-                    with board_selected as board:
+                    with session:
                         # Set ELF if provided.
                         if self.args.elf:
-                            board.target.elf = self.args.elf
+                            session.board.target.elf = self.args.elf
                         baseTelnetPort = self.gdb_server_settings['telnet_port']
-                        for core_number, core in board.target.cores.items():
+                        for core_number, core in session.board.target.cores.items():
                             self.gdb_server_settings['telnet_port'] = baseTelnetPort + core_number
-                            gdb = GDBServer(board, self.args.port_number + core_number, self.gdb_server_settings, core=core_number)
+                            gdb = GDBServer(session.board, self.args.port_number + core_number, self.gdb_server_settings, core=core_number)
                             gdbs.append(gdb)
                         gdb = gdbs[0]
                         while gdb.isAlive():

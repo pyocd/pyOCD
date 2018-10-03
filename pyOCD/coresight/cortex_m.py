@@ -17,7 +17,6 @@
 
 from ..core.target import Target
 from ..core import exceptions
-from ..pyDAPAccess import DAPAccess
 from ..utility import conversion
 from ..utility.notification import Notification
 from .component import CoreSightComponent
@@ -304,14 +303,13 @@ class CortexM(Target, CoreSightComponent):
         return core
 
     def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
-        Target.__init__(self, rootTarget.link, memoryMap)
+        Target.__init__(self, rootTarget.session, memoryMap)
         CoreSightComponent.__init__(self, ap, cmpid, address)
 
         self.root_target = rootTarget
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
-        self.dp = ap.dp
         self.core_number = core_num
         self._run_token = 0
         self._target_context = None
@@ -423,15 +421,6 @@ class CortexM(Target, CoreSightComponent):
         if self.has_fpu:
             logging.info("FPU present")
 
-    def readIDCode(self):
-        """
-        return the IDCODE of the core
-        """
-        return self.dp.read_id_code()
-
-    def flush(self):
-        self.dp.flush()
-
     def writeMemory(self, addr, value, transfer_size=32):
         """
         write a memory location.
@@ -489,7 +478,7 @@ class CortexM(Target, CoreSightComponent):
         """
         self.notify(Notification(event=Target.EVENT_PRE_HALT, source=self, data=Target.HALT_REASON_USER))
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
-        self.dp.flush()
+        self.flush()
         self.notify(Notification(event=Target.EVENT_POST_HALT, source=self, data=Target.HALT_REASON_USER))
 
     def step(self, disable_interrupts=True):
@@ -530,7 +519,7 @@ class CortexM(Target, CoreSightComponent):
             # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
             self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
 
-        self.dp.flush()
+        self.flush()
 
         self._run_token += 1
 
@@ -557,12 +546,12 @@ class CortexM(Target, CoreSightComponent):
             try:
                 self.writeMemory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_SYSRESETREQ)
                 # Without a flush a transfer error can occur
-                self.dp.flush()
+                self.flush()
             except exceptions.TransferError:
-                self.dp.flush()
+                self.flush()
 
         else:
-            self.dp.reset()
+            self.session.probe.reset()
 
         # Now wait for the system to come out of reset. Keep reading the DHCSR until
         # we get a good response with S_RESET_ST cleared, or we time out.
@@ -573,7 +562,7 @@ class CortexM(Target, CoreSightComponent):
                 if (dhcsr & CortexM.S_RESET_ST) == 0:
                     break
             except exceptions.TransferError:
-                self.dp.flush()
+                self.flush()
                 sleep(0.01)
 
         self.notify(Notification(event=Target.EVENT_POST_RESET, source=self))
@@ -649,7 +638,7 @@ class CortexM(Target, CoreSightComponent):
         self._run_token += 1
         self.clearDebugCauseBits()
         self.writeMemory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
-        self.dp.flush()
+        self.flush()
         self.notify(Notification(event=Target.EVENT_POST_RUN, source=self, data=Target.RUN_TYPE_RESUME))
 
     def findBreakpoint(self, addr):

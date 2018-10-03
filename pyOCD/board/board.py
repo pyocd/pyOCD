@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,67 +15,97 @@
  limitations under the License.
 """
 
-from pyOCD.target import (TARGET, FLASH)
-
+from ..target import (TARGET, FLASH)
 import logging
-import traceback
+import six
+
+log = logging.getLogger('board')
 
 class Board(object):
     """
     This class associates a target, a flash and a link to create a board
     """
-    def __init__(self, target, link, frequency=1000000):
-        self.link = link
-        self.target = TARGET[target.lower()](self.link)
-        self.flash = FLASH[target.lower()](self.target)
+    def __init__(self, session, target=None):
+        if target is None:
+            target = 'cortex_m'
+        self._session = session
+        self._target_type = target
+        try:
+            target = target.lower()
+            self.target = TARGET[target](session)
+            self.flash = FLASH[target](self.target)
+        except KeyError as exc:
+            log.error("target '%s' not recognized", target)
+            six.raise_from(KeyError("target '%s' not recognized" % target), exc)
         self.target.setFlash(self.flash)
-        self.debug_clock_frequency = frequency
-        self.initiated = False
-        self.closed = False
+        self._inited = False
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.uninit()
-        return False
-
+    ## @brief Initialize the board.
     def init(self):
-        """
-        Initialize the board
-        """
-        logging.debug("init board %s", self)
-        self.link.set_clock(self.debug_clock_frequency)
-        self.link.set_deferred_transfer(True)
         self.target.init()
-        self.initiated = True
+        self._inited = True
 
-    def uninit(self, resume=True):
-        """
-        Uninitialize the board: link and target.
-        """
-        if self.closed:
-            return
-        self.closed = True
-
-        logging.debug("uninit board %s, resuming=%s", self, resume)
-        if self.initiated:
+    ## @brief Uninitialize the board.
+    def uninit(self):
+        if self._inited:
+            log.debug("uninit board %s", self)
             try:
+                resume = self.session.options.get('resume_on_disconnect', True)
                 self.target.disconnect(resume)
-                self.initiated = False
+                self._inited = False
             except:
-                logging.error("link exception during target disconnect:")
-                traceback.print_exc()
-        try:
-            self.link.disconnect()
-        except:
-            logging.error("link exception during link disconnect:")
-            traceback.print_exc()
-        try:
-            self.link.close()
-        except:
-            logging.error("link exception during uninit:")
-            traceback.print_exc()
+                log.error("link exception during target disconnect:", exc_info=True)
+
+    @property
+    def session(self):
+        return self._session
+        
+    @property
+    def unique_id(self):
+        return self.session.probe.unique_id
+    
+    @property
+    def target_type(self):
+        return self._target_type
+    
+    @property
+    def test_binary(self):
+        return None
+    
+    @property
+    def name(self):
+        return "generic"
+    
+    @property
+    def description(self):
+        return "Generic board via " + self.session.probe.vendor_name + " " \
+                + self.session.probe.product_name + " [" + self.target_type + "]"
+
+    # Deprecated methods...
+    
+    def getUniqueID(self):
+        """
+        Return the unique id of the board
+        """
+        return self.unique_id
+
+    def getTargetType(self):
+        """
+        Return the type of the board
+        """
+        return self.target_type
+
+    def getTestBinary(self):
+        """
+        Return name of test binary file
+        """
+        return self.test_binary
+
+    def getBoardName(self):
+        """
+        Return board name
+        """
+        return self.name
 
     def getInfo(self):
-        return ""
+        return self.description

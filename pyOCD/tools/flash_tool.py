@@ -32,7 +32,7 @@ except ImportError:
 
 from .. import __version__
 from .. import target
-from ..board.mbed_board import MbedBoard
+from ..core.helpers import ConnectHelper
 from ..pyDAPAccess import DAPAccess
 from ..utility.progress import print_progress
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
@@ -131,16 +131,19 @@ def main():
         exit()
 
     if args.list_all:
-        MbedBoard.listConnectedBoards()
+        ConnectHelper.list_connected_probes()
     else:
-        board_selected = MbedBoard.chooseBoard(board_id=args.board_id, target_override=args.target_override,
-                                               frequency=args.frequency, blocking=False)
-        if board_selected is None:
-            print("Error: There is no board connected.")
+        session = ConnectHelper.session_with_chosen_probe(
+                            board_id=args.board_id,
+                            target_override=args.target_override,
+                            frequency=args.frequency,
+                            blocking=False)
+        if session is None:
+            print("Error: There is no debug probe connected.")
             sys.exit(1)
-        with board_selected as board:
+        with session:
+            board = session.board
             flash = board.flash
-            link = board.link
 
             progress = print_progress()
             if args.hide_progress:

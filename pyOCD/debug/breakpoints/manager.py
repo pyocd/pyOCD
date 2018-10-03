@@ -16,7 +16,6 @@
 """
 
 from ...core.target import Target
-from ...pyDAPAccess import DAPAccess
 import logging
 
 ##

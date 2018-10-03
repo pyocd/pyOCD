@@ -55,10 +55,6 @@ class Kinetis(CoreSightTarget):
     def __init__(self, link, memoryMap=None):
         super(Kinetis, self).__init__(link, memoryMap)
         self.mdm_ap = None
-        self.do_auto_unlock = True
-
-    def setAutoUnlock(self, doAutoUnlock):
-        self.do_auto_unlock = doAutoUnlock
 
     def create_init_sequence(self):
         seq = super(Kinetis, self).create_init_sequence()

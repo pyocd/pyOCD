@@ -14,25 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..pyDAPAccess import DAPAccessIntf
-
-class Error(DAPAccessIntf.Error):
+class Error(RuntimeError):
     """Parent of all errors pyOCD can raise"""
     pass
 
-class ProbeError(DAPAccessIntf.DeviceError):
+class ProbeError(Error):
     """Error communicating with device"""
     pass
 
-class TransferError(DAPAccessIntf.TransferError):
+class TransferError(ProbeError):
     """Error ocurred with a transfer over SWD or JTAG"""
     pass
 
-class TransferTimeoutError(DAPAccessIntf.TransferTimeoutError):
+class TransferTimeoutError(TransferError):
     """A SWD or JTAG timeout occurred"""
     pass
 
-class TransferFaultError(DAPAccessIntf.TransferFaultError):
+class TransferFaultError(TransferError):
     """A SWD Fault occurred"""
     def __init__(self, faultAddress=None, length=None):
         super(TransferFaultError, self).__init__(faultAddress)
@@ -66,5 +64,6 @@ class TransferFaultError(DAPAccessIntf.TransferFaultError):
             if self._length is not None:
                 desc += "-0x%08x" % self.fault_end_address
         return desc
+  
   
 

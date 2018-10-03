@@ -71,24 +71,29 @@ class Target(Notifier):
     HALT_REASON_USER = 1
     HALT_REASON_DEBUG = 2
 
-    def __init__(self, link, memoryMap=None):
+    def __init__(self, session, memoryMap=None):
         super(Target, self).__init__()
-        self.link = link
+        self._session = session
         self.flash = None
         self.root_target = None
         self.part_number = ""
         self.memory_map = memoryMap or MemoryMap()
-        self.halt_on_connect = True
+        self.halt_on_connect = session.options.get('halt_on_connect', True)
+        self.do_auto_unlock = session.options.get('auto_unlock', True)
         self.has_fpu = False
         self._svd_location = None
         self._svd_device = None
+
+    @property
+    def session(self):
+        return self._session
 
     @property
     def svd_device(self):
         return self._svd_device
 
     def setAutoUnlock(self, doAutoUnlock):
-        pass
+        self.do_auto_unlock = doAutoUnlock
 
     def isLocked(self):
         return False
@@ -108,14 +113,8 @@ class Target(Notifier):
     def disconnect(self, resume=True):
         pass
 
-    def info(self, request):
-        return self.link.info(request)
-
     def flush(self):
-        self.link.flush()
-
-    def readIDCode(self):
-        raise NotImplementedError()
+        self.session.probe.flush()
 
     def halt(self):
         raise NotImplementedError()
