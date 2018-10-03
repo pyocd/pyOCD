@@ -36,6 +36,10 @@ class BreakpointManager(object):
         if type == Target.BREAKPOINT_HW:
             self._fpb = provider
 
+    ## @brief Return a list of all breakpoint addresses.
+    def get_breakpoints(self):
+        return self._breakpoints.keys()
+
     def find_breakpoint(self, addr):
         return self._breakpoints.get(addr, None)
 
