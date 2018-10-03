@@ -21,7 +21,7 @@ from ..debug.svd import SVDFile
 
 class DBGMCU:
     CR = 0xE0042004
-    CR_VALUE = 0x7 # DBG_STANDBY | DBG_STOP | DBG_STOP
+    CR_VALUE = 0x7 # DBG_STANDBY | DBG_STOP | DBG_SLEEP
 
     APB1_FZ = 0xE0042008
     APB1_FZ_VALUE = 0x07E01DFF
@@ -80,10 +80,44 @@ class STM32F412xE(CoreSightTarget):
         super(STM32F412xE, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile(vendor="STMicro", filename="STM32F41x.svd")
         
-    def init(self):
-        super(STM32F412xE, self).init()
+    def create_init_sequence(self):
+        seq = super(STM32F412xE, self).create_init_sequence()
+
+        seq.insert_after('create_cores',
+            ('setup_dbgmcu', self.setup_dbgmcu)
+            )
+
+        return seq
+
+    def setup_dbgmcu(self):
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
         self.write32(DBGMCU.APB1_FZ, DBGMCU.APB1_FZ_VALUE)
         self.write32(DBGMCU.APB2_FZ, DBGMCU.APB2_FZ_VALUE)
 
+class STM32F412xG(CoreSightTarget):
+
+    memoryMap = MemoryMap(
+        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  isBootMemory=True),
+        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000),
+        FlashRegion( start=0x08020000, length=0x60000, blocksize=0x20000),
+        RamRegion(   start=0x20000000, length=0x40000)
+        )
+
+    def __init__(self, transport):
+        super(STM32F412xG, self).__init__(transport, self.memoryMap)
+        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F41x.svd")
+        
+    def create_init_sequence(self):
+        seq = super(STM32F412xG, self).create_init_sequence()
+
+        seq.insert_after('create_cores',
+            ('setup_dbgmcu', self.setup_dbgmcu)
+            )
+
+        return seq
+
+    def setup_dbgmcu(self):
+        self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
+        self.write32(DBGMCU.APB1_FZ, DBGMCU.APB1_FZ_VALUE)
+        self.write32(DBGMCU.APB2_FZ, DBGMCU.APB2_FZ_VALUE)
 
