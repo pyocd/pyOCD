@@ -831,7 +831,7 @@ class PyOCDTool(object):
 
         # Print disasm of data.
         data = self.target.readBlockMemoryUnaligned8(addr, count)
-        self.print_disasm(str(bytearray(data)), addr)
+        self.print_disasm(bytes(bytearray(data)), addr)
 
     def handle_read8(self, args):
         return self.do_read(args, 8)
@@ -960,7 +960,7 @@ class PyOCDTool(object):
         if isCapstoneAvailable:
             addr &= ~1
             data = self.target.readBlockMemoryUnaligned8(addr, 4)
-            self.print_disasm(str(bytearray(data)), addr, maxInstructions=1)
+            self.print_disasm(bytes(bytearray(data)), addr, maxInstructions=1)
         else:
             print("PC = 0x%08x" % (addr))
 
