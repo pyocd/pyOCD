@@ -370,7 +370,7 @@ class Flash(object):
             pass
 
         if self.flash_algo_debug:
-            regs = self.target.readCoreRegistersRaw(range(19) + [20])
+            regs = self.target.readCoreRegistersRaw(list(range(19)) + [20])
             logging.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
 
             expected_fp = self.flash_algo['static_base']
