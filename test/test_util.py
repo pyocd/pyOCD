@@ -57,7 +57,7 @@ class TestResult(object):
     def __init__(self, test_board, test, result):
         self.passed = result
         self._board = test_board.target_type if test_board else 'unknown'
-        self.board_name = test_board.getBoardName() if test_board else ""
+        self.board_name = test_board.name if test_board else ""
         self.test = test
         self.name = "test"
         self.time = 0
@@ -70,7 +70,7 @@ class TestResult(object):
     @board.setter
     def board(self, newBoard):
         self._board = newBoard.target_type if newBoard else 'unknown'
-        self.board_name = newBoard.getBoardName()
+        self.board_name = newBoard.name
 
     def get_test_case(self):
         case = ElementTree.Element('testcase',
@@ -104,10 +104,10 @@ class Test(object):
         """
         passed = False
         try:
-            self.test_function(board.getUniqueID())
+            self.test_function(board.unique_id)
             passed = True
         except Exception as e:
-            print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            print("Exception %s when testing board %s" % (e, board.unique_id))
             traceback.print_exc(file=sys.stdout)
         result = TestResult(board, self, passed)
         result.name = self.name

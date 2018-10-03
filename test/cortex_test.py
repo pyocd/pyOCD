@@ -27,9 +27,9 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 import pyOCD
-from pyOCD.board import MbedBoard
+from pyOCD.core.helpers import ConnectHelper
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.pyDAPAccess import DAPAccess
+from pyOCD.core import exceptions
 from test_util import Test, TestResult
 import logging
 from random import randrange
@@ -50,11 +50,11 @@ class CortexTest(Test):
 
     def run(self, board):
         try:
-            result = self.test_function(board.getUniqueID())
+            result = self.test_function(board.unique_id)
         except Exception as e:
             result = CortexTestResult()
             result.passed = False
-            print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            print("Exception %s when testing board %s" % (e, board.unique_id))
             traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
@@ -68,20 +68,21 @@ def same(d1, d2):
             return False
     return True
 
-def test_function(board, function):
-    board.link.flush()
+def test_function(session, function):
+    session.probe.flush()
     start = time()
     for i in range(0, TEST_COUNT):
         function()
-        board.link.flush()
+        session.probe.flush()
     stop = time()
     return (stop - start) / float(TEST_COUNT)
 
 def cortex_test(board_id):
-    with MbedBoard.chooseBoard(board_id=board_id, frequency=1000000) as board:
-        target_type = board.getTargetType()
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000) as session:
+        board = session.board
+        target_type = board.target_type
 
-        binary_file = os.path.join(parentdir, 'binaries', board.getTestBinary())
+        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
 
         test_clock = 10000000
         addr_invalid = 0x3E000000 # Last 16MB of ARM SRAM region - typically empty
@@ -104,11 +105,10 @@ def cortex_test(board_id):
         addr_bin = rom_region.start
 
         target = board.target
-        link = board.link
+        probe = session.probe
         flash = board.flash
 
-        link.set_clock(test_clock)
-        link.set_deferred_transfer(True)
+        probe.set_clock(test_clock)
 
         test_pass_count = 0
         test_count = 0
@@ -129,36 +129,36 @@ def cortex_test(board_id):
 
 
         print("\n\n----- TESTING CORTEX-M PERFORMANCE -----")
-        test_time = test_function(board, gdbFacade.getTResponse)
+        test_time = test_function(session, gdbFacade.getTResponse)
         print("Function getTResponse time: %f" % test_time)
 
         # Step
-        test_time = test_function(board, target.step)
+        test_time = test_function(session, target.step)
         print("Function step time: %f" % test_time)
 
         # Breakpoint
         def set_remove_breakpoint():
             target.setBreakpoint(0)
             target.removeBreakpoint(0)
-        test_time = test_function(board, set_remove_breakpoint)
+        test_time = test_function(session, set_remove_breakpoint)
         print("Add and remove breakpoint: %f" % test_time)
 
         # getRegisterContext
-        test_time = test_function(board, gdbFacade.getRegisterContext)
+        test_time = test_function(session, gdbFacade.getRegisterContext)
         print("Function getRegisterContext: %f" % test_time)
 
         # setRegisterContext
         context = gdbFacade.getRegisterContext()
         def set_register_context():
             gdbFacade.setRegisterContext(context)
-        test_time = test_function(board, set_register_context)
+        test_time = test_function(session, set_register_context)
         print("Function setRegisterContext: %f" % test_time)
 
         # Run / Halt
         def run_halt():
             target.resume()
             target.halt()
-        test_time = test_function(board, run_halt)
+        test_time = test_function(session, run_halt)
         print("Resume and halt: %f" % test_time)
 
         # GDB stepping
@@ -170,7 +170,7 @@ def cortex_test(board_id):
             target.halt()
             gdbFacade.getTResponse()
             target.removeBreakpoint(0)
-        test_time = test_function(board, simulate_step)
+        test_time = test_function(session, simulate_step)
         print("Simulated GDB step: %f" % test_time)
 
         # Test passes if there are no exceptions
@@ -187,7 +187,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
                 memory_access_pass = False
-        except DAPAccess.TransferFaultError:
+        except exceptions.TransferFaultError:
             pass
 
         try:
@@ -196,7 +196,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
                 memory_access_pass = False
-        except DAPAccess.TransferFaultError:
+        except exceptions.TransferFaultError:
             pass
 
         data = [0x00] * 0x1000
@@ -206,7 +206,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
                 memory_access_pass = False
-        except DAPAccess.TransferFaultError:
+        except exceptions.TransferFaultError:
             pass
 
         data = [0x00] * 0x1000
@@ -216,7 +216,7 @@ def cortex_test(board_id):
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
                 memory_access_pass = False
-        except DAPAccess.TransferFaultError:
+        except exceptions.TransferFaultError:
             pass
 
         data = [randrange(0, 255) for x in range(size)]

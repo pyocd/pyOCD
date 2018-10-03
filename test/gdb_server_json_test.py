@@ -30,9 +30,8 @@ sys.path.insert(0, parentdir)
 
 import pyOCD
 from pyOCD import __version__
-from pyOCD.board import MbedBoard
+from pyOCD.core.helpers import ConnectHelper
 from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 from random import randrange
@@ -51,11 +50,11 @@ class GdbServerJsonTest(Test):
 
     def run(self, board):
         try:
-            result = self.test_function(board.getUniqueID())
+            result = self.test_function(board.unique_id)
         except Exception as e:
             result = GdbServerJsonTestResult()
             result.passed = False
-            print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            print("Exception %s when testing board %s" % (e, board.unique_id))
             traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
@@ -118,13 +117,14 @@ def gdb_server_json_test(board_id, testing_standalone=False):
             print("FAILED")
 
         # Only if we're running this test standalone do we want to compare against the list
-        # of boards returned by MbedBoard.getAllConnectedBoards(). When running in the full
+        # of boards returned by ConnectHelper.get_sessions_for_all_connected_probes(). When running in the full
         # automated test suite, there could be other test jobs running concurrently that have
         # exclusive access to the boards they are testing. Thus, those boards will not show up
         # in the return list and this test will fail.
         if testing_standalone:
             try:
-                all_mbeds = MbedBoard.getAllConnectedBoards(close=True, blocking=False)
+                all_sessions = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
+                all_mbeds = [x.board for x in all_sessions]
                 p = len(all_mbeds) == len(b)
                 matching_boards = 0
                 if p:

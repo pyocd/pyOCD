@@ -34,7 +34,7 @@ import traceback
 import tempfile
 
 from pyOCD.tools.gdb_server import GDBServerTool
-from pyOCD.board import MbedBoard
+from pyOCD.core.helpers import ConnectHelper
 from pyOCD.utility.py3_helpers import to_str_safe
 from test_util import Test, TestResult
 
@@ -63,12 +63,12 @@ class GdbTest(Test):
 
     def run(self, board):
         try:
-            result = self.test_function(board.getUniqueID(), self.n)
+            result = self.test_function(board.unique_id, self.n)
         except Exception as e:
             result = GdbTestResult()
             result.passed = False
             print("Exception %s when testing board %s" %
-                  (e, board.getUniqueID()))
+                  (e, board.unique_id))
             traceback.print_exc(file=sys.stdout)
         result.board = board
         result.test = self
@@ -87,16 +87,17 @@ TEST_RESULT_KEYS = [
 def test_gdb(board_id=None, n=0):
     temp_test_elf_name = None
     result = GdbTestResult()
-    with MbedBoard.chooseBoard(board_id=board_id) as board:
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id) as session:
+        board = session.board
         memory_map = board.target.getMemoryMap()
         ram_regions = [region for region in memory_map if region.type == 'ram']
         ram_region = ram_regions[0]
         rom_region = memory_map.getBootMemory()
-        target_type = board.getTargetType()
+        target_type = board.target_type
         binary_file = os.path.join(parentdir, 'binaries',
-                                   board.getTestBinary())
+                                   board.test_binary)
         if board_id is None:
-            board_id = board.getUniqueID()
+            board_id = board.unique_id
         test_clock = 10000000
         test_port = 3333 + n
         telnet_port = 4444 + n
@@ -115,7 +116,6 @@ def test_gdb(board_id=None, n=0):
 
         # Program with initial test image
         board.flash.flashBinary(binary_file, rom_region.start)
-        board.uninit(False)
 
     # Generate an elf from the binary test file.
     temp_test_elf_name = tempfile.mktemp('.elf')

@@ -16,8 +16,8 @@
 """
 from __future__ import print_function
 
-from pyOCD.board import MbedBoard
-from pyOCD.pyDAPAccess import DAPAccess
+from pyOCD.core.helpers import ConnectHelper
+from pyOCD.probe.pyDAPAccess import DAPAccess
 import threading
 import multiprocessing
 
@@ -88,7 +88,7 @@ def search_and_lock(board_id):
         device = DAPAccess.get_device(board_id)
         device.open()
         device.close()
-        with MbedBoard.chooseBoard(board_id=board_id):
+        with ConnectHelper.session_with_chosen_probe(board_id=board_id):
             pass
 
 
