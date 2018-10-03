@@ -15,8 +15,8 @@
  limitations under the License.
 """
 
+from ..core import exceptions
 from ..core.target import Target
-from pyOCD.pyDAPAccess import DAPAccess
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hexToByteList, hexEncode, hexDecode, hex8leToU32le)
 from ..utility.progress import print_progress
@@ -888,7 +888,7 @@ class GDBServer(threading.Thread):
                     val += six.b(hex(x)[2:4])
                 else:
                     val += b'0' + six.b(hex(x)[2:3])
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             self.log.debug("getMemory failed at 0x%x" % addr)
             val = b'E01' #EPERM
         except MemoryAccessError as e:
@@ -915,7 +915,7 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target_context.flush()
             resp = b"OK"
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             self.log.debug("writeMemory failed at 0x%x" % addr)
             resp = b'E01' #EPERM
         except MemoryAccessError as e:
@@ -942,7 +942,7 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target_context.flush()
             resp = b"OK"
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             self.log.debug("writeMemory failed at 0x%x" % addr)
             resp = b'E01' #EPERM
         except MemoryAccessError as e:

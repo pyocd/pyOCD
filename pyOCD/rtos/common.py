@@ -18,7 +18,7 @@
 from .provider import (TargetThread, ThreadProvider)
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
-from pyOCD.pyDAPAccess import DAPAccess
+from ..core import exceptions
 import logging
 
 LIST_NODE_NEXT_OFFSET = 0
@@ -54,7 +54,7 @@ def read_c_string(context, ptr):
                 else:
                     s += chr(c)
                     badCount = 0
-    except DAPAccess.TransferError:
+    except exceptions.TransferError:
         logging.debug("TransferError while trying to read 16 bytes at 0x%08x", ptr)
 
     return s

@@ -28,7 +28,7 @@ import six
 import pyOCD
 from ..gdbserver.gdb_socket import GDBSocket
 from ..gdbserver.gdb_websocket import GDBWebSocket
-from pyOCD.pyDAPAccess import DAPAccess
+from ..core import exceptions
 
 # Debug logging options
 LOG_SEMIHOST = True
@@ -583,7 +583,7 @@ class SemihostAgent(object):
                 # and then exit the loop.
                 target_str += str(bytearray(data[:terminator]))
                 break
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:

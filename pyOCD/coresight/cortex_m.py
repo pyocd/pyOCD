@@ -14,9 +14,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
+from ..core import exceptions
 from ..pyDAPAccess import DAPAccess
 from ..utility import conversion
 from ..utility.notification import Notification
@@ -27,6 +27,7 @@ from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
 import logging
 from time import (time, sleep)
+from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 # CPUID PARTNO values
 ARM_CortexM0 = 0xC20
@@ -557,7 +558,7 @@ class CortexM(Target, CoreSightComponent):
                 self.writeMemory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_SYSRESETREQ)
                 # Without a flush a transfer error can occur
                 self.dp.flush()
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 self.dp.flush()
 
         else:
@@ -571,7 +572,7 @@ class CortexM(Target, CoreSightComponent):
                 dhcsr = self.read32(CortexM.DHCSR)
                 if (dhcsr & CortexM.S_RESET_ST) == 0:
                     break
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 self.dp.flush()
                 sleep(0.01)
 

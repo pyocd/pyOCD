@@ -16,6 +16,7 @@
 """
 
 from ..pyDAPAccess import DAPAccess
+from ..core import exceptions
 from .ap import (MEM_AP_CSW, _ap_addr_to_reg, LOG_DAP,
                 APSEL, APBANKSEL, APREG_MASK, AccessPort)
 from ..utility.sequencer import CallSequence
@@ -93,7 +94,7 @@ class DebugPort(object):
         self.link.swj_sequence()
         try:
             self.read_id_code()
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
             # in a state where it thought the SWJ sequence was an invalid transfer.
             self.link.swj_sequence()
@@ -111,7 +112,7 @@ class DebugPort(object):
     def flush(self):
         try:
             self.link.flush()
-        except DAPAccess.Error as error:
+        except exceptions.ProbeError as error:
             self._handle_error(error, self.next_access_number)
             raise
         finally:
@@ -220,7 +221,7 @@ class DebugPort(object):
 
         try:
             result_cb = self.link.read_reg(addr, now=False)
-        except DAPAccess.Error as error:
+        except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
 
@@ -231,7 +232,7 @@ class DebugPort(object):
                 if LOG_DAP:
                     self.logger.info("readDP:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr.value, result)
                 return result
-            except DAPAccess.Error as error:
+            except exceptions.ProbeError as error:
                 self._handle_error(error, num)
                 raise
 
@@ -259,7 +260,7 @@ class DebugPort(object):
             if LOG_DAP:
                 self.logger.info("writeDP:%06d (addr=0x%08x) = 0x%08x", num, addr.value, data)
             self.link.write_reg(addr, data)
-        except DAPAccess.Error as error:
+        except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
 
@@ -289,7 +290,7 @@ class DebugPort(object):
             if LOG_DAP:
                 self.logger.info("writeAP:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.link.write_reg(ap_reg, data)
-        except DAPAccess.Error as error:
+        except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
 
@@ -306,7 +307,7 @@ class DebugPort(object):
             bank_sel = addr & APBANKSEL
             self.writeDP(DP_SELECT, ap_sel | bank_sel)
             result_cb = self.link.read_reg(ap_reg, now=False)
-        except DAPAccess.Error as error:
+        except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
 
@@ -317,7 +318,7 @@ class DebugPort(object):
                 if LOG_DAP:
                     self.logger.info("readAP:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
-            except DAPAccess.Error as error:
+            except exceptions.ProbeError as error:
                 self._handle_error(error, num)
                 raise
 
@@ -335,7 +336,7 @@ class DebugPort(object):
         self._csw = {}
         self._dp_select = -1
         # Clear sticky error for Fault errors only
-        if isinstance(error, DAPAccess.TransferFaultError):
+        if isinstance(error, exceptions.TransferFaultError):
             self.clear_sticky_err()
 
     def clear_sticky_err(self):

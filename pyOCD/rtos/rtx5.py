@@ -16,10 +16,10 @@
 """
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
+from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
-from pyOCD.pyDAPAccess import DAPAccess
 import logging
 
 # Create a logger for this module.
@@ -42,7 +42,7 @@ class TargetList(object):
             try:
                 # Read the next item in the list.
                 node = self._context.read32(node + self._offset)
-            except DAPAccess.TransferError as exc:
+            except exceptions.TransferError as exc:
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list: %s", self._list, node, exc)
                 break
 
@@ -158,7 +158,7 @@ class RTXThreadContext(DebugContext):
                     table = self.FPU_REGISTER_OFFSETS
                     realSpOffset = 0xc8
                     realSpExceptionOffset = 0x68
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
         for reg in reg_list:
@@ -186,7 +186,7 @@ class RTXThreadContext(DebugContext):
 
             try:
                 reg_vals.append(self._parent.read32(sp + spOffset))
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 reg_vals.append(0)
 
         return reg_vals
@@ -234,7 +234,7 @@ class RTXTargetThread(TargetThread):
             self._name = read_c_string(self._target_context, name_ptr)
             
             self.update_state()
-        except DAPAccess.TransferError:
+        except exceptions.TransferError as exc:
             log.debug("Transfer error while reading thread %x name: %s", self._base, exc)
             self._name = "?"
         log.debug('RTXTargetThread 0x%x' % base)
@@ -242,7 +242,7 @@ class RTXTargetThread(TargetThread):
     def update_state(self):
         try:
             state = self._target_context.read8(self._base + RTXTargetThread.STATE_OFFSET)
-        except DAPAccess.TransferError as exc:
+        except exceptions.TransferError as exc:
             log.debug("Transfer error while reading thread %x state: %s", self._base, exc)
         else:
             self._state = state
@@ -276,7 +276,7 @@ class RTXTargetThread(TargetThread):
             # Get stack pointer saved in thread struct.
             try:
                 sp = self._target_context.read32(self._base + RTXTargetThread.SP_OFFSET)
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + RTXTargetThread.SP_OFFSET)
         return sp
 
@@ -411,7 +411,7 @@ class RTX5ThreadProvider(ThreadProvider):
             return False
         try:
             state = self._target_context.read8(self._osRtxInfo + RTX5ThreadProvider.KERNEL_STATE_OFFSET)
-        except DAPAccess.TransferError as exc:
+        except exceptions.TransferError as exc:
             log.debug("Transfer error reading kernel state: %s", exc)
             return False
         else:

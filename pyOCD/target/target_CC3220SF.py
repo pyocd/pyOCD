@@ -16,6 +16,7 @@
 """
 
 from ..flash.flash import Flash
+from ..core import exceptions
 from ..core.coresight_target import (SVDFile, CoreSightTarget)
 from ..coresight.cortex_m import (CortexM)
 from ..coresight import(ap, dap)
@@ -147,5 +148,5 @@ class CortexM_CC3220SF(CortexM):
                 self.writeMemory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_VECTRESET)
                 # Without a flush a transfer error can occur
                 self.dp.flush()
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 self.dp.flush()

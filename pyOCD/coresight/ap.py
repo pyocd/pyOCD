@@ -16,6 +16,7 @@
 """
 
 from ..pyDAPAccess import DAPAccess
+from ..core import exceptions
 from .rom_table import ROMTable
 from ..utility import conversion
 import logging
@@ -203,12 +204,13 @@ class MEM_AP(AccessPort):
         try:
             self.write_reg(MEM_AP_TAR, addr)
             self.write_reg(MEM_AP_DRW, data)
-        except DAPAccess.TransferFaultError as error:
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = transfer_size // 8
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
         if LOG_DAP:
@@ -226,12 +228,13 @@ class MEM_AP(AccessPort):
             self.write_reg(MEM_AP_CSW, CSW_VALUE | TRANSFER_SIZE[transfer_size])
             self.write_reg(MEM_AP_TAR, addr)
             result_cb = self.read_reg(MEM_AP_DRW, now=False)
-        except DAPAccess.TransferFaultError as error:
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = transfer_size // 8
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
 
@@ -244,12 +247,13 @@ class MEM_AP(AccessPort):
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
                 if LOG_DAP:
                     self.logger.info("readMem:%06d %s(addr=0x%08x, size=%d) -> 0x%08x }", num, "" if now else "...", addr, transfer_size, res)
-            except DAPAccess.TransferFaultError as error:
+            except exceptions.TransferFaultError as error:
                 # Annotate error with target address.
                 self._handle_error(error, num)
                 error.fault_address = addr
+                error.fault_length = transfer_size // 8
                 raise
-            except DAPAccess.Error as error:
+            except exceptions.Error as error:
                 self._handle_error(error, num)
                 raise
             return res
@@ -271,12 +275,13 @@ class MEM_AP(AccessPort):
         try:
             reg = _ap_addr_to_reg(MEM_AP_DRW)
             self.link.reg_write_repeat(len(data), reg, data)
-        except DAPAccess.TransferFaultError as error:
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = len(data) * 4
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
         if LOG_DAP:
@@ -293,12 +298,13 @@ class MEM_AP(AccessPort):
         try:
             reg = _ap_addr_to_reg(MEM_AP_DRW)
             resp = self.link.reg_read_repeat(size, reg)
-        except DAPAccess.TransferFaultError as error:
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = size * 4
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
         if LOG_DAP:
@@ -452,7 +458,7 @@ class AHB_AP(MEM_AP):
             demcr = self.read32(DEMCR)
             self.write32(DEMCR, demcr | DEMCR_TRCENA)
             self.dp.flush()
-        except DAPAccess.Error:
+        except exceptions.TransferError:
             # Ignore exception and read whatever we can of the ROM table.
             pass
 

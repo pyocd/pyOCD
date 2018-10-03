@@ -16,8 +16,8 @@
 """
 
 from .provider import (Breakpoint, BreakpointProvider)
+from ...core import exceptions
 from ...core.target import Target
-from ...pyDAPAccess import DAPAccess
 import logging
 
 class SoftwareBreakpoint(Breakpoint):
@@ -70,7 +70,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
             # Save this breakpoint.
             self._breakpoints[addr] = bp
             return bp
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             logging.debug("Failed to set sw bp at 0x%x" % addr)
             return None
 
@@ -83,7 +83,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
 
             # Remove from our list.
             del self._breakpoints[bp.addr]
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             logging.debug("Failed to remove sw bp at 0x%x" % bp.addr)
 
     def filter_memory(self, addr, size, data):

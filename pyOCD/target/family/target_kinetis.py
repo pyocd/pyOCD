@@ -17,10 +17,10 @@
 
 from ...coresight import (dap, ap)
 from ...coresight.cortex_m import CortexM
+from ...core import exceptions
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
 from ...utility.timeout import Timeout
-from ...pyDAPAccess.dap_access_api import DAPAccessIntf
 import logging
 from time import sleep
 
@@ -117,7 +117,7 @@ class Kinetis(CoreSightTarget):
             try:
                 for attempt in range(ACCESS_TEST_ATTEMPTS):
                     self.aps[0].read32(CortexM.DHCSR)
-            except DAPAccessIntf.TransferFaultError:
+            except exceptions.TransferError:
                 log.debug("Access test failed with fault")
                 canAccess = False
             else:
