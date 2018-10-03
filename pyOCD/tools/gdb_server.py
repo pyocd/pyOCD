@@ -33,8 +33,7 @@ from ..debug.svd import isCmsisSvdAvailable
 from ..gdbserver import GDBServer
 from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch)
 from ..probe.cmsis_dap_probe import CMSISDAPProbe
-from ..pyDAPAccess.dap_access_cmsis_dap import DAPAccessCMSISDAP
-from ..pyDAPAccess import DAPAccess
+from ..probe.pyDAPAccess import DAPAccess
 from ..core.session import Session
 
 LEVELS = {

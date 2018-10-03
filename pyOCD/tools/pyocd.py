@@ -37,7 +37,7 @@ from .. import (utility, coresight)
 from ..core.helpers import ConnectHelper
 from ..core import exceptions
 from ..target.family import target_kinetis
-from ..pyDAPAccess import DAPAccess
+from ..probe.pyDAPAccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..core.target import Target
 from ..utility import mask

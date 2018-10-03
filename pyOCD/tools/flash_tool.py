@@ -33,7 +33,7 @@ except ImportError:
 from .. import __version__
 from .. import target
 from ..core.helpers import ConnectHelper
-from ..pyDAPAccess import DAPAccess
+from ..probe.pyDAPAccess import DAPAccess
 from ..utility.progress import print_progress
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 

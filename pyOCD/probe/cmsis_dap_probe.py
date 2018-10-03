@@ -16,7 +16,7 @@
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
-from ..pyDAPAccess import DAPAccess
+from .pyDAPAccess import DAPAccess
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
 import six
