@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,52 +15,46 @@
  limitations under the License.
 """
 
-import logging
 import array
 from .dap_access_api import DAPAccessIntf
-import six
 
-COMMAND_ID = {'DAP_INFO': 0x00,
-              'DAP_LED': 0x01,
-              'DAP_CONNECT': 0x02,
-              'DAP_DISCONNECT': 0x03,
-              'DAP_TRANSFER_CONFIGURE': 0x04,
-              'DAP_TRANSFER': 0x05,
-              'DAP_TRANSFER_BLOCK': 0x06,
-              'DAP_TRANSFER_ABORT': 0x07,
-              'DAP_WRITE_ABORT': 0x08,
-              'DAP_DELAY': 0x09,
-              'DAP_RESET_TARGET': 0x0a,
-              'DAP_SWJ_PINS': 0x10,
-              'DAP_SWJ_CLOCK': 0x11,
-              'DAP_SWJ_SEQUENCE': 0x12,
-              'DAP_SWD_CONFIGURE': 0x13,
-              'DAP_JTAG_SEQUENCE': 0x14,
-              'DAP_JTAG_CONFIGURE': 0x15,
-              'DAP_JTAG_IDCODE': 0x16,
-              'DAP_VENDOR0': 0x80,
-              }
+class Command(object):
+    DAP_INFO = 0x00
+    DAP_LED = 0x01
+    DAP_CONNECT = 0x02
+    DAP_DISCONNECT = 0x03
+    DAP_TRANSFER_CONFIGURE = 0x04
+    DAP_TRANSFER = 0x05
+    DAP_TRANSFER_BLOCK = 0x06
+    DAP_TRANSFER_ABORT = 0x07
+    DAP_WRITE_ABORT = 0x08
+    DAP_DELAY = 0x09
+    DAP_RESET_TARGET = 0x0a
+    DAP_SWJ_PINS = 0x10
+    DAP_SWJ_CLOCK = 0x11
+    DAP_SWJ_SEQUENCE = 0x12
+    DAP_SWD_CONFIGURE = 0x13
+    DAP_JTAG_SEQUENCE = 0x14
+    DAP_JTAG_CONFIGURE = 0x15
+    DAP_JTAG_IDCODE = 0x16
+    DAP_VENDOR0 = 0x80 # Start of vendor-specific command IDs.
 
-ID_INFO = {'VENDOR_ID': 0x01,
-           'PRODUCT_ID': 0x02,
-           'SERIAL_NUMBER': 0x03,
-           'CMSIS_DAP_FW_VERSION': 0x04,
-           'TARGET_DEVICE_VENDOR': 0x05,
-           'TARGET_DEVICE_NAME': 0x06,
-           'CAPABILITIES': 0xf0,
-           'SWO_BUFFER_SIZE': 0xfd,
-           'PACKET_COUNT': 0xfe,
-           'PACKET_SIZE': 0xff
-           }
+class Pin(object):
+    NONE = 0x00 # Used to read current pin values without changing.
+    SWCLK_TCK = (1 << 0)
+    SWDIO_TMS = (1 << 1)
+    TDI = (1 << 2)
+    TDO = (1 << 3)
+    nTRST = (1 << 5)
+    nRESET = (1 << 7)
 
-PINS = {'None': 0x00,
-        'SWCLK_TCK': (1 << 0),
-        'SWDIO_TMS': (1 << 1),
-        'TDI': (1 << 2),
-        'TDO': (1 << 3),
-        'nTRST': (1 << 5),
-        'nRESET': (1 << 7),
-        }
+# Info IDs that return integer values.
+INTEGER_INFOS = [
+    DAPAccessIntf.ID.CAPABILITIES,
+    DAPAccessIntf.ID.SWO_BUFFER_SIZE,
+    DAPAccessIntf.ID.MAX_PACKET_COUNT,
+    DAPAccessIntf.ID.MAX_PACKET_SIZE
+    ]
 
 DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
@@ -84,15 +78,15 @@ class CMSIS_DAP_Protocol(object):
         self.interface = interface
 
     def dapInfo(self, id_):
-        if not type(id_) in (six.integer_types):
-            id_ = ID_INFO[id_]
+        assert type(id_) is DAPAccessIntf.ID
+            
         cmd = []
-        cmd.append(COMMAND_ID['DAP_INFO'])
-        cmd.append(id_)
+        cmd.append(Command.DAP_INFO)
+        cmd.append(id_.value)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_INFO']:
+        if resp[0] != Command.DAP_INFO:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -100,7 +94,7 @@ class CMSIS_DAP_Protocol(object):
             return
 
         # Integer values
-        if id_ in (ID_INFO['CAPABILITIES'], ID_INFO['SWO_BUFFER_SIZE'], ID_INFO['PACKET_COUNT'], ID_INFO['PACKET_SIZE']):
+        if id_ in INTEGER_INFOS:
             if resp[1] == 1:
                 return resp[2]
             if resp[1] == 2:
@@ -114,13 +108,13 @@ class CMSIS_DAP_Protocol(object):
 
     def setLed(self, type, enabled):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_LED'])
+        cmd.append(Command.DAP_LED)
         cmd.append(type)
         cmd.append(int(enabled))
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_LED']:
+        if resp[0] != Command.DAP_LED:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -132,12 +126,12 @@ class CMSIS_DAP_Protocol(object):
 
     def connect(self, mode=DAP_DEFAULT_PORT):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_CONNECT'])
+        cmd.append(Command.DAP_CONNECT)
         cmd.append(mode)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_CONNECT']:
+        if resp[0] != Command.DAP_CONNECT:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -145,21 +139,15 @@ class CMSIS_DAP_Protocol(object):
             # DAP connect failed
             raise DAPAccessIntf.CommandError()
 
-        if resp[1] == 1:
-            logging.info('DAP SWD MODE initialized')
-
-        if resp[1] == 2:
-            logging.info('DAP JTAG MODE initialized')
-
         return resp[1]
 
     def disconnect(self):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_DISCONNECT'])
+        cmd.append(Command.DAP_DISCONNECT)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_DISCONNECT']:
+        if resp[0] != Command.DAP_DISCONNECT:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -171,7 +159,7 @@ class CMSIS_DAP_Protocol(object):
 
     def writeAbort(self, data, dap_index=0):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_WRITE_ABORT'])
+        cmd.append(Command.DAP_WRITE_ABORT)
         cmd.append(dap_index)
         cmd.append((data >> 0) & 0xff)
         cmd.append((data >> 8) & 0xff)
@@ -180,7 +168,7 @@ class CMSIS_DAP_Protocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_WRITE_ABORT']:
+        if resp[0] != Command.DAP_WRITE_ABORT:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -192,11 +180,11 @@ class CMSIS_DAP_Protocol(object):
 
     def resetTarget(self):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_RESET_TARGET'])
+        cmd.append(Command.DAP_RESET_TARGET)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_RESET_TARGET']:
+        if resp[0] != Command.DAP_RESET_TARGET:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -208,7 +196,7 @@ class CMSIS_DAP_Protocol(object):
 
     def transferConfigure(self, idle_cycles=0x00, wait_retry=0x0050, match_retry=0x0000):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_TRANSFER_CONFIGURE'])
+        cmd.append(Command.DAP_TRANSFER_CONFIGURE)
         cmd.append(idle_cycles)
         cmd.append(wait_retry & 0xff)
         cmd.append(wait_retry >> 8)
@@ -217,7 +205,7 @@ class CMSIS_DAP_Protocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_TRANSFER_CONFIGURE']:
+        if resp[0] != Command.DAP_TRANSFER_CONFIGURE:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -230,7 +218,7 @@ class CMSIS_DAP_Protocol(object):
 
     def setSWJClock(self, clock=1000000):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_SWJ_CLOCK'])
+        cmd.append(Command.DAP_SWJ_CLOCK)
         cmd.append(clock & 0xff)
         cmd.append((clock >> 8) & 0xff)
         cmd.append((clock >> 16) & 0xff)
@@ -238,7 +226,7 @@ class CMSIS_DAP_Protocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_SWJ_CLOCK']:
+        if resp[0] != Command.DAP_SWJ_CLOCK:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -248,16 +236,11 @@ class CMSIS_DAP_Protocol(object):
 
         return resp[1]
 
-    def setSWJPins(self, output, pin, wait=0):
+    def setSWJPins(self, output, pins, wait=0):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_SWJ_PINS'])
-        try:
-            p = PINS[pin]
-        except KeyError:
-            logging.error('cannot find %s pin', pin)
-            return
+        cmd.append(Command.DAP_SWJ_PINS)
         cmd.append(output & 0xff)
-        cmd.append(p)
+        cmd.append(pins)
         cmd.append(wait & 0xff)
         cmd.append((wait >> 8) & 0xff)
         cmd.append((wait >> 16) & 0xff)
@@ -265,7 +248,7 @@ class CMSIS_DAP_Protocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_SWJ_PINS']:
+        if resp[0] != Command.DAP_SWJ_PINS:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -273,12 +256,12 @@ class CMSIS_DAP_Protocol(object):
 
     def swdConfigure(self, conf=0):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_SWD_CONFIGURE'])
+        cmd.append(Command.DAP_SWD_CONFIGURE)
         cmd.append(conf)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_SWD_CONFIGURE']:
+        if resp[0] != Command.DAP_SWD_CONFIGURE:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -290,14 +273,14 @@ class CMSIS_DAP_Protocol(object):
 
     def swjSequence(self, data):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_SWJ_SEQUENCE'])
+        cmd.append(Command.DAP_SWJ_SEQUENCE)
         cmd.append(len(data) * 8)
         for i in range(len(data)):
             cmd.append(data[i])
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_SWJ_SEQUENCE']:
+        if resp[0] != Command.DAP_SWJ_SEQUENCE:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -309,14 +292,14 @@ class CMSIS_DAP_Protocol(object):
 
     def jtagSequence(self, info, tdi):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_JTAG_SEQUENCE'])
+        cmd.append(Command.DAP_JTAG_SEQUENCE)
         cmd.append(1)
         cmd.append(info)
         cmd.append(tdi)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_JTAG_SEQUENCE']:
+        if resp[0] != Command.DAP_JTAG_SEQUENCE:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -328,13 +311,13 @@ class CMSIS_DAP_Protocol(object):
 
     def jtagConfigure(self, irlen, dev_num=1):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_JTAG_CONFIGURE'])
+        cmd.append(Command.DAP_JTAG_CONFIGURE)
         cmd.append(dev_num)
         cmd.append(irlen)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_JTAG_CONFIGURE']:
+        if resp[0] != Command.DAP_JTAG_CONFIGURE:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -346,12 +329,12 @@ class CMSIS_DAP_Protocol(object):
 
     def jtagIDCode(self, index=0):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_JTAG_IDCODE'])
+        cmd.append(Command.DAP_JTAG_IDCODE)
         cmd.append(index)
         self.interface.write(cmd)
 
         resp = self.interface.read()
-        if resp[0] != COMMAND_ID['DAP_JTAG_IDCODE']:
+        if resp[0] != Command.DAP_JTAG_IDCODE:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 
@@ -366,13 +349,13 @@ class CMSIS_DAP_Protocol(object):
 
     def vendor(self, index, data):
         cmd = []
-        cmd.append(COMMAND_ID['DAP_VENDOR0'] + index)
+        cmd.append(Command.DAP_VENDOR0 + index)
         cmd.extend(data)
         self.interface.write(cmd)
 
         resp = self.interface.read()
 
-        if resp[0] != COMMAND_ID['DAP_VENDOR0'] + index:
+        if resp[0] != Command.DAP_VENDOR0 + index:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError()
 

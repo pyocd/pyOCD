@@ -16,17 +16,22 @@
 """
 
 from .interface import Interface
-import logging, os, collections
-from time import time
 from ..dap_access_api import DAPAccessIntf
+import logging
+import os
+import collections
+from time import time
+import six
 
 OPEN_TIMEOUT_S = 60.0
+
+log = logging.getLogger('pywinusb')
 
 try:
     import pywinusb.hid as hid
 except:
     if os.name == "nt":
-        logging.error("PyWinUSB is required on a Windows Machine")
+        log.error("PyWinUSB is required on a Windows Machine")
     isAvailable = False
 else:
     isAvailable = True
@@ -80,11 +85,11 @@ class PyWinUSB(Interface):
             try:
                 self.device.open(shared=True)
                 self.device.close()
-            except hid.HIDError:
+            except hid.HIDError as exc:
                 # If the device could not be opened in read only mode
                 # Then it either has been disconnected or is in use
                 # by another thread/process
-                raise DAPAccessIntf.DeviceError("Unable to open device")
+                raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
 
             if time() - start > OPEN_TIMEOUT_S:
                 # If this timeout has elapsed then another process
@@ -127,7 +132,7 @@ class PyWinUSB(Interface):
                 boards.append(new_board)
             except Exception as e:
                 if (str(e) != "Failure to get HID pre parsed data"):
-                    logging.error("Receiving Exception: %s", e)
+                    log.error("Receiving Exception: %s", e)
                 dev.close()
 
         return boards
@@ -157,7 +162,7 @@ class PyWinUSB(Interface):
                 # 2. CMSIS-DAP firmware problem cause a dropped read or write
                 # 3. CMSIS-DAP is performing a long operation or is being
                 #    halted in a debugger
-                raise Exception("Read timed out")
+                raise DAPAccessIntf.DeviceError("Read timed out")
         return self.rcv_data.popleft()
 
     def setPacketCount(self, count):
@@ -174,5 +179,5 @@ class PyWinUSB(Interface):
         """
         close the interface
         """
-        logging.debug("closing interface")
+        log.debug("closing interface")
         self.device.close()

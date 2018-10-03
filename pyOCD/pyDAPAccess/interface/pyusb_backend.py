@@ -16,19 +16,23 @@
 """
 
 from .interface import Interface
-import logging, os, threading
 from ..dap_access_api import DAPAccessIntf
+import logging
+import os
+import threading
+import six
+
+log = logging.getLogger('pyusb')
 
 try:
     import usb.core
     import usb.util
 except:
     if os.name == "posix" and not os.uname()[0] == 'Darwin':
-        logging.error("PyUSB is required on a Linux Machine")
+        log.error("PyUSB is required on a Linux Machine")
     isAvailable = False
 else:
     isAvailable = True
-
 
 class PyUSB(Interface):
     """
@@ -98,14 +102,14 @@ class PyUSB(Interface):
                 kernel_driver_was_attached = True
         except NotImplementedError as e:
             # Some implementations don't don't have kernel attach/detach
-            logging.debug('Exception detaching kernel driver: %s' %
+            log.debug('Exception detaching kernel driver: %s' %
                           str(e))
 
         # Explicitly claim the interface
         try:
             usb.util.claim_interface(dev, interface_number)
-        except usb.core.USBError:
-            raise DAPAccessIntf.DeviceError("Unable to open device")
+        except usb.core.USBError as exc:
+            raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
 
         # Update all class variables if we made it here
         self.ep_out = ep_out
@@ -219,7 +223,7 @@ class PyUSB(Interface):
         """
         assert self.closed is False
 
-        logging.debug("closing interface")
+        log.debug("closing interface")
         self.closed = True
         self.read_sem.release()
         self.thread.join()
@@ -230,7 +234,7 @@ class PyUSB(Interface):
             try:
                 self.dev.attach_kernel_driver(self.intf_number)
             except Exception as exception:
-                logging.warning('Exception attaching kernel driver: %s',
+                log.warning('Exception attaching kernel driver: %s',
                                 str(exception))
         usb.util.dispose_resources(self.dev)
         self.ep_out = None
@@ -254,15 +258,15 @@ class FindDap(object):
             device_string = dev.product
         except ValueError as error:
             # Permission denied error gets reported as ValueError (langid)
-            logging.debug(("ValueError \"{}\" while trying to access dev.product "
+            log.debug(("ValueError \"{}\" while trying to access dev.product "
                            "for idManufacturer=0x{:04x} idProduct=0x{:04x}. "
                            "This is probably a permission issue.").format(error, dev.idVendor, dev.idProduct))
             return False
         except usb.core.USBError as error:
-            logging.warning("Exception getting product string: %s", error)
+            log.warning("Exception getting product string: %s", error)
             return False
         except IndexError as error:
-            logging.warning("Internal pyusb error: %s", error)
+            log.warning("Internal pyusb error: %s", error)
             return False
         if device_string is None:
             return False

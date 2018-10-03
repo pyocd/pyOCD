@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSIS_DAP_Protocol
 from .interface import INTERFACE, usb_backend, ws_backend
-from .cmsis_dap_core import (COMMAND_ID, DAP_TRANSFER_OK,
+from .cmsis_dap_core import (Command, Pin, DAP_TRANSFER_OK,
                              DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT)
 
 # CMSIS-DAP values
@@ -275,7 +275,7 @@ class _Command(object):
         buf = bytearray(self._size)
         transfer_count = self._read_count + self._write_count
         pos = 0
-        buf[pos] = COMMAND_ID['DAP_TRANSFER']
+        buf[pos] = Command.DAP_TRANSFER
         pos += 1
         buf[pos] = self._dap_index
         pos += 1
@@ -307,7 +307,7 @@ class _Command(object):
         and return it as an array of bytes.
         """
         assert self.get_empty() is False
-        if data[0] != COMMAND_ID['DAP_TRANSFER']:
+        if data[0] != Command.DAP_TRANSFER:
             raise ValueError('DAP_TRANSFER response error')
 
         if data[2] != DAP_TRANSFER_OK:
@@ -338,7 +338,7 @@ class _Command(object):
         assert not (self._read_count != 0 and self._write_count != 0)
         assert self._block_request is not None
         pos = 0
-        buf[pos] = COMMAND_ID['DAP_TRANSFER_BLOCK']
+        buf[pos] = Command.DAP_TRANSFER_BLOCK
         pos += 1
         buf[pos] = self._dap_index
         pos += 1
@@ -373,7 +373,7 @@ class _Command(object):
         and return it as an array of bytes.
         """
         assert self.get_empty() is False
-        if data[0] != COMMAND_ID['DAP_TRANSFER_BLOCK']:
+        if data[0] != Command.DAP_TRANSFER_BLOCK:
             raise ValueError('DAP_TRANSFER_BLOCK response error')
 
         if data[3] != DAP_TRANSFER_OK:
@@ -438,8 +438,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         all_interfaces = _get_interfaces()
         for interface in all_interfaces:
             try:
-                unique_id = _get_unique_id(interface)
-                new_daplink = DAPAccessCMSISDAP(unique_id)
+                new_daplink = DAPAccessCMSISDAP(None, interface=interface)
                 all_daplinks.append(new_daplink)
             except DAPAccessIntf.TransferError:
                 logger = logging.getLogger(__name__)
@@ -476,14 +475,21 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     # ------------------------------------------- #
     #          CMSIS-DAP and Other Functions
     # ------------------------------------------- #
-    def __init__(self, unique_id):
-        assert isinstance(unique_id, six.string_types)
+    def __init__(self, unique_id, interface=None):
+        assert isinstance(unique_id, six.string_types) or (unique_id is None and interface is not None)
         super(DAPAccessCMSISDAP, self).__init__()
+        if interface is not None:
+            self._unique_id = _get_unique_id(interface)
+            self._vendor_name = interface.vendor_name
+            self._product_name = interface.product_name
+        else:
+            self._unique_id = unique_id
+            self._vendor_name = ""
+            self._product_name = ""
         self._interface = None
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed
         self._packet_count = None
-        self._unique_id = unique_id
         self._frequency = 1000000  # 1MHz default clock
         self._dap_port = None
         self._transfer_list = None
@@ -492,7 +498,14 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._commands_to_read = None
         self._command_response_buf = None
         self._logger = logging.getLogger(__name__)
-        return
+
+    @property
+    def vendor_name(self):
+        return self._vendor_name
+
+    @property
+    def product_name(self):
+        return self._product_name
 
     def open(self):
         if self._interface is None:
@@ -510,6 +523,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             if self._interface is None:
                 raise DAPAccessIntf.DeviceError("Unable to open device")
 
+        self._vendor_name = self._interface.vendor_name
+        self._product_name = self._interface.product_name
+
         self._interface.open()
         self._protocol = CMSIS_DAP_Protocol(self._interface)
 
@@ -517,10 +533,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._packet_count = 1
             self._logger.debug("Limiting packet count to %d", self._packet_count)
         else:
-            self._packet_count = self._protocol.dapInfo("PACKET_COUNT")
+            self._packet_count = self._protocol.dapInfo(self.ID.MAX_PACKET_COUNT)
 
         self._interface.setPacketCount(self._packet_count)
-        self._packet_size = self._protocol.dapInfo("PACKET_SIZE")
+        self._packet_size = self._protocol.dapInfo(self.ID.MAX_PACKET_SIZE)
         self._interface.setPacketSize(self._packet_size)
 
         self._init_deferred_buffers()
@@ -535,22 +551,22 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def reset(self):
         self.flush()
-        self._protocol.setSWJPins(0, 'nRESET')
+        self._protocol.setSWJPins(0, Pin.nRESET)
         time.sleep(0.1)
-        self._protocol.setSWJPins(0x80, 'nRESET')
+        self._protocol.setSWJPins(Pin.nRESET, Pin.nRESET)
         time.sleep(0.1)
 
     def assert_reset(self, asserted):
         self.flush()
         if asserted:
-            self._protocol.setSWJPins(0, 'nRESET')
+            self._protocol.setSWJPins(0, Pin.nRESET)
         else:
-            self._protocol.setSWJPins(0x80, 'nRESET')
+            self._protocol.setSWJPins(Pin.nRESET, Pin.nRESET)
     
     def is_reset_asserted(self):
         self.flush()
-        pins = self._protocol.setSWJPins(0, 'None')
-        return (pins & 0x80) == 0
+        pins = self._protocol.setSWJPins(0, Pin.NONE)
+        return (pins & Pin.nRESET) == 0
 
     def set_clock(self, frequency):
         self.flush()
@@ -595,7 +611,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def identify(self, item):
         assert isinstance(item, DAPAccessIntf.ID)
-        return self._protocol.dapInfo(item.value)
+        return self._protocol.dapInfo(item)
 
     def vendor(self, index, data=None):
         if data is None:

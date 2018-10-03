@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,9 +24,8 @@ class Interface(object):
         self.vendor_name = ""
         self.product_name = ""
         self.packet_count = 1
-        return
 
-    def init(self):
+    def open(self):
         return
 
     def write(self, data):
