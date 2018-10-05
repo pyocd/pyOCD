@@ -63,9 +63,16 @@ flash_algo = { 'load_address' : 0x20000000,
 
 # @brief Flash algorithm for STM32F439xx device.
 class Flash_stm32f439xx(Flash):
+    # Chip erase takes a really long time.
+    CHIP_ERASE_WEIGHT = 15.0
 
     def __init__(self, target):
         super(Flash_stm32f439xx, self).__init__(target, flash_algo)
+
+    def getFlashInfo(self):
+        info = super(Flash_stm32f439xx, self).getFlashInfo()
+        info.erase_weight = self.CHIP_ERASE_WEIGHT
+        return info
 
 class STM32F439xG(CoreSightTarget):
 
