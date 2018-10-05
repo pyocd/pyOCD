@@ -137,5 +137,8 @@ class DebugProbe(object):
 
     def write_ap_multiple(self, addr, values):
         raise NotImplementedError()
+    
+    def get_memory_interface_for_ap(self, apsel):
+        return None
   
 

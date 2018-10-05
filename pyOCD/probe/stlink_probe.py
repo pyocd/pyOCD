@@ -15,12 +15,13 @@
 # limitations under the License.
 
 from .debug_probe import DebugProbe
+from ..core.memory_interface import MemoryInterface
 from ..core import exceptions
 from .stlink import (STLinkException, usb, stlink)
 from ..utility import conversion
 import six
 
-## @brief Wraps an StLink as a DebugProbe.
+## @brief Wraps an STLink as a DebugProbe.
 class StlinkProbe(DebugProbe):
         
     APSEL = 0xff000000
@@ -47,7 +48,9 @@ class StlinkProbe(DebugProbe):
     def __init__(self, device):
         self._link = stlink.STLink(device)
         self._is_open = False
+        self._is_connected = False
         self._nreset_state = False
+        self._memory_interfaces = {}
         
     @property
     def description(self):
@@ -99,6 +102,7 @@ class StlinkProbe(DebugProbe):
         """Initialize DAP IO pins for JTAG or SWD"""
         try:
             self._link.enter_debug(stlink.STLink.Protocol.SWD)
+            self._is_connected = True
         except STLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -110,7 +114,12 @@ class StlinkProbe(DebugProbe):
     def disconnect(self):
         """Deinitialize the DAP I/O pins"""
         try:
+            # TODO Close the APs. When this is attempted, we get an undocumented 0x1d error. Doesn't
+            #      seem to be necessary, anyway.
+            self._memory_interfaces = {}
+            
             self._link.enter_idle()
+            self._is_connected = False
         except STLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -199,10 +208,57 @@ class StlinkProbe(DebugProbe):
         for v in values:
             self.write_ap(addr, v)
 
+    def get_memory_interface_for_ap(self, apsel):
+        assert self._is_connected
+        if apsel not in self._memory_interfaces:
+            self._link.open_ap(apsel)
+            self._memory_interfaces[apsel] = STLinkMemoryInterface(self._link, apsel)
+        return self._memory_interfaces[apsel]
+  
     @staticmethod
     def _convert_exception(exc):
         if isinstance(exc, STLinkException):
             return exceptions.ProbeError(str(exc))
         else:
             return exc
+
+## @brief Concrete memory interface for a single AP.
+class STLinkMemoryInterface(MemoryInterface):
+    def __init__(self, link, apsel):
+        self._link = link
+        self._apsel = apsel
+
+    ## @brief Write a single memory location.
+    #
+    # By default the transfer size is a word.
+    def write_memory(self, addr, data, transfer_size=32):
+        assert transfer_size in (8, 16, 32)
+        if transfer_size == 32:
+            self._link.write_mem32(addr, conversion.u32leListToByteList([data]), self._apsel)
+        elif transfer_size == 16:
+            self._link.write_mem16(addr, conversion.u16leListToByteList([data]), self._apsel)
+        elif transfer_size == 8:
+            self._link.write_mem8(addr, [data], self._apsel)
+        
+    ## @brief Read a memory location.
+    #
+    # By default, a word will be read.
+    def read_memory(self, addr, transfer_size=32, now=True):
+        assert transfer_size in (8, 16, 32)
+        if transfer_size == 32:
+            result = conversion.byteListToU32leList(self._link.read_mem32(addr, 4, self._apsel))[0]
+        elif transfer_size == 16:
+            result = conversion.byteListToU16leList(self._link.read_mem16(addr, 2, self._apsel))[0]
+        elif transfer_size == 8:
+            result = self._link.read_mem8(addr, 1, self._apsel)[0]
+        
+        def read_callback():
+            return result
+        return result if now else read_callback
+
+    def write_memory_block32(self, addr, data):
+        self._link.write_mem32(addr, conversion.u32leListToByteList(data), self._apsel)
+
+    def read_memory_block32(self, addr, size):
+        return conversion.byteListToU32leList(self._link.read_mem32(addr, size * 4, self._apsel))
 
