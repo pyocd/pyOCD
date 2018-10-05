@@ -673,6 +673,7 @@ class PyOCDTool(object):
             self.exitCode = 0
         except ValueError:
             print("Error: invalid argument")
+            traceback.print_exc()
         except exceptions.TransferError:
             print("Error: transfer failed")
             traceback.print_exc()
