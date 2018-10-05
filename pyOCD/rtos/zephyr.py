@@ -17,10 +17,10 @@
 
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
+from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
-from pyOCD.pyDAPAccess import DAPAccess
 import logging
 
 # Create a logger for this module.
@@ -41,7 +41,7 @@ class TargetList(object):
 
                 # Read next list node pointer.
                 node = self._context.read32(node + self._list_node_next_offset)
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
 
@@ -108,7 +108,7 @@ class ZephyrThreadContext(DebugContext):
                     val = self._parent.read32(addr)
                     reg_vals.append(val)
                     log.debug("Reading callee-saved register %d at 0x%08x = 0x%x", reg, addr, val)
-                except DAPAccess.TransferError:
+                except exceptions.TransferError:
                     reg_vals.append(0)
                 continue
 
@@ -120,7 +120,7 @@ class ZephyrThreadContext(DebugContext):
                     val = self._parent.read32(addr)
                     reg_vals.append(val)
                     log.debug("Reading stack frame register %d at 0x%08x = 0x%x", reg, addr, val)
-                except DAPAccess.TransferError:
+                except exceptions.TransferError:
                     reg_vals.append(0)
                 continue
 
@@ -171,7 +171,7 @@ class ZephyrThread(TargetThread):
 
         try:
             self.update_info()
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             log.debug("Transfer error while reading thread info")
 
     def get_stack_pointer(self):
@@ -183,7 +183,7 @@ class ZephyrThread(TargetThread):
             addr = self._base + self._offsets["t_stack_ptr"]
             try:
                 sp = self._target_context.read32(addr)
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", addr)
         return sp
 
@@ -191,7 +191,7 @@ class ZephyrThread(TargetThread):
         try:
             self._priority = self._target_context.read8(self._base + self._offsets["t_prio"])
             self._state = self._target_context.read8(self._base + self._offsets["t_state"])
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             log.debug("Transfer error while reading thread info")
 
     @property
@@ -337,7 +337,7 @@ class ZephyrThreadProvider(ThreadProvider):
 
                 log.debug("Thread 0x%08x (%s)", threadBase, t.name)
                 newThreads[t.unique_id] = t
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("TransferError while examining thread 0x%08x", threadBase)
 
         # Create fake handler mode thread.

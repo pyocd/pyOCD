@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..pyDAPAccess import DAPAccess
+from ..core import exceptions
 from .rom_table import ROMTable
 from ..utility import conversion
 import logging
@@ -37,9 +37,6 @@ APSEL_SHIFT = 24
 APSEL = 0xff000000
 APBANKSEL = 0x000000f0
 APREG_MASK = 0x000000fc
-
-def _ap_addr_to_reg(addr):
-    return DAPAccess.REG(4 + ((addr & A32) >> 2))
 
 AP_ROM_TABLE_FORMAT_MASK = 0x2
 AP_ROM_TABLE_ENTRY_PRESENT_MASK = 0x1
@@ -176,16 +173,52 @@ class AccessPort(object):
 
     def write_reg(self, addr, data):
         self.dp.writeAP((self.ap_num << APSEL_SHIFT) | addr, data)
+    
+    def reset_did_occur(self):
+        pass
 
 class MEM_AP(AccessPort):
     def __init__(self, dp, ap_num):
         super(MEM_AP, self).__init__(dp, ap_num)
+        
+        ## Cached CSW value.
+        self._csw = -1
 
         # Default to the smallest size supported by all targets.
         # A size smaller than the supported size will decrease performance
         # due to the extra address writes, but will not create any
         # read/write errors.
         self.auto_increment_page_size = 0x400
+
+    def read_reg(self, addr, now=True):
+        ap_regaddr = addr & APREG_MASK
+        if ap_regaddr == MEM_AP_CSW and self._csw != -1 and now:
+            return self._csw
+        return super(MEM_AP, self).read_reg(addr, now)
+
+    def write_reg(self, addr, data):
+        ap_regaddr = addr & APREG_MASK
+
+        # Don't need to write CSW if it's not changing value.
+        if ap_regaddr == MEM_AP_CSW:
+            if data == self._csw:
+                if LOG_DAP:
+                    num = self.dp.next_access_number
+                    self.logger.info("writeAP:%06d cached (addr=0x%08x) = 0x%08x", num, addr, data)
+                return
+            self._csw = data
+
+        try:
+            super(MEM_AP, self).write_reg(addr, data)
+        except exceptions.ProbeError:
+            # Invalidate cached CSW on exception.
+            if ap_regaddr == MEM_AP_CSW:
+                self._csw = -1
+            raise
+    
+    def reset_did_occur(self):
+        # TODO use notifications to invalidate CSW cache.
+        self._csw = -1
 
     ## @brief Write a single memory location.
     #
@@ -203,12 +236,13 @@ class MEM_AP(AccessPort):
         try:
             self.write_reg(MEM_AP_TAR, addr)
             self.write_reg(MEM_AP_DRW, data)
-        except DAPAccess.TransferFaultError as error:
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = transfer_size // 8
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
         if LOG_DAP:
@@ -226,12 +260,13 @@ class MEM_AP(AccessPort):
             self.write_reg(MEM_AP_CSW, CSW_VALUE | TRANSFER_SIZE[transfer_size])
             self.write_reg(MEM_AP_TAR, addr)
             result_cb = self.read_reg(MEM_AP_DRW, now=False)
-        except DAPAccess.TransferFaultError as error:
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = transfer_size // 8
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
 
@@ -244,12 +279,13 @@ class MEM_AP(AccessPort):
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
                 if LOG_DAP:
                     self.logger.info("readMem:%06d %s(addr=0x%08x, size=%d) -> 0x%08x }", num, "" if now else "...", addr, transfer_size, res)
-            except DAPAccess.TransferFaultError as error:
+            except exceptions.TransferFaultError as error:
                 # Annotate error with target address.
                 self._handle_error(error, num)
                 error.fault_address = addr
+                error.fault_length = transfer_size // 8
                 raise
-            except DAPAccess.Error as error:
+            except exceptions.Error as error:
                 self._handle_error(error, num)
                 raise
             return res
@@ -269,14 +305,14 @@ class MEM_AP(AccessPort):
         self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            reg = _ap_addr_to_reg(MEM_AP_DRW)
-            self.link.reg_write_repeat(len(data), reg, data)
-        except DAPAccess.TransferFaultError as error:
+            self.link.write_ap_multiple(MEM_AP_DRW, data)
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = len(data) * 4
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
         if LOG_DAP:
@@ -291,14 +327,14 @@ class MEM_AP(AccessPort):
         self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            reg = _ap_addr_to_reg(MEM_AP_DRW)
-            resp = self.link.reg_read_repeat(size, reg)
-        except DAPAccess.TransferFaultError as error:
+            resp = self.link.read_ap_multiple(MEM_AP_DRW, size)
+        except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
             error.fault_address = addr
+            error.fault_length = size * 4
             raise
-        except DAPAccess.Error as error:
+        except exceptions.Error as error:
             self._handle_error(error, num)
             raise
         if LOG_DAP:
@@ -443,6 +479,7 @@ class MEM_AP(AccessPort):
 
     def _handle_error(self, error, num):
         self.dp._handle_error(error, num)
+        self._csw = -1
 
 class AHB_AP(MEM_AP):
     def init_rom_table(self):
@@ -452,7 +489,7 @@ class AHB_AP(MEM_AP):
             demcr = self.read32(DEMCR)
             self.write32(DEMCR, demcr | DEMCR_TRCENA)
             self.dp.flush()
-        except DAPAccess.Error:
+        except exceptions.TransferError:
             # Ignore exception and read whatever we can of the ROM table.
             pass
 

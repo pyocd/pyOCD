@@ -17,10 +17,10 @@
 
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
+from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
-from pyOCD.pyDAPAccess import DAPAccess
 import logging
 
 IS_RUNNING_OFFSET = 0x54
@@ -60,7 +60,7 @@ class TargetList(object):
 
                 next = self._context.read32(node + LIST_NODE_NEXT_OFFSET)
                 node = next
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 is_valid = False
 
@@ -200,7 +200,7 @@ class ArgonThreadContext(DebugContext):
 
             try:
                 reg_vals.append(self._parent.read32(sp + spOffset))
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 reg_vals.append(0)
 
         return reg_vals
@@ -248,7 +248,7 @@ class ArgonThread(TargetThread):
             ptr = self._target_context.read32(self._base + THREAD_NAME_OFFSET)
             self._name = read_c_string(self._target_context, ptr)
             log.debug("Thread@%x name=%x '%s'", self._base, ptr, self._name)
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             log.debug("Transfer error while reading thread info")
 
     def get_stack_pointer(self):
@@ -260,7 +260,7 @@ class ArgonThread(TargetThread):
             # Get stack pointer saved in thread struct.
             try:
                 sp = self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
         return sp
 
@@ -271,7 +271,7 @@ class ArgonThread(TargetThread):
             self._state = self._target_context.read8(self._base + THREAD_STATE_OFFSET)
             if self._state > self.DONE:
                 self._state = self.UNKNOWN
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             log.debug("Transfer error while reading thread info")
 
     @property
@@ -309,7 +309,7 @@ class ArgonThread(TargetThread):
         try:
             flag = self._target_context.read8(self._base + THREAD_EXTENDED_FRAME_OFFSET)
             return flag != 0
-        except DAPAccess.TransferError:
+        except exceptions.TransferError:
             log.debug("Transfer error while reading thread's extended frame flag @ 0x%08x", self._base + THREAD_EXTENDED_FRAME_OFFSET)
             return False
 
@@ -369,7 +369,7 @@ class ArgonThreadProvider(ThreadProvider):
                     t = ArgonThread(self._target_context, self, threadBase)
                 log.debug("Thread 0x%08x (%s)", threadBase, t.name)
                 newThreads[t.unique_id] = t
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("TransferError while examining thread 0x%08x", threadBase)
 
         # Create fake handler mode thread.

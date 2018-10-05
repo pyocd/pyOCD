@@ -20,6 +20,7 @@ import os
 import sys
 import logging
 import pyOCD
+import pyOCD.core.helpers
 from pyOCD.core.target import Target
 from pyOCD.debug import semihost
 from elapsedtimer import ElapsedTimer
@@ -29,17 +30,18 @@ import telnetlib
 def tgt(request):
     board = None
     try:
-        board = pyOCD.board.mbed_board.MbedBoard.chooseBoard(blocking=False, return_first=True)
+        session = pyOCD.core.helpers.ConnectHelper.session_with_chosen_probe(blocking=False, return_first=True)
     except Exception as error:
-        pass
-    if board is None:
-        pytest.skip("No board present")
+        logging.error("Exception during session_with_chosen_probe", exc_info=error)
+    if session is None:
+        pytest.skip("No probe present")
         return
-
+    board = session.board
+    session.options['resume_on_disconnect'] = False
     board.target.resetStopOnReset()
 
     def cleanup():
-        board.uninit(resume=False)
+        board.uninit()
 
     request.addfinalizer(cleanup)
     return board.target
@@ -63,7 +65,7 @@ def ramrgn(tgt):
     for rgn in map:
         if rgn.isRam:
             return rgn
-    pytest.fail("No RAM available to load test")
+    pytest.skip("No RAM available to load test")
 
 class TimeoutError(RuntimeError):
     pass

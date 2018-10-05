@@ -17,10 +17,10 @@
 
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
+from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
-from pyOCD.pyDAPAccess import DAPAccess
 import logging
 
 FREERTOS_MAX_PRIORITIES	= 63
@@ -61,7 +61,7 @@ class TargetList(object):
                 # Read next list node pointer.
                 prev = node
                 node = self._context.read32(node + LIST_NODE_NEXT_OFFSET)
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
 
@@ -192,7 +192,7 @@ class FreeRTOSThreadContext(DebugContext):
                     table = self.FPU_EXTENDED_REGISTER_OFFSETS
                     realSpOffset = 0xcc
                     realSpExceptionOffset = 0x6c
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
         for reg in reg_list:
@@ -220,7 +220,7 @@ class FreeRTOSThreadContext(DebugContext):
 
             try:
                 reg_vals.append(self._parent.read32(sp + spOffset))
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 reg_vals.append(0)
 
         return reg_vals
@@ -269,7 +269,7 @@ class FreeRTOSThread(TargetThread):
             # Get stack pointer saved in thread struct.
             try:
                 sp = self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
-            except DAPAccess.TransferError:
+            except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
         return sp
 
@@ -444,7 +444,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
 
                     log.debug("Thread 0x%08x (%s)", threadBase, t.name)
                     newThreads[t.unique_id] = t
-                except DAPAccess.TransferError:
+                except exceptions.TransferError:
                     log.debug("TransferError while examining thread 0x%08x", threadBase)
 
         if len(newThreads) != threadCount:

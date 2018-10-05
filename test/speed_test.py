@@ -26,8 +26,8 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 import pyOCD
-from pyOCD.board import MbedBoard
-from pyOCD.pyDAPAccess import DAPAccess
+from pyOCD.core.helpers import ConnectHelper
+from pyOCD.probe.pyDAPAccess import DAPAccess
 from test_util import Test, TestResult
 import logging
 
@@ -64,9 +64,9 @@ class SpeedTest(Test):
         read_speed = None
         write_speed = None
         try:
-            result = self.test_function(board.getUniqueID())
+            result = self.test_function(board.unique_id)
         except Exception as e:
-            print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            print("Exception %s when testing board %s" % (e, board.unique_id))
             result = SpeedTestResult()
             result.passed = False
             traceback.print_exc(file=sys.stdout)
@@ -76,8 +76,9 @@ class SpeedTest(Test):
 
 
 def speed_test(board_id):
-    with MbedBoard.chooseBoard(board_id=board_id, frequency=1000000) as board:
-        target_type = board.getTargetType()
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000) as session:
+        board = session.board
+        target_type = board.target_type
 
         test_clock = 10000000
         if target_type == "nrf51":
@@ -98,14 +99,12 @@ def speed_test(board_id):
         rom_size = rom_region.length
 
         target = board.target
-        link = board.link
 
         test_pass_count = 0
         test_count = 0
         result = SpeedTestResult()
 
-        link.set_clock(test_clock)
-        link.set_deferred_transfer(True)
+        session.probe.set_clock(test_clock)
 
         print("\n\n------ TEST RAM READ / WRITE SPEED ------")
         test_addr = ram_start
@@ -163,7 +162,7 @@ if __name__ == "__main__":
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
     DAPAccess.set_args(args.daparg)
-    board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close=True)[0]
+    session = ConnectHelper.get_sessions_for_all_connected_probes()[0]
     test = SpeedTest()
-    result = [test.run(board)]
+    result = [test.run(session.board)]
     test.print_perf_info(result)

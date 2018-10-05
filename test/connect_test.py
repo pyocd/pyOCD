@@ -25,7 +25,7 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 import pyOCD
-from pyOCD.board import MbedBoard
+from pyOCD.core.helpers import ConnectHelper
 from pyOCD.core.target import Target
 from test_util import Test, TestResult
 import logging
@@ -62,7 +62,7 @@ class ConnectTest(Test):
         try:
             result = self.test_function(board)
         except Exception as e:
-            print("Exception %s when testing board %s" % (e, board.getUniqueID()))
+            print("Exception %s when testing board %s" % (e, board.unique_id))
             result = ConnectTestResult()
             result.passed = False
             traceback.print_exc(file=sys.stdout)
@@ -72,8 +72,8 @@ class ConnectTest(Test):
 
 
 def connect_test(board):
-    board_id = board.getUniqueID()
-    binary_file = os.path.join(parentdir, 'binaries', board.getTestBinary())
+    board_id = board.unique_id
+    binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
     print("binary file: %s" % binary_file)
 
     test_pass_count = 0
@@ -81,16 +81,22 @@ def connect_test(board):
     result = ConnectTestResult()
 
     # Install binary.
-    live_board = MbedBoard.chooseBoard(board_id=board_id, frequency=1000000)
+    live_session = ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000)
+    live_board = live_session.board
     memory_map = board.target.getMemoryMap()
     rom_region = memory_map.getBootMemory()
     rom_start = rom_region.start
 
     def test_connect(halt_on_connect, expected_state, resume):
         print("Connecting with halt_on_connect=%s" % halt_on_connect)
-        live_board = MbedBoard.chooseBoard(board_id=board_id, frequency=1000000, init_board=False)
-        live_board.target.setHaltOnConnect(halt_on_connect)
-        live_board.init()
+        live_session = ConnectHelper.session_with_chosen_probe(
+                        board_id=board_id,
+                        frequency=1000000, 
+                        init_board=False,
+                        halt_on_connect=halt_on_connect,
+                        resume_on_disconnect=resume)
+        live_session.open()
+        live_board = live_session.board
         print("Verifying target is", STATE_NAMES.get(expected_state, "unknown"))
         actualState = live_board.target.getState()
         # Accept sleeping for running, as a hack to work around nRF52840-DK test binary.
@@ -105,8 +111,8 @@ def connect_test(board):
                 STATE_NAMES.get(actualState, "unknown"),
                 STATE_NAMES.get(expected_state, "unknown")))
         print("Disconnecting with resume=%s" % resume)
-        live_board.uninit(resume)
-        live_board = None
+        live_session.close()
+        live_session = None
         return passed
 
     # TEST CASE COMBINATIONS
@@ -136,8 +142,9 @@ def connect_test(board):
     else:
         print("TEST FAILED")
     print("Disconnecting with resume=True")
-    live_board.uninit(resume=True)
-    live_board = None
+    live_session.options['resume_on_disconnect'] = True
+    live_session.close()
+    live_session = None
     # Leave running.
 
     # Run all the cases.
@@ -178,7 +185,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    board = pyOCD.board.mbed_board.MbedBoard.getAllConnectedBoards(close=True)[0]
+    session = ConnectHelper.get_sessions_for_all_connected_probes()[0]
     test = ConnectTest()
-    result = [test.run(board)]
+    result = [test.run(session.board)]
     test.print_perf_info(result)
