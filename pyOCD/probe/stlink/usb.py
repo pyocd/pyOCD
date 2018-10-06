@@ -62,7 +62,7 @@ class STLinkUSBInterface(object):
             # Try accessing the product name, which will cause a permission error on Linux. Better
             # to error out here than later when building the device description.
             if isSTLink:
-                dummy = dev.product
+                dev.product
             
             return isSTLink
         except ValueError as error:
@@ -80,7 +80,12 @@ class STLinkUSBInterface(object):
 
     @classmethod
     def get_all_connected_devices(cls):
-        devices = usb.core.find(find_all=True, custom_match=cls._usb_match)
+        try:
+            devices = usb.core.find(find_all=True, custom_match=cls._usb_match)
+        except usb.core.NoBackendError:
+            # Print a warning if pyusb cannot find a backend, and return no probes.
+            log.warning("STLink probes are not supported because no libusb library was found.")
+            return []
         
         intfList = []
         for dev in devices:
