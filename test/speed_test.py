@@ -28,7 +28,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.core.helpers import ConnectHelper
 from pyOCD.probe.pyDAPAccess import DAPAccess
-from test_util import Test, TestResult
+from test_util import (Test, TestResult, get_session_options)
 import logging
 
 class SpeedTestResult(TestResult):
@@ -76,7 +76,7 @@ class SpeedTest(Test):
 
 
 def speed_test(board_id):
-    with ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000) as session:
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
         target_type = board.target_type
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
     DAPAccess.set_args(args.daparg)
-    session = ConnectHelper.get_sessions_for_all_connected_probes()[0]
+    session = ConnectHelper.session_with_chosen_probe(open_session=False, **get_session_options())
     test = SpeedTest()
     result = [test.run(session.board)]
     test.print_perf_info(result)

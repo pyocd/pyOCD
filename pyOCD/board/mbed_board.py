@@ -40,9 +40,9 @@ class MbedBoard(Board):
             self.native_target = board_info.target
             self._test_binary = board_info.binary
         except KeyError:
+            board_info = None
             self._name = "Unknown Board"
             self.native_target = None
-            self._test_binary = None
 
         # Unless overridden use the native target
         if target is None:
@@ -54,12 +54,9 @@ class MbedBoard(Board):
 
         super(MbedBoard, self).__init__(session, target)
 
-    @property
-    def test_binary(self):
-        """
-        Return name of test binary file
-        """
-        return self._test_binary
+        # Set test binary if not already set.
+        if (board_info is not None) and (self._test_binary is None):
+            self._test_binary = board_info.binary
 
     @property
     def name(self):

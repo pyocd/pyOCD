@@ -27,12 +27,13 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.core.helpers import ConnectHelper
 import logging
+from test_util import get_session_options
 
 logging.basicConfig(level=logging.INFO)
 
 print("\n\n------ Test attaching to locked board ------")
 for i in range(0, 10):
-    with ConnectHelper.session_with_chosen_probe() as session:
+    with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
         # Erase and then reset - This locks Kinetis devices
         board.flash.init()
@@ -41,7 +42,7 @@ for i in range(0, 10):
 
 print("\n\n------ Testing Attaching to board ------")
 for i in range(0, 100):
-    with ConnectHelper.session_with_chosen_probe() as session:
+    with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
         board.target.halt()
         sleep(0.01)
@@ -49,14 +50,14 @@ for i in range(0, 100):
         sleep(0.01)
 
 print("\n\n------ Flashing new code ------")
-with ConnectHelper.session_with_chosen_probe() as session:
+with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
     board = session.board
     binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
     board.flash.flashBinary(binary_file)
 
 print("\n\n------ Testing Attaching to regular board ------")
 for i in range(0, 10):
-    with ConnectHelper.session_with_chosen_probe() as session:
+    with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
         board.target.resetStopOnReset()
         board.target.halt()

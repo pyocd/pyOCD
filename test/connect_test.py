@@ -27,7 +27,7 @@ sys.path.insert(0, parentdir)
 import pyOCD
 from pyOCD.core.helpers import ConnectHelper
 from pyOCD.core.target import Target
-from test_util import Test, TestResult
+from test_util import (Test, TestResult, get_session_options)
 import logging
 
 STATE_NAMES = {
@@ -81,7 +81,7 @@ def connect_test(board):
     result = ConnectTestResult()
 
     # Install binary.
-    live_session = ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000)
+    live_session = ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options())
     live_board = live_session.board
     memory_map = board.target.getMemoryMap()
     rom_region = memory_map.getBootMemory()
@@ -91,10 +91,10 @@ def connect_test(board):
         print("Connecting with halt_on_connect=%s" % halt_on_connect)
         live_session = ConnectHelper.session_with_chosen_probe(
                         board_id=board_id,
-                        frequency=1000000, 
                         init_board=False,
                         halt_on_connect=halt_on_connect,
-                        resume_on_disconnect=resume)
+                        resume_on_disconnect=resume,
+                        **get_session_options())
         live_session.open()
         live_board = live_session.board
         print("Verifying target is", STATE_NAMES.get(expected_state, "unknown"))
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    session = ConnectHelper.get_sessions_for_all_connected_probes()[0]
+    session = ConnectHelper.session_with_chosen_probe(open_session=False, **get_session_options())
     test = ConnectTest()
     result = [test.run(session.board)]
     test.print_perf_info(result)

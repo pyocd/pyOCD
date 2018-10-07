@@ -15,9 +15,11 @@
 # limitations under the License.
 
 from .cmsis_dap_probe import CMSISDAPProbe
+from .stlink_probe import StlinkProbe
 
 PROBE_CLASSES = [
     CMSISDAPProbe,
+    StlinkProbe,
     ]
 
 ## @brief Simple class to enable collecting probes of all supported probe types.

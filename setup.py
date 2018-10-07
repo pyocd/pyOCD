@@ -18,6 +18,7 @@
 from setuptools import setup, find_packages
 import sys
 
+# Common dependencies.
 install_requires = [
     'intelhex',
     'six',
@@ -27,19 +28,21 @@ install_requires = [
     'intervaltree',
     'colorama',
     'pyelftools',
+    'pyusb>=1.0.0b2',
     ]
-if sys.platform.startswith('linux'):
-    install_requires.extend([
-        'pyusb>=1.0.0b2',
-    ])
-elif sys.platform.startswith('win'):
-    install_requires.extend([
+
+# Add OS-specific dependencies.
+os_install_requires = {
+    'linux' : [
+        ],
+    'win32' : [
         'pywinusb>=0.4.0',
-    ])
-elif sys.platform.startswith('darwin'):
-    install_requires.extend([
+        ],
+    'darwin' : [
         'hidapi',
-    ])
+        ],
+    }
+install_requires.extend(os_install_requires.get(sys.platform, []))
 
 setup(
     name="pyOCD",

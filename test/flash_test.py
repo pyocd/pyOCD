@@ -34,7 +34,7 @@ from pyOCD.utility.conversion import float32beToU32be
 from pyOCD.flash.flash import Flash
 from pyOCD.flash.flash_builder import FlashBuilder
 from pyOCD.utility.progress import print_progress
-from test_util import Test, TestResult
+from test_util import (Test, TestResult, get_session_options)
 
 addr = 0
 size = 0
@@ -123,7 +123,7 @@ def same(d1, d2):
 
 
 def flash_test(board_id):
-    with ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000) as session:
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
         target_type = board.target_type
 
@@ -398,7 +398,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=level)
     DAPAccess.set_args(args.daparg)
     # Set to debug to print some of the decisions made while flashing
-    session = ConnectHelper.get_sessions_for_all_connected_probes()[0]
+    session = ConnectHelper.session_with_chosen_probe(open_session=False, **get_session_options())
     test = FlashTest()
     result = [test.run(session.board)]
     test.print_perf_info(result)

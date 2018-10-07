@@ -30,7 +30,7 @@ import pyOCD
 from pyOCD.core.helpers import ConnectHelper
 from pyOCD.utility.conversion import float32beToU32be
 from pyOCD.core import exceptions
-from test_util import Test, TestResult
+from test_util import (Test, TestResult, get_session_options)
 import logging
 from random import randrange
 
@@ -78,7 +78,7 @@ def test_function(session, function):
     return (stop - start) / float(TEST_COUNT)
 
 def cortex_test(board_id):
-    with ConnectHelper.session_with_chosen_probe(board_id=board_id, frequency=1000000) as session:
+    with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
         target_type = board.target_type
 
