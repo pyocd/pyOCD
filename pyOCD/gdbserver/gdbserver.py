@@ -840,7 +840,7 @@ class GDBServer(threading.Thread):
                 idx_begin += 1
 
             # Get flash builder if there isn't one already
-            if self.flashBuilder == None:
+            if self.flashBuilder is None:
                 self.flashBuilder = self.flash.getFlashBuilder()
 
             # Add data to flash builder
@@ -850,16 +850,18 @@ class GDBServer(threading.Thread):
 
         # we need to flash everything
         elif b'FlashDone' in ops :
-            if self.hide_programming_progress:
-                progress_cb = None
-            else:
-                progress_cb = print_progress()
+            # Only program if we received data.
+            if self.flashBuilder is not None:
+                if self.hide_programming_progress:
+                    progress_cb = None
+                else:
+                    progress_cb = print_progress()
 
-            self.flashBuilder.program(chip_erase=self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
+                self.flashBuilder.program(chip_erase=self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
 
-            # Set flash builder to None so that on the next flash command a new
-            # object is used.
-            self.flashBuilder = None
+                # Set flash builder to None so that on the next flash command a new
+                # object is used.
+                self.flashBuilder = None
 
             self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:
