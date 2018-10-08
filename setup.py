@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2012-2015 ARM Limited
+ Copyright (c) 2012-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,33 +16,6 @@
 """
 
 from setuptools import setup, find_packages
-import sys
-
-# Common dependencies.
-install_requires = [
-    'intelhex',
-    'six',
-    'enum34',
-    'future',
-    'websocket-client',
-    'intervaltree',
-    'colorama',
-    'pyelftools',
-    'pyusb>=1.0.0b2',
-    ]
-
-# Add OS-specific dependencies.
-os_install_requires = {
-    'linux' : [
-        ],
-    'win32' : [
-        'pywinusb>=0.4.0',
-        ],
-    'darwin' : [
-        'hidapi',
-        ],
-    }
-install_requires.extend(os_install_requires.get(sys.platform, []))
 
 setup(
     name="pyOCD",
@@ -50,14 +23,29 @@ setup(
         'local_scheme': 'dirty-tag',
         'write_to': 'pyOCD/_version.py'
     },
-    setup_requires=['setuptools_scm!=1.5.3,!=1.5.4', 'setuptools_scm_git_archive'],
+    setup_requires=[
+        'setuptools_scm!=1.5.3,!=1.5.4',
+        'setuptools_scm_git_archive'
+    ],
     description="CMSIS-DAP debugger for Python",
     long_description=open('README.rst', 'r').read(),
     author="Chris Reed, Martin Kojtal, Russ Butler",
     author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
     url='https://github.com/mbedmicro/pyOCD',
     license="Apache 2.0",
-    install_requires=install_requires,
+    install_requires = [
+        'intelhex',
+        'six',
+        'enum34;python_version<"3.4"',
+        'future',
+        'websocket-client',
+        'intervaltree',
+        'colorama',
+        'pyelftools',
+        'pyusb>=1.0.0b2',
+        'pywinusb>=0.4.0;platform_system=="Windows"',
+        'hidapi;platform_system=="Darwin"'
+        ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
@@ -66,6 +54,7 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
     ],
     extras_require={
         'dissassembler': ['capstone']
