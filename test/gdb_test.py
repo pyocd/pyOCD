@@ -119,8 +119,11 @@ def test_gdb(board_id=None, n=0):
 
     # Generate an elf from the binary test file.
     temp_test_elf_name = tempfile.mktemp('.elf')
-    objcopyOutput = check_output([OBJCOPY, "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
-        "--set-start", "0x%x" % rom_region.start, binary_file, temp_test_elf_name], stderr=STDOUT)
+    objcopyOutput = check_output([OBJCOPY,
+        "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
+        "--set-start", "0x%x" % rom_region.start,
+        "--change-addresses", "0x%x" % rom_region.start,
+        binary_file, temp_test_elf_name], stderr=STDOUT)
     print(to_str_safe(objcopyOutput))
     # Need to escape backslashes on Windows.
     if sys.platform.startswith('win'):
@@ -148,7 +151,8 @@ def test_gdb(board_id=None, n=0):
     output_filename = "output_%s_%d.txt" % (board.target_type, n)
     with open(output_filename, "w") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
-        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id, "-T=%i" % telnet_port]
+        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id, "-T=%i" % telnet_port,
+                '-Oboard_config_file=test_boards.json']
         server = GDBServerTool()
         server.run(args)
         program.wait()
