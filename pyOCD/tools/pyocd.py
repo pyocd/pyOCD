@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ from ..probe.pyDAPAccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..core.target import Target
 from ..utility import mask
+from ..utility.cmdline import convert_session_options
 
 # Make disasm optional.
 try:
@@ -564,6 +565,7 @@ class PyOCDTool(object):
         parser.add_argument("cmd", nargs='?', default=None, help="Command")
         parser.add_argument("args", nargs='*', help="Arguments for the command.")
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+        parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
         return parser.parse_args()
 
     def configure_logging(self):
@@ -606,7 +608,8 @@ class PyOCDTool(object):
                             auto_unlock=False,
                             halt_on_connect=self.args.halt,
                             resume_on_disconnect=False,
-                            frequency=(self.args.clock * 1000))
+                            frequency=(self.args.clock * 1000),
+                            **convert_session_options(self.args.option))
             if self.session is None:
                 return 1
             self.board = self.session.board

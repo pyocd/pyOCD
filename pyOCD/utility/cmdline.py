@@ -87,3 +87,24 @@ def convert_vector_catch(value):
         # Reraise an error with a more helpful message.
         raise ValueError("invalid vector catch option '{}'".format(e.args[0]))
 
+## @brief Convert a list of session option settings to a dictionary.
+#
+#
+def convert_session_options(option_list):
+    options = {}
+    if option_list is not None:
+        for o in option_list:
+            if '=' in o:
+                name, value = o.split('=')
+                name = name.strip().lower()
+                value = value.strip()
+            else:
+                name = o.strip().lower()
+                if name.startswith('no-'):
+                    name = name[3:]
+                    value = False
+                else:
+                    value = True
+            options[name] = value
+    return options
+

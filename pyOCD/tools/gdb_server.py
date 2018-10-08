@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,7 +31,8 @@ from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..debug.svd import isCmsisSvdAvailable
 from ..gdbserver import GDBServer
-from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch)
+from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch,
+                                convert_session_options)
 from ..probe.cmsis_dap_probe import CMSISDAPProbe
 from ..probe.pyDAPAccess import DAPAccess
 from ..core.session import Session
@@ -103,6 +104,7 @@ class GDBServerTool(object):
         parser.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+', help="Run command (OpenOCD compatibility).")
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
         parser.add_argument("--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
+        parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
         self.parser = parser
         return parser
 
@@ -289,7 +291,8 @@ class GDBServerTool(object):
                     session = ConnectHelper.session_with_chosen_probe(
                         board_id=self.args.board_id,
                         target_override=self.args.target_override,
-                        frequency=self.args.frequency)
+                        frequency=self.args.frequency,
+                        **convert_session_options(self.args.option))
                     if session is None:
                         print("No board selected")
                         return 1
