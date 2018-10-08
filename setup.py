@@ -22,7 +22,7 @@ import sys
 install_requires = [
     'intelhex',
     'six',
-    'enum34',
+    "enum34;python_version<'3.4'",
     'future',
     'websocket-client',
     'intervaltree',
