@@ -37,7 +37,7 @@ class Board(object):
         boardConfig = self._load_board_config()
         for uid, settings in boardConfig.items():
             if uid.lower() in self.unique_id.lower():
-                log.info("Using board config settings for board %s: %s" % (session.probe.unique_id, settings))
+                log.info("Using board config settings for board %s" % (session.probe.unique_id))
                 if 'target_type' in settings:
                     self._target_type = settings['target_type']
                 if 'test_binary' in settings:
@@ -45,6 +45,7 @@ class Board(object):
 
         # Create Target and Flash instances.
         try:
+            log.info("Target type is %s", self._target_type)
             self.target = TARGET[self._target_type](session)
             self.flash = FLASH[self._target_type](self.target)
         except KeyError as exc:

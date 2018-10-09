@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ from .. import target
 from ..core.helpers import ConnectHelper
 from ..probe.pyDAPAccess import DAPAccess
 from ..utility.progress import print_progress
+from ..utility.cmdline import convert_session_options
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 
 LEVELS = {
@@ -103,6 +104,7 @@ parser.add_argument("-fp", "--fast_program", action="store_true",
                     help="Use only the CRC of each page to determine if it already has the same data.")
 parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
 parser.add_argument("--mass-erase", action="store_true", help="Mass erase the target device.")
+parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
 
 # Notes
 # -Currently "--unlock" does nothing since kinetis parts will automatically get unlocked
@@ -137,7 +139,8 @@ def main():
                             board_id=args.board_id,
                             target_override=args.target_override,
                             frequency=args.frequency,
-                            blocking=False)
+                            blocking=False,
+                            **convert_session_options(args.option))
         if session is None:
             print("Error: There is no debug probe connected.")
             sys.exit(1)
