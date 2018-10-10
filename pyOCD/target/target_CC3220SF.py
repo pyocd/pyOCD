@@ -147,6 +147,6 @@ class CortexM_CC3220SF(CortexM):
             try:
                 self.writeMemory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_VECTRESET)
                 # Without a flush a transfer error can occur
-                self.dp.flush()
+                self.flush()
             except exceptions.TransferError:
-                self.dp.flush()
+                self.flush()
