@@ -25,10 +25,11 @@ setup(
     },
     setup_requires=[
         'setuptools_scm!=1.5.3,!=1.5.4',
-        'setuptools_scm_git_archive'
-    ],
-    description="CMSIS-DAP debugger for Python",
-    long_description=open('README.rst', 'r').read(),
+        'setuptools_scm_git_archive',
+        ],
+    description="Cortex-M debugger for Python",
+    long_description=open('README.md', 'r').read(),
+    long_description_content_type='text/markdown',
     author="Chris Reed, Martin Kojtal, Russ Butler",
     author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
     url='https://github.com/mbedmicro/pyOCD',
@@ -55,6 +56,8 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Topic :: Software Development :: Debuggers",
+        "Topic :: Software Development :: Embedded Systems",
     ],
     extras_require={
         'dissassembler': ['capstone']
