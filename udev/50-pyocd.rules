@@ -1,0 +1,20 @@
+# 0d28:0204 DAPLink
+SUBSYSTEM=="usb", ATTR{idVendor}=="0d28", ATTR{idProduct}=="0204", MODE:="666"
+
+# 0483:3748 STLinkV2
+# 0483:374b STLinkV2-1
+# 0483:374a STLinkV2-1 Audio
+# 0483:3742 STLinkV2-1 No MSD
+# 0483:374e STLinkV3
+# 0483:374f STLinkV3 Bridge
+# 0483:3753 STLinkV3 2VCP
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3748", MODE:="666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374b", MODE:="666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374a", MODE:="666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3742", MODE:="666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374e", MODE:="666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374f", MODE:="666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3753", MODE:="666"
+
+
+
