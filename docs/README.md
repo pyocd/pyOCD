@@ -11,17 +11,12 @@
 
 ### Developer documentation
 
-- [Architecture overview](ARCHITECTURE.md)
 - [Developers’ guide](DEVELOPERS_GUIDE.md)
+- [Architecture overview](ARCHITECTURE.md)
+- [How to add new targets](ADDING_NEW_TARGETS.md)
 - [Building a standalone gdb server executable](HOW_TO_BUILD.md)
-
-Automated tests:
-
 - [Running the automated tests](AUTOMATED_TESTS.md)
 
-How to add new board support:
-
-- [Adding a new board](ADDING_NEW_DEVICES.md)
 
 
 
