@@ -186,6 +186,11 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         if commonLogFile:
             print_board_header(commonLogFile, board, n, includeLeadingNewline=(n != 0))
         print_board_header(originalStdout, board, n, logToConsole, includeLeadingNewline=(n != 0))
+        
+        # Skip this board if we don't have a test binary.
+        if board.test_binary is None:
+            print("Skipping board %s due to missing test binary" % board.unique_id)
+            return result_list
 
         # Run all tests on this board.
         for test in test_list:

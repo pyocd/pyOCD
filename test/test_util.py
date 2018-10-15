@@ -56,7 +56,10 @@ class RecordingLogHandler(logging.Handler):
     
     def emit(self, record):
         try:
-            self.stream.write(six.u(self.format(record) + "\n"))
+            message = self.format(record)
+            if isPy2 and isinstance(message, unicode):
+                message = message.encode('UTF-8')
+            self.stream.write(six.u(message + "\n"))
         except:
             self.handleError(record)
 
