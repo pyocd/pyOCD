@@ -5,6 +5,7 @@
 
 ### User documentation
 
+- [Session options](SESSION_OPTIONS.md)
 - [Debugging multicore devices](MULTICORE_DEBUG.md)
 - [Introduction to pyOCD API](PYTHON_API.md)
 - [Python API Examples](API_EXAMPLES.md)

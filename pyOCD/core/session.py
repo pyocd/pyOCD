@@ -46,6 +46,7 @@ log = logging.getLogger('session')
 # - halt_on_connect
 # - auto_unlock
 # - resume_on_disconnect
+# - board_config_file
 class Session(object):
 
     ## @brief Session constructor.
