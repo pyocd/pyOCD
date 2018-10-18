@@ -17,7 +17,7 @@ contribution. Before creating the pull request, please ensure that all tests pas
 tests on a wide range of boards for every pull request using our CI setup. Changes must pass on
 all tested boards before the the pull request can be merged.
 
-The [Developers' Guide](docs/DEVELOPERS_GUIDE.md) describes how to create your development environment.
-The [Automated Tests guide](docs/AUTOMATED_TEST.md) provides information about the available types
+The [developers' guide](docs/DEVELOPERS_GUIDE.md) describes how to create your development environment.
+The [automated tests guide](docs/AUTOMATED_TESTS.md) provides information about the available types
 of tests and describes how to run the tests.
 

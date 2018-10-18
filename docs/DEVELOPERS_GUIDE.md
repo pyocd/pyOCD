@@ -9,9 +9,9 @@ dependencies for the current platform by following the detailed steps below.
 ## Setup
 Install the necessary tools listed below. Skip any step where a compatible tool already exists.
 
-* Install [Python 2.7.9 or above](https://www.python.org/downloads/). Add to PATH.
-* Install [Git](https://git-scm.com/downloads). Add to PATH.
-* Install [virtualenv](https://virtualenv.pypa.io/en/latest/) in your global Python installation, eg: `pip install virtualenv`
+* [Install Python](https://www.python.org/downloads/). Version 3.6.0 or above is preferred, while version 2.7.9 or above is also supported. Add to PATH.
+* [Install Git](https://git-scm.com/downloads). Add to PATH.
+* [Install virtualenv](https://virtualenv.pypa.io/en/latest/) in your global Python installation, eg: `pip install virtualenv`
 
 ## Steps
 
@@ -49,7 +49,7 @@ $ pip install -r dev-requirements.txt
 
 **Step 3.** Develop
 
-See the [porting guide](ADDING_NEW_DEVICES.md) for how to add new devices. Of course, we welcome
+See the [porting guide](ADDING_NEW_TARGETS.md) for how to add new devices. Of course, we welcome
 all improvements and changes. See the [contributor statement](../CONTRIBUTING.md) for some guidelines.
 
 **Step 4.** Test
@@ -64,7 +64,7 @@ To get code coverage results, do the following:
 
 ```
 $ pytest --cov-report=html --cov=pyOCD
-$ firefox htmlcov/index.html
+$ open htmlcov/index.html
 ```
 
 The automated test suite also needs to be run:
