@@ -298,7 +298,7 @@ class FreeRTOSThread(TargetThread):
 
     @property
     def is_current(self):
-        return self._provider.get_actual_current_thread_id() == self.unique_id
+        return self._provider.get_current_thread_id() == self.unique_id
 
     @property
     def context(self):
@@ -491,13 +491,6 @@ class FreeRTOSThreadProvider(ThreadProvider):
         return threadId in self._threads
 
     def get_current_thread_id(self):
-        if not self.is_enabled:
-            return None
-        if self._target_context.read_core_register('ipsr') > 0:
-            return HandlerModeThread.UNIQUE_ID
-        return self.get_actual_current_thread_id()
-
-    def get_actual_current_thread_id(self):
         if not self.is_enabled:
             return None
         return self._target_context.read32(self._symbols['pxCurrentTCB'])

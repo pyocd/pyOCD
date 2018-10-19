@@ -209,6 +209,12 @@ class CortexM(Target, CoreSightComponent):
     # Thumb bit in XPSR.
     XPSR_THUMB = 0x01000000
 
+    # Exception Return Payload
+    EXC_RETURN_PREFIX_MASK = 0xF0000000
+    EXC_RETURN_PREFIX = 0xF0000000
+    EXC_RETURN_MODE = (1 << 3)
+    EXC_RETURN_SPSEL = (1 << 2)
+
     # Control Register
     CONTROL_FPCA = (1 << 2)
     CONTROL_SPSEL = (1 << 1)
@@ -1303,3 +1309,8 @@ class CortexM(Target, CoreSightComponent):
     def in_thread_mode_on_main_stack(self):
         return (self._target_context.read_core_register('ipsr') == 0 and
                 (self._target_context.read_core_register('control') & CortexM.CONTROL_SPSEL) == 0)
+
+    def lr_indicates_exception_from_process(self):
+        lr = self._target_context.read_core_register('lr')
+        return (lr & (CortexM.EXC_RETURN_PREFIX_MASK|CortexM.EXC_RETURN_MODE|CortexM.EXC_RETURN_SPSEL)) \
+                  == (CortexM.EXC_RETURN_PREFIX|CortexM.EXC_RETURN_MODE|CortexM.EXC_RETURN_SPSEL)
