@@ -105,4 +105,6 @@ OPTIONS_INFO = {
         "Base TCP port number for the semihosting telnet server."),
     'vector_catch': OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
+    'vector_catch_show_origin': OptionInfo('vector_catch_show_origin', bool, True,
+        "Whether to show origin of vector catches."),
     }

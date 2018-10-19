@@ -30,6 +30,7 @@ from ..debug.cache import MemoryAccessError
 from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
+from ..rtos.common import HandlerModeThread
 from . import signals
 import logging, threading, socket
 from struct import unpack
@@ -288,6 +289,7 @@ class GDBServer(threading.Thread):
             self.telnet_port += self.core
         self.vector_catch = session.options.get('vector_catch')
         self.target.set_vector_catch(convert_vector_catch(self.vector_catch))
+        self.vector_catch_show_origin = session.options.get('vector_catch_show_origin')
         self.step_into_interrupt = session.options.get('step_into_interrupt')
         self.persist = session.options.get('persist')
         self.enable_semihosting = session.options.get('enable_semihosting')
@@ -637,7 +639,7 @@ class GDBServer(threading.Thread):
                 self.target_facade.set_context(self.target_context)
             else:
                 if thread_id == 0:
-                    thread = self.thread_provider.current_thread
+                    thread = self.current_provider_thread_or_handler()
                     thread_id = thread.unique_id
                 else:
                     thread = self.thread_provider.get_thread(thread_id)
@@ -662,9 +664,30 @@ class GDBServer(threading.Thread):
             self.validate_debug_context()
             return self.create_rsp_packet(b'E00')
 
+    # Thread provider is assumed to give us its current Process thread
+    # as current, and to have the Handler Mode thread in its thread list
+    # whenever relevant. We decide when to mark the Handler Mode thread
+    # as current, paying attention to vector_catch_show_origin.
+    def handler_mode_should_be_current(self):
+        return self.target_context.read_core_register('ipsr') > 0 and \
+                not (self.vector_catch_show_origin and self.target_context.core.is_vector_catch() and \
+                     self.target_context.core.lr_indicates_exception_from_process())
+
+    def current_provider_thread_id_or_handler_id(self):
+        if self.handler_mode_should_be_current():
+            return HandlerModeThread.UNIQUE_ID
+        else:
+            return self.thread_provider.get_current_thread_id()
+
+    def current_provider_thread_or_handler(self):
+        if self.handler_mode_should_be_current():
+            return self.thread_provider.get_thread(HandlerModeThread.UNIQUE_ID)
+        else:
+            return self.thread_provider.current_thread
+
     def validate_debug_context(self):
         if self.is_threading_enabled():
-            currentThread = self.thread_provider.current_thread
+            currentThread = self.current_provider_thread_or_handler()
             if self.current_thread_id != currentThread.unique_id:
                 self.target_facade.set_context(currentThread.context)
                 self.current_thread_id = currentThread.unique_id
@@ -793,7 +816,7 @@ class GDBServer(threading.Thread):
             threads = self.thread_provider.get_threads()
             for k in threads:
                 thread_actions[k.unique_id] = None
-            currentThread = self.thread_provider.get_current_thread_id()
+            currentThread = self.current_provider_thread_id_or_handler_id()
         else:
             thread_actions = { 1 : None } # our only thread
             currentThread = 1
@@ -1284,7 +1307,7 @@ class GDBServer(threading.Thread):
             response += b"thread:1;"
         else:
             if self.current_thread_id in (-1, 0, 1):
-                response += ("thread:%x;" % self.thread_provider.current_thread.unique_id).encode()
+                response += ("thread:%x;" % self.current_provider_thread_or_handler().unique_id).encode()
             else:
                 response += ("thread:%x;" % self.current_thread_id).encode()
 
@@ -1318,7 +1341,7 @@ class GDBServer(threading.Thread):
 
     def is_threading_enabled(self):
         return (self.thread_provider is not None) and self.thread_provider.is_enabled \
-            and (self.thread_provider.current_thread is not None)
+            and (self.current_provider_thread_or_handler() is not None)
 
     def is_target_in_reset(self):
         return self.target.get_state() == Target.TARGET_RESET
