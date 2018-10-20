@@ -25,9 +25,8 @@ import argparse
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.probe.pyDAPAccess import DAPAccess
+from pyocd.core.helpers import ConnectHelper
+from pyocd.probe.pydapaccess import DAPAccess
 from test_util import (Test, TestResult, get_session_options)
 import logging
 
@@ -88,10 +87,10 @@ def speed_test(board_id):
             # Override clock since 10MHz is too fast
             test_clock = 1000000
 
-        memory_map = board.target.getMemoryMap()
+        memory_map = board.target.get_memory_map()
         ram_regions = [region for region in memory_map if region.type == 'ram']
         ram_region = ram_regions[0]
-        rom_region = memory_map.getBootMemory()
+        rom_region = memory_map.get_boot_memory()
 
         ram_start = ram_region.start
         ram_size = ram_region.length
@@ -111,14 +110,14 @@ def speed_test(board_id):
         test_size = ram_size
         data = [randrange(1, 50) for x in range(test_size)]
         start = time()
-        target.writeBlockMemoryUnaligned8(test_addr, data)
+        target.write_memory_block8(test_addr, data)
         target.flush()
         stop = time()
         diff = stop - start
         result.write_speed = test_size / diff
         print("Writing %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, result.write_speed))
         start = time()
-        block = target.readBlockMemoryUnaligned8(test_addr, test_size)
+        block = target.read_memory_block8(test_addr, test_size)
         target.flush()
         stop = time()
         diff = stop - start
@@ -140,7 +139,7 @@ def speed_test(board_id):
         test_addr = rom_start
         test_size = rom_size
         start = time()
-        block = target.readBlockMemoryUnaligned8(test_addr, test_size)
+        block = target.read_memory_block8(test_addr, test_size)
         target.flush()
         stop = time()
         diff = stop - start

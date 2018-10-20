@@ -33,9 +33,9 @@ import logging
 import traceback
 import tempfile
 
-from pyOCD.tools.gdb_server import GDBServerTool
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.utility.py3_helpers import to_str_safe
+from pyocd.tools.gdb_server import GDBServerTool
+from pyocd.core.helpers import ConnectHelper
+from pyocd.utility.py3_helpers import to_str_safe
 from test_util import (Test, TestResult, get_session_options)
 
 # TODO, c1728p9 - run script several times with
@@ -89,10 +89,10 @@ def test_gdb(board_id=None, n=0):
     result = GdbTestResult()
     with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
-        memory_map = board.target.getMemoryMap()
+        memory_map = board.target.get_memory_map()
         ram_regions = [region for region in memory_map if region.type == 'ram']
         ram_region = ram_regions[0]
-        rom_region = memory_map.getBootMemory()
+        rom_region = memory_map.get_boot_memory()
         target_type = board.target_type
         binary_file = os.path.join(parentdir, 'binaries',
                                    board.test_binary)
@@ -115,7 +115,7 @@ def test_gdb(board_id=None, n=0):
             test_clock = 1000000
 
         # Program with initial test image
-        board.flash.flashBinary(binary_file, rom_region.start)
+        board.flash.flash_binary(binary_file, rom_region.start)
 
     # Generate an elf from the binary test file.
     temp_test_elf_name = tempfile.mktemp('.elf')

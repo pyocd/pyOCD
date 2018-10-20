@@ -24,8 +24,7 @@ import math
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD.core.helpers import ConnectHelper
+from pyocd.core.helpers import ConnectHelper
 import logging
 from test_util import get_session_options
 
@@ -37,7 +36,7 @@ for i in range(0, 10):
         board = session.board
         # Erase and then reset - This locks Kinetis devices
         board.flash.init()
-        board.flash.eraseAll()
+        board.flash.erase_all()
         board.target.reset()
 
 print("\n\n------ Testing Attaching to board ------")
@@ -53,13 +52,13 @@ print("\n\n------ Flashing new code ------")
 with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
     board = session.board
     binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
-    board.flash.flashBinary(binary_file)
+    board.flash.flash_binary(binary_file)
 
 print("\n\n------ Testing Attaching to regular board ------")
 for i in range(0, 10):
     with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
-        board.target.resetStopOnReset()
+        board.target.reset_stop_on_reset()
         board.target.halt()
         sleep(0.2)
         board.target.resume()
