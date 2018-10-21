@@ -191,6 +191,15 @@ class ZephyrThread(TargetThread):
         try:
             self._priority = self._target_context.read8(self._base + self._offsets["t_prio"])
             self._state = self._target_context.read8(self._base + self._offsets["t_state"])
+
+            if self._provider.version > 0:
+                addr = self._target_context.read32(self._base + self._offsets["t_name"])
+                if addr != 0:
+                    self._name = read_c_string(self._target_context, addr)
+                else:
+                    self._name = "Unnamed"
+
+
         except exceptions.TransferError:
             log.debug("Transfer error while reading thread info")
 
@@ -252,12 +261,14 @@ class ZephyrThreadProvider(ThreadProvider):
         't_user_options',
         't_prio',
         't_stack_ptr',
+        't_name',
     ]
 
     def __init__(self, target):
         super(ZephyrThreadProvider, self).__init__(target)
         self._symbols = None
         self._offsets = None
+        self._version = None
         self._all_threads = None
         self._curr_thread = None
         self._threads = {}
@@ -294,13 +305,15 @@ class ZephyrThreadProvider(ThreadProvider):
         self._offsets = self._get_offsets()
 
         if self._offsets is None:
+            self._version = None
             self._all_threads = None
             self._curr_thread = None
             log.debug("_offsets, _all_threads, and _curr_thread are invalid")
         else:
+            self._version = self._offsets["version"]
             self._all_threads = self._symbols["_kernel"] + self._offsets["k_threads"]
             self._curr_thread = self._symbols["_kernel"] + self._offsets["k_curr_thread"]
-            log.debug("_all_threads = 0x%08x, _curr_thread = 0x%08x", self._all_threads, self._curr_thread)
+            log.debug("version = %d, _all_threads = 0x%08x, _curr_thread = 0x%08x", self._version, self._all_threads, self._curr_thread)
 
     def invalidate(self):
         self._threads = {}
@@ -398,3 +411,7 @@ class ZephyrThreadProvider(ThreadProvider):
             return False
         # TODO
         return True
+
+    @property
+    def version(self):
+        return self._version
