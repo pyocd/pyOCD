@@ -4,7 +4,8 @@ Architecture
 ## Object graph
 
 The diagram below shows the most interesting parts of the pyOCD object graph, i.e. those parts
-that a user of the Python API will interact with.
+that a user of the Python API will interact with. The connections in the diagram represent
+composition, not inheritance.
 
 ```
           Session
@@ -22,7 +23,7 @@ that a user of the Python API will interact with.
          MemoryMap  AccessPort[]
 ```
 
-The root of the object graph is a `Session` object. This object holds references to the debug
+The root of the runtime object graph is a `Session` object. This object holds references to the debug
 probe and the board. It is also responsible for managing per-session user options that control
 various features and settings.
 
@@ -32,3 +33,26 @@ and a `CortexM` object for each CPU core on the device. Both `CoreSightTarget` a
 subclasses of the abstract `Target` class, which is referenced below, and share most of the same
 APIs.
 
+## Targets and boards
+
+Target and board support are two separate but related pieces of functionality.
+
+#### Target support
+
+Each supported target enables debugging and flash programming a given MCU. A single target can be
+used for potentially multiple boards, or there may not be board with the target. Users can
+override the target type on the command line or when creating the `Session`.
+
+Each supported target is defined as a `CoreSightTarget` subclass held in a Python file in the
+`pyOCD/target` directory. If the target has internal or connected flash, then a `Flash` subclass
+will be paired with it in the same source file. Some device families have family subclasses under
+`pyOCD/target/family`.
+
+#### Board information
+
+pyOCD can automatically identify a board and its target type using the board information.
+The board information is stored in the `BOARD_ID_TO_INFO` dictionary in `pyOCD/board/board_ids.py`.
+This dictionary maps a 4-character board ID to a board name, target type, and test firmware binary.
+The board ID is generally the same as the board's Mbed platform ID, though non-Mbed boards that use
+[Arm DAPLink](https://github.com/ARMmbed/DAPLink) firmware also have board IDs allocated from
+the same namespace.

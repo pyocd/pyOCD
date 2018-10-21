@@ -2,9 +2,9 @@ Introduction to pyOCD API
 =========================
 
 Using pyOCD's Python API, you have extreme flexibility and precise control, and can do anything
-SWD allows, at the expense of more complexity. Using pyOCD like this is particularly useful
-for situations where other debuggers become ineffective, such as device and board bringup, or
-automated testing.
+SWD allows, at the expense of more complexity compared to `pyocd-tool`. Using pyOCD like this is
+particularly useful for situations where other debuggers become ineffective, such as device and
+board bringup, or automated testing.
 
 This document assumes familiarity with the Arm CoreSight debug architecture.
 
@@ -72,7 +72,7 @@ useful for multicore devices or Cortex-A class devices.
 
 Example showing access of the proprietary MDM-AP of NXP Kinetis MCUs:
 ```py
-mdm_ap = session.board.dp.aps[1]
+mdm_ap = session.board.target.dp.aps[1]
 idr = mdm_ap.read_reg(0xfc) # Read IDR.
 mdm_ap.write_reg(0x4, 0x1)
 ```
@@ -112,7 +112,7 @@ dp.assert_reset(False)
 
 ## Notes
 
-Kinetis targets will normally automatically perform a mass erase upon connect if flash security is
+NXP Kinetis targets will normally automatically perform a mass erase upon connect if flash security is
 enabled. This can be disabled, but requires slightly different connect code.
 
 You are encouraged to look through the code to see what additional functionality is available. The
