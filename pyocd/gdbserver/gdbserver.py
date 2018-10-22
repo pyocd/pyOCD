@@ -253,7 +253,7 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, board, port_urlWSS, options={}, core=None):
+    def __init__(self, board, port_urlWSS, options={}, core=None, report_core=False):
         threading.Thread.__init__(self)
         self.board = board
         if core is None:
@@ -262,6 +262,7 @@ class GDBServer(threading.Thread):
         else:
             self.core = core
             self.target = board.target.cores[core]
+        self.report_core = report_core
         self.log = logging.getLogger('gdbserver')
         self.flash = board.flash
         self.abstract_socket = None
@@ -1267,14 +1268,18 @@ class GDBServer(threading.Thread):
         self.validate_debug_context()
         response = self.target_facade.get_t_response(forceSignal)
 
-        # Append thread and core
+        # Append thread
         if not self.is_threading_enabled():
-            response += b"thread:1;core:0;"
+            response += b"thread:1;"
         else:
             if self.current_thread_id in (-1, 0, 1):
-                response += ("thread:%x;core:0;" % self.thread_provider.current_thread.unique_id).encode()
+                response += ("thread:%x;" % self.thread_provider.current_thread.unique_id).encode()
             else:
-                response += ("thread:%x;core:0;" % self.current_thread_id).encode()
+                response += ("thread:%x;" % self.current_thread_id).encode()
+
+        # Optionally append core
+        if self.report_core:
+            response += ("core:%x;" % self.core).encode()
         self.log.debug("Tresponse=%s", response)
         return response
 
@@ -1282,7 +1287,9 @@ class GDBServer(threading.Thread):
         root = Element('threads')
 
         if not self.is_threading_enabled():
-            t = SubElement(root, 'thread', id="1", core=str(self.core))
+            t = SubElement(root, 'thread', id="1")
+            if self.report_core:
+                t.set("core", str(self.core))
             if self.is_target_in_reset():
                 t.text = "Reset"
             else:
@@ -1291,14 +1298,10 @@ class GDBServer(threading.Thread):
             threads = self.thread_provider.get_threads()
             for thread in threads:
                 hexId = "%x" % thread.unique_id
-                t = SubElement(root, 'thread', id=hexId, core="0", name=thread.name, handle=hexId)
-
-                desc = thread.description
-                if desc:
-                    desc = thread.name + "; " + desc
-                else:
-                    desc = thread.name
-                t.text = desc
+                t = SubElement(root, 'thread', id=hexId, name=thread.name)
+                if self.report_core:
+                    t.set("core", str(self.core))
+                t.text = thread.description
 
         return b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
 

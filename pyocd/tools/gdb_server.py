@@ -301,9 +301,10 @@ class GDBServerTool(object):
                         if self.args.elf:
                             session.board.target.elf = self.args.elf
                         baseTelnetPort = self.gdb_server_settings['telnet_port']
+                        report_core = session.options.get('report_core_number', False)
                         for core_number, core in session.board.target.cores.items():
                             self.gdb_server_settings['telnet_port'] = baseTelnetPort + core_number
-                            gdb = GDBServer(session.board, self.args.port_number + core_number, self.gdb_server_settings, core=core_number)
+                            gdb = GDBServer(session.board, self.args.port_number + core_number, self.gdb_server_settings, core=core_number, report_core=report_core)
                             gdbs.append(gdb)
                         gdb = gdbs[0]
                         while gdb.isAlive():

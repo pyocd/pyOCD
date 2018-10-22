@@ -22,6 +22,8 @@ be set with the `-Ooption=value` argument.
     ````
 - `frequency`: (int) SWD/JTAG frequency in Hertz. Default is 1 MHz.
 - `halt_on_connect`: (bool) Whether to halt the target immediately upon connecting. Default is True.
+- `report_core_number`: (bool) Whether gdb server should report core number as part of the
+    per-thread information. Default is False.
 - `resume_on_disconnect`: (bool) Whether to resume a halted target when disconnecting. Default is True.
 - `target_override`: (str) Target type name to use instead of default board target or default `cortex_m`.
 - `test_binary`: (str) Specify the test binary file name. The binary must be in the `binaries/`
