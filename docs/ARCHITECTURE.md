@@ -44,14 +44,14 @@ used for potentially multiple boards, or there may not be board with the target.
 override the target type on the command line or when creating the `Session`.
 
 Each supported target is defined as a `CoreSightTarget` subclass held in a Python file in the
-`pyOCD/target` directory. If the target has internal or connected flash, then a `Flash` subclass
+`pyocd/target` directory. If the target has internal or connected flash, then a `Flash` subclass
 will be paired with it in the same source file. Some device families have family subclasses under
-`pyOCD/target/family`.
+`pyocd/target/family`.
 
 #### Board information
 
 pyOCD can automatically identify a board and its target type using the board information.
-The board information is stored in the `BOARD_ID_TO_INFO` dictionary in `pyOCD/board/board_ids.py`.
+The board information is stored in the `BOARD_ID_TO_INFO` dictionary in `pyocd/board/board_ids.py`.
 This dictionary maps a 4-character board ID to a board name, target type, and test firmware binary.
 The board ID is generally the same as the board's Mbed platform ID, though non-Mbed boards that use
 [Arm DAPLink](https://github.com/ARMmbed/DAPLink) firmware also have board IDs allocated from

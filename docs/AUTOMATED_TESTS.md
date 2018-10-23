@@ -11,7 +11,7 @@ at least one probe to be connected.
 
 ## Unit tests
 
-The unit tests are located in the `pyOCD/tests/` directory of the repo. They must be executed using
+The unit tests are located in the `pyocd/tests/` directory of the repo. They must be executed using
 pytest, as they rely on the advanced capabilities of this tool.
 
 To run the unit tests, simply invoke `pytest` in the root directory of the repo. Read the pytest
@@ -20,7 +20,7 @@ usage to see the many options it provides.
 To get code coverage results, do the following:
 
 ```
-$ pytest --cov-report=html --cov=pyOCD
+$ pytest --cov-report=html --cov=pyocd
 $ firefox htmlcov/index.html
 ```
 

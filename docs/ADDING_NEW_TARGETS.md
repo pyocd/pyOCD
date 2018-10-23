@@ -7,7 +7,7 @@ For background information, review the [architecture overview](ARCHITECTURE.md) 
 
 ### Steps to add a new target
 
-1. Create a new `CoreSightTarget` subclass and `Flash` subclass in a file under `pyOCD/target/`. You can copy one of the existing target files like `pyOCD/target/target_ncs36510.py` and rename the classes.
+1. Create a new `CoreSightTarget` subclass and `Flash` subclass in a file under `pyocd/target/`. You can copy one of the existing target files like `pyocd/target/target_ncs36510.py` and rename the classes.
 
     The target source file name must follow
     the pattern "target\_\<device>.py", where "\<device>" is the device's `Dname` or `Dvariant` part
@@ -51,7 +51,7 @@ For background information, review the [architecture overview](ARCHITECTURE.md) 
         `analyzer_supported` key to True and the `analyzer_address` to the start address for an
         unused range of (1224 + 4 * number-of-flash-pages) bytes of RAM.
 
-4. Edit `pyOCD/target/__init__.py` to import your target source file and add your new target and
+4. Edit `pyocd/target/__init__.py` to import your target source file and add your new target and
     flash classes to the `TARGET` and `FLASH` dicts.
 
 Now your new target is available for use via the `--target` command line option!
@@ -73,7 +73,7 @@ Follow these steps:
 
 1. Identify the 4-character board ID.
 
-2. Insert a row into the `BOARD_ID_TO_INFO` table in `pyOCD/board/board_ids.py` with the board ID,
+2. Insert a row into the `BOARD_ID_TO_INFO` table in `pyocd/board/board_ids.py` with the board ID,
     board name, target type, and test binary file name.
 
     The new row should look similar to this:
