@@ -283,11 +283,9 @@ class CoreSightTarget(Target):
     @property
     def irq_table(self):
         if self._irq_table is None:
-            self._irq_table = cortex_m.CORE_EXCEPTIONS.copy()
             if self.svd_device is not None:
-                allIrqs = {i.value + 16 : i.name for i in 
+                self._irq_table = {i.value : i.name for i in
                     [i for p in self.svd_device.peripherals for i in p.interrupts]}
-                self._irq_table.update(allIrqs)
         return self._irq_table
         
         

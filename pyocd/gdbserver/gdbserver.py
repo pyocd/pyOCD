@@ -1286,7 +1286,7 @@ class GDBServer(threading.Thread):
             if self.is_target_in_reset():
                 t.text = "Reset"
             else:
-                t.text = "Thread mode"
+                t.text = self.exception_name()
         else:
             threads = self.thread_provider.get_threads()
             for thread in threads:
@@ -1308,6 +1308,13 @@ class GDBServer(threading.Thread):
 
     def is_target_in_reset(self):
         return self.target.get_state() == Target.TARGET_RESET
+
+    def exception_name(self):
+        try:
+            ipsr = self.target_context.read_core_register('ipsr')
+            return self.target_context.core.exception_number_to_name(ipsr)
+        except:
+            return None
 
     def event_handler(self, notification):
         if notification.event == Target.EVENT_POST_RESET:
