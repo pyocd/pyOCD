@@ -192,7 +192,7 @@ class RTXThreadContext(DebugContext):
         return reg_vals
 
     def _get_ipsr(self):
-        return self._parent.read_core_register('xpsr') & 0xff
+        return self._parent.read_core_register('xpsr') & 0x1ff
 
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
