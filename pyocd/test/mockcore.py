@@ -17,7 +17,7 @@
 
 from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
-from pyocd.coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from pyocd.coresight.cortex_m import (CORE_REGISTER, register_name_to_index, sysm_to_psr_mask)
 from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
@@ -58,6 +58,9 @@ class MockCore(object):
             if (r < 0) and (r >= -4):
                 v = self.regs[CORE_REGISTER['cfbp']]
                 v = (v >> ((-r - 1) * 8)) & 0xff
+            elif (r >= 0x10000) and (r <= 0x10007):
+                v = self.regs[CORE_REGISTER['xpsr']]
+                v &= sysm_to_psr_mask(r)
             else:
                 if r not in self.regs:
                     self.regs[r] = 0
@@ -75,6 +78,10 @@ class MockCore(object):
                 mask = 0xffffffff ^ (0xff << shift)
                 data = (self.regs[CORE_REGISTER['cfbp']] & mask) | ((v & 0xff) << shift)
                 self.regs[CORE_REGISTER['cfbp']] = data
+            elif (r >= 0x10000) and (r <= 0x10007):
+                mask = sysm_to_psr_mask(r)
+                data = (self.regs[CORE_REGISTER['xpsr']] & (0xffffffff ^ mask)) | (v & mask)
+                self.regs[CORE_REGISTER['xpsr']] = data
             else:
                 self.regs[r] = v
 

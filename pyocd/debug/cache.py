@@ -16,7 +16,7 @@
 """
 
 from .context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register, sysm_to_psr_mask)
 from ..utility import conversion
 from intervaltree import (Interval, IntervalTree)
 import logging
@@ -59,6 +59,8 @@ class CacheMetrics(object):
 # registers, or the combined CFBP, the cache will ask the underlying context to read CFBP. It will
 # then update the cache entries for all five registers. Writes to any of these registers just
 # invalidate all five.
+#
+# Same logic applies for XPSR submasks.
 class RegisterCache(object):
 
     CFBP_REGS = [   CORE_REGISTER['cfbp'],
@@ -66,6 +68,15 @@ class RegisterCache(object):
                     CORE_REGISTER['faultmask'],
                     CORE_REGISTER['basepri'],
                     CORE_REGISTER['primask'],
+                    ]
+
+    XPSR_REGS = [   CORE_REGISTER['xpsr'],
+                    CORE_REGISTER['apsr'],
+                    CORE_REGISTER['iapsr'],
+                    CORE_REGISTER['eapsr'],
+                    CORE_REGISTER['ipsr'],
+                    CORE_REGISTER['epsr'],
+                    CORE_REGISTER['iepsr'],
                     ]
 
     def __init__(self, parentContext):
@@ -102,7 +113,7 @@ class RegisterCache(object):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 0x40) or (reg == 33)) and (not self._context.core.has_fpu):
+            elif (is_float_register(reg) or (reg == 33)) and (not self._context.core.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         return reg_list
@@ -120,10 +131,15 @@ class RegisterCache(object):
         # Read uncached registers from the target.
         read_list = list(reg_set.difference(cached_set))
         reading_cfbp = any(r for r in read_list if r in self.CFBP_REGS)
+        reading_xpsr = any(r for r in read_list if r in self.XPSR_REGS)
         if reading_cfbp:
             if not CORE_REGISTER['cfbp'] in read_list:
                 read_list.append(CORE_REGISTER['cfbp'])
             cfbp_index = read_list.index(CORE_REGISTER['cfbp'])
+        if reading_xpsr:
+            if not CORE_REGISTER['xpsr'] in read_list:
+                read_list.append(CORE_REGISTER['xpsr'])
+            xpsr_index = read_list.index(CORE_REGISTER['xpsr'])
         self._metrics.misses += len(read_list)
         values = self._context.read_core_registers_raw(read_list)
 
@@ -135,6 +151,15 @@ class RegisterCache(object):
                 if r == CORE_REGISTER['cfbp']:
                     continue
                 self._cache[r] = (v >> ((-r - 1) * 8)) & 0xff
+
+        # Update all XPSR based registers.
+        if reading_xpsr:
+            v = values[xpsr_index]
+            self._cache[CORE_REGISTER['xpsr']] = v
+            for r in self.XPSR_REGS:
+                if r == CORE_REGISTER['xpsr']:
+                    continue
+                self._cache[r] = v & sysm_to_psr_mask(r)
 
         # Build the results list in the same order as requested registers.
         results = []
@@ -157,19 +182,21 @@ class RegisterCache(object):
         self._metrics.writes += len(reg_list)
 
         writing_cfbp = any(r for r in reg_list if r in self.CFBP_REGS)
+        writing_xpsr = any(r for r in reg_list if r in self.XPSR_REGS)
 
         # Update cached register values.
         for i, r in enumerate(reg_list):
             v = data_list[i]
             self._cache[r] = v
 
-        # Just remove all cached CFBP based register values.
+        # Just remove all cached CFBP and XPSR based register values.
         if writing_cfbp:
             for r in self.CFBP_REGS:
-                try:
-                    del self._cache[r]
-                except KeyError:
-                    pass
+                self._cache.pop(r, None)
+
+        if writing_xpsr:
+            for r in self.XPSR_REGS:
+                self._cache.pop(r, None)
 
         # Write new register values to target.
         self._context.write_core_registers_raw(reg_list, data_list)

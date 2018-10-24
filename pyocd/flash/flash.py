@@ -381,7 +381,7 @@ class Flash(object):
             expected_flash_algo = self.flash_algo['instructions']
             if self.use_analyzer:
                 expected_analyzer = analyzer
-            final_ipsr = self.target.read_core_register('xpsr') & 0x1ff
+            final_ipsr = self.target.read_core_register('ipsr')
             final_fp = self.target.read_core_register('r9')
             final_sp = self.target.read_core_register('sp')
             final_pc = self.target.read_core_register('pc')

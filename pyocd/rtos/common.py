@@ -89,7 +89,7 @@ class HandlerModeThread(TargetThread):
 
     @property
     def is_current(self):
-        return self._provider.get_ipsr() > 0
+        return self._target_context.read_core_register('ipsr') > 0
 
     @property
     def context(self):
