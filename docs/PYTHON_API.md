@@ -15,7 +15,7 @@ they are connected.
 
 pyOCD provides a handful of helper routines that make it very easy to enumerate and connect to
 available debug probes. These routines are all available as static methods on the `ConnectHelper`
-class in `pyOCD.core.helpers`.
+class in `pyocd.core.helpers`.
 
 `ConnectHelper.session_with_chosen_probe()` is the primary connection helper. This method returns
 a single `Session` object, or None. If only a single probe is available, a new session for that
@@ -33,7 +33,7 @@ The two methods may be combined.
 
 ## DP access
 
-The DP is controlled through an instance of the `DebugPort` class (in `pyOCD.coresight.dap`). You
+The DP is controlled through an instance of the `DebugPort` class (in `pyocd.coresight.dap`). You
 get the `DebugPort` object via the 'dp' attribute of the target instance, i.e., `session.board.target.dp`.
 
 The `DebugPort` class has `read_reg(addr)` and `write_reg(addr, data)` methods. 'addr' must be an
@@ -53,7 +53,7 @@ selected.
 
 ## AP access
 
-CoreSight APs are represented with `AccessPort` classes defined in `pyOCD.coresight.ap`. These include
+CoreSight APs are represented with `AccessPort` classes defined in `pyocd.coresight.ap`. These include
 the `MEM_AP` subclass and `AHB_AP` subclass of that.
 
 To get the AP objects you can use the 'aps' attribute of the `DebugPort`. This attribute is a dict
@@ -118,10 +118,10 @@ enabled. This can be disabled, but requires slightly different connect code.
 You are encouraged to look through the code to see what additional functionality is available. The
 most interesting places to look at are:
 
-- `pyOCD.core.target`: defines Target class, which is the main API.
-- `pyOCD.coresight.cortex_m`: CortexM class to control a core, implements Target API and adds
+- `pyocd.core.target`: defines Target class, which is the main API.
+- `pyocd.coresight.cortex_m`: CortexM class to control a core, implements Target API and adds
 some stuff.
-- `pyOCD.flash.flash`: flash programming API in the `Flash` class, accessible from the 'flash'
+- `pyocd.flash.flash`: flash programming API in the `Flash` class, accessible from the 'flash'
 attribute on a target (i.e., `session.board.target.flash`).
 
 

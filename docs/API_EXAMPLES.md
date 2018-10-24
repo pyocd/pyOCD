@@ -7,7 +7,7 @@ Python API Examples
 This example shows basic connection, loading a firmware binary, and some simple target control.
 
 ```python
-from pyOCD.core.helpers import ConnectHelper
+from pyocd.core.helpers import ConnectHelper
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -50,8 +50,8 @@ Expanding on the above example, this code demonstrates reading a symbol address 
 and setting a breakpoint. Then the target is reset and run until the breakpoint is hit.
 
 ```python
-    from pyOCD.core.target import Target
-    from pyOCD.debug.elf.symbols import ELFSymbolProvider
+    from pyocd.core.target import Target
+    from pyocd.debug.elf.symbols import ELFSymbolProvider
 
     # Set ELF file on target.
     target.elf = "my_firmware.elf"

@@ -28,10 +28,9 @@ import traceback
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD import __version__
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.utility.conversion import float32beToU32be
+from pyocd import __version__
+from pyocd.core.helpers import ConnectHelper
+from pyocd.utility.conversion import float32_to_u32
 from test_util import Test, TestResult
 import logging
 from random import randrange

@@ -24,9 +24,8 @@ from collections import namedtuple
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.core.target import Target
+from pyocd.core.helpers import ConnectHelper
+from pyocd.core.target import Target
 from test_util import (Test, TestResult, get_session_options)
 import logging
 
@@ -83,8 +82,8 @@ def connect_test(board):
     # Install binary.
     live_session = ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options())
     live_board = live_session.board
-    memory_map = board.target.getMemoryMap()
-    rom_region = memory_map.getBootMemory()
+    memory_map = board.target.get_memory_map()
+    rom_region = memory_map.get_boot_memory()
     rom_start = rom_region.start
 
     def test_connect(halt_on_connect, expected_state, resume):
@@ -98,7 +97,7 @@ def connect_test(board):
         live_session.open()
         live_board = live_session.board
         print("Verifying target is", STATE_NAMES.get(expected_state, "unknown"))
-        actualState = live_board.target.getState()
+        actualState = live_board.target.get_state()
         # Accept sleeping for running, as a hack to work around nRF52840-DK test binary.
         # TODO remove sleeping hack.
         if (actualState == expected_state) \
@@ -132,11 +131,11 @@ def connect_test(board):
 
     print("\n\n----- TESTING CONNECT/DISCONNECT -----")
     print("Flashing new binary")
-    live_board.flash.flashBinary(binary_file, rom_start)
+    live_board.flash.flash_binary(binary_file, rom_start)
     live_board.target.reset()
     test_count += 1
     print("Verifying target is running")
-    if live_board.target.isRunning():
+    if live_board.target.is_running():
         test_pass_count += 1
         print("TEST PASSED")
     else:

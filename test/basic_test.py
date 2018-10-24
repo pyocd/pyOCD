@@ -24,9 +24,8 @@ import math
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.utility.conversion import float32beToU32be
+from pyocd.core.helpers import ConnectHelper
+from pyocd.utility.conversion import float32_to_u32
 from test_util import (Test, get_session_options)
 import logging
 
@@ -52,10 +51,10 @@ def basic_test(board_id, file):
 
         print("binary file: %s" % binary_file)
 
-        memory_map = board.target.getMemoryMap()
+        memory_map = board.target.get_memory_map()
         ram_regions = [region for region in memory_map if region.type == 'ram']
         ram_region = ram_regions[0]
-        rom_region = memory_map.getBootMemory()
+        rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start
         size = 0x502
@@ -69,41 +68,41 @@ def basic_test(board_id, file):
         print("Unique ID: %s" % board.unique_id)
 
         print("\n\n------ TEST READ / WRITE CORE REGISTER ------")
-        pc = target.readCoreRegister('pc')
-        print("initial pc: 0x%X" % target.readCoreRegister('pc'))
+        pc = target.read_core_register('pc')
+        print("initial pc: 0x%X" % target.read_core_register('pc'))
         # write in pc dummy value
-        target.writeCoreRegister('pc', 0x3D82)
-        print("now pc: 0x%X" % target.readCoreRegister('pc'))
+        target.write_core_register('pc', 0x3D82)
+        print("now pc: 0x%X" % target.read_core_register('pc'))
         # write initial pc value
-        target.writeCoreRegister('pc', pc)
-        print("initial pc value rewritten: 0x%X" % target.readCoreRegister('pc'))
+        target.write_core_register('pc', pc)
+        print("initial pc value rewritten: 0x%X" % target.read_core_register('pc'))
 
-        msp = target.readCoreRegister('msp')
-        psp = target.readCoreRegister('psp')
+        msp = target.read_core_register('msp')
+        psp = target.read_core_register('psp')
         print("MSP = 0x%08x; PSP = 0x%08x" % (msp, psp))
 
-        control = target.readCoreRegister('control')
-        faultmask = target.readCoreRegister('faultmask')
-        basepri = target.readCoreRegister('basepri')
-        primask = target.readCoreRegister('primask')
+        control = target.read_core_register('control')
+        faultmask = target.read_core_register('faultmask')
+        basepri = target.read_core_register('basepri')
+        primask = target.read_core_register('primask')
         print("CONTROL = 0x%02x; FAULTMASK = 0x%02x; BASEPRI = 0x%02x; PRIMASK = 0x%02x" % (control, faultmask, basepri, primask))
 
-        target.writeCoreRegister('primask', 1)
-        newPrimask = target.readCoreRegister('primask')
+        target.write_core_register('primask', 1)
+        newPrimask = target.read_core_register('primask')
         print("New PRIMASK = 0x%02x" % newPrimask)
-        target.writeCoreRegister('primask', primask)
-        newPrimask = target.readCoreRegister('primask')
+        target.write_core_register('primask', primask)
+        newPrimask = target.read_core_register('primask')
         print("Restored PRIMASK = 0x%02x" % newPrimask)
 
         if target.has_fpu:
-            s0 = target.readCoreRegister('s0')
-            print("S0 = %g (0x%08x)" % (s0, float32beToU32be(s0)))
-            target.writeCoreRegister('s0', math.pi)
-            newS0 = target.readCoreRegister('s0')
-            print("New S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0)))
-            target.writeCoreRegister('s0', s0)
-            newS0 = target.readCoreRegister('s0')
-            print("Restored S0 = %g (0x%08x)" % (newS0, float32beToU32be(newS0)))
+            s0 = target.read_core_register('s0')
+            print("S0 = %g (0x%08x)" % (s0, float32_to_u32(s0)))
+            target.write_core_register('s0', math.pi)
+            newS0 = target.read_core_register('s0')
+            print("New S0 = %g (0x%08x)" % (newS0, float32_to_u32(newS0)))
+            target.write_core_register('s0', s0)
+            newS0 = target.read_core_register('s0')
+            print("Restored S0 = %g (0x%08x)" % (newS0, float32_to_u32(newS0)))
 
 
         print("\n\n------ TEST HALT / RESUME ------")
@@ -114,22 +113,22 @@ def basic_test(board_id, file):
 
         print("halt")
         target.halt()
-        print("HALT: pc: 0x%X" % target.readCoreRegister('pc'))
+        print("HALT: pc: 0x%X" % target.read_core_register('pc'))
         sleep(0.2)
 
 
         print("\n\n------ TEST STEP ------")
 
         print("reset and halt")
-        target.resetStopOnReset()
-        currentPC = target.readCoreRegister('pc')
+        target.reset_stop_on_reset()
+        currentPC = target.read_core_register('pc')
         print("HALT: pc: 0x%X" % currentPC)
         sleep(0.2)
 
         for i in range(4):
             print("step")
             target.step()
-            newPC = target.readCoreRegister('pc')
+            newPC = target.read_core_register('pc')
             print("STEP: pc: 0x%X" % newPC)
             currentPC = newPC
             sleep(0.2)
@@ -140,8 +139,8 @@ def basic_test(board_id, file):
         print("READ32/WRITE32")
         val = randrange(0, 0xffffffff)
         print("write32 0x%X at 0x%X" % (val, addr))
-        target.writeMemory(addr, val)
-        res = target.readMemory(addr)
+        target.write_memory(addr, val)
+        res = target.read_memory(addr)
         print("read32 at 0x%X: 0x%X" % (addr, res))
         if res != val:
             print("ERROR in READ/WRITE 32")
@@ -149,8 +148,8 @@ def basic_test(board_id, file):
         print("\nREAD16/WRITE16")
         val = randrange(0, 0xffff)
         print("write16 0x%X at 0x%X" % (val, addr + 2))
-        target.writeMemory(addr + 2, val, 16)
-        res = target.readMemory(addr + 2, 16)
+        target.write_memory(addr + 2, val, 16)
+        res = target.read_memory(addr + 2, 16)
         print("read16 at 0x%X: 0x%X" % (addr + 2, res))
         if res != val:
             print("ERROR in READ/WRITE 16")
@@ -158,8 +157,8 @@ def basic_test(board_id, file):
         print("\nREAD8/WRITE8")
         val = randrange(0, 0xff)
         print("write8 0x%X at 0x%X" % (val, addr + 1))
-        target.writeMemory(addr + 1, val, 8)
-        res = target.readMemory(addr + 1, 8)
+        target.write_memory(addr + 1, val, 8)
+        res = target.read_memory(addr + 1, 8)
         print("read8 at 0x%X: 0x%X" % (addr + 1, res))
         if res != val:
             print("ERROR in READ/WRITE 8")
@@ -167,8 +166,8 @@ def basic_test(board_id, file):
 
         print("\n\n------ TEST READ / WRITE MEMORY BLOCK ------")
         data = [randrange(1, 50) for x in range(size)]
-        target.writeBlockMemoryUnaligned8(addr, data)
-        block = target.readBlockMemoryUnaligned8(addr, size)
+        target.write_memory_block8(addr, data)
+        block = target.read_memory_block8(addr, size)
         error = False
         for i in range(len(block)):
             if (block[i] != data[i]):
@@ -187,26 +186,26 @@ def basic_test(board_id, file):
 
         for i in range(5):
             target.step()
-            print("pc: 0x%X" % target.readCoreRegister('pc'))
+            print("pc: 0x%X" % target.read_core_register('pc'))
 
         print("\n\n------ TEST PROGRAM/ERASE PAGE ------")
         # Fill 3 pages with 0x55
-        page_size = flash.getPageInfo(addr_flash).size
+        page_size = flash.get_page_info(addr_flash).size
         fill = [0x55] * page_size
         flash.init()
         for i in range(0, 3):
             address = addr_flash + page_size * i
             # Test only supports a location with 3 aligned
             # pages of the same size
-            current_page_size = flash.getPageInfo(addr_flash).size
+            current_page_size = flash.get_page_info(addr_flash).size
             assert page_size == current_page_size
             assert address % current_page_size == 0
-            flash.erasePage(address)
-            flash.programPage(address, fill)
+            flash.erase_page(address)
+            flash.program_page(address, fill)
         # Erase the middle page
-        flash.erasePage(addr_flash + page_size)
+        flash.erase_page(addr_flash + page_size)
         # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
-        data = target.readBlockMemoryUnaligned8(addr_flash, page_size * 3)
+        data = target.read_memory_block8(addr_flash, page_size * 3)
         expected = fill + [0xFF] * page_size + fill
         if data == expected:
             print("TEST PASSED")
@@ -214,7 +213,7 @@ def basic_test(board_id, file):
             print("TEST FAILED")
 
         print("\n\n----- FLASH NEW BINARY -----")
-        flash.flashBinary(binary_file, addr_bin)
+        flash.flash_binary(binary_file, addr_bin)
 
         target.reset()
 

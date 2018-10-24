@@ -16,8 +16,9 @@
 """
 from __future__ import print_function
 
-import pyOCD
-import logging, os, sys
+import logging
+import os
+import sys
 import traceback
 from xml.etree import ElementTree
 import six

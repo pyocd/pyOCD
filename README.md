@@ -183,7 +183,7 @@ development environment for pyOCD.
 Contributions
 -------------
 
-We welcome contributions to PyOCD in any area. Please see the [contribution
+We welcome contributions to pyOCD in any area. Please see the [contribution
 guidelines](CONTRIBUTING.md) for details.
 
 To report bugs, please [create an issue](https://github.com/mbedmicro/pyOCD/issues/new) in the

@@ -3,7 +3,7 @@ pyOCD Developers' Guide
 
 PyOCD developers are recommended to setup a working environment using
 [virtualenv](https://virtualenv.pypa.io/en/latest/). After cloning
-the code, you can setup a virtualenv and install the PyOCD
+the code, you can setup a virtualenv and install the pyOCD
 dependencies for the current platform by following the detailed steps below.
 
 ## Setup
@@ -63,7 +63,7 @@ $ pytest
 To get code coverage results, do the following:
 
 ```
-$ pytest --cov-report=html --cov=pyOCD
+$ pytest --cov-report=html --cov=pyocd
 $ open htmlcov/index.html
 ```
 

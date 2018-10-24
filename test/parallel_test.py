@@ -16,8 +16,8 @@
 """
 from __future__ import print_function
 
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.probe.pyDAPAccess import DAPAccess
+from pyocd.core.helpers import ConnectHelper
+from pyocd.probe.pydapaccess import DAPAccess
 import threading
 import multiprocessing
 

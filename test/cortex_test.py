@@ -26,10 +26,11 @@ import traceback
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.core import exceptions
+from pyocd.core.target import Target
+from pyocd.gdbserver.context_facade import GDBDebugContextFacade
+from pyocd.core.helpers import ConnectHelper
+from pyocd.utility.conversion import float32_to_u32
+from pyocd.core import exceptions
 from test_util import (Test, TestResult, get_session_options)
 import logging
 from random import randrange
@@ -95,10 +96,10 @@ def cortex_test(board_id):
             # Override clock since 10MHz is too fast
             test_clock = 1000000
 
-        memory_map = board.target.getMemoryMap()
+        memory_map = board.target.get_memory_map()
         ram_regions = [region for region in memory_map if region.type == 'ram']
         ram_region = ram_regions[0]
-        rom_region = memory_map.getBootMemory()
+        rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start + 1
         size = 0x502
@@ -114,11 +115,11 @@ def cortex_test(board_id):
         test_count = 0
         result = CortexTestResult()
 
-        debugContext = target.getTargetContext()
-        gdbFacade = pyOCD.gdbserver.context_facade.GDBDebugContextFacade(debugContext)
+        debugContext = target.get_target_context()
+        gdbFacade = GDBDebugContextFacade(debugContext)
 
         print("\n\n----- FLASH NEW BINARY BEFORE TEST -----")
-        flash.flashBinary(binary_file, addr_bin)
+        flash.flash_binary(binary_file, addr_bin)
         # Let the target run for a bit so it
         # can initialize the watchdog if it needs to
         target.resume()
@@ -129,8 +130,8 @@ def cortex_test(board_id):
 
 
         print("\n\n----- TESTING CORTEX-M PERFORMANCE -----")
-        test_time = test_function(session, gdbFacade.getTResponse)
-        print("Function getTResponse time: %f" % test_time)
+        test_time = test_function(session, gdbFacade.get_t_response)
+        print("Function get_t_response time: %f" % test_time)
 
         # Step
         test_time = test_function(session, target.step)
@@ -138,21 +139,21 @@ def cortex_test(board_id):
 
         # Breakpoint
         def set_remove_breakpoint():
-            target.setBreakpoint(0)
-            target.removeBreakpoint(0)
+            target.set_breakpoint(0)
+            target.remove_breakpoint(0)
         test_time = test_function(session, set_remove_breakpoint)
         print("Add and remove breakpoint: %f" % test_time)
 
-        # getRegisterContext
-        test_time = test_function(session, gdbFacade.getRegisterContext)
-        print("Function getRegisterContext: %f" % test_time)
+        # get_register_context
+        test_time = test_function(session, gdbFacade.get_register_context)
+        print("Function get_register_context: %f" % test_time)
 
-        # setRegisterContext
-        context = gdbFacade.getRegisterContext()
+        # set_register_context
+        context = gdbFacade.get_register_context()
         def set_register_context():
-            gdbFacade.setRegisterContext(context)
+            gdbFacade.set_register_context(context)
         test_time = test_function(session, set_register_context)
-        print("Function setRegisterContext: %f" % test_time)
+        print("Function set_register_context: %f" % test_time)
 
         # Run / Halt
         def run_halt():
@@ -164,12 +165,12 @@ def cortex_test(board_id):
         # GDB stepping
         def simulate_step():
             target.step()
-            gdbFacade.getTResponse()
-            target.setBreakpoint(0)
+            gdbFacade.get_t_response()
+            target.set_breakpoint(0)
             target.resume()
             target.halt()
-            gdbFacade.getTResponse()
-            target.removeBreakpoint(0)
+            gdbFacade.get_t_response()
+            target.remove_breakpoint(0)
         test_time = test_function(session, simulate_step)
         print("Simulated GDB step: %f" % test_time)
 
@@ -182,7 +183,7 @@ def cortex_test(board_id):
         print("\n\n------ Testing Invalid Memory Access Recovery ------")
         memory_access_pass = True
         try:
-            target.readBlockMemoryUnaligned8(addr_invalid, 0x1000)
+            target.read_memory_block8(addr_invalid, 0x1000)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
@@ -191,17 +192,7 @@ def cortex_test(board_id):
             pass
 
         try:
-            target.readBlockMemoryUnaligned8(addr_invalid + 1, 0x1000)
-            target.flush()
-            # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
-            if expect_invalid_access_to_fail:
-                memory_access_pass = False
-        except exceptions.TransferFaultError:
-            pass
-
-        data = [0x00] * 0x1000
-        try:
-            target.writeBlockMemoryUnaligned8(addr_invalid, data)
+            target.read_memory_block8(addr_invalid + 1, 0x1000)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
@@ -211,7 +202,17 @@ def cortex_test(board_id):
 
         data = [0x00] * 0x1000
         try:
-            target.writeBlockMemoryUnaligned8(addr_invalid + 1, data)
+            target.write_memory_block8(addr_invalid, data)
+            target.flush()
+            # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
+            if expect_invalid_access_to_fail:
+                memory_access_pass = False
+        except exceptions.TransferFaultError:
+            pass
+
+        data = [0x00] * 0x1000
+        try:
+            target.write_memory_block8(addr_invalid + 1, data)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
@@ -220,8 +221,8 @@ def cortex_test(board_id):
             pass
 
         data = [randrange(0, 255) for x in range(size)]
-        target.writeBlockMemoryUnaligned8(addr, data)
-        block = target.readBlockMemoryUnaligned8(addr, size)
+        target.write_memory_block8(addr, data)
+        block = target.read_memory_block8(addr, size)
         if same(data, block):
             print("Aligned access pass")
         else:
@@ -229,8 +230,8 @@ def cortex_test(board_id):
             memory_access_pass = False
 
         data = [randrange(0, 255) for x in range(size)]
-        target.writeBlockMemoryUnaligned8(addr + 1, data)
-        block = target.readBlockMemoryUnaligned8(addr + 1, size)
+        target.write_memory_block8(addr + 1, data)
+        block = target.read_memory_block8(addr + 1, size)
         if same(data, block):
             print("Unaligned access pass")
         else:
@@ -246,15 +247,15 @@ def cortex_test(board_id):
 
         print("\n\n------ Testing Software Breakpoints ------")
         test_passed = True
-        orig8x2 = target.readBlockMemoryUnaligned8(addr, 2)
+        orig8x2 = target.read_memory_block8(addr, 2)
         orig8 = target.read8(addr)
         orig16 = target.read16(addr & ~1)
         orig32 = target.read32(addr & ~3)
-        origAligned32 = target.readBlockMemoryAligned32(addr & ~3, 1)
+        origAligned32 = target.read_memory_block32(addr & ~3, 1)
 
         def test_filters():
             test_passed = True
-            filtered = target.readBlockMemoryUnaligned8(addr, 2)
+            filtered = target.read_memory_block8(addr, 2)
             if same(orig8x2, filtered):
                 print("2 byte unaligned passed")
             else:
@@ -289,7 +290,7 @@ def cortex_test(board_id):
                     print("32-bit failed [now=%s] (read %x, expected %x)" % (now, filtered, orig32))
                     test_passed = False
 
-            filtered = target.readBlockMemoryAligned32(addr & ~3, 1)
+            filtered = target.read_memory_block32(addr & ~3, 1)
             if same(filtered, origAligned32):
                 print("32-bit aligned passed")
             else:
@@ -298,11 +299,11 @@ def cortex_test(board_id):
             return test_passed
 
         print("Installed software breakpoint at 0x%08x" % addr)
-        target.setBreakpoint(addr, pyOCD.core.target.Target.BREAKPOINT_SW)
+        target.set_breakpoint(addr, Target.BREAKPOINT_SW)
         test_passed = test_filters() and test_passed
 
         print("Removed software breakpoint")
-        target.removeBreakpoint(addr)
+        target.remove_breakpoint(addr)
         test_passed = test_filters() and test_passed
 
         test_count += 1

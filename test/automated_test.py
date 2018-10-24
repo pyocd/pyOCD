@@ -22,11 +22,10 @@ import os, sys
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
-import pyOCD
-from pyOCD.core.session import Session
-from pyOCD.core.helpers import ConnectHelper
-from pyOCD.utility.conversion import float32beToU32be
-from pyOCD.probe.aggregator import DebugProbeAggregator
+from pyocd.core.session import Session
+from pyocd.core.helpers import ConnectHelper
+from pyocd.utility.conversion import float32_to_u32
+from pyocd.probe.aggregator import DebugProbeAggregator
 import logging
 from time import time
 from test_util import (TestResult, Test, IOTee, RecordingLogHandler, get_session_options)
