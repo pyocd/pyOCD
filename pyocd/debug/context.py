@@ -15,6 +15,7 @@
  limitations under the License.
 """
 
+from ..core.memory_interface import MemoryInterface
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register)
 from ..utility import conversion
 import logging
@@ -28,7 +29,7 @@ import logging
 #
 # A context always has a specific core associated with it, which cannot be changed after the
 # context is created.
-class DebugContext(object):
+class DebugContext(MemoryInterface):
     def __init__(self, core):
         self._core = core
 
@@ -53,30 +54,6 @@ class DebugContext(object):
 
     def read_memory_block32(self, addr, size):
         return self._core.read_memory_block32(addr, size)
-
-    # @brief Shorthand to write a 32-bit word.
-    def write32(self, addr, value):
-        self.write_memory(addr, value, 32)
-
-    # @brief Shorthand to write a 16-bit halfword.
-    def write16(self, addr, value):
-        self.write_memory(addr, value, 16)
-
-    # @brief Shorthand to write a byte.
-    def write8(self, addr, value):
-        self.write_memory(addr, value, 8)
-
-    # @brief Shorthand to read a 32-bit word.
-    def read32(self, addr, now=True):
-        return self.read_memory(addr, 32, now)
-
-    # @brief Shorthand to read a 16-bit halfword.
-    def read16(self, addr, now=True):
-        return self.read_memory(addr, 16, now)
-
-    # @brief Shorthand to read a byte.
-    def read8(self, addr, now=True):
-        return self.read_memory(addr, 8, now)
 
     def read_core_register(self, reg):
         """
