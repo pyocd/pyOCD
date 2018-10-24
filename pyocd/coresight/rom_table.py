@@ -251,6 +251,12 @@ class CoreSightComponentID(object):
 
 
 class ROMTable(CoreSightComponent):
+    """! @brief CoreSight ROM table component and parser.
+    
+    An object of this class represents a CoreSight ROM table. It supports reading the table
+    and any child tables. For each entry in the table, a CoreSightComponentID object is created
+    that further reads the component's CoreSight identification registers.
+    """
     def __init__(self, ap, cmpid=None, addr=None, parent_table=None):
         # If no table address is provided, use the root ROM table for the AP.
         if addr is None:
@@ -272,9 +278,9 @@ class ROMTable(CoreSightComponent):
         if not self.cmpid.is_rom_table:
             logging.warning("Warning: ROM table @ 0x%08x has unexpected CIDR component class (0x%x)", self.address, self.cmpid.component_class)
             return
-        self.read_table()
+        self._read_table()
 
-    def read_table(self):
+    def _read_table(self):
         logging.info("%sAP#%d ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
             self.depth_indent, self.ap.ap_num, self.number, self.address, self.cmpid.designer, self.cmpid.part)
         self.components = []
@@ -293,11 +299,11 @@ class ROMTable(CoreSightComponent):
                 if entry == 0:
                     foundEnd = True
                     break
-                self.handle_table_entry(entry)
+                self._handle_table_entry(entry)
 
                 entryAddress += 4
 
-    def handle_table_entry(self, entry):
+    def _handle_table_entry(self, entry):
         # Nonzero entries can still be disabled, so check the present bit before handling.
         if (entry & ROM_TABLE_ENTRY_PRESENT_MASK) == 0:
             return
@@ -327,4 +333,30 @@ class ROMTable(CoreSightComponent):
         if cmp is not None:
             self.components.append(cmp)
 
+    def for_each(self, action, filter=None):
+        """! @brief Apply an action to every component defined in the ROM table and child tables.
+        
+        This method iterates over every entry in the ROM table. For each entry it calls the
+        filter function if provided. If the filter passes (returns True or was not provided) then
+        the action function is called.
+        
+        The ROM table must have been initialized by calling init() prior to using this method.
+        
+        @param self This object.
+        @param action Callable that accepts a single parameter, a CoreSightComponentID instance.
+        @param filter Optional filter callable. Must accept a CoreSightComponentID instance and
+            return a boolean indicating whether to perform the action (True applies action).
+        """
+        for component in self.components:
+            # Recurse into child ROM tables.
+            if isinstance(component, ROMTable):
+                component.for_each(action, filter)
+                continue
+            
+            # Skip component if the filter returns False.
+            if filter is not None and not filter(component):
+                continue
+            
+            # Perform the action.
+            action(component)
 
