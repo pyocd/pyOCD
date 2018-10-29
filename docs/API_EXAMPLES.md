@@ -19,28 +19,25 @@ with ConnectHelper.session_with_chosen_probe() as session:
     flash = board.flash
 
     # Load firmware into device.
-    flash.flashBinary("my_firmware.bin")
+    flash.flash_binary("my_firmware.bin")
 
     # Reset, run.
-    target.resetStopOnReset()
+    target.reset_stop_on_reset()
     target.resume()
 
     # Read some registers.
-    print("pc: 0x%X" % target.readCoreRegister("pc"))
+    print("pc: 0x%X" % target.read_core_register("pc"))
 
     target.step()
-    print("pc: 0x%X" % target.readCoreRegister("pc"))
+    print("pc: 0x%X" % target.read_core_register("pc"))
 
     target.resume()
     target.halt()
-    print("pc: 0x%X" % target.readCoreRegister("pc"))
+    print("pc: 0x%X" % target.read_core_register("pc"))
 
-    flash.flashBinary("binaries/l1_lpc1768.bin")
-    print("pc: 0x%X" % target.readCoreRegister("pc"))
+    target.reset_stop_on_reset()
 
-    target.resetStopOnReset()
-
-    print("pc: 0x%X" % target.readCoreRegister("pc"))
+    print("pc: 0x%X" % target.read_core_register("pc"))
 
 ```
 
@@ -62,22 +59,22 @@ and setting a breakpoint. Then the target is reset and run until the breakpoint 
     print("main() address: 0x%X" % addr)
 
     # Set breakpoint.
-    target.setBreakpoint(addr)
+    target.set_breakpoint(addr)
 
     # Reset and run.
     target.reset()
 
     # Wait until breakpoint is hit.
-    while target.getState() != Target.TARGET_HALTED:
+    while target.get_state() != Target.TARGET_HALTED:
         pass
 
     # Print PC.
-    pc = target.readCoreRegister("pc")
+    pc = target.read_core_register("pc")
     print("pc: 0x%X" % pc)
 
     assert pc == addr
 
     # Remove breakpoint.
-    target.removeBreakpoint()
+    target.remove_breakpoint()
 ```
 
