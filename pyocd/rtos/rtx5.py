@@ -255,7 +255,7 @@ class RTXTargetThread(TargetThread):
 
     @property
     def description(self):
-        return self.STATES[self._state] + '; 0x%x' % self._base
+        return self.STATES[self._state]
 
     @property
     def name(self):
