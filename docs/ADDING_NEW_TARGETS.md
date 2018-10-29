@@ -20,7 +20,7 @@ For background information, review the [architecture overview](ARCHITECTURE.md) 
     should be a `memoryMap` class attribute of the target class. Modifying an existing memory map is
     easiest, and there are many examples in the other targets.
 
-3. To create the flash algo, the recommended method is to use the [`tools/generate_blobs.py`](https://github.com/mbedmicro/FlashAlgo/blob/master/scripts/generate_blobs.py) script from the [FlashAlgo](https://github.com/mbedmicro/FlashAlgo) project. This script will
+3. To create the flash algo, the recommended method is to use the [`scripts/generate_blobs.py`](https://github.com/mbedmicro/FlashAlgo/blob/master/scripts/generate_blobs.py) script from the [FlashAlgo](https://github.com/mbedmicro/FlashAlgo) project. This script will
     generate output files in several forms, including Python for pyOCD, from an .FLM file that is
     included as part of a CMSIS DFP.
 
