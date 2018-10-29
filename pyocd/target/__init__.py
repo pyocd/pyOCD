@@ -50,6 +50,7 @@ from . import target_LPC4330
 from . import target_nRF51822_xxAA
 from . import target_nRF52832_xxAA
 from . import target_nRF52840_xxAA
+from . import target_STM32F103RB
 from . import target_STM32F103RC
 from . import target_STM32F051T8
 from . import target_STM32F412xx
@@ -104,6 +105,7 @@ TARGET = {
           'nrf51': target_nRF51822_xxAA.NRF51,
           'nrf52' : target_nRF52832_xxAA.NRF52,
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
+          'stm32f103rb': target_STM32F103RB.STM32F103RB,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
           'stm32f412xe' : target_STM32F412xx.STM32F412xE,
@@ -163,6 +165,7 @@ FLASH = {
          'nrf51': target_nRF51822_xxAA.Flash_nrf51,
          'nrf52': target_nRF52832_xxAA.Flash_nrf52,
          'nrf52840': target_nRF52840_xxAA.Flash_nrf52840,
+         'stm32f103rb': target_STM32F103RB.Flash_stm32f103rb,
          'stm32f103rc': target_STM32F103RC.Flash_stm32f103rc,
          'stm32f051': target_STM32F051T8.Flash_stm32f051,
          'stm32f412xe' : target_STM32F412xx.Flash_stm32f412xx,

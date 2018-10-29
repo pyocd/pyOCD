@@ -62,6 +62,7 @@ BOARD_ID_TO_INFO = {
     "0451": BoardInfo(  "MTB MXChip EMW3166",   "stm32f412xg",      "mtb_mxchip_emw3166.bin",),
     "0459": BoardInfo(  "MTB Advantech WISE-1530", "stm32f412xg",   "mtb_wise-1530.bin",    ),
     "0462": BoardInfo(  "MTB USI WM-BN-BM-22",  "stm32f412xg",      "mtb_usi_wm-bn-bm-22.bin",),
+    "0700": BoardInfo(  "ST-Nucleo-F103RB",     "stm32f103rb",      "ST-Nucleo-F103RB.bin",),
     "0764": BoardInfo(  "ST DISCO-L475VG-IOT01A", "stm32l475xg",    "stm32l475vg_iot01a.bin",),
     "0824": BoardInfo(  "LPCXpresso824-MAX",    "lpc824",           "l1_lpc824.bin",        ),
     "0826": BoardInfo(  "ST NUCLEO-F412ZG",     "stm32f412xg",      "nucleo_f412zg.bin",    ),
