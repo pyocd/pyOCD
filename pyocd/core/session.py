@@ -16,7 +16,9 @@
 
 from ..board.board import Board
 import logging
+import logging.config
 import six
+import yaml
 
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
@@ -41,12 +43,13 @@ log = logging.getLogger('session')
 # entering the with block.
 #
 # Supported user options:
-# - target_override
+# - auto_unlock
+# - config_file
 # - frequency
 # - halt_on_connect
-# - auto_unlock
 # - resume_on_disconnect
-# - board_config_file
+# - target_override
+# - test_binary
 class Session(object):
 
     ## @brief Session constructor.
@@ -72,13 +75,38 @@ class Session(object):
         self._options = options or {}
         self._options.update(kwargs)
         
-        # Create the board instance if we have a valid probe.
-        if probe is not None:
-            # Ask the probe if it has an associated board, and if not then we create a generic one.
-            self._board = probe.create_associated_board(self) \
-                            or Board(self, self._options.get('target_override', None))
-        else:
+        # Bail early if we weren't provided a probe.
+        if probe is None:
             self._board = None
+            return
+            
+        # Apply common configuration settings from the config file.
+        config = self._get_config()
+        probesConfig = config.pop('probes', None)
+        self._options.update(config)
+
+        # Pick up any config file options for this board.
+        if probesConfig is not None:
+            for uid, settings in probesConfig.items():
+                if uid.lower() in probe.unique_id.lower():
+                    log.info("Using config settings for board %s" % (probe.unique_id))
+                    self._options.update(settings)
+        
+        # Ask the probe if it has an associated board, and if not then we create a generic one.
+        self._board = probe.create_associated_board(self) \
+                        or Board(self, self._options.get('target_override', None))
+    
+    def _get_config(self):
+        # Load config file if one was provided via options.
+        if 'config_file' in self._options:
+            configPath = self._options['config_file']
+            try:
+                with open(configPath, 'r') as configFile:
+                    return yaml.safe_load(configFile)
+            except IOError as err:
+                log.warning("Error attempting to access board config file '%s': %s", configPath, err)
+        
+        return {}
     
     @property
     def is_open(self):

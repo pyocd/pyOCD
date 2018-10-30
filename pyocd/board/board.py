@@ -17,31 +17,21 @@
 
 from ..target import (TARGET, FLASH)
 import logging
-import json
 import six
 
 log = logging.getLogger('board')
 
 class Board(object):
     """
-    This class associates a target, a flash and a link to create a board
+    This class associates a target and flash to create a board.
     """
     def __init__(self, session, target=None):
+        # As a last resort, default the target to 'cortex_m'.
         if target is None:
             target = 'cortex_m'
         self._session = session
         self._target_type = target.lower()
-        self._test_binary = None
-        
-        # Pick up any settings for this board from a config file.
-        boardConfig = self._load_board_config()
-        for uid, settings in boardConfig.items():
-            if uid.lower() in self.unique_id.lower():
-                log.info("Using board config settings for board %s" % (session.probe.unique_id))
-                if 'target_type' in settings:
-                    self._target_type = settings['target_type']
-                if 'test_binary' in settings:
-                    self._test_binary = settings['test_binary']
+        self._test_binary = session.options.get('test_binary', None)
 
         # Create Target and Flash instances.
         try:
@@ -53,18 +43,6 @@ class Board(object):
             six.raise_from(KeyError("target '%s' not recognized" % self._target_type), exc)
         self.target.flash = self.flash
         self._inited = False
-    
-    def _load_board_config(self):
-        # Load board config file if one was provided via options.
-        if self._session.options.get('board_config_file', None) is not None:
-            configPath = self._session.options['board_config_file']
-            try:
-                with open(configPath, 'r') as configFile:
-                    return json.load(configFile)
-            except IOError:
-                pass
-        
-        return {}
 
     ## @brief Initialize the board.
     def init(self):
