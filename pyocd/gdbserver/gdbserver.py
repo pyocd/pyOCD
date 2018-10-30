@@ -343,26 +343,26 @@ class GDBServer(threading.Thread):
         #  3+ - Supported, but not very useful.
         #
         self.COMMANDS = {
-        #       CMD    HANDLER                  START    DESCRIPTION
-                b'?' : (self.stop_reason_query,    0   ), # Stop reason query.
+        #       CMD    HANDLER                   START    DESCRIPTION
+                b'?' : (self.stop_reason_query,  0   ), # Stop reason query.
                 b'c' : (self.resume,             1   ), # Continue (at addr)
                 b'C' : (self.resume,             1   ), # Continue with signal.
                 b'D' : (self.detach,             1   ), # Detach.
-                b'g' : (self.get_registers,       0   ), # Read general registers.
-                b'G' : (self.set_registers,       2   ), # Write general registers.
-                b'H' : (self.set_thread,          2   ), # Set thread for subsequent operations.
+                b'g' : (self.get_registers,      0   ), # Read general registers.
+                b'G' : (self.set_registers,      2   ), # Write general registers.
+                b'H' : (self.set_thread,         2   ), # Set thread for subsequent operations.
                 b'k' : (self.kill,               0   ), # Kill.
-                b'm' : (self.get_memory,          2   ), # Read memory.
-                b'M' : (self.write_memory_hex,     2   ), # Write memory (hex).
-                b'p' : (self.read_register,       2   ), # Read register.
-                b'P' : (self.write_register,      2   ), # Write register.
-                b'q' : (self.handle_query,        2   ), # General query.
-                b'Q' : (self.handle_general_set,   2   ), # General set.
+                b'm' : (self.get_memory,         2   ), # Read memory.
+                b'M' : (self.write_memory_hex,   2   ), # Write memory (hex).
+                b'p' : (self.read_register,      2   ), # Read register.
+                b'P' : (self.write_register,     2   ), # Write register.
+                b'q' : (self.handle_query,       2   ), # General query.
+                b'Q' : (self.handle_general_set, 2   ), # General set.
                 b's' : (self.step,               1   ), # Single step.
                 b'S' : (self.step,               1   ), # Step with signal.
-                b'T' : (self.is_thread_alive,      1   ), # Thread liveness query.
-                b'v' : (self.v_command,           2   ), # v command.
-                b'X' : (self.write_memory,        2   ), # Write memory (binary).
+                b'T' : (self.is_thread_alive,    1   ), # Thread liveness query.
+                b'v' : (self.v_command,          2   ), # v command.
+                b'X' : (self.write_memory,       2   ), # Write memory (binary).
                 b'z' : (self.breakpoint,         1   ), # Insert breakpoint/watchpoint.
                 b'Z' : (self.breakpoint,         1   ), # Remove breakpoint/watchpoint.
             }
