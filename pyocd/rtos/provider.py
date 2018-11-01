@@ -111,9 +111,6 @@ class ThreadProvider(object):
     def is_valid_thread_id(self, threadId):
         raise NotImplementedError()
 
-    def get_ipsr(self):
-        return self._target_context.read_core_register('xpsr') & 0xff
-
     def get_current_thread_id(self):
         raise NotImplementedError()
 

@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register)
 from ..utility import conversion
 import logging
 
@@ -86,7 +86,7 @@ class DebugContext(object):
         regIndex = register_name_to_index(reg)
         regValue = self.read_core_register(regIndex)
         # Convert int to float.
-        if regIndex >= 0x40:
+        if is_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
         return regValue
 
@@ -109,7 +109,7 @@ class DebugContext(object):
         """
         regIndex = register_name_to_index(reg)
         # Convert float to int.
-        if regIndex >= 0x40:
+        if is_float_register(regIndex):
             data = conversion.float32_to_u32(data)
         self.write_core_register(regIndex, data)
 

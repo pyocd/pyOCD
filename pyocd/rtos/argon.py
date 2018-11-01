@@ -156,7 +156,7 @@ class ArgonThreadContext(DebugContext):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        inException = self._get_ipsr() > 0
+        inException = self._parent.read_core_register('ipsr') > 0
         isCurrent = self._thread.is_current
 
         # If this is the current thread and we're not in an exception, just read the live registers.
@@ -204,9 +204,6 @@ class ArgonThreadContext(DebugContext):
                 reg_vals.append(0)
 
         return reg_vals
-
-    def _get_ipsr(self):
-        return self._parent.read_core_register('xpsr') & 0xff
 
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
@@ -373,7 +370,7 @@ class ArgonThreadProvider(ThreadProvider):
                 log.debug("TransferError while examining thread 0x%08x", threadBase)
 
         # Create fake handler mode thread.
-        if self.get_ipsr() > 0:
+        if self._target_context.read_core_register('ipsr') > 0:
             log.debug("creating handler mode thread")
             t = HandlerModeThread(self._target_context, self)
             newThreads[t.unique_id] = t
@@ -418,7 +415,7 @@ class ArgonThreadProvider(ThreadProvider):
     def get_current_thread_id(self):
         if not self.is_enabled:
             return None
-        if self.get_ipsr() > 0:
+        if self._target_context.read_core_register('ipsr') > 0:
             return HandlerModeThread.UNIQUE_ID
         return self.get_actual_current_thread_id()
 

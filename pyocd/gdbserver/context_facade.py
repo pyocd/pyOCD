@@ -117,7 +117,7 @@ class GDBDebugContextFacade(object):
         if self._context.core.is_debug_trap():
             return signals.SIGTRAP
 
-        fault = self._context.read_core_register('xpsr') & 0xff
+        fault = self._context.read_core_register('ipsr')
         try:
             signal = FAULT[fault]
         except:

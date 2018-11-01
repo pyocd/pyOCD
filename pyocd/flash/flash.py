@@ -381,7 +381,7 @@ class Flash(object):
             expected_flash_algo = self.flash_algo['instructions']
             if self.use_analyzer:
                 expected_analyzer = analyzer
-            final_ipsr = self.target.read_core_register('xpsr') & 0xff
+            final_ipsr = self.target.read_core_register('ipsr')
             final_fp = self.target.read_core_register('r9')
             final_sp = self.target.read_core_register('sp')
             final_pc = self.target.read_core_register('pc')
@@ -392,7 +392,7 @@ class Flash(object):
 
             error = False
             if final_ipsr != 0:
-                logging.error("IPSR should be 0 but is 0x%02x", final_ipsr)
+                logging.error("IPSR should be 0 but is 0x%x", final_ipsr)
                 error = True
             if final_fp != expected_fp:
                 # Frame pointer should not change
