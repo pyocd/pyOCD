@@ -141,7 +141,16 @@ def register_name_to_index(reg):
 
 # Returns true for registers holding single-precision float values
 def is_float_register(index):
-    return index >= 0x40 and index <= 0x5f
+    return 0x40 <= index <= 0x5f
+
+def is_fpu_register(index):
+    return index == 33 or is_float_register(index)
+
+def is_cfbp_subregister(index):
+    return -4 <= index <= -1
+
+def is_psr_subregister(index):
+    return 0x10000 <= index <= 0x10007
 
 # Generate a PSR mask based on bottom 3 bits of a MRS SYSm value
 def sysm_to_psr_mask(sysm):
@@ -717,17 +726,17 @@ class CortexM(Target, CoreSightComponent):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif (is_float_register(reg) or (reg == 33)) and (not self.has_fpu):
+            elif is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Begin all reads and writes
         dhcsr_cb_list = []
         reg_cb_list = []
         for reg in reg_list:
-            if (reg < 0) and (reg >= -4):
+            if is_cfbp_subregister(reg):
                 reg = CORE_REGISTER['cfbp']
 
-            if (reg >= 0x10000) and (reg <= 0x10007):
+            if is_psr_subregister(reg):
                 reg = CORE_REGISTER['xpsr']
 
             # write id in DCRSR
@@ -750,10 +759,10 @@ class CortexM(Target, CoreSightComponent):
             val = reg_cb()
 
             # Special handling for registers that are combined into a single DCRSR number.
-            if (reg < 0) and (reg >= -4):
+            if is_cfbp_subregister(reg):
                 val = (val >> ((-reg - 1) * 8)) & 0xff
 
-            if (reg >= 0x10000) and (reg <= 0x10007):
+            if is_psr_subregister(reg):
                 val &= sysm_to_psr_mask(reg)
 
             reg_vals.append(val)
@@ -795,23 +804,23 @@ class CortexM(Target, CoreSightComponent):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif ((reg >= 0x40) or (reg == 33)) and (not self.has_fpu):
+            elif is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to write FPU register without FPU")
 
         # Read special register if it is present in the list
         for reg in reg_list:
-            if (reg < 0) and (reg >= -4):
+            if is_cfbp_subregister(reg):
                 cfbpValue = self.read_core_register(CORE_REGISTER['cfbp'])
                 break
 
-            if (reg >= 0x10000) and (reg <= 0x10007):
+            if is_psr_subregister(reg):
                 xpsrValue = self.read_core_register(CORE_REGISTER['xpsr'])
                 break
 
         # Write out registers
         dhcsr_cb_list = []
         for reg, data in zip(reg_list, data_list):
-            if (reg < 0) and (reg >= -4):
+            if is_cfbp_subregister(reg):
                 # Mask in the new special register value so we don't modify the other register
                 # values that share the same DCRSR number.
                 shift = (-reg - 1) * 8
@@ -820,7 +829,7 @@ class CortexM(Target, CoreSightComponent):
                 cfbpValue = data # update special register for other writes that might be in the list
                 reg = CORE_REGISTER['cfbp']
 
-            if (reg >= 0x10000) and (reg <= 0x10007):
+            if is_psr_subregister(reg):
                 mask = sysm_to_psr_mask(reg)
                 data = (xpsrValue & (0xffffffff ^ mask)) | (data & mask)
                 xpsrValue = data

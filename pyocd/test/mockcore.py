@@ -17,7 +17,13 @@
 
 from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
-from pyocd.coresight.cortex_m import (CORE_REGISTER, register_name_to_index, sysm_to_psr_mask)
+from pyocd.coresight.cortex_m import (
+    CORE_REGISTER,
+    register_name_to_index,
+    is_cfbp_subregister,
+    is_psr_subregister,
+    sysm_to_psr_mask
+)
 from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
@@ -55,10 +61,10 @@ class MockCore(object):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         results = []
         for r in reg_list:
-            if (r < 0) and (r >= -4):
+            if is_cfbp_subregister(r):
                 v = self.regs[CORE_REGISTER['cfbp']]
                 v = (v >> ((-r - 1) * 8)) & 0xff
-            elif (r >= 0x10000) and (r <= 0x10007):
+            elif is_psr_subregister(r):
                 v = self.regs[CORE_REGISTER['xpsr']]
                 v &= sysm_to_psr_mask(r)
             else:
@@ -73,12 +79,12 @@ class MockCore(object):
         reg = [register_name_to_index(r) for r in reg]
 #         logging.info("mockcore[%x]:write(%s, %s)", id(self), reg, data)
         for r, v in zip(reg, data):
-            if (r < 0) and (r >= -4):
+            if is_cfbp_subregister(r):
                 shift = (-r - 1) * 8
                 mask = 0xffffffff ^ (0xff << shift)
                 data = (self.regs[CORE_REGISTER['cfbp']] & mask) | ((v & 0xff) << shift)
                 self.regs[CORE_REGISTER['cfbp']] = data
-            elif (r >= 0x10000) and (r <= 0x10007):
+            elif is_psr_subregister(r):
                 mask = sysm_to_psr_mask(r)
                 data = (self.regs[CORE_REGISTER['xpsr']] & (0xffffffff ^ mask)) | (v & mask)
                 self.regs[CORE_REGISTER['xpsr']] = data

@@ -16,7 +16,14 @@
 """
 
 from .context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register, sysm_to_psr_mask)
+from ..coresight.cortex_m import (
+    CORE_REGISTER,
+    register_name_to_index,
+    is_fpu_register,
+    is_cfbp_subregister,
+    is_psr_subregister,
+    sysm_to_psr_mask
+)
 from ..utility import conversion
 from intervaltree import (Interval, IntervalTree)
 import logging
@@ -113,7 +120,7 @@ class RegisterCache(object):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif (is_float_register(reg) or (reg == 33)) and (not self._context.core.has_fpu):
+            elif is_fpu_register(reg) and (not self._context.core.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         return reg_list

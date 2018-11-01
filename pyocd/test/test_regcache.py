@@ -17,7 +17,13 @@
 
 from pyocd.debug.cache import RegisterCache
 from pyocd.debug.context import DebugContext
-from pyocd.coresight.cortex_m import (CortexM, CORE_REGISTER, register_name_to_index, sysm_to_psr_mask)
+from pyocd.coresight.cortex_m import (
+    CortexM,
+    CORE_REGISTER,
+    register_name_to_index,
+    is_psr_subregister,
+    sysm_to_psr_mask
+)
 from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
@@ -47,7 +53,7 @@ def get_modifier(r):
 
 def get_expected_reg_value(r):
     i = register_name_to_index(r)
-    if (i >= 0x10000) and (i <= 0x10007):
+    if is_psr_subregister(i):
         return 0x55555555 & sysm_to_psr_mask(i)
     if i < 0:
         i += 100
