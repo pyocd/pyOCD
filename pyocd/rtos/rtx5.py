@@ -286,7 +286,13 @@ class RTXTargetThread(TargetThread):
             return 0
 
     def get_stack_frame(self):
-        return self._target_context.read8(self._base + RTXTargetThread.STACKFRAME_OFFSET)
+        # Get "stack frame" (EXC_RETURN value from LR) saved in thread struct.
+        # Note that RTX5 only stores bottom byte - hide that by extending.
+        try:
+            return self._target_context.read8(self._base + RTXTargetThread.STACKFRAME_OFFSET) | 0xFFFFFF00
+        except exceptions.TransferError:
+            log.debug("Transfer error while reading thread's stack frame @ 0x%08x", self._base + RTXTargetThread.STACKFRAME_OFFSET)
+            return 0xFFFFFFFD
 
 ## @brief Thread provider for RTX5 RTOS.
 class RTX5ThreadProvider(ThreadProvider):
