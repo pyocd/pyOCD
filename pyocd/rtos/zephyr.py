@@ -92,7 +92,11 @@ class ZephyrThreadContext(DebugContext):
         # we are generating the thread view for the RTOS thread where the
         # exception occurred; the actual Handler Mode thread view is produced
         # by HandlerModeThread
-        sp = self._thread.get_stack_pointer()
+        if inException:
+            # Reasonable to assume PSP is still valid
+            sp = self._parent.read_core_register('psp')
+        else:
+            sp = self._thread.get_stack_pointer()
         exceptionFrame = 0x20
 
         for reg in reg_list:
@@ -176,17 +180,13 @@ class ZephyrThread(TargetThread):
             log.debug("Transfer error while reading thread info")
 
     def get_stack_pointer(self):
-        if self.is_current:
-            # Read live process stack.
-            sp = self._target_context.read_core_register('psp')
-        else:
-            # Get stack pointer saved in thread struct.
-            addr = self._base + self._offsets["t_stack_ptr"]
-            try:
-                sp = self._target_context.read32(addr)
-            except exceptions.TransferError:
-                log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", addr)
-        return sp
+        # Get stack pointer saved in thread struct.
+        addr = self._base + self._offsets["t_stack_ptr"]
+        try:
+            return self._target_context.read32(addr)
+        except exceptions.TransferError:
+            log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", addr)
+            return 0
 
     def update_info(self):
         try:
