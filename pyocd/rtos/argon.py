@@ -166,13 +166,13 @@ class ArgonThreadContext(DebugContext):
         sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        realSpOffset = 0x40
-        realSpExceptionOffset = 0x20
+        hwStacked = 0x20
+        swStacked = 0x20
         table = self.CORE_REGISTER_OFFSETS
         if self._thread.has_extended_frame:
             table = self.FPU_EXTENDED_REGISTER_OFFSETS
-            realSpOffset = 0xc8
-            realSpExceptionOffset = 0x68
+            hwStacked = 0x68
+            swStacked = 0x60
 
         for reg in reg_list:
             # Check for regs we can't access.
@@ -181,13 +181,13 @@ class ArgonThreadContext(DebugContext):
                     reg_vals.append(0)
                     continue
                 if reg == 18 or reg == 13: # PSP
-                    log.debug("psp = 0x%08x", sp + realSpExceptionOffset)
-                    reg_vals.append(sp + realSpExceptionOffset)
+                    log.debug("psp = 0x%08x", sp + hwStacked)
+                    reg_vals.append(sp + hwStacked)
                     continue
 
             # Must handle stack pointer specially.
             if reg == 13:
-                reg_vals.append(sp + realSpOffset)
+                reg_vals.append(sp + swStacked + hwStacked)
                 continue
 
             # Look up offset for this register on the stack.
@@ -196,7 +196,7 @@ class ArgonThreadContext(DebugContext):
                 reg_vals.append(self._parent.read_core_register(reg))
                 continue
             if isCurrent and inException:
-                spOffset -= realSpExceptionOffset #0x20
+                spOffset -= swStacked
 
             try:
                 reg_vals.append(self._parent.read32(sp + spOffset))

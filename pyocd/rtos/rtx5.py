@@ -50,7 +50,12 @@ class TargetList(object):
 class RTXThreadContext(DebugContext):
     # SP/PSP are handled specially, so it is not in these dicts.
 
+    # Offsets are relative to stored SP in a task switch block, for the
+    # combined software + hardware stacked registers. In exception case,
+    # software registers are not stacked, so appropriate amount must be
+    # subtracted.
     NOFPU_REGISTER_OFFSETS = {
+                 # Software stacked
                  4: 0, # r4
                  5: 4, # r5
                  6: 8, # r6
@@ -59,6 +64,7 @@ class RTXThreadContext(DebugContext):
                  9: 20, # r9
                  10: 24, # r10
                  11: 28, # r11
+                 # Hardware stacked
                  0: 32, # r0
                  1: 36, # r1
                  2: 40, # r2
@@ -70,6 +76,7 @@ class RTXThreadContext(DebugContext):
             }
 
     FPU_REGISTER_OFFSETS = {
+                 # Software stacked
                  0x50: 0, # s16
                  0x51: 4, # s17
                  0x52: 8, # s18
@@ -94,6 +101,7 @@ class RTXThreadContext(DebugContext):
                  9: 84, # r9
                  10: 88, # r10
                  11: 92, # r11
+                 # Hardware stacked
                  0: 96, # r0
                  1: 100, # r1
                  2: 104, # r2
@@ -145,8 +153,8 @@ class RTXThreadContext(DebugContext):
         sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        realSpOffset = 0x40
-        realSpExceptionOffset = 0x20
+        hwStacked = 0x20
+        swStacked = 0x20
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
@@ -156,8 +164,8 @@ class RTXThreadContext(DebugContext):
                 # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & (1 << 4)) == 0:
                     table = self.FPU_REGISTER_OFFSETS
-                    realSpOffset = 0xc8
-                    realSpExceptionOffset = 0x68
+                    hwStacked = 0x68
+                    swStacked = 0x60
             except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
@@ -168,12 +176,12 @@ class RTXThreadContext(DebugContext):
                     reg_vals.append(0)
                     continue
                 if reg == 18 or reg == 13: # PSP
-                    reg_vals.append(sp + realSpExceptionOffset)
+                    reg_vals.append(sp + hwStacked)
                     continue
 
             # Must handle stack pointer specially.
             if reg == 13:
-                reg_vals.append(sp + realSpOffset)
+                reg_vals.append(sp + swStacked + hwStacked)
                 continue
 
             # Look up offset for this register on the stack.
@@ -182,7 +190,7 @@ class RTXThreadContext(DebugContext):
                 reg_vals.append(self._parent.read_core_register(reg))
                 continue
             if isCurrent and inException:
-                spOffset -= realSpExceptionOffset #0x20
+                spOffset -= swStacked
 
             try:
                 reg_vals.append(self._parent.read32(sp + spOffset))

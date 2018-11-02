@@ -175,8 +175,8 @@ class FreeRTOSThreadContext(DebugContext):
         sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        realSpOffset = 0x40
-        realSpExceptionOffset = 0x20
+        hwStacked = 0x20
+        swStacked = 0x20
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
@@ -187,11 +187,11 @@ class FreeRTOSThreadContext(DebugContext):
                 # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & (1 << 4)) != 0:
                     table = self.FPU_BASIC_REGISTER_OFFSETS
-                    realSpOffset = 0x44
+                    swStacked = 0x24
                 else:
                     table = self.FPU_EXTENDED_REGISTER_OFFSETS
-                    realSpOffset = 0xcc
-                    realSpExceptionOffset = 0x6c
+                    hwStacked = 0x68
+                    swStacked = 0x64
             except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
@@ -202,12 +202,12 @@ class FreeRTOSThreadContext(DebugContext):
                     reg_vals.append(0)
                     continue
                 if reg == 18 or reg == 13: # PSP
-                    reg_vals.append(sp + realSpExceptionOffset)
+                    reg_vals.append(sp + hwStacked)
                     continue
 
             # Must handle stack pointer specially.
             if reg == 13:
-                reg_vals.append(sp + realSpOffset)
+                reg_vals.append(sp + swStacked + hwStacked)
                 continue
 
             # Look up offset for this register on the stack.
@@ -216,7 +216,7 @@ class FreeRTOSThreadContext(DebugContext):
                 reg_vals.append(self._parent.read_core_register(reg))
                 continue
             if isCurrent and inException:
-                spOffset -= realSpExceptionOffset #0x20
+                spOffset -= swStacked
 
             try:
                 reg_vals.append(self._parent.read32(sp + spOffset))
