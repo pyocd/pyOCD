@@ -152,9 +152,6 @@ class FreeRTOSThreadContext(DebugContext):
             }
     FPU_EXTENDED_REGISTER_OFFSETS.update(COMMON_REGISTER_OFFSETS)
 
-    # Registers that are not available on the stack for exceptions.
-    EXCEPTION_UNAVAILABLE_REGS = (4, 5, 6, 7, 8, 9, 10, 11)
-
     def __init__(self, parentContext, thread):
         super(FreeRTOSThreadContext, self).__init__(parentContext.core)
         self._parent = parentContext
@@ -206,9 +203,6 @@ class FreeRTOSThreadContext(DebugContext):
         for reg in reg_list:
             # Check for regs we can't access.
             if inException:
-                if reg in self.EXCEPTION_UNAVAILABLE_REGS:
-                    reg_vals.append(0)
-                    continue
                 if reg == 18 or reg == 13: # PSP
                     reg_vals.append(sp + hwStacked)
                     continue
@@ -227,7 +221,11 @@ class FreeRTOSThreadContext(DebugContext):
                 spOffset -= swStacked
 
             try:
-                reg_vals.append(self._parent.read32(sp + spOffset))
+                if spOffset >= 0:
+                    reg_vals.append(self._parent.read32(sp + spOffset))
+                else:
+                    # Not available - try live one
+                    reg_vals.append(self._parent.read_core_register(reg))
             except exceptions.TransferError:
                 reg_vals.append(0)
 

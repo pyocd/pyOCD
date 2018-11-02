@@ -144,9 +144,6 @@ class ArgonThreadContext(DebugContext):
                  # (reserved word: 196)
             }
 
-    # Registers that are not available on the stack for exceptions.
-    EXCEPTION_UNAVAILABLE_REGS = (4, 5, 6, 7, 8, 9, 10, 11)
-
     def __init__(self, parentContext, thread):
         super(ArgonThreadContext, self).__init__(parentContext.core)
         self._parent = parentContext
@@ -185,9 +182,6 @@ class ArgonThreadContext(DebugContext):
         for reg in reg_list:
             # Check for regs we can't access.
             if inException:
-                if reg in self.EXCEPTION_UNAVAILABLE_REGS:
-                    reg_vals.append(0)
-                    continue
                 if reg == 18 or reg == 13: # PSP
                     log.debug("psp = 0x%08x", sp + hwStacked)
                     reg_vals.append(sp + hwStacked)
@@ -207,7 +201,11 @@ class ArgonThreadContext(DebugContext):
                 spOffset -= swStacked
 
             try:
-                reg_vals.append(self._parent.read32(sp + spOffset))
+                if spOffset >= 0:
+                    reg_vals.append(self._parent.read32(sp + spOffset))
+                else:
+                    # Not available - try live one
+                    reg_vals.append(self._parent.read_core_register(reg))
             except exceptions.TransferError:
                 reg_vals.append(0)
 
