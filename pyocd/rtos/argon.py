@@ -180,16 +180,12 @@ class ArgonThreadContext(DebugContext):
             swStacked = 0x60
 
         for reg in reg_list:
-            # Check for regs we can't access.
-            if inException:
-                if reg == 18 or reg == 13: # PSP
-                    log.debug("psp = 0x%08x", sp + hwStacked)
-                    reg_vals.append(sp + hwStacked)
-                    continue
-
             # Must handle stack pointer specially.
             if reg == 13:
-                reg_vals.append(sp + swStacked + hwStacked)
+                if inException:
+                    reg_vals.append(sp + hwStacked)
+                else:
+                    reg_vals.append(sp + swStacked + hwStacked)
                 continue
 
             # Look up offset for this register on the stack.

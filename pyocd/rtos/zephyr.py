@@ -102,7 +102,7 @@ class ZephyrThreadContext(DebugContext):
         for reg in reg_list:
 
             # If this is a stack pointer register, add an offset to account for the exception stack frame
-            if reg == 13 or reg == 18:
+            if reg == 13:
                 val = sp + exceptionFrame
                 log.debug("Reading register %d = 0x%x", reg, val)
                 reg_vals.append(val)
