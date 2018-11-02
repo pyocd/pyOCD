@@ -163,10 +163,16 @@ class RTXThreadContext(DebugContext):
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
-                # Read stacked exception return LR.
-                exceptionLR = self._thread.get_stack_frame()
+                if inException and self._parent.core.is_vector_catch():
+                    # Vector catch has just occurred, take live LR
+                    exceptionLR = self._parent.read_core_register('lr')
+                else:
+                    # Can't really rely on finding live LR after initial
+                    # vector catch, so retrieve LR stored by OS on last
+                    # thread switch.
+                    exceptionLR = self._thread.get_stack_frame()
 
-                # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
+                # Check bit 4 of the exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & (1 << 4)) == 0:
                     table = self.FPU_REGISTER_OFFSETS
                     hwStacked = 0x68

@@ -185,9 +185,13 @@ class FreeRTOSThreadContext(DebugContext):
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
-                # Read stacked exception return LR.
-                offset = self.FPU_BASIC_REGISTER_OFFSETS[-1]
-                exceptionLR = self._parent.read32(sp + offset)
+                if inException and self._parent.core.is_vector_catch():
+                    # Vector catch has just occurred, take live LR
+                    exceptionLR = self._parent.read_core_register('lr')
+                else:
+                    # Read stacked exception return LR.
+                    offset = self.FPU_BASIC_REGISTER_OFFSETS[-1]
+                    exceptionLR = self._parent.read32(sp + offset)
 
                 # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & (1 << 4)) != 0:
