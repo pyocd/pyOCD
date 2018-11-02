@@ -80,14 +80,18 @@ class ZephyrThreadContext(DebugContext):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        inException = self._parent.read_core_register('ipsr') > 0
         isCurrent = self._thread.is_current
+        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
 
         # If this is the current thread and we're not in an exception, just read the live registers.
         if isCurrent and not inException:
             log.debug("Reading live registers")
             return self._parent.read_core_registers_raw(reg_list)
 
+        # Because of above tests, from now on, inException implies isCurrent;
+        # we are generating the thread view for the RTOS thread where the
+        # exception occurred; the actual Handler Mode thread view is produced
+        # by HandlerModeThread
         sp = self._thread.get_stack_pointer()
         exceptionFrame = 0x20
 

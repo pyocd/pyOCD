@@ -156,13 +156,17 @@ class ArgonThreadContext(DebugContext):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        inException = self._parent.read_core_register('ipsr') > 0
         isCurrent = self._thread.is_current
+        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
 
         # If this is the current thread and we're not in an exception, just read the live registers.
         if isCurrent and not inException:
             return self._parent.read_core_registers_raw(reg_list)
 
+        # Because of above tests, from now on, inException implies isCurrent;
+        # we are generating the thread view for the RTOS thread where the
+        # exception occurred; the actual Handler Mode thread view is produced
+        # by HandlerModeThread
         sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
@@ -176,7 +180,7 @@ class ArgonThreadContext(DebugContext):
 
         for reg in reg_list:
             # Check for regs we can't access.
-            if isCurrent and inException:
+            if inException:
                 if reg in self.EXCEPTION_UNAVAILABLE_REGS:
                     reg_vals.append(0)
                     continue
@@ -195,7 +199,7 @@ class ArgonThreadContext(DebugContext):
             if spOffset is None:
                 reg_vals.append(self._parent.read_core_register(reg))
                 continue
-            if isCurrent and inException:
+            if inException:
                 spOffset -= swStacked
 
             try:
