@@ -25,6 +25,8 @@ DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
 DEFAULT_PAGE_ERASE_WEIGHT = 0.048
 DEFAULT_CHIP_ERASE_WEIGHT = 0.174
 
+LOG = logging.getLogger('flash')
+
 # Program to compute the CRC of sectors.  This works on cortex-m processors.
 # Code is relocatable and only needs to be on a 4 byte boundary.
 # 200 bytes of executable data below + 1024 byte crc table = 1224 bytes
@@ -141,7 +143,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('init error: %i', result)
+            LOG.error('init error: %i', result)
 
     def cleanup(self):
         pass
@@ -180,7 +182,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('erase_all error: %i', result)
+            LOG.error('erase_all error: %i', result)
 
     def erase_page(self, flashPtr):
         """
@@ -192,7 +194,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('erase_page(0x%x) error: %i', flashPtr, result)
+            LOG.error('erase_page(0x%x) error: %i', flashPtr, result)
 
     def program_page(self, flashPtr, bytes):
         """
@@ -213,7 +215,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('program_page(0x%x) error: %i', flashPtr, result)
+            LOG.error('program_page(0x%x) error: %i', flashPtr, result)
 
     def start_program_page_with_buffer(self, bufferNumber, flashPtr):
         """
@@ -264,7 +266,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            logging.error('program_phrase(0x%x) error: %i', flashPtr, result)
+            LOG.error('program_phrase(0x%x) error: %i', flashPtr, result)
 
     def get_page_info(self, addr):
         """
@@ -373,7 +375,7 @@ class Flash(object):
 
         if self.flash_algo_debug:
             regs = self.target.read_core_registers_raw(list(range(19)) + [20])
-            logging.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
+            LOG.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
 
             expected_fp = self.flash_algo['static_base']
             expected_sp = self.flash_algo['begin_stack']
@@ -392,26 +394,26 @@ class Flash(object):
 
             error = False
             if final_ipsr != 0:
-                logging.error("IPSR should be 0 but is 0x%x", final_ipsr)
+                LOG.error("IPSR should be 0 but is 0x%x", final_ipsr)
                 error = True
             if final_fp != expected_fp:
                 # Frame pointer should not change
-                logging.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
+                LOG.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
                 error = True
             if final_sp != expected_sp:
                 # Stack pointer should return to original value after function call
-                logging.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
+                LOG.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
                 error = True
             if final_pc != expected_pc:
                 # PC should be pointing to breakpoint address
-                logging.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
+                LOG.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
                 error = True
             #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
             #if not _same(expected_flash_algo, final_flash_algo):
-            #    logging.error("Flash algorithm overwritten!")
+            #    LOG.error("Flash algorithm overwritten!")
             #    error = True
             #if self.use_analyzer and not _same(expected_analyzer, final_analyzer):
-            #    logging.error("Analyzer overwritten!")
+            #    LOG.error("Analyzer overwritten!")
             #    error = True
             assert error == False
             self.target.set_vector_catch(self._saved_vector_catch)
