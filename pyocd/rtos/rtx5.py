@@ -271,7 +271,7 @@ class RTXTargetThread(TargetThread):
 
     @property
     def is_current(self):
-        return self._provider.get_current_thread_id() == self._base
+        return self._provider.get_actual_current_thread_id() == self._base
 
     def get_stack_pointer(self):
         if self.is_current:
@@ -408,6 +408,11 @@ class RTX5ThreadProvider(ThreadProvider):
             return None
         if self._target_context.read_core_register('ipsr') > 0:
             return HandlerModeThread.UNIQUE_ID
+        return self.get_actual_current_thread_id()
+
+    def get_actual_current_thread_id(self):
+        if not self.is_enabled:
+            return None
         self.update_threads()
         return self._current_id
 

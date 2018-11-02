@@ -111,6 +111,10 @@ class ThreadProvider(object):
     def is_valid_thread_id(self, threadId):
         raise NotImplementedError()
 
+    # From GDB's point of view, where Handler Mode is a thread
     def get_current_thread_id(self):
         raise NotImplementedError()
 
+    # From OS's point of view, so the current OS thread even in Handler Mode
+    def get_actual_current_thread_id(self):
+        raise NotImplementedError()
