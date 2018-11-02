@@ -572,7 +572,7 @@ class CortexM(Target, CoreSightComponent):
         self.notify(Notification(event=Target.EVENT_POST_RUN, source=self, data=Target.RUN_TYPE_STEP))
 
     def clear_debug_cause_bits(self):
-        self.write_memory(CortexM.DFSR, CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
+        self.write_memory(CortexM.DFSR, CortexM.DFSR_VCATCH | CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
 
     def reset(self, software_reset=None):
         """
@@ -944,6 +944,10 @@ class CortexM(Target, CoreSightComponent):
 
     def is_debug_trap(self):
         debugEvents = self.read_memory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
+        return debugEvents != 0
+
+    def is_vector_catch(self):
+        debugEvents = self.read_memory(CortexM.DFSR) & CortexM.DFSR_VCATCH
         return debugEvents != 0
 
     def get_target_context(self, core=None):
