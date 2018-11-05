@@ -17,6 +17,7 @@
 from . import STLinkException
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
 from ...core import exceptions
+from ...coresight import dap
 import logging
 import struct
 import six
@@ -58,6 +59,7 @@ class STLink(object):
         self._jtag_version = 0
         self._version_str = None
         self._target_voltage = 0
+        self._protocol = None
     
     def open(self):
         self._device.open()
@@ -148,6 +150,7 @@ class STLink(object):
             self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_EXIT])
         elif response[0] == Commands.DEV_SWIM_MODE:
             self._device.transfer([Commands.SWIM_COMMAND, Commands.SWIM_EXIT])
+        self._protocol = None
 
     def set_swd_frequency(self, freq=1800000):
         for f, d in SWD_FREQ_MAP.items():
@@ -174,6 +177,7 @@ class STLink(object):
             protocolParam = Commands.JTAG_ENTER_JTAG_NO_CORE_RESET
         response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_ENTER2, protocolParam, 0], readSize=2)
         self._check_status(response)
+        self._protocol = protocol
     
     def open_ap(self, apsel):
         if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
@@ -203,6 +207,12 @@ class STLink(object):
         if status != Status.JTAG_OK:
             raise STLinkException("STLink error (%d): " % status + Status.MESSAGES.get(status, "Unknown error"))
 
+    def _clear_sticky_error(self):
+        if self._protocol == self.Protocol.SWD:
+            self.write_dap_register(self.DP_PORT, dap.DP_ABORT, dap.ABORT_STKERRCLR)
+        elif self._protocol == self.Protocol.JTAG:
+            self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT, dap.CTRLSTAT_STICKYERR)
+    
     def _read_mem(self, addr, size, memcmd, max, apsel):
         result = []
         while size:
@@ -219,12 +229,15 @@ class STLink(object):
             response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
             status, _, faultAddr = struct.unpack('<HHI', response[0:8])
             if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
+                # Clear sticky errors.
+                self._clear_sticky_error()
+                
                 exc = exceptions.TransferFaultError()
                 exc.fault_address = faultAddr
                 exc.fault_length = thisTransferSize - (faultAddr - addr)
                 raise exc
             elif status != Status.JTAG_OK:
-                raise STLinkException("STLink error: " + Status.MESSAGES.get(status, "Unknown error"))
+                raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
         return result
 
     def _write_mem(self, addr, data, memcmd, max, apsel):
@@ -243,12 +256,15 @@ class STLink(object):
             response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
             status, _, faultAddr = struct.unpack('<HHI', response[0:8])
             if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
+                # Clear sticky errors.
+                self._clear_sticky_error()
+                
                 exc = exceptions.TransferFaultError()
                 exc.fault_address = faultAddr
                 exc.fault_length = thisTransferSize - (faultAddr - addr)
                 raise exc
             elif status != Status.JTAG_OK:
-                raise STLinkException("STLink error (%x): " % status + Status.MESSAGES.get(status, "Unknown error"))
+                raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
 
     def read_mem32(self, addr, size, apsel):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"
