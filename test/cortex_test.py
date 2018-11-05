@@ -101,7 +101,7 @@ def cortex_test(board_id):
         ram_region = ram_regions[0]
         rom_region = memory_map.get_boot_memory()
 
-        addr = ram_region.start + 1
+        addr = ram_region.start
         size = 0x502
         addr_bin = rom_region.start
 
@@ -183,59 +183,77 @@ def cortex_test(board_id):
         print("\n\n------ Testing Invalid Memory Access Recovery ------")
         memory_access_pass = True
         try:
+            print("reading 0x1000 bytes at invalid address 0x%08x" % addr_invalid)
             target.read_memory_block8(addr_invalid, 0x1000)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
+                print("  failed to get expected fault")
                 memory_access_pass = False
-        except exceptions.TransferFaultError:
-            pass
+            else:
+                print("  no fault as expected")
+        except exceptions.TransferFaultError as exc:
+            print("  got expected error: " + str(exc))
 
         try:
+            print("reading 0x1000 bytes at invalid address 0x%08x" % (addr_invalid + 1))
             target.read_memory_block8(addr_invalid + 1, 0x1000)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
+                print("  failed to get expected fault")
                 memory_access_pass = False
-        except exceptions.TransferFaultError:
-            pass
+            else:
+                print("  no fault as expected")
+        except exceptions.TransferFaultError as exc:
+            print("  got expected error: " + str(exc))
 
         data = [0x00] * 0x1000
         try:
+            print("writing 0x%08x bytes at invalid address 0x%08x" % (len(data), addr_invalid))
             target.write_memory_block8(addr_invalid, data)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
+                print("  failed to get expected fault!")
                 memory_access_pass = False
-        except exceptions.TransferFaultError:
-            pass
+            else:
+                print("  no fault as expected")
+        except exceptions.TransferFaultError as exc:
+            print("  got expected error: " + str(exc))
 
         data = [0x00] * 0x1000
         try:
+            print("writing 0x%08x bytes at invalid address 0x%08x" % (len(data), addr_invalid + 1))
             target.write_memory_block8(addr_invalid + 1, data)
             target.flush()
             # If no exception is thrown the tests fails except on nrf51 where invalid addresses read as 0
             if expect_invalid_access_to_fail:
+                print("  failed to get expected fault!")
                 memory_access_pass = False
-        except exceptions.TransferFaultError:
-            pass
+            else:
+                print("  no fault as expected")
+        except exceptions.TransferFaultError as exc:
+            print("  got expected error: " + str(exc))
 
         data = [randrange(0, 255) for x in range(size)]
+        print("r/w 0x%08x bytes at 0x%08x" % (size, addr))
         target.write_memory_block8(addr, data)
         block = target.read_memory_block8(addr, size)
         if same(data, block):
-            print("Aligned access pass")
+            print("  Aligned access pass")
         else:
-            print("Memory read does not match memory written")
+            print("  Memory read does not match memory written")
             memory_access_pass = False
 
         data = [randrange(0, 255) for x in range(size)]
+        print("r/w 0x%08x bytes at 0x%08x" % (size, addr + 1))
         target.write_memory_block8(addr + 1, data)
         block = target.read_memory_block8(addr + 1, size)
         if same(data, block):
-            print("Unaligned access pass")
+            print("  Unaligned access pass")
         else:
-            print("Unaligned memory read does not match memory written")
+            print("  Unaligned memory read does not match memory written")
             memory_access_pass = False
 
         test_count += 1

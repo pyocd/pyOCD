@@ -137,23 +137,9 @@ class CoreSightTarget(Target):
         self._apply_to_all_components(self._create_component, filter=lambda c: c.factory is not None and c.factory != cortex_m.CortexM.factory)
     
     def _apply_to_all_components(self, action, filter=None):
-        def scan_rom_table(tbl):
-            for component in tbl.components:
-                # Recurse into child ROM tables.
-                if isinstance(component, rom_table.ROMTable):
-                    scan_rom_table(component)
-                    continue
-                
-                # Skip component if the filter returns False.
-                if filter is not None and not filter(component):
-                    continue
-                
-                # Perform the action.
-                action(component)
-                
         # Iterate over every top-level ROM table.
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
-            scan_rom_table(ap.rom_table)
+            ap.rom_table.for_each(action, filter)
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))

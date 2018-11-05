@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
  limitations under the License.
 """
 
+from .memory_interface import MemoryInterface
 from ..utility.notification import Notifier
 from .memory_map import MemoryMap
 
-class Target(Notifier):
+class Target(MemoryInterface, Notifier):
 
     TARGET_RUNNING = 1   # Core is executing code.
     TARGET_HALTED = 2    # Core is halted in debug mode.
@@ -117,48 +118,6 @@ class Target(Notifier):
         raise NotImplementedError()
 
     def mass_erase(self):
-        raise NotImplementedError()
-
-    def write_memory(self, addr, value, transfer_size=32):
-        raise NotImplementedError()
-
-    # @brief Shorthand to write a 32-bit word.
-    def write32(self, addr, value):
-        self.write_memory(addr, value, 32)
-
-    # @brief Shorthand to write a 16-bit halfword.
-    def write16(self, addr, value):
-        self.write_memory(addr, value, 16)
-
-    # @brief Shorthand to write a byte.
-    def write8(self, addr, value):
-        self.write_memory(addr, value, 8)
-
-    def read_memory(self, addr, transfer_size=32, now=True):
-        raise NotImplementedError()
-
-    # @brief Shorthand to read a 32-bit word.
-    def read32(self, addr, now=True):
-        return self.read_memory(addr, 32, now)
-
-    # @brief Shorthand to read a 16-bit halfword.
-    def read16(self, addr, now=True):
-        return self.read_memory(addr, 16, now)
-
-    # @brief Shorthand to read a byte.
-    def read8(self, addr, now=True):
-        return self.read_memory(addr, 8, now)
-
-    def write_memory_block8(self, addr, value):
-        raise NotImplementedError()
-
-    def write_memory_block32(self, addr, data):
-        raise NotImplementedError()
-
-    def read_memory_block8(self, addr, size):
-        raise NotImplementedError()
-
-    def read_memory_block32(self, addr, size):
         raise NotImplementedError()
 
     def read_core_register(self, id):

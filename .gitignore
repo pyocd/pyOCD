@@ -57,6 +57,9 @@ html
 #PyCharm project files
 .idea
 
+# Visual Studio Code
+.vscode
+
 # Coverage
 cover
 htmlcov
