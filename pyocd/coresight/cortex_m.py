@@ -951,3 +951,39 @@ class CortexM(Target, CoreSightComponent):
 
     def set_target_context(self, context):
         self._target_context = context
+
+    # Names for built-in Exception numbers found in IPSR
+    CORE_EXCEPTION = [
+           "Thread",
+           "Reset",
+           "NMI",
+           "HardFault",
+           "MemManage",
+           "BusFault",
+           "UsageFault",
+           "SecureFault",
+           "Exception 8",
+           "Exception 9",
+           "Exception 10",
+           "SVCall",
+           "DebugMonitor",
+           "Exception 13",
+           "PendSV",
+           "SysTick",
+    ]
+
+    def exception_number_to_name(self, exc_num, name_thread=False):
+        if exc_num < len(self.CORE_EXCEPTION):
+            if exc_num == 0 and not name_thread:
+                return None
+            else:
+                return self.CORE_EXCEPTION[num]
+        else:
+            irq_num = exc_num - len(self.CORE_EXCEPTION)
+            name = None
+            if self.root_target.irq_table:
+                name = self.root_target.irq_table.get(irq_num)
+            if name is not None:
+                return "Interrupt[%s]" % name
+            else:
+                return "Interrupt %d" % irq_num

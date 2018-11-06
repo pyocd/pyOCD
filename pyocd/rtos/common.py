@@ -85,7 +85,8 @@ class HandlerModeThread(TargetThread):
 
     @property
     def description(self):
-        return ""
+        ipsr = self._target_context.read_core_register('ipsr');
+        return self._target_context.core.exception_number_to_name(ipsr)
 
     @property
     def is_current(self):
