@@ -98,8 +98,8 @@ class Session(object):
     
     def _get_config(self):
         # Load config file if one was provided via options.
-        if 'config_file' in self._options:
-            configPath = self._options['config_file']
+        configPath = self._options.get('config_file', None)
+        if isinstance(configPath, six.string_types):
             try:
                 with open(configPath, 'r') as configFile:
                     return yaml.safe_load(configFile)
