@@ -47,7 +47,8 @@ setup(
         'pyelftools',
         'pyusb>=1.0.0b2',
         'pywinusb>=0.4.0;platform_system=="Windows"',
-        'hidapi;platform_system=="Darwin"'
+        'hidapi;platform_system=="Darwin"',
+        'pyyaml',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",

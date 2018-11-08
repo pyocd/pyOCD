@@ -33,13 +33,13 @@ STLinkInfo = namedtuple('STLinkInfo', 'version_name out_ep in_ep swv_ep')
 ##
 # @brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices.
 class STLinkUSBInterface(object):
-    # Command packet size.
+    ## Command packet size.
     CMD_SIZE = 16
     
-    # ST's USB vendor ID
+    ## ST's USB vendor ID
     USB_VID = 0x0483
 
-    # Map of USB PID to firmware version name and device endpoints.
+    ## Map of USB PID to firmware version name and device endpoints.
     USB_PID_EP_MAP = {
         # PID              Version  OUT     IN      SWV
         0x3748: STLinkInfo('V2',    0x02,   0x81,   0x83),
@@ -51,6 +51,7 @@ class STLinkUSBInterface(object):
         0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP
         }
     
+    ## STLink devices only have one USB interface.
     DEBUG_INTERFACE_NUMBER = 0
 
     @classmethod
@@ -67,15 +68,17 @@ class STLinkUSBInterface(object):
             return isSTLink
         except ValueError as error:
             # Permission denied error gets reported as ValueError (The device has no langid).
-            log.debug(("ValueError \"{}\" while trying to access STLink USB device fields "
-                           "for idVendor=0x{:04x} idProduct=0x{:04x}. "
-                           "This is probably a permission issue.").format(error, dev.idVendor, dev.idProduct))
+            log.debug("ValueError \"%s\" while trying to access STLink USB device fields (VID=%04x PID=%04x). "
+                        "This is probably a permission issue.", error, dev.idVendor, dev.idProduct)
             return False
         except usb.core.USBError as error:
-            log.warning("Exception getting device info: %s", error)
+            log.warning("Exception getting device info (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
         except IndexError as error:
-            log.warning("Internal pyusb error: %s", error)
+            log.warning("Internal pyusb error (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
+            return False
+        except NotImplementedError as error:
+            log.warning("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
             return False
 
     @classmethod
@@ -107,10 +110,8 @@ class STLinkUSBInterface(object):
     def open(self):
         assert self._closed
         
-        self._dev.set_configuration()
-        config = self._dev.get_active_configuration()
-        
         # Debug interface is always interface 0, alt setting 0.
+        config = self._dev.get_active_configuration()
         interface = config[(self.DEBUG_INTERFACE_NUMBER, 0)]
         
         # Look up endpoint objects.
@@ -173,12 +174,10 @@ class STLinkUSBInterface(object):
             pass
 
     def _read(self, size, timeout=1000):
-        # Round up reads to the maximum packet size.
+        # Minimum read size is the maximum packet size.
         read_size = max(size, self._max_packet_size)
-#         if read_size % 4:
-#             read_size += 4 - (read_size & 0x3)
-#         return bytearray(self._ep_in.read(read_size, timeout))
-        return self._ep_in.read(read_size, timeout)
+        data = self._ep_in.read(read_size, timeout)
+        return bytearray(data)[:size]
 
     def transfer(self, cmd, writeData=None, readSize=None, timeout=1000):
         # Pad command to required 16 bytes.

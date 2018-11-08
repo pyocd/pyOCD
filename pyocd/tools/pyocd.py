@@ -555,6 +555,7 @@ class PyOCDTool(object):
 
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
         parser.add_argument('--version', action='version', version=__version__)
+        parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
         parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
@@ -602,6 +603,7 @@ class PyOCDTool(object):
 
             # Connect to board.
             self.session = ConnectHelper.session_with_chosen_probe(
+                            config_file=self.args.config,
                             board_id=self.args.board,
                             target_override=self.args.target,
                             init_board=False,

@@ -38,7 +38,6 @@ class MbedBoard(Board):
             board_info = BOARD_ID_TO_INFO[board_id]
             self._name = board_info.name
             self.native_target = board_info.target
-            self._test_binary = board_info.binary
         except KeyError:
             board_info = None
             self._name = "Unknown Board"

@@ -73,6 +73,7 @@ parser.add_argument("format", nargs='?', choices=supported_formats, default=None
 parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-p", "--port"
 # reserved: "-c", "--cmd-port"
+parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
 parser.add_argument("-b", "--board", dest="board_id", default=None,
                     help="Connect to board by board ID. Use -l to list all connected boards. Only a unique part of the board ID needs to be provided.")
 parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False,
@@ -138,6 +139,7 @@ def main():
         ConnectHelper.list_connected_probes()
     else:
         session = ConnectHelper.session_with_chosen_probe(
+                            config_file=self.args.config,
                             board_id=args.board_id,
                             target_override=args.target_override,
                             frequency=args.frequency,

@@ -28,7 +28,7 @@ isPy2 = (sys.version_info[0] == 2)
 # Returns common option values passed in when creating test sessions.
 def get_session_options():
     return {
-        'board_config_file' : 'test_boards.json',
+        'config_file' : 'test_boards.yaml',
         'frequency' : 1000000, # 1 MHz
         }
 
