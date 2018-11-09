@@ -195,7 +195,7 @@ class GDBServerPacketIOThread(threading.Thread):
             self._buffer = self._buffer[1:]
             if LOG_ACK:
                 self.log.debug('got ack: %s', c)
-            if c == '-':
+            if c == b'-':
                 # Handle nack from gdb
                 self._write_packet(self._last_packet)
                 return
