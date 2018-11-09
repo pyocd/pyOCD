@@ -253,39 +253,41 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, board, port_urlWSS, options={}, core=None, report_core=False):
+    def __init__(self, session, core=None, server_listening_callback=None):
         threading.Thread.__init__(self)
-        self.board = board
+        self.session = session
+        self.board = session.board
         if core is None:
             self.core = 0
-            self.target = board.target
+            self.target = self.board.target
         else:
             self.core = core
-            self.target = board.target.cores[core]
-        self.report_core = report_core
+            self.target = self.board.target.cores[core]
         self.log = logging.getLogger('gdbserver')
-        self.flash = board.flash
+        self.flash = self.board.flash
         self.abstract_socket = None
-        self.wss_server = None
-        self.port = 0
+        port_urlWSS = session.options.get('gdbserver_port', 3333)
         if isinstance(port_urlWSS, str) == True:
+            self.port = 0
             self.wss_server = port_urlWSS
         else:
-            self.port = port_urlWSS
-        self.vector_catch = options.get('vector_catch', Target.CATCH_HARD_FAULT)
+            self.port = port_urlWSS + self.core
+            self.wss_server = None
+        self.telnet_port = session.options.get('telnet_port', 4444) + self.core
+        self.vector_catch = session.options.get('vector_catch', Target.CATCH_HARD_FAULT)
         self.target.set_vector_catch(self.vector_catch)
-        self.step_into_interrupt = options.get('step_into_interrupt', False)
-        self.persist = options.get('persist', False)
-        self.soft_bkpt_as_hard = options.get('soft_bkpt_as_hard', False)
-        self.chip_erase = options.get('chip_erase', None)
-        self.hide_programming_progress = options.get('hide_programming_progress', False)
-        self.fast_program = options.get('fast_program', False)
-        self.enable_semihosting = options.get('enable_semihosting', False)
-        self.semihost_console_type = options.get('semihost_console_type', 'telnet')
-        self.telnet_port = options.get('telnet_port', 4444)
-        self.semihost_use_syscalls = options.get('semihost_use_syscalls', False)
-        self.server_listening_callback = options.get('server_listening_callback', None)
-        self.serve_local_only = options.get('serve_local_only', True)
+        self.step_into_interrupt = session.options.get('step_into_interrupt', False)
+        self.persist = session.options.get('persist', False)
+        self.soft_bkpt_as_hard = session.options.get('soft_bkpt_as_hard', False)
+        self.chip_erase = session.options.get('chip_erase', None)
+        self.hide_programming_progress = session.options.get('hide_programming_progress', False)
+        self.fast_program = session.options.get('fast_program', False)
+        self.enable_semihosting = session.options.get('enable_semihosting', False)
+        self.semihost_console_type = session.options.get('semihost_console_type', 'telnet')
+        self.semihost_use_syscalls = session.options.get('semihost_use_syscalls', False)
+        self.serve_local_only = session.options.get('serve_local_only', True)
+        self.report_core = session.options.get('report_core_number', False)
+        self.server_listening_callback = server_listening_callback
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
