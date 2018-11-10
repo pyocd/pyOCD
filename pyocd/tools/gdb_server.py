@@ -140,13 +140,13 @@ class GDBServerTool(object):
     def get_gdb_server_settings(self, args):
         # Set gdb server settings
         return {
+            'gdbserver_port' : self.args.port_number,
             'step_into_interrupt' : args.step_into_interrupt,
             'persist' : args.persist,
             'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
             'chip_erase': self.get_chip_erase(args),
             'hide_programming_progress' : args.hide_progress,
             'fast_program' : args.fast_program,
-            'server_listening_callback' : self.server_listening,
             'enable_semihosting' : args.enable_semihosting,
             'semihost_console_type' : args.semihost_console_type,
             'telnet_port' : args.telnet_port,
@@ -289,12 +289,16 @@ class GDBServerTool(object):
                 self.list_targets()
             else:
                 try:
+                    # Build dict of session options.
+                    sessionOptions = convert_session_options(self.args.option)
+                    sessionOptions.update(self.gdb_server_settings)
+                    
                     session = ConnectHelper.session_with_chosen_probe(
                         config_file=self.args.config,
                         board_id=self.args.board_id,
                         target_override=self.args.target_override,
                         frequency=self.args.frequency,
-                        **convert_session_options(self.args.option))
+                        **sessionOptions)
                     if session is None:
                         print("No board selected")
                         return 1
@@ -302,11 +306,10 @@ class GDBServerTool(object):
                         # Set ELF if provided.
                         if self.args.elf:
                             session.board.target.elf = self.args.elf
-                        baseTelnetPort = self.gdb_server_settings['telnet_port']
-                        report_core = session.options.get('report_core_number', False)
                         for core_number, core in session.board.target.cores.items():
-                            self.gdb_server_settings['telnet_port'] = baseTelnetPort + core_number
-                            gdb = GDBServer(session.board, self.args.port_number + core_number, self.gdb_server_settings, core=core_number, report_core=report_core)
+                            gdb = GDBServer(session,
+                                core=core_number,
+                                server_listening_callback=self.server_listening)
                             gdbs.append(gdb)
                         gdb = gdbs[0]
                         while gdb.isAlive():
