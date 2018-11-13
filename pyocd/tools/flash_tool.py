@@ -139,7 +139,7 @@ def main():
         ConnectHelper.list_connected_probes()
     else:
         session = ConnectHelper.session_with_chosen_probe(
-                            config_file=self.args.config,
+                            config_file=args.config,
                             board_id=args.board_id,
                             target_override=args.target_override,
                             frequency=args.frequency,
