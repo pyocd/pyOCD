@@ -50,7 +50,12 @@ class TargetList(object):
 class RTXThreadContext(DebugContext):
     # SP/PSP are handled specially, so it is not in these dicts.
 
+    # Offsets are relative to stored SP in a task switch block, for the
+    # combined software + hardware stacked registers. In exception case,
+    # software registers are not stacked, so appropriate amount must be
+    # subtracted.
     NOFPU_REGISTER_OFFSETS = {
+                 # Software stacked
                  4: 0, # r4
                  5: 4, # r5
                  6: 8, # r6
@@ -59,6 +64,7 @@ class RTXThreadContext(DebugContext):
                  9: 20, # r9
                  10: 24, # r10
                  11: 28, # r11
+                 # Hardware stacked
                  0: 32, # r0
                  1: 36, # r1
                  2: 40, # r2
@@ -70,6 +76,7 @@ class RTXThreadContext(DebugContext):
             }
 
     FPU_REGISTER_OFFSETS = {
+                 # Software stacked
                  0x50: 0, # s16
                  0x51: 4, # s17
                  0x52: 8, # s18
@@ -94,6 +101,7 @@ class RTXThreadContext(DebugContext):
                  9: 84, # r9
                  10: 88, # r10
                  11: 92, # r11
+                 # Hardware stacked
                  0: 96, # r0
                  1: 100, # r1
                  2: 104, # r2
@@ -122,9 +130,6 @@ class RTXThreadContext(DebugContext):
                  # (reserved word: 196)
             }
 
-    # Registers that are not available on the stack for exceptions.
-    EXCEPTION_UNAVAILABLE_REGS = (4, 5, 6, 7, 8, 9, 10, 11)
-
     def __init__(self, parentContext, thread):
         super(RTXThreadContext, self).__init__(parentContext.core)
         self._parent = parentContext
@@ -135,45 +140,54 @@ class RTXThreadContext(DebugContext):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        inException = self._parent.read_core_register('ipsr') > 0
         isCurrent = self._thread.is_current
+        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
 
         # If this is the current thread and we're not in an exception, just read the live registers.
         if isCurrent and not inException:
             return self._parent.read_core_registers_raw(reg_list)
 
-        sp = self._thread.get_stack_pointer()
+        # Because of above tests, from now on, inException implies isCurrent;
+        # we are generating the thread view for the RTOS thread where the
+        # exception occurred; the actual Handler Mode thread view is produced
+        # by HandlerModeThread
+        if inException:
+            # Reasonable to assume PSP is still valid
+            sp = self._parent.read_core_register('psp')
+        else:
+            sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        realSpOffset = 0x40
-        realSpExceptionOffset = 0x20
+        hwStacked = 0x20
+        swStacked = 0x20
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
-                # Read stacked exception return LR.
-                exceptionLR = self._thread.get_stack_frame()
+                if inException and self._parent.core.is_vector_catch():
+                    # Vector catch has just occurred, take live LR
+                    exceptionLR = self._parent.read_core_register('lr')
+                else:
+                    # Can't really rely on finding live LR after initial
+                    # vector catch, so retrieve LR stored by OS on last
+                    # thread switch.
+                    exceptionLR = self._thread.get_stack_frame()
 
-                # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
+                # Check bit 4 of the exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & (1 << 4)) == 0:
                     table = self.FPU_REGISTER_OFFSETS
-                    realSpOffset = 0xc8
-                    realSpExceptionOffset = 0x68
+                    hwStacked = 0x68
+                    swStacked = 0x60
             except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
         for reg in reg_list:
-            # Check for regs we can't access.
-            if isCurrent and inException:
-                if reg in self.EXCEPTION_UNAVAILABLE_REGS:
-                    reg_vals.append(0)
-                    continue
-                if reg == 18 or reg == 13: # PSP
-                    reg_vals.append(sp + realSpExceptionOffset)
-                    continue
 
             # Must handle stack pointer specially.
             if reg == 13:
-                reg_vals.append(sp + realSpOffset)
+                if inException:
+                    reg_vals.append(sp + hwStacked)
+                else:
+                    reg_vals.append(sp + swStacked + hwStacked)
                 continue
 
             # Look up offset for this register on the stack.
@@ -181,11 +195,15 @@ class RTXThreadContext(DebugContext):
             if spOffset is None:
                 reg_vals.append(self._parent.read_core_register(reg))
                 continue
-            if isCurrent and inException:
-                spOffset -= realSpExceptionOffset #0x20
+            if inException:
+                spOffset -= swStacked
 
             try:
-                reg_vals.append(self._parent.read32(sp + spOffset))
+                if spOffset >= 0:
+                    reg_vals.append(self._parent.read32(sp + spOffset))
+                else:
+                    # Not available - try live one
+                    reg_vals.append(self._parent.read_core_register(reg))
             except exceptions.TransferError:
                 reg_vals.append(0)
 
@@ -263,22 +281,24 @@ class RTXTargetThread(TargetThread):
 
     @property
     def is_current(self):
-        return self._provider.get_current_thread_id() == self._base
+        return self._provider.get_actual_current_thread_id() == self._base
 
     def get_stack_pointer(self):
-        if self.is_current:
-            # Read live process stack.
-            sp = self._target_context.read_core_register('psp')
-        else:
-            # Get stack pointer saved in thread struct.
-            try:
-                sp = self._target_context.read32(self._base + RTXTargetThread.SP_OFFSET)
-            except exceptions.TransferError:
-                log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + RTXTargetThread.SP_OFFSET)
-        return sp
+        # Get stack pointer saved in thread struct.
+        try:
+            return self._target_context.read32(self._base + RTXTargetThread.SP_OFFSET)
+        except exceptions.TransferError:
+            log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + RTXTargetThread.SP_OFFSET)
+            return 0
 
     def get_stack_frame(self):
-        return self._target_context.read8(self._base + RTXTargetThread.STACKFRAME_OFFSET)
+        # Get "stack frame" (EXC_RETURN value from LR) saved in thread struct.
+        # Note that RTX5 only stores bottom byte - hide that by extending.
+        try:
+            return self._target_context.read8(self._base + RTXTargetThread.STACKFRAME_OFFSET) | 0xFFFFFF00
+        except exceptions.TransferError:
+            log.debug("Transfer error while reading thread's stack frame @ 0x%08x", self._base + RTXTargetThread.STACKFRAME_OFFSET)
+            return 0xFFFFFFFD
 
 ## @brief Thread provider for RTX5 RTOS.
 class RTX5ThreadProvider(ThreadProvider):
@@ -400,6 +420,11 @@ class RTX5ThreadProvider(ThreadProvider):
             return None
         if self._target_context.read_core_register('ipsr') > 0:
             return HandlerModeThread.UNIQUE_ID
+        return self.get_actual_current_thread_id()
+
+    def get_actual_current_thread_id(self):
+        if not self.is_enabled:
+            return None
         self.update_threads()
         return self._current_id
 

@@ -117,12 +117,16 @@ class GDBDebugContextFacade(object):
         if self._context.core.is_debug_trap():
             return signals.SIGTRAP
 
-        fault = self._context.read_core_register('ipsr')
-        try:
-            signal = FAULT[fault]
-        except:
-            # If not a fault then default to SIGSTOP
-            signal = signals.SIGSTOP
+        # If not a fault then default to SIGSTOP
+        signal = signals.SIGSTOP
+
+        if self._context.core.is_vector_catch():
+            fault = self._context.core.read_core_register('ipsr')
+            try:
+                signal = FAULT[fault]
+            except IndexError:
+                pass
+
         logging.debug("GDB lastSignal: %d", signal)
         return signal
 

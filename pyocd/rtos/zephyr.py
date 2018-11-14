@@ -80,21 +80,29 @@ class ZephyrThreadContext(DebugContext):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        inException = self._parent.read_core_register('ipsr') > 0
         isCurrent = self._thread.is_current
+        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
 
         # If this is the current thread and we're not in an exception, just read the live registers.
         if isCurrent and not inException:
             log.debug("Reading live registers")
             return self._parent.read_core_registers_raw(reg_list)
 
-        sp = self._thread.get_stack_pointer()
+        # Because of above tests, from now on, inException implies isCurrent;
+        # we are generating the thread view for the RTOS thread where the
+        # exception occurred; the actual Handler Mode thread view is produced
+        # by HandlerModeThread
+        if inException:
+            # Reasonable to assume PSP is still valid
+            sp = self._parent.read_core_register('psp')
+        else:
+            sp = self._thread.get_stack_pointer()
         exceptionFrame = 0x20
 
         for reg in reg_list:
 
             # If this is a stack pointer register, add an offset to account for the exception stack frame
-            if reg == 13 or reg == 18:
+            if reg == 13:
                 val = sp + exceptionFrame
                 log.debug("Reading register %d = 0x%x", reg, val)
                 reg_vals.append(val)
@@ -172,17 +180,13 @@ class ZephyrThread(TargetThread):
             log.debug("Transfer error while reading thread info")
 
     def get_stack_pointer(self):
-        if self.is_current:
-            # Read live process stack.
-            sp = self._target_context.read_core_register('psp')
-        else:
-            # Get stack pointer saved in thread struct.
-            addr = self._base + self._offsets["t_stack_ptr"]
-            try:
-                sp = self._target_context.read32(addr)
-            except exceptions.TransferError:
-                log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", addr)
-        return sp
+        # Get stack pointer saved in thread struct.
+        addr = self._base + self._offsets["t_stack_ptr"]
+        try:
+            return self._target_context.read32(addr)
+        except exceptions.TransferError:
+            log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", addr)
+            return 0
 
     def update_info(self):
         try:

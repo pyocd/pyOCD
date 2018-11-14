@@ -144,9 +144,6 @@ class ArgonThreadContext(DebugContext):
                  # (reserved word: 196)
             }
 
-    # Registers that are not available on the stack for exceptions.
-    EXCEPTION_UNAVAILABLE_REGS = (4, 5, 6, 7, 8, 9, 10, 11)
-
     def __init__(self, parentContext, thread):
         super(ArgonThreadContext, self).__init__(parentContext.core)
         self._parent = parentContext
@@ -156,38 +153,39 @@ class ArgonThreadContext(DebugContext):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        inException = self._parent.read_core_register('ipsr') > 0
         isCurrent = self._thread.is_current
+        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
 
         # If this is the current thread and we're not in an exception, just read the live registers.
         if isCurrent and not inException:
             return self._parent.read_core_registers_raw(reg_list)
 
-        sp = self._thread.get_stack_pointer()
+        # Because of above tests, from now on, inException implies isCurrent;
+        # we are generating the thread view for the RTOS thread where the
+        # exception occurred; the actual Handler Mode thread view is produced
+        # by HandlerModeThread
+        if inException:
+            # Reasonable to assume PSP is still valid
+            sp = self._parent.read_core_register('psp')
+        else:
+            sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        realSpOffset = 0x40
-        realSpExceptionOffset = 0x20
+        hwStacked = 0x20
+        swStacked = 0x20
         table = self.CORE_REGISTER_OFFSETS
         if self._thread.has_extended_frame:
             table = self.FPU_EXTENDED_REGISTER_OFFSETS
-            realSpOffset = 0xc8
-            realSpExceptionOffset = 0x68
+            hwStacked = 0x68
+            swStacked = 0x60
 
         for reg in reg_list:
-            # Check for regs we can't access.
-            if isCurrent and inException:
-                if reg in self.EXCEPTION_UNAVAILABLE_REGS:
-                    reg_vals.append(0)
-                    continue
-                if reg == 18 or reg == 13: # PSP
-                    log.debug("psp = 0x%08x", sp + realSpExceptionOffset)
-                    reg_vals.append(sp + realSpExceptionOffset)
-                    continue
-
             # Must handle stack pointer specially.
             if reg == 13:
-                reg_vals.append(sp + realSpOffset)
+                if inException:
+                    reg_vals.append(sp + hwStacked)
+                else:
+                    reg_vals.append(sp + swStacked + hwStacked)
                 continue
 
             # Look up offset for this register on the stack.
@@ -195,11 +193,15 @@ class ArgonThreadContext(DebugContext):
             if spOffset is None:
                 reg_vals.append(self._parent.read_core_register(reg))
                 continue
-            if isCurrent and inException:
-                spOffset -= realSpExceptionOffset #0x20
+            if inException:
+                spOffset -= swStacked
 
             try:
-                reg_vals.append(self._parent.read32(sp + spOffset))
+                if spOffset >= 0:
+                    reg_vals.append(self._parent.read32(sp + spOffset))
+                else:
+                    # Not available - try live one
+                    reg_vals.append(self._parent.read_core_register(reg))
             except exceptions.TransferError:
                 reg_vals.append(0)
 
@@ -249,17 +251,12 @@ class ArgonThread(TargetThread):
             log.debug("Transfer error while reading thread info")
 
     def get_stack_pointer(self):
-        sp = 0
-        if self.is_current:
-            # Read live process stack.
-            sp = self._target_context.read_core_register('psp')
-        else:
-            # Get stack pointer saved in thread struct.
-            try:
-                sp = self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
-            except exceptions.TransferError:
-                log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
-        return sp
+        # Get stack pointer saved in thread struct.
+        try:
+            return self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
+        except exceptions.TransferError:
+            log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
+            return 0
 
     def update_info(self):
         try:
