@@ -977,7 +977,7 @@ class CortexM(Target, CoreSightComponent):
             if exc_num == 0 and not name_thread:
                 return None
             else:
-                return self.CORE_EXCEPTION[num]
+                return self.CORE_EXCEPTION[exc_num]
         else:
             irq_num = exc_num - len(self.CORE_EXCEPTION)
             name = None
