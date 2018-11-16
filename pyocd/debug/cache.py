@@ -17,10 +17,6 @@
 from .context import DebugContext
 from ..coresight.cortex_m import (
     CORE_REGISTER,
-    register_name_to_index,
-    is_fpu_register,
-    is_cfbp_subregister,
-    is_psr_subregister,
     sysm_to_psr_mask
 )
 from ..utility import conversion
@@ -113,13 +109,13 @@ class RegisterCache(object):
 
     def _convert_and_check_registers(self, reg_list):
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self._context.core.register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self._context.core.has_fpu):
+            elif self._context.core.is_fpu_register(reg) and (not self._context.core.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         return reg_list

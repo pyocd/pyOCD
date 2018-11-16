@@ -341,6 +341,11 @@ class CoreSightTarget(Target, GraphNode):
             core = self._selected_core
         self._root_contexts[core] = context
 
+    def get_core_thread_provider(self, core=None):
+        if core is None:
+            core = self._selected_core
+        return self.cores[core].get_core_thread_provider()
+
     @property
     def irq_table(self):
         if self._irq_table is None:

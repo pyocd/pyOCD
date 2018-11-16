@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
+from .common import read_c_string
 from ..core import exceptions
 from ..core.target import Target
+from ..coresight.cortex_m import CortexM
 from ..debug.context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..debug.cortex_m_thread_provider import (ProcessStackThread, PSPThreadContext)
+from ..debug.thread_provider import (TargetThread, ThreadProvider, RootThread)
 from ..trace import events
 from ..trace.sink import TraceEventFilter
 import logging
@@ -153,55 +154,22 @@ class ArgonThreadContext(DebugContext):
         self._has_fpu = parentContext.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self.core.register_name_to_index(reg) for reg in reg_list]
         reg_vals = []
 
-        isCurrent = self._thread.is_current
-        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
-
-        # If this is the current thread and we're not in an exception, just read the live registers.
-        if isCurrent and not inException:
-            return self._parent.read_core_registers_raw(reg_list)
-
-        # Because of above tests, from now on, inException implies isCurrent;
-        # we are generating the thread view for the RTOS thread where the
-        # exception occurred; the actual Handler Mode thread view is produced
-        # by HandlerModeThread
-        if inException:
-            # Reasonable to assume PSP is still valid
-            sp = self._parent.read_core_register('psp')
-        else:
-            sp = self._thread.get_stack_pointer()
+        sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        hwStacked = 0x20
-        swStacked = 0x20
+        stacked = 0x20
         table = self.CORE_REGISTER_OFFSETS
-        if self._has_fpu:
-            if inException and self._parent.core.is_vector_catch():
-                # Vector catch has just occurred, take live LR
-                exceptionLR = self._parent.read_core_register('lr')
-
-                # Check bit 4 of the exception LR to determine if FPU registers were stacked.
-                hasExtendedFrame = (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) == 0
-            else:
-                # Can't really rely on finding live LR after initial
-                # vector catch, so retrieve LR stored by OS on last
-                # thread switch.
-                hasExtendedFrame = self._thread.has_extended_frame
-            
-            if hasExtendedFrame:
-                table = self.FPU_EXTENDED_REGISTER_OFFSETS
-                hwStacked = 0x68
-                swStacked = 0x60
+        if not self._thread.get_exc_return_ftype():
+            table = self.FPU_EXTENDED_REGISTER_OFFSETS
+            stacked = 0xC8
 
         for reg in reg_list:
             # Must handle stack pointer specially.
             if reg == 13:
-                if inException:
-                    reg_vals.append(sp + hwStacked)
-                else:
-                    reg_vals.append(sp + swStacked + hwStacked)
+                reg_vals.append(sp + stacked)
                 continue
 
             # Look up offset for this register on the stack.
@@ -209,15 +177,9 @@ class ArgonThreadContext(DebugContext):
             if spOffset is None:
                 reg_vals.append(self._parent.read_core_register_raw(reg))
                 continue
-            if inException:
-                spOffset -= swStacked
 
             try:
-                if spOffset >= 0:
-                    reg_vals.append(self._parent.read32(sp + spOffset))
-                else:
-                    # Not available - try live one
-                    reg_vals.append(self._parent.read_core_register_raw(reg))
+                reg_vals.append(self._parent.read32(sp + spOffset))
             except exceptions.TransferError:
                 reg_vals.append(0)
 
@@ -251,8 +213,9 @@ class ArgonThread(TargetThread):
         self._target_context = targetContext
         self._provider = provider
         self._base = base
-        self._thread_context = ArgonThreadContext(self._target_context, self)
-        self._has_fpu = self._thread_context.core.has_fpu
+        self._psp_context = PSPThreadContext(self._target_context, self)
+        self._argon_context = ArgonThreadContext(self._target_context, self)
+        self._has_fpu = self._target_context.core.has_fpu
         self._priority = 0
         self._state = self.UNKNOWN
         self._name = "?"
@@ -306,22 +269,25 @@ class ArgonThread(TargetThread):
 
     @property
     def is_current(self):
-        return self._provider.get_current_thread_id() == self.unique_id
+        return self._provider.get_actual_current_thread_id() == self.unique_id
 
     @property
     def context(self):
-        return self._thread_context
+        if is_current:
+            return self._psp_context
+        else:
+            return self._argon_context
 
     @property
-    def has_extended_frame(self):
+    def get_exc_return_ftype(self):
         if not self._has_fpu:
-            return False
+            return True
         try:
             flag = self._target_context.read8(self._base + THREAD_EXTENDED_FRAME_OFFSET)
-            return flag != 0
+            return flag == 0
         except exceptions.TransferError:
             log.debug("Transfer error while reading thread's extended frame flag @ 0x%08x", self._base + THREAD_EXTENDED_FRAME_OFFSET)
-            return False
+            return True
 
     def __str__(self):
         return "<ArgonThread@0x%08x id=%x name=%s>" % (id(self), self.unique_id, self.name)
@@ -331,8 +297,8 @@ class ArgonThread(TargetThread):
 
 ## @brief Base class for RTOS support plugins.
 class ArgonThreadProvider(ThreadProvider):
-    def __init__(self, target):
-        super(ArgonThreadProvider, self).__init__(target)
+    def __init__(self, target, parent):
+        super(ArgonThreadProvider, self).__init__(target, parent)
         self.g_ar = None
         self.g_ar_objects = None
         self._all_threads = None
@@ -365,8 +331,14 @@ class ArgonThreadProvider(ThreadProvider):
         self.invalidate();
 
     def _build_thread_list(self):
+        if not self.is_enabled:
+            self._threads = self._parent.threads
+            return
+
+        newThreads = self._parent.threads.copy()
+
         allThreads = TargetList(self._target_context, self._all_threads)
-        newThreads = {}
+
         for threadBase in allThreads:
             try:
                 # Reuse existing thread objects if possible.
@@ -382,53 +354,34 @@ class ArgonThreadProvider(ThreadProvider):
             except exceptions.TransferError:
                 log.debug("TransferError while examining thread 0x%08x", threadBase)
 
-        # Create fake handler mode thread.
-        if self._target_context.read_core_register('ipsr') > 0:
-            log.debug("creating handler mode thread")
-            t = HandlerModeThread(self._target_context, self)
-            newThreads[t.unique_id] = t
+        if newThreads.get(self.get_actual_current_thread_id()) is not None:
+            # Our current thread replaces the PSP thread from CortexMThreadProvider
+            newThreads.pop(ProcessStackThread.UNIQUE_ID, None)
+            # Our current thread replaces the root thread, if on PSP stack
+            if (self.get_current_stack_pointer_id() == CortexM.PSP):
+                newThreads.pop(RootThread.UNIQUE_ID, None)
 
         self._threads = newThreads
 
-    def get_threads(self):
-        if not self.is_enabled:
-            return []
+    @property
+    def threads(self):
         self.update_threads()
-        return list(self._threads.values())
-
-    def get_thread(self, threadId):
-        if not self.is_enabled:
-            return None
-        self.update_threads()
-        return self._threads.get(threadId, None)
+        return self._threads
 
     @property
     def is_enabled(self):
         return self.g_ar is not None and self.get_is_running()
 
-    @property
-    def current_thread(self):
-        if not self.is_enabled:
-            return None
-        self.update_threads()
-        id = self.get_current_thread_id()
-        try:
-            return self._threads[id]
-        except KeyError:
-            log.debug("key error getting current thread id=%s; self._threads = %s",
-                ("%x" % id) if (id is not None) else id, repr(self._threads))
-            return None
-
-    def is_valid_thread_id(self, threadId):
-        if not self.is_enabled:
-            return False
-        self.update_threads()
-        return threadId in self._threads
-
-    def get_current_thread_id(self):
+    def get_actual_current_thread_id(self):
         if not self.is_enabled:
             return None
         return self._target_context.read32(self.g_ar)
+
+    def get_current_thread_id_for_stack(self, stack_id):
+        if stack_id == CortexM.PSP:
+            return self.get_actual_current_thread_id()
+        else:
+            return None
 
     def get_is_running(self):
         if self.g_ar is None:

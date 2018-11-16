@@ -15,8 +15,6 @@
 # limitations under the License.
 
 from ..core.memory_interface import MemoryInterface
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_single_float_register,
-                                    is_double_float_register)
 from ..utility import conversion
 import logging
 
@@ -60,12 +58,12 @@ class DebugContext(MemoryInterface):
         read CPU register
         Unpack floating point register values
         """
-        regIndex = register_name_to_index(reg)
+        regIndex = self._core.register_name_to_index(reg)
         regValue = self.read_core_register_raw(regIndex)
         # Convert int to float.
-        if is_single_float_register(regIndex):
+        if self._core.is_single_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
-        elif is_double_float_register(regIndex):
+        elif self._core.is_double_float_register(regIndex):
             regValue = conversion.u64_to_float64(regValue)
         return regValue
 
@@ -86,11 +84,11 @@ class DebugContext(MemoryInterface):
         write a CPU register.
         Will need to pack floating point register values before writing.
         """
-        regIndex = register_name_to_index(reg)
+        regIndex = self._core.register_name_to_index(reg)
         # Convert float to int.
-        if is_single_float_register(regIndex) and type(data) is float:
+        if self._core.is_single_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
-        elif is_double_float_register(regIndex) and type(data) is float:
+        elif self._core.is_double_float_register(regIndex) and type(data) is float:
             data = conversion.float64_to_u64(data)
         self.write_core_register_raw(regIndex, data)
 
