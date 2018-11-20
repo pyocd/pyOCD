@@ -47,7 +47,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         self.nb_lit = 0
         self.num_hw_breakpoint_used = 0
         self.enabled = False
-
+ 
     ## @brief Inits the FPB.
     #
     # Reads the number of hardware breakpoints available on the core and disable the FPB
@@ -55,6 +55,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
     def init(self):
         # setup FPB (breakpoint)
         fpcr = self.ap.read_memory(FPB.FP_CTRL)
+        self.rev = (fpcr>>28)>0
         self.nb_code = ((fpcr >> 8) & 0x70) | ((fpcr >> 4) & 0xF)
         self.nb_lit = (fpcr >> 7) & 0xf
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
@@ -102,10 +103,15 @@ class FPB(BreakpointProvider, CoreSightComponent):
         for bp in self.hw_breakpoints:
             if not bp.enabled:
                 bp.enabled = True
-                bp_match = (1 << 30)
-                if addr & 0x2:
-                    bp_match = (2 << 30)
-                self.ap.write_memory(bp.comp_register_addr, addr & 0x1ffffffc | bp_match | 1)
+                if self.rev == 0:
+                    bp_mask=0x1ffffffc
+                    bp_match = (1 << 30)
+                    if addr & 0x2:
+                        bp_match = (2 << 30)
+                else:
+                    bp_mask=0xfffffffe
+                    bp_match=0
+                self.ap.write_memory(bp.comp_register_addr, addr & bp_mask | bp_match|  1)
                 bp.addr = addr
                 self.num_hw_breakpoint_used += 1
                 return bp
