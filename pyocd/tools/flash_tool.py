@@ -37,6 +37,7 @@ from ..probe.pydapaccess import DAPAccess
 from ..utility.progress import print_progress
 from ..utility.cmdline import convert_session_options
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
+from ..flash.loader import FileProgrammer
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -129,6 +130,8 @@ def main():
     setup_logging(args)
     DAPAccess.set_args(args.daparg)
 
+    logging.warning("pyocd-flashtool is deprecated; please use the new combined pyocd tool.")
+        
     # Sanity checks before attaching to board
     if args.format == 'hex' and not intelhex_available:
         print("Unable to program hex file")
@@ -144,6 +147,7 @@ def main():
                             target_override=args.target_override,
                             frequency=args.frequency,
                             blocking=False,
+                            hide_progress=args.hide_progress,
                             **convert_session_options(args.option))
         if session is None:
             print("Error: There is no debug probe connected.")
@@ -152,17 +156,7 @@ def main():
             board = session.board
             flash = board.flash
 
-            progress = print_progress()
-            if args.hide_progress:
-                progress = None
-
             has_file = args.file is not None
-
-            chip_erase = None
-            if args.chip_erase:
-                chip_erase = True
-            elif args.sector_erase:
-                chip_erase = False
 
             if args.mass_erase:
                 print("Mass erasing device...")
@@ -173,7 +167,7 @@ def main():
                 return
 
             if not has_file:
-                if chip_erase:
+                if args.chip_erase:
                     print("Erasing chip...")
                     flash.init()
                     flash.erase_all()
@@ -198,61 +192,19 @@ def main():
                     print("No operation performed")
                 return
 
-            # If no format provided, use the file's extension.
-            if not args.format:
-                args.format = os.path.splitext(args.file)[1][1:]
-                if args.format == 'axf':
-                    args.format = 'elf'
-
-            # Binary file format
-            if args.format == 'bin':
-                # If no address is specified use the start of rom
-                if args.address is None:
-                    args.address = board.flash.get_flash_info().rom_start
-
-                with open(args.file, "rb") as f:
-                    f.seek(args.skip, 0)
-                    data = f.read()
-                args.address += args.skip
-                data = unpack(str(len(data)) + 'B', data)
-                flash.flash_block(args.address, data, chip_erase=chip_erase, progress_cb=progress,
-                                 fast_verify=args.fast_program)
-
-            # Intel hex file format
-            elif args.format == 'hex':
-                hexfile = IntelHex(args.file)
-                addresses = hexfile.addresses()
-                addresses.sort()
-
-                flash_builder = flash.get_flash_builder()
-
-                data_list = list(ranges(addresses))
-                for start, end in data_list:
-                    size = end - start + 1
-                    data = list(hexfile.tobinarray(start=start, size=size))
-                    flash_builder.add_data(start, data)
-                flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
-            
-            # ELF format
-            elif args.format == 'elf':
-                flash_builder = flash.get_flash_builder()
-
-                with open(args.file, "rb") as f:
-                    elf = ELFBinaryFile(f, board.target.memory_map)
-                    for section in elf.sections:
-                        if ((section.type == 'SHT_PROGBITS')
-                                and ((section.flags & (SH_FLAGS.SHF_ALLOC | SH_FLAGS.SHF_WRITE)) == SH_FLAGS.SHF_ALLOC)
-                                and (section.length > 0)
-                                and (section.region.is_flash)):
-                            logging.debug("Writing section %s", repr(section))
-                            flash_builder.add_data(section.start, section.data)
-                        else:
-                            logging.debug("Skipping section %s", repr(section))
-                            
-                flash_builder.program(chip_erase=chip_erase, progress_cb=progress, fast_verify=args.fast_program)
-
+            # Convert arguments for FileProgrammer.
+            if args.chip_erase:
+                args.erase = 'chip'
+            elif args.sector_erase:
+                args.erase = 'sector'
             else:
-                print("Unknown file format '%s'" % args.format)
+                args.erase = 'auto'
+            args.base_address = args.address
+            args.trust_crc = args.fast_program
+            
+            # Program the file into flash.
+            programmer = FileProgrammer(session, args)
+            programmer.program(args.file)
 
 if __name__ == '__main__':
     main()

@@ -131,11 +131,7 @@ class GDBServerTool(object):
             else:
                 vector_catch = vector_catch.replace('h', '')
 
-        try:
-            return convert_vector_catch(vector_catch)
-        except ValueError as e:
-            # Reraise as an invalid argument error.
-            raise InvalidArgumentError(e.message)
+        return vector_catch
 
     def get_gdb_server_settings(self, args):
         # Set gdb server settings
@@ -279,6 +275,8 @@ class GDBServerTool(object):
             self.setup_logging(self.args)
             DAPAccess.set_args(self.args.daparg)
 
+            logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
+        
             self.process_commands(self.args.commands)
 
             gdb = None

@@ -42,6 +42,7 @@ from ..probe.debug_probe import DebugProbe
 from ..core.target import Target
 from ..utility import mask
 from ..utility.cmdline import convert_session_options
+from ..utility.hex import (format_hex_width, dump_hex_data)
 
 # Make disasm optional.
 try:
@@ -77,8 +78,8 @@ VC_NAMES_MAP = {
         Target.CATCH_CORE_RESET : "core reset",
         }
 
-## Default SWD clock in kHz.
-DEFAULT_CLOCK_FREQ_KHZ = 1000
+## Default SWD clock in Hz.
+DEFAULT_CLOCK_FREQ_HZ = 1000000
 
 ## Command info and help.
 COMMAND_INFO = {
@@ -333,39 +334,9 @@ OPTION_HELP = {
             },
         }
 
-def hex_width(value, width):
-    if width == 8:
-        return "%02x" % value
-    elif width == 16:
-        return "%04x" % value
-    elif width == 32:
-        return "%08x" % value
-    else:
-        raise ToolError("unrecognized register width (%d)" % width)
-
-def dump_hex_data(data, startAddress=0, width=8):
-    i = 0
-    while i < len(data):
-        print("%08x: " % (startAddress + (i * (width // 8))), end=' ')
-
-        while i < len(data):
-            d = data[i]
-            i += 1
-            if width == 8:
-                print("%02x" % d, end=' ')
-                if i % 4 == 0:
-                    print("", end=' ')
-                if i % 16 == 0:
-                    break
-            elif width == 16:
-                print("%04x" % d, end=' ')
-                if i % 8 == 0:
-                    break
-            elif width == 32:
-                print("%08x" % d, end=' ')
-                if i % 4 == 0:
-                    break
-        print()
+ALL_COMMANDS = list(COMMAND_INFO.keys())
+ALL_COMMANDS.extend(a for d in COMMAND_INFO.values() for a in d['aliases'])
+ALL_COMMANDS.sort()
 
 class ToolError(Exception):
     pass
@@ -456,8 +427,14 @@ class PyOCDConsole(object):
             print("Unexpected exception:", e)
             traceback.print_exc()
 
-class PyOCDTool(object):
-    def __init__(self):
+class PyOCDCommander(object):
+    def __init__(self, args, cmd=None):
+        # Read command-line arguments.
+        self.args = args
+        self.cmd = cmd
+        if self.cmd:
+            self.cmd = self.cmd.lower()
+
         self.session = None
         self.board = None
         self.exit_code = 0
@@ -548,43 +525,8 @@ class PyOCDTool(object):
                 'clock' :               self.handle_set_clock,
             }
 
-    def get_args(self):
-        debug_levels = list(LEVELS.keys())
-
-        epi = "Available commands:\n" + ', '.join(sorted(self.command_list.keys()))
-
-        parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
-        parser.add_argument('--version', action='version', version=__version__)
-        parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
-        parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
-        parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
-        parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
-        parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")
-        parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
-        parser.add_argument('-e', "--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
-        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
-        parser.add_argument("cmd", nargs='?', default=None, help="Command")
-        parser.add_argument("args", nargs='*', help="Arguments for the command.")
-        parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
-        parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
-        return parser.parse_args()
-
-    def configure_logging(self):
-        level = LEVELS.get(self.args.debug_level, logging.WARNING)
-        logging.basicConfig(level=level)
-
     def run(self):
         try:
-            # Read command-line arguments.
-            self.args = self.get_args()
-            self.cmd = self.args.cmd
-            if self.cmd:
-                self.cmd = self.cmd.lower()
-
-            # Set logging level
-            self.configure_logging()
-            DAPAccess.set_args(self.args.daparg)
-
             # Check for a valid command.
             if self.cmd and self.cmd not in self.command_list:
                 print("Error: unrecognized command '%s'" % self.cmd)
@@ -598,20 +540,21 @@ class PyOCDTool(object):
                 self.handle_help(self.args.args)
                 return 0
 
-            if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
-                print("Setting SWD clock to %d kHz" % self.args.clock)
+            if self.args.frequency != DEFAULT_CLOCK_FREQ_HZ:
+                print("Setting SWD clock to %d kHz" % (self.args.frequency // 1000))
 
             # Connect to board.
             self.session = ConnectHelper.session_with_chosen_probe(
+                            blocking=(not self.args.no_wait),
                             config_file=self.args.config,
-                            board_id=self.args.board,
-                            target_override=self.args.target,
+                            unique_id=self.args.unique_id,
+                            target_override=self.args.target_override,
                             init_board=False,
                             auto_unlock=False,
                             halt_on_connect=self.args.halt,
                             resume_on_disconnect=False,
-                            frequency=(self.args.clock * 1000),
-                            **convert_session_options(self.args.option))
+                            frequency=self.args.frequency,
+                            **convert_session_options(self.args.options))
             if self.session is None:
                 return 1
             self.board = self.session.board
@@ -1474,7 +1417,7 @@ Prefix line with ! to execute a shell command.""")
     def _dump_peripheral_register(self, periph, reg, show_fields):
         addr = periph.base_address + reg.address_offset
         value = self.target.read_memory(addr, reg.size)
-        value_str = hex_width(value, reg.size)
+        value_str = format_hex_width(value, reg.size)
         print("%s.%s @ %08x = %s" % (periph.name, reg.name, addr, value_str))
 
         if show_fields:
@@ -1527,6 +1470,51 @@ Prefix line with ! to execute a shell command.""")
                 break
 
         print(text)
+
+class PyOCDTool(object):
+    def get_args(self):
+        debug_levels = list(LEVELS.keys())
+
+        epi = "Available commands:\n" + ', '.join(ALL_COMMANDS)
+
+        parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
+        parser.add_argument('--version', action='version', version=__version__)
+        parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
+        parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
+        parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
+        parser.add_argument('-k', "--clock", metavar='KHZ', default=(DEFAULT_CLOCK_FREQ_HZ // 1000), type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
+        parser.add_argument('-b', "--board", action='store', dest="unique_id", metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")
+        parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
+        parser.add_argument('-e', "--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
+        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
+        parser.add_argument("cmd", nargs='?', default=None, help="Command")
+        parser.add_argument("args", nargs='*', help="Arguments for the command.")
+        parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+        parser.add_argument("-O", "--option", dest="options", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
+        parser.add_argument("-W", "--no-wait", action="store_true", help="Do not wait for a probe to be connected if none are available.")
+        return parser.parse_args()
+
+    def configure_logging(self):
+        level = LEVELS.get(self.args.debug_level, logging.WARNING)
+        logging.basicConfig(level=level)
+
+    def run(self):
+        # Read command-line arguments.
+        self.args = self.get_args()
+        self.cmd = self.args.cmd
+
+        # Set logging level
+        self.configure_logging()
+        DAPAccess.set_args(self.args.daparg)
+        
+        logging.warning("pyocd-tool is deprecated; please use the new combined pyocd tool.")
+        
+        # Convert args to new names.
+        self.args.target_override = self.args.target
+        self.args.frequency = self.args.clock * 1000
+
+        commander = PyOCDCommander(self.args, self.cmd)
+        return commander.run()
 
 
 def main():

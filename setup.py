@@ -67,6 +67,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'pyocd = pyocd.__main__:main',
+            
+            # Keep deprecated tools for compatibility.
             'pyocd-gdbserver = pyocd.tools.gdb_server:main',
             'pyocd-flashtool = pyocd.tools.flash_tool:main',
             'pyocd-tool = pyocd.tools.pyocd:main',
