@@ -303,8 +303,9 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
             self._wss_server = port_or_url
             self._abstract_socket = GDBWebSocket(self._wss_server)
         else:
-            self._port = port_or_url
             self._abstract_socket = GDBSocket(self._port, 4096)
+            self._abstract_socket.init()
+            self._port = self._abstract_socket.port
             if serve_local_only:
                 self._abstract_socket.host = 'localhost'
         self._buffer = bytearray()

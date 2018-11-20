@@ -30,6 +30,13 @@ class GDBSocket(object):
             self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.listener.bind((self.host, self.port))
+            # If we were asked for port 0, that's treated as "auto".
+            # Read back the port - allows our user to find (and print) it,
+            # and means that if we're closed then re-opened, as happens when
+            # persisting for multiple sessions, we reuse the same port, which
+            # is convenient.
+            if self.port == 0:
+                self.port = self.listener.getsockname()[1]
             self.listener.listen(1)
 
     def connect(self):
