@@ -25,7 +25,8 @@ from ..trace import events
 from ..trace.sink import TraceEventFilter
 import logging
 
-IS_RUNNING_OFFSET = 0x54
+KERNEL_FLAGS_OFFSET = 0x1c
+IS_RUNNING_MASK = 0x1
 
 ALL_OBJECTS_THREADS_OFFSET = 0
 
@@ -426,8 +427,8 @@ class ArgonThreadProvider(ThreadProvider):
     def get_is_running(self):
         if self.g_ar is None:
             return False
-        flag = self._target_context.read8(self.g_ar + IS_RUNNING_OFFSET)
-        return flag != 0
+        flags = self._target_context.read32(self.g_ar + KERNEL_FLAGS_OFFSET)
+        return (flags & IS_RUNNING_MASK) != 0
 
 ## @brief Argon kernel trace event.
 class ArgonTraceEvent(events.TraceEvent):
