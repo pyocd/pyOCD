@@ -67,6 +67,7 @@ from . import target_lpc4088qsb
 from . import target_lpc4088dm
 from . import target_RTL8195AM
 from . import target_CC3220SF
+from . import target_GD32F307VG
 
 TARGET = {
           'cortex_m': CoreSightTarget,
@@ -125,6 +126,7 @@ TARGET = {
           'lpc4088dm': target_lpc4088dm.LPC4088dm,
           'rtl8195am': target_RTL8195AM.RTL8195AM,
           'cc3220sf': target_CC3220SF.CC3220SF,
+		  'gd32f307vg': target_GD32F307VG.GD32F307VG,
          }
 
 FLASH = {
@@ -184,4 +186,5 @@ FLASH = {
          'lpc4088dm': target_lpc4088dm.Flash_lpc4088qsb_dm,
          'rtl8195am': target_RTL8195AM.Flash_rtl8195am,
          'cc3220sf': target_CC3220SF.Flash_cc3220sf,
+		 'gd32f307vg': target_GD32F307VG.Flash_gd32f307vg,
          }
