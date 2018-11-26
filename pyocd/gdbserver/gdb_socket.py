@@ -20,24 +20,31 @@ import socket, select
 class GDBSocket(object):
     def __init__(self, port, packet_size):
         self.packet_size = packet_size
-        self.s = None
+        self.listener = None
         self.conn = None
         self.port = port
         self.host = ''
 
     def init(self):
-        if self.s is None:
-            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.s.bind((self.host, self.port))
-            self.s.listen(5)
+        if self.listener is None:
+            self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.listener.bind((self.host, self.port))
+            # If we were asked for port 0, that's treated as "auto".
+            # Read back the port - allows our user to find (and print) it,
+            # and means that if we're closed then re-opened, as happens when
+            # persisting for multiple sessions, we reuse the same port, which
+            # is convenient.
+            if self.port == 0:
+                self.port = self.listener.getsockname()[1]
+            self.listener.listen(1)
 
     def connect(self):
         self.conn = None
         self.init()
-        rr, _, _ = select.select([self.s], [], [], 0.5)
+        rr, _, _ = select.select([self.listener], [], [], 0.5)
         if rr:
-            self.conn, _ = self.s.accept()
+            self.conn, _ = self.listener.accept()
 
         return self.conn
 
@@ -48,17 +55,18 @@ class GDBSocket(object):
         return self.conn.send(data)
 
     def close(self):
-        if self.conn is not None:
-            self.conn.close()
-            self.conn = None
-
         return_value = None
-        if self.s is not None:
-            return_value = self.s.close()
-            self.s = None
+        if self.conn is not None:
+            return_value = self.conn.close()
+            self.conn = None
 
         return return_value
 
+    def cleanup(self):
+        self.close()
+        if self.listener is not None:
+            self.listener.close()
+            self.listener = None
 
     def set_blocking(self, blocking):
         self.conn.setblocking(blocking)

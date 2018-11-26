@@ -271,9 +271,13 @@ class GDBServer(threading.Thread):
             self.port = 0
             self.wss_server = port_urlWSS
         else:
-            self.port = port_urlWSS + self.core
+            self.port = port_urlWSS
+            if self.port != 0:
+                self.port += self.core
             self.wss_server = None
-        self.telnet_port = session.options.get('telnet_port', 4444) + self.core
+        self.telnet_port = session.options.get('telnet_port', 4444)
+        if self.telnet_port != 0:
+            self.telnet_port += self.core
         self.vector_catch = session.options.get('vector_catch', Target.CATCH_HARD_FAULT)
         self.target.set_vector_catch(self.vector_catch)
         self.step_into_interrupt = session.options.get('step_into_interrupt', False)
@@ -308,6 +312,9 @@ class GDBServer(threading.Thread):
         self.first_run_after_reset_or_flash = True
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
+            self.abstract_socket.init()
+            # Read back bound port in case auto-assigned (port 0)
+            self.port = self.abstract_socket.port
             if self.serve_local_only:
                 self.abstract_socket.host = 'localhost'
         else:
@@ -411,6 +418,7 @@ class GDBServer(threading.Thread):
         if self.telnet_console:
             self.telnet_console.stop()
             self.telnet_console = None
+        self.abstract_socket.cleanup()
 
     def _cleanup_for_next_connection(self):
         self.non_stop = False
@@ -419,7 +427,7 @@ class GDBServer(threading.Thread):
         self.current_thread_id = 0
 
     def run(self):
-        self.log.info('GDB server started at port:%d', self.port)
+        self.log.info('GDB server started on port %d', self.port)
 
         while True:
             try:

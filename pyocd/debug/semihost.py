@@ -303,8 +303,9 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
             self._wss_server = port_or_url
             self._abstract_socket = GDBWebSocket(self._wss_server)
         else:
-            self._port = port_or_url
             self._abstract_socket = GDBSocket(self._port, 4096)
+            self._abstract_socket.init()
+            self._port = self._abstract_socket.port
             if serve_local_only:
                 self._abstract_socket.host = 'localhost'
         self._buffer = bytearray()
@@ -320,7 +321,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
         self._thread.join()
 
     def _server(self):
-        logging.info("Telnet: server started on port %s", str(self._port))
+        logging.info("Telnet server started on port %d", self._port)
         self.connected = None
         try:
             while not self._shutdown_event.is_set():
@@ -355,7 +356,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
                     except socket.timeout:
                         pass
         finally:
-            self._abstract_socket.close()
+            self._abstract_socket.cleanup()
         logging.info("Telnet: server stopped")
 
     def write(self, fd, ptr, length):
