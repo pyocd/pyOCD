@@ -355,7 +355,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
                     except socket.timeout:
                         pass
         finally:
-            self._abstract_socket.close()
+            self._abstract_socket.cleanup()
         logging.info("Telnet: server stopped")
 
     def write(self, fd, ptr, length):

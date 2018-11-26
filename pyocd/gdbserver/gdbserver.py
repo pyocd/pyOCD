@@ -411,6 +411,7 @@ class GDBServer(threading.Thread):
         if self.telnet_console:
             self.telnet_console.stop()
             self.telnet_console = None
+        self.abstract_socket.cleanup()
 
     def _cleanup_for_next_connection(self):
         self.non_stop = False

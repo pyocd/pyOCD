@@ -43,6 +43,9 @@ class GDBWebSocket(object):
     def close(self):
         return self.wss.close()
 
+    def cleanup(self):
+        return self.close()
+
     def set_blocking(self, blocking):
         if blocking != 0:
             self.wss.settimeout(None)

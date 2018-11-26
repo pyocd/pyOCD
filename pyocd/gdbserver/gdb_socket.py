@@ -30,7 +30,7 @@ class GDBSocket(object):
             self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.listener.bind((self.host, self.port))
-            self.listener.listen(5)
+            self.listener.listen(1)
 
     def connect(self):
         self.conn = None
@@ -48,17 +48,18 @@ class GDBSocket(object):
         return self.conn.send(data)
 
     def close(self):
-        if self.conn is not None:
-            self.conn.close()
-            self.conn = None
-
         return_value = None
-        if self.listener is not None:
-            return_value = self.listener.close()
-            self.listener = None
+        if self.conn is not None:
+            return_value = self.conn.close()
+            self.conn = None
 
         return return_value
 
+    def cleanup(self):
+        self.close()
+        if self.listener is not None:
+            self.listener.close()
+            self.listener = None
 
     def set_blocking(self, blocking):
         self.conn.setblocking(blocking)
