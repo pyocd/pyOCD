@@ -731,7 +731,7 @@ class PyOCDTool(object):
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
             value = self.target.read_core_register(reg)
-            if type(value) in six.integer_types:
+            if isinstance(value, six.integer_types):
                 print("%s = 0x%08x (%d)" % (reg, value, value))
             elif type(value) is float:
                 print("%s = %g" % (reg, value))
@@ -761,7 +761,7 @@ class PyOCDTool(object):
 
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
-            if reg.startswith('s') and reg != 'sp':
+            if (reg.startswith('s') and reg != 'sp') or reg.startswith('d'):
                 value = float(args[1])
             else:
                 value = self.convert_value(args[1])
@@ -1067,7 +1067,7 @@ class PyOCDTool(object):
                 }
             result = eval(args, globals(), env)
             if result is not None:
-                if type(result) in six.integer_types:
+                if isinstance(result, six.integer_types):
                     print("0x%08x (%d)" % (result, result))
                 else:
                     print(result)

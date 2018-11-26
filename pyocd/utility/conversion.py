@@ -69,6 +69,17 @@ def float32_to_u32(data):
     return struct.unpack(">I", d)[0]
 
 
+def u64_to_float64(data):
+    """Convert a 64-bit int to an IEEE754 float"""
+    d = struct.pack(">Q", data)
+    return struct.unpack(">d", d)[0]
+
+
+def float64_to_u64(data):
+    """Convert an IEEE754 float to a 64-bit int"""
+    d = struct.pack(">d", data)
+    return struct.unpack(">Q", d)[0]
+
 def u32_to_hex8le(val):
     """Create 8-digit hexadecimal string from 32-bit register value"""
     return ''.join("%02x" % (x & 0xFF) for x in (
