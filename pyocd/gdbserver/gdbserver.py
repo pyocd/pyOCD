@@ -427,7 +427,7 @@ class GDBServer(threading.Thread):
         self.current_thread_id = 0
 
     def run(self):
-        self.log.info('GDB server started at port:%d', self.port)
+        self.log.info('GDB server started on port %d', self.port)
 
         while True:
             try:

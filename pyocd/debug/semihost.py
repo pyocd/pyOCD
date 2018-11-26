@@ -321,7 +321,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
         self._thread.join()
 
     def _server(self):
-        logging.info("Telnet: server started on port %s", str(self._port))
+        logging.info("Telnet server started on port %d", self._port)
         self.connected = None
         try:
             while not self._shutdown_event.is_set():
