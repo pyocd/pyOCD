@@ -547,6 +547,7 @@ class PyOCDCommander(object):
             self.session = ConnectHelper.session_with_chosen_probe(
                             blocking=(not self.args.no_wait),
                             config_file=self.args.config,
+                            no_config=self.args.no_config,
                             unique_id=self.args.unique_id,
                             target_override=self.args.target_override,
                             init_board=False,
@@ -1480,6 +1481,7 @@ class PyOCDTool(object):
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
+        parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
         parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=(DEFAULT_CLOCK_FREQ_HZ // 1000), type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")

@@ -134,6 +134,8 @@ class PyOCDTool(object):
         commonOptionsNoLogging = argparse.ArgumentParser(description='common', add_help=False)
         commonOptionsNoLogging.add_argument('--config', metavar="PATH",
             help="Specify YAML configuration file. Default is pyocd.yaml or pyocd.yml.")
+        commonOptionsNoLogging.add_argument("--no-config", action="store_true",
+            help="Do not use a configuration file.")
         commonOptionsNoLogging.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
         commonOptionsNoLogging.add_argument("-da", "--daparg", dest="daparg", nargs='+',
@@ -357,6 +359,7 @@ class PyOCDTool(object):
         
         session = ConnectHelper.session_with_chosen_probe(
                             config_file=self._args.config,
+                            no_config=self._args.no_config,
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
@@ -373,6 +376,7 @@ class PyOCDTool(object):
         
         session = ConnectHelper.session_with_chosen_probe(
                             config_file=self._args.config,
+                            no_config=self._args.no_config,
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
@@ -439,6 +443,7 @@ class PyOCDTool(object):
             session = ConnectHelper.session_with_chosen_probe(
                 blocking=(not self._args.no_wait),
                 config_file=self._args.config,
+                no_config=self._args.no_config,
                 unique_id=self._args.unique_id,
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,

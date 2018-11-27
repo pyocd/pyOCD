@@ -19,6 +19,7 @@ import logging
 import logging.config
 import six
 import yaml
+import os
 
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
@@ -47,6 +48,7 @@ log = logging.getLogger('session')
 # - config_file
 # - frequency
 # - halt_on_connect
+# - no_config
 # - resume_on_disconnect
 # - target_override
 # - test_binary
@@ -97,14 +99,24 @@ class Session(object):
                         or Board(self, self._options.get('target_override', None))
     
     def _get_config(self):
-        # Load config file if one was provided via options.
-        configPath = self._options.get('config_file', None)
-        if isinstance(configPath, six.string_types):
-            try:
-                with open(configPath, 'r') as configFile:
-                    return yaml.safe_load(configFile)
-            except IOError as err:
-                log.warning("Error attempting to access board config file '%s': %s", configPath, err)
+        # Load config file if one was provided via options, and no_config option was not set.
+        if not self._options.get('no_config', False):
+            configPath = self._options.get('config_file', None)
+            
+            # Look for default config files.
+            if configPath is None:
+                if os.path.isfile("pyocd.yaml"):
+                    configPath = "pyocd.yaml"
+                elif os.path.isfile("pyocd.yml"):
+                    configPath = "pyocd.yml"
+                    
+            if isinstance(configPath, six.string_types):
+                try:
+                    with open(configPath, 'r') as configFile:
+                        log.debug("loading config from '%s'", configPath)
+                        return yaml.safe_load(configFile)
+                except IOError as err:
+                    log.warning("Error attempting to access config file '%s': %s", configPath, err)
         
         return {}
     
