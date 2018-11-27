@@ -6,3 +6,4 @@ pytest-cov
 coverage
 elapsedtimer
 pylint
+tox
