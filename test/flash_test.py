@@ -30,6 +30,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
+from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
 from pyocd.flash.flash_builder import FlashBuilder
 from pyocd.utility.progress import print_progress
@@ -135,8 +136,7 @@ def flash_test(board_id):
             test_clock = 1000000
 
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
 
         ram_start = ram_region.start
         ram_size = ram_region.length

@@ -18,7 +18,7 @@
 
 from ..flash.flash import Flash
 from ..core.coresight_target import CoreSightTarget
-from ..core.memory_map import (FlashRegion, RomRegion, ExternalRegion, AliasRegion, RamRegion, MemoryMap)
+from ..core.memory_map import (FlashRegion, RomRegion, ExternalRegion, RamRegion, MemoryMap)
 import logging
 
 FLASH_ALGO_QUADSPI = {

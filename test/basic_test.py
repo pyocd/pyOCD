@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2015,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
+from pyocd.core.memory_map import MemoryType
 from pyocd.utility.conversion import float32_to_u32
 from test_util import (Test, get_session_options)
 import logging
@@ -52,8 +53,7 @@ def basic_test(board_id, file):
         print("binary file: %s" % binary_file)
 
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start

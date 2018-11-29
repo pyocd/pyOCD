@@ -17,7 +17,7 @@
 
 from .family.target_kinetis import Kinetis
 from .family.flash_kinetis import Flash_Kinetis
-from ..core.memory_map import (FlashRegion, RamRegion, AliasRegion, MemoryMap)
+from ..core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ..debug.svd import SVDFile
 import logging
 
@@ -159,12 +159,12 @@ class Flash_kw36z4(Flash_Kinetis):
 
 class KW36Z4(Kinetis):
 
-    _dflash = \
-        FlashRegion(name="Dflash",       start=0x10040000,  length=0x40000,      blocksize=0x800)
     memoryMap = MemoryMap(
-        FlashRegion(name="Pflash",       start=0,           length=0x40000,      blocksize=0x800, is_boot_memory=True),
-        AliasRegion(name="Dflash alias", start=0x00040000,  length=0x40000,      blocksize=0x800, alias_of=_dflash),
-        _dflash,
+        FlashRegion(name="Pflash",       start=0,           length=0x40000,      blocksize=0x800,
+            is_boot_memory=True, algo=FLASH_ALGO, flash_class=Flash_Kinetis),
+        RomRegion(name="Dflash alias",   start=0x00040000,  length=0x40000,      blocksize=0x800, alias='dflash'),
+        FlashRegion(name="Dflash",       start=0x10040000,  length=0x40000,      blocksize=0x800,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(  name="FlexRAM",      start=0x14000000,  length=0x2000),
         RamRegion(  name="SRAM",         start=0x1fffc000,  length=0x10000)
         )

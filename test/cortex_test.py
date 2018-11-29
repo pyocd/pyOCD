@@ -31,6 +31,7 @@ from pyocd.gdbserver.context_facade import GDBDebugContextFacade
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.core import exceptions
+from pyocd.core.memory_map import MemoryType
 from test_util import (Test, TestResult, get_session_options)
 import logging
 from random import randrange
@@ -97,8 +98,7 @@ def cortex_test(board_id):
             test_clock = 1000000
 
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start

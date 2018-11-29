@@ -15,7 +15,16 @@
  limitations under the License.
 """
 
-from pyocd.core.memory_map import (check_range, MemoryMap, FlashRegion, RomRegion, RamRegion)
+from pyocd.core.memory_map import (
+    MemoryType,
+    check_range,
+    MemoryRange,
+    MemoryRegion,
+    MemoryMap,
+    FlashRegion,
+    RomRegion,
+    RamRegion
+    )
 import pytest
 import logging
 
@@ -36,8 +45,16 @@ def ram2():
     return RamRegion(start=0x20000400, length=1*1024, name='ram2', is_cacheable=False)
 
 @pytest.fixture(scope='function')
+def ram_alias():
+    return RamRegion(start=0x30000400, length=1*1024, name='ram2_alias', alias='ram2', is_cacheable=False)
+
+@pytest.fixture(scope='function')
 def memmap(flash, rom, ram1, ram2):
     return MemoryMap(flash, rom, ram1, ram2)
+
+@pytest.fixture(scope='function')
+def memmap2(flash, rom, ram1, ram2, ram_alias):
+    return MemoryMap(flash, rom, ram1, ram2, ram_alias)
 
 class TestCheckRange:
     def test_1(self):
@@ -58,9 +75,55 @@ class TestCheckRange:
         with pytest.raises(AssertionError):
             check_range(0x100, length=None)
 
+class TestRangeCompare:
+    def test_eq(self):
+        assert MemoryRange(0, length=1000) == MemoryRange(0, length=1000)
+    
+    def test_lt(self):
+        assert MemoryRange(0, length=1000) < MemoryRange(1000, length=1000)
+    
+    def test_gt(self):
+        assert MemoryRange(1000, length=1000) > MemoryRange(0, length=1000)
+    
+    def test_sort(self, ram1, ram2, flash, rom):
+        regionList = [ram2, rom, flash, ram1]
+        sortedRegionList = sorted(regionList)
+        assert sortedRegionList == [flash, rom, ram1, ram2]
+    
+    def test_inplace_sort(self, ram1, ram2, flash, rom):
+        regionList = [ram2, rom, flash, ram1]
+        regionList.sort()
+        assert regionList == [flash, rom, ram1, ram2]
+
+class TestHash:
+    def test_range_neq(self):
+        a = MemoryRange(0, 0x1000)
+        b = MemoryRange(10, 20)
+        assert hash(a) != hash(b)
+
+    def test_range_eq(self):
+        a = MemoryRange(0, 0x1000)
+        b = MemoryRange(0, 0x1000)
+        assert hash(a) == hash(b)
+
+    def test_range_w_region_neq(self, ram1, rom):
+        a = MemoryRange(0, 0x1000, region=ram1)
+        b = MemoryRange(0x5000, length=200, region=rom)
+        assert hash(a) != hash(b)
+        
+        a = MemoryRange(0, 0x1000, region=ram1)
+        b = MemoryRange(0, 0x1000, region=rom)
+        assert hash(a) != hash(b)
+
+    def test_range_eq(self, ram1, rom):
+        a = MemoryRange(0, 0x1000, region=ram1)
+        b = MemoryRange(0, 0x1000, region=ram1)
+        assert hash(a) == hash(b)
+
 # MemoryRegion test cases.
 class TestMemoryRegion:
     def test_flash_attrs(self, flash):
+        assert flash.type == MemoryType.FLASH
         assert flash.start == 0
         assert flash.end == 0x3ff
         assert flash.length == 0x400
@@ -72,8 +135,12 @@ class TestMemoryRegion:
         assert flash.is_boot_memory
         assert flash.is_cacheable
         assert flash.is_powered_on_boot
+        assert flash.is_readable
+        assert not flash.is_writable
+        assert flash.is_executable
 
     def test_rom_attrs(self, rom):
+        assert rom.type == MemoryType.ROM
         assert rom.start == 0x1c000000
         assert rom.end == 0x1c003fff
         assert rom.length == 0x4000
@@ -85,8 +152,12 @@ class TestMemoryRegion:
         assert not rom.is_boot_memory
         assert rom.is_cacheable
         assert rom.is_powered_on_boot
+        assert rom.is_readable
+        assert not rom.is_writable
+        assert rom.is_executable
 
     def test_ram1_attrs(self, ram1):
+        assert ram1.type == MemoryType.RAM
         assert ram1.start == 0x20000000
         assert ram1.end == 0x200003ff
         assert ram1.length == 0x400
@@ -98,8 +169,12 @@ class TestMemoryRegion:
         assert not ram1.is_boot_memory
         assert ram1.is_cacheable
         assert ram1.is_powered_on_boot
+        assert ram1.is_readable
+        assert ram1.is_writable
+        assert ram1.is_executable
 
     def test_ram2_attrs(self, ram2):
+        assert ram2.type == MemoryType.RAM
         assert ram2.start == 0x20000400
         assert ram2.end == 0x200007ff
         assert ram2.length == 0x400
@@ -111,6 +186,9 @@ class TestMemoryRegion:
         assert not ram2.is_boot_memory
         assert not ram2.is_cacheable
         assert ram2.is_powered_on_boot
+        assert ram2.is_readable
+        assert ram2.is_writable
+        assert ram2.is_executable
 
     def test_flash_range(self, flash):
         assert flash.contains_address(0)
@@ -215,9 +293,11 @@ class TestMemoryMap:
         assert len(rgns) > 0
     
     def test_get_type_iter(self, memmap, flash, rom, ram1, ram2):
-        assert list(memmap.get_regions_of_type('flash')) == [flash]
-        assert list(memmap.get_regions_of_type('rom')) == [rom]
-        assert list(memmap.get_regions_of_type('ram')) == [ram1, ram2]
-
+        assert list(memmap.get_regions_of_type(MemoryType.FLASH)) == [flash]
+        assert list(memmap.get_regions_of_type(MemoryType.ROM)) == [rom]
+        assert list(memmap.get_regions_of_type(MemoryType.RAM)) == [ram1, ram2]
+    
+    def test_alias(self, memmap2, ram2, ram_alias):
+        assert ram_alias.alias is ram2
 
 

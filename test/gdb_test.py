@@ -36,6 +36,7 @@ import tempfile
 from pyocd.tools.gdb_server import GDBServerTool
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.py3_helpers import to_str_safe
+from pyocd.core.memory_map import MemoryType
 from test_util import (Test, TestResult, get_session_options)
 
 # TODO, c1728p9 - run script several times with
@@ -90,8 +91,7 @@ def test_gdb(board_id=None, n=0):
     with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
         target_type = board.target_type
         binary_file = os.path.join(parentdir, 'binaries',

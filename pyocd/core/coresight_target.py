@@ -235,9 +235,6 @@ class CoreSightTarget(Target):
     def get_state(self):
         return self.selected_core.get_state()
 
-    def get_memory_map(self):
-        return self.memory_map
-
     def set_vector_catch(self, enableMask):
         return self.selected_core.set_vector_catch(enableMask)
 

@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2016 ARM Limited
+ Copyright (c) 2016,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,17 @@
 """
 
 from ..utility import conversion
+from ..core.memory_map import MemoryType
 from . import signals
 import logging
 import six
+from xml.etree import ElementTree
 
-# Maps the fault code found in the IPSR to a GDB signal value.
+MAP_XML_HEADER = b"""<?xml version="1.0"?>
+<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
+"""
+
+## @brief Maps the fault code found in the IPSR to a GDB signal value.
 FAULT = [
             signals.SIGSTOP,
             signals.SIGSTOP,    # Reset
@@ -31,6 +37,13 @@ FAULT = [
             signals.SIGILL,     # UsageFault
                                                 # The rest are not faults
          ]
+
+## @brief Map from the memory type enums to gdb's memory region type names.
+GDB_TYPE_MAP = {
+    MemoryType.RAM: 'ram',
+    MemoryType.ROM: 'rom',
+    MemoryType.FLASH: 'flash',
+    }
 
 ## @brief Provides GDB specific transformations to a DebugContext.
 class GDBDebugContextFacade(object):
@@ -143,10 +156,21 @@ class GDBDebugContextFacade(object):
         return str
 
     def get_memory_map_xml(self):
-        if self._context.core.memory_map:
-            return self._context.core.memory_map.get_xml()
-        else:
-            return None
+        """! @brief Generate GDB memory map XML.
+        """
+        root = ElementTree.Element('memory-map')
+        for r in  self._context.core.memory_map:
+            # Look up the region type name. Regions default to ram if gdb doesn't
+            # have a concept of the region type.
+            gdbType = GDB_TYPE_MAP.get(r.type, 'ram')
+            
+            start = hex(r.start).rstrip("L")
+            length = hex(r.length).rstrip("L")
+            mem = ElementTree.SubElement(root, 'memory', type=gdbType, start=start, length=length)
+            if r.is_flash:
+                prop = ElementTree.SubElement(mem, 'property', name='blocksize')
+                prop.text = hex(r.blocksize).rstrip("L")
+        return MAP_XML_HEADER + ElementTree.tostring(root)
 
     def get_target_xml(self):
         return self._context.core.get_target_xml()
