@@ -39,6 +39,9 @@ class ProgrammingInfo(object):
         self.program_time = None                # Total programming time
         self.analyze_type = None                # Type of flash analysis performed - FLASH_ANALYSIS_CRC32 or FLASH_ANALYSIS_PARTIAL_PAGE_READ
         self.analyze_time = None                # Time to analyze flash contents
+        self.program_byte_count = 0
+        self.page_count = 0
+        self.same_page_count = 0
 
 def _same(d1, d2):
     assert len(d1) == len(d2)
@@ -109,6 +112,8 @@ class FlashBuilder(object):
         self.perf = ProgrammingInfo()
         self.enable_double_buffering = True
         self.max_errors = 10
+        self.log_performance = True
+        self.buffered_data_size = 0
 
     def enable_double_buffer(self, enable):
         self.enable_double_buffering = enable
@@ -129,13 +134,14 @@ class FlashBuilder(object):
 
         # Add operation to list
         self.flash_operation_list.append(FlashOperation(addr, data))
+        self.buffered_data_size += len(data)
 
         # Keep list sorted
         self.flash_operation_list = sorted(self.flash_operation_list, key=lambda operation: operation.addr)
         # Verify this does not overlap
         prev_flash_operation = None
         for operation in self.flash_operation_list:
-            if prev_flash_operation != None:
+            if prev_flash_operation is not None:
                 if prev_flash_operation.addr + len(prev_flash_operation.data) > operation.addr:
                     raise ValueError("Error adding data - Data at 0x%x..0x%x overlaps with 0x%x..0x%x"
                             % (prev_flash_operation.addr, prev_flash_operation.addr + len(prev_flash_operation.data),
@@ -234,7 +240,7 @@ class FlashBuilder(object):
             chip_erase = True
 
         # If chip erase isn't True then analyze the flash
-        if chip_erase != True:
+        if chip_erase is not True:
             analyze_start = time()
             if self.flash.get_flash_info().crc_supported:
                 sector_erase_count, page_program_time = self._compute_page_erase_pages_and_weight_crc32(fast_verify)
@@ -271,7 +277,22 @@ class FlashBuilder(object):
         self.perf.program_time = program_finish - program_start
         self.perf.program_type = flash_operation
 
-        LOG.info("Programmed %d bytes (%d pages) at %.02f kB/s", program_byte_count, len(self.page_list), ((program_byte_count/1024) / self.perf.program_time))
+        # Count same pages.
+        samePages = 0
+        for page in self.page_list:
+            if page.same is True:
+                samePages += 1
+        
+        self.perf.program_byte_count = program_byte_count
+        self.perf.page_count = len(self.page_list)
+        self.perf.same_page_count = samePages
+        
+        if self.log_performance:
+            LOG.info("Programmed %d bytes (%d pages) at %.02f kB/s (%d pages unchanged)",
+                program_byte_count,
+                len(self.page_list),
+                ((program_byte_count/1024) / self.perf.program_time),
+                samePages)
 
         # Send notification that we're done programming flash.
         self.flash.target.notify(Notification(event=Target.EVENT_POST_FLASH_PROGRAM, source=self))

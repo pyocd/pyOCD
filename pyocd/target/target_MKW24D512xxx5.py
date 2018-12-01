@@ -81,16 +81,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'analyzer_address' : 0x1ffff800
   };
 
-# @brief Flash algorithm for Kinetis KW24D5 device.
-class Flash_kw24d5(Flash_Kinetis):
-
-    def __init__(self, target):
-        super(Flash_kw24d5, self).__init__(target, FLASH_ALGO)
-
 class KW24D5(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x80000,      blocksize=0x800, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x80000,      blocksize=0x800, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff8000,  length=0x10000)
         )
 

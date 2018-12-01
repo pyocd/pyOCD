@@ -908,19 +908,28 @@ FLASH_ALGO_HYPERFLASH = {
     'min_program_length' : 0x00001000,
 }
 
+class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
 
-class Flash_MIMXRT1052xxxxB_quadspi(Flash):
+    # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
+    # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
+    # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
+    # will not actually be available in all regions simultaneously.
+    memoryMap = MemoryMap(
+        RamRegion(name="itcm",              start=0x00000000, length=0x80000), # 512 KB
+        RomRegion(name="romcp",             start=0x00200000, length=0x18000), # 96 KB
+        RomRegion(name="flexspi_alias",     start=0x08000000, length=0x8000000, alias='flexspi'), # 128 MB
+        RamRegion(name="semc_alias",        start=0x10000000, length=0x10000000, alias='semc'), # 256 MB
+        RamRegion(name="dtcm",              start=0x20000000, length=0x80000), # 512 KB
+        RamRegion(name="ocram",             start=0x20200000, length=0x80000), # 512 KB
+        FlashRegion(name="flexspi",         start=0x60000000, length=0x1f800000, blocksize=0x1000,
+            is_boot_memory=True, algo=FLASH_ALGO_HYPERFLASH),
+        ExternalRegion(name="semc",         start=0x80000000, end=0xdfffffff)
+        )
 
-    def __init__(self, target):
-        super(Flash_MIMXRT1052xxxxB_quadspi, self).__init__(target, FLASH_ALGO_QUADSPI)
+    def __init__(self, link):
+        super(MIMXRT1052xxxxB_hyperflash, self).__init__(link, self.memoryMap)
 
-class Flash_MIMXRT1052xxxxB_hyperflash(Flash):
-
-    def __init__(self, target):
-        super(Flash_MIMXRT1052xxxxB_hyperflash, self).__init__(target, FLASH_ALGO_HYPERFLASH)
-
-class MIMXRT1052xxxxB(CoreSightTarget):
-
+class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
 
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
@@ -939,4 +948,4 @@ class MIMXRT1052xxxxB(CoreSightTarget):
         )
 
     def __init__(self, link):
-        super(MIMXRT1052xxxxB, self).__init__(link, self.memoryMap)
+        super(MIMXRT1052xxxxB_quadspi, self).__init__(link, self.memoryMap)

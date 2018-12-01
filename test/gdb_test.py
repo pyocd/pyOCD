@@ -37,6 +37,7 @@ from pyocd.tools.gdb_server import GDBServerTool
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.py3_helpers import to_str_safe
 from pyocd.core.memory_map import MemoryType
+from pyocd.flash.loader import FileProgrammer
 from test_util import (Test, TestResult, get_session_options)
 
 # TODO, c1728p9 - run script several times with
@@ -115,7 +116,7 @@ def test_gdb(board_id=None, n=0):
             test_clock = 1000000
 
         # Program with initial test image
-        board.flash.flash_binary(binary_file, rom_region.start)
+        FileProgrammer(session).program(binary_file, base_address=rom_region.start)
 
     # Generate an elf from the binary test file.
     temp_test_elf_name = tempfile.mktemp('.elf')

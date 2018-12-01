@@ -153,10 +153,6 @@ FLASH_ALGO = {
     'analyzer_address' : 0x1fffc000
 };
 
-class Flash_kw36z4(Flash_Kinetis):
-    def __init__(self, target):
-        super(Flash_kw36z4, self).__init__(target, FLASH_ALGO)
-
 class KW36Z4(Kinetis):
 
     memoryMap = MemoryMap(

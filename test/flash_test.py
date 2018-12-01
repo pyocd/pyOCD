@@ -142,9 +142,6 @@ def flash_test(board_id):
         ram_size = ram_region.length
 
         target = board.target
-        flash = board.flash
-        
-        flash_info = flash.get_flash_info()
 
         session.probe.set_clock(test_clock)
 
@@ -153,11 +150,14 @@ def flash_test(board_id):
         result = FlashTestResult()
         
         # Test each flash region separately.
-        for rom_region in memory_map.get_regions_of_type('flash'):
+        for rom_region in memory_map.get_regions_of_type(MemoryType.FLASH):
             if not rom_region.is_testable:
                 continue
             rom_start = rom_region.start
             rom_size = rom_region.length
+
+            flash = rom_region.flash
+            flash_info = flash.get_flash_info()
 
             print("\n\n===== Testing flash region '%s' from 0x%08x to 0x%08x ====" % (rom_region.name, rom_region.start, rom_region.end))
 

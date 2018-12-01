@@ -37,7 +37,7 @@ from ..probe.pydapaccess import DAPAccess
 from ..utility.progress import print_progress
 from ..utility.cmdline import convert_session_options
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
-from ..flash.loader import FileProgrammer
+from ..flash.loader import (FileProgrammer, FlashEraser)
 
 LEVELS = {
     'debug': logging.DEBUG,
@@ -132,7 +132,7 @@ def main():
     setup_logging(args)
     DAPAccess.set_args(args.daparg)
 
-    if not self.args.no_deprecation_warning:
+    if not args.no_deprecation_warning:
         logging.warning("pyocd-flashtool is deprecated; please use the new combined pyocd tool.")
         
     # Sanity checks before attaching to board
@@ -157,14 +157,11 @@ def main():
             print("Error: There is no debug probe connected.")
             sys.exit(1)
         with session:
-            board = session.board
-            flash = board.flash
-
             has_file = args.file is not None
 
             if args.mass_erase:
                 print("Mass erasing device...")
-                if board.target.mass_erase():
+                if session.target.mass_erase():
                     print("Successfully erased.")
                 else:
                     print("Failed.")
@@ -172,16 +169,22 @@ def main():
 
             if not has_file:
                 if args.chip_erase:
-                    print("Erasing chip...")
-                    flash.init()
-                    flash.erase_all()
-                    print("Done")
+                    FlashEraser(session, FlashEraser.Mode.CHIP).erase()
                 elif args.sector_erase and args.address is not None:
-                    flash.init()
                     page_addr = args.address
+                    
+                    region = session.target.memory_map.get_region_for_address(page_addr)
+                    if not region.is_flash:
+                        print("Error: address 0x%08x is not in flash" % page_addr)
+                        return
+                    
+                    flash = region.flash
+                    flash.init()
+                    
                     for i in range(args.count):
                         page_info = flash.get_page_info(page_addr)
                         if not page_info:
+                            print("Warning: stopped erasing early; hit end of flash region at 0x%08x" % region.end)
                             break
                         # Align page address on first time through.
                         if i == 0:
@@ -192,23 +195,26 @@ def main():
                         print("Erasing sector 0x%08x" % page_addr)
                         flash.erase_page(page_addr)
                         page_addr += page_info.size
+                    
+                    flash.cleanup()
                 else:
                     print("No operation performed")
                 return
 
             # Convert arguments for FileProgrammer.
             if args.chip_erase:
-                args.erase = 'chip'
+                chip_erase = True
             elif args.sector_erase:
-                args.erase = 'sector'
+                chip_erase = False
             else:
-                args.erase = 'auto'
-            args.base_address = args.address
-            args.trust_crc = args.fast_program
+                chip_erase = None
             
             # Program the file into flash.
-            programmer = FileProgrammer(session, args)
-            programmer.program(args.file)
+            programmer = FileProgrammer(session, chip_erase=chip_erase, trust_crc=args.fast_program)
+            programmer.program(args.file,
+                                format=args.format,
+                                base_address=args.address,
+                                skip=args.skip)
 
 if __name__ == '__main__':
     main()

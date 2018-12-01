@@ -90,15 +90,12 @@ FLASH_ALGO = {
     'min_program_length' : 8,
 };
 
-class Flash_k22fa12(Flash_Kinetis):
-    def __init__(self, target):
-        super(Flash_k22fa12, self).__init__(target, FLASH_ALGO)
-
 class K22FA12(Kinetis):
 
     # 1MB flash with 4kB sectors, 128kB RAM
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x100000,     blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x100000,     blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff0000,  length=0x20000)
         )
 

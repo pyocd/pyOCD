@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -163,13 +163,15 @@ class Flash_kl28z(Flash_Kinetis):
 class KL28x(Kinetis):
 
     singleMap = MemoryMap(
-        FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, is_boot_memory=True),
+        FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, is_boot_memory=True,
+            flash_class=Flash_kl28z),
         RamRegion(name='ram', start=0x1fff8000, length=0x20000),
         RamRegion(name='usb ram', start=0x40100000, length=0x800)
         )
 
     dualMap = MemoryMap(
-        FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, is_boot_memory=True),
+        FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, is_boot_memory=True,
+            flash_class=Flash_kl28z),
         RomRegion(name='core1 imem alias', start=0x1d200000, length=0x40000),
         RamRegion(name='core0 ram', start=0x1fffa000, length=0x18000),
         RomRegion(name='core1 imem', start=0x2d200000, length=0x40000),

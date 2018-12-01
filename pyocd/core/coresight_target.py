@@ -16,6 +16,8 @@
 """
 
 from .target import Target
+from .memory_map import MemoryType
+from ..flash.loader import FlashEraser
 from ..coresight import (dap, cortex_m, rom_table)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
@@ -25,6 +27,12 @@ from ..debug.elf.flash_reader import FlashReaderContext
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
 import logging
+
+# inspect.getargspec is deprecated in Python 3.
+try:
+    from inspect import getfullargspec as getargspec
+except ImportError:
+    from inspect import getargspec
 
 ##
 # @brief Represents a chip that uses CoreSight debug infrastructure.
@@ -109,6 +117,7 @@ class CoreSightTarget(Target):
     def create_init_sequence(self):
         seq = CallSequence(
             ('load_svd',            self.load_svd),
+            ('create_flash',        self.create_flash),
             ('dp_init',             self.dp.init),
             ('power_up',            self.dp.power_up_debug),
             ('find_aps',            self.dp.find_aps),
@@ -125,6 +134,34 @@ class CoreSightTarget(Target):
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
         seq.invoke()
+    
+    def create_flash(self):
+        """! @brief Instantiates flash objects for memory regions.
+        
+        This init task iterates over flash memory regions and for each one creates the Flash
+        instance. It uses the flash_algo and flash_class properties of the region to know how
+        to construct the flash object.
+        """
+        for region in self.memory_map.get_regions_of_type(MemoryType.FLASH):
+            # If the constructor of the region's flash class takes the flash_algo arg, then we
+            # need the region to have a flash algo dict to pass to it. Otherwise we assume the
+            # algo is built-in.
+            klass = region.flash_class
+            argspec = getargspec(klass.__init__)
+            if 'flash_algo' in argspec.args:
+                if region.flash_algo is not None:
+                    obj = klass(self, region.flash_algo)
+                else:
+                    logging.warning("flash region '%s' has no flash algo" % region.name)
+                    continue
+            else:
+                obj = klass(self)
+            
+            # Set the region in the flash instance.
+            obj.region = region
+            
+            # Store the flash object back into the memory region.
+            region.flash = obj
     
     def _create_component(self, cmpid):
         cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
@@ -162,12 +199,9 @@ class CoreSightTarget(Target):
         return self.selected_core.resume()
 
     def mass_erase(self):
-        if self.flash is not None:
-            self.flash.init()
-            self.flash.erase_all()
-            return True
-        else:
-            return False
+        # The default mass erase implementation is to simply perform a chip erase.
+        FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
+        return True
 
     def write_memory(self, addr, value, transfer_size=32):
         return self.selected_core.write_memory(addr, value, transfer_size)

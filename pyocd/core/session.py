@@ -133,6 +133,10 @@ class Session(object):
         return self._board
     
     @property
+    def target(self):
+        return self.board.target
+    
+    @property
     def options(self):
         return self._options
 

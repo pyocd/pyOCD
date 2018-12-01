@@ -65,12 +65,6 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'analyzer_address' : 0x20002000
   };
 
-# @brief Flash algorithm for STM32F475xx device.
-class Flash_stm32l475xx(Flash):
-
-    def __init__(self, target):
-        super(Flash_stm32l475xx, self).__init__(target, FLASH_ALGO)
-
 class STM32L475xx(CoreSightTarget):
         
     def create_init_sequence(self):
@@ -91,7 +85,8 @@ class STM32L475xx(CoreSightTarget):
 class STM32L475xC(STM32L475xx):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash', start=0x08000000, length=0x40000, blocksize=0x800,  is_boot_memory=True),
+        FlashRegion(name='flash', start=0x08000000, length=0x40000, blocksize=0x800,  is_boot_memory=True,
+            algo=FLASH_ALGO),
         RamRegion(name='sram1',   start=0x20000000, length=0x18000),
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
@@ -103,7 +98,8 @@ class STM32L475xC(STM32L475xx):
 class STM32L475xE(STM32L475xx):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash', start=0x08000000, length=0x80000, blocksize=0x800,  is_boot_memory=True),
+        FlashRegion(name='flash', start=0x08000000, length=0x80000, blocksize=0x800,  is_boot_memory=True,
+            algo=FLASH_ALGO),
         RamRegion(name='sram1',   start=0x20000000, length=0x18000),
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
@@ -115,7 +111,8 @@ class STM32L475xE(STM32L475xx):
 class STM32L475xG(STM32L475xx):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash', start=0x08000000, length=0x100000, blocksize=0x800,  is_boot_memory=True),
+        FlashRegion(name='flash', start=0x08000000, length=0x100000, blocksize=0x800,  is_boot_memory=True,
+            algo=FLASH_ALGO),
         RamRegion(name='sram1',   start=0x20000000, length=0x18000),
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )

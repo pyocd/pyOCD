@@ -20,15 +20,16 @@ import argparse, os, sys
 from time import sleep
 from random import randrange
 import math
+import logging
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.memory_map import MemoryType
+from pyocd.flash.loader import FileProgrammer
 from pyocd.utility.conversion import float32_to_u32
 from test_util import (Test, get_session_options)
-import logging
 
 class BasicTest(Test):
     def __init__(self):
@@ -62,7 +63,7 @@ def basic_test(board_id, file):
         addr_flash = rom_region.start + rom_region.length // 2
 
         target = board.target
-        flash = board.flash
+        flash = rom_region.flash
 
         print("\n\n------ GET Unique ID ------")
         print("Unique ID: %s" % board.unique_id)
@@ -200,10 +201,14 @@ def basic_test(board_id, file):
             current_page_size = flash.get_page_info(addr_flash).size
             assert page_size == current_page_size
             assert address % current_page_size == 0
+            print("Erasing page 0x%08x" % address)
             flash.erase_page(address)
+            print("Programming page 0x%08x" % address)
             flash.program_page(address, fill)
+        print("Erasing page 0x%08x" % (addr_flash + page_size))
         # Erase the middle page
         flash.erase_page(addr_flash + page_size)
+        print("Verifying")
         # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
         data = target.read_memory_block8(addr_flash, page_size * 3)
         expected = fill + [0xFF] * page_size + fill
@@ -213,7 +218,7 @@ def basic_test(board_id, file):
             print("TEST FAILED")
 
         print("\n\n----- FLASH NEW BINARY -----")
-        flash.flash_binary(binary_file, addr_bin)
+        FileProgrammer(session).program(binary_file, base_address=addr_bin)
 
         target.reset()
 

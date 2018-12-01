@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013, ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -91,16 +91,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'analyzer_address' : 0x1ffff800
   };
 
-# @brief Flash algorithm for Kinetis KV10Z7 device.
-class Flash_kv10z7(Flash_Kinetis):
-
-    def __init__(self, target):
-        super(Flash_kv10z7, self).__init__(target, FLASH_ALGO)
-
 class KV10Z7(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x8000,      blocksize=0x400, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x8000,      blocksize=0x400, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1ffff800,  length=0x2000)
         )
 

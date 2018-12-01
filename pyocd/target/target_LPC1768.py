@@ -94,8 +94,10 @@ class Flash_lpc1768(Flash):
 class LPC1768(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True),
-        FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000),
+        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
+            flash_class=Flash_lpc1768),
+        FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
+            flash_class=Flash_lpc1768),
         RamRegion(      start=0x10000000,  length=0x8000),
         RamRegion(      start=0x2007C000,  length=0x8000)
         )

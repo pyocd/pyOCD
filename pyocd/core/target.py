@@ -75,7 +75,6 @@ class Target(MemoryInterface, Notifier):
     def __init__(self, session, memoryMap=None):
         super(Target, self).__init__()
         self._session = session
-        self.flash = None
         self.root_target = None
         self.part_number = ""
         self.memory_map = memoryMap or MemoryMap()

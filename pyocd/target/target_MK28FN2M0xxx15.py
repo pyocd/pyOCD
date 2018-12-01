@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2016 ARM Limited
+ Copyright (c) 2016,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -75,15 +75,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'min_program_length' : 8,
   };
 
-class Flash_k28f15(Flash_Kinetis):
-
-    def __init__(self, target):
-        super(Flash_k28f15, self).__init__(target, FLASH_ALGO)
-
 class K28F15(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x200000,     blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x200000,     blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1ffC0000,  length=0x80000),
         RamRegion(      start=0x34000000,  length=0x80000),
         RamRegion(      start=0x14000000,  length=0x1000)

@@ -1,6 +1,6 @@
 """
  Flash OS Routines (Automagically Generated)
- Copyright (c) 2009-2015 ARM Limited
+ Copyright (c) 2009-2015,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -84,14 +84,11 @@ FLASH_ALGO = {
     'min_program_length' : 8,
   };
 
-class Flash_k82f25615(Flash_Kinetis):
-    def __init__(self, target):
-        super(Flash_k82f25615, self).__init__(target, FLASH_ALGO)
-
 class K82F25615(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x40000,     blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x40000,     blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff0000,  length=0x40000)
         )
     def __init__(self, transport):

@@ -48,15 +48,10 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'analyzer_address' : 0x10000800  # Analyzer 0x10000800..0x10000e00
               };
 
-class Flash_lpc800(Flash):
-
-    def __init__(self, target):
-        super(Flash_lpc800, self).__init__(target, FLASH_ALGO)
-
 class LPC800(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x4000,       blocksize=0x400, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x4000,       blocksize=0x400, is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 

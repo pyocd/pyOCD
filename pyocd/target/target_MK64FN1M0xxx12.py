@@ -74,15 +74,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x1ffff000  # Analyzer 0x1ffff000..0x1ffff600
               };
 
-class Flash_k64f(Flash_Kinetis):
-
-    def __init__(self, target):
-        super(Flash_k64f, self).__init__(target, FLASH_ALGO)
-
 class K64F(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x100000,     blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x100000,     blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff0000,  length=0x40000)
         )
 

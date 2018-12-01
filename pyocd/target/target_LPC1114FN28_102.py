@@ -68,7 +68,8 @@ class Flash_lpc11xx_32(Flash):
 class LPC11XX_32(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, is_boot_memory=True,
+            flash_class=Flash_lpc11xx_32),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 

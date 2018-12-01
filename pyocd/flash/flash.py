@@ -90,6 +90,7 @@ class Flash(object):
         self.target = target
         self.flash_algo = flash_algo
         self.flash_algo_debug = False
+        self._region = None
         if flash_algo is not None:
             self.is_valid = True
             self.use_analyzer = flash_algo['analyzer_supported']
@@ -129,6 +130,15 @@ class Flash(object):
     @property
     def is_double_buffering_supported(self):
         return self.double_buffer_supported
+    
+    @property
+    def region(self):
+        return self._region
+    
+    @region.setter
+    def region(self, flashRegion):
+        assert flashRegion.is_flash
+        self._region = flashRegion
 
     def init(self, reset=True):
         """
@@ -274,14 +284,14 @@ class Flash(object):
 
         Override this function if variable page sizes are supported
         """
-        region = self.target.get_memory_map().get_region_for_address(addr)
-        if not region or not region.is_flash:
+        assert self.region is not None
+        if not self.region.contains_address(addr):
             return None
 
         info = PageInfo()
         info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
         info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
-        info.size = region.blocksize
+        info.size = self.region.blocksize
         info.base_addr = addr - (addr % info.size)
         return info
 
@@ -291,10 +301,10 @@ class Flash(object):
 
         Override this function to return differnt values
         """
-        boot_region = self.target.get_memory_map().get_boot_memory()
+        assert self.region is not None
 
         info = FlashInfo()
-        info.rom_start = boot_region.start if boot_region else 0
+        info.rom_start = self.region.start
         info.erase_weight = DEFAULT_CHIP_ERASE_WEIGHT
         info.crc_supported = self.use_analyzer
         return info
@@ -306,25 +316,13 @@ class Flash(object):
         """
         Flash a block of data
         """
-        flash_start = self.get_flash_info().rom_start
-        fb = FlashBuilder(self, flash_start)
+        assert self.region is not None
+        assert self.region.contains_range(start=addr, length=len(data))
+        
+        fb = FlashBuilder(self, self.region.start)
         fb.add_data(addr, data)
         info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
         return info
-
-    def flash_binary(self, path_file, flashPtr=None, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
-        """
-        Flash a binary
-        """
-        if flashPtr is None:
-            flashPtr = self.get_flash_info().rom_start
-
-        f = open(path_file, "rb")
-
-        with open(path_file, "rb") as f:
-            data = f.read()
-        data = unpack(str(len(data)) + 'B', data)
-        self.flash_block(flashPtr, data, smart_flash, chip_erase, progress_cb, fast_verify)
 
     def _call_function(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):
         reg_list = []

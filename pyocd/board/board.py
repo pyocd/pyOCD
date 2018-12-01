@@ -15,7 +15,7 @@
  limitations under the License.
 """
 
-from ..target import (TARGET, FLASH)
+from ..target import TARGET
 import logging
 import six
 
@@ -37,11 +37,9 @@ class Board(object):
         try:
             log.info("Target type is %s", self._target_type)
             self.target = TARGET[self._target_type](session)
-            self.flash = FLASH[self._target_type](self.target)
         except KeyError as exc:
             log.error("target '%s' not recognized", self._target_type)
             six.raise_from(KeyError("target '%s' not recognized" % self._target_type), exc)
-        self.target.flash = self.flash
         self._inited = False
 
     ## @brief Initialize the board.

@@ -157,16 +157,13 @@ FLASH_ALGO = {
     'min_program_length' : 8,
 };
 
-# Derive from Flash instead of Flash_Kinetis since the FCF is in IFR and not main flash.
-class Flash_k32w042s(Flash):
-    def __init__(self, target):
-        super(Flash_k32w042s, self).__init__(target, FLASH_ALGO)
-
 class K32W042S(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash0',      start=         0,   length=0x100000,    blocksize=0x1000, is_boot_memory=True),
-        FlashRegion(name='flash1',      start= 0x1000000,   length=0x40000,     blocksize=0x800),
+        FlashRegion(name='flash0',      start=         0,   length=0x100000,    blocksize=0x1000,
+            is_boot_memory=True, algo=FLASH_ALGO),
+        FlashRegion(name='flash1',      start= 0x1000000,   length=0x40000,     blocksize=0x800,
+            algo=FLASH_ALGO),
         RamRegion(  name='m4 itcm',     start= 0x8000000,   length=0x10000),
         RomRegion(  name='boot rom',    start= 0x8800000,   length=0xc000),
         RamRegion(  name='m0p tcm',     start= 0x9000000,   length=0x20000),

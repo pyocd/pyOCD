@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -85,16 +85,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'analyzer_supported' : False     # Not enough space on KL02 and KL05
               };
 
-# @brief Flash algorithm for Kinetis L-series devices.
-class Flash_kl02z(Flash_Kinetis):
-
-    def __init__(self, target):
-        super(Flash_kl02z, self).__init__(target, FLASH_ALGO)
-
 class KL02Z(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x8000,       blocksize=0x400, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x8000,       blocksize=0x400, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1ffffc00,  length=0x1000)
         )
 

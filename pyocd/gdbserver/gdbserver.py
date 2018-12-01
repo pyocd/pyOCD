@@ -17,6 +17,7 @@
 
 from ..core import exceptions
 from ..core.target import Target
+from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
@@ -264,7 +265,6 @@ class GDBServer(threading.Thread):
             self.core = core
             self.target = self.board.target.cores[core]
         self.log = logging.getLogger('gdbserver')
-        self.flash = self.board.flash
         self.abstract_socket = None
         port_urlWSS = session.options.get('gdbserver_port', 3333)
         if isinstance(port_urlWSS, str) is True:
@@ -297,7 +297,7 @@ class GDBServer(threading.Thread):
         self.gdb_features = []
         self.non_stop = False
         self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
-        self.flash_builder = None
+        self.flash_loader = None
         self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
         self.detach_event = threading.Event()
@@ -396,16 +396,6 @@ class GDBServer(threading.Thread):
                 pass
             self.log.info("GDB server thread killed")
         self.board.uninit()
-
-    def set_board(self, board, stop=True):
-        self.lock.acquire()
-        if stop:
-            self.restart()
-        self.board = board
-        self.target = board.target
-        self.flash = board.flash
-        self.lock.release()
-        return
 
     def _cleanup(self):
         self.log.debug("GDB server cleaning up")
@@ -854,29 +844,25 @@ class GDBServer(threading.Thread):
                     second_colon += 1
                 idx_begin += 1
 
-            # Get flash builder if there isn't one already
-            if self.flash_builder is None:
-                self.flash_builder = self.flash.get_flash_builder()
+            # Get flash loader if there isn't one already
+            if self.flash_loader is None:
+                self.flash_loader = FlashLoader(self.session)
 
-            # Add data to flash builder
-            self.flash_builder.add_data(write_addr, unescape(data[idx_begin:len(data) - 3]))
+            # Add data to flash loader
+            self.flash_loader.add_data(write_addr, unescape(data[idx_begin:len(data) - 3]))
 
             return self.create_rsp_packet(b"OK")
 
         # we need to flash everything
         elif b'FlashDone' in ops :
             # Only program if we received data.
-            if self.flash_builder is not None:
-                if self.hide_programming_progress:
-                    progress_cb = None
-                else:
-                    progress_cb = print_progress()
+            if self.flash_loader is not None:
+                # Write all buffered flash contents.
+                self.flash_loader.commit()
 
-                self.flash_builder.program(chip_erase=self.chip_erase, progress_cb=progress_cb, fast_verify=self.fast_program)
-
-                # Set flash builder to None so that on the next flash command a new
+                # Set flash loader to None so that on the next flash command a new
                 # object is used.
-                self.flash_builder = None
+                self.flash_loader = None
 
             self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:
