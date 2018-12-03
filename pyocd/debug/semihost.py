@@ -330,7 +330,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
                 while not self._shutdown_event.is_set():
                     self.connected = self._abstract_socket.connect()
                     if self.connected is not None:
-                        logging.debug("Telnet: client connected")
+                        logging.debug("Telnet client connected")
                         break
 
                 if self._shutdown_event.is_set():
@@ -357,7 +357,7 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
                         pass
         finally:
             self._abstract_socket.cleanup()
-        logging.info("Telnet: server stopped")
+        logging.info("Telnet server stopped")
 
     def write(self, fd, ptr, length):
         # If nobody is connected, act like all data was written anyway.
