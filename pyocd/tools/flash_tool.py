@@ -109,6 +109,7 @@ parser.add_argument("-fp", "--fast_program", action="store_true",
 parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
 parser.add_argument("--mass-erase", action="store_true", help="Mass erase the target device.")
 parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
+parser.add_argument("--no-deprecation-warning", action="store_true", help="Do not warn about pyocd-flashtool being deprecated.")
 # pylint: enable=invalid-name
 
 # Notes
@@ -131,7 +132,8 @@ def main():
     setup_logging(args)
     DAPAccess.set_args(args.daparg)
 
-    logging.warning("pyocd-flashtool is deprecated; please use the new combined pyocd tool.")
+    if not self.args.no_deprecation_warning:
+        logging.warning("pyocd-flashtool is deprecated; please use the new combined pyocd tool.")
         
     # Sanity checks before attaching to board
     if args.format == 'hex' and not intelhex_available:

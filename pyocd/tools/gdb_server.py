@@ -107,6 +107,7 @@ class GDBServerTool(object):
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
         parser.add_argument("--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
         parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
+        parser.add_argument("--no-deprecation-warning", action="store_true", help="Do not warn about pyocd-gdbserver being deprecated.")
         self.parser = parser
         return parser
 
@@ -276,7 +277,8 @@ class GDBServerTool(object):
             self.setup_logging(self.args)
             DAPAccess.set_args(self.args.daparg)
 
-            logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
+            if not self.args.no_deprecation_warning:
+                logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
         
             self.process_commands(self.args.commands)
 

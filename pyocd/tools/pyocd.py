@@ -1494,6 +1494,7 @@ class PyOCDTool(object):
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
         parser.add_argument("-O", "--option", dest="options", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
         parser.add_argument("-W", "--no-wait", action="store_true", help="Do not wait for a probe to be connected if none are available.")
+        parser.add_argument("--no-deprecation-warning", action="store_true", help="Do not warn about pyocd-tool being deprecated.")
         return parser.parse_args()
 
     def configure_logging(self):
@@ -1509,7 +1510,8 @@ class PyOCDTool(object):
         self.configure_logging()
         DAPAccess.set_args(self.args.daparg)
         
-        logging.warning("pyocd-tool is deprecated; please use the new combined pyocd tool.")
+        if not self.args.no_deprecation_warning:
+            logging.warning("pyocd-tool is deprecated; please use the new combined pyocd tool.")
         
         # Convert args to new names.
         self.args.target_override = self.args.target
