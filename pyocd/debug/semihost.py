@@ -298,12 +298,12 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
         super(TelnetSemihostIOHandler, self).__init__()
         self._abstract_socket = None
         self._wss_server = None
-        self._port = 0
         if isinstance(port_or_url, str) == True:
             self._wss_server = port_or_url
             self._abstract_socket = GDBWebSocket(self._wss_server)
+            self._port = 0
         else:
-            self._abstract_socket = GDBSocket(self._port, 4096)
+            self._abstract_socket = GDBSocket(port_or_url, 4096)
             self._abstract_socket.init()
             self._port = self._abstract_socket.port
             if serve_local_only:
