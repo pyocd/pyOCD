@@ -39,6 +39,7 @@ from .tools.lists import ListGenerator
 from .tools.pyocd import PyOCDCommander
 from .flash import loader
 from .core import options
+from .utility.cmdline import split_command_line
 
 ## @brief List of built-in targets, sorted by name.
 SUPPORTED_TARGETS = sorted(list(TARGET.keys()))
@@ -471,14 +472,14 @@ class PyOCDTool(object):
     def do_commander(self):
         # Flatten commands list then extract primary command and its arguments.
         if self._args.commands is not None:
-            self._args.commands = flatten_args(self._args.commands)
-            cmd = self._args.commands.pop(0) if len(self._args.commands) else None
-            self._args.args = self._args.commands
+            cmds = []
+            for cmd in self._args.commands:
+                cmds.append(flatten_args(split_command_line(arg) for arg in cmd))
         else:
-            cmd = None
+            cmds = None
 
         # Enter REPL.
-        PyOCDCommander(self._args, cmd).run()
+        PyOCDCommander(self._args, cmds).run()
 
 def main():
     sys.exit(PyOCDTool().run())

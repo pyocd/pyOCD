@@ -428,17 +428,23 @@ class PyOCDConsole(object):
             traceback.print_exc()
 
 class PyOCDCommander(object):
-    def __init__(self, args, cmd=None):
+    def __init__(self, args, cmds=None):
         # Read command-line arguments.
         self.args = args
-        self.cmd = cmd
-        if self.cmd:
-            self.cmd = self.cmd.lower()
+        self.cmds = cmds
 
         self.session = None
         self.board = None
+        self.target = None
+        self.probe = None
+        self.flash = None
+        self.did_erase = False
         self.exit_code = 0
         self.step_into_interrupt = False
+        self.elf = None
+        self._peripherals = {}
+        self._loaded_peripherals = False
+        
         self.command_list = {
                 'list' :    self.handle_list,
                 'erase' :   self.handle_erase,
@@ -527,74 +533,12 @@ class PyOCDCommander(object):
 
     def run(self):
         try:
-            # Check for a valid command.
-            if self.cmd and self.cmd not in self.command_list:
-                print("Error: unrecognized command '%s'" % self.cmd)
-                return 1
-
-            # Handle certain commands without connecting.
-            if self.cmd == 'list':
-                self.handle_list([])
-                return 0
-            elif self.cmd == 'help':
-                self.handle_help(self.args.args)
-                return 0
-
-            if self.args.frequency != DEFAULT_CLOCK_FREQ_HZ:
-                print("Setting SWD clock to %d kHz" % (self.args.frequency // 1000))
-
-            # Connect to board.
-            self.session = ConnectHelper.session_with_chosen_probe(
-                            blocking=(not self.args.no_wait),
-                            config_file=self.args.config,
-                            no_config=self.args.no_config,
-                            unique_id=self.args.unique_id,
-                            target_override=self.args.target_override,
-                            init_board=False,
-                            auto_unlock=False,
-                            halt_on_connect=self.args.halt,
-                            resume_on_disconnect=False,
-                            frequency=self.args.frequency,
-                            **convert_session_options(self.args.options))
-            if self.session is None:
-                return 1
-            self.board = self.session.board
-            try:
-                if not self.args.no_init:
-                    self.session.open()
-            except exceptions.TransferFaultError as e:
-                if not self.board.target.is_locked():
-                    print("Transfer fault while initing board: %s" % e)
-                    traceback.print_exc()
-                    self.exit_code = 1
+            # If no commands, enter interactive mode.
+            if self.cmds is None:
+                if not self.connect():
                     return self.exit_code
-            except Exception as e:
-                print("Exception while initing board: %s" % e)
-                traceback.print_exc()
-                self.exit_code = 1
-                return self.exit_code
-
-            self.target = self.board.target
-            self.probe = self.session.probe
-            self.flash = self.board.flash
-
-            # Set elf file if provided.
-            if self.args.elf:
-                self.target.elf = self.args.elf
-                self.elf = self.target.elf
-            else:
-                self.elf = None
-        
-            self._peripherals = {}
-            self._loaded_peripherals = False
-
-            # Handle a device with flash security enabled.
-            self.did_erase = False
-            if not self.args.no_init and self.target.is_locked() and self.cmd != 'unlock':
-                print("Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock.")
-
-            # If no command, enter interactive mode.
-            if not self.cmd:
+                
+                # Print connected message, unless not initing.
                 if not self.args.no_init:
                     try:
                         # If the target is locked, we can't read the CPU state.
@@ -612,11 +556,34 @@ class PyOCDCommander(object):
                 # Run the command line.
                 console = PyOCDConsole(self)
                 console.run()
+                
+            # Otherwise, run the list of commands we were given and exit. We only connect when
+            # there is a command that requires a connection (most do).
             else:
-                # Invoke action handler.
-                result = self.command_list[self.cmd](self.args.args)
-                if result is not None:
-                    self.exit_code = result
+                didConnect = False
+
+                for args in self.cmds:
+                    # Extract the command name.
+                    cmd = args.pop(0).lower()
+                    
+                    # Handle certain commands without connecting.
+                    if cmd == 'list':
+                        self.handle_list([])
+                        continue
+                    elif cmd == 'help':
+                        self.handle_help(args)
+                        continue
+                    # For others, connect first.
+                    elif not didConnect:
+                        if not self.connect():
+                            return self.exit_code
+                        didConnect = True
+                
+                    # Invoke action handler.
+                    result = self.command_list[cmd](args)
+                    if result is not None:
+                        self.exit_code = result
+                        break
 
         except ToolExitException:
             self.exit_code = 0
@@ -631,11 +598,63 @@ class PyOCDCommander(object):
             print("Error:", e)
             self.exit_code = 1
         finally:
-            if self.session != None:
-                # Pass false to prevent target resume.
+            if self.session is not None:
                 self.session.close()
 
         return self.exit_code
+
+    def connect(self):
+        if self.args.frequency != DEFAULT_CLOCK_FREQ_HZ:
+            print("Setting SWD clock to %d kHz" % (self.args.frequency // 1000))
+
+        # Connect to board.
+        self.session = ConnectHelper.session_with_chosen_probe(
+                        blocking=(not self.args.no_wait),
+                        config_file=self.args.config,
+                        no_config=self.args.no_config,
+                        unique_id=self.args.unique_id,
+                        target_override=self.args.target_override,
+                        init_board=False,
+                        auto_unlock=False,
+                        halt_on_connect=self.args.halt,
+                        resume_on_disconnect=False,
+                        frequency=self.args.frequency,
+                        **convert_session_options(self.args.options))
+        if self.session is None:
+            self.exit_code = 3
+            return False
+        self.board = self.session.board
+        try:
+            if not self.args.no_init:
+                self.session.open()
+        except exceptions.TransferFaultError as e:
+            if not self.board.target.is_locked():
+                print("Transfer fault while initing board: %s" % e)
+                traceback.print_exc()
+                self.exit_code = 1
+                return False
+        except Exception as e:
+            print("Exception while initing board: %s" % e)
+            traceback.print_exc()
+            self.exit_code = 1
+            return False
+
+        self.target = self.board.target
+        self.probe = self.session.probe
+        self.flash = self.board.flash
+
+        # Set elf file if provided.
+        if self.args.elf:
+            self.target.elf = self.args.elf
+            self.elf = self.target.elf
+        else:
+            self.elf = None
+
+        # Handle a device with flash security enabled.
+        if not self.args.no_init and self.target.is_locked() and self.cmd != 'unlock':
+            print("Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock.")
+        
+        return True
     
     @property
     def peripherals(self):
@@ -1504,7 +1523,11 @@ class PyOCDTool(object):
     def run(self):
         # Read command-line arguments.
         self.args = self.get_args()
-        self.cmd = self.args.cmd
+        
+        if self.args.cmd is not None:
+            self.cmd = [[self.args.cmd] + self.args.args]
+        else:
+            self.cmd = None
 
         # Set logging level
         self.configure_logging()
