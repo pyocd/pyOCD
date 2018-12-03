@@ -27,6 +27,8 @@ PAGE_ESTIMATE_SIZE = 32
 PAGE_READ_WEIGHT = 0.3
 DATA_TRANSFER_B_PER_S = 40 * 1000 # ~40KB/s, depends on clock speed, theoretical limit for HID is 56,000 B/s
 
+LOG = logging.getLogger('flash_builder')
+
 ## @brief Exception raised when flashing fails outright. 
 class FlashFailure(RuntimeError):
     pass
@@ -166,7 +168,7 @@ class FlashBuilder(object):
 
         # There must be at least 1 flash operation
         if len(self.flash_operation_list) == 0:
-            logging.warning("No pages were programmed")
+            LOG.warning("No pages were programmed")
             return
 
         # Convert the list of flash operations into flash pages
@@ -219,7 +221,7 @@ class FlashBuilder(object):
             if chip_erase is None:
                 chip_erase = False
             elif chip_erase is True:
-                logging.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x', self.page_list[0].addr, self.flash_start)
+                LOG.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x', self.page_list[0].addr, self.flash_start)
 
         self.flash.init()
 
@@ -242,23 +244,23 @@ class FlashBuilder(object):
                 self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_PARTIAL_PAGE_READ
             analyze_finish = time()
             self.perf.analyze_time = analyze_finish - analyze_start
-            logging.debug("Analyze time: %f" % (analyze_finish - analyze_start))
+            LOG.debug("Analyze time: %f" % (analyze_finish - analyze_start))
 
         # If chip erase hasn't been set then determine fastest method to program
         if chip_erase is None:
-            logging.debug("Chip erase count %i, Page erase est count %i" % (chip_erase_count, sector_erase_count))
-            logging.debug("Chip erase weight %f, Page erase weight %f" % (chip_erase_program_time, page_program_time))
+            LOG.debug("Chip erase count %i, Page erase est count %i" % (chip_erase_count, sector_erase_count))
+            LOG.debug("Chip erase weight %f, Page erase weight %f" % (chip_erase_program_time, page_program_time))
             chip_erase = chip_erase_program_time < page_program_time
 
         if chip_erase:
             if self.flash.is_double_buffering_supported and self.enable_double_buffering:
-                logging.debug("Using double buffer chip erase program")
+                LOG.debug("Using double buffer chip erase program")
                 flash_operation = self._chip_erase_program_double_buffer(progress_cb)
             else:
                 flash_operation = self._chip_erase_program(progress_cb)
         else:
             if self.flash.is_double_buffering_supported and self.enable_double_buffering:
-                logging.debug("Using double buffer page erase program")
+                LOG.debug("Using double buffer page erase program")
                 flash_operation = self._page_erase_program_double_buffer(progress_cb)
             else:
                 flash_operation = self._page_erase_program(progress_cb)
@@ -269,7 +271,7 @@ class FlashBuilder(object):
         self.perf.program_time = program_finish - program_start
         self.perf.program_type = flash_operation
 
-        logging.info("Programmed %d bytes (%d pages) at %.02f kB/s", program_byte_count, len(self.page_list), ((program_byte_count/1024) / self.perf.program_time))
+        LOG.info("Programmed %d bytes (%d pages) at %.02f kB/s", program_byte_count, len(self.page_list), ((program_byte_count/1024) / self.perf.program_time))
 
         # Send notification that we're done programming flash.
         self.flash.target.notify(Notification(event=Target.EVENT_POST_FLASH_PROGRAM, source=self))
@@ -404,8 +406,8 @@ class FlashBuilder(object):
         """
         Program by first performing a chip erase.
         """
-        logging.debug("Smart chip erase")
-        logging.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
+        LOG.debug("Smart chip erase")
+        LOG.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
         progress_cb(0.0)
         progress = 0
         self.flash.erase_all()
@@ -433,8 +435,8 @@ class FlashBuilder(object):
         """
         Program by first performing a chip erase.
         """
-        logging.debug("Smart chip erase")
-        logging.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
+        LOG.debug("Smart chip erase")
+        LOG.debug("%i of %i pages already erased", len(self.page_list) - self.chip_erase_count, len(self.page_list))
         progress_cb(0.0)
         progress = 0
         self.flash.erase_all()
@@ -466,10 +468,10 @@ class FlashBuilder(object):
 
             # check the return code
             if result != 0:
-                logging.error('program_page(0x%x) error: %i', current_addr, result)
+                LOG.error('program_page(0x%x) error: %i', current_addr, result)
                 error_count += 1
                 if error_count > self.max_errors:
-                    logging.error("Too many page programming errors, aborting program operation")
+                    LOG.error("Too many page programming errors, aborting program operation")
                     break
 
             # Swap buffers.
@@ -519,8 +521,8 @@ class FlashBuilder(object):
 
         progress_cb(1.0)
 
-        logging.debug("Estimated page erase count: %i", self.page_erase_count)
-        logging.debug("Actual page erase count: %i", actual_page_erase_count)
+        LOG.debug("Estimated page erase count: %i", self.page_erase_count)
+        LOG.debug("Actual page erase count: %i", actual_page_erase_count)
 
         return FlashBuilder.FLASH_PAGE_ERASE
 
@@ -603,10 +605,10 @@ class FlashBuilder(object):
 
                 # check the return code
                 if result != 0:
-                    logging.error('program_page(0x%x) error: %i', current_addr, result)
+                    LOG.error('program_page(0x%x) error: %i', current_addr, result)
                     error_count += 1
                     if error_count > self.max_errors:
-                        logging.error("Too many page programming errors, aborting program operation")
+                        LOG.error("Too many page programming errors, aborting program operation")
                         break
 
                 # Swap buffers.
@@ -621,7 +623,7 @@ class FlashBuilder(object):
 
         progress_cb(1.0)
 
-        logging.debug("Estimated page erase count: %i", self.page_erase_count)
-        logging.debug("Actual page erase count: %i", actual_page_erase_count)
+        LOG.debug("Estimated page erase count: %i", self.page_erase_count)
+        LOG.debug("Actual page erase count: %i", actual_page_erase_count)
 
         return FlashBuilder.FLASH_PAGE_ERASE

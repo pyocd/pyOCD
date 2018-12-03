@@ -74,6 +74,7 @@ class GDBServerTool(object):
         parser = argparse.ArgumentParser(description='PyOCD GDB Server', epilog=epilog)
         parser.add_argument('--version', action='version', version=__version__)
         parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
+        parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
         parser.add_argument("-p", "--port", dest="port_number", type=int, default=3333, help="Set the port number that GDB server will open (default 3333).")
         parser.add_argument("-sc", "--semihost-console", dest="semihost_console_type", default="telnet", choices=('telnet', 'stdx'), help="Console for semihosting.")
         parser.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444, help="Specify the telnet port for semihosting (default 4444).")
@@ -106,6 +107,7 @@ class GDBServerTool(object):
         parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
         parser.add_argument("--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
         parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
+        parser.add_argument("--no-deprecation-warning", action="store_true", help="Do not warn about pyocd-gdbserver being deprecated.")
         self.parser = parser
         return parser
 
@@ -131,11 +133,7 @@ class GDBServerTool(object):
             else:
                 vector_catch = vector_catch.replace('h', '')
 
-        try:
-            return convert_vector_catch(vector_catch)
-        except ValueError as e:
-            # Reraise as an invalid argument error.
-            raise InvalidArgumentError(e.message)
+        return vector_catch
 
     def get_gdb_server_settings(self, args):
         # Set gdb server settings
@@ -279,6 +277,9 @@ class GDBServerTool(object):
             self.setup_logging(self.args)
             DAPAccess.set_args(self.args.daparg)
 
+            if not self.args.no_deprecation_warning:
+                logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
+        
             self.process_commands(self.args.commands)
 
             gdb = None
@@ -295,6 +296,7 @@ class GDBServerTool(object):
                     
                     session = ConnectHelper.session_with_chosen_probe(
                         config_file=self.args.config,
+                        no_config=self.args.no_config,
                         board_id=self.args.board_id,
                         target_override=self.args.target_override,
                         frequency=self.args.frequency,

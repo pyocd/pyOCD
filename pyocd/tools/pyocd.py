@@ -42,6 +42,7 @@ from ..probe.debug_probe import DebugProbe
 from ..core.target import Target
 from ..utility import mask
 from ..utility.cmdline import convert_session_options
+from ..utility.hex import (format_hex_width, dump_hex_data)
 
 # Make disasm optional.
 try:
@@ -77,8 +78,8 @@ VC_NAMES_MAP = {
         Target.CATCH_CORE_RESET : "core reset",
         }
 
-## Default SWD clock in kHz.
-DEFAULT_CLOCK_FREQ_KHZ = 1000
+## Default SWD clock in Hz.
+DEFAULT_CLOCK_FREQ_HZ = 1000000
 
 ## Command info and help.
 COMMAND_INFO = {
@@ -333,39 +334,9 @@ OPTION_HELP = {
             },
         }
 
-def hex_width(value, width):
-    if width == 8:
-        return "%02x" % value
-    elif width == 16:
-        return "%04x" % value
-    elif width == 32:
-        return "%08x" % value
-    else:
-        raise ToolError("unrecognized register width (%d)" % width)
-
-def dump_hex_data(data, startAddress=0, width=8):
-    i = 0
-    while i < len(data):
-        print("%08x: " % (startAddress + (i * (width // 8))), end=' ')
-
-        while i < len(data):
-            d = data[i]
-            i += 1
-            if width == 8:
-                print("%02x" % d, end=' ')
-                if i % 4 == 0:
-                    print("", end=' ')
-                if i % 16 == 0:
-                    break
-            elif width == 16:
-                print("%04x" % d, end=' ')
-                if i % 8 == 0:
-                    break
-            elif width == 32:
-                print("%08x" % d, end=' ')
-                if i % 4 == 0:
-                    break
-        print()
+ALL_COMMANDS = list(COMMAND_INFO.keys())
+ALL_COMMANDS.extend(a for d in COMMAND_INFO.values() for a in d['aliases'])
+ALL_COMMANDS.sort()
 
 class ToolError(Exception):
     pass
@@ -456,12 +427,24 @@ class PyOCDConsole(object):
             print("Unexpected exception:", e)
             traceback.print_exc()
 
-class PyOCDTool(object):
-    def __init__(self):
+class PyOCDCommander(object):
+    def __init__(self, args, cmds=None):
+        # Read command-line arguments.
+        self.args = args
+        self.cmds = cmds
+
         self.session = None
         self.board = None
+        self.target = None
+        self.probe = None
+        self.flash = None
+        self.did_erase = False
         self.exit_code = 0
         self.step_into_interrupt = False
+        self.elf = None
+        self._peripherals = {}
+        self._loaded_peripherals = False
+        
         self.command_list = {
                 'list' :    self.handle_list,
                 'erase' :   self.handle_erase,
@@ -548,109 +531,14 @@ class PyOCDTool(object):
                 'clock' :               self.handle_set_clock,
             }
 
-    def get_args(self):
-        debug_levels = list(LEVELS.keys())
-
-        epi = "Available commands:\n" + ', '.join(sorted(self.command_list.keys()))
-
-        parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
-        parser.add_argument('--version', action='version', version=__version__)
-        parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
-        parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
-        parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
-        parser.add_argument('-k', "--clock", metavar='KHZ', default=DEFAULT_CLOCK_FREQ_KHZ, type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
-        parser.add_argument('-b', "--board", action='store', metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")
-        parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
-        parser.add_argument('-e', "--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
-        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
-        parser.add_argument("cmd", nargs='?', default=None, help="Command")
-        parser.add_argument("args", nargs='*', help="Arguments for the command.")
-        parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
-        parser.add_argument("-O", "--option", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
-        return parser.parse_args()
-
-    def configure_logging(self):
-        level = LEVELS.get(self.args.debug_level, logging.WARNING)
-        logging.basicConfig(level=level)
-
     def run(self):
         try:
-            # Read command-line arguments.
-            self.args = self.get_args()
-            self.cmd = self.args.cmd
-            if self.cmd:
-                self.cmd = self.cmd.lower()
-
-            # Set logging level
-            self.configure_logging()
-            DAPAccess.set_args(self.args.daparg)
-
-            # Check for a valid command.
-            if self.cmd and self.cmd not in self.command_list:
-                print("Error: unrecognized command '%s'" % self.cmd)
-                return 1
-
-            # Handle certain commands without connecting.
-            if self.cmd == 'list':
-                self.handle_list([])
-                return 0
-            elif self.cmd == 'help':
-                self.handle_help(self.args.args)
-                return 0
-
-            if self.args.clock != DEFAULT_CLOCK_FREQ_KHZ:
-                print("Setting SWD clock to %d kHz" % self.args.clock)
-
-            # Connect to board.
-            self.session = ConnectHelper.session_with_chosen_probe(
-                            config_file=self.args.config,
-                            board_id=self.args.board,
-                            target_override=self.args.target,
-                            init_board=False,
-                            auto_unlock=False,
-                            halt_on_connect=self.args.halt,
-                            resume_on_disconnect=False,
-                            frequency=(self.args.clock * 1000),
-                            **convert_session_options(self.args.option))
-            if self.session is None:
-                return 1
-            self.board = self.session.board
-            try:
-                if not self.args.no_init:
-                    self.session.open()
-            except exceptions.TransferFaultError as e:
-                if not self.board.target.is_locked():
-                    print("Transfer fault while initing board: %s" % e)
-                    traceback.print_exc()
-                    self.exit_code = 1
+            # If no commands, enter interactive mode.
+            if self.cmds is None:
+                if not self.connect():
                     return self.exit_code
-            except Exception as e:
-                print("Exception while initing board: %s" % e)
-                traceback.print_exc()
-                self.exit_code = 1
-                return self.exit_code
-
-            self.target = self.board.target
-            self.probe = self.session.probe
-            self.flash = self.board.flash
-
-            # Set elf file if provided.
-            if self.args.elf:
-                self.target.elf = self.args.elf
-                self.elf = self.target.elf
-            else:
-                self.elf = None
-        
-            self._peripherals = {}
-            self._loaded_peripherals = False
-
-            # Handle a device with flash security enabled.
-            self.did_erase = False
-            if not self.args.no_init and self.target.is_locked() and self.cmd != 'unlock':
-                print("Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock.")
-
-            # If no command, enter interactive mode.
-            if not self.cmd:
+                
+                # Print connected message, unless not initing.
                 if not self.args.no_init:
                     try:
                         # If the target is locked, we can't read the CPU state.
@@ -668,11 +556,34 @@ class PyOCDTool(object):
                 # Run the command line.
                 console = PyOCDConsole(self)
                 console.run()
+                
+            # Otherwise, run the list of commands we were given and exit. We only connect when
+            # there is a command that requires a connection (most do).
             else:
-                # Invoke action handler.
-                result = self.command_list[self.cmd](self.args.args)
-                if result is not None:
-                    self.exit_code = result
+                didConnect = False
+
+                for args in self.cmds:
+                    # Extract the command name.
+                    cmd = args.pop(0).lower()
+                    
+                    # Handle certain commands without connecting.
+                    if cmd == 'list':
+                        self.handle_list([])
+                        continue
+                    elif cmd == 'help':
+                        self.handle_help(args)
+                        continue
+                    # For others, connect first.
+                    elif not didConnect:
+                        if not self.connect():
+                            return self.exit_code
+                        didConnect = True
+                
+                    # Invoke action handler.
+                    result = self.command_list[cmd](args)
+                    if result is not None:
+                        self.exit_code = result
+                        break
 
         except ToolExitException:
             self.exit_code = 0
@@ -687,11 +598,63 @@ class PyOCDTool(object):
             print("Error:", e)
             self.exit_code = 1
         finally:
-            if self.session != None:
-                # Pass false to prevent target resume.
+            if self.session is not None:
                 self.session.close()
 
         return self.exit_code
+
+    def connect(self):
+        if self.args.frequency != DEFAULT_CLOCK_FREQ_HZ:
+            print("Setting SWD clock to %d kHz" % (self.args.frequency // 1000))
+
+        # Connect to board.
+        self.session = ConnectHelper.session_with_chosen_probe(
+                        blocking=(not self.args.no_wait),
+                        config_file=self.args.config,
+                        no_config=self.args.no_config,
+                        unique_id=self.args.unique_id,
+                        target_override=self.args.target_override,
+                        init_board=False,
+                        auto_unlock=False,
+                        halt_on_connect=self.args.halt,
+                        resume_on_disconnect=False,
+                        frequency=self.args.frequency,
+                        **convert_session_options(self.args.options))
+        if self.session is None:
+            self.exit_code = 3
+            return False
+        self.board = self.session.board
+        try:
+            if not self.args.no_init:
+                self.session.open()
+        except exceptions.TransferFaultError as e:
+            if not self.board.target.is_locked():
+                print("Transfer fault while initing board: %s" % e)
+                traceback.print_exc()
+                self.exit_code = 1
+                return False
+        except Exception as e:
+            print("Exception while initing board: %s" % e)
+            traceback.print_exc()
+            self.exit_code = 1
+            return False
+
+        self.target = self.board.target
+        self.probe = self.session.probe
+        self.flash = self.board.flash
+
+        # Set elf file if provided.
+        if self.args.elf:
+            self.target.elf = self.args.elf
+            self.elf = self.target.elf
+        else:
+            self.elf = None
+
+        # Handle a device with flash security enabled.
+        if not self.args.no_init and self.target.is_locked() and self.cmd != 'unlock':
+            print("Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock.")
+        
+        return True
     
     @property
     def peripherals(self):
@@ -1474,7 +1437,7 @@ Prefix line with ! to execute a shell command.""")
     def _dump_peripheral_register(self, periph, reg, show_fields):
         addr = periph.base_address + reg.address_offset
         value = self.target.read_memory(addr, reg.size)
-        value_str = hex_width(value, reg.size)
+        value_str = format_hex_width(value, reg.size)
         print("%s.%s @ %08x = %s" % (periph.name, reg.name, addr, value_str))
 
         if show_fields:
@@ -1527,6 +1490,58 @@ Prefix line with ! to execute a shell command.""")
                 break
 
         print(text)
+
+class PyOCDTool(object):
+    def get_args(self):
+        debug_levels = list(LEVELS.keys())
+
+        epi = "Available commands:\n" + ', '.join(ALL_COMMANDS)
+
+        parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
+        parser.add_argument('--version', action='version', version=__version__)
+        parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
+        parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
+        parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
+        parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
+        parser.add_argument('-k', "--clock", metavar='KHZ', default=(DEFAULT_CLOCK_FREQ_HZ // 1000), type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
+        parser.add_argument('-b', "--board", action='store', dest="unique_id", metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")
+        parser.add_argument('-t', "--target", action='store', metavar='TARGET', help="Override target.")
+        parser.add_argument('-e', "--elf", metavar="PATH", help="Optionally specify ELF file being debugged.")
+        parser.add_argument("-d", "--debug", dest="debug_level", choices=debug_levels, default='warning', help="Set the level of system logging output. Supported choices are: " + ", ".join(debug_levels), metavar="LEVEL")
+        parser.add_argument("cmd", nargs='?', default=None, help="Command")
+        parser.add_argument("args", nargs='*', help="Arguments for the command.")
+        parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
+        parser.add_argument("-O", "--option", dest="options", metavar="OPTION", action="append", help="Set session option of form 'OPTION=VALUE'.")
+        parser.add_argument("-W", "--no-wait", action="store_true", help="Do not wait for a probe to be connected if none are available.")
+        parser.add_argument("--no-deprecation-warning", action="store_true", help="Do not warn about pyocd-tool being deprecated.")
+        return parser.parse_args()
+
+    def configure_logging(self):
+        level = LEVELS.get(self.args.debug_level, logging.WARNING)
+        logging.basicConfig(level=level)
+
+    def run(self):
+        # Read command-line arguments.
+        self.args = self.get_args()
+        
+        if self.args.cmd is not None:
+            self.cmd = [[self.args.cmd] + self.args.args]
+        else:
+            self.cmd = None
+
+        # Set logging level
+        self.configure_logging()
+        DAPAccess.set_args(self.args.daparg)
+        
+        if not self.args.no_deprecation_warning:
+            logging.warning("pyocd-tool is deprecated; please use the new combined pyocd tool.")
+        
+        # Convert args to new names.
+        self.args.target_override = self.args.target
+        self.args.frequency = self.args.clock * 1000
+
+        commander = PyOCDCommander(self.args, self.cmd)
+        return commander.run()
 
 
 def main():

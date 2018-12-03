@@ -279,7 +279,7 @@ class GDBServer(threading.Thread):
         if self.telnet_port != 0:
             self.telnet_port += self.core
         self.vector_catch = session.options.get('vector_catch', Target.CATCH_HARD_FAULT)
-        self.target.set_vector_catch(self.vector_catch)
+        self.target.set_vector_catch(convert_vector_catch(self.vector_catch))
         self.step_into_interrupt = session.options.get('step_into_interrupt', False)
         self.persist = session.options.get('persist', False)
         self.soft_bkpt_as_hard = session.options.get('soft_bkpt_as_hard', False)
