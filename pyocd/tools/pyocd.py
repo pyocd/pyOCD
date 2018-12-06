@@ -217,7 +217,7 @@ COMMAND_INFO = {
         'writedp' : {
             'aliases' : ['wdp'],
             'args' : "ADDR DATA",
-            'help' : "Read DP register"
+            'help' : "Write DP register"
             },
         'readap' : {
             'aliases' : ['rap'],
@@ -227,7 +227,7 @@ COMMAND_INFO = {
         'writeap' : {
             'aliases' : ['wap'],
             'args' : "[APSEL] ADDR DATA",
-            'help' : "Read AP register"
+            'help' : "Write AP register"
             },
         'reinit' : {
             'aliases' : [],
