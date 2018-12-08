@@ -39,6 +39,7 @@ Functional tests:
 - `connect_test.py`: tests all combinations of the halt on connect and disconnect resume options.
 - `cortex_test.py`: validates CPU control operations and memory accesses.
 - `flash_test.py`: comprehensive test of flash programming.
+- `flash_loader_test.py`: test the classes in the `pyocd.flash.loader` module.
 - `gdb_server_json_test.py`: validates the JSON output from pyocd-gdbserver used by tools like the GNU MCU Eclipse pyOCD plugin.
 - `gdb_test.py`: tests the gdbserver by running a script in a gdb process.
 - `parallel_test.py`: checks for issues with accessing debug probes from multiple processes and threads simultaneously. (Not run by `automated_test.py`.)

@@ -5,12 +5,12 @@ pyOCD supports debugging multicore devices. It does this by serving one gdb serv
 you connect independant gdb instances. This is the most reliable method of debugging multicore
 embedded devices using gdb.
 
-`pyocd-gdbserver` automatically creates one `GDBServer` instance per core. The first core is given the
+`pyocd gdbserver` automatically creates one `GDBServer` instance per core. The first core is given the
 user-specified port number. Additional cores have port numbers incremented from there. To prevent
 reset requests from multiple connected gdb instances causing havoc, the reset monitor commands are
 only honoured for core 0.
 
-To debug a multicore device, run `pyocd-gdbserver` as usual. This will connect to the device, detect
+To debug a multicore device, run `pyocd gdbserver` as usual. This will connect to the device, detect
 the cores, and create the gdb server instances on separate ports. Next, start up two gdb instances
 and connect to the two gdb server ports. For instance, on a dual core device if you pass 3333 for
 the port, connect to port 3333 for the first core and port 3334 for the second core.

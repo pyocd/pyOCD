@@ -5,16 +5,18 @@ pyOCD is an open source Python package for programming and debugging Arm Cortex-
 using multiple supported types of USB debug probes. It is fully cross-platform, with support for
 Linux, macOS, and Windows.
 
-Several command line tools are provided that cover most use cases, or you can make use of the Python
+A command line tool is provided that covers most use cases, or you can make use of the Python
 API to enable low-level target control. A common use for the Python API is to run and control CI
 tests.
 
-Three tools give you total control over your device:
+The `pyocd` command line tool gives you total control over your device with these subcommands:
 
-- `pyocd-gdbserver`: GDB remote server allows you to debug using gdb via either
+- `gdbserver`: GDB remote server allows you to debug using gdb via either
     [GNU MCU Eclipse plug-in](https://gnu-mcu-eclipse.github.io/) or the console.
-- `pyocd-flashtool`: Program and erase an MCU's flash memory.
-- `pyocd-tool`: Interactive REPL control and inspection of the MCU.
+- `flash`: Program files of various formats into flash memory.
+- `erase`: Erase part or all of an MCU's flash memory.
+- `commander`: Interactive REPL control and inspection of the MCU.
+- `list`: Show connected devices.
 
 The API and tools provide these features:
 
@@ -109,12 +111,12 @@ How to install libusb depends on your OS:
 
 ### udev rules on Linux
 
-If you encounter an issue on Linux where `pyocd-tool list` won't detect attached boards without
+If you encounter an issue on Linux where `pyocd list` won't detect attached boards without
 sudo, the reason is most likely USB device access permissions. In Ubuntu 16.04+ these are handled
 with udev and can be solved by adding a new udev rule.
 
 An example udev rule file is included in the [udev](https://github.com/mbedmicro/pyOCD/tree/master/udev)
-folder in the pyOCD repository. Just copy this file into `etc/udev/rules.d` to enable user access
+folder in the pyOCD repository. Just copy this file into `/etc/udev/rules.d` to enable user access
 to both [DAPLink](https://os.mbed.com/handbook/DAPLink)-based debug probes as well as STLinkV2 and
 STLinkV3.
 
@@ -129,16 +131,16 @@ If you use different, but compatible, debug probe, you can check the IDs with ``
 Standalone GDB server
 ---------------------
 
-When you install pyOCD via pip or setup.py, you will be able to execute the following in order to
+After you install pyOCD via pip or setup.py, you will be able to execute the following in order to
 start a GDB server powered by pyOCD:
 
 ```
-$ pyocd-gdbserver
+$ pyocd gdbserver
 ```
 
-You can get additional help by running ``pyocd-gdbserver --help``.
+You can get additional help by running ``pyocd gdbserver --help``.
 
-Example command line GDB session showing how to connect to a running `pyocd-gdbserver` and load
+Example command line GDB session showing how to connect to a running `pyocd gdbserver` and load
 firmware:
 
 ```
@@ -149,7 +151,7 @@ $ arm-none-eabi-gdb application.elf
 <gdb> monitor reset
 ```
 
-The `pyocd-gdbserver` executable is also usable as a drop in place replacement for OpenOCD in
+The `pyocd gdbserver` subcommand is also usable as a drop in place replacement for OpenOCD in
 existing setups. The primary difference is the set of gdb monitor commands.
 
 
