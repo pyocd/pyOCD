@@ -38,6 +38,7 @@ from basic_test import BasicTest
 from speed_test import SpeedTest
 from cortex_test import CortexTest
 from flash_test import FlashTest
+from flash_loader_test import FlashLoaderTest
 from gdb_test import GdbTest
 from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
@@ -59,6 +60,7 @@ test_list = [
              SpeedTest(),
              CortexTest(),
              FlashTest(),
+             FlashLoaderTest(),
              GdbTest(),
              ]
 
