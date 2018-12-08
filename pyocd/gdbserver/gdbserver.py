@@ -267,7 +267,7 @@ class GDBServer(threading.Thread):
         self.flash = self.board.flash
         self.abstract_socket = None
         port_urlWSS = session.options.get('gdbserver_port', 3333)
-        if isinstance(port_urlWSS, str) == True:
+        if isinstance(port_urlWSS, str) is True:
             self.port = 0
             self.wss_server = port_urlWSS
         else:
@@ -310,13 +310,13 @@ class GDBServer(threading.Thread):
         self.did_init_thread_providers = False
         self.current_thread_id = 0
         self.first_run_after_reset_or_flash = True
-        if self.wss_server == None:
+        if self.wss_server is None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
+            if self.serve_local_only:
+                self.abstract_socket.host = 'localhost'
             self.abstract_socket.init()
             # Read back bound port in case auto-assigned (port 0)
             self.port = self.abstract_socket.port
-            if self.serve_local_only:
-                self.abstract_socket.host = 'localhost'
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
 
@@ -584,7 +584,7 @@ class GDBServer(threading.Thread):
         # handle hardware breakpoint Z1/z1
         if data[1:2] == b'1' or (self.soft_bkpt_as_hard and data[1:2] == b'0'):
             if data[0:1] == b'Z':
-                if self.target.set_breakpoint(addr, Target.BREAKPOINT_HW) == False:
+                if self.target.set_breakpoint(addr, Target.BREAKPOINT_HW) is False:
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
                 self.target.remove_breakpoint(addr)
@@ -605,7 +605,7 @@ class GDBServer(threading.Thread):
 
         size = int(split[2], 16)
         if data[0:1] == b'Z':
-            if self.target.set_watchpoint(addr, size, watchpoint_type) == False:
+            if self.target.set_watchpoint(addr, size, watchpoint_type) is False:
                 return self.create_rsp_packet(b'E01') #EPERM
         else:
             self.target.remove_watchpoint(addr, size, watchpoint_type)
