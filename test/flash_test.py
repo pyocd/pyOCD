@@ -67,6 +67,8 @@ class FlashTest(Test):
               file=output_file)
         print("", file=output_file)
         for result in result_list:
+            if result.board is None or result.analyze is None:
+                continue
             if result.passed:
                 analyze_rate = "%.3f KB/s" % (result.analyze_rate / float(1000))
                 analyze_time = "%.3f s" % result.analyze_time
@@ -86,6 +88,8 @@ class FlashTest(Test):
               file=output_file)
         print("", file=output_file)
         for result in result_list:
+            if result.board is None:
+                continue
             if result.passed:
                 chip_erase_rate = "%.3f KB/s" % (result.chip_erase_rate / float(1000))
                 page_erase_rate = "%.3f KB/s" % (result.page_erase_rate / float(1000))
