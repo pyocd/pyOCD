@@ -312,11 +312,11 @@ class GDBServer(threading.Thread):
         self.first_run_after_reset_or_flash = True
         if self.wss_server == None:
             self.abstract_socket = GDBSocket(self.port, self.packet_size)
+            if self.serve_local_only:
+                self.abstract_socket.host = 'localhost'
             self.abstract_socket.init()
             # Read back bound port in case auto-assigned (port 0)
             self.port = self.abstract_socket.port
-            if self.serve_local_only:
-                self.abstract_socket.host = 'localhost'
         else:
             self.abstract_socket = GDBWebSocket(self.wss_server)
 
