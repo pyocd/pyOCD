@@ -187,7 +187,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
     result = GdbServerJsonTestResult()
 
     print("\n\n----- TESTING BOARDS LIST -----")
-    out = subprocess.check_output(['pyocd-gdbserver', '--list', '--json'])
+    out = subprocess.check_output(['pyocd', 'json', '--probes'])
     data = json.loads(out)
     test_count += 2
     if validate_basic_keys(data):
@@ -196,7 +196,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
         test_pass_count += 1
 
     print("\n\n----- TESTING TARGETS LIST -----")
-    out = subprocess.check_output(['pyocd-gdbserver', '--list-targets', '--json'])
+    out = subprocess.check_output(['pyocd', 'json', '--targets'])
     data = json.loads(out)
     test_count += 2
     if validate_basic_keys(data):
