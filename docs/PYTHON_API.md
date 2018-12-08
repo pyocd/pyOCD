@@ -2,7 +2,7 @@ Introduction to pyOCD API
 =========================
 
 Using pyOCD's Python API, you have extreme flexibility and precise control, and can do anything
-SWD allows, at the expense of more complexity compared to `pyocd-tool`. Using pyOCD like this is
+SWD allows, at the expense of more complexity compared to `pyocd commander`. Using pyOCD like this is
 particularly useful for situations where other debuggers become ineffective, such as device and
 board bringup, or automated testing.
 
