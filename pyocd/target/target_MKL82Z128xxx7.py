@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2006-2013,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -85,14 +85,11 @@ FLASH_ALGO = {
     'min_program_length' : 4                     # [added] See FSL_FEATURE_FLASH_PFLASH_BLOCK_WRITE_UNIT_SIZE in KSDK features header file
 };
 
-class Flash_mkl82z7(Flash_Kinetis):
-    def __init__(self, target):
-        super(Flash_mkl82z7, self).__init__(target, FLASH_ALGO)
-
 class KL82Z7(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x20000,      blocksize=0x800, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x20000,      blocksize=0x800, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RomRegion(      start=0x1c000000,  end=0x1c007fff),
         RomRegion(      start=0x68000000,  end=0x6fffffff),
         RamRegion(      start=0x1fffA000,  length=0x18000)

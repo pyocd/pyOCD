@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2017 ARM Limited
+ Copyright (c) 2015-2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,14 +15,18 @@
  limitations under the License.
 """
 
-from xml.etree import ElementTree
+from enum import Enum
+import six
+from functools import total_ordering
 
-__all__ = ['MemoryRange', 'MemoryRegion', 'MemoryMap', 'RamRegion', 'RomRegion',
-            'FlashRegion', 'DeviceRegion', 'AliasRegion', 'ExternalRegion']
-
-MAP_XML_HEADER = b"""<?xml version="1.0"?>
-<!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
-"""
+class MemoryType(Enum):
+    """! @brief Known types of memory."""
+    OTHER = 0
+    RAM = 1
+    ROM = 2
+    FLASH = 3
+    DEVICE = 4
+    EXTERNAL = 5
 
 def check_range(start, end=None, length=None, range=None):
     assert (start is not None) and ((isinstance(start, MemoryRange) or range is not None) or
@@ -37,6 +41,7 @@ def check_range(start, end=None, length=None, range=None):
     return start, end
 
 ## @brief A range of memory within a region.
+@total_ordering
 class MemoryRangeBase(object):
     def __init__(self, start=0, end=0, length=0, region=None):
         self._start = start
@@ -83,6 +88,18 @@ class MemoryRangeBase(object):
         start, end = check_range(start, end, length, range)
         return (start <= self.start and end >= self.start) or (start <= self.end and end >= self.end) \
             or (start >= self.start and end <= self.end)
+    
+    def __hash__(self):
+        h = hash("%08x%08x%08x" % (self.start, self.end, self.length))
+        if self.region is not None:
+            h ^= hash(self.region)
+        return h
+    
+    def __eq__(self, other):
+        return self.start == other.start and self.length == other.length
+    
+    def __lt__(self, other):
+        return self.start < other.start or (self.start == other.start and self.length == other.length)
 
 ## @brief A range of memory within a region.
 class MemoryRange(MemoryRangeBase):
@@ -100,142 +117,164 @@ class MemoryRange(MemoryRangeBase):
 
 ## @brief One contiguous range of memory.
 class MemoryRegion(MemoryRangeBase):
-    def __init__(self, type='ram', start=0, end=0, length=0, blocksize=0, name='', is_boot_memory=False,
-                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True, is_testable=True):
+    DEFAULT_ATTRS = {
+        'name': lambda r: r.attributes.get('name', r.type.name.lower()),
+        'access': 'rwx',
+        'alias': None,
+        'blocksize': 0,
+        'is_boot_memory': False,
+        'is_powered_on_boot': True,
+        'is_cacheable': True,
+        'invalidate_cache_on_run': True,
+        'is_testable': True,
+        'is_ram': lambda r: r.type == MemoryType.RAM,
+        'is_rom': lambda r: r.type == MemoryType.ROM,
+        'is_flash': lambda r: r.type == MemoryType.FLASH,
+        'is_device': lambda r: r.type == MemoryType.DEVICE,
+        'is_external': lambda r: r.type == MemoryType.EXTERNAL,
+        }
+    
+    def __init__(self, type=MemoryType.OTHER, start=0, end=0, length=0, **attrs):
+        """! Memory region constructor.
+        
+        Optional region attributes passed as keyword arguments:
+        - name: If a name is not provided, the name is set to the region type in lowercase.
+        - access: composition of r, w, x, s
+        - alias
+        - blocksize
+        - is_boot_memory
+        - is_powered_on_boot
+        - is_cacheable
+        - invalidate_cache_on_run
+        - is_testable
+        """
         super(MemoryRegion, self).__init__(start=start, end=end, length=length)
+        assert isinstance(type, MemoryType)
+        self._map = None
         self._type = type
-        self._blocksize = blocksize
-        if not name:
-            self._name = self._type
-        else:
-            self._name = name
-        self._is_boot_mem = is_boot_memory
-        self._is_powered_on_boot = is_powered_on_boot
-        self._is_cacheable = is_cacheable
-        self._invalidate_cache_on_run = invalidate_cache_on_run
-        self._is_testable = is_testable
+        self._attributes = attrs
+        
+        # Assign default values to any attributes missing from kw args.
+        for k, v in self.DEFAULT_ATTRS.items():
+            if k not in self._attributes:
+                if callable(v):
+                    v = v(self)
+                self._attributes[k] = v
 
+    @property
+    def map(self):
+        return self._map
+
+    @map.setter
+    def map(self, theMap):
+        self._map = theMap
+        
     @property
     def type(self):
         return self._type
-
-    @property
-    def blocksize(self):
-        return self._blocksize
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def is_flash(self):
-        return self._type == 'flash'
-
-    @property
-    def is_external(self):
-        return self._type == 'external'
-
-    @property
-    def is_ram(self):
-        return self._type == 'ram'
-
-    @property
-    def is_rom(self):
-        return self._type == 'rom'
-
-    @property
-    def is_device(self):
-        return self._type == 'device'
-
-    @property
-    def is_alias(self):
-        return self._type == 'alias'
-
-    @property
-    def is_boot_memory(self):
-        return self._is_boot_mem
-
-    @property
-    def is_powered_on_boot(self):
-        return self._is_powered_on_boot
-
-    @property
-    def is_cacheable(self):
-        return self._is_cacheable
-
-    @property
-    def invalidate_cache_on_run(self):
-        return self._invalidate_cache_on_run
     
     @property
-    def is_testable(self):
-        return self._is_testable
+    def attributes(self):
+        return self._attributes
+        
+    @property
+    def alias(self):
+        # Resolve alias reference.
+        aliasValue = self._attributes['alias']
+        if isinstance(aliasValue, six.string_types):
+            referent = self._map.get_region_by_name(aliasValue)
+            if referent is None:
+                raise ValueError("unable to resolve memory region alias reference '%s'" % aliasValue)
+            self._attributes['alias'] = referent
+            return referent
+        else:
+            return aliasValue
+    
+    @property
+    def is_readable(self):
+        return 'r' in self.access
+    
+    @property
+    def is_writable(self):
+        return 'w' in self.access
+    
+    @property
+    def is_executable(self):
+        return 'x' in self.access
+    
+    @property
+    def is_secure(self):
+        return 's' in self.access
+        
+    def __getattr__(self, name):
+        return self._attributes[name]
 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.blocksize)
 
 ## @brief Contiguous region of RAM.
 class RamRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, name='', is_boot_memory=False,
-                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True, is_testable=True):
-        super(RamRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
-            is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot, is_cacheable=is_cacheable,
-            invalidate_cache_on_run=invalidate_cache_on_run, is_testable=is_testable)
+    def __init__(self, start=0, end=0, length=0, **attrs):
+        super(RamRegion, self).__init__(type=MemoryType.RAM, start=start, end=end, length=length, **attrs)
 
 ## @brief Contiguous region of ROM.
 class RomRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, name='', is_boot_memory=False,
-                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=False, is_testable=True):
-        super(RomRegion, self).__init__(type='rom', start=start, end=end, length=length, name=name,
-            is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot, is_cacheable=is_cacheable,
-            invalidate_cache_on_run=invalidate_cache_on_run, is_testable=is_testable)
+    def __init__(self, start=0, end=0, length=0, **attrs):
+        attrs['access'] = attrs.get('access', 'rx')
+        super(RomRegion, self).__init__(type=MemoryType.ROM, start=start, end=end, length=length, **attrs)
 
 ## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', is_boot_memory=False,
-                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True, is_testable=True):
-        super(FlashRegion, self).__init__(type='flash', start=start, end=end, length=length,
-            blocksize=blocksize, name=name, is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot,
-            is_cacheable=is_cacheable, invalidate_cache_on_run=invalidate_cache_on_run, is_testable=is_testable)
+    def __init__(self, start=0, end=0, length=0, **attrs):
+        # Import locally to prevent import loops.
+        from ..flash.flash import Flash
+
+        attrs['access'] = attrs.get('access', 'rx') # By default flash is not writable.
+        super(FlashRegion, self).__init__(type=MemoryType.FLASH, start=start, end=end, length=length, **attrs)
+        self._algo = attrs.get('algo', None)
+        self._flash = None
+        
+        if 'flash_class' in attrs:
+            self._flash_class = attrs['flash_class']
+            assert issubclass(self._flash_class, Flash)
+        else:
+            self._flash_class = Flash
+    
+    @property
+    def flash_algo(self):
+        return self._algo
+    
+    @property
+    def flash_class(self):
+        return self._flash_class
+    
+    @property
+    def flash(self):
+        return self._flash
+    
+    @flash.setter
+    def flash(self, flashInstance):
+        self._flash = flashInstance
 
 ## @brief Contiguous region of external memory.
 class ExternalRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', is_boot_memory=False,
-                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True, is_testable=False):
-        super(ExternalRegion, self).__init__(type='external', start=start, end=end, length=length,
-            blocksize=blocksize, name=name, is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot,
-            is_cacheable=is_cacheable, invalidate_cache_on_run=invalidate_cache_on_run, is_testable=is_testable)
+    def __init__(self, start=0, end=0, length=0, **attrs):
+        attrs['is_testable'] = False
+        super(ExternalRegion, self).__init__(type=MemoryType.EXTERNAL, start=start, end=end, length=length, **attrs)
 
 ## @brief Device or peripheral memory.
 class DeviceRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, name='', is_powered_on_boot=True):
-        super(DeviceRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
-            is_boot_memory=False, is_powered_on_boot=is_powered_on_boot, is_cacheable=False,
-            invalidate_cache_on_run=True, is_testable=False)
-
-## @brief Alias of another region.
-class AliasRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, blocksize=0, name='', alias_of=None, is_boot_memory=False,
-                is_powered_on_boot=True, is_cacheable=True, invalidate_cache_on_run=True):
-        super(AliasRegion, self).__init__(type='ram', start=start, end=end, length=length, name=name,
-            is_boot_memory=is_boot_memory, is_powered_on_boot=is_powered_on_boot, is_cacheable=is_cacheable,
-            invalidate_cache_on_run=invalidate_cache_on_run, is_testable=False)
-        self._alias_reference = alias_of
-
-    @property
-    def aliased_region(self):
-        return self._alias_reference
+    def __init__(self, start=0, end=0, length=0, **attrs):
+        attrs['access'] = attrs.get('access', 'rw') # By default flash is not executable.
+        attrs['is_cacheable'] = False
+        attrs['is_testable'] = False
+        super(DeviceRegion, self).__init__(type=MemoryType.DEVICE, start=start, end=end, length=length, **attrs)
 
 ## @brief Memory map consisting of memory regions.
 class MemoryMap(object):
     def __init__(self, *moreRegions):
         self._regions = []
-        if len(moreRegions):
-            if type(moreRegions[0]) is list:
-                self._regions = moreRegions[0]
-            else:
-                self._regions.extend(moreRegions)
-        self._regions.sort(key=lambda x:x.start)
+        self.add_regions(*moreRegions)
 
     @property
     def regions(self):
@@ -245,9 +284,20 @@ class MemoryMap(object):
     def region_count(self):
         return len(self._regions)
 
+    def add_regions(self, *moreRegions):
+        if len(moreRegions):
+            if isinstance(moreRegions[0], (list, tuple)):
+                regionsToAdd = moreRegions[0]
+            else:
+                regionsToAdd = moreRegions
+            
+            for newRegion in regionsToAdd:
+                self.add_region(newRegion)
+
     def add_region(self, newRegion):
+        newRegion.map = self
         self._regions.append(newRegion)
-        self._regions.sort(key=lambda x:x.start)
+        self._regions.sort()
 
     def get_boot_memory(self):
         for r in self._regions:
@@ -282,16 +332,11 @@ class MemoryMap(object):
         for r in self._regions:
             if r.type == type:
                 yield r
-
-    ## @brief Generate GDB memory map XML.
-    def get_xml(self):
-        root = ElementTree.Element('memory-map')
-        for r in self._regions:
-            mem = ElementTree.SubElement(root, 'memory', type=r.type, start=hex(r.start).rstrip("L"), length=hex(r.length).rstrip("L"))
-            if r.is_flash:
-                prop = ElementTree.SubElement(mem, 'property', name='blocksize')
-                prop.text = hex(r.blocksize).rstrip("L")
-        return MAP_XML_HEADER + ElementTree.tostring(root)
+    
+    def get_first_region_of_type(self, type):
+        for r in self.get_regions_of_type(type):
+            return r
+        return None
 
     ## @brief Enable iteration over the memory map.
     def __iter__(self):

@@ -21,14 +21,15 @@ from time import sleep, time
 from random import randrange
 import traceback
 import argparse
+import logging
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
+from pyocd.core.memory_map import MemoryType
 from test_util import (Test, TestResult, get_session_options)
-import logging
 
 class SpeedTestResult(TestResult):
     def __init__(self):
@@ -88,8 +89,7 @@ def speed_test(board_id):
             test_clock = 1000000
 
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         ram_start = ram_region.start

@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2016 Freescale Semiconductor, Inc.
+ Copyright (c) 2016,2018 Freescale Semiconductor, Inc.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -85,14 +85,11 @@ FLASH_ALGO = {
     'min_program_length' : 8,
 };
 
-class Flash_ke18f16(Flash_Kinetis):
-    def __init__(self, target):
-        super(Flash_ke18f16, self).__init__(target, FLASH_ALGO)
-
 class KE18F16(Kinetis):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x80000,       blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0,           length=0x80000,       blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff8000,  length=0x10000)
         )
 

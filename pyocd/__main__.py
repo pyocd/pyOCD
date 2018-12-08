@@ -101,6 +101,9 @@ def flatten_args(args):
     """! @brief Converts a list of lists to a single list."""
     return [item for sublist in args for item in sublist]
 
+def int_base_0(x):
+    return int(x, base=0)
+
 class PyOCDTool(object):
     """! @brief Main class for the pyocd tool and subcommands.
     """
@@ -203,13 +206,13 @@ class PyOCDTool(object):
             help="Program an image to device flash.")
         flashParser.add_argument("-e", "--erase", choices=ERASE_OPTIONS.keys(), default='auto',
             help="Choose flash erase method. Default is auto.")
-        flashParser.add_argument("-a", "--base-address", metavar="ADDR",
+        flashParser.add_argument("-a", "--base-address", metavar="ADDR", type=int_base_0,
             help="Base address used for the address where to flash a binary. Defaults to start of flash.")
         flashParser.add_argument("--trust-crc", action="store_true",
             help="Use only the CRC of each page to determine if it already has the same data.")
         flashParser.add_argument("--format", choices=("bin", "hex", "elf"),
             help="File format. Default is to use the file's extension.")
-        flashParser.add_argument("--skip", metavar="BYTES", default=0,
+        flashParser.add_argument("--skip", metavar="BYTES", default=0, type=int_base_0,
             help="Skip programming the first N bytes. This can only be used with binary files.")
         flashParser.add_argument("file", metavar="PATH",
             help="File to program into flash.")
@@ -369,8 +372,13 @@ class PyOCDTool(object):
         if session is None:
             sys.exit(1)
         with session:
-            programmer = loader.FileProgrammer(session, self._args)
-            programmer.program(self._args.file)
+            programmer = loader.FileProgrammer(session,
+                                                chip_erase=ERASE_OPTIONS[self._args.erase],
+                                                trust_crc=self._args.trust_crc)
+            programmer.program(self._args.file,
+                                base_address=self._args.base_address,
+                                skip=self._args.skip,
+                                format=self._args.format)
     
     def do_erase(self):
         self._increase_logging(["pyocd.tools.loader", "pyocd"])

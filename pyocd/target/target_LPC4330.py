@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2015,2018 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  limitations under the License.
 """
 
-from ..flash.flash import Flash, DEFAULT_CHIP_ERASE_WEIGHT, FlashInfo
 from ..core.coresight_target import (SVDFile, CoreSightTarget)
 from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
@@ -314,21 +313,11 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'analyzer_address' : 0x10005000  # Analyzer 0x10005000..0x10005600
               };
 
-class Flash_lpc4330(Flash):
-
-    def __init__(self, target):
-        super(Flash_lpc4330, self).__init__(target, FLASH_ALGO)
-
-    def get_flash_info(self):
-        info = FlashInfo()
-        info.rom_start = 0x14000000
-        info.erase_weight = DEFAULT_CHIP_ERASE_WEIGHT
-        return info
-
 class LPC4330(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0x14000000,  length=0x4000000,    blocksize=0x400, is_boot_memory=True),
+        FlashRegion(    start=0x14000000,  length=0x4000000,    blocksize=0x400, is_boot_memory=True,
+            algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x20000),
         RamRegion(      start=0x10080000,  length=0x12000),
         RamRegion(      start=0x20000000,  length=0x8000),

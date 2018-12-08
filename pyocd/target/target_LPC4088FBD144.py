@@ -81,8 +81,10 @@ class Flash_lpc4088(Flash):
 class LPC4088(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True),
-        FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000),
+        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
+            flash_class=Flash_lpc4088),
+        FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
+            flash_class=Flash_lpc4088),
         RamRegion(      start=0x10000000,  length=0x10000),
         )
 

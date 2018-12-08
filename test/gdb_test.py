@@ -33,9 +33,11 @@ import logging
 import traceback
 import tempfile
 
-from pyocd.tools.gdb_server import GDBServerTool
+from pyocd.__main__ import PyOCDTool
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.py3_helpers import to_str_safe
+from pyocd.core.memory_map import MemoryType
+from pyocd.flash.loader import FileProgrammer
 from test_util import (Test, TestResult, get_session_options)
 
 # TODO, c1728p9 - run script several times with
@@ -90,8 +92,7 @@ def test_gdb(board_id=None, n=0):
     with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
         target_type = board.target_type
         binary_file = os.path.join(parentdir, 'binaries',
@@ -115,7 +116,7 @@ def test_gdb(board_id=None, n=0):
             test_clock = 1000000
 
         # Program with initial test image
-        board.flash.flash_binary(binary_file, rom_region.start)
+        FileProgrammer(session).program(binary_file, base_address=rom_region.start)
 
     # Generate an elf from the binary test file.
     temp_test_elf_name = tempfile.mktemp('.elf')
@@ -151,9 +152,14 @@ def test_gdb(board_id=None, n=0):
     output_filename = "output_%s_%d.txt" % (board.target_type, n)
     with open(output_filename, "w") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
-        args = ['-p=%i' % test_port, "-f=%i" % test_clock, "-b=%s" % board_id, "-T=%i" % telnet_port,
-                '-Oboard_config_file=test_boards.json']
-        server = GDBServerTool()
+        args = ['gdbserver',
+                '--port=%i' % test_port,
+                "--telnet-port=%i" % telnet_port,
+                "--frequency=%i" % test_clock,
+                "--uid=%s" % board_id,
+                '-Oboard_config_file=test_boards.json'
+                ]
+        server = PyOCDTool()
         server.run(args)
         program.wait()
 

@@ -20,14 +20,15 @@ import os, sys
 import traceback
 import argparse
 from collections import namedtuple
+import logging
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
+from pyocd.flash.loader import FileProgrammer
 from test_util import (Test, TestResult, get_session_options)
-import logging
 
 STATE_NAMES = {
     Target.TARGET_RUNNING : "running",
@@ -131,7 +132,7 @@ def connect_test(board):
 
     print("\n\n----- TESTING CONNECT/DISCONNECT -----")
     print("Flashing new binary")
-    live_board.flash.flash_binary(binary_file, rom_start)
+    FileProgrammer(live_session).program(binary_file, base_address=rom_start)
     live_board.target.reset()
     test_count += 1
     print("Verifying target is running")

@@ -16,13 +16,8 @@
 """
 from ..flash.flash import Flash
 from ..core.coresight_target import CoreSightTarget
-from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ..core.memory_map import (RamRegion, MemoryMap)
 import logging
-
-class Flash_rtl8195am(Flash):
-
-    def __init__(self, target):
-        return
 
 class RTL8195AM(CoreSightTarget):
 

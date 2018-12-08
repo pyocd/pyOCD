@@ -89,9 +89,12 @@ class Flash_lpc4088qsb_dm(Flash_lpc4088):
 class LPC4088dm(LPC4088):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True),
-        FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000),
-        FlashRegion(    start=0x28000000,  length=0x1000000,    blocksize=0x400),
+        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
+            flash_class=Flash_lpc4088qsb_dm),
+        FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
+            flash_class=Flash_lpc4088qsb_dm),
+        FlashRegion(    start=0x28000000,  length=0x1000000,    blocksize=0x400,
+            flash_class=Flash_lpc4088qsb_dm),
         RamRegion(      start=0x10000000,  length=0x10000),
         )
 

@@ -20,12 +20,13 @@ import os, sys
 from time import sleep
 from random import randrange
 import math
+import logging
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
-import logging
+from pyocd.flash.loader import FileProgrammer
 from test_util import get_session_options
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +53,7 @@ print("\n\n------ Flashing new code ------")
 with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
     board = session.board
     binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
-    board.flash.flash_binary(binary_file)
+    FileProgrammer(session).program(binary_file)
 
 print("\n\n------ Testing Attaching to regular board ------")
 for i in range(0, 10):

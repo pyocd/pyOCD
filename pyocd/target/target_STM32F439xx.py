@@ -77,9 +77,10 @@ class Flash_stm32f439xx(Flash):
 class STM32F439xG(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True),
-        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000),
-        FlashRegion( start=0x08020000, length=0x60000, blocksize=0x20000),
+        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True,
+            flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08020000, length=0x60000, blocksize=0x20000, flash_class=Flash_stm32f439xx),
         RamRegion(   start=0x20000000, length=0x40000)
         )
 
@@ -104,12 +105,13 @@ class STM32F439xG(CoreSightTarget):
 class STM32F439xI(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True),
-        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000),
-        FlashRegion( start=0x08020000, length=0xe0000, blocksize=0x20000),
-        FlashRegion( start=0x08100000, length=0x10000, blocksize=0x4000),
-        FlashRegion( start=0x08110000, length=0x10000, blocksize=0x10000),
-        FlashRegion( start=0x08120000, length=0xe0000, blocksize=0x20000),
+        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True,
+            flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08020000, length=0xe0000, blocksize=0x20000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08100000, length=0x10000, blocksize=0x4000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08110000, length=0x10000, blocksize=0x10000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08120000, length=0xe0000, blocksize=0x20000, flash_class=Flash_stm32f439xx),
         RamRegion(   start=0x20000000, length=0x30000)
         )
 

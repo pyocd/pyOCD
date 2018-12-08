@@ -30,6 +30,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
+from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
 from pyocd.flash.flash_builder import FlashBuilder
 from pyocd.utility.progress import print_progress
@@ -66,6 +67,8 @@ class FlashTest(Test):
               file=output_file)
         print("", file=output_file)
         for result in result_list:
+            if result.board is None or result.analyze is None:
+                continue
             if result.passed:
                 analyze_rate = "%.3f KB/s" % (result.analyze_rate / float(1000))
                 analyze_time = "%.3f s" % result.analyze_time
@@ -85,6 +88,8 @@ class FlashTest(Test):
               file=output_file)
         print("", file=output_file)
         for result in result_list:
+            if result.board is None:
+                continue
             if result.passed:
                 chip_erase_rate = "%.3f KB/s" % (result.chip_erase_rate / float(1000))
                 page_erase_rate = "%.3f KB/s" % (result.page_erase_rate / float(1000))
@@ -135,16 +140,12 @@ def flash_test(board_id):
             test_clock = 1000000
 
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
 
         ram_start = ram_region.start
         ram_size = ram_region.length
 
         target = board.target
-        flash = board.flash
-        
-        flash_info = flash.get_flash_info()
 
         session.probe.set_clock(test_clock)
 
@@ -153,11 +154,14 @@ def flash_test(board_id):
         result = FlashTestResult()
         
         # Test each flash region separately.
-        for rom_region in memory_map.get_regions_of_type('flash'):
+        for rom_region in memory_map.get_regions_of_type(MemoryType.FLASH):
             if not rom_region.is_testable:
                 continue
             rom_start = rom_region.start
             rom_size = rom_region.length
+
+            flash = rom_region.flash
+            flash_info = flash.get_flash_info()
 
             print("\n\n===== Testing flash region '%s' from 0x%08x to 0x%08x ====" % (rom_region.name, rom_region.start, rom_region.end))
 

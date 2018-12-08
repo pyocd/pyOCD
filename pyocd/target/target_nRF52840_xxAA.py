@@ -43,17 +43,14 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x20004000  # Analyzer 0x20004000..0x20004600
               }
 
-class Flash_nrf52840(Flash):
-
-    def __init__(self, target):
-        super(Flash_nrf52840, self).__init__(target, FLASH_ALGO)
-
 class NRF52840(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO),
         # User Information Configation Registers (UICR) as a flash region
-        FlashRegion(    start=0x10001000,  length=0x100,        blocksize=0x100, is_testable=False),
+        FlashRegion(    start=0x10001000,  length=0x100,        blocksize=0x100, is_testable=False,
+            algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x40000)
         )
 

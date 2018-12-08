@@ -22,6 +22,8 @@ from random import randrange
 import math
 import argparse
 import traceback
+import logging
+from random import randrange
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -31,9 +33,9 @@ from pyocd.gdbserver.context_facade import GDBDebugContextFacade
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.core import exceptions
+from pyocd.core.memory_map import MemoryType
+from pyocd.flash.loader import FileProgrammer
 from test_util import (Test, TestResult, get_session_options)
-import logging
-from random import randrange
 
 TEST_COUNT = 20
 
@@ -97,8 +99,7 @@ def cortex_test(board_id):
             test_clock = 1000000
 
         memory_map = board.target.get_memory_map()
-        ram_regions = [region for region in memory_map if region.type == 'ram']
-        ram_region = ram_regions[0]
+        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start
@@ -107,7 +108,6 @@ def cortex_test(board_id):
 
         target = board.target
         probe = session.probe
-        flash = board.flash
 
         probe.set_clock(test_clock)
 
@@ -119,7 +119,7 @@ def cortex_test(board_id):
         gdbFacade = GDBDebugContextFacade(debugContext)
 
         print("\n\n----- FLASH NEW BINARY BEFORE TEST -----")
-        flash.flash_binary(binary_file, addr_bin)
+        FileProgrammer(session).program(binary_file, base_address=addr_bin)
         # Let the target run for a bit so it
         # can initialize the watchdog if it needs to
         target.resume()

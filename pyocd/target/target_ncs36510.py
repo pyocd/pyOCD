@@ -81,15 +81,11 @@ FLASH_ALGO = {
 }
 
 
-class Flash_ncs36510(Flash):
-
-    def __init__(self, target):
-        super(Flash_ncs36510, self).__init__(target, FLASH_ALGO)
-
 class NCS36510(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0x2000,           length=0x50000,      blocksize=0x800, is_boot_memory=True),
+        FlashRegion(    start=0x2000,           length=0x50000,      blocksize=0x800, is_boot_memory=True,
+            algo=FLASH_ALGO),
         RamRegion(      start=0x3FFF4000,  length=0xC000)
         )
 

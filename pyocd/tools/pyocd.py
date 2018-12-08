@@ -40,6 +40,7 @@ from ..target.family import target_kinetis
 from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..core.target import Target
+from ..flash.loader import (FlashEraser, FlashLoader)
 from ..utility import mask
 from ..utility.cmdline import convert_session_options
 from ..utility.hex import (format_hex_width, dump_hex_data)
@@ -126,7 +127,7 @@ COMMAND_INFO = {
         'loadmem' : {
             'aliases' : [],
             'args' : "ADDR FILENAME",
-            "help" : "Load a binary file to an address in memory"
+            "help" : "Load a binary file to an address in memory (RAM or flash)"
             },
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
@@ -146,17 +147,17 @@ COMMAND_INFO = {
         'write8' : {
             'aliases' : ['write', 'w', 'wb'],
             'args' : "ADDR DATA...",
-            'help' : "Write 8-bit bytes"
+            'help' : "Write 8-bit bytes to memory (RAM or flash)"
             },
         'write16' : {
             'aliases' : ['w16', 'wh'],
             'args' : "ADDR DATA...",
-            'help' : "Write 16-bit halfwords"
+            'help' : "Write 16-bit halfwords to memory (RAM or flash)"
             },
         'write32' : {
             'aliases' : ['w32', 'ww'],
             'args' : "ADDR DATA...",
-            'help' : "Write 32-bit words"
+            'help' : "Write 32-bit words to memory (RAM or flash)"
             },
         'go' : {
             'aliases' : ['g'],
@@ -437,7 +438,6 @@ class PyOCDCommander(object):
         self.board = None
         self.target = None
         self.probe = None
-        self.flash = None
         self.did_erase = False
         self.exit_code = 0
         self.step_into_interrupt = False
@@ -641,7 +641,6 @@ class PyOCDCommander(object):
 
         self.target = self.board.target
         self.probe = self.session.probe
-        self.flash = self.board.flash
 
         # Set elf file if provided.
         if self.args.elf:
@@ -651,7 +650,7 @@ class PyOCDCommander(object):
             self.elf = None
 
         # Handle a device with flash security enabled.
-        if not self.args.no_init and self.target.is_locked() and self.cmd != 'unlock':
+        if not self.args.no_init and self.target.is_locked():
             print("Warning: Target is locked, limited operations available. Use unlock command to mass erase and unlock.")
         
         return True
@@ -845,7 +844,10 @@ class PyOCDCommander(object):
 
         with open(filename, 'rb') as f:
             data = bytearray(f.read())
-            self.target.write_memory_block8(addr, data)
+            if self.is_flash_write(addr, 8, data):
+                FlashLoader.program_binary_data(self.session, addr, data)
+            else:
+                self.target.write_memory_block8(addr, data)
             print("Loaded %d bytes to 0x%08x" % (len(data), addr))
 
     def do_read(self, args, width):
@@ -890,8 +892,20 @@ class PyOCDCommander(object):
             data = utility.conversion.u32le_list_to_byte_list(data)
 
         if self.is_flash_write(addr, width, data):
-            self.target.flash.init()
-            self.target.flash.program_phrase(addr, data)
+            # Look up flash region.
+            region = self.session.target.memory_map.get_region_for_address(addr)
+            if not region:
+                print("address 0x%08x is not within a memory region", pagaddre_addr)
+                return 1
+            if not region.is_flash:
+                print("address 0x%08x is not in flash", addr)
+                return 1
+            assert region.flash is not None
+            
+            # Program phrase to flash.
+            region.flash.init()
+            region.flash.program_phrase(addr, data)
+            region.flash.cleanup()
         else:
             self.target.write_memory_block8(addr, data)
             self.target.flush()
@@ -904,13 +918,24 @@ class PyOCDCommander(object):
             count = 1
         else:
             count = self.convert_value(args[1])
-        self.flash.init()
+        
+        eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
         while count:
-            info = self.flash.get_page_info(addr)
-            self.flash.erase_page(info.base_addr)
-            print("Erased page 0x%08x" % info.base_addr)
+            # Look up the flash region so we can get the page size.
+            region = self.session.target.memory_map.get_region_for_address(addr)
+            if not region:
+                print("address 0x%08x is not within a memory region", addr)
+                break
+            if not region.is_flash:
+                print("address 0x%08x is not in flash", addr)
+                break
+            
+            # Erase this page.
+            eraser.erase([addr])
+            
+            # Next page.
             count -= 1
-            addr += info.size
+            addr += region.blocksize
 
     def handle_unlock(self, args):
         # Currently the same as erase.
@@ -1023,10 +1048,10 @@ class PyOCDCommander(object):
                     'target' : self.target,
                     'probe' : self.probe,
                     'link' : self.probe, # Old name
-                    'flash' : self.flash,
                     'dp' : self.target.dp,
                     'aps' : self.target.dp.aps,
                     'elf' : self.elf,
+                    'map' : self.target.memory_map,
                 }
             result = eval(args, globals(), env)
             if result is not None:

@@ -18,7 +18,7 @@
 
 from ..flash.flash import Flash
 from ..core.coresight_target import CoreSightTarget
-from ..core.memory_map import (FlashRegion, RomRegion, ExternalRegion, AliasRegion, RamRegion, MemoryMap)
+from ..core.memory_map import (FlashRegion, RomRegion, ExternalRegion, RamRegion, MemoryMap)
 import logging
 
 FLASH_ALGO_QUADSPI = {
@@ -628,12 +628,6 @@ FLASH_ALGO_QUADSPI = {
     'min_program_length' : 0x00000100,
 }
 
-
-class Flash_MIMXRT1021xxxxx_quadspi(Flash):
-
-    def __init__(self, target):
-        super(Flash_MIMXRT1021xxxxx_quadspi, self).__init__(target, FLASH_ALGO_QUADSPI)
-
 class MIMXRT1021xxxxx(CoreSightTarget):
 
     # Note: itcm, dtcm, and ocram share a single 256 KB block of RAM that can be configurably
@@ -645,7 +639,8 @@ class MIMXRT1021xxxxx(CoreSightTarget):
         RomRegion(name="romcp",     start=0x00200000, length=0x18000), # 96 KB
         RamRegion(name="dtcm",      start=0x20000000, length=0x40000), # 256 KB
         RamRegion(name="ocram",     start=0x20200000, length=0x40000), # 256 KB
-        FlashRegion(name="flexspi", start=0x60000000, end=0x67ffffff, blocksize=0x1000, is_boot_memory=True),
+        FlashRegion(name="flexspi", start=0x60000000, end=0x67ffffff, blocksize=0x1000, is_boot_memory=True,
+            algo=FLASH_ALGO_QUADSPI),
         ExternalRegion(name="semc", start=0x80000000, end=0xdfffffff)
         )
 
