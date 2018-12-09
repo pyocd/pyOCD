@@ -102,7 +102,7 @@ def flash_loader_test(board_id):
         data_length = len(data)
         
         print("\n------ Test Basic Load ------")
-        loader = FlashLoader(session)
+        loader = FlashLoader(session, chip_erase=False)
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
@@ -113,7 +113,7 @@ def flash_loader_test(board_id):
             print("TEST FAILED")
         test_count += 1
         
-        print("\n------ Test Load 2 ------")
+        print("\n------ Test Load Sector Erase ------")
         test_data = [0x55] * boot_blocksize
         addr = (boot_end_addr + 1) - (boot_blocksize * 2)
         loader = FlashLoader(session, chip_erase=False)
@@ -121,7 +121,8 @@ def flash_loader_test(board_id):
         loader.add_data(addr + boot_blocksize, test_data)
         loader.commit()
         verify_data = target.read_memory_block8(addr, boot_blocksize * 2)
-        if same(verify_data, test_data * 2):
+        verify_data2 = target.read_memory_block8(boot_start_addr, data_length)
+        if same(verify_data, test_data * 2) and same(verify_data2, data):
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -133,6 +134,19 @@ def flash_loader_test(board_id):
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
         if is_erased(verify_data):
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        print("\n------ Test Load Chip Erase ------")
+        loader = FlashLoader(session, chip_erase=True)
+        loader.add_data(boot_start_addr, data)
+        loader.commit()
+        verify_data = target.read_memory_block8(boot_start_addr, data_length)
+        verify_data2 = target.read_memory_block8(addr, boot_blocksize * 2)
+        if same(verify_data, data) and is_erased(verify_data2):
             print("TEST PASSED")
             test_pass_count += 1
         else:

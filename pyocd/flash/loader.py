@@ -315,6 +315,9 @@ class FlashEraser(object):
             end_addr = page_addr + 1
         return page_addr, end_addr
 
+## Sentinel object used to identify an unset chip_erase parameter.
+CHIP_ERASE_SENTINEL = object()
+
 class FlashLoader(object):
     """! @brief Handles high level programming of raw binary data to flash.
     
@@ -333,7 +336,7 @@ class FlashLoader(object):
     
     Internally, FlashBuilder is used to optimise programming within each memory region.
     """
-    def __init__(self, session, progress=None, chip_erase=None, trust_crc=None):
+    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, trust_crc=None):
         """! @brief Constructor.
         
         @param self
@@ -358,8 +361,11 @@ class FlashLoader(object):
         else:
             self._progress = print_progress()
 
-        self._chip_erase = chip_erase or self._session.options.get('chip_erase', None)
-        self._trust_crc = trust_crc or self._session.options.get('fast_program', False)
+        # We have to use a special sentinel object for chip_erase because None is a valid value.
+        self._chip_erase = chip_erase if (chip_erase is not CHIP_ERASE_SENTINEL) \
+                            else self._session.options.get('chip_erase', None)
+        self._trust_crc = trust_crc if (trust_crc is not None) \
+                            else self._session.options.get('fast_program', False)
         
         self._reset_state()
     
