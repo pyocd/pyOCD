@@ -122,7 +122,11 @@ class FileProgrammer(object):
         try:
             # Open the file if a path was provided.
             if isPath:
-                file_obj = open(file_or_path, "rb")
+                mode = 'rb'
+                if format == 'hex':
+                    # hex file must be read as plain text file
+                    mode = 'r'
+                file_obj = open(file_or_path, mode)
             else:
                 file_obj = file_or_path
 
