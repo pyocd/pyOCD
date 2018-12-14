@@ -216,6 +216,7 @@ class RTXThreadContext(DebugContext):
 class RTXTargetThread(TargetThread):
     STATE_OFFSET = 1
     NAME_OFFSET = 4
+    PRIORITY_OFFSET = 33
     STACKFRAME_OFFSET = 34
     SP_OFFSET = 56
 
@@ -242,6 +243,7 @@ class RTXTargetThread(TargetThread):
         self._provider = provider
         self._base = base
         self._state = 0
+        self._priority = 0
         self._thread_context = RTXThreadContext(self._target_context, self)
         self._has_fpu = self._thread_context.core.has_fpu
         try:
@@ -257,10 +259,16 @@ class RTXTargetThread(TargetThread):
     def update_state(self):
         try:
             state = self._target_context.read8(self._base + RTXTargetThread.STATE_OFFSET)
+            priority = self._target_context.read8(self._base + RTXTargetThread.PRIORITY_OFFSET)
         except exceptions.TransferError as exc:
             log.debug("Transfer error while reading thread %x state: %s", self._base, exc)
         else:
             self._state = state
+            self._priority = priority
+
+    @property
+    def priority(self):
+        return self._priority
 
     @property
     def unique_id(self):
@@ -273,7 +281,7 @@ class RTXTargetThread(TargetThread):
 
     @property
     def description(self):
-        return self.STATES[self._state]
+        return "%s; Priority %d" % (self.STATES[self._state], self.priority)
 
     @property
     def name(self):
