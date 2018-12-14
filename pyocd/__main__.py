@@ -259,6 +259,8 @@ class PyOCDTool(object):
             help="List all known targets.")
         group.add_argument('-b', '--boards', action='store_true',
             help="List all known boards.")
+        group.add_argument('-f', '--features', action='store_true',
+            help="List available features and options.")
         jsonParser.set_defaults(verbose=0, quiet=0)
 
         # Create *list* subcommand parser.
@@ -427,7 +429,7 @@ class PyOCDTool(object):
     def do_json(self):
         """! @brief Handle 'json' subcommand."""
         # Default to listing probes.
-        if not any((self._args.probes, self._args.targets, self._args.boards)):
+        if not any((self._args.probes, self._args.targets, self._args.boards, self._args.features)):
             self._args.probes = True
         
         # Create a session with no device so we load any config.
@@ -450,6 +452,8 @@ class PyOCDTool(object):
             obj = ListGenerator.list_targets()
         elif self._args.boards:
             obj = ListGenerator.list_boards()
+        elif self._args.features:
+            obj = ListGenerator.list_features()
         else:
             assert False
         print(json.dumps(obj, indent=4))
