@@ -402,7 +402,15 @@ class RTX5ThreadProvider(ThreadProvider):
 
     @property
     def is_enabled(self):
-        return self.get_is_active()
+        if self._os_rtx_info is None:
+            return False
+        try:
+            # If we're in Thread mode on the main stack, can't be active, even
+            # if kernel state says we are (eg post reset)
+            return self.get_kernel_state() != 0 and not self._target.in_thread_mode_on_main_stack()
+        except exceptions.TransferError as exc:
+            log.debug("Transfer error checking if enabled: %s", exc)
+            return False
 
     @property
     def current_thread(self):
@@ -436,13 +444,5 @@ class RTX5ThreadProvider(ThreadProvider):
         self.update_threads()
         return self._current_id
 
-    def get_is_active(self):
-        if self._os_rtx_info is None:
-            return False
-        try:
-            state = self._target_context.read8(self._os_rtx_info + RTX5ThreadProvider.KERNEL_STATE_OFFSET)
-        except exceptions.TransferError as exc:
-            log.debug("Transfer error reading kernel state: %s", exc)
-            return False
-        else:
-            return state != 0
+    def get_kernel_state(self):
+        return self._target_context.read8(self._os_rtx_info + RTX5ThreadProvider.KERNEL_STATE_OFFSET)

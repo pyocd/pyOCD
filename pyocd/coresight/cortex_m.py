@@ -204,6 +204,11 @@ class CortexM(Target, CoreSightComponent):
     EPSR_MASK = 0x0700FC00
     IPSR_MASK = 0x000001FF
 
+    # Control Register
+    CONTROL_FPCA = (1 << 2)
+    CONTROL_SPSEL = (1 << 1)
+    CONTROL_nPRIV = (1 << 0)
+
     # Debug Fault Status Register
     DFSR = 0xE000ED30
     DFSR_EXTERNAL = (1 << 4)
@@ -1105,3 +1110,7 @@ class CortexM(Target, CoreSightComponent):
                 return "Interrupt[%s]" % name
             else:
                 return "Interrupt %d" % irq_num
+
+    def in_thread_mode_on_main_stack(self):
+        return (self._target_context.read_core_register('ipsr') == 0 and
+                (self._target_context.read_core_register('control') & CortexM.CONTROL_SPSEL) == 0)
