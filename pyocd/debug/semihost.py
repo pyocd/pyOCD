@@ -304,10 +304,10 @@ class TelnetSemihostIOHandler(SemihostIOHandler):
             self._port = 0
         else:
             self._abstract_socket = GDBSocket(port_or_url, 4096)
-            self._abstract_socket.init()
-            self._port = self._abstract_socket.port
             if serve_local_only:
                 self._abstract_socket.host = 'localhost'
+            self._abstract_socket.init()
+            self._port = self._abstract_socket.port
         self._buffer = bytearray()
         self._buffer_lock = threading.Lock()
         self.connected = None
