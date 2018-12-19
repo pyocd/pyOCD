@@ -241,8 +241,8 @@ class CortexM(Target, CoreSightComponent):
     CPUID_REVISION_POS = 0
 
     CPUID_IMPLEMENTER_ARM = 0x41
-    ARMv6M = 0xC
-    ARMv7M = 0xF
+    ARMv6M = 0xC # also ARMv8-M without Main Extension
+    ARMv7M = 0xF # also ARMv8-M with Main Extension
 
     # Debug Core Register Selector Register
     DCRSR = 0xE000EDF4
@@ -281,6 +281,11 @@ class CortexM(Target, CoreSightComponent):
     MVFR0 = 0xE000EF40
     MVFR0_DOUBLE_PRECISION_MASK = 0x00000f00
     MVFR0_DOUBLE_PRECISION_SHIFT = 8
+
+    # Media and FP Feature Register 2
+    MVFR2 = 0xE000EF48
+    MVFR2_VFP_MISC_MASK = 0x000000f0
+    MVFR2_VFP_MISC_SHIFT = 4
 
     class RegisterInfo(object):
         def __init__(self, name, bitsize, reg_type, reg_group):
@@ -466,7 +471,7 @@ class CortexM(Target, CoreSightComponent):
             self.register_list.append(reg)
             SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
         # Check if target has ARMv7 registers
-        if self.core_type in (ARM_CortexM3, ARM_CortexM4, ARM_CortexM7):
+        if self.arch == CortexM.ARMv7M:
             for reg in self.regs_system_armv7_only:
                 self.register_list.append(reg)
                 SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
@@ -482,7 +487,7 @@ class CortexM(Target, CoreSightComponent):
                     SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
         self.target_xml = b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
 
-    ## @brief Read the CPUID register and determine core type.
+    ## @brief Read the CPUID register and determine core type and architecture.
     def _read_core_type(self):
         # Read CPUID register
         cpuid = self.read32(CortexM.CPUID)
@@ -502,11 +507,11 @@ class CortexM(Target, CoreSightComponent):
         else:
             logging.info("CPU core is unknown")
 
-    ## @brief Determine if a Cortex-M4 has an FPU.
+    ## @brief Determine if a core has an FPU.
     #
-    # The core type must have been identified prior to calling this function.
+    # The core architecture must have been identified prior to calling this function.
     def _check_for_fpu(self):
-        if self.core_type not in (ARM_CortexM4, ARM_CortexM7):
+        if self.arch != CortexM.ARMv7M:
             self.has_fpu = False
             return
 
@@ -524,13 +529,15 @@ class CortexM(Target, CoreSightComponent):
             # Now check whether double-precision is supported.
             mvfr0 = self.read32(CortexM.MVFR0)
             dp_val = (mvfr0 & CortexM.MVFR0_DOUBLE_PRECISION_MASK) >> CortexM.MVFR0_DOUBLE_PRECISION_SHIFT
-            self.has_fpu_double = (dp_val == 2)
+            self.has_fpu_double = (dp_val >= 2)
 
-            if self.core_type == ARM_CortexM7:
-                if self.has_fpu_double:
-                    fpu_type = "FPv5-DP"
-                else:
-                    fpu_type = "FPv5-SP"
+            mvfr2 = self.read32(CortexM.MVFR2)
+            vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
+
+            if self.has_fpu_double:
+                fpu_type = "FPv5"
+            elif vfp_misc_val >= 4:
+                fpu_type = "FPv5-SP"
             else:
                 fpu_type = "FPv4-SP"
             logging.info("FPU present: " + fpu_type)
