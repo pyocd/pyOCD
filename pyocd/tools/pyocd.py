@@ -694,7 +694,7 @@ class PyOCDCommander(object):
                         halt_on_connect=self.args.halt,
                         resume_on_disconnect=False,
                         frequency=self.args.frequency,
-                        **convert_session_options(self.args.options))
+                        options=convert_session_options(self.args.options))
         if self.session is None:
             self.exit_code = 3
             return False

@@ -450,7 +450,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=False,
-                            **convert_session_options(self._args.options))
+                            options=convert_session_options(self._args.options))
         if session is None:
             sys.exit(1)
         with session:
@@ -476,7 +476,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=False,
-                            **convert_session_options(self._args.options))
+                            options=convert_session_options(self._args.options))
         if session is None:
             sys.exit(1)
         with session:
@@ -547,7 +547,7 @@ class PyOCDTool(object):
                 unique_id=self._args.unique_id,
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
-                **sessionOptions)
+                options=sessionOptions)
             if session is None:
                 LOG.error("No probe selected.")
                 return
