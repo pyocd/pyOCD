@@ -22,7 +22,11 @@ from pyocd.utility.conversion import (
     u32_to_float32,
     float32_to_u32,
     u32_to_hex8le,
+    u64_to_hex16le,
     hex8_to_u32be,
+    hex16_to_u64be,
+    hex8_to_u32le,
+    hex16_to_u64le,
     byte_to_hex2,
     hex_to_byte_list,
     hex_decode,
@@ -85,11 +89,23 @@ class TestConversionUtilities(object):
     def test_float32beToU32be(self):
         assert float32_to_u32(5.690456613903524e-28) == 0x012345678
 
-    def test_u32beToHex8le(self):
+    def test_u32ToHex8le(self):
         assert u32_to_hex8le(0x0102ABCD) == "cdab0201"
 
-    def test_hex8leToU32be(self):
+    def test_u64ToHex16le(self):
+        assert u64_to_hex16le(0x0102ABCD171819EF) == "ef191817cdab0201"
+
+    def test_hex8ToU32be(self):
         assert hex8_to_u32be("0102ABCD") == 0xCDAB0201
+
+    def test_hex16ToU64be(self):
+        assert hex16_to_u64be("0102ABCD171819EF") == 0xEF191817CDAB0201
+
+    def test_hex8ToU32le(self):
+        assert hex8_to_u32le("0102ABCD") == 0x0102ABCD
+
+    def test_hex16ToU64le(self):
+        assert hex16_to_u64le("0102ABCD171819EF") == 0x0102ABCD171819EF
 
     def test_byteToHex2(self):
         assert byte_to_hex2(0xC3) == "c3"

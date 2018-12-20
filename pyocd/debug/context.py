@@ -16,7 +16,7 @@
 """
 
 from ..core.memory_interface import MemoryInterface
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register,
+from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_single_float_register,
                                     is_double_float_register)
 from ..utility import conversion
 import logging
@@ -64,7 +64,7 @@ class DebugContext(MemoryInterface):
         regIndex = register_name_to_index(reg)
         regValue = self.read_core_register_raw(regIndex)
         # Convert int to float.
-        if is_float_register(regIndex):
+        if is_single_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
         elif is_double_float_register(regIndex):
             regValue = conversion.u64_to_float64(regValue)
@@ -89,7 +89,7 @@ class DebugContext(MemoryInterface):
         """
         regIndex = register_name_to_index(reg)
         # Convert float to int.
-        if is_float_register(regIndex) and type(data) is float:
+        if is_single_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
         elif is_double_float_register(regIndex) and type(data) is float:
             data = conversion.float64_to_u64(data)

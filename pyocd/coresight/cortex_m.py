@@ -161,8 +161,12 @@ def register_name_to_index(reg):
             raise KeyError('cannot find %s core register' % reg)
     return reg
 
-# Returns true for registers holding single-precision float values
 def is_float_register(index):
+    logging.warning("cortex_m.is_float_register() is deprecated - use is_single_float_register() and/or consider other functions")
+    return is_single_float_register(index)
+
+# Returns true for registers holding single-precision float values
+def is_single_float_register(index):
     return 0x40 <= index <= 0x5f
 
 # Returns true for registers holding double-precision float values
@@ -170,7 +174,7 @@ def is_double_float_register(index):
     return -0x40 >= index > -0x60
 
 def is_fpu_register(index):
-    return index == 33 or is_float_register(index)
+    return index == 33 or is_single_float_register(index) or is_double_float_register(index)
 
 def is_cfbp_subregister(index):
     return -4 <= index <= -1
@@ -291,6 +295,7 @@ class CortexM(Target, CoreSightComponent):
         def __init__(self, name, bitsize, reg_type, reg_group):
             self.name = name
             self.reg_num = CORE_REGISTER[name]
+            self.bitsize = bitsize
             self.gdb_xml_attrib = {}
             self.gdb_xml_attrib['name'] = str(name)
             self.gdb_xml_attrib['bitsize'] = str(bitsize)
@@ -331,42 +336,6 @@ class CortexM(Target, CoreSightComponent):
     regs_float = [
         #            Name       bitsize     type            group
         RegisterInfo('fpscr',   32,         'int',          'float'),
-        RegisterInfo('s0' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s1' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s2' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s3' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s4' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s5' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s6' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s7' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s8' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s9' ,     32,         'ieee_single',  'float'),
-        RegisterInfo('s10',     32,         'ieee_single',  'float'),
-        RegisterInfo('s11',     32,         'ieee_single',  'float'),
-        RegisterInfo('s12',     32,         'ieee_single',  'float'),
-        RegisterInfo('s13',     32,         'ieee_single',  'float'),
-        RegisterInfo('s14',     32,         'ieee_single',  'float'),
-        RegisterInfo('s15',     32,         'ieee_single',  'float'),
-        RegisterInfo('s16',     32,         'ieee_single',  'float'),
-        RegisterInfo('s17',     32,         'ieee_single',  'float'),
-        RegisterInfo('s18',     32,         'ieee_single',  'float'),
-        RegisterInfo('s19',     32,         'ieee_single',  'float'),
-        RegisterInfo('s20',     32,         'ieee_single',  'float'),
-        RegisterInfo('s21',     32,         'ieee_single',  'float'),
-        RegisterInfo('s22',     32,         'ieee_single',  'float'),
-        RegisterInfo('s23',     32,         'ieee_single',  'float'),
-        RegisterInfo('s24',     32,         'ieee_single',  'float'),
-        RegisterInfo('s25',     32,         'ieee_single',  'float'),
-        RegisterInfo('s26',     32,         'ieee_single',  'float'),
-        RegisterInfo('s27',     32,         'ieee_single',  'float'),
-        RegisterInfo('s28',     32,         'ieee_single',  'float'),
-        RegisterInfo('s29',     32,         'ieee_single',  'float'),
-        RegisterInfo('s30',     32,         'ieee_single',  'float'),
-        RegisterInfo('s31',     32,         'ieee_single',  'float'),
-        ]
-
-    regs_float_double = [
-        #            Name       bitsize     type            group
         RegisterInfo('d0' ,     64,         'ieee_double',  'float'),
         RegisterInfo('d1' ,     64,         'ieee_double',  'float'),
         RegisterInfo('d2' ,     64,         'ieee_double',  'float'),
@@ -411,7 +380,6 @@ class CortexM(Target, CoreSightComponent):
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
-        self.has_fpu_double = False
         self.core_number = core_num
         self._run_token = 0
         self._target_context = None
@@ -467,24 +435,23 @@ class CortexM(Target, CoreSightComponent):
         self.register_list = []
         xml_root = Element('target')
         xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
-        for reg in self.regs_general:
-            self.register_list.append(reg)
-            SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
+
+        def append_regs(regs, xml_element):
+            for reg in regs:
+                self.register_list.append(reg)
+                SubElement(xml_element, 'reg', **reg.gdb_xml_attrib)
+
+        append_regs(self.regs_general, xml_regs_general)
         # Check if target has ARMv7 registers
         if self.arch == CortexM.ARMv7M:
-            for reg in self.regs_system_armv7_only:
-                self.register_list.append(reg)
-                SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
+            append_regs(self.regs_system_armv7_only, xml_regs_general)
         # Check if target has FPU registers
         if self.has_fpu:
-            #xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
-            for reg in self.regs_float:
-                self.register_list.append(reg)
-                SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
-            if self.has_fpu_double:
-                for reg in self.regs_float_double:
-                    self.register_list.append(reg)
-                    SubElement(xml_regs_general, 'reg', **reg.gdb_xml_attrib)
+            # GDB understands the double/single separation so we don't need
+            # to separately pass the single regs, just the double
+            xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
+            append_regs(self.regs_float, xml_regs_fpu)
+
         self.target_xml = b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
 
     ## @brief Read the CPUID register and determine core type and architecture.
@@ -527,14 +494,15 @@ class CortexM(Target, CoreSightComponent):
 
         if self.has_fpu:
             # Now check whether double-precision is supported.
+            # (Minimal tests to distinguish current permitted ARMv7-M and
+            # ARMv8-M FPU types; used for printing only).
             mvfr0 = self.read32(CortexM.MVFR0)
             dp_val = (mvfr0 & CortexM.MVFR0_DOUBLE_PRECISION_MASK) >> CortexM.MVFR0_DOUBLE_PRECISION_SHIFT
-            self.has_fpu_double = (dp_val >= 2)
 
             mvfr2 = self.read32(CortexM.MVFR2)
             vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
 
-            if self.has_fpu_double:
+            if dp_val >= 2:
                 fpu_type = "FPv5"
             elif vfp_misc_val >= 4:
                 fpu_type = "FPv5-SP"
@@ -773,7 +741,7 @@ class CortexM(Target, CoreSightComponent):
         regIndex = register_name_to_index(reg)
         regValue = self.read_core_register_raw(regIndex)
         # Convert int to float.
-        if is_float_register(regIndex):
+        if is_single_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
         elif is_double_float_register(regIndex):
             regValue = conversion.u64_to_float64(regValue)
@@ -805,12 +773,10 @@ class CortexM(Target, CoreSightComponent):
                 raise ValueError("unknown reg: %d" % reg)
             elif is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
-            elif is_double_float_register(reg) and (not self.has_fpu_double):
-                raise ValueError("attempt to read double-precision FPU register without FPv5")
 
         # Handle doubles.
         doubles = [reg for reg in reg_list if is_double_float_register(reg)]
-        hasDoubles = self.has_fpu_double and len(doubles) > 0
+        hasDoubles = len(doubles) > 0
         if hasDoubles:
             originalRegList = reg_list
             
@@ -884,7 +850,7 @@ class CortexM(Target, CoreSightComponent):
         """
         regIndex = register_name_to_index(reg)
         # Convert float to int.
-        if is_float_register(regIndex) and type(data) is float:
+        if is_single_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
         elif is_double_float_register(regIndex) and type(data) is float:
             data = conversion.float64_to_u64(data)
@@ -916,8 +882,6 @@ class CortexM(Target, CoreSightComponent):
                 raise ValueError("unknown reg: %d" % reg)
             elif is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to write FPU register without FPU")
-            elif is_double_float_register(reg) and (not self.has_fpu_double):
-                raise ValueError("attempt to write double-precision FPU register without FPv5")
 
         # Read special register if it is present in the list and
         # convert doubles to single float register writes.
