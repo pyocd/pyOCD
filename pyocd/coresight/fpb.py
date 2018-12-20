@@ -62,9 +62,9 @@ class FPB(BreakpointProvider, CoreSightComponent):
     def init(self):
         # setup FPB (breakpoint)
         fpcr = self.ap.read32(FPB.FP_CTRL)
-        self.fp_rev = 1 + ((fpcr & FPB.FP_CTRL_REV_MASK) >> FPB.FP_CTRL_REV_SHIFT)
-        if self.fp_rev not in (1, 2):
-            logging.warning("Unknown FPB version %d", self.fp_rev)
+        self.fpb_rev = 1 + ((fpcr & FPB.FP_CTRL_REV_MASK) >> FPB.FP_CTRL_REV_SHIFT)
+        if self.fpb_rev not in (1, 2):
+            logging.warning("Unknown FPB version %d", self.fpb_rev)
         self.nb_code = ((fpcr >> 8) & 0x70) | ((fpcr >> 4) & 0xF)
         self.nb_lit = (fpcr >> 7) & 0xf
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
@@ -118,12 +118,12 @@ class FPB(BreakpointProvider, CoreSightComponent):
             if not bp.enabled:
                 bp.enabled = True
                 comp = 0
-                if self.fp_rev == 1:
+                if self.fpb_rev == 1:
                     bp_match = (1 << 30)
                     if addr & 0x2:
                         bp_match = (2 << 30)
                     comp = addr & 0x1ffffffc | bp_match | 1
-                elif self.fp_rev == 2:
+                elif self.fpb_rev == 2:
                     comp = (addr & 0xfffffffe) | 1
                 self.ap.write32(bp.comp_register_addr, comp)
                 logging.debug("BP: wrote 0x%08x to comp @ 0x%08x", comp, bp.comp_register_addr)
