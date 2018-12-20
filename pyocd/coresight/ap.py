@@ -326,7 +326,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            self.link.write_ap_multiple(MEM_AP_DRW, data)
+            self.link.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -351,7 +351,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            resp = self.link.read_ap_multiple(MEM_AP_DRW, size)
+            resp = self.link.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
