@@ -549,9 +549,9 @@ class CortexM(Target, CoreSightComponent):
             self._supports_vectreset = True
         
         if self.core_type in CORE_TYPE_NAME:
-            logging.info("CPU core is %s r%dp%d", CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
+            logging.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
         else:
-            logging.info("CPU core is unknown")
+            logging.warning("CPU core #%d type is unrecognized", self.core_number)
 
     ## @brief Determine if a core has an FPU.
     #
