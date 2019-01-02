@@ -48,18 +48,18 @@ setup(
     # Allow installation on 2.7.9+, and 3.4+ even though we officially only support 3.6+.
     python_requires=">=2.7.9, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
     install_requires = [
-        'intelhex',
-        'six',
-        'enum34;python_version<"3.4"',
+        'intelhex>=2.0,<3.0',
+        'six>=1.0,<2.0',
+        'enum34>=1.0,<2.0;python_version<"3.4"',
         'future',
         'websocket-client',
         'intervaltree>=3.0.2,<4.0',
         'colorama',
         'pyelftools',
-        'pyusb>=1.0.0b2',
+        'pyusb>=1.0.0b2,<2.0',
         'pywinusb>=0.4.0;platform_system=="Windows"',
         'hidapi;platform_system=="Darwin"',
-        'pyyaml',
+        'pyyaml>=3.0,<4.0',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -79,7 +79,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pyocd = pyocd.__main__:main',
-            
+
             # Keep deprecated tools for compatibility.
             'pyocd-gdbserver = pyocd.tools.gdb_server:main',
             'pyocd-flashtool = pyocd.tools.flash_tool:main',
