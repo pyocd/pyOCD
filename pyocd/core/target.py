@@ -125,13 +125,13 @@ class Target(MemoryInterface, Notifier):
     def write_core_register(self, id, data):
         raise NotImplementedError()
 
-    def read_core_register(self, reg):
+    def read_core_register_raw(self, reg):
         raise NotImplementedError()
 
     def read_core_registers_raw(self, reg_list):
         raise NotImplementedError()
 
-    def write_core_register(self, reg, data):
+    def write_core_register_raw(self, reg, data):
         raise NotImplementedError()
 
     def write_core_registers_raw(self, reg_list, data_list):

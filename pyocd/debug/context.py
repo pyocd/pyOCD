@@ -61,13 +61,13 @@ class DebugContext(MemoryInterface):
         Unpack floating point register values
         """
         regIndex = register_name_to_index(reg)
-        regValue = self.read_core_register(regIndex)
+        regValue = self.read_core_register_raw(regIndex)
         # Convert int to float.
         if is_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
         return regValue
 
-    def read_core_register(self, reg):
+    def read_core_register_raw(self, reg):
         """
         read a core register (r0 .. r16).
         If reg is a string, find the number associated to this register
@@ -86,11 +86,11 @@ class DebugContext(MemoryInterface):
         """
         regIndex = register_name_to_index(reg)
         # Convert float to int.
-        if is_float_register(regIndex):
+        if is_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
-        self.write_core_register(regIndex, data)
+        self.write_core_register_raw(regIndex, data)
 
-    def write_core_register(self, reg, data):
+    def write_core_register_raw(self, reg, data):
         """
         write a core register (r0 .. r16)
         If reg is a string, find the number associated to this register

@@ -99,13 +99,13 @@ class GDBDebugContextFacade(object):
             regName = self._register_list[reg].name
             value = conversion.hex8_to_u32be(data)
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
-            self._context.write_core_register(regName, value)
+            self._context.write_core_register_raw(regName, value)
 
     def gdb_get_register(self, reg):
         resp = ''
         if reg < len(self._register_list):
             regName = self._register_list[reg].name
-            regValue = self._context.read_core_register(regName)
+            regValue = self._context.read_core_register_raw(regName)
             resp = six.b(conversion.u32_to_hex8le(regValue))
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp

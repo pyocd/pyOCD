@@ -227,14 +227,14 @@ class CoreSightTarget(Target):
     def write_core_register(self, id, data):
         return self.selected_core.write_core_register(id, data)
 
-    def read_core_register(self, reg):
-        return self.selected_core.read_core_register(reg)
+    def read_core_register_raw(self, reg):
+        return self.selected_core.read_core_register_raw(reg)
 
     def read_core_registers_raw(self, reg_list):
         return self.selected_core.read_core_registers_raw(reg_list)
 
-    def write_core_register(self, reg, data):
-        self.selected_core.write_core_register(reg, data)
+    def write_core_register_raw(self, reg, data):
+        self.selected_core.write_core_register_raw(reg, data)
 
     def write_core_registers_raw(self, reg_list, data_list):
         self.selected_core.write_core_registers_raw(reg_list, data_list)
