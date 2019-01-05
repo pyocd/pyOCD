@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2016 ARM Limited
+ Copyright (c) 2016-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 """
 
 from ..core.memory_interface import MemoryInterface
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register)
+from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_float_register,
+                                    is_double_float_register)
 from ..utility import conversion
 import logging
 
@@ -61,13 +62,15 @@ class DebugContext(MemoryInterface):
         Unpack floating point register values
         """
         regIndex = register_name_to_index(reg)
-        regValue = self.read_core_register(regIndex)
+        regValue = self.read_core_register_raw(regIndex)
         # Convert int to float.
         if is_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
+        elif is_double_float_register(regIndex):
+            regValue = conversion.u64_to_float64(regValue)
         return regValue
 
-    def read_core_register(self, reg):
+    def read_core_register_raw(self, reg):
         """
         read a core register (r0 .. r16).
         If reg is a string, find the number associated to this register
@@ -86,11 +89,13 @@ class DebugContext(MemoryInterface):
         """
         regIndex = register_name_to_index(reg)
         # Convert float to int.
-        if is_float_register(regIndex):
+        if is_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
-        self.write_core_register(regIndex, data)
+        elif is_double_float_register(regIndex) and type(data) is float:
+            data = conversion.float64_to_u64(data)
+        self.write_core_register_raw(regIndex, data)
 
-    def write_core_register(self, reg, data):
+    def write_core_register_raw(self, reg, data):
         """
         write a core register (r0 .. r16)
         If reg is a string, find the number associated to this register

@@ -193,7 +193,7 @@ class RTXThreadContext(DebugContext):
             # Look up offset for this register on the stack.
             spOffset = table.get(reg, None)
             if spOffset is None:
-                reg_vals.append(self._parent.read_core_register(reg))
+                reg_vals.append(self._parent.read_core_register_raw(reg))
                 continue
             if inException:
                 spOffset -= swStacked
@@ -203,7 +203,7 @@ class RTXThreadContext(DebugContext):
                     reg_vals.append(self._parent.read32(sp + spOffset))
                 else:
                     # Not available - try live one
-                    reg_vals.append(self._parent.read_core_register(reg))
+                    reg_vals.append(self._parent.read_core_register_raw(reg))
             except exceptions.TransferError:
                 reg_vals.append(0)
 

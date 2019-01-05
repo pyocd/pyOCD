@@ -133,7 +133,7 @@ class ZephyrThreadContext(DebugContext):
                 continue
 
             # If we get here, this is a register not in any of the dictionaries
-            val = self._parent.read_core_register(reg)
+            val = self._parent.read_core_register_raw(reg)
             log.debug("Reading live register %d = 0x%x", reg, val)
             reg_vals.append(val)
             continue
