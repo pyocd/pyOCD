@@ -108,27 +108,27 @@ class TestMemoryCache:
     def test_16_no_mem_region(self, mockcore, memcache):
         assert memcache.read_memory_block8(0x30000000, 4) == [0x55] * 4
         # Make sure we didn't cache anything.
-        assert memcache._cache.search(0x30000000, 0x30000004) == set()
+        assert memcache._cache.overlap(0x30000000, 0x30000004) == set()
 
     def test_17_noncacheable_region_read(self, mockcore, memcache):
         mockcore.write_memory_block8(0x20000410, [90, 91, 92, 93])
         assert memcache.read_memory_block8(0x20000410, 4) == [90, 91, 92, 93]
         # Make sure we didn't cache anything.
-        assert memcache._cache.search(0x20000410, 0x20000414) == set()
+        assert memcache._cache.overlap(0x20000410, 0x20000414) == set()
 
     def test_18_noncacheable_region_write(self, mockcore, memcache):
         memcache.write_memory_block8(0x20000410, [1, 2, 3, 4])
         mockcore.write_memory_block8(0x20000410, [90, 91, 92, 93])
         assert memcache.read_memory_block8(0x20000410, 4) == [90, 91, 92, 93]
         # Make sure we didn't cache anything.
-        assert memcache._cache.search(0x20000410, 0x20000414) == set()
+        assert memcache._cache.overlap(0x20000410, 0x20000414) == set()
 
     def test_19_write_into_cached(self, mockcore, memcache):
         mockcore.write_memory_block8(4, [1, 2, 3, 4, 5, 6, 7, 8])
         assert memcache.read_memory_block8(4, 8) == [1, 2, 3, 4, 5, 6, 7, 8]
         memcache.write_memory_block8(6, [128, 129, 130, 131])
         assert memcache.read_memory_block8(4, 8) == [1, 2, 128, 129, 130, 131, 7, 8]
-        assert len(list(memcache._cache.search(4, 12))[0].data) == 8
+        assert len(list(memcache._cache.overlap(4, 12))[0].data) == 8
 
     def test_20_empty_read(self, memcache):
         assert memcache.read_memory_block8(128, 0) == []
