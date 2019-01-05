@@ -31,7 +31,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.target import Target
 from pyocd.gdbserver.context_facade import GDBDebugContextFacade
 from pyocd.core.helpers import ConnectHelper
-from pyocd.utility.conversion import float32_to_u32
+from pyocd.utility.conversion import float32_to_u32, u32_to_float32
 from pyocd.core import exceptions
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
@@ -70,6 +70,9 @@ def same(d1, d2):
         if d1[i] != d2[i]:
             return False
     return True
+
+def float_compare(f1, f2):
+    return abs(f1 - f2) < 0.0001
 
 def test_function(session, function):
     session.probe.flush()
@@ -179,6 +182,117 @@ def cortex_test(board_id):
         test_count += 1
         print("TEST PASSED")
 
+
+        print("\n\n------ Testing Register Read/Write ------")
+        print("Reading r0")
+        val = target.read_core_register('r0')
+        origR0 = val
+        rawVal = target.read_core_register_raw('r0')
+        test_count += 1
+        if val == rawVal:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+
+        print("Writing r0")
+        target.write_core_register('r0', 0x12345678)
+        val = target.read_core_register('r0')
+        rawVal = target.read_core_register_raw('r0')
+        test_count += 1
+        if val == 0x12345678 and rawVal == 0x12345678:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+
+        print("Raw writing r0")
+        target.write_core_register_raw('r0', 0x87654321)
+        val = target.read_core_register('r0')
+        rawVal = target.read_core_register_raw('r0')
+        test_count += 1
+        if val == 0x87654321 and rawVal == 0x87654321:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+
+        print("Read/write r0, r1, r2, r3")
+        origRegs = target.read_core_registers_raw(['r0', 'r1', 'r2', 'r3'])
+        target.write_core_registers_raw(['r0', 'r1', 'r2', 'r3'], [1, 2, 3, 4])
+        vals = target.read_core_registers_raw(['r0', 'r1', 'r2', 'r3'])
+        passed = vals[0] == 1 and vals[1] == 2 and vals[2] == 3 and vals[3] == 4
+        test_count += 1
+        if passed:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+            
+        # Restore regs
+        origRegs[0] = origR0
+        target.write_core_registers_raw(['r0', 'r1', 'r2', 'r3'], origRegs)
+
+        if target.selected_core.has_fpu:
+            print("Reading s0")
+            val = target.read_core_register('s0')
+            rawVal = target.read_core_register_raw('s0')
+            origRawS0 = rawVal
+            passed = isinstance(val, float) and isinstance(rawVal, int) \
+                        and float32_to_u32(val) == rawVal
+            test_count += 1
+            if passed:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED")
+
+            print("Writing s0")
+            target.write_core_register('s0', math.pi)
+            val = target.read_core_register('s0')
+            rawVal = target.read_core_register_raw('s0')
+            passed = float_compare(val, math.pi) and float_compare(u32_to_float32(rawVal), math.pi)
+            test_count += 1
+            if passed:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED (%f==%f, 0x%08x->%f)" % (val, math.pi, rawVal, u32_to_float32(rawVal)))
+
+            print("Raw writing s0")
+            x = float32_to_u32(32.768)
+            target.write_core_register_raw('s0', x)
+            val = target.read_core_register('s0')
+            passed = float_compare(val, 32.768)
+            test_count += 1
+            if passed:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED (%f==%f)" % (val, 32.768))
+
+            print("Read/write s0, s1")
+            _1p1 = float32_to_u32(1.1)
+            _2p2 = float32_to_u32(2.2)
+            origRegs = target.read_core_registers_raw(['s0', 's1'])
+            target.write_core_registers_raw(['s0', 's1'], [_1p1, _2p2])
+            vals = target.read_core_registers_raw(['s0', 's1'])
+            s0 = target.read_core_register('s0')
+            s1 = target.read_core_register('s1')
+            passed = vals[0] == _1p1 and float_compare(s0, 1.1) \
+                        and vals[1] == _2p2 and float_compare(s1, 2.2)
+            test_count += 1
+            if passed:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED (0x%08x==0x%08x, %f==%f, 0x%08x==0x%08x, %f==%f)" \
+                    % (vals[0], _1p1, s0, 1.1, vals[1], _2p2, s1, 2.2))
+            
+            # Restore s0
+            origRegs[0] = origRawS0
+            target.write_core_registers_raw(['s0', 's1'], origRegs)
+        
 
         print("\n\n------ Testing Invalid Memory Access Recovery ------")
         memory_access_pass = True
