@@ -15,7 +15,7 @@
  limitations under the License.
 """
 from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread)
+from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
 from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
@@ -173,7 +173,7 @@ class RTXThreadContext(DebugContext):
                     exceptionLR = self._thread.get_stack_frame()
 
                 # Check bit 4 of the exception LR to determine if FPU registers were stacked.
-                if (exceptionLR & (1 << 4)) == 0:
+                if (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) == 0:
                     table = self.FPU_REGISTER_OFFSETS
                     hwStacked = 0x68
                     swStacked = 0x60

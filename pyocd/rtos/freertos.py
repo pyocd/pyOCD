@@ -16,7 +16,7 @@
 """
 
 from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread)
+from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
 from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
@@ -194,7 +194,7 @@ class FreeRTOSThreadContext(DebugContext):
                     exceptionLR = self._parent.read32(sp + offset)
 
                 # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
-                if (exceptionLR & (1 << 4)) != 0:
+                if (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) != 0:
                     table = self.FPU_BASIC_REGISTER_OFFSETS
                     swStacked = 0x24
                 else:
