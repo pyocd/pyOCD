@@ -16,7 +16,7 @@
 """
 
 from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread)
+from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
 from ..core import exceptions
 from ..core.target import Target
 from ..debug.context import DebugContext
@@ -151,6 +151,7 @@ class ArgonThreadContext(DebugContext):
         super(ArgonThreadContext, self).__init__(parentContext.core)
         self._parent = parentContext
         self._thread = thread
+        self._has_fpu = parentContext.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
@@ -177,10 +178,23 @@ class ArgonThreadContext(DebugContext):
         hwStacked = 0x20
         swStacked = 0x20
         table = self.CORE_REGISTER_OFFSETS
-        if self._thread.has_extended_frame:
-            table = self.FPU_EXTENDED_REGISTER_OFFSETS
-            hwStacked = 0x68
-            swStacked = 0x60
+        if self._has_fpu:
+            if inException and self._parent.core.is_vector_catch():
+                # Vector catch has just occurred, take live LR
+                exceptionLR = self._parent.read_core_register('lr')
+
+                # Check bit 4 of the exception LR to determine if FPU registers were stacked.
+                hasExtendedFrame = (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) == 0
+            else:
+                # Can't really rely on finding live LR after initial
+                # vector catch, so retrieve LR stored by OS on last
+                # thread switch.
+                hasExtendedFrame = self._thread.has_extended_frame
+            
+            if hasExtendedFrame:
+                table = self.FPU_EXTENDED_REGISTER_OFFSETS
+                hwStacked = 0x68
+                swStacked = 0x60
 
         for reg in reg_list:
             # Must handle stack pointer specially.
