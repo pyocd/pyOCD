@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2012-2018 ARM Limited
+ Copyright (c) 2012-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,17 @@
  limitations under the License.
 """
 
+import sys
 from setuptools import setup, find_packages
+
+open_args = { 'mode': 'r' }
+if sys.version_info[0] > 2:
+    # Python 3.x version requires explicitly setting the encoding.
+    # Python 2.x version of open() doesn't support the encoding parameter.
+    open_args['encoding'] = 'utf-8'
+    
+with open('README.md', **open_args) as f:
+    readme = f.read()
 
 setup(
     name="pyocd",
@@ -24,11 +34,12 @@ setup(
         'write_to': 'pyocd/_version.py'
     },
     setup_requires=[
+        'setuptools>=40.0',
         'setuptools_scm!=1.5.3,!=1.5.4',
         'setuptools_scm_git_archive',
         ],
     description="Cortex-M debugger for Python",
-    long_description=open('README.md', 'r').read(),
+    long_description=readme,
     long_description_content_type='text/markdown',
     author="Chris Reed, Martin Kojtal, Russ Butler",
     author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
@@ -77,4 +88,5 @@ setup(
     },
     packages=find_packages(),
     include_package_data=True,  # include files from MANIFEST.in
+    zip_safe=True,
 )
