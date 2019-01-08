@@ -53,7 +53,7 @@ setup(
         'enum34;python_version<"3.4"',
         'future',
         'websocket-client',
-        'intervaltree<3.0',
+        'intervaltree>=3.0.2,<4.0',
         'colorama',
         'pyelftools',
         'pyusb>=1.0.0b2',

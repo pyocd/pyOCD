@@ -252,7 +252,7 @@ class MemoryCache(object):
     #   of the cached subranges. The second element is a set of Interval objects for each of the
     #   non-cached subranges.
     def _get_ranges(self, addr, count):
-        cached = self._cache.search(addr, addr + count)
+        cached = self._cache.overlap(addr, addr + count)
         uncached = {Interval(addr, addr + count)}
         for cachedIv in cached:
             newUncachedSet = set()
@@ -465,7 +465,7 @@ class MemoryCache(object):
         if cacheable:
             size = len(value)
             end = addr + size
-            cached = sorted(self._cache.search(addr, end), key=lambda x:x.begin)
+            cached = sorted(self._cache.overlap(addr, end), key=lambda x:x.begin)
             self._metrics.writes += size
 
             if len(cached):
