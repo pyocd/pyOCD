@@ -17,7 +17,7 @@
 
 from ..core import exceptions
 from ..core.target import Target
-from ..flash.loader import FlashLoader
+from ..flash.loader import (FlashLoader, FlashEraser)
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
@@ -1099,6 +1099,7 @@ class GDBServer(threading.Thread):
             b'help'  : [b'Display this help', 0x80],
             b'arm semihosting' : [b'Enable or disable semihosting', 0],
             b'set' : [b'Change options', 0],
+            b'erase' : [b'Erase flash ranges', 0],
         }
 
         cmdList = cmd.split()
@@ -1124,6 +1125,13 @@ class GDBServer(threading.Thread):
         elif cmd == b"flush threads":
             if self.thread_provider is not None:
                 self.thread_provider.invalidate()
+        elif cmdList[0] == b'erase':
+            try:
+                eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
+                eraser.erase(to_str_safe(x) for x in cmdList[1:])
+                resp = hex_encode(b"Erase successful\n")
+            except exceptions.Error as e:
+                resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
         else:
             resultMask = 0x00
             if cmdList[0] == b'help':
