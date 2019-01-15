@@ -296,6 +296,7 @@ class GDBServer(threading.Thread):
         self.packet_io = None
         self.gdb_features = []
         self.non_stop = False
+        self._is_extended_remote = False
         self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
         self.flash_loader = None
         self.lock = threading.Lock()
@@ -354,6 +355,7 @@ class GDBServer(threading.Thread):
         #
         self.COMMANDS = {
         #       CMD    HANDLER                   START    DESCRIPTION
+                b'!' : (self.extended_remote,    0   ), # Enable extended remote mode.
                 b'?' : (self.stop_reason_query,  0   ), # Stop reason query.
                 b'c' : (self.resume,             1   ), # Continue (at addr)
                 b'C' : (self.resume,             1   ), # Continue with signal.
@@ -368,6 +370,7 @@ class GDBServer(threading.Thread):
                 b'P' : (self.write_register,     2   ), # Write register.
                 b'q' : (self.handle_query,       2   ), # General query.
                 b'Q' : (self.handle_general_set, 2   ), # General set.
+                b'R' : (self.restart,            1   ), # Extended remote restart command.
                 b's' : (self.step,               1   ), # Single step.
                 b'S' : (self.step,               1   ), # Step with signal.
                 b'T' : (self.is_thread_alive,    1   ), # Thread liveness query.
@@ -442,6 +445,7 @@ class GDBServer(threading.Thread):
 
                 self.log.info("One client connected!")
                 self._run_connection()
+                self.log.info("Client disconnected!")
 
             except Exception as e:
                 self.log.error("Unexpected exception: %s", e)
@@ -543,6 +547,10 @@ class GDBServer(threading.Thread):
             traceback.print_exc()
             return self.create_rsp_packet(b"E01"), 0
 
+    def extended_remote(self):
+        self._is_extended_remote = True
+        return self.create_rsp_packet(b"OK")
+
     def detach(self, data):
         self.log.info("Client detached")
         resp = b"OK"
@@ -555,6 +563,10 @@ class GDBServer(threading.Thread):
             self.board.target.set_vector_catch(Target.CATCH_NONE)
             self.board.target.resume()
         return self.create_rsp_packet(b"")
+    
+    def restart(self, data):
+        self.target.reset_stop_on_reset()
+        # No reply.
 
     def breakpoint(self, data):
         # handle breakpoint/watchpoint commands
