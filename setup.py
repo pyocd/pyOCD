@@ -23,7 +23,7 @@ if sys.version_info[0] > 2:
     # Python 3.x version requires explicitly setting the encoding.
     # Python 2.x version of open() doesn't support the encoding parameter.
     open_args['encoding'] = 'utf-8'
-    
+
 with open('README.md', **open_args) as f:
     readme = f.read()
 
@@ -59,7 +59,7 @@ setup(
         'pyusb>=1.0.0b2,<2.0',
         'pywinusb>=0.4.0;platform_system=="Windows"',
         'hidapi;platform_system=="Darwin"',
-        'pyyaml>=3.0,<4.0',
+        'pyyaml>=4.2b1,<5.0',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",
