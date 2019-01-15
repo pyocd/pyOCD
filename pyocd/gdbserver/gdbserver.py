@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2018 ARM Limited
+ Copyright (c) 2006-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
-from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe)
+from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from .gdb_socket import GDBSocket
 from .gdb_websocket import GDBWebSocket
 from .syscall import GDBSyscallIOHandler
@@ -1093,11 +1093,12 @@ class GDBServer(threading.Thread):
         self.log.debug('Remote command: %s', cmd)
 
         safecmd = {
-            b'init'  : [b'Init reset sequence', 0x1],
+            b'init'  : [b'(ignored for compatibility)', 0],
             b'reset' : [b'Reset and halt the target', 0x2],
             b'halt'  : [b'Halt target', 0x4],
-            # 'resume': ['Resume target', 0x8],
             b'help'  : [b'Display this help', 0x80],
+            b'arm semihosting' : [b'Enable or disable semihosting', 0],
+            b'set' : [b'Change options', 0],
         }
 
         cmdList = cmd.split()
@@ -1110,16 +1111,16 @@ class GDBServer(threading.Thread):
             self.log.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
         elif cmdList[0] == b'set':
             if len(cmdList) < 3:
-                resp = hex_encode("Error: invalid set command")
+                resp = hex_encode(b"Error: invalid set command\n")
             elif cmdList[1] == b'vector-catch':
                 try:
                     self.target.set_vector_catch(convert_vector_catch(cmdList[2]))
                 except ValueError as e:
-                    resp = hex_encode("Error: " + str(e))
+                    resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
             elif cmdList[1] == b'step-into-interrupt':
                 self.step_into_interrupt = (cmdList[2].lower() in (b"true", b"on", b"yes", b"1"))
             else:
-                resp = hex_encode("Error: invalid set option")
+                resp = hex_encode(b"Error: invalid set option\n")
         elif cmd == b"flush threads":
             if self.thread_provider is not None:
                 self.thread_provider.invalidate()
@@ -1145,8 +1146,6 @@ class GDBServer(threading.Thread):
                 resultMask |= safecmd[cmd_sub][1]
 
             # Run cmds in proper order
-            if resultMask & 0x1:
-                pass
             if (resultMask & 0x6) == 0x6:
                 if self.core == 0:
                     self.target.reset_stop_on_reset()
@@ -1161,8 +1160,6 @@ class GDBServer(threading.Thread):
                 # self.target.reset()
             elif resultMask & 0x4:
                 self.target.halt()
-            # if resultMask & 0x8:
-            #     self.target.resume()
 
         return self.create_rsp_packet(resp)
 
