@@ -36,8 +36,9 @@ for i in range(0, 10):
     with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
         # Erase and then reset - This locks Kinetis devices
-        board.flash.init()
+        board.flash.init(board.flash.Operation.ERASE)
         board.flash.erase_all()
+        board.flash.cleanup()
         board.target.reset()
 
 print("\n\n------ Testing Attaching to board ------")

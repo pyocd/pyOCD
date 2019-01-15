@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,23 +15,23 @@
 # limitations under the License.
 
 class Error(RuntimeError):
-    """Parent of all errors pyOCD can raise"""
+    """! @brief Parent of all errors pyOCD can raise"""
     pass
 
 class ProbeError(Error):
-    """Error communicating with device"""
+    """! @brief Error communicating with device"""
     pass
 
 class TransferError(ProbeError):
-    """Error ocurred with a transfer over SWD or JTAG"""
+    """! @brief Error ocurred with a transfer over SWD or JTAG"""
     pass
 
 class TransferTimeoutError(TransferError):
-    """A SWD or JTAG timeout occurred"""
+    """! @brief An SWD or JTAG timeout occurred"""
     pass
 
 class TransferFaultError(TransferError):
-    """A SWD Fault occurred"""
+    """! @brief An SWD Fault occurred"""
     def __init__(self, faultAddress=None, length=None):
         super(TransferFaultError, self).__init__(faultAddress)
         self._address = faultAddress
@@ -65,5 +65,9 @@ class TransferFaultError(TransferError):
                 desc += "-0x%08x" % self.fault_end_address
         return desc
   
-  
+class FlashFailure(RuntimeError):
+    """! @brief Exception raised when flashing fails for some reason. """
+    pass
+
+
 

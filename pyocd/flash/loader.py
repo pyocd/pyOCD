@@ -204,11 +204,12 @@ class FlashEraser(object):
         """! @brief Perform the type of erase operation selected when the object was created.
         
         For sector erase mode, an iterable of sector addresses specifications must be provided via
-        the _addresses_ parameter. The address iterable elements can be either strings or integers.
-        Integers are simply an address within the page to erase.
+        the _addresses_ parameter. The address iterable elements can be either strings, tuples,
+        or integers. Tuples must have two elements, the start and end addresses of a range to erase.
+        Integers are simply an address within the single page to erase.
         
-        String address specifications may be in one of three formats: "address", "start-end",
-        or "start+length". Each field denoted by angled brackets is an integer literal in
+        String address specifications may be in one of three formats: "<address>", "<start>-<end>",
+        or "<start>+<length>". Each field denoted by angled brackets is an integer literal in
         either decimal or hex notation.
         
         Examples:
@@ -242,9 +243,12 @@ class FlashEraser(object):
         # so prefer to be certain.
         for region in self._session.target.memory_map.get_regions_of_type(MemoryType.FLASH):
             if region.flash is not None:
-                region.flash.init()
-                region.flash.erase_all()
-                region.flash.cleanup()
+                if region.flash.is_erase_all_supported:
+                    region.flash.init(flash.Operation.ERASE)
+                    region.flash.erase_all()
+                    region.flash.cleanup()
+                else:
+                    self._sector_erase((region.start, region.end))
         LOG.info("Done")
     
     def _sector_erase(self, addresses):
@@ -273,7 +277,7 @@ class FlashEraser(object):
                 
                     currentRegion = region
                     flash = region.flash
-                    flash.init()
+                    flash.init(flash.Operation.ERASE)
         
                 # Get page info for the current address.
                 page_info = flash.get_page_info(page_addr)

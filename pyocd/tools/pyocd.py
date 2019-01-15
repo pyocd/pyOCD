@@ -903,7 +903,7 @@ class PyOCDCommander(object):
             assert region.flash is not None
             
             # Program phrase to flash.
-            region.flash.init()
+            region.flash.init(region.flash.Operation.PROGRAM)
             region.flash.program_phrase(addr, data)
             region.flash.cleanup()
         else:

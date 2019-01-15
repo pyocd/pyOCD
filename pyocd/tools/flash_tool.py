@@ -179,7 +179,7 @@ def main():
                         return
                     
                     flash = region.flash
-                    flash.init()
+                    flash.init(flash.Operation.ERASE)
                     
                     for i in range(args.count):
                         page_info = flash.get_page_info(page_addr)
@@ -195,7 +195,7 @@ def main():
                         print("Erasing sector 0x%08x" % page_addr)
                         flash.erase_page(page_addr)
                         page_addr += page_info.size
-                    
+
                     flash.cleanup()
                 else:
                     print("No operation performed")

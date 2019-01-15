@@ -355,7 +355,7 @@ class LPC4330(CoreSightTarget):
 
         # The LPC4330 flash init routine can be used to remount FLASH.
         self.ignoreReset = True
-        self.flash.init()
+        self.flash.init(Flash.Operation.VERIFY)
         self.ignoreReset = False
 
         # Set SP and PC based on interrupt vector in SPIFI_FLASH
