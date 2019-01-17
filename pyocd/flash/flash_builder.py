@@ -47,12 +47,6 @@ def _same(d1, d2):
             return False
     return True
 
-def _erased(d):
-    for i in range(len(d)):
-        if d[i] != 0xFF:
-            return False
-    return True
-
 def _stub_progress(percent):
     pass
 
@@ -319,7 +313,7 @@ class FlashBuilder(object):
         chip_erase_weight += self.flash.get_flash_info().erase_weight
         for page in self.page_list:
             if page.erased is None:
-                page.erased = _erased(page.data)
+                page.erased = self.flash.region.is_erased(page.data)
             if not page.erased:
                 chip_erase_count += 1
                 chip_erase_weight += page.get_program_weight()

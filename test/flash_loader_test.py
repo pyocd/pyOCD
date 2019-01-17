@@ -68,9 +68,6 @@ def same(d1, d2):
             return False
     return True
 
-def is_erased(d):
-    return all((b == 0xff) for b in d)
-
 def flash_loader_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
@@ -133,7 +130,7 @@ def flash_loader_test(board_id):
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
-        if is_erased(verify_data):
+        if target.memory_map.get_region_for_address(addr).is_erased(verify_data):
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -146,7 +143,7 @@ def flash_loader_test(board_id):
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         verify_data2 = target.read_memory_block8(addr, boot_blocksize * 2)
-        if same(verify_data, data) and is_erased(verify_data2):
+        if same(verify_data, data) and target.memory_map.get_region_for_address(addr).is_erased(verify_data2):
             print("TEST PASSED")
             test_pass_count += 1
         else:
