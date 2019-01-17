@@ -471,10 +471,16 @@ class FlashLoader(object):
             totalSamePageCount += perf.same_page_count
             totalProgramTime += perf.program_time
         
+        # Compute kbps while avoiding a potential zero-div error.
+        if totalProgramTime == 0:
+            kbps = 0
+        else:
+            kbps = (totalByteCount/1024) / totalProgramTime
+        
         LOG.info("Programmed %d bytes (%d pages) at %.02f kB/s (%d pages unchanged)",
             totalByteCount,
             totalPageCount,
-            ((totalByteCount/1024) / totalProgramTime),
+            kbps,
             totalSamePageCount)
         
         # Clear state to allow reuse.
