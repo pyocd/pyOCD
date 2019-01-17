@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +28,8 @@ OPTIONS_INFO = {
     'resume_on_disconnect': OptionInfo('resume_on_disconnect', bool, "Whether to run target on disconnect."),
     'target_override': OptionInfo('target_override', str, "Name of target to use instead of default."),
     'test_binary': OptionInfo('test_binary', str, "Name of test firmware binary."),
+    'reset_type': OptionInfo('reset_type', str, "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated'). The default is 'sw'."),
+    'enable_multicore_debug': OptionInfo('enable_multicore', bool, "Whether to put pyOCD into multicore debug mode."),
 
     # GDBServer options
     'chip_erase': OptionInfo('chip_erase', str, "Whether to perform a chip erase or sector erases when programming flash."),

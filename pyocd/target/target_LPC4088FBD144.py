@@ -95,9 +95,9 @@ class LPC4088(CoreSightTarget):
         self.ignoreReset = False
         self._svd_location = SVDFile(vendor="NXP", filename="LPC408x_7x_v0.7.svd", is_local=False)
 
-    def reset(self, software_reset=None):
+    def reset(self, reset_type=None):
         # Use hardware reset since software reset cause a debug logic reset
-        super(LPC4088, self).reset(False)
+        super(LPC4088, self).reset(self.ResetType.HW)
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
         super(LPC4088, self).reset_and_halt(reset_type)

@@ -108,3 +108,28 @@ def convert_session_options(option_list):
             options[name] = value
     return options
 
+## Map to convert from reset type names to enums.
+RESET_TYPE_MAP = {
+        'default': None,
+        'hw': Target.ResetType.HW,
+        'sw': Target.ResetType.SW,
+        'hardware': Target.ResetType.HW,
+        'software': Target.ResetType.SW,
+        'sw_sysresetreq': Target.ResetType.SW_SYSRESETREQ,
+        'sw_vectreset': Target.ResetType.SW_VECTRESET,
+        'sw_emulated': Target.ResetType.SW_EMULATED,
+        'sysresetreq': Target.ResetType.SW_SYSRESETREQ,
+        'vectreset': Target.ResetType.SW_VECTRESET,
+        'emulated': Target.ResetType.SW_EMULATED,
+    }
+
+def convert_reset_type(value):
+    """! @brief Convert a reset_type session option value to the Target.ResetType enum.
+    @param value The value of the reset_type session option.
+    @exception ValueError Raised if an unknown reset_type value is passed.
+    """
+    value = value.lower()
+    if value not in RESET_TYPE_MAP:
+        raise ValueError("unexpected value for reset_type option ('%s')", value)
+    return RESET_TYPE_MAP[value]
+
