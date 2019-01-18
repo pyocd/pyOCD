@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2018 ARM Limited
+ Copyright (c) 2006-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 
 from ..core import exceptions
 from ..core.target import Target
-from ..flash.loader import FlashLoader
+from ..flash.loader import (FlashLoader, FlashEraser)
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
-from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe)
+from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from .gdb_socket import GDBSocket
 from .gdb_websocket import GDBWebSocket
 from .syscall import GDBSyscallIOHandler
@@ -296,6 +296,7 @@ class GDBServer(threading.Thread):
         self.packet_io = None
         self.gdb_features = []
         self.non_stop = False
+        self._is_extended_remote = False
         self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
         self.flash_loader = None
         self.lock = threading.Lock()
@@ -354,6 +355,7 @@ class GDBServer(threading.Thread):
         #
         self.COMMANDS = {
         #       CMD    HANDLER                   START    DESCRIPTION
+                b'!' : (self.extended_remote,    0   ), # Enable extended remote mode.
                 b'?' : (self.stop_reason_query,  0   ), # Stop reason query.
                 b'c' : (self.resume,             1   ), # Continue (at addr)
                 b'C' : (self.resume,             1   ), # Continue with signal.
@@ -368,6 +370,7 @@ class GDBServer(threading.Thread):
                 b'P' : (self.write_register,     2   ), # Write register.
                 b'q' : (self.handle_query,       2   ), # General query.
                 b'Q' : (self.handle_general_set, 2   ), # General set.
+                b'R' : (self.restart,            1   ), # Extended remote restart command.
                 b's' : (self.step,               1   ), # Single step.
                 b'S' : (self.step,               1   ), # Step with signal.
                 b'T' : (self.is_thread_alive,    1   ), # Thread liveness query.
@@ -442,6 +445,7 @@ class GDBServer(threading.Thread):
 
                 self.log.info("One client connected!")
                 self._run_connection()
+                self.log.info("Client disconnected!")
 
             except Exception as e:
                 self.log.error("Unexpected exception: %s", e)
@@ -543,6 +547,10 @@ class GDBServer(threading.Thread):
             traceback.print_exc()
             return self.create_rsp_packet(b"E01"), 0
 
+    def extended_remote(self):
+        self._is_extended_remote = True
+        return self.create_rsp_packet(b"OK")
+
     def detach(self, data):
         self.log.info("Client detached")
         resp = b"OK"
@@ -555,6 +563,10 @@ class GDBServer(threading.Thread):
             self.board.target.set_vector_catch(Target.CATCH_NONE)
             self.board.target.resume()
         return self.create_rsp_packet(b"")
+    
+    def restart(self, data):
+        self.target.reset_stop_on_reset()
+        # No reply.
 
     def breakpoint(self, data):
         # handle breakpoint/watchpoint commands
@@ -1093,11 +1105,13 @@ class GDBServer(threading.Thread):
         self.log.debug('Remote command: %s', cmd)
 
         safecmd = {
-            b'init'  : [b'Init reset sequence', 0x1],
+            b'init'  : [b'(ignored for compatibility)', 0],
             b'reset' : [b'Reset and halt the target', 0x2],
             b'halt'  : [b'Halt target', 0x4],
-            # 'resume': ['Resume target', 0x8],
             b'help'  : [b'Display this help', 0x80],
+            b'arm semihosting' : [b'Enable or disable semihosting', 0],
+            b'set' : [b'Change options', 0],
+            b'erase' : [b'Erase flash ranges', 0],
         }
 
         cmdList = cmd.split()
@@ -1110,19 +1124,26 @@ class GDBServer(threading.Thread):
             self.log.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
         elif cmdList[0] == b'set':
             if len(cmdList) < 3:
-                resp = hex_encode("Error: invalid set command")
+                resp = hex_encode(b"Error: invalid set command\n")
             elif cmdList[1] == b'vector-catch':
                 try:
                     self.target.set_vector_catch(convert_vector_catch(cmdList[2]))
                 except ValueError as e:
-                    resp = hex_encode("Error: " + str(e))
+                    resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
             elif cmdList[1] == b'step-into-interrupt':
                 self.step_into_interrupt = (cmdList[2].lower() in (b"true", b"on", b"yes", b"1"))
             else:
-                resp = hex_encode("Error: invalid set option")
+                resp = hex_encode(b"Error: invalid set option\n")
         elif cmd == b"flush threads":
             if self.thread_provider is not None:
                 self.thread_provider.invalidate()
+        elif cmdList[0] == b'erase':
+            try:
+                eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
+                eraser.erase(to_str_safe(x) for x in cmdList[1:])
+                resp = hex_encode(b"Erase successful\n")
+            except exceptions.Error as e:
+                resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
         else:
             resultMask = 0x00
             if cmdList[0] == b'help':
@@ -1145,8 +1166,6 @@ class GDBServer(threading.Thread):
                 resultMask |= safecmd[cmd_sub][1]
 
             # Run cmds in proper order
-            if resultMask & 0x1:
-                pass
             if (resultMask & 0x6) == 0x6:
                 if self.core == 0:
                     self.target.reset_stop_on_reset()
@@ -1161,8 +1180,6 @@ class GDBServer(threading.Thread):
                 # self.target.reset()
             elif resultMask & 0x4:
                 self.target.halt()
-            # if resultMask & 0x8:
-            #     self.target.resume()
 
         return self.create_rsp_packet(resp)
 
