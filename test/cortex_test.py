@@ -32,6 +32,7 @@ from pyocd.core.target import Target
 from pyocd.gdbserver.context_facade import GDBDebugContextFacade
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.conversion import float32_to_u32, u32_to_float32
+from pyocd.utility.mask import same
 from pyocd.core import exceptions
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
@@ -62,14 +63,6 @@ class CortexTest(Test):
         result.board = board
         result.test = self
         return result
-
-def same(d1, d2):
-    if len(d1) != len(d2):
-        return False
-    for i in range(len(d1)):
-        if d1[i] != d2[i]:
-            return False
-    return True
 
 def float_compare(f1, f2):
     return abs(f1 - f2) < 0.0001

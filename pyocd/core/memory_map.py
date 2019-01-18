@@ -122,6 +122,7 @@ class MemoryRegion(MemoryRangeBase):
         'access': 'rwx',
         'alias': None,
         'blocksize': 0,
+        'erased_byte_value': 0,
         'is_boot_memory': False,
         'is_powered_on_boot': True,
         'is_cacheable': True,
@@ -230,6 +231,7 @@ class FlashRegion(MemoryRegion):
         from ..flash.flash import Flash
 
         attrs['access'] = attrs.get('access', 'rx') # By default flash is not writable.
+        attrs['erased_byte_value'] = attrs.get('erased_byte_value', 0xff)
         super(FlashRegion, self).__init__(type=MemoryType.FLASH, start=start, end=end, length=length, **attrs)
         self._algo = attrs.get('algo', None)
         self._flash = None
@@ -255,6 +257,20 @@ class FlashRegion(MemoryRegion):
     @flash.setter
     def flash(self, flashInstance):
         self._flash = flashInstance
+        
+    def is_erased(self, d):
+        """! @brief Helper method to check if a block of data is erased.
+        @param self
+        @param d List of data or bytearray.
+        @retval True The contents of d all match the erased byte value for this flash region.
+        @retval False At least one byte in d did not match the erased byte value.
+        """
+        erasedByte = self.erased_byte_value
+        for b in d:
+            if b != erasedByte:
+                return False
+        return True
+
 
 ## @brief Contiguous region of external memory.
 class ExternalRegion(MemoryRegion):

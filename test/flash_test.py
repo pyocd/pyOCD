@@ -30,6 +30,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
+from pyocd.utility.mask import (invert32, same)
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
 from pyocd.flash.flash_builder import FlashBuilder
@@ -117,15 +118,6 @@ class FlashTest(Test):
         return result
 
 
-def same(d1, d2):
-    if len(d1) != len(d2):
-        return False
-    for i in range(len(d1)):
-        if d1[i] != d2[i]:
-            return False
-    return True
-
-
 def flash_test(board_id):
     with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
         board = session.board
@@ -162,6 +154,10 @@ def flash_test(board_id):
 
             flash = rom_region.flash
             flash_info = flash.get_flash_info()
+            
+            # This can be any value, as long as it's not the erased byte value. We take the
+            # inverse of the erased value so that for most flash, the unerased value is 0x00.
+            unerasedValue = invert32(flash.region.erased_byte_value) & 0xff
 
             print("\n\n===== Testing flash region '%s' from 0x%08x to 0x%08x ====" % (rom_region.name, rom_region.start, rom_region.end))
 
@@ -181,6 +177,23 @@ def flash_test(board_id):
 
             # Turn on extra checks for the next 4 tests
             flash.set_flash_algo_debug(True)
+            
+            print("\n------ Test Erased Value Check ------")
+            d = [flash.region.erased_byte_value] * 128
+            if flash.region.is_erased(d):
+                print("TEST PASSED")
+                test_pass_count += 1
+            else:
+                print("TEST FAILED")
+            test_count += 1
+
+            d = [unerasedValue] + [flash.region.erased_byte_value] * 127
+            if not flash.region.is_erased(d):
+                print("TEST PASSED")
+                test_pass_count += 1
+            else:
+                print("TEST FAILED")
+            test_count += 1
 
             print("\n------ Test Basic Page Erase ------")
             info = flash.flash_block(addr, data, False, False, progress_cb=print_progress())
@@ -329,7 +342,7 @@ def flash_test(board_id):
             if rom_start == flash_info.rom_start:
                 print("\n------ Test Chip Erase Decision ------")
                 new_data = list(data)
-                new_data.extend([0xff] * unused) # Pad with 0xFF
+                new_data.extend([flash.region.erased_byte_value] * unused) # Pad with erased value
                 info = flash.flash_block(addr, new_data, progress_cb=print_progress())
                 if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
                     print("TEST PASSED")
@@ -341,7 +354,7 @@ def flash_test(board_id):
 
                 print("\n------ Test Chip Erase Decision 2 ------")
                 new_data = list(data)
-                new_data.extend([0x00] * unused) # Pad with 0x00
+                new_data.extend([unerasedValue] * unused) # Pad with unerased value
                 info = flash.flash_block(addr, new_data, progress_cb=print_progress())
                 if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
                     print("TEST PASSED")
@@ -353,7 +366,7 @@ def flash_test(board_id):
 
             print("\n------ Test Page Erase Decision ------")
             new_data = list(data)
-            new_data.extend([0x00] * unused) # Pad with 0x00
+            new_data.extend([unerasedValue] * unused) # Pad with unerased value
             info = flash.flash_block(addr, new_data, progress_cb=print_progress())
             if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:
                 print("TEST PASSED")
@@ -370,7 +383,7 @@ def flash_test(board_id):
             new_data = list(data)
             size_same = unused * 5 // 6
             size_differ = unused - size_same
-            new_data.extend([0x00] * size_same) # Pad 5/6 with 0x00 and 1/6 with 0xFF
+            new_data.extend([unerasedValue] * size_same) # Pad 5/6 with unerased value and 1/6 with 0x55
             new_data.extend([0x55] * size_differ)
             info = flash.flash_block(addr, new_data, progress_cb=print_progress())
             if info.program_type == FlashBuilder.FLASH_PAGE_ERASE:

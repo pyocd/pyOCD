@@ -29,6 +29,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
+from pyocd.utility.mask import same
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
 from test_util import (Test, TestResult, get_session_options)
@@ -58,18 +59,6 @@ class FlashLoaderTest(Test):
         result.board = board
         result.test = self
         return result
-
-
-def same(d1, d2):
-    if len(d1) != len(d2):
-        return False
-    for i in range(len(d1)):
-        if d1[i] != d2[i]:
-            return False
-    return True
-
-def is_erased(d):
-    return all((b == 0xff) for b in d)
 
 def flash_loader_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
@@ -133,7 +122,7 @@ def flash_loader_test(board_id):
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
-        if is_erased(verify_data):
+        if target.memory_map.get_region_for_address(addr).is_erased(verify_data):
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -146,7 +135,7 @@ def flash_loader_test(board_id):
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         verify_data2 = target.read_memory_block8(addr, boot_blocksize * 2)
-        if same(verify_data, data) and is_erased(verify_data2):
+        if same(verify_data, data) and target.memory_map.get_region_for_address(addr).is_erased(verify_data2):
             print("TEST PASSED")
             test_pass_count += 1
         else:

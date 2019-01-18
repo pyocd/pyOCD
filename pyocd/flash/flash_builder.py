@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 from ..core.target import Target
 from ..core.exceptions import FlashFailure
 from ..utility.notification import Notification
+from ..utility.mask import same
 import logging
 from struct import unpack
 from time import time
@@ -39,19 +40,6 @@ class ProgrammingInfo(object):
         self.program_byte_count = 0
         self.page_count = 0
         self.same_page_count = 0
-
-def _same(d1, d2):
-    assert len(d1) == len(d2)
-    for i in range(len(d1)):
-        if d1[i] != d2[i]:
-            return False
-    return True
-
-def _erased(d):
-    for i in range(len(d)):
-        if d[i] != 0xFF:
-            return False
-    return True
 
 def _stub_progress(percent):
     pass
@@ -319,7 +307,7 @@ class FlashBuilder(object):
         chip_erase_weight += self.flash.get_flash_info().erase_weight
         for page in self.page_list:
             if page.erased is None:
-                page.erased = _erased(page.data)
+                page.erased = self.flash.region.is_erased(page.data)
             if not page.erased:
                 chip_erase_count += 1
                 chip_erase_weight += page.get_program_weight()
@@ -349,7 +337,7 @@ class FlashBuilder(object):
             if page.same is None:
                 size = min(PAGE_ESTIMATE_SIZE, len(page.data))
                 data = self.flash.target.read_memory_block8(page.addr, size)
-                page_same = _same(data, page.data[0:size])
+                page_same = same(data, page.data[0:size])
                 if page_same is False:
                     page.same = False
 
@@ -541,7 +529,7 @@ class FlashBuilder(object):
             # Read page data if unknown - after this page.same will be True or False
             if page.same is None:
                 data = self.flash.target.read_memory_block8(page.addr, len(page.data))
-                page.same = _same(page.data, data)
+                page.same = same(page.data, data)
                 progress += page.get_verify_weight()
 
             # Program page if not the same
@@ -580,7 +568,7 @@ class FlashBuilder(object):
             # Read page data if unknown - after this page.same will be True or False
             if page.same is None:
                 data = self.flash.target.read_memory_block8(page.addr, len(page.data))
-                page.same = _same(page.data, data)
+                page.same = same(page.data, data)
                 progress += page.get_verify_weight()
                 count += 1
                 if page.same:

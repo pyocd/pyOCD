@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2013-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 from ..core.target import Target
 from ..core.exceptions import FlashFailure
+from ..utility.mask import msb
 import logging
 from struct import unpack
 from time import time
@@ -44,21 +45,6 @@ analyzer = (
     0x405a0a12, 0xd1f542bc, 0xc00443d2, 0xd1e74281, 0xbdf02000, 0xe7f82200, 0x000000b2, 0xedb88320,
     0x00000042, 
     )
-
-def _msb(n):
-    ndx = 0
-    while (1 < n):
-        n = (n >> 1)
-        ndx += 1
-    return ndx
-
-def _same(d1, d2):
-    if len(d1) != len(d2):
-        return False
-    for i in range(len(d1)):
-        if d1[i] != d2[i]:
-            return False
-    return True
 
 class PageInfo(object):
 
@@ -239,7 +225,7 @@ class Flash(object):
         # Convert address, size pairs into commands
         # for the crc computation algorithm to preform
         for addr, size in sectors:
-            size_val = _msb(size)
+            size_val = msb(size)
             addr_val = addr // size
             # Size must be a power of 2
             assert (1 << size_val) == size
