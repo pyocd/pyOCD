@@ -22,6 +22,8 @@ import struct
 import traceback
 import argparse
 import logging
+import tempfile
+import subprocess
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -30,9 +32,12 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
+from pyocd.utility.py3_helpers import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
 from test_util import (Test, TestResult, get_session_options)
+
+OBJCOPY = "arm-none-eabi-objcopy"
 
 addr = 0
 size = 0
@@ -80,13 +85,25 @@ def flash_loader_test(board_id):
         boot_start_addr = boot_region.start
         boot_end_addr = boot_region.end
         boot_blocksize = boot_region.blocksize
+        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+
+        # Generate an Intel hex file from the binary test file.
+        temp_test_hex_name = tempfile.mktemp('.elf')
+        objcopyOutput = subprocess.check_output([OBJCOPY,
+            "-v", "-I", "binary", "-O", "ihex", "-B", "arm", "-S",
+            "--set-start", "0x%x" % boot_region.start,
+            "--change-addresses", "0x%x" % boot_region.start,
+            binary_file, temp_test_hex_name], stderr=subprocess.STDOUT)
+        print(to_str_safe(objcopyOutput))
+        # Need to escape backslashes on Windows.
+        if sys.platform.startswith('win'):
+            temp_test_hex_name = temp_test_hex_name.replace('\\', '\\\\')
 
         test_pass_count = 0
         test_count = 0
         result = FlashLoaderTestResult()
         
-        binary_file_path = os.path.join(parentdir, 'binaries', board.test_binary)
-        with open(binary_file_path, "rb") as f:
+        with open(binary_file, "rb") as f:
             data = list(bytearray(f.read()))
         data_length = len(data)
         
@@ -144,7 +161,18 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
-        programmer.program(binary_file_path, format='bin', base_address=boot_start_addr)
+        programmer.program(binary_file, format='bin', base_address=boot_start_addr)
+        verify_data = target.read_memory_block8(boot_start_addr, data_length)
+        if same(verify_data, data):
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        print("\n------ Test Intel Hex File Load ------")
+        programmer = FileProgrammer(session)
+        programmer.program(temp_test_hex_name, format='hex')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")
