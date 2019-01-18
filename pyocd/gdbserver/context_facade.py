@@ -68,7 +68,10 @@ class GDBDebugContextFacade(object):
         vals = self._context.read_core_registers_raw(reg_num_list)
         #print("Vals: %s" % vals)
         for reg, regValue in zip(self._register_list, vals):
-            resp += six.b(conversion.u32_to_hex8le(regValue))
+            if reg.bitsize == 64:
+                resp += six.b(conversion.u64_to_hex16le(regValue))
+            else:
+                resp += six.b(conversion.u32_to_hex8le(regValue))
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
 
         return resp
@@ -81,11 +84,15 @@ class GDBDebugContextFacade(object):
         reg_num_list = []
         reg_data_list = []
         for reg in self._register_list:
-            regValue = conversion.hex8_to_u32be(data)
+            if reg.bitsize == 64:
+                regValue = conversion.hex16_to_u64be(data)
+                data = data[16:]
+            else:
+                regValue = conversion.hex8_to_u32be(data)
+                data = data[8:]
             reg_num_list.append(reg.reg_num)
             reg_data_list.append(regValue)
             logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
-            data = data[8:]
         self._context.write_core_registers_raw(reg_num_list, reg_data_list)
 
     def set_register(self, reg, data):
@@ -97,7 +104,11 @@ class GDBDebugContextFacade(object):
             return
         elif reg < len(self._register_list):
             regName = self._register_list[reg].name
-            value = conversion.hex8_to_u32be(data)
+            regBits = self._register_list[reg].bitsize
+            if regBits == 64:
+                value = conversion.hex16_to_u64be(data)
+            else:
+                value = conversion.hex8_to_u32be(data)
             logging.debug("GDB: write reg %s: 0x%X", regName, value)
             self._context.write_core_register_raw(regName, value)
 
@@ -105,8 +116,12 @@ class GDBDebugContextFacade(object):
         resp = ''
         if reg < len(self._register_list):
             regName = self._register_list[reg].name
+            regBits = self._register_list[reg].bitsize
             regValue = self._context.read_core_register_raw(regName)
-            resp = six.b(conversion.u32_to_hex8le(regValue))
+            if regBits == 64:
+                resp = six.b(conversion.u64_to_hex16le(regValue))
+            else:
+                resp = six.b(conversion.u32_to_hex8le(regValue))
             logging.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 

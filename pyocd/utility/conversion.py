@@ -90,15 +90,34 @@ def u32_to_hex8le(val):
     ))
 
 
+def u64_to_hex16le(val):
+    """Create 16-digit hexadecimal string from 64-bit register value"""
+    return ''.join("%02x" % (x & 0xFF) for x in (
+        val,
+        val >> 8,
+        val >> 16,
+        val >> 24,
+        val >> 32,
+        val >> 40,
+        val >> 48,
+        val >> 56,
+    ))
+
 def hex8_to_u32be(data):
-    """Build 32-bit register value from little-endian 8-digit hexadecimal string"""
+    """Build 32-bit register value from big-endian 8-digit hexadecimal string"""
     return int(data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
 
+def hex16_to_u64be(data):
+    """Build 64-bit register value from big-endian 16-digit hexadecimal string"""
+    return int(data[14:16] + data[12:14] + data[10:12] + data[8:10] + data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
 
 def hex8_to_u32le(data):
     """Build 32-bit register value from little-endian 8-digit hexadecimal string"""
-    return int(data[0:2] + data[2:4] + data[4:6] + data[6:8], 16)
+    return int(data[0:8], 16)
 
+def hex16_to_u64le(data):
+    """Build 64-bit register value from little-endian 8-digit hexadecimal string"""
+    return int(data[0:16], 16)
 
 def byte_to_hex2(val):
     """Create 2-digit hexadecimal string from 8-bit value"""
