@@ -42,16 +42,36 @@ from test_util import (Test, TestResult, get_session_options)
 TEST_COUNT = 20
 
 class CortexTestResult(TestResult):
+    METRICS = [
+        "get_t_response",
+        "step",
+        "bp_add_remove",
+        "get_reg_context",
+        "set_reg_context",
+        "run_halt",
+        "gdb_step",
+        ]
+    
     def __init__(self):
         super(CortexTestResult, self).__init__(None, None, None)
         self.name = "cortex"
+        self.times = {}
+        for metric in self.METRICS:
+            self.times[metric] = -1.0
 
 class CortexTest(Test):
     def __init__(self):
         super(CortexTest, self).__init__("Cortex Test", cortex_test)
 
     def print_perf_info(self, result_list, output_file=None):
-        pass
+        result_list = filter(lambda x: isinstance(x, CortexTestResult), result_list)
+        print("\n\n------ Cortex Test Performance ------", file=output_file)
+        print("", file=output_file)
+        for result in result_list:
+            print("Target {}:".format(result.board), file=output_file)
+            for metric in CortexTestResult.METRICS:
+                print("    {:<20} = {: 8.3f} ms".format(metric, result.times[metric] * 1000), file=output_file)
+        print("", file=output_file)
 
     def run(self, board):
         try:
@@ -128,10 +148,12 @@ def cortex_test(board_id):
 
         print("\n\n----- TESTING CORTEX-M PERFORMANCE -----")
         test_time = test_function(session, gdbFacade.get_t_response)
+        result.times["get_t_response"] = test_time
         print("Function get_t_response time: %f" % test_time)
 
         # Step
         test_time = test_function(session, target.step)
+        result.times["step"] = test_time
         print("Function step time: %f" % test_time)
 
         # Breakpoint
@@ -139,10 +161,12 @@ def cortex_test(board_id):
             target.set_breakpoint(0)
             target.remove_breakpoint(0)
         test_time = test_function(session, set_remove_breakpoint)
+        result.times["bp_add_remove"] = test_time
         print("Add and remove breakpoint: %f" % test_time)
 
         # get_register_context
         test_time = test_function(session, gdbFacade.get_register_context)
+        result.times["get_reg_context"] = test_time
         print("Function get_register_context: %f" % test_time)
 
         # set_register_context
@@ -150,6 +174,7 @@ def cortex_test(board_id):
         def set_register_context():
             gdbFacade.set_register_context(context)
         test_time = test_function(session, set_register_context)
+        result.times["set_reg_context"] = test_time
         print("Function set_register_context: %f" % test_time)
 
         # Run / Halt
@@ -157,6 +182,7 @@ def cortex_test(board_id):
             target.resume()
             target.halt()
         test_time = test_function(session, run_halt)
+        result.times["run_halt"] = test_time
         print("Resume and halt: %f" % test_time)
 
         # GDB stepping
@@ -169,6 +195,7 @@ def cortex_test(board_id):
             gdbFacade.get_t_response()
             target.remove_breakpoint(0)
         test_time = test_function(session, simulate_step)
+        result.times["gdb_step"] = test_time
         print("Simulated GDB step: %f" % test_time)
 
         # Test passes if there are no exceptions
