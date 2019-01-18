@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015 ARM Limited
+ Copyright (c) 2015,2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -68,10 +68,18 @@ def bfi(value, msb, lsb, field):
     value |= (field << lsb) & mask
     return value
 
-def _msb( n ):
+def msb( n ):
     ndx = 0
     while ( 1 < n ):
         n = ( n >> 1 )
         ndx += 1
     return ndx
+
+def same(d1, d2):
+    if len(d1) != len(d2):
+        return False
+    for i in range(len(d1)):
+        if d1[i] != d2[i]:
+            return False
+    return True
 

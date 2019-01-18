@@ -30,7 +30,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
-from pyocd.utility.mask import invert32
+from pyocd.utility.mask import (invert32, same)
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
 from pyocd.flash.flash_builder import FlashBuilder
@@ -116,15 +116,6 @@ class FlashTest(Test):
         result.board = board
         result.test = self
         return result
-
-
-def same(d1, d2):
-    if len(d1) != len(d2):
-        return False
-    for i in range(len(d1)):
-        if d1[i] != d2[i]:
-            return False
-    return True
 
 
 def flash_test(board_id):
