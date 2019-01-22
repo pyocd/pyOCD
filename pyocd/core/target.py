@@ -158,7 +158,7 @@ class Target(MemoryInterface, Notifier):
     def reset(self, software_reset=None):
         raise NotImplementedError()
 
-    def reset_stop_on_reset(self, software_reset=None):
+    def reset_and_halt(self, reset_type=None):
         raise NotImplementedError()
 
     def set_target_state(self, state):

@@ -84,8 +84,8 @@ class LPC54114(CoreSightTarget):
         self.ignoreReset = False
         self._svd_location = SVDFile(vendor="NXP", filename="LPC54114_cm0plus.svd", is_local=False)
 
-    def reset_stop_on_reset(self, software_reset=None, map_to_user=True):
-        super(LPC54114, self).reset_stop_on_reset(software_reset)
+    def reset_and_halt(self, reset_type=None, map_to_user=True):
+        super(LPC54114, self).reset_and_halt(reset_type)
 
         # Remap to use flash and set SP and SP accordingly
         if map_to_user:

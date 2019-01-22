@@ -60,7 +60,7 @@ print("\n\n------ Testing Attaching to regular board ------")
 for i in range(0, 10):
     with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
-        board.target.reset_stop_on_reset()
+        board.target.reset_and_halt()
         board.target.halt()
         sleep(0.2)
         board.target.resume()

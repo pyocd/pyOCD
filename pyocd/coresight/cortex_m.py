@@ -656,7 +656,7 @@ class CortexM(Target, CoreSightComponent):
 
         self.notify(Notification(event=Target.EVENT_POST_RESET, source=self))
 
-    def reset_stop_on_reset(self, software_reset=None):
+    def reset_and_halt(self, reset_type=None):
         """
         perform a reset and stop the core on the reset handler
         """
@@ -671,7 +671,7 @@ class CortexM(Target, CoreSightComponent):
         # enable the vector catch
         self.write_memory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
 
-        self.reset(software_reset)
+        self.reset(reset_type)
 
         # wait until the unit resets
         while (self.is_running()):

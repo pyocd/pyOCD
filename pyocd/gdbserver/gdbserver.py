@@ -565,7 +565,7 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(b"")
     
     def restart(self, data):
-        self.target.reset_stop_on_reset()
+        self.target.reset_and_halt()
         # No reply.
 
     def breakpoint(self, data):
@@ -1167,17 +1167,10 @@ class GDBServer(threading.Thread):
 
             # Run cmds in proper order
             if (resultMask & 0x6) == 0x6:
-                if self.core == 0:
-                    self.target.reset_stop_on_reset()
-                else:
-                    self.log.debug("Ignoring reset request for core #%d", self.core)
+                self.target.reset_and_halt()
             elif resultMask & 0x2:
                 # on 'reset' still do a reset halt
-                if self.core == 0:
-                    self.target.reset_stop_on_reset()
-                else:
-                    self.log.debug("Ignoring reset request for core #%d", self.core)
-                # self.target.reset()
+                self.target.reset_and_halt()
             elif resultMask & 0x4:
                 self.target.halt()
 

@@ -109,8 +109,8 @@ class LPC1768(CoreSightTarget):
     def reset(self, software_reset=False):
         super(LPC1768, self).reset(False)
 
-    def reset_stop_on_reset(self, software_reset=False, map_to_user=True):
-        super(LPC1768, self).reset_stop_on_reset()
+    def reset_and_halt(self, reset_type=False, map_to_user=True):
+        super(LPC1768, self).reset_and_halt()
 
         # Remap to use flash and set SP and SP accordingly
         if map_to_user:
