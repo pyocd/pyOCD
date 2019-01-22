@@ -63,8 +63,7 @@ class STLink(object):
     
     def open(self):
         self._device.open()
-        if (self.get_current_mode() == Commands.DEV_DFU_MODE):
-            self.exit_dfu_mode()
+        self.enter_idle()
         self.get_version()
         self.get_target_voltage()
 
@@ -169,14 +168,6 @@ class STLink(object):
                 self._check_status(response)
                 return
         raise STLinkException("Selected JTAG frequency is too low")
-
-    def get_current_mode(self):
-        response = self._device.transfer([Commands.GET_CURRENT_MODE], readSize=2)
-        return response[0]
-
-    def exit_dfu_mode(self):
-        self._device.transfer([Commands.DFU_COMMAND, Commands.DFU_EXIT])
-
 
     def enter_debug(self, protocol):
         self.enter_idle()
