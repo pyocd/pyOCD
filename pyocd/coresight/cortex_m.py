@@ -207,6 +207,9 @@ class CortexM(Target, CoreSightComponent):
     APSR_MASK = 0xF80F0000
     EPSR_MASK = 0x0700FC00
     IPSR_MASK = 0x000001FF
+    
+    # Thumb bit in XPSR.
+    XPSR_THUMB = 0x01000000
 
     # Debug Fault Status Register
     DFSR = 0xE000ED30
@@ -677,15 +680,14 @@ class CortexM(Target, CoreSightComponent):
         while (self.is_running()):
             pass
 
+        # Make sure the thumb bit is set in XPSR in case the reset handler
+        # points to an invalid address.
+        xpsr = self.read_core_register('xpsr')
+        if xpsr & self.XPSR_THUMB == 0:
+            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
-
-    def set_target_state(self, state):
-        if state == "PROGRAM":
-            self.reset_stop_on_reset(True)
-            # Write the thumb bit in case the reset handler
-            # points to an ARM address
-            self.write_core_register('xpsr', 0x1000000)
 
     def get_state(self):
         dhcsr = self.read_memory(CortexM.DHCSR)

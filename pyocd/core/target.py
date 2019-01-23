@@ -161,9 +161,6 @@ class Target(MemoryInterface, Notifier):
     def reset_and_halt(self, reset_type=None):
         raise NotImplementedError()
 
-    def set_target_state(self, state):
-        raise NotImplementedError()
-
     def get_state(self):
         raise NotImplementedError()
 

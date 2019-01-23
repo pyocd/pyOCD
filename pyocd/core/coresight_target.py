@@ -263,9 +263,6 @@ class CoreSightTarget(Target):
     def reset_and_halt(self, reset_type=None):
         return self.selected_core.reset_and_halt(reset_type)
 
-    def set_target_state(self, state):
-        return self.selected_core.set_target_state(state)
-
     def get_state(self):
         return self.selected_core.get_state()
 

@@ -167,7 +167,7 @@ class Flash(object):
         self.target.halt()
         if not self._did_prepare_target:
             if reset:
-                self.target.set_target_state("PROGRAM")
+                self.target.reset_and_halt(Target.ResetType.SW)
             self.prepare_target()
 
             # Load flash algo code into target RAM.

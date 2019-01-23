@@ -79,7 +79,7 @@ class Flash_cc3220sf(Flash):
         """
 
         self.target.halt()
-        self.target.set_target_state("PROGRAM")
+        self.target.reset_and_halt()
 
         # update core register to execute the init subroutine
 
@@ -102,7 +102,7 @@ class Flash_cc3220sf(Flash):
         self.target.dp.power_up_debug()
 
         self.target.halt()
-        self.target.set_target_state("PROGRAM")
+        self.target.reset_and_halt()
 
         # update core register to execute the init subroutine
         result = self._call_function_and_wait(self.flash_algo['pc_init'], init=True)
