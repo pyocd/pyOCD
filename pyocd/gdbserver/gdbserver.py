@@ -1139,8 +1139,12 @@ class GDBServer(threading.Thread):
                 self.thread_provider.invalidate()
         elif cmdList[0] == b'erase':
             try:
-                eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
-                eraser.erase(to_str_safe(x) for x in cmdList[1:])
+                if cmdList[1] == b'--chip':
+                    eraser = FlashEraser(self.session, FlashEraser.Mode.CHIP)
+                    eraser.erase()
+                else:
+                    eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
+                    eraser.erase(to_str_safe(x) for x in cmdList[1:])
                 resp = hex_encode(b"Erase successful\n")
             except exceptions.Error as e:
                 resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
