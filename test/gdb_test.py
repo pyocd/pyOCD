@@ -40,8 +40,7 @@ from pyocd.__main__ import PyOCDTool
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
-from pyocd.flash.loader import FileProgrammer
-
+from pyocd.flash.file_programmer import FileProgrammer
 from test_util import (
     Test,
     TestResult,

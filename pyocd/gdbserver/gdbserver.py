@@ -24,7 +24,8 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core import exceptions
 from ..core.target import Target
-from ..flash.loader import (FlashLoader, FlashEraser)
+from ..flash.loader import FlashLoader
+from ..flash.eraser import FlashEraser
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress

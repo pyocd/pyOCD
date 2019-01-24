@@ -21,7 +21,7 @@ import logging
 from struct import unpack
 from time import time
 from enum import Enum
-from .flash_builder import FlashBuilder
+from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)
 

@@ -41,7 +41,9 @@ from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
-from ..flash.loader import (FlashEraser, FlashLoader, FileProgrammer)
+from ..flash.loader import FlashLoader
+from ..flash.eraser import FlashEraser
+from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import (mask, conversion)
 from ..utility.cmdline import convert_session_options

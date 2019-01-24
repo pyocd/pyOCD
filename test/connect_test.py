@@ -24,7 +24,7 @@ import logging
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 
 from test_util import (
     Test,

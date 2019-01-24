@@ -24,8 +24,7 @@ import math
 import logging
 
 from pyocd.core.helpers import ConnectHelper
-from pyocd.flash.loader import FileProgrammer
-
+from pyocd.flash.file_programmer import FileProgrammer
 from test_util import get_session_options
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

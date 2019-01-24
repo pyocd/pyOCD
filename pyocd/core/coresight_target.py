@@ -17,7 +17,7 @@
 from .target import Target
 from .memory_map import MemoryType
 from . import exceptions
-from ..flash.loader import FlashEraser
+from ..flash.eraser import FlashEraser
 from ..coresight import (dap, cortex_m, cortex_m_v8m, rom_table)
 from ..debug.svd.loader import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext

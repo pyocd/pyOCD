@@ -31,7 +31,7 @@ from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import (invert32, same)
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
-from pyocd.flash.flash_builder import FlashBuilder
+from pyocd.flash.builder import FlashBuilder
 from pyocd.utility.progress import print_progress
 
 from test_util import (

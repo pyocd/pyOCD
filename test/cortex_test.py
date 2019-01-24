@@ -34,7 +34,7 @@ from pyocd.utility.conversion import float32_to_u32, u32_to_float32
 from pyocd.utility.mask import same
 from pyocd.core import exceptions
 from pyocd.core.memory_map import MemoryType
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 
 from test_util import (
     Test,

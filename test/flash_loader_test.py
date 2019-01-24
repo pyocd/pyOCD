@@ -32,8 +32,9 @@ from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
-from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
-
+from pyocd.flash.loader import FlashLoader
+from pyocd.flash.file_programmer import FileProgrammer
+from pyocd.flash.eraser import FlashEraser
 from test_util import (
     Test,
     TestResult,

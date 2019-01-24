@@ -8,7 +8,7 @@ This example shows basic connection, loading a firmware binary, and some simple 
 
 ```python
 from pyocd.core.helpers import ConnectHelper
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 
 import logging
 logging.basicConfig(level=logging.INFO)
