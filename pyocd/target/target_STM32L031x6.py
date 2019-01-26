@@ -19,6 +19,15 @@ from ..core.coresight_target import CoreSightTarget
 from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ..debug.svd import SVDFile
 
+class DBGMCU:
+    # en.DM00108282.pdf (STM32L0x1 Reference manual)
+    # 27.9.3 Debug MCU configuration register (DBG_CR)
+    DBG_CR = 0x40015804
+    DBG_STANDBY = (1 << 2)
+    DBG_STOP = (1 << 1)
+    DBG_SLEEP = 1
+    DBG_CR_VALUE = DBG_STANDBY | DBG_STOP | DBG_SLEEP
+
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
@@ -64,9 +73,9 @@ FLASH_ALGO = {
 class STM32L031x6(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(start=0x08000000, length=0x8000, blocksize=0x1000,  is_boot_memory=True, algo=FLASH_ALGO),
-        RamRegion(start=0x20000000, length=0x2000),
-        FlashRegion(start=0x08080000, length=0x400, blocksize=0x400, algo=FLASH_ALGO)
+        FlashRegion(name='Flash', start=0x08000000, length=0x8000, blocksize=0x1000,  is_boot_memory=True, algo=FLASH_ALGO),
+        RamRegion(name='RAM', start=0x20000000, length=0x2000),
+        FlashRegion(name='EEPROM', start=0x08080000, length=0x400, blocksize=0x400, algo=FLASH_ALGO)
         )
 
     def __init__(self, link):
@@ -74,4 +83,12 @@ class STM32L031x6(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(STM32L031x6, self).create_init_sequence()
+
+        seq.insert_after('create_cores',
+            ('setup_dbgmcu', self.setup_dbgmcu)
+            )
+
         return seq
+
+    def setup_dbgmcu(self):
+        self.write32(DBGMCU.DBG_CR, DBGMCU.DBG_CR_VALUE)
