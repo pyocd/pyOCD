@@ -37,7 +37,7 @@ from pyocd.utility.mask import same
 from pyocd.core import exceptions
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
-from test_util import (Test, TestResult, get_session_options)
+from test_util import (Test, TestResult, get_session_options, get_target_test_params)
 
 TEST_COUNT = 20
 
@@ -104,16 +104,10 @@ def cortex_test(board_id):
 
         binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
 
-        test_clock = 10000000
+        test_params = get_target_test_params(session)
+        test_clock = test_params['test_clock']
         addr_invalid = 0x3E000000 # Last 16MB of ARM SRAM region - typically empty
-        expect_invalid_access_to_fail = True
-        if target_type in ("nrf51", "nrf52", "nrf52840"):
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-            expect_invalid_access_to_fail = False
-        elif target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
+        expect_invalid_access_to_fail = test_params['error_on_invalid_access']
 
         memory_map = board.target.get_memory_map()
         ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)

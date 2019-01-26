@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,6 @@ import struct
 import traceback
 import argparse
 import logging
-import tempfile
-import subprocess
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
@@ -35,9 +33,13 @@ from pyocd.utility.mask import same
 from pyocd.utility.py3_helpers import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
-from test_util import (Test, TestResult, get_session_options)
-
-OBJCOPY = "arm-none-eabi-objcopy"
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    get_target_test_params,
+    binary_to_hex_file
+    )
 
 addr = 0
 size = 0
@@ -71,14 +73,8 @@ def flash_loader_test(board_id):
         target = session.target
         target_type = board.target_type
 
-        test_clock = 10000000
-        if target_type == "nrf51":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        if target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        session.probe.set_clock(test_clock)
+        test_params = get_target_test_params(session)
+        session.probe.set_clock(test_params['test_clock'])
 
         memory_map = board.target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
@@ -88,16 +84,7 @@ def flash_loader_test(board_id):
         binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
 
         # Generate an Intel hex file from the binary test file.
-        temp_test_hex_name = tempfile.mktemp('.elf')
-        objcopyOutput = subprocess.check_output([OBJCOPY,
-            "-v", "-I", "binary", "-O", "ihex", "-B", "arm", "-S",
-            "--set-start", "0x%x" % boot_region.start,
-            "--change-addresses", "0x%x" % boot_region.start,
-            binary_file, temp_test_hex_name], stderr=subprocess.STDOUT)
-        print(to_str_safe(objcopyOutput))
-        # Need to escape backslashes on Windows.
-        if sys.platform.startswith('win'):
-            temp_test_hex_name = temp_test_hex_name.replace('\\', '\\\\')
+        temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)
 
         test_pass_count = 0
         test_count = 0

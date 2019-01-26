@@ -29,7 +29,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.core.memory_map import MemoryType
-from test_util import (Test, TestResult, get_session_options)
+from test_util import (Test, TestResult, get_session_options, get_target_test_params)
 
 class SpeedTestResult(TestResult):
     def __init__(self):
@@ -82,14 +82,6 @@ def speed_test(board_id):
         board = session.board
         target_type = board.target_type
 
-        test_clock = 10000000
-        if target_type == "nrf51":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        if target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-
         memory_map = board.target.get_memory_map()
         ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
@@ -105,7 +97,8 @@ def speed_test(board_id):
         test_count = 0
         result = SpeedTestResult()
 
-        session.probe.set_clock(test_clock)
+        test_params = get_target_test_params(session)
+        session.probe.set_clock(test_params['test_clock'])
         
         test_config = "uncached"
 
