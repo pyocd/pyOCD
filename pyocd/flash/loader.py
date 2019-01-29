@@ -146,8 +146,10 @@ class FileProgrammer(object):
         
         file_obj.seek(kwargs.get('skip', 0), os.SEEK_SET)
         data = list(bytearray(file_obj.read()))
-        
-        self._loader.add_data(address, data)
+        try:
+            self._loader.add_data(address, data)
+        except ValueError as e:
+            logging.warning("Failed to add data chunk: %s", e)
 
     # Intel hex file format
     def _program_hex(self, file_obj, **kwargs):
@@ -159,8 +161,11 @@ class FileProgrammer(object):
         for start, end in data_list:
             size = end - start + 1
             data = list(hexfile.tobinarray(start=start, size=size))
-            self._loader.add_data(start, data)
-    
+            try:
+                self._loader.add_data(start, data)
+            except ValueError as e:
+                logging.warning("Failed to add data chunk: %s", e)
+
     # ELF format
     def _program_elf(self, file_obj, **kwargs):
         elf = ELFBinaryFile(file_obj, self._session.target.memory_map)
@@ -170,7 +175,10 @@ class FileProgrammer(object):
                     and (section.length > 0)
                     and (section.region.is_flash)):
                 LOG.debug("Writing section %s", repr(section))
-                self._loader.add_data(section.start, section.data)
+                try:
+                    self._loader.add_data(section.start, section.data)
+                except ValueError as e:
+                    logging.warning("Failed to add data chunk: %s", e)
             else:
                 LOG.debug("Skipping section %s", repr(section))
 
