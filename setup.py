@@ -15,31 +15,17 @@
  limitations under the License.
 """
 
-from setuptools import setup, find_packages
 import sys
+from setuptools import setup, find_packages
 
-install_requires = [
-    'intelhex',
-    'six',
-    'enum34',
-    'future',
-    'websocket-client',
-    'intervaltree',
-    'colorama',
-    'pyelftools',
-    ]
-if sys.platform.startswith('linux'):
-    install_requires.extend([
-        'pyusb>=1.0.0b2',
-    ])
-elif sys.platform.startswith('win'):
-    install_requires.extend([
-        'pywinusb>=0.4.0',
-    ])
-elif sys.platform.startswith('darwin'):
-    install_requires.extend([
-        'hidapi',
-    ])
+open_args = { 'mode': 'r' }
+if sys.version_info[0] > 2:
+    # Python 3.x version requires explicitly setting the encoding.
+    # Python 2.x version of open() doesn't support the encoding parameter.
+    open_args['encoding'] = 'utf-8'
+
+with open('README.rst', **open_args) as f:
+    readme = f.read()
 
 setup(
     name="pyOCD",
@@ -47,14 +33,32 @@ setup(
         'local_scheme': 'dirty-tag',
         'write_to': 'pyOCD/_version.py'
     },
-    setup_requires=['setuptools_scm!=1.5.3,!=1.5.4', 'setuptools_scm_git_archive'],
+    setup_requires=[
+        'setuptools>=40.0',
+        'setuptools_scm!=1.5.3,!=1.5.4',
+        'setuptools_scm_git_archive',
+        ],
     description="CMSIS-DAP debugger for Python",
-    long_description=open('README.rst', 'r').read(),
+    long_description=readme,
     author="Chris Reed, Martin Kojtal, Russ Butler",
     author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
     url='https://github.com/mbedmicro/pyOCD',
     license="Apache 2.0",
-    install_requires=install_requires,
+    # Allow installation on 2.7.9+, and 3.4+ even though we officially only support 3.6+.
+    python_requires=">=2.7.9, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
+    install_requires = [
+        'intelhex>=2.0,<3.0',
+        'six>=1.0,<2.0',
+        'enum34>=1.0,<2.0;python_version<"3.4"',
+        'future',
+        'websocket-client',
+        'intervaltree>=2.0,<3.0',
+        'colorama',
+        'pyelftools',
+        'pyusb>=1.0.0b2,<2.0;platform_system=="Linux"',
+        'pywinusb>=0.4.0;platform_system=="Windows"',
+        'hidapi;platform_system=="Darwin"',
+        ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
@@ -76,4 +80,5 @@ setup(
     },
     packages=find_packages(),
     include_package_data=True,  # include files from MANIFEST.in
+    zip_safe=True,
 )
