@@ -18,7 +18,7 @@
 
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
-from ...core.memory_map import (FlashRegion, RomRegion, ExternalRegion, RamRegion, MemoryMap)
+from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 import logging
 
 FLASH_ALGO_QUADSPI = {
@@ -643,7 +643,7 @@ class MIMXRT1021xxxxx(CoreSightTarget):
         RamRegion(name="ocram",     start=0x20200000, length=0x40000), # 256 KB
         FlashRegion(name="flexspi", start=0x60000000, end=0x67ffffff, blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO_QUADSPI),
-        ExternalRegion(name="semc", start=0x80000000, end=0xdfffffff)
+        RamRegion(name="semc",      start=0x80000000, end=0xdfffffff, is_external=True)
         )
 
     def __init__(self, link):
