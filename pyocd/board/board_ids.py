@@ -93,6 +93,9 @@ BOARD_ID_TO_INFO = {
     "1237": BoardInfo(  "u-blox-EVK-NINA-B1",   "nrf52",            "l1_nrf52-dk.bin",      ),
     "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
     "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
+    "1901": BoardInfo(  "CY8CPROTO-062-4343W",  "cy8c6xxA",         "l1_cy8c6xxa.bin",      ),
+    "1903": BoardInfo(  "CY8CPROTO-062-43012",  "cy8c6xxA",         "l1_cy8c6xxa.bin",      ),
+    "1905": BoardInfo(  "CY8CKIT-062-4343W",    "cy8c6xxA",         "l1_cy8c6xxa.bin",      ),
     "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
     "3300": BoardInfo(  "CC3220SF_LaunchXL",    "cc3220sf",         "l1_cc3220sf.bin",      ),
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
@@ -104,7 +107,5 @@ BOARD_ID_TO_INFO = {
     "9900": BoardInfo(  "Microbit",             "nrf51",            "l1_microbit.bin",      ),
     "C004": BoardInfo(  "tinyK20",              "k20d50m",          "l1_k20d50m.bin",       ),
     "C006": BoardInfo(  "VBLUno51",             "nrf51",            "l1_nrf51.bin",         ),
-    "1704": BoardInfo(  "CY8C6xxA-STAMP",       "cy8c6xxA",         "l1_cy8c6xx7.bin",      ),
-    "1F0D": BoardInfo(  "CY8C6xxA-STAMP",       "cy8c6xxA",         "l1_cy8c6xx7.bin",      ),
-    }
+}
 
