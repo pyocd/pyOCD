@@ -17,12 +17,12 @@
 import logging
 from time import (time, sleep)
 
-from ..flash.flash import Flash
 from ..core import exceptions
 from ..core.coresight_target import CoreSightTarget
 from ..core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ..core.target import Target
 from ..coresight.cortex_m import CortexM
+from ..flash.flash import Flash
 from ..utility.notification import Notification
 
 flash_algo_main = {
@@ -365,16 +365,52 @@ flash_algo_sflash = {
 }
 
 
+class PSoC6FlashCommon(Flash):
+    def __init__(self, target, flash_algo):
+        super(PSoC6FlashCommon, self).__init__(target, flash_algo)
+
+    def get_flash_info(self):
+        info = super(PSoC6FlashCommon, self).get_flash_info()
+        # Time it takes to perform a chip erase
+        info.erase_weight = 0.5
+
+        return info
+
+    def get_page_info(self, addr):
+        info = super(PSoC6FlashCommon, self).get_page_info(addr)
+        if info is not None:
+            # Time it takes to erase a page
+            info.erase_weight = 0.05
+            # Time it takes to program a page (Not including data transfer time)
+            info.program_weight = 0.07
+
+        return info
+
+
+class Flash_CY8C6xxA_Main(PSoC6FlashCommon):
+    def __init__(self, target):
+        super(Flash_CY8C6xxA_Main, self).__init__(target, flash_algo_main)
+
+
+class Flash_CY8C6xxA_Work(PSoC6FlashCommon):
+    def __init__(self, target):
+        super(Flash_CY8C6xxA_Work, self).__init__(target, flash_algo_work)
+
+
+class Flash_CY8C6xxA_SFlash(PSoC6FlashCommon):
+    def __init__(self, target):
+        super(Flash_CY8C6xxA_SFlash, self).__init__(target, flash_algo_sflash)
+
+
 class CY8C6xxA(CoreSightTarget):
     memoryMap = MemoryMap(
         RomRegion(start=0x00000000, length=0x20000),
-        FlashRegion(start=0x10000000, length=0x200000, blocksize=0x200, is_boot_memory=True, erased_byte_value=0, 
-                    algo=flash_algo_main),
-        FlashRegion(start=0x14000000, length=0x8000, blocksize=0x200, is_boot_memory=False, erased_byte_value=0, 
-                    algo=flash_algo_work),
+        FlashRegion(start=0x10000000, length=0x200000, blocksize=0x200, is_boot_memory=True, erased_byte_value=0,
+                    algo=flash_algo_main, flash_class=Flash_CY8C6xxA_Main),
+        FlashRegion(start=0x14000000, length=0x8000, blocksize=0x200, is_boot_memory=False, erased_byte_value=0,
+                    algo=flash_algo_work, flash_class=Flash_CY8C6xxA_Work),
         FlashRegion(start=0x16000000, length=0x8000, blocksize=0x200, is_boot_memory=False, erased_byte_value=0,
-                    is_testable=False, algo=flash_algo_sflash),
-        
+                    is_testable=False, algo=flash_algo_sflash, flash_class=Flash_CY8C6xxA_SFlash),
         RamRegion(start=0x08000000, length=0x10000)
     )
 
@@ -391,7 +427,7 @@ class CY8C6xxA(CoreSightTarget):
         core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
         core1 = CortexM_CY8C6xxA(self, self.aps[2], self.memory_map, 1)
         core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        
+
         self.aps[1].core = core0
         self.aps[2].core = core1
         core0.init()
@@ -405,15 +441,21 @@ class CortexM_CY8C6xxA(CortexM):
         self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
 
         self._run_token += 1
-        
+
         if reset_type is Target.ResetType.HW:
             self.session.probe.reset()
+            sleep(0.5)
+            self._ap.dp.init()
+            self._ap.dp.power_up_debug()
+            # This is ugly, but FPB gets disabled after HW Reset so breakpoints stop working
+            self.bp_manager._fpb.enable()
+
         else:
             if reset_type is Target.ResetType.SW_VECTRESET:
                 mask = CortexM.NVIC_AIRCR_VECTRESET
             else:
                 mask = CortexM.NVIC_AIRCR_SYSRESETREQ
-                
+
             try:
                 self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
                 self.flush()
@@ -446,7 +488,7 @@ class CortexM_CY8C6xxA(CortexM):
 
         raise Exception("Timeout waiting for target halt")
 
-    def reset_and_halt(self, reset_type=None):            
+    def reset_and_halt(self, reset_type=None):
         self.halt()
         self.reset(reset_type)
         sleep(0.5)
