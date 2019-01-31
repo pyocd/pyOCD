@@ -146,10 +146,8 @@ class FileProgrammer(object):
         
         file_obj.seek(kwargs.get('skip', 0), os.SEEK_SET)
         data = list(bytearray(file_obj.read()))
-        try:
-            self._loader.add_data(address, data)
-        except ValueError as e:
-            logging.warning("Failed to add data chunk: %s", e)
+        
+        self._loader.add_data(address, data)
 
     # Intel hex file format
     def _program_hex(self, file_obj, **kwargs):
@@ -161,6 +159,10 @@ class FileProgrammer(object):
         for start, end in data_list:
             size = end - start + 1
             data = list(hexfile.tobinarray(start=start, size=size))
+            # Ignore invalid addresses for HEX files only
+            # Binary files (obviously) don't contain addresses
+            # For ELF files, any metadata that's not part of the application code 
+            # will be held in a section that doesn't have the SHF_WRITE flag set
             try:
                 self._loader.add_data(start, data)
             except ValueError as e:
@@ -175,10 +177,7 @@ class FileProgrammer(object):
                     and (section.length > 0)
                     and (section.region.is_flash)):
                 LOG.debug("Writing section %s", repr(section))
-                try:
-                    self._loader.add_data(section.start, section.data)
-                except ValueError as e:
-                    logging.warning("Failed to add data chunk: %s", e)
+                self._loader.add_data(section.start, section.data)
             else:
                 LOG.debug("Skipping section %s", repr(section))
 
