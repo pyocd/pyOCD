@@ -106,11 +106,11 @@ class LPC1768(CoreSightTarget):
         super(LPC1768, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile(vendor="NXP", filename="LPC176x5x_v0.2.svd", is_local=False)
 
-    def reset(self, software_reset=False):
-        super(LPC1768, self).reset(False)
+    def reset(self, reset_type=None):
+        super(LPC1768, self).reset(self.ResetType.HW)
 
-    def reset_stop_on_reset(self, software_reset=False, map_to_user=True):
-        super(LPC1768, self).reset_stop_on_reset()
+    def reset_and_halt(self, reset_type=None, map_to_user=True):
+        super(LPC1768, self).reset_and_halt()
 
         # Remap to use flash and set SP and SP accordingly
         if map_to_user:

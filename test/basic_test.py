@@ -121,7 +121,7 @@ def basic_test(board_id, file):
         print("\n\n------ TEST STEP ------")
 
         print("reset and halt")
-        target.reset_stop_on_reset()
+        target.reset_and_halt()
         currentPC = target.read_core_register('pc')
         print("HALT: pc: 0x%X" % currentPC)
         sleep(0.2)

@@ -329,12 +329,12 @@ class LPC4330(CoreSightTarget):
         self.ignoreReset = False
         self._svd_location = SVDFile(vendor="NXP", filename="LPC43xx_svd_v5.svd", is_local=False)
 
-    def reset(self, software_reset=False):
+    def reset(self, reset_type=None):
         # Always use software reset for LPC4330 since the hardware version
         # will reset the DAP.
-        super(LPC4330, self).reset(True)
+        super(LPC4330, self).reset(self.ResetType.SW)
 
-    def reset_stop_on_reset(self, software_reset=False):
+    def reset_and_halt(self, reset_type=None):
         if self.ignoreReset:
             return
 
@@ -348,7 +348,7 @@ class LPC4330(CoreSightTarget):
 
         # Always use software reset for LPC4330 since the hardware version
         # will reset the DAP.
-        super(LPC4330, self).reset_stop_on_reset(True)
+        super(LPC4330, self).reset_and_halt(self.ResetType.SW)
 
         # Map shadow memory to SPIFI FLASH
         self.write_memory(0x40043100, 0x80000000)

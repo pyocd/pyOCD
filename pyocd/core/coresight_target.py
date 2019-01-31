@@ -257,14 +257,11 @@ class CoreSightTarget(Target):
     def remove_watchpoint(self, addr, size, type):
         return self.selected_core.remove_watchpoint(addr, size, type)
 
-    def reset(self, software_reset=None):
-        return self.selected_core.reset(software_reset=software_reset)
+    def reset(self, reset_type=None):
+        return self.selected_core.reset(reset_type)
 
-    def reset_stop_on_reset(self, software_reset=None):
-        return self.selected_core.reset_stop_on_reset(software_reset)
-
-    def set_target_state(self, state):
-        return self.selected_core.set_target_state(state)
+    def reset_and_halt(self, reset_type=None):
+        return self.selected_core.reset_and_halt(reset_type)
 
     def get_state(self):
         return self.selected_core.get_state()

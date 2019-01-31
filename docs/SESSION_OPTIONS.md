@@ -13,8 +13,9 @@ to the `ConnectHelper` methods or `Session` constructor as keyword arguments.
 pyOCD supports a YAML configuration file that lets you provide session options that either apply to
 all probes or to a single probe, based on the probe's unique ID.
 
-The easiest way to use a config file is to use the `--config` command line option, for instance
-`--config=myconfig.yaml`. Alternatively, you can set the `config_file` session option.
+The easiest way to use a config file is to place a `pyocd.yaml` file in the working directory where
+you run the `pyocd` tool. Alternatively, you can use the `--config` command line option, for instance
+`--config=myconfig.yaml`. Finally, you can set the `config_file` session option.
 
 The top level of the YAML file is a dictionary. The keys in the top-level dictionary must be names
 of session options, or the key `probes`. Session options are set to the value corresponding to the
@@ -22,7 +23,7 @@ dictionary entry. Unrecognized option names are ignored.
 
 If there is a top-level `probes` key, its value must be a dictionary with keys that match a
 substring of debug probe unique IDs. Usually you would just use the complete unique ID shown by
-listing connected boards (i.e., `pyocd-gdbserver --list`). The values for the unique ID entries are
+listing connected boards (i.e., `pyocd list`). The values for the unique ID entries are
 dictionaries containing session options, just like the top level of the YAML file. Of course, these
 session options are only applied when connecting with the given probe. If the probe unique ID
 substring listed in the config file matches more than one probe, the corresponding session options
@@ -49,11 +50,19 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
     order to gain debug access. Set this option to False to disable auto unlock. Default is True.
 
 - `config_file`: (str) Relative path to a YAML config file that lets you specify session options
-    either globally or per probe. No default. The format of the file is documented above. No default.
+    either globally or per probe. The format of the file is documented above. The default is a
+    `pyocd.yaml` or `pyocd.yml` file in the working directory.
+
+- `enable_multicore_debug`: (bool) Whether to put pyOCD into multicore debug mode. The primary effect
+    is to modify the default software reset type for secondary cores to use VECTRESET, which will
+    fall back to emulated reset if the secondary core is not v7-M.
 
 - `frequency`: (int) SWD/JTAG frequency in Hertz. Default is 1 MHz.
 
 - `halt_on_connect`: (bool) Whether to halt the target immediately upon connecting. Default is True.
+
+- `reset_type`: (str) Which type of reset to use by default (one of 'default', 'hw', 'sw', 'sw_sysresetreq',
+    'sw_vectreset', 'sw_emulated'). The default is 'sw'.
 
 - `resume_on_disconnect`: (bool) Whether to resume a halted target when disconnecting. Default is True.
 

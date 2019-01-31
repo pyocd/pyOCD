@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2018 ARM Limited
+ Copyright (c) 2006-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 from .memory_interface import MemoryInterface
 from ..utility.notification import Notifier
 from .memory_map import MemoryMap
+from enum import Enum
 
 class Target(MemoryInterface, Notifier):
 
@@ -26,6 +27,21 @@ class Target(MemoryInterface, Notifier):
     TARGET_RESET = 3     # Core is being held in reset.
     TARGET_SLEEPING = 4  # Core is sleeping due to a wfi or wfe instruction.
     TARGET_LOCKUP = 5    # Core is locked up.
+
+    class ResetType(Enum):
+        """! @brief Available reset methods."""
+        ## Hardware reset via the nRESET signal.
+        HW = 1
+        ## Software reset using the core's default software reset method.
+        SW = 2
+        ## Software reset using the AIRCR.SYSRESETREQ bit.
+        SW_SYSRESETREQ = 3
+        ## Software reset using the AIRCR.VECTRESET bit.
+        #
+        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to SW_EMULATED.
+        SW_VECTRESET = 4
+        ## Emulated software reset.
+        SW_EMULATED = 5
 
     # Types of breakpoints.
     #
@@ -155,13 +171,10 @@ class Target(MemoryInterface, Notifier):
     def remove_watchpoint(self, addr, size, type):
         raise NotImplementedError()
 
-    def reset(self, software_reset=None):
+    def reset(self, reset_type=None):
         raise NotImplementedError()
 
-    def reset_stop_on_reset(self, software_reset=None):
-        raise NotImplementedError()
-
-    def set_target_state(self, state):
+    def reset_and_halt(self, reset_type=None):
         raise NotImplementedError()
 
     def get_state(self):

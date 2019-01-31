@@ -764,7 +764,7 @@ class PyOCDCommander(object):
     def handle_reset(self, args, other):
         print("Resetting target")
         if args.halt:
-            self.target.reset_stop_on_reset()
+            self.target.reset_and_halt()
 
             status = self.target.get_state()
             if status != Target.TARGET_HALTED:

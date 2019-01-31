@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+ Copyright (c) 2018-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ class Flash_cc3220sf(Flash):
         """
 
         self.target.halt()
-        self.target.set_target_state("PROGRAM")
+        self.target.reset_and_halt()
 
         # update core register to execute the init subroutine
 
@@ -102,7 +102,7 @@ class Flash_cc3220sf(Flash):
         self.target.dp.power_up_debug()
 
         self.target.halt()
-        self.target.set_target_state("PROGRAM")
+        self.target.reset_and_halt()
 
         # update core register to execute the init subroutine
         result = self._call_function_and_wait(self.flash_algo['pc_init'], init=True)
@@ -124,29 +124,9 @@ class CC3220SF(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(CC3220SF,self).create_init_sequence()
-        seq.replace_task('create_cores', self.create_CC3220SF_core)
+        seq.wrap_task('create_cores', self.setup_CC3220SF_core)
         return seq
 
-    def create_CC3220SF_core(self):
-        core0 = CortexM_CC3220SF(self, self.aps[0], self.memory_map)
-        self.aps[0].core = core0
-        core0.init()
-        self.add_core(core0)
+    def setup_CC3220SF_core(self, arg):
+        self.cores[0].default_reset_type = self.ResetType.SW_VECTRESET
         
-
-
-
-class CortexM_CC3220SF(CortexM):
-
-    def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
-        super(CortexM_CC3220SF, self).__init__(rootTarget, ap, memoryMap, core_num, cmpid, address)
-
-    def reset(self, software_reset=None):
-        if software_reset:
-            # Perform the reset.
-            try:
-                self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_VECTRESET)
-                # Without a flush a transfer error can occur
-                self.flush()
-            except exceptions.TransferError:
-                self.flush()

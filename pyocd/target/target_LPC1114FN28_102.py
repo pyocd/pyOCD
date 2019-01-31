@@ -76,8 +76,8 @@ class LPC11XX_32(CoreSightTarget):
     def __init__(self, link):
         super(LPC11XX_32, self).__init__(link, self.memoryMap)
 
-    def reset_stop_on_reset(self, software_reset=None, map_to_user=True):
-        super(LPC11XX_32, self).reset_stop_on_reset(software_reset)
+    def reset_and_halt(self, reset_type=None, map_to_user=True):
+        super(LPC11XX_32, self).reset_and_halt(reset_type)
 
         # Remap to use flash and set SP and SP accordingly
         if map_to_user:

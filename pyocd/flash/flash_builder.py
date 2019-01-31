@@ -260,7 +260,7 @@ class FlashBuilder(object):
 
         # Cleanup flash algo and reset target after programming.
         self.flash.cleanup()
-        self.flash.target.reset_stop_on_reset()
+        self.flash.target.reset_and_halt()
 
         program_finish = time()
         self.perf.program_time = program_finish - program_start

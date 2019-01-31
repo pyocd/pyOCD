@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2006-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 from ..core.target import Target
 from ..core import exceptions
-from ..utility import conversion
+from ..utility import (cmdline, conversion, timeout)
 from ..utility.notification import Notification
 from .component import CoreSightComponent
 from .fpb import FPB
@@ -207,6 +207,9 @@ class CortexM(Target, CoreSightComponent):
     APSR_MASK = 0xF80F0000
     EPSR_MASK = 0x0700FC00
     IPSR_MASK = 0x000001FF
+    
+    # Thumb bit in XPSR.
+    XPSR_THUMB = 0x01000000
 
     # Debug Fault Status Register
     DFSR = 0xE000ED30
@@ -273,11 +276,36 @@ class CortexM(Target, CoreSightComponent):
     # Coprocessor Access Control Register
     CPACR = 0xE000ED88
     CPACR_CP10_CP11_MASK = (3 << 20) | (3 << 22)
+    
+    # Interrupt Control and State Register
+    ICSR = 0xE000ED04
+    ICSR_PENDSVCLR = (1 << 27)
+    ICSR_PENDSTCLR = (1 << 25)
+    
+    VTOR = 0xE000ED08
+    SCR = 0xE000ED10
+    SHPR1 = 0xE000ED18
+    SHPR2 = 0xE000ED1C
+    SHPR3 = 0xE000ED20
+    SHCSR = 0xE000ED24
+    FPCCR = 0xE000EF34
+    FPCAR = 0xE000EF38
+    FPDSCR = 0xE000EF3C
+    ICTR = 0xE000E004
 
     NVIC_AIRCR = (0xE000ED0C)
     NVIC_AIRCR_VECTKEY = (0x5FA << 16)
     NVIC_AIRCR_VECTRESET = (1 << 0)
+    NVIC_AIRCR_VECTCLRACTIVE = (1 << 1)
     NVIC_AIRCR_SYSRESETREQ = (1 << 2)
+    NVIC_AIRCR_PRIGROUP_MASK = 0x700
+    NVIC_AIRCR_PRIGROUP_SHIFT = 8
+    
+    NVIC_ICER0 = 0xE000E180 # NVIC Clear-Enable Register 0
+    NVIC_ICPR0 = 0xE000E280 # NVIC Clear-Pending Register 0
+    NVIC_IPR0 = 0xE000E400 # NVIC Interrupt Priority Register 0
+    
+    SYSTICK_CSR = 0xE000E010
 
     DBGKEY = (0xA05F << 16)
 
@@ -385,6 +413,16 @@ class CortexM(Target, CoreSightComponent):
         self._target_context = None
         self._elf = None
         self.target_xml = None
+        self._supports_vectreset = False
+        
+        # Default to software reset using the default software reset method.
+        self._default_reset_type = Target.ResetType.SW
+        
+        # Select default sw reset type based on whether multicore debug is enabled and which core
+        # this is.
+        self._default_software_reset_type = Target.ResetType.SW_SYSRESETREQ \
+                    if (not self.session.options.get('enable_multicore_debug', False)) or (self.core_number == 0) \
+                    else Target.ResetType.SW_VECTRESET
 
         # Set up breakpoints manager.
         self.sw_bp = SoftwareBreakpointProvider(self)
@@ -406,6 +444,31 @@ class CortexM(Target, CoreSightComponent):
     @elf.setter
     def elf(self, elffile):
         self._elf = elffile
+    
+    @property
+    def default_reset_type(self):
+        return self._default_reset_type
+    
+    @default_reset_type.setter
+    def default_reset_type(self, reset_type):
+        assert isinstance(reset_type, Target.ResetType)
+        self._default_reset_type = reset_type
+    
+    @property
+    def default_software_reset_type(self):
+        return self._default_software_reset_type
+    
+    @default_software_reset_type.setter
+    def default_software_reset_type(self, reset_type):
+        """! @brief Modify the default software reset method.
+        @param self
+        @param reset_type Must be one of the software reset types: Target.ResetType.SW_SYSRESETREQ,
+            Target.ResetType.SW_VECTRESET, or Target.ResetType.SW_EMULATED.
+        """
+        assert isinstance(reset_type, Target.ResetType)
+        assert reset_type in (Target.ResetType.SW_SYSRESETREQ, Target.ResetType.SW_VECTRESET,
+                                Target.ResetType.SW_EMULATED)
+        self._default_software_reset_type = reset_type
 
     def init(self):
         """
@@ -468,6 +531,10 @@ class CortexM(Target, CoreSightComponent):
         
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
+        
+        # Only v7-M supports VECTRESET.
+        if self.arch == CortexM.ARMv7M:
+            self._supports_vectreset = True
         
         if self.core_type in CORE_TYPE_NAME:
             logging.info("CPU core is %s r%dp%d", CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
@@ -616,52 +683,172 @@ class CortexM(Target, CoreSightComponent):
 
     def clear_debug_cause_bits(self):
         self.write_memory(CortexM.DFSR, CortexM.DFSR_VCATCH | CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
-
-    def reset(self, software_reset=None):
+    
+    def _perform_emulated_reset(self):
+        """! @brief Emulate a software reset by writing registers.
+        
+        All core registers are written to reset values. This includes setting the initial PC and SP
+        to values read from the vector table, which is assumed to be located at the based of the
+        boot memory region.
+        
+        If the memory map does not provide a boot region, then the current value of the VTOR register
+        is reused, as it should at least point to a valid vector table.
+        
+        The current value of DEMCR.VC_CORERESET determines whether the core will be resumed or
+        left halted.
+        
+        Note that this reset method will not set DHCSR.S_RESET_ST or DFSR.VCATCH.
         """
-        reset a core. After a call to this function, the core
-        is running
+        # Halt the core before making changes.
+        self.halt()
+        
+        bootMemory = self.memory_map.get_boot_memory()
+        if bootMemory is None:
+            # Reuse current VTOR value if we don't know the boot memory region.
+            vectorBase = self.read32(self.VTOR)
+        else:
+            vectorBase = bootMemory.start
+        
+        # Read initial SP and PC.
+        initialSp = self.read32(vectorBase)
+        initialPc = self.read32(vectorBase + 4)
+        
+        # Init core registers.
+        regList = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', 'r12',
+                    'psp', 'msp', 'lr', 'pc', 'xpsr', 'cfbp']
+        valueList = [0] * 13 + \
+                    [
+                        0,          # PSP
+                        initialSp,  # MSP
+                        0xffffffff, # LR
+                        initialPc,  # PC
+                        0x01000000, # XPSR
+                        0,          # CFBP
+                    ]
+        
+        if self.has_fpu:
+            regList += [('s%d' % n) for n in range(32)] + ['fpscr']
+            valueList += [0] * 33
+        
+        self.write_core_registers_raw(regList, valueList)
+        
+        # "Reset" SCS registers.
+        data = [
+                (self.ICSR_PENDSVCLR | self.ICSR_PENDSTCLR),  # ICSR
+                vectorBase,                   # VTOR
+                (self.NVIC_AIRCR_VECTKEY | self.NVIC_AIRCR_VECTCLRACTIVE),    # AIRCR
+                0,  # SCR
+                0,  # CCR
+                0,  # SHPR1
+                0,  # SHPR2
+                0,  # SHPR3
+                0,  # SHCSR
+                0,  # CFSR
+                ]
+        self.write_memory_block32(self.ICSR, data)
+        self.write32(self.CPACR, 0)
+        
+        if self.has_fpu:
+            data = [
+                    0,  # FPCCR
+                    0,  # FPCAR
+                    0,  # FPDSCR
+                    ]
+            self.write_memory_block32(self.FPCCR, data)
+        
+        # "Reset" SysTick.
+        self.write_memory_block32(self.SYSTICK_CSR, [0] * 3)
+        
+        # "Reset" NVIC registers.
+        numregs = (self.read32(self.ICTR) & 0xf) + 1
+        self.write_memory_block32(self.NVIC_ICER0, [0xffffffff] * numregs)
+        self.write_memory_block32(self.NVIC_ICPR0, [0xffffffff] * numregs)
+        self.write_memory_block32(self.NVIC_IPR0, [0xffffffff] * (numregs * 8))
+
+    def reset(self, reset_type=None):
+        """! @brief Reset the core.
+        
+        The reset method is selectable via the reset_type parameter as well as the reset_type
+        session option. If the reset_type parameter is not specified or None, then the reset_type
+        option will be used. If the option is not set, or if it is set to a value of 'default', the
+        the core's default_reset_type property value is used. So, the session option overrides the
+        core's default, while the parameter overrides everything.
+        
+        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
+        is chosen but the core doesn't support it, the the reset method will fall back to an
+        emulated software reset.
+        
+        After a call to this function, the core is running.
         """
         self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
 
-        if software_reset == None:
-            # Default to software reset if nothing is specified
-            software_reset = True
+        # Default to reset_type session option if reset_type parameter is None. If the session
+        # option isn't set, then use the core's default reset type.
+        if reset_type is None:
+            if 'reset_type' not in self.session.options:
+                reset_type = self.default_reset_type
+            else:
+                try:
+                    # Convert session option value to enum.
+                    resetOption = self.session.options['reset_type']
+                    reset_type = cmdline.convert_reset_type(resetOption)
+                    
+                    # The converted option will be None if the option value is 'default'.
+                    if reset_type is None:
+                        reset_type = self.default_reset_type
+                except ValueError:
+                    reset_type = self.default_reset_type
+        else:
+            assert isinstance(reset_type, Target.ResetType)
+        
+        # If the reset type is just SW, then use our default software reset type.
+        if reset_type is Target.ResetType.SW:
+            reset_type = self.default_software_reset_type
+        
+        # Fall back to emulated sw reset if the vectreset is specified and the core doesn't support it.
+        if (reset_type is Target.ResetType.SW_VECTRESET) and (not self._supports_vectreset):
+            reset_type = Target.ResetType.SW_EMULATED
 
         self._run_token += 1
 
-        if software_reset:
-            # Perform the reset.
+        # Perform the reset.
+        if reset_type is Target.ResetType.HW:
+            self.session.probe.reset()
+        elif reset_type is Target.ResetType.SW_EMULATED:
+            self._perform_emulated_reset()
+        else:
+            if reset_type is Target.ResetType.SW_SYSRESETREQ:
+                mask = CortexM.NVIC_AIRCR_SYSRESETREQ
+            elif reset_type is Target.ResetType.SW_VECTRESET:
+                mask = CortexM.NVIC_AIRCR_VECTRESET
+            else:
+                raise RuntimeError("internal error, unhandled reset type")
+            
             try:
-                self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | CortexM.NVIC_AIRCR_SYSRESETREQ)
+                self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
                 # Without a flush a transfer error can occur
                 self.flush()
             except exceptions.TransferError:
                 self.flush()
 
-        else:
-            self.session.probe.reset()
-
         # Now wait for the system to come out of reset. Keep reading the DHCSR until
         # we get a good response with S_RESET_ST cleared, or we time out.
-        startTime = time()
-        while time() - startTime < 2.0:
-            try:
-                dhcsr = self.read32(CortexM.DHCSR)
-                if (dhcsr & CortexM.S_RESET_ST) == 0:
-                    break
-            except exceptions.TransferError:
-                self.flush()
-                sleep(0.01)
+        with timeout.Timeout(2.0) as t_o:
+            while t_o.check():
+                try:
+                    dhcsr = self.read32(CortexM.DHCSR)
+                    if (dhcsr & CortexM.S_RESET_ST) == 0:
+                        break
+                except exceptions.TransferError:
+                    self.flush()
+                    sleep(0.01)
 
         self.notify(Notification(event=Target.EVENT_POST_RESET, source=self))
 
-    def reset_stop_on_reset(self, software_reset=None):
+    def reset_and_halt(self, reset_type=None):
         """
         perform a reset and stop the core on the reset handler
         """
-        logging.debug("reset stop on Reset")
-
         # halt the target
         self.halt()
 
@@ -671,21 +858,23 @@ class CortexM(Target, CoreSightComponent):
         # enable the vector catch
         self.write_memory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
 
-        self.reset(software_reset)
+        self.reset(reset_type)
 
         # wait until the unit resets
-        while (self.is_running()):
-            pass
+        with timeout.Timeout(2.0) as t_o:
+            while t_o.check():
+                if self.get_state() not in (Target.TARGET_RESET, Target.TARGET_RUNNING):
+                    break
+                sleep(0.01)
+
+        # Make sure the thumb bit is set in XPSR in case the reset handler
+        # points to an invalid address.
+        xpsr = self.read_core_register('xpsr')
+        if xpsr & self.XPSR_THUMB == 0:
+            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
 
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
-
-    def set_target_state(self, state):
-        if state == "PROGRAM":
-            self.reset_stop_on_reset(True)
-            # Write the thumb bit in case the reset handler
-            # points to an ARM address
-            self.write_core_register('xpsr', 0x1000000)
 
     def get_state(self):
         dhcsr = self.read_memory(CortexM.DHCSR)
@@ -940,7 +1129,7 @@ class CortexM(Target, CoreSightComponent):
 
     ## @brief Set a hardware or software breakpoint at a specific location in memory.
     #
-    # @retval True Breakpoint was set.
+    # @: True Breakpoint was set.
     # @retval False Breakpoint could not be set.
     def set_breakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
         return self.bp_manager.set_breakpoint(addr, type)

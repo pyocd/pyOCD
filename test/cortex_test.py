@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2006-2015 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parentdir)
 
 from pyocd.core.target import Target
+from pyocd.coresight.cortex_m import CortexM
 from pyocd.gdbserver.context_facade import GDBDebugContextFacade
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.conversion import float32_to_u32, u32_to_float32
@@ -169,6 +170,70 @@ def cortex_test(board_id):
             target.remove_breakpoint(0)
         test_time = test_function(session, simulate_step)
         print("Simulated GDB step: %f" % test_time)
+
+        # Test passes if there are no exceptions
+        test_pass_count += 1
+        test_count += 1
+        print("TEST PASSED")
+
+        print("\n\n------ Testing Reset Types ------")
+        def reset_methods(fnc):
+            print("Hardware reset")
+            fnc(reset_type=Target.ResetType.HW)
+            print("Hardware reset (default=HW)")
+            target.selected_core.default_reset_type = Target.ResetType.HW
+            fnc(reset_type=None)
+            print("Software reset (default=SYSRESETREQ)")
+            target.selected_core.default_reset_type = Target.ResetType.SW_SYSRESETREQ
+            fnc(reset_type=None)
+            print("Software reset (default=VECTRESET)")
+            target.selected_core.default_reset_type = Target.ResetType.SW_VECTRESET
+            fnc(reset_type=None)
+            print("Software reset (default=emulated)")
+            target.selected_core.default_reset_type = Target.ResetType.SW_EMULATED
+            fnc(reset_type=None)
+            
+            print("(Default) Software reset (SYSRESETREQ)")
+            target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSRESETREQ
+            fnc(reset_type=Target.ResetType.SW)
+            print("(Default) Software reset (VECTRESET)")
+            target.selected_core.default_software_reset_type = Target.ResetType.SW_VECTRESET
+            fnc(reset_type=Target.ResetType.SW)
+            print("(Default) Software reset (emulated)")
+            target.selected_core.default_software_reset_type = Target.ResetType.SW_EMULATED
+            fnc(reset_type=Target.ResetType.SW)
+            
+            print("Software reset (option=default)")
+            target.selected_core.default_reset_type = Target.ResetType.SW
+            target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSRESETREQ
+            session.options['reset_type'] = 'default'
+            fnc(reset_type=None)
+            print("Software reset (option=hw)")
+            session.options['reset_type'] = 'hw'
+            fnc(reset_type=None)
+            print("Software reset (option=sw)")
+            session.options['reset_type'] = 'sw'
+            fnc(reset_type=None)
+            print("Software reset (option=sw_sysresetreq)")
+            session.options['reset_type'] = 'sw_sysresetreq'
+            fnc(reset_type=None)
+            print("Software reset (option=sw_vectreset)")
+            session.options['reset_type'] = 'sw_vectreset'
+            fnc(reset_type=None)
+            print("Software reset (option=sw_emulated)")
+            session.options['reset_type'] = 'sw_emulated'
+            fnc(reset_type=None)
+
+        reset_methods(target.reset)
+        
+        # Test passes if there are no exceptions
+        test_pass_count += 1
+        test_count += 1
+        print("TEST PASSED")
+
+
+        print("\n\n------ Testing Reset Halt ------")
+        reset_methods(target.reset_and_halt)
 
         # Test passes if there are no exceptions
         test_pass_count += 1

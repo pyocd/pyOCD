@@ -16,13 +16,13 @@ with ConnectHelper.session_with_chosen_probe() as session:
 
     board = session.board
     target = board.target
-    flash = board.flash
+    flash = target.memory_map.get_boot_memory()
 
     # Load firmware into device.
     flash.flash_binary("my_firmware.bin")
 
     # Reset, run.
-    target.reset_stop_on_reset()
+    target.reset_and_halt()
     target.resume()
 
     # Read some registers.
@@ -35,7 +35,7 @@ with ConnectHelper.session_with_chosen_probe() as session:
     target.halt()
     print("pc: 0x%X" % target.read_core_register("pc"))
 
-    target.reset_stop_on_reset()
+    target.reset_and_halt()
 
     print("pc: 0x%X" % target.read_core_register("pc"))
 

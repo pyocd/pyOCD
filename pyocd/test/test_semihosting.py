@@ -37,7 +37,7 @@ def tgt(request):
         return
     board = session.board
     session.options['resume_on_disconnect'] = False
-    board.target.reset_stop_on_reset()
+    board.target.reset_and_halt()
 
     def cleanup():
         board.uninit()
