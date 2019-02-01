@@ -159,8 +159,15 @@ class FileProgrammer(object):
         for start, end in data_list:
             size = end - start + 1
             data = list(hexfile.tobinarray(start=start, size=size))
-            self._loader.add_data(start, data)
-    
+            # Ignore invalid addresses for HEX files only
+            # Binary files (obviously) don't contain addresses
+            # For ELF files, any metadata that's not part of the application code 
+            # will be held in a section that doesn't have the SHF_WRITE flag set
+            try:
+                self._loader.add_data(start, data)
+            except ValueError as e:
+                logging.warning("Failed to add data chunk: %s", e)
+
     # ELF format
     def _program_elf(self, file_obj, **kwargs):
         elf = ELFBinaryFile(file_obj, self._session.target.memory_map)
