@@ -17,7 +17,7 @@
 
 from ..flash.flash import Flash
 from ..core.coresight_target import CoreSightTarget
-from ..core.memory_map import (FlashRegion, RamRegion, DeviceRegion, MemoryMap)
+from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 import logging
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
@@ -57,11 +57,6 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'analyzer_supported' : True,
                'analyzer_address'   : 0x2000A000                  # Analyzer 0x2000A000..0x2000A600
               };
-
-class Flash_max32625(Flash):
-
-    def __init__(self, target):
-        super(Flash_max32625, self).__init__(target, FLASH_ALGO)
 
 class MAX32625(CoreSightTarget):
 
