@@ -17,6 +17,7 @@
 
 from ..core.coresight_target import CoreSightTarget
 from .family import (target_kinetis, flash_cortex_m)
+from . import target_CY8C6xxA
 from . import target_MIMXRT1021xxxxx
 from . import target_MIMXRT1052xxxxB
 from . import target_MKE15Z256xxx7
@@ -133,5 +134,6 @@ TARGET = {
           'lpc4088dm': target_lpc4088dm.LPC4088dm,
           'rtl8195am': target_RTL8195AM.RTL8195AM,
           'cc3220sf': target_CC3220SF.CC3220SF,
+          'cy8c6xxa': target_CY8C6xxA.CY8C6xxA,
          }
 
