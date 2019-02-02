@@ -52,6 +52,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class STM32F103RC(CoreSightTarget):
 
+    VENDOR = "STMicroelectronics"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0x08000000,  length=0x80000,      blocksize=0x800, is_boot_memory=True,
             algo=FLASH_ALGO),

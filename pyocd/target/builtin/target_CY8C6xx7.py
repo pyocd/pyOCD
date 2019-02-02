@@ -212,6 +212,8 @@ class Flash_CY8C6xx7_SFlash(PSoC6FlashCommon):
 
 
 class CY8C6xx7(CoreSightTarget):
+    VENDOR = "Cypress"
+    
     memoryMap = MemoryMap(
         RomRegion(start=0x00000000, length=0x20000),
         FlashRegion(start=0x10000000, length=0x100000, blocksize=0x200, is_boot_memory=True, erased_byte_value=0,

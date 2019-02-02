@@ -79,6 +79,8 @@ FLASH_ALGO = {
 
 class STM32L031x6(CoreSightTarget):
 
+    VENDOR = "STMicroelectronics"
+    
     memoryMap = MemoryMap(
         FlashRegion(name='Flash', start=0x08000000, length=0x8000, blocksize=0x1000,  is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(name='RAM', start=0x20000000, length=0x2000),

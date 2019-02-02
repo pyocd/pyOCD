@@ -910,6 +910,8 @@ FLASH_ALGO_HYPERFLASH = {
 
 class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
@@ -931,6 +933,8 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
 
 class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and

@@ -76,6 +76,8 @@ class Flash_stm32f439xx(Flash):
 
 class STM32F439xG(CoreSightTarget):
 
+    VENDOR = "STMicroelectronics"
+    
     memoryMap = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True,
             flash_class=Flash_stm32f439xx),
@@ -104,6 +106,8 @@ class STM32F439xG(CoreSightTarget):
 
 class STM32F439xI(CoreSightTarget):
 
+    VENDOR = "STMicroelectronics"
+    
     memoryMap = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True,
             flash_class=Flash_stm32f439xx),

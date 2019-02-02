@@ -45,6 +45,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class NRF52840(CoreSightTarget):
 
+    VENDOR = "Nordic Semiconductor"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO),

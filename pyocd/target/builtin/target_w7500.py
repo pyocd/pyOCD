@@ -41,6 +41,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class W7500(CoreSightTarget):
 
+    VENDOR = "WIZnet"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0x00000000,  length=0x20000,      blocksize=0x100, is_boot_memory=True,
             algo=FLASH_ALGO),

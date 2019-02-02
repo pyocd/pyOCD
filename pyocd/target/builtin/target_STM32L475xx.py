@@ -67,6 +67,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class STM32L475xx(CoreSightTarget):
         
+    VENDOR = "STMicroelectronics"
+    
     def create_init_sequence(self):
         seq = super(STM32L475xx, self).create_init_sequence()
 

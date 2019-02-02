@@ -21,6 +21,8 @@ import logging
 
 class RTL8195AM(CoreSightTarget):
 
+    VENDOR = "Realtek Semiconductor"
+    
     memoryMap = MemoryMap(
         RamRegion(      start=0x00000000,  length=0x400000),
         RamRegion(      start=0x10000000,  length=0x80000),

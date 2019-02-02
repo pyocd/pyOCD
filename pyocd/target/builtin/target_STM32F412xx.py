@@ -63,6 +63,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class STM32F412xE(CoreSightTarget):
 
+    VENDOR = "STMicroelectronics"
+    
     memoryMap = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True, algo=FLASH_ALGO),
         FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, algo=FLASH_ALGO),
@@ -90,6 +92,8 @@ class STM32F412xE(CoreSightTarget):
 
 class STM32F412xG(CoreSightTarget):
 
+    VENDOR = "STMicroelectronics"
+    
     memoryMap = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True, algo=FLASH_ALGO),
         FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, algo=FLASH_ALGO),

@@ -83,6 +83,8 @@ FLASH_ALGO = {
 
 class NCS36510(CoreSightTarget):
 
+    VENDOR = "ONSemiconductor"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0x2000,           length=0x50000,      blocksize=0x800, is_boot_memory=True,
             algo=FLASH_ALGO),

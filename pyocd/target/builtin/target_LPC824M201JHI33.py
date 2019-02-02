@@ -62,6 +62,8 @@ class Flash_lpc824(Flash):
 
 class LPC824(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,       blocksize=0x400, is_boot_memory=True,
             flash_class=Flash_lpc824),

@@ -70,6 +70,8 @@ class Flash_lpc54114(Flash):
 
 class LPC54114(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     memoryMap = MemoryMap(
         FlashRegion(name='flash',   start=0,           length=0x40000,       blocksize=0x8000, is_boot_memory=True,
             flash_class=Flash_lpc54114),

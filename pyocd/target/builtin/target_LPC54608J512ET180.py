@@ -66,6 +66,8 @@ class Flash_lpc54608(Flash):
 
 class LPC54608(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     memoryMap = MemoryMap(
         FlashRegion(name='flash',   start=0,           length=0x80000,       blocksize=0x8000, is_boot_memory=True,
             flash_class=Flash_lpc54608),

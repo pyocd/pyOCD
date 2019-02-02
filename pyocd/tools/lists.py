@@ -97,6 +97,8 @@ class ListGenerator(object):
             t = TARGET[name](s)
             d = {
                 'name' : name,
+                'vendor' : t.vendor,
+                'part_families' : t.part_families,
                 'part_number' : t.part_number,
                 }
             if t._svd_location is not None and IS_CMSIS_SVD_AVAILABLE:

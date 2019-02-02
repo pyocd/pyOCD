@@ -88,10 +88,14 @@ class Target(MemoryInterface, Notifier):
     HALT_REASON_USER = 1
     HALT_REASON_DEBUG = 2
 
+    VENDOR = "Generic"
+
     def __init__(self, session, memoryMap=None):
         super(Target, self).__init__()
         self._session = session
         self.root_target = None
+        self.vendor = self.VENDOR
+        self.part_families = []
         self.part_number = ""
         self.memory_map = memoryMap or MemoryMap()
         self.halt_on_connect = session.options.get('halt_on_connect', True)

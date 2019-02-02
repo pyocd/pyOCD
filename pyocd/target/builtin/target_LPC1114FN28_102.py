@@ -67,6 +67,8 @@ class Flash_lpc11xx_32(Flash):
 
 class LPC11XX_32(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, is_boot_memory=True,
             flash_class=Flash_lpc11xx_32),

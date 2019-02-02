@@ -61,7 +61,8 @@ class Flash_lpc11u24(Flash):
             Flash.program_page(self, flashPtr + i * write_size, data)
 
 class LPC11U24(CoreSightTarget):
-
+    VENDOR = "NXP"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, is_boot_memory=True,
             flash_class=Flash_lpc11u24),

@@ -80,6 +80,8 @@ class Flash_lpc4088(Flash):
 
 class LPC4088(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
             flash_class=Flash_lpc4088),

@@ -52,6 +52,8 @@ log = logging.getLogger("target.family.kinetis")
 
 class Kinetis(CoreSightTarget):
 
+    VENDOR = "NXP"
+    
     def __init__(self, link, memoryMap=None):
         super(Kinetis, self).__init__(link, memoryMap)
         self.mdm_ap = None

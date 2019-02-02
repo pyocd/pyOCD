@@ -113,6 +113,8 @@ class Flash_cc3220sf(Flash):
 
 
 class CC3220SF(CoreSightTarget):
+    VENDOR = "Texas Instruments"
+    
     memoryMap = MemoryMap(
         RomRegion(start=0x00000000, length=0x00080000),
         FlashRegion(start=0x01000000, length=0x00100000, blocksize=0x800, is_boot_memory=True, flash_class=Flash_cc3220sf),
