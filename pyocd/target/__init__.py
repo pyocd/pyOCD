@@ -60,6 +60,7 @@ from . import target_STM32F439xx
 from . import target_STM32L475xx
 from . import target_STM32L031x6
 from . import target_MAX32600
+from . import target_MAX32625
 from . import target_w7500
 from . import target_LPC1114FN28_102
 from . import target_LPC824M201JHI33
@@ -106,6 +107,8 @@ TARGET = {
           'lpc11u24': target_LPC11U24FBD64_401.LPC11U24,
           'lpc1768': target_LPC1768.LPC1768,
           'lpc4330': target_LPC4330.LPC4330,
+          'max32600': target_MAX32600.MAX32600,
+          'max32625': target_MAX32625.MAX32625,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
           'mimxrt1050_quadspi': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_quadspi,
           'mimxrt1050_hyperflash': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_hyperflash,
@@ -123,7 +126,6 @@ TARGET = {
           'stm32l475xe' : target_STM32L475xx.STM32L475xE,
           'stm32l475xg' : target_STM32L475xx.STM32L475xG,
           'stm32l031x6' : target_STM32L031x6.STM32L031x6,
-          'max32600': target_MAX32600.MAX32600,
           'w7500': target_w7500.W7500,
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
           'lpc824': target_LPC824M201JHI33.LPC824,
@@ -138,4 +140,3 @@ TARGET = {
           'cy8c6xxa': target_CY8C6xxA.CY8C6xxA,
           'cy8c6xx7': target_CY8C6xx7.CY8C6xx7,
          }
-
