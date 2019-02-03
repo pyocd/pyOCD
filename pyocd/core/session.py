@@ -90,7 +90,7 @@ class Session(object):
         # Pick up any config file options for this board.
         if probesConfig is not None:
             for uid, settings in probesConfig.items():
-                if uid.lower() in probe.unique_id.lower():
+                if str(uid).lower() in probe.unique_id.lower():
                     log.info("Using config settings for board %s" % (probe.unique_id))
                     self._options.update(settings)
         
