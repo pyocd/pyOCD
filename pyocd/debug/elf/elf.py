@@ -103,7 +103,7 @@ class ELFSection(MemoryRange):
 # the used/unused lists. Also, only ranges completely contained within a region of the memory
 # map are considered.
 class ELFBinaryFile(object):
-    def __init__(self, elf, memory_map):
+    def __init__(self, elf, memory_map=None):
         if isinstance(elf, six.string_types):
             self._file = open(elf, 'rb')
             self._owns_file = True
@@ -176,6 +176,28 @@ class ELFBinaryFile(object):
     def close(self):
         self._file.close()
         self._owns_file = False
+
+    def read(self, addr, size):
+        """! @brief Read program data from the elf file.
+
+        @param addr Physical address (load address) to read from.
+        @param size Number of bytes to read.
+        @return Requested data or None if address is unmapped.
+        """
+        for segment in self._elf.iter_segments():
+            seg_addr = segment["p_paddr"]
+            seg_size = min(segment["p_memsz"], segment["p_filesz"])
+            if addr >= seg_addr + seg_size:
+                continue
+            if addr + size <= seg_addr:
+                continue
+            # There is at least some overlap
+
+            if addr >= seg_addr and addr + size <= seg_addr + seg_size:
+                # Region is fully contained
+                data = segment.data()
+                start = addr - seg_addr
+                return data[start:start + size]
 
     ##
     # @brief Access the list of sections in the ELF file.

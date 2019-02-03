@@ -1,27 +1,35 @@
-Adding a new target
-===================
+Adding a new builtin target
+===========================
 
-This guide describes how to manually add support for a new target and/or board to pyOCD.
+This guide describes how to manually add support for a new target and/or board to pyOCD. In most
+cases you do not need to add a builtin target anymore, and can use pyOCD's support for CMSIS
+Device Family Packs.
 
 For background information, review the [architecture overview](ARCHITECTURE.md) document first.
 
 ### Steps to add a new target
 
-1. Create a new `CoreSightTarget` subclass in a file under `pyocd/target/`. You can copy one of the
-    existing target files like `pyocd/target/target_ncs36510.py` and rename the class.
+1. Create a new `CoreSightTarget` subclass in a file under `pyocd/target/builtin/`. You can copy one of the
+    existing target files like `pyocd/target/builtin/target_ncs36510.py` and rename the class.
 
     The target source file name must follow
     the pattern "target\_\<device>.py", where "\<device>" is the device's `Dname` or `Dvariant` part
     number value from the appropriate CMSIS Device Family Pack (DFP). For instance,
     `target_LPC54608J512ET180.py`. You may substitute an "x" for certain fields in the part number,
     such as a package or pin count code, temperature code, or memory size (if multiple memory sizes
-    are supported via classes within the one source file).
+    are supported via classes within the one source file). For instance, `target_STM32F412xx.py`.
+    If the device doesn't have a DFP, then use a similar, complete part number.
 
-2. Create the target's memory map from information in the device's reference manual. The memory map
+2. Set the `VENDOR` class attribute on the `CoreSightTarget` subclass. The vendor name must be one
+    of the standard values defined by the
+    [`DeviceVendorEnum`](http://arm-software.github.io/CMSIS_5/Pack/html/pdsc_family_pg.html#DeviceVendorEnum)
+    type for CMSIS Packs.
+
+3. Create the target's memory map from information in the device's reference manual. The memory map
     should be a `memoryMap` class attribute of the target class. Modifying an existing memory map is
     easiest, and there are many examples in the other targets.
 
-3. To create the flash algo, the recommended method is to use the [`tools/generate_blobs.py`](https://github.com/mbedmicro/FlashAlgo/blob/master/scripts/generate_blobs.py) script from the [FlashAlgo](https://github.com/mbedmicro/FlashAlgo) project. This script will
+4. To create the flash algo, the recommended method is to use the [`tools/generate_blobs.py`](https://github.com/mbedmicro/FlashAlgo/blob/master/scripts/generate_blobs.py) script from the [FlashAlgo](https://github.com/mbedmicro/FlashAlgo) project. This script will
     generate output files in several forms, including Python for pyOCD, from an .FLM file that is
     included as part of a CMSIS DFP.
 
@@ -55,8 +63,8 @@ For background information, review the [architecture overview](ARCHITECTURE.md) 
     6. Pass the `flash_algo` dict for the `algo` parameter to the `FlashRegion` constructor in
         your memory map. This binds the flash algo to that flash memory region.
 
-4. Edit `pyocd/target/__init__.py` to import your target source file and add your new target and
-    flash classes to the `TARGET` dict.
+5. Edit `pyocd/target/builtin/__init__.py` to import your target source file and add your new target
+    to the `BUILTIN_TARGETS` dict.
 
 Now your new target is available for use via the `--target` command line option!
 

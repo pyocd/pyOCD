@@ -16,12 +16,14 @@
 
 import os
 import pkg_resources
+import six
 from .. import __version__
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..target import TARGET
 from ..debug.svd import IS_CMSIS_SVD_AVAILABLE
 from ..board.board_ids import BOARD_ID_TO_INFO
+from ..target.pack import pack_target
 
 class ListGenerator(object):
     @staticmethod
@@ -83,20 +85,26 @@ class ListGenerator(object):
         return obj
 
     @staticmethod
-    def list_targets():
+    def list_targets(pack):
         targets = []
         obj = {
             'pyocd_version' : __version__,
-            'version' : { 'major' : 1, 'minor' : 0 },
+            'version' : { 'major' : 1, 'minor' : 1 },
             'status' : 0,
             'targets' : targets
             }
+
+        # Load CMSIS-Pack.
+        if pack is not None:
+            pack_target.populate_targets_from_pack(pack)
 
         for name in TARGET.keys():
             s = Session(None) # Create empty session
             t = TARGET[name](s)
             d = {
                 'name' : name,
+                'vendor' : t.vendor,
+                'part_families' : t.part_families,
                 'part_number' : t.part_number,
                 }
             if t._svd_location is not None and IS_CMSIS_SVD_AVAILABLE:
@@ -108,7 +116,7 @@ class ListGenerator(object):
                         filename=t._svd_location.filename
                     )
                     svdPath = pkg_resources.resource_filename("cmsis_svd", resource)
-                if os.path.exists(svdPath):
+                if isinstance(svdPath, six.string_types) and os.path.exists(svdPath):
                     d['svd_path'] = svdPath
             targets.append(d)
 

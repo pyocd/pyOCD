@@ -1,19 +1,18 @@
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2015-2018 ARM Limited
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# pyOCD debugger
+# Copyright (c) 2015-2019 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from enum import Enum
 import six
@@ -26,7 +25,6 @@ class MemoryType(Enum):
     ROM = 2
     FLASH = 3
     DEVICE = 4
-    EXTERNAL = 5
 
 def check_range(start, end=None, length=None, range=None):
     assert (start is not None) and ((isinstance(start, MemoryRange) or range is not None) or
@@ -124,15 +122,20 @@ class MemoryRegion(MemoryRangeBase):
         'blocksize': 0,
         'erased_byte_value': 0,
         'is_boot_memory': False,
+        'is_default': True,
         'is_powered_on_boot': True,
         'is_cacheable': True,
         'invalidate_cache_on_run': True,
         'is_testable': True,
+        'is_external': False,        
         'is_ram': lambda r: r.type == MemoryType.RAM,
         'is_rom': lambda r: r.type == MemoryType.ROM,
         'is_flash': lambda r: r.type == MemoryType.FLASH,
         'is_device': lambda r: r.type == MemoryType.DEVICE,
-        'is_external': lambda r: r.type == MemoryType.EXTERNAL,
+        'is_readable': lambda r: 'r' in r.access,
+        'is_writable': lambda r: 'w' in r.access,
+        'is_executable': lambda r: 'x' in r.access,
+        'is_secure': lambda r: 's' in r.access,
         }
     
     def __init__(self, type=MemoryType.OTHER, start=0, end=0, length=0, **attrs):
@@ -158,8 +161,6 @@ class MemoryRegion(MemoryRangeBase):
         # Assign default values to any attributes missing from kw args.
         for k, v in self.DEFAULT_ATTRS.items():
             if k not in self._attributes:
-                if callable(v):
-                    v = v(self)
                 self._attributes[k] = v
 
     @property
@@ -190,28 +191,15 @@ class MemoryRegion(MemoryRangeBase):
             return referent
         else:
             return aliasValue
-    
-    @property
-    def is_readable(self):
-        return 'r' in self.access
-    
-    @property
-    def is_writable(self):
-        return 'w' in self.access
-    
-    @property
-    def is_executable(self):
-        return 'x' in self.access
-    
-    @property
-    def is_secure(self):
-        return 's' in self.access
         
     def __getattr__(self, name):
-        return self._attributes[name]
+        v = self._attributes[name]
+        if callable(v):
+            v = v(self)
+        return v
 
     def __repr__(self):
-        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.blocksize)
+        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access)
 
 ## @brief Contiguous region of RAM.
 class RamRegion(MemoryRegion):
@@ -271,12 +259,8 @@ class FlashRegion(MemoryRegion):
                 return False
         return True
 
-
-## @brief Contiguous region of external memory.
-class ExternalRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, **attrs):
-        attrs['is_testable'] = False
-        super(ExternalRegion, self).__init__(type=MemoryType.EXTERNAL, start=start, end=end, length=length, **attrs)
+    def __repr__(self):
+        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access, self.blocksize)
 
 ## @brief Device or peripheral memory.
 class DeviceRegion(MemoryRegion):
@@ -285,6 +269,15 @@ class DeviceRegion(MemoryRegion):
         attrs['is_cacheable'] = False
         attrs['is_testable'] = False
         super(DeviceRegion, self).__init__(type=MemoryType.DEVICE, start=start, end=end, length=length, **attrs)
+
+## @brief Map from memory type to class.                
+MEMORY_TYPE_CLASS_MAP = {
+        MemoryType.OTHER:   MemoryRegion,
+        MemoryType.RAM:     RamRegion,
+        MemoryType.ROM:     RomRegion,
+        MemoryType.FLASH:   FlashRegion,
+        MemoryType.DEVICE:  DeviceRegion,
+    }
 
 ## @brief Memory map consisting of memory regions.
 class MemoryMap(object):
@@ -314,6 +307,16 @@ class MemoryMap(object):
         newRegion.map = self
         self._regions.append(newRegion)
         self._regions.sort()
+    
+    def remove_region(self, region):
+        """! @brief Removes a memory region from the map.
+        @param self
+        @param region The region to remove. The region to remove is matched by identity, not value,
+            so this parameter must be the exact object that you wish to remove from the map.
+        """
+        for i, r in enumerate(self._regions):
+            if r is region:
+                del self._regions[i]
 
     def get_boot_memory(self):
         for r in self._regions:

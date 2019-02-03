@@ -1,6 +1,6 @@
 # mbed CMSIS-DAP debugger
 # Copyright (c) 2015 Paul Osborne <osbpau@gmail.com>
-# Copyright (c) 2018 Arm Ltd
+# Copyright (c) 2018-2019 Arm Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ from pyocd.utility.conversion import (
     hex_decode,
     hex_encode,
 )
+from pyocd.utility.mask import align_up
 from pyocd.gdbserver.gdbserver import (
     escape,
     unescape,
@@ -41,6 +42,9 @@ import six
 
 # pylint: disable=invalid-name
 class TestConversionUtilities(object):
+    def test_byte_list_to_u32le_list_empty(self):
+        assert byte_list_to_u32le_list([]) == []
+        
     def test_byteListToU32leList(self):
         data = range(32)
         assert byte_list_to_u32le_list(data) == [
@@ -53,6 +57,19 @@ class TestConversionUtilities(object):
             0x1B1A1918,
             0x1F1E1D1C,
         ]
+    
+    def test_byte_list_to_u32le_list_unaligned(self):
+        assert byte_list_to_u32le_list([1]) == [0x00000001]
+        assert byte_list_to_u32le_list([1, 2, 3]) == [0x00030201]
+        assert byte_list_to_u32le_list([1, 2, 3, 4, 5]) == [0x04030201, 0x00000005]
+
+        assert byte_list_to_u32le_list([1], pad=0xcc) == [0xcccccc01]
+        assert byte_list_to_u32le_list([1, 2, 3], pad=0xdd) == [0xdd030201]
+        assert byte_list_to_u32le_list([1, 2, 3, 4, 5], pad=0xff) == [0x04030201, 0xffffff05]
+
+    def test_byte_list_to_u32le_list_bytearray(self):
+        assert byte_list_to_u32le_list(bytearray(b'abcd')) == [0x64636261]
+        assert byte_list_to_u32le_list(bytearray(b'a')) == [0x00000061]
 
     def test_u32leListToByteList(self):
         data = [
@@ -118,6 +135,15 @@ class TestConversionUtilities(object):
 
     def test_hexEncode(self):
         assert hex_encode(b'\xab\xcd\xef\x12\x34') == b'abcdef1234'
+
+    @pytest.mark.parametrize(("args", "result"), [
+            ((0, 1024), 0),
+            ((1, 1024), 1024),
+            ((0, 3), 0),
+            ((100, 3), 102),
+        ])
+    def test_align_up(self, args, result):
+        assert result == align_up(*args)
 
 # Characters that must be escaped.
 ESCAPEES = (0x23, 0x24, 0x2a, 0x7d) # == ('#', '$', '}', '*')

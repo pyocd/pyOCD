@@ -43,13 +43,13 @@ Each supported target enables debugging and flash programming a given MCU. A sin
 used for potentially multiple boards, or there may not be board with the target. Users can
 override the target type on the command line or when creating the `Session`.
 
-Each supported target is defined as a `CoreSightTarget` subclass held in a Python file in the
-`pyocd/target` directory. If the target has internal or connected flash, then a flash algo dict and
-possibly a `Flash` subclass will be paired with it in the same source file. The `Flash` subclass is
-only required if special flash programming semantics are needed, otherwise the base `Flash` class
-is automatically used. The flash algo dict and/or `Flash` subclass are set on flash memory regions
-when they are created in the memory map. Some device families have family subclasses under
-`pyocd/target/family`.
+Each supported target is defined as a `CoreSightTarget` subclass. Builtin targets are held in a
+Python file in the `pyocd/target/builtin` directory. If the target has internal or connected flash,
+then a flash algo dict and possibly a `Flash` subclass will be paired with it in the same source
+file. The `Flash` subclass is only required if special flash programming semantics are needed,
+otherwise the base `Flash` class is automatically used. The flash algo dict and/or `Flash` subclass
+are set on flash memory regions when they are created in the memory map. Some device families have
+family subclasses under `pyocd/target/family`.
 
 #### Board information
 

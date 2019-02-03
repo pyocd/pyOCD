@@ -76,6 +76,7 @@ parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-c", "--cmd-port"
 parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
 parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
+parser.add_argument("--pack", metavar="PATH", help="Path to a CMSIS Device Family Pack")
 parser.add_argument("-b", "--board", dest="board_id", default=None,
                     help="Connect to board by board ID. Use -l to list all connected boards. Only a unique part of the board ID needs to be provided.")
 parser.add_argument("-l", "--list", action="store_true", dest="list_all", default=False,
@@ -147,6 +148,7 @@ def main():
         session = ConnectHelper.session_with_chosen_probe(
                             config_file=args.config,
                             no_config=args.no_config,
+                            pack=args.pack,
                             board_id=args.board_id,
                             target_override=args.target_override,
                             frequency=args.frequency,

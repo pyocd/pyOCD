@@ -8,6 +8,7 @@ This example shows basic connection, loading a firmware binary, and some simple 
 
 ```python
 from pyocd.core.helpers import ConnectHelper
+from pyocd.flash.loader import FileProgrammer
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,7 @@ with ConnectHelper.session_with_chosen_probe() as session:
     flash = target.memory_map.get_boot_memory()
 
     # Load firmware into device.
-    flash.flash_binary("my_firmware.bin")
+    FileProgrammer(session).program("my_firmware.bin")
 
     # Reset, run.
     target.reset_and_halt()
