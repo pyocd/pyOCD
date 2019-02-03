@@ -64,7 +64,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
     test_count = 0
     test_pass_count = 0
 
-    def validate_basic_keys(data):
+    def validate_basic_keys(data, minor_version=0):
         did_pass = True
 
         print('pyocd_version', end=' ')
@@ -83,7 +83,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
             v = data['version']
             p = 'major' in v and 'minor' in v
         if p:
-            p = v['major'] == 1 and v['minor'] == 0
+            p = v['major'] == 1 and v['minor'] == minor_version
         if p:
             print("PASSED")
         else:
@@ -199,7 +199,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
     out = subprocess.check_output(['pyocd', 'json', '--targets'])
     data = json.loads(out)
     test_count += 2
-    if validate_basic_keys(data):
+    if validate_basic_keys(data, minor_version=1):
         test_pass_count += 1
     if validate_targets(data):
         test_pass_count += 1
