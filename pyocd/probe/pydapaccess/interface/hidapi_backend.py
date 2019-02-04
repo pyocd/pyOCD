@@ -71,7 +71,7 @@ class HidApiUSB(Interface):
         boards = []
 
         for deviceInfo in devices:
-            product_name = deviceInfo['product_string']
+            product_name = str(deviceInfo['product_string'])
             if (product_name.find("CMSIS-DAP") < 0):
                 # Skip non cmsis-dap devices
                 continue
