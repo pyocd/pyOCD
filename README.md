@@ -169,7 +169,7 @@ Eclipse using the following software update server addresses:
 - GNU MCU Eclipse: http://gnu-mcu-eclipse.sourceforge.net/updates
 - Embedded System Register Viewer: http://embsysregview.sourceforge.net/update
 
-In Eclipse, select the "Help -> Install New Software…" menu item. Then either click the "Add…"
+In Eclipse, select the "Help -> Install New Software..." menu item. Then either click the "Add..."
 button and fill in the name and URL from above (once for each site), or simply copy the URL into the
 field where it says "type or select a site". Then you can select the software to install and click
 Next to start the process.
