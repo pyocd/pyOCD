@@ -17,6 +17,7 @@
 
 from .interface import Interface
 from ..dap_access_api import DAPAccessIntf
+from ....utility.py3_helpers import to_str_safe
 import logging
 import os
 import six
@@ -71,7 +72,7 @@ class HidApiUSB(Interface):
         boards = []
 
         for deviceInfo in devices:
-            product_name = str(deviceInfo['product_string'])
+            product_name = to_str_safe(deviceInfo['product_string'])
             if (product_name.find("CMSIS-DAP") < 0):
                 # Skip non cmsis-dap devices
                 continue
