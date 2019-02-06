@@ -34,13 +34,13 @@ else:
 if PY3:
     def to_bytes_safe(v):
         if type(v) is str:
-            return v.encode('latin-1')
+            return v.encode('utf-8')
         else:
             return v
 else:
     def to_bytes_safe(v):
         if type(v) is unicode:
-            return v.encode('latin-1')
+            return v.encode('utf-8')
         else:
             return v
 
@@ -52,11 +52,11 @@ if PY3:
         if type(v) is str:
             return v
         else:
-            return v.decode('latin-1')
+            return v.decode('utf-8')
 else:
     def to_str_safe(v):
         if type(v) is unicode:
-            return v.decode('latin-1')
+            return v.encode('utf-8')
         else:
             return v
 
