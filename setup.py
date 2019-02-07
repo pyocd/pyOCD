@@ -1,19 +1,18 @@
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2012-2019 ARM Limited
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# pyOCD debugger
+# Copyright (c) 2012-2019 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import sys
 from setuptools import setup, find_packages
@@ -48,16 +47,16 @@ setup(
     # Allow installation on 2.7.9+, and 3.4+ even though we officially only support 3.6+.
     python_requires=">=2.7.9, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
     install_requires = [
-        'intelhex>=2.0,<3.0',
-        'six>=1.0,<2.0',
-        'enum34>=1.0,<2.0;python_version<"3.4"',
-        'intervaltree>=3.0.2,<4.0',
         'colorama',
+        'enum34>=1.0,<2.0;python_version<"3.4"',
+        'hidapi;platform_system=="Darwin"',
+        'intelhex>=2.0,<3.0',
+        'intervaltree>=3.0.2,<4.0',
         'pyelftools',
         'pyusb>=1.0.0b2,<2.0',
         'pywinusb>=0.4.0;platform_system=="Windows"',
-        'hidapi;platform_system=="Darwin"',
         'pyyaml>=5.1,<6.0',
+        'six>=1.0,<2.0',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -72,7 +71,7 @@ setup(
         "Topic :: Software Development :: Embedded Systems",
     ],
     extras_require={
-        'dissassembler': ['capstone']
+        'dissassembler': ['capstone'],
     },
     entry_points={
         'console_scripts': [
