@@ -109,6 +109,7 @@ class CmsisPack(object):
     def _parse_devices(self, parent):
         # Extract device description elements we care about.
         newState = _DeviceInfo(element=parent)
+        children = []
         for elem in parent:
             if elem.tag == 'memory':
                 newState.memories.append(elem)
@@ -116,6 +117,9 @@ class CmsisPack(object):
                 newState.algos.append(elem)
             elif elem.tag == 'debug':
                 newState.debugs.append(elem)
+            # Save any elements that we will recurse into.
+            elif elem.tag in ('subFamily', 'device', 'variant'):
+                children.append(elem)
 
         # Push the new device description state onto the stack.
         self._state_stack.append(newState)
@@ -134,7 +138,7 @@ class CmsisPack(object):
             self._devices.append(dev)
 
         # Recursively process subelements.
-        for elem in [e for e in parent if e.tag in ('subFamily', 'device', 'variant')]:
+        for elem in children:
             self._parse_devices(elem)
         
         self._state_stack.pop()
@@ -149,68 +153,65 @@ class CmsisPack(object):
                 families += [elem.attrib['DsubFamily']]
         return families
 
-    def _extract_memories(self):
+    def _extract_items(self, state_info_name, filter):
         map = {}
         for state in self._state_stack:
-            for elem in state.memories:
+            for elem in getattr(state, state_info_name):
                 try:
-                    if 'name' in elem.attrib:
-                        name = elem.attrib['name']
-                    elif 'id' in elem.attrib:
-                        name = elem.attrib['id']
-                    else:
-                        # Neither option for memory name was specified, so skip this region.
-                        LOG.debug("skipping unnamed memmory region")
-                        continue
-                
-                    map[name] = elem
-                except KeyError as err:
+                    filter(map, elem)
+                except (KeyError, ValueError) as err:
                     LOG.debug("error parsing CMSIS-Pack: " + str(err))
         return list(map.values())
 
+    def _extract_memories(self):
+        def filter(map, elem):
+            if 'name' in elem.attrib:
+                name = elem.attrib['name']
+            elif 'id' in elem.attrib:
+                name = elem.attrib['id']
+            else:
+                # Neither option for memory name was specified, so skip this region.
+                LOG.debug("skipping unnamed memmory region")
+                return
+        
+            map[name] = elem
+        
+        return self._extract_items('memories', filter)
+
     def _extract_algos(self):
-        algos = {}
-        for state in self._state_stack:
-            for elem in state.algos:
-                try:
-                    # We only support Keil FLM style flash algorithms (for now).
-                    if ('style' in elem.attrib) and (elem.attrib['style'] != 'Keil'):
-                        LOG.debug("skipping non-Keil flash algorithm")
-                        continue
-                
-                    # Both start and size are required.
-                    start = int(elem.attrib['start'], base=0)
-                    size = int(elem.attrib['size'], base=0)
-                    memrange = (start, size)
-                
-                    # An algo with the same range as an existing algo will override the previous.
-                    algos[memrange] = elem
-                except (KeyError, ValueError) as err:
-                    # Ignore errors.
-                    LOG.debug("error parsing CMSIS-Pack: " + str(err))
-        return list(algos.values())
+        def filter(map, elem):
+            # We only support Keil FLM style flash algorithms (for now).
+            if ('style' in elem.attrib) and (elem.attrib['style'] != 'Keil'):
+                LOG.debug("skipping non-Keil flash algorithm")
+                return None, None
+    
+            # Both start and size are required.
+            start = int(elem.attrib['start'], base=0)
+            size = int(elem.attrib['size'], base=0)
+            memrange = (start, size)
+    
+            # An algo with the same range as an existing algo will override the previous.
+            map[memrange] = elem
+        
+        return self._extract_items('algos', filter)
     
     def _extract_debugs(self):
-        debugs = {}
-        for state in self._state_stack:
-            for elem in state.debugs:
-                try:
-                    if 'Pname' in elem.attrib:
-                        name = elem.attrib['Pname']
-                        unit = elem.attrib.get('Punit', 0)
-                        name += str(unit)
-                        
-                        if '*' in debugs:
-                            debug = {}
-                        debugs[name] = elem
-                    else:
-                        # No processor name was provided, so this debug element applies to
-                        # all processors.
-                        debugs = {'*': elem}
-                except (KeyError, ValueError) as err:
-                    # Ignore errors.
-                    LOG.debug("error parsing CMSIS-Pack: " + str(err))
-        return list(debugs.values())
+        def filter(map, elem):
+            if 'Pname' in elem.attrib:
+                name = elem.attrib['Pname']
+                unit = elem.attrib.get('Punit', 0)
+                name += str(unit)
+            
+                if '*' in map:
+                    map.clear()
+                map[name] = elem
+            else:
+                # No processor name was provided, so this debug element applies to
+                # all processors.
+                map.clear()
+                map['*'] = elem
+        
+        return self._extract_items('debugs', filter)
     
     def get_file(self, filename):
         """! @brief Return file-like object for a file within the pack.

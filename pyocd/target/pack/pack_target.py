@@ -18,7 +18,7 @@ from __future__ import print_function
 import logging
 import six
 
-from .pack import (CmsisPack, MalformedCmsisPackError)
+from .cmsis_pack import (CmsisPack, MalformedCmsisPackError)
 from ..family import FAMILIES
 from .. import TARGET
 from ...core.coresight_target import CoreSightTarget
