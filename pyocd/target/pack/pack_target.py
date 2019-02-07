@@ -18,7 +18,7 @@ from __future__ import print_function
 import logging
 import six
 
-from .pack import (CmsisPack, MalformedCmsisPackError)
+from .cmsis_pack import (CmsisPack, MalformedCmsisPackError)
 from ..family import FAMILIES
 from .. import TARGET
 from ...core.coresight_target import CoreSightTarget
@@ -57,7 +57,9 @@ def _find_family_class(dev):
         # Scan each level of families
         for familyName in dev.families:
             for regex in familyInfo.matches:
-                if regex.fullmatch(familyName):
+                # Require the regex to match the entire family name.
+                match = regex.match(familyName)
+                if match and match.span() == (0, len(familyName)):
                     return familyInfo.klass
     else:
         # Default target superclass.
