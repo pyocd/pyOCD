@@ -52,6 +52,7 @@ setup(
         'hidapi;platform_system=="Darwin"',
         'intelhex>=2.0,<3.0',
         'intervaltree>=3.0.2,<4.0',
+        'prettytable',
         'pyelftools',
         'pyusb>=1.0.0b2,<2.0',
         'pywinusb>=0.4.0;platform_system=="Windows"',

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,10 +23,13 @@ import argparse
 import json
 import colorama
 import os
+import prettytable
 
 from . import __version__
+from .core.session import Session
 from .core.helpers import ConnectHelper
 from .target import TARGET
+from .target.pack import pack_target
 from .gdbserver import GDBServer
 from .utility.cmdline import (
     split_command_line,
@@ -85,6 +88,7 @@ def flatten_args(args):
     return [item for sublist in args for item in sublist]
 
 def int_base_0(x):
+    """! @brief Converts a string to an int with support for base prefixes."""
     return int(x, base=0)
 
 class PyOCDTool(object):
@@ -96,19 +100,9 @@ class PyOCDTool(object):
         self._log_level_delta = 0
         self._parser = None
         self.echo_msg = None
-        
-        self._commands = {
-            'list':         self.do_list,
-            'json':         self.do_json,
-            'flash':        self.do_flash,
-            'erase':        self.do_erase,
-            'gdbserver':    self.do_gdbserver,
-            'gdb':          self.do_gdbserver,
-            'commander':    self.do_commander,
-            'cmd':          self.do_commander,
-            }
 
     def build_parser(self):
+        """! @brief Construct the command line parser with all subcommands and options."""
         # Create top level argument parser.
         parser = argparse.ArgumentParser(
             description='PyOCD debug tools for Arm Cortex devices')
@@ -267,17 +261,23 @@ class PyOCDTool(object):
         return parser
 
     def _setup_logging(self):
+        """! @brief Configure the logging module.
+        
+        The quiet and verbose argument counts are used to set the log verbosity level.
+        """
         self._log_level_delta = (self._args.quiet * 10) - (self._args.verbose * 10)
         level = max(1, self._default_log_level + self._log_level_delta)
         logging.basicConfig(level=level, format=LOG_FORMAT)
     
     def _increase_logging(self, loggers):
+        """! @brief Increase logging level for a set of subloggers."""
         if self._log_level_delta <= 0:
             level = max(1, self._default_log_level + self._log_level_delta - 10)
             for logger in loggers:
                 logging.getLogger(logger).setLevel(level)
 
     def run(self, args=None):
+        """! @brief Main entry point for command line processing."""
         try:
             self._args = self.build_parser().parse_args(args)
             
@@ -297,7 +297,7 @@ class PyOCDTool(object):
             DAPAccess.set_args(self._args.daparg)
 
             # Invoke subcommand.
-            self._commands[self._args.cmd]()
+            self._COMMANDS[self._args.cmd](self)
 
             # Successful exit.
             return 0
@@ -308,6 +308,7 @@ class PyOCDTool(object):
             return 1
     
     def show_options_help(self):
+        """! @brief Display help for user options."""
         for infoName in sorted(options.OPTIONS_INFO.keys()):
             info = options.OPTIONS_INFO[infoName]
             if isinstance(info.type, tuple):
@@ -319,38 +320,90 @@ class PyOCDTool(object):
                 + colorama.Style.RESET_ALL + " {help}").format(
                 name=info.name, typename=typename, help=info.help))
     
+    def _get_pretty_table(self, fields):
+        """! @brief Returns a PrettyTable object with formatting options set."""
+        pt = prettytable.PrettyTable(fields)
+        pt.align = 'l'
+        pt.border = False
+        pt.header_style = "upper"
+        return pt
+    
     def do_list(self):
+        """! @brief Handle 'list' subcommand."""
         # Default to listing probes.
         if (self._args.probes, self._args.targets, self._args.boards) == (False, False, False):
             self._args.probes = True
         
+        # Create a session with no device so we load any config.
+        session = Session(None,
+                            project_dir=self._args.project_dir,
+                            config_file=self._args.config,
+                            no_config=self._args.no_config,
+                            pack=self._args.pack,
+                            **convert_session_options(self._args.options)
+                            )
+        
         if self._args.probes:
             ConnectHelper.list_connected_probes()
         elif self._args.targets:
-            obj = ListGenerator.list_targets(self._args.pack)
-            for info in obj['targets']:
-                print("{name}\t{vendor}\t{part_number}".format(**info))
+            # Create targets from provided CMSIS pack.
+            if ('pack' in session.options) and (session.options['pack'] is not None):
+                pack_target.populate_targets_from_pack(session.options['pack'])
+
+            obj = ListGenerator.list_targets()
+            pt = self._get_pretty_table(["Name", "Vendor", "Part Number", "Families", "Source"])
+            for info in sorted(obj['targets'], key=lambda i: i['name']):
+                pt.add_row([
+                            info['name'],
+                            info['vendor'],
+                            info['part_number'],
+                            ', '.join(info['part_families']),
+                            info['source'],
+                            ])
+            print(pt)
         elif self._args.boards:
             obj = ListGenerator.list_boards()
-            for info in obj['boards']:
-                print("{id}\t{name}\t{target}\t{binary}".format(**info))
+            pt = self._get_pretty_table(["ID", "Name", "Target", "Test Binary"])
+            for info in sorted(obj['boards'], key=lambda i: i['id']):
+                pt.add_row([
+                            info['id'],
+                            info['name'],
+                            info['target'],
+                            info['binary']
+                            ])
+            print(pt)
     
     def do_json(self):
+        """! @brief Handle 'json' subcommand."""
         # Default to listing probes.
         if (self._args.probes, self._args.targets, self._args.boards) == (False, False, False):
             self._args.probes = True
+        
+        # Create a session with no device so we load any config.
+        session = Session(None,
+                            project_dir=self._args.project_dir,
+                            config_file=self._args.config,
+                            no_config=self._args.no_config,
+                            pack=self._args.pack,
+                            **convert_session_options(self._args.options)
+                            )
         
         if self._args.probes:
             obj = ListGenerator.list_probes()
             print(json.dumps(obj, indent=4))
         elif self._args.targets:
-            obj = ListGenerator.list_targets(self._args.pack)
+            # Create targets from provided CMSIS pack.
+            if ('pack' in session.options) and (session.options['pack'] is not None):
+                pack_target.populate_targets_from_pack(session.options['pack'])
+
+            obj = ListGenerator.list_targets()
             print(json.dumps(obj, indent=4))
         elif self._args.boards:
             obj = ListGenerator.list_boards()
             print(json.dumps(obj, indent=4))
     
     def do_flash(self):
+        """! @brief Handle 'flash' subcommand."""
         self._increase_logging(["pyocd.tools.loader", "pyocd", "pyocd.flash", "pyocd.flash.flash", "pyocd.flash.flash_builder"])
         
         session = ConnectHelper.session_with_chosen_probe(
@@ -376,6 +429,7 @@ class PyOCDTool(object):
                                 file_format=self._args.format)
     
     def do_erase(self):
+        """! @brief Handle 'erase' subcommand."""
         self._increase_logging(["pyocd.tools.loader", "pyocd"])
         
         session = ConnectHelper.session_with_chosen_probe(
@@ -398,8 +452,8 @@ class PyOCDTool(object):
             addresses = flatten_args(self._args.addresses)
             eraser.erase(addresses)
 
-    ## @brief Handle OpenOCD commands for compatibility.
     def _process_commands(self, commands):
+        """! @brief Handle OpenOCD commands for compatibility."""
         if commands is None:
             return
         for cmd_list in commands:
@@ -424,11 +478,13 @@ class PyOCDTool(object):
                 pass
 
     def server_listening(self, server):
+        """! @brief Callback invoked when the gdbserver starts listening on its port."""
         if self.echo_msg is not None:
             print(self.echo_msg, file=sys.stderr)
             sys.stderr.flush()
     
     def do_gdbserver(self):
+        """! @brief Handle 'gdbserver' subcommand."""
         self._process_commands(self._args.commands)
 
         gdbs = []
@@ -479,6 +535,7 @@ class PyOCDTool(object):
             raise
     
     def do_commander(self):
+        """! @brief Handle 'commander' subcommand."""
         # Flatten commands list then extract primary command and its arguments.
         if self._args.commands is not None:
             cmds = []
@@ -489,6 +546,18 @@ class PyOCDTool(object):
 
         # Enter REPL.
         PyOCDCommander(self._args, cmds).run()
+
+    ## @brief Table of handler methods for subcommands.
+    _COMMANDS = {
+        'list':         do_list,
+        'json':         do_json,
+        'flash':        do_flash,
+        'erase':        do_erase,
+        'gdbserver':    do_gdbserver,
+        'gdb':          do_gdbserver,
+        'commander':    do_commander,
+        'cmd':          do_commander,
+        }
 
 def main():
     sys.exit(PyOCDTool().run())

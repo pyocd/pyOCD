@@ -28,6 +28,11 @@ from ..target.pack import pack_target
 class ListGenerator(object):
     @staticmethod
     def list_probes():
+        """! @brief Generate dictionary with info about the connected debug probes.
+        
+        Output version history:
+        - 1.0, initial version
+        """
         try:
             all_mbeds = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
             status = 0
@@ -65,6 +70,11 @@ class ListGenerator(object):
 
     @staticmethod
     def list_boards():
+        """! @brief Generate dictionary with info about supported boards.
+        
+        Output version history:
+        - 1.0, initial version
+        """
         boards = []
         obj = {
             'pyocd_version' : __version__,
@@ -85,18 +95,21 @@ class ListGenerator(object):
         return obj
 
     @staticmethod
-    def list_targets(pack):
+    def list_targets():
+        """! @brief Generate dictionary with info about all supported targets.
+        
+        Output version history:
+        - 1.0, initial version
+        - 1.1, added part_families
+        - 1.2, added source
+        """
         targets = []
         obj = {
             'pyocd_version' : __version__,
-            'version' : { 'major' : 1, 'minor' : 1 },
+            'version' : { 'major' : 1, 'minor' : 2 },
             'status' : 0,
             'targets' : targets
             }
-
-        # Load CMSIS-Pack.
-        if pack is not None:
-            pack_target.populate_targets_from_pack(pack)
 
         for name in TARGET.keys():
             s = Session(None) # Create empty session
@@ -106,6 +119,7 @@ class ListGenerator(object):
                 'vendor' : t.vendor,
                 'part_families' : t.part_families,
                 'part_number' : t.part_number,
+                'source': 'pack' if hasattr(t, '_pack_device') else 'builtin',
                 }
             if t._svd_location is not None and IS_CMSIS_SVD_AVAILABLE:
                 if t._svd_location.is_local:
