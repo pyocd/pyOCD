@@ -24,7 +24,7 @@ from ..utility.progress import print_progress
 from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..trace.swv import SWVReader
-from .gdb_socket import GDBSocket
+from ..utility.sockets import ListenerSocket
 from .gdb_websocket import GDBWebSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
@@ -314,7 +314,7 @@ class GDBServer(threading.Thread):
         self.current_thread_id = 0
         self.first_run_after_reset_or_flash = True
         if self.wss_server is None:
-            self.abstract_socket = GDBSocket(self.port, self.packet_size)
+            self.abstract_socket = ListenerSocket(self.port, self.packet_size)
             if self.serve_local_only:
                 self.abstract_socket.host = 'localhost'
             self.abstract_socket.init()
