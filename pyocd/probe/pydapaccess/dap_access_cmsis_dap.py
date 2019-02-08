@@ -24,7 +24,7 @@ import six
 from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
-from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2, WS_BACKEND)
+from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2)
 from .cmsis_dap_core import (Command, Pin, Capabilities, DAP_TRANSFER_OK,
                              DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT,
                              DAPSWOTransport, DAPSWOMode, DAPSWOControl,
@@ -50,11 +50,8 @@ LOG_PACKET_BUILDS = False
 
 def _get_interfaces():
     """Get the connected USB devices"""
-    # Get CMSIS-DAPv2 interfaces.
-    if DAPSettings.use_ws:
-        interfaces = INTERFACE[WS_BACKEND].get_all_connected_interfaces(DAPSettings.ws_host, DAPSettings.ws_port)
-    else:
-        interfaces = INTERFACE[USB_BACKEND].get_all_connected_interfaces()
+    # Get CMSIS-DAPv1 interfaces.
+    interfaces = INTERFACE[USB_BACKEND].get_all_connected_interfaces()
     
     # Add in CMSIS-DAPv2 interfaces.
     interfaces += INTERFACE[USB_BACKEND_V2].get_all_connected_interfaces()
@@ -467,7 +464,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @staticmethod
     def set_args(arg_list):
-        # Example: arg_list =['use_ws=True', 'ws_host=localhost', 'ws_port=8081']
+        # Example: arg_list =['limit_packets=True']
         arg_pattern = re.compile("([^=]+)=(.*)")
         if arg_list:
             for arg in arg_list:

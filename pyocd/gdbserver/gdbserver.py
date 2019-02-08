@@ -25,7 +25,6 @@ from ..utility.compatibility import (iter_single_bytes, to_bytes_safe, to_str_sa
 from ..utility.server import StreamServer
 from ..trace.swv import SWVReader
 from ..utility.sockets import ListenerSocket
-from .gdb_websocket import GDBWebSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
 from ..debug.cache import MemoryAccessError
@@ -268,15 +267,9 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.log = logging.getLogger('gdbserver')
         self.abstract_socket = None
-        port_urlWSS = session.options.get('gdbserver_port', 3333)
-        if isinstance(port_urlWSS, str) is True:
-            self.port = 0
-            self.wss_server = port_urlWSS
-        else:
-            self.port = port_urlWSS
-            if self.port != 0:
-                self.port += self.core
-            self.wss_server = None
+        self.port = session.options.get('gdbserver_port', 3333)
+        if self.port != 0:
+            self.port += self.core
         self.telnet_port = session.options.get('telnet_port', 4444)
         if self.telnet_port != 0:
             self.telnet_port += self.core
@@ -313,15 +306,13 @@ class GDBServer(threading.Thread):
         self.did_init_thread_providers = False
         self.current_thread_id = 0
         self.first_run_after_reset_or_flash = True
-        if self.wss_server is None:
-            self.abstract_socket = ListenerSocket(self.port, self.packet_size)
-            if self.serve_local_only:
-                self.abstract_socket.host = 'localhost'
-            self.abstract_socket.init()
-            # Read back bound port in case auto-assigned (port 0)
-            self.port = self.abstract_socket.port
-        else:
-            self.abstract_socket = GDBWebSocket(self.wss_server)
+
+        self.abstract_socket = ListenerSocket(self.port, self.packet_size)
+        if self.serve_local_only:
+            self.abstract_socket.host = 'localhost'
+        self.abstract_socket.init()
+        # Read back bound port in case auto-assigned (port 0)
+        self.port = self.abstract_socket.port
 
         self.target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
 

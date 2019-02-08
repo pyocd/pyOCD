@@ -17,8 +17,4 @@
 
 class DAPSettings():
 	
-	use_ws = False
-	ws_host = "localhost"
-	ws_port = 8081
-
 	limit_packets = False
