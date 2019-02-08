@@ -896,15 +896,10 @@ class GDBServer(threading.Thread):
             self.log.debug("GDB getMem: addr=%x len=%x", addr, length)
 
         try:
-            val = b''
             mem = self.target_context.read_memory_block8(addr, length)
             # Flush so an exception is thrown now if invalid memory was accesses
             self.target_context.flush()
-            for x in mem:
-                if x >= 0x10:
-                    val += six.b(hex(x)[2:4])
-                else:
-                    val += b'0' + six.b(hex(x)[2:3])
+            val = hex_encode(bytearray(mem))
         except exceptions.TransferError:
             self.log.debug("get_memory failed at 0x%x" % addr)
             val = b'E01' #EPERM
