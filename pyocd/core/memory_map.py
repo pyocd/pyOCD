@@ -38,16 +38,20 @@ def check_range(start, end=None, length=None, range=None):
         end = start + length - 1
     return start, end
 
-## @brief A range of memory within a region.
 @total_ordering
 class MemoryRangeBase(object):
-    def __init__(self, start=0, end=0, length=0, region=None):
+    """! @brief Base class for a range of memory.
+    
+    This base class provides the basic address range support and methods to test for containment
+    or intersection with another range.
+    """
+    def __init__(self, start=0, end=0, length=None):
         self._start = start
-        if length != 0:
+        if length is not None:
             self._end = self._start + length - 1
         else:
             self._end = end
-        self._region = region
+        assert self._end >= (self._start - 1)
 
     @property
     def start(self):
@@ -61,37 +65,27 @@ class MemoryRangeBase(object):
     def length(self):
         return self._end - self._start + 1
 
-    @property
-    def region(self):
-        return self._region
-
     def contains_address(self, address):
         return (address >= self.start) and (address <= self.end)
 
-    ##
-    # @return Whether the given range is fully contained by the region.
     def contains_range(self, start, end=None, length=None, range=None):
+        """! @return Whether the given range is fully contained by the region."""
         start, end = check_range(start, end, length, range)
         return self.contains_address(start) and self.contains_address(end)
 
-    ##
-    # @return Whether the region is fully within the bounds of the given range.
     def contained_by_range(self, start, end=None, length=None, range=None):
+        """! @return Whether the region is fully within the bounds of the given range."""
         start, end = check_range(start, end, length, range)
         return start <= self.start and end >= self.end
 
-    ##
-    # @return Whether the region and the given range intersect at any point.
     def intersects_range(self, start, end=None, length=None, range=None):
+        """! @return Whether the region and the given range intersect at any point."""
         start, end = check_range(start, end, length, range)
         return (start <= self.start and end >= self.start) or (start <= self.end and end >= self.end) \
             or (start >= self.start and end <= self.end)
     
     def __hash__(self):
-        h = hash("%08x%08x%08x" % (self.start, self.end, self.length))
-        if self.region is not None:
-            h ^= hash(self.region)
-        return h
+        return hash("%08x%08x%08x" % (self.start, self.end, self.length))
     
     def __eq__(self, other):
         return self.start == other.start and self.length == other.length
@@ -99,22 +93,32 @@ class MemoryRangeBase(object):
     def __lt__(self, other):
         return self.start < other.start or (self.start == other.start and self.length == other.length)
 
-## @brief A range of memory within a region.
 class MemoryRange(MemoryRangeBase):
-    def __init__(self, start=0, end=0, length=0, region=None):
+    """! @brief A range of memory optionally tied to a region."""
+    def __init__(self, start=0, end=0, length=None, region=None):
         super(MemoryRange, self).__init__(start=start, end=end, length=length)
         self._region = region
 
     @property
     def region(self):
         return self._region
+    
+    def __hash__(self):
+        h = super(MemoryRange, self).__hash__()
+        if self.region is not None:
+            h ^= hash(self.region)
+        return h
+    
+    def __eq__(self, other):
+        return self.start == other.start and self.length == other.length and self.region == other.region
 
     def __repr__(self):
         return "<%s@0x%x start=0x%x end=0x%x length=0x%x region=%s>" % (self.__class__.__name__,
             id(self), self.start, self.end, self.length, self.region)
 
-## @brief One contiguous range of memory.
 class MemoryRegion(MemoryRangeBase):
+    """! @brief One contiguous range of memory."""
+    
     DEFAULT_ATTRS = {
         'name': lambda r: r.attributes.get('name', r.type.name.lower()),
         'access': 'rwx',
@@ -138,8 +142,10 @@ class MemoryRegion(MemoryRangeBase):
         'is_secure': lambda r: 's' in r.access,
         }
     
-    def __init__(self, type=MemoryType.OTHER, start=0, end=0, length=0, **attrs):
+    def __init__(self, type=MemoryType.OTHER, start=0, end=0, length=None, **attrs):
         """! Memory region constructor.
+        
+        Memory regions are required to have non-zero lengths, unlike memory ranges.
         
         Optional region attributes passed as keyword arguments:
         - name: If a name is not provided, the name is set to the region type in lowercase.
@@ -153,6 +159,7 @@ class MemoryRegion(MemoryRangeBase):
         - is_testable
         """
         super(MemoryRegion, self).__init__(start=start, end=end, length=length)
+        assert self.length > 0, "Memory regions must have a non-zero length."
         assert isinstance(type, MemoryType)
         self._map = None
         self._type = type
@@ -201,20 +208,20 @@ class MemoryRegion(MemoryRangeBase):
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access)
 
-## @brief Contiguous region of RAM.
 class RamRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, **attrs):
+    """! @brief Contiguous region of RAM."""
+    def __init__(self, start=0, end=0, length=None, **attrs):
         super(RamRegion, self).__init__(type=MemoryType.RAM, start=start, end=end, length=length, **attrs)
 
-## @brief Contiguous region of ROM.
 class RomRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, **attrs):
+    """! @brief Contiguous region of ROM."""
+    def __init__(self, start=0, end=0, length=None, **attrs):
         attrs['access'] = attrs.get('access', 'rx')
         super(RomRegion, self).__init__(type=MemoryType.ROM, start=start, end=end, length=length, **attrs)
 
-## @brief Contiguous region of flash memory.
 class FlashRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, **attrs):
+    """! @brief Contiguous region of flash memory."""
+    def __init__(self, start=0, end=0, length=None, **attrs):
         # Import locally to prevent import loops.
         from ..flash.flash import Flash
 
@@ -279,15 +286,15 @@ class FlashRegion(MemoryRegion):
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access, self.blocksize)
 
-## @brief Device or peripheral memory.
 class DeviceRegion(MemoryRegion):
-    def __init__(self, start=0, end=0, length=0, **attrs):
+    """! @brief Device or peripheral memory."""
+    def __init__(self, start=0, end=0, length=None, **attrs):
         attrs['access'] = attrs.get('access', 'rw') # By default flash is not executable.
         attrs['is_cacheable'] = False
         attrs['is_testable'] = False
         super(DeviceRegion, self).__init__(type=MemoryType.DEVICE, start=start, end=end, length=length, **attrs)
 
-## @brief Map from memory type to class.                
+## @brief Map from memory type to class.         
 MEMORY_TYPE_CLASS_MAP = {
         MemoryType.OTHER:   MemoryRegion,
         MemoryType.RAM:     RamRegion,
@@ -296,8 +303,8 @@ MEMORY_TYPE_CLASS_MAP = {
         MemoryType.DEVICE:  DeviceRegion,
     }
 
-## @brief Memory map consisting of memory regions.
 class MemoryMap(object):
+    """! @brief Memory map consisting of memory regions."""
     def __init__(self, *moreRegions):
         self._regions = []
         self.add_regions(*moreRegions)
@@ -374,8 +381,8 @@ class MemoryMap(object):
             return r
         return None
 
-    ## @brief Enable iteration over the memory map.
     def __iter__(self):
+        """! @brief Enable iteration over the memory map."""
         return iter(self._regions)
 
     def __repr__(self):

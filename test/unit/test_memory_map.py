@@ -75,7 +75,19 @@ class TestCheckRange:
         with pytest.raises(AssertionError):
             check_range(0x100, length=None)
 
-class TestRangeCompare:
+class TestRange:
+    def test_empty_range_1(self):
+        range = MemoryRange(start=0x1000, length=0)
+        assert range.start == 0x1000
+        assert range.end == 0xfff
+        assert range.length == 0
+    
+    def test_empty_range_2(self):
+        range = MemoryRange(start=0x1000, end=0xfff)
+        assert range.start == 0x1000
+        assert range.end == 0xfff
+        assert range.length == 0
+    
     def test_eq(self):
         assert MemoryRange(0, length=1000) == MemoryRange(0, length=1000)
     
@@ -122,6 +134,14 @@ class TestHash:
 
 # MemoryRegion test cases.
 class TestMemoryRegion:
+    def test_empty_region_1(self):
+        with pytest.raises(AssertionError):
+            rgn = MemoryRegion(start=0x1000, length=0)
+    
+    def test_empty_region_2(self):
+        with pytest.raises(AssertionError):
+            rgn = MemoryRegion(start=0x1000, end=0xfff)
+    
     def test_flash_attrs(self, flash):
         assert flash.type == MemoryType.FLASH
         assert flash.start == 0
