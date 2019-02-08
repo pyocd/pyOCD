@@ -909,7 +909,7 @@ class GDBServer(threading.Thread):
             self.log.debug("get_memory failed at 0x%x" % addr)
             val = b'E01' #EPERM
         except MemoryAccessError as e:
-            logging.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            self.log.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
         return self.create_rsp_packet(val)
 
@@ -936,7 +936,7 @@ class GDBServer(threading.Thread):
             self.log.debug("write_memory failed at 0x%x" % addr)
             resp = b'E01' #EPERM
         except MemoryAccessError as e:
-            logging.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            self.log.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
@@ -963,7 +963,7 @@ class GDBServer(threading.Thread):
             self.log.debug("write_memory failed at 0x%x" % addr)
             resp = b'E01' #EPERM
         except MemoryAccessError as e:
-            logging.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            self.log.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
