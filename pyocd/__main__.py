@@ -19,7 +19,6 @@
 from __future__ import print_function
 import sys
 import logging
-import traceback
 import argparse
 import json
 import colorama
@@ -375,7 +374,7 @@ class PyOCDTool(object):
             programmer.program(self._args.file,
                                 base_address=self._args.base_address,
                                 skip=self._args.skip,
-                                format=self._args.format)
+                                file_format=self._args.format)
     
     def do_erase(self):
         self._increase_logging(["pyocd.tools.loader", "pyocd"])

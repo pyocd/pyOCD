@@ -148,7 +148,7 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
-        programmer.program(binary_file, format='bin', base_address=boot_start_addr)
+        programmer.program(binary_file, file_format='bin', base_address=boot_start_addr)
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")
@@ -159,7 +159,7 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Intel Hex File Load ------")
         programmer = FileProgrammer(session)
-        programmer.program(temp_test_hex_name, format='hex')
+        programmer.program(temp_test_hex_name, file_format='hex')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")

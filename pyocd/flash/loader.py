@@ -81,12 +81,12 @@ class FileProgrammer(object):
             'hex': self._program_hex,
             }
     
-    def program(self, file_or_path, format=None, **kwargs):
+    def program(self, file_or_path, file_format=None, **kwargs):
         """! @brief Program a file into flash.
         
         @param self
         @param file_or_path Either a string that is a path to a file, or a file-like object.
-        @param format Optional file format name, one of "bin", "hex", "elf", "axf". If not provided,
+        @param file_format Optional file format name, one of "bin", "hex", "elf", "axf". If not provided,
             the file's extension will be used. If a file object is passed for _file_or_path_ then
             this parameter must be used to set the format.
         @param kwargs Optional keyword arguments for format-specific parameters.
@@ -98,22 +98,22 @@ class FileProgrammer(object):
             base address.
         
         @exception ArgumentError Invalid argument value, for instance providing a file object but
-            not setting _format.
+            not setting file_format.
         """
         if not file_or_path:
             raise ArgumentError("No file provided")
         
         # If no format provided, use the file's extension.
         isPath = isinstance(file_or_path, six.string_types)
-        if not format:
+        if not file_format:
             if isPath:
-                format = os.path.splitext(file_or_path)[1][1:]
+                file_format = os.path.splitext(file_or_path)[1][1:]
             else:
                 raise ArgumentError("file object provided but no format is set")
         
         # Check the format is one we understand.
-        if format not in self._format_handlers:
-            raise ArgumentError("unknown file format '%s'" % format)
+        if file_format not in self._format_handlers:
+            raise ArgumentError("unknown file format '%s'" % file_format)
             
         self._loader = FlashLoader(self._session,
                                     progress=self._progress,
@@ -123,7 +123,7 @@ class FileProgrammer(object):
             # Open the file if a path was provided.
             if isPath:
                 mode = 'rb'
-                if format == 'hex':
+                if file_format == 'hex':
                     # hex file must be read as plain text file
                     mode = 'r'
                 file_obj = open(file_or_path, mode)
@@ -131,7 +131,7 @@ class FileProgrammer(object):
                 file_obj = file_or_path
 
             # Pass to the format-specific programmer.
-            self._format_handlers[format](file_obj, **kwargs)
+            self._format_handlers[file_format](file_obj, **kwargs)
             self._loader.commit()
         finally:
             if isPath:
