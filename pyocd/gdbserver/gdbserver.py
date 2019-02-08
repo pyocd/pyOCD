@@ -294,7 +294,6 @@ class GDBServer(threading.Thread):
         self._is_extended_remote = False
         self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
         self.flash_loader = None
-        self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
         self.detach_event = threading.Event()
         if core is None:
@@ -505,8 +504,6 @@ class GDBServer(threading.Thread):
                     sleep(0.1)
                     continue
 
-                self.lock.acquire()
-
                 if len(packet) != 0:
                     # decode and prepare resp
                     resp, detach = self.handle_message(packet)
@@ -519,15 +516,12 @@ class GDBServer(threading.Thread):
                         self.abstract_socket.close()
                         self.packet_io.stop()
                         self.packet_io = None
-                        self.lock.release()
                         if self.persist:
                             self._cleanup_for_next_connection()
                             break
                         else:
                             self.shutdown_event.set()
                             return
-
-                self.lock.release()
 
             except Exception as e:
                 self.log.error("Unexpected exception: %s", e)
