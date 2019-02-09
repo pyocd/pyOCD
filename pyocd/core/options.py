@@ -25,6 +25,7 @@ OPTIONS_INFO = {
     'frequency': OptionInfo('frequency', int, "SWD/JTAG frequency in Hertz."),
     'halt_on_connect': OptionInfo('halt_on_connect', bool, "Whether to halt CPU when connecting."),
     'no_config': OptionInfo('no_config', bool, "Do not use default config file."),
+    'project_dir': OptionInfo('project_dir', str, "Path to the session's project directory. Defaults to the working directory when the pyocd tool was executed."),
     'resume_on_disconnect': OptionInfo('resume_on_disconnect', bool, "Whether to run target on disconnect."),
     'target_override': OptionInfo('target_override', str, "Name of target to use instead of default."),
     'test_binary': OptionInfo('test_binary', str, "Name of test firmware binary."),

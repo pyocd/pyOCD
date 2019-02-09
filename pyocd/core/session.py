@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -77,6 +77,13 @@ class Session(object):
         self._options = options or {}
         self._options.update(kwargs)
         
+        # Init project directory.
+        if self._options.get('project_dir', None) is None:
+            self._project_dir = os.getcwd()
+        else:
+            self._project_dir = os.path.abspath(os.path.expanduser(self._options['project_dir']))
+        LOG.debug("Project directory: %s", self.project_dir)
+        
         # Bail early if we weren't provided a probe.
         if probe is None:
             self._board = None
@@ -87,7 +94,7 @@ class Session(object):
         probesConfig = config.pop('probes', None)
         self._options.update(config)
 
-        # Pick up any config file options for this board.
+        # Pick up any config file options for this probe.
         if probesConfig is not None:
             for uid, settings in probesConfig.items():
                 if str(uid).lower() in probe.unique_id.lower():
@@ -103,17 +110,31 @@ class Session(object):
         if not self._options.get('no_config', False):
             configPath = self._options.get('config_file', None)
             
-            # Look for default config files.
+            # Look for default config files if a path wasn't provided.
             if configPath is None:
-                if os.path.isfile("pyocd.yaml"):
-                    configPath = "pyocd.yaml"
-                elif os.path.isfile("pyocd.yml"):
-                    configPath = "pyocd.yml"
+                # The complete set of default config file paths we check.
+                possiblePaths = [
+                                os.path.join(self.project_dir, "pyocd.yaml"),
+                                os.path.join(self.project_dir, "pyocd.yml"),
+                                os.path.join(self.project_dir, ".pyocd.yaml"),
+                                os.path.join(self.project_dir, ".pyocd.yml"),
+                                ]
+                
+                for thisPath in possiblePaths:
+                    if os.path.isfile(thisPath):
+                        configPath = thisPath
+                        break
+            # Use the config file path passed in options, which may be absolute, relative to the
+            # home directory, or relative to the project directory.
+            else:
+                configPath = os.path.expanduser(configPath)
+                if not os.path.isabs(configPath):
+                    configPath = os.path.join(self.project_dir, configPath)
                     
             if isinstance(configPath, six.string_types):
                 try:
                     with open(configPath, 'r') as configFile:
-                        LOG.debug("loading config from '%s'", configPath)
+                        LOG.debug("Loading config from '%s'", configPath)
                         return yaml.safe_load(configFile)
                 except IOError as err:
                     LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
@@ -139,6 +160,10 @@ class Session(object):
     @property
     def options(self):
         return self._options
+    
+    @property
+    def project_dir(self):
+        return self._project_dir
 
     def __enter__(self):
         assert self._probe is not None

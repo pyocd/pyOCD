@@ -64,6 +64,9 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `pack`: (str or list of str) Path or list of paths to CMSIS Device Family Packs. Devices defined
     in the pack(s) are added to the list of available targets.
 
+- `project_dir`: (str) Path to the session's project directory. Defaults to the working directory
+    when the pyocd tool was executed.
+
 - `reset_type`: (str) Which type of reset to use by default (one of 'default', 'hw', 'sw', 'sw_sysresetreq',
     'sw_vectreset', 'sw_emulated'). The default is 'sw'.
 

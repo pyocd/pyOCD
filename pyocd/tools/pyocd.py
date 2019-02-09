@@ -610,6 +610,7 @@ class PyOCDCommander(object):
         # Connect to board.
         self.session = ConnectHelper.session_with_chosen_probe(
                         blocking=(not self.args.no_wait),
+                        project_dir=self.args.project_dir,
                         config_file=self.args.config,
                         no_config=self.args.no_config,
                         pack=self.args.pack,
@@ -1526,6 +1527,8 @@ class PyOCDTool(object):
 
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
         parser.add_argument('--version', action='version', version=__version__)
+        parser.add_argument('-j', '--dir', metavar="PATH", dest="project_dir", default=os.getcwd(),
+            help="Set the project directory. Defaults to the directory where pyocd was run.")
         parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
         parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
         parser.add_argument("--pack", metavar="PATH", help="Path to a CMSIS Device Family Pack")
