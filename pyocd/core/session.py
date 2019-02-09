@@ -23,7 +23,7 @@ import os
 
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
-log = logging.getLogger('session')
+LOG = logging.getLogger(__name__)
 
 ## @brief Top-level object for a debug session.
 #
@@ -91,7 +91,7 @@ class Session(object):
         if probesConfig is not None:
             for uid, settings in probesConfig.items():
                 if str(uid).lower() in probe.unique_id.lower():
-                    log.info("Using config settings for board %s" % (probe.unique_id))
+                    LOG.info("Using config settings for board %s" % (probe.unique_id))
                     self._options.update(settings)
         
         # Ask the probe if it has an associated board, and if not then we create a generic one.
@@ -113,10 +113,10 @@ class Session(object):
             if isinstance(configPath, six.string_types):
                 try:
                     with open(configPath, 'r') as configFile:
-                        log.debug("loading config from '%s'", configPath)
+                        LOG.debug("loading config from '%s'", configPath)
                         return yaml.safe_load(configFile)
                 except IOError as err:
-                    log.warning("Error attempting to access config file '%s': %s", configPath, err)
+                    LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
         
         return {}
     
@@ -164,21 +164,21 @@ class Session(object):
             return
         self._closed = True
 
-        log.debug("uninit session %s", self)
+        LOG.debug("uninit session %s", self)
         if self._inited:
             try:
                 self.board.uninit()
                 self._inited = False
             except:
-                log.error("exception during board uninit:", exc_info=True)
+                LOG.error("exception during board uninit:", exc_info=True)
         
         if self._probe.is_open:
             try:
                 self._probe.disconnect()
             except:
-                log.error("probe exception during disconnect:", exc_info=True)
+                LOG.error("probe exception during disconnect:", exc_info=True)
             try:
                 self._probe.close()
             except:
-                log.error("probe exception during close:", exc_info=True)
+                LOG.error("probe exception during close:", exc_info=True)
 
