@@ -765,23 +765,9 @@ class CortexM(Target, CoreSightComponent):
         self.write_memory_block32(self.NVIC_ICPR0, [0xffffffff] * numregs)
         self.write_memory_block32(self.NVIC_IPR0, [0xffffffff] * (numregs * 8))
 
-    def reset(self, reset_type=None):
-        """! @brief Reset the core.
+    def _get_actual_reset_type(self, reset_type):
+        """! @brief Determine the reset type to use given defaults and passed in type."""
         
-        The reset method is selectable via the reset_type parameter as well as the reset_type
-        session option. If the reset_type parameter is not specified or None, then the reset_type
-        option will be used. If the option is not set, or if it is set to a value of 'default', the
-        the core's default_reset_type property value is used. So, the session option overrides the
-        core's default, while the parameter overrides everything.
-        
-        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
-        is chosen but the core doesn't support it, the the reset method will fall back to an
-        emulated software reset.
-        
-        After a call to this function, the core is running.
-        """
-        self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
-
         # Default to reset_type session option if reset_type parameter is None. If the session
         # option isn't set, then use the core's default reset type.
         if reset_type is None:
@@ -808,10 +794,11 @@ class CortexM(Target, CoreSightComponent):
         # Fall back to emulated sw reset if the vectreset is specified and the core doesn't support it.
         if (reset_type is Target.ResetType.SW_VECTRESET) and (not self._supports_vectreset):
             reset_type = Target.ResetType.SW_EMULATED
+        
+        return reset_type
 
-        self._run_token += 1
-
-        # Perform the reset.
+    def _perform_reset(self, reset_type):
+        """! @brief Perform a reset of the specified type."""
         if reset_type is Target.ResetType.HW:
             self.session.probe.reset()
         elif reset_type is Target.ResetType.SW_EMULATED:
@@ -823,7 +810,7 @@ class CortexM(Target, CoreSightComponent):
                 mask = CortexM.NVIC_AIRCR_VECTRESET
             else:
                 raise RuntimeError("internal error, unhandled reset type")
-            
+        
             try:
                 self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
                 # Without a flush a transfer error can occur
@@ -831,6 +818,31 @@ class CortexM(Target, CoreSightComponent):
             except exceptions.TransferError:
                 self.flush()
 
+    def reset(self, reset_type=None):
+        """! @brief Reset the core.
+        
+        The reset method is selectable via the reset_type parameter as well as the reset_type
+        session option. If the reset_type parameter is not specified or None, then the reset_type
+        option will be used. If the option is not set, or if it is set to a value of 'default', the
+        the core's default_reset_type property value is used. So, the session option overrides the
+        core's default, while the parameter overrides everything.
+        
+        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
+        is chosen but the core doesn't support it, the the reset method will fall back to an
+        emulated software reset.
+        
+        After a call to this function, the core is running.
+        """
+        self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
+
+        reset_type = self._get_actual_reset_type(reset_type)
+
+        self._run_token += 1
+
+        # Give the delegate a chance to overide reset. If the delegate returns True, then it
+        # handled the reset on its own.
+        self._perform_reset(reset_type)
+        
         # Now wait for the system to come out of reset. Keep reading the DHCSR until
         # we get a good response with S_RESET_ST cleared, or we time out.
         with timeout.Timeout(2.0) as t_o:
