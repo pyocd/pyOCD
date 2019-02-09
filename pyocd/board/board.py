@@ -33,6 +33,7 @@ class Board(object):
         self._session = session
         self._target_type = target.lower()
         self._test_binary = session.options.get('test_binary', None)
+        self._delegate = None
         
         # Create targets from provided CMSIS pack.
         if ('pack' in session.options) and (session.options['pack'] is not None):
@@ -49,8 +50,17 @@ class Board(object):
 
     ## @brief Initialize the board.
     def init(self):
+        # Delegate pre-init hook.
+        if (self.delegate is not None) and hasattr(self.delegate, 'will_init_board'):
+            self.delegate.will_init_board(self)
+        
+        # Init the target.
         self.target.init()
         self._inited = True
+        
+        # Delegate post-init hook.
+        if (self.delegate is not None) and hasattr(self.delegate, 'did_init_board'):
+            self.delegate.did_init_board(self)
 
     ## @brief Uninitialize the board.
     def uninit(self):
@@ -66,6 +76,14 @@ class Board(object):
     @property
     def session(self):
         return self._session
+    
+    @property
+    def delegate(self):
+        return self._delegate
+    
+    @delegate.setter
+    def delegate(self, the_delegate):
+        self._delegate = the_delegate
         
     @property
     def unique_id(self):

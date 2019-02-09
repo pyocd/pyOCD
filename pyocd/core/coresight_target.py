@@ -110,6 +110,7 @@ class CoreSightTarget(Target):
 
     def add_core(self, core):
         core.halt_on_connect = self.halt_on_connect
+        core.delegate = self.delegate
         core.set_target_context(CachingDebugContext(DebugContext(core)))
         self.cores[core.core_number] = core
         self._root_contexts[core.core_number] = None
@@ -133,7 +134,9 @@ class CoreSightTarget(Target):
     def init(self):
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
+        self.call_delegate('will_init', target=self, init_sequence=seq)
         seq.invoke()
+        self.call_delegate('did_init', target=self)
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.
@@ -181,9 +184,11 @@ class CoreSightTarget(Target):
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))
+        self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
         self.dp.power_down_debug()
+        self.call_delegate('did_disconnect', target=self, resume=resume)
 
     @property
     def run_token(self):
@@ -199,8 +204,9 @@ class CoreSightTarget(Target):
         return self.selected_core.resume()
 
     def mass_erase(self):
-        # The default mass erase implementation is to simply perform a chip erase.
-        FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
+        if not self.call_delegate('mass_erase', target=self, resume=resume):
+            # The default mass erase implementation is to simply perform a chip erase.
+            FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
         return True
 
     def write_memory(self, addr, value, transfer_size=32):
@@ -258,7 +264,7 @@ class CoreSightTarget(Target):
         return self.selected_core.remove_watchpoint(addr, size, type)
 
     def reset(self, reset_type=None):
-        return self.selected_core.reset(reset_type)
+        self.selected_core.reset(reset_type)
 
     def reset_and_halt(self, reset_type=None):
         return self.selected_core.reset_and_halt(reset_type)
