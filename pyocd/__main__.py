@@ -130,6 +130,8 @@ class PyOCDTool(object):
             help="Specify YAML configuration file. Default is pyocd.yaml or pyocd.yml.")
         commonOptionsNoLogging.add_argument("--no-config", action="store_true",
             help="Do not use a configuration file.")
+        commonOptionsNoLogging.add_argument('--script', metavar="PATH",
+            help="Use the specified user script. Defaults to pyocd_user.py.")
         commonOptionsNoLogging.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
         commonOptionsNoLogging.add_argument("-da", "--daparg", dest="daparg", nargs='+',
@@ -356,6 +358,7 @@ class PyOCDTool(object):
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
+                            user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
                             unique_id=self._args.unique_id,
@@ -380,6 +383,7 @@ class PyOCDTool(object):
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
+                            user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
                             unique_id=self._args.unique_id,
@@ -448,6 +452,7 @@ class PyOCDTool(object):
             session = ConnectHelper.session_with_chosen_probe(
                 blocking=(not self._args.no_wait),
                 project_dir=self._args.project_dir,
+                user_script=self._args.script,
                 config_file=self._args.config,
                 no_config=self._args.no_config,
                 pack=self._args.pack,

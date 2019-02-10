@@ -132,6 +132,10 @@ class CoreSightTarget(Target):
         return seq
     
     def init(self):
+        # If we don't have a delegate installed yet but there is a user script delegate, use it.
+        if (self.delegate is None) and (self.session.user_script_delegate is not None):
+            self.delegate = self.session.user_script_delegate
+        
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
         self.call_delegate('will_init', target=self, init_sequence=seq)

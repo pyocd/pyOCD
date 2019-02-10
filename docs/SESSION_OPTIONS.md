@@ -79,6 +79,8 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
     when set in a board config file for running the functional tests on boards that cannot be
     automatically detected.
 
+- `user_script`: (str) Path of the user script file.
+
 
 ## GDB server options list
 

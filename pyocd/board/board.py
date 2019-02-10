@@ -50,6 +50,10 @@ class Board(object):
 
     ## @brief Initialize the board.
     def init(self):
+        # If we don't have a delegate set yet, see if there is a user script delegate.
+        if (self.delegate is None) and (self.session.user_script_delegate is not None):
+            self.delegate = self.session.user_script_delegate
+        
         # Delegate pre-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'will_init_board'):
             self.delegate.will_init_board(self)

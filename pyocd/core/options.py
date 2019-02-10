@@ -30,6 +30,7 @@ OPTIONS_INFO = {
     'target_override': OptionInfo('target_override', str, "Name of target to use instead of default."),
     'test_binary': OptionInfo('test_binary', str, "Name of test firmware binary."),
     'reset_type': OptionInfo('reset_type', str, "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated'). The default is 'sw'."),
+    'user_script': OptionInfo('user_script', str, "Path of the user script file."),
     'enable_multicore_debug': OptionInfo('enable_multicore', bool, "Whether to put pyOCD into multicore debug mode."),
 
     # GDBServer options

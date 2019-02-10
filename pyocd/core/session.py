@@ -16,7 +16,6 @@
 
 from ..board.board import Board
 import logging
-import logging.config
 import six
 import yaml
 import os
@@ -24,6 +23,20 @@ import os
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
 LOG = logging.getLogger(__name__)
+
+## @brief Set of default config filenames to search for.
+_CONFIG_FILE_NAMES = [
+        "pyocd.yaml",
+        "pyocd.yml",
+        ".pyocd.yaml",
+        ".pyocd.yml",
+    ]
+
+## @brief Set of default user script names to search for.
+_USER_SCRIPT_NAMES = [
+        "pyocd_user.py",
+        ".pyocd_user.py",
+    ]
 
 ## @brief Top-level object for a debug session.
 #
@@ -72,6 +85,7 @@ class Session(object):
         self._probe = probe
         self._closed = True
         self._inited = False
+        self._user_script_delegate = None
         
         # Update options.
         self._options = options or {}
@@ -108,38 +122,40 @@ class Session(object):
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
         if not self._options.get('no_config', False):
-            configPath = self._options.get('config_file', None)
-            
-            # Look for default config files if a path wasn't provided.
-            if configPath is None:
-                # The complete set of default config file paths we check.
-                possiblePaths = [
-                                os.path.join(self.project_dir, "pyocd.yaml"),
-                                os.path.join(self.project_dir, "pyocd.yml"),
-                                os.path.join(self.project_dir, ".pyocd.yaml"),
-                                os.path.join(self.project_dir, ".pyocd.yml"),
-                                ]
-                
-                for thisPath in possiblePaths:
-                    if os.path.isfile(thisPath):
-                        configPath = thisPath
-                        break
-            # Use the config file path passed in options, which may be absolute, relative to the
-            # home directory, or relative to the project directory.
-            else:
-                configPath = os.path.expanduser(configPath)
-                if not os.path.isabs(configPath):
-                    configPath = os.path.join(self.project_dir, configPath)
+            configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
             if isinstance(configPath, six.string_types):
                 try:
                     with open(configPath, 'r') as configFile:
-                        LOG.debug("Loading config from '%s'", configPath)
+                        LOG.debug("Loading config from: %s", configPath)
                         return yaml.safe_load(configFile)
                 except IOError as err:
                     LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
         
         return {}
+            
+    def find_user_file(self, option_name, filename_list):
+        """! @brief Search the project directory for a file."""
+        if option_name is not None:
+            filePath = self._options.get(option_name, None)
+        else:
+            filePath = None
+        
+        # Look for default filenames if a path wasn't provided.
+        if filePath is None:
+            for filename in filename_list:
+                thisPath = os.path.join(self.project_dir, filename)
+                if os.path.isfile(thisPath):
+                    filePath = thisPath
+                    break
+        # Use the path passed in options, which may be absolute, relative to the
+        # home directory, or relative to the project directory.
+        else:
+            filePath = os.path.expanduser(filePath)
+            if not os.path.isabs(filePath):
+                filePath = os.path.join(self.project_dir, filePath)
+        
+        return filePath
     
     @property
     def is_open(self):
@@ -164,6 +180,10 @@ class Session(object):
     @property
     def project_dir(self):
         return self._project_dir
+    
+    @property
+    def user_script_delegate(self):
+        return self._user_script_delegate
 
     def __enter__(self):
         assert self._probe is not None
@@ -172,11 +192,56 @@ class Session(object):
     def __exit__(self, type, value, traceback):
         self.close()
         return False
+    
+    def _load_user_script(self):
+        scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
+
+        if isinstance(scriptPath, six.string_types):
+            try:
+                # Read the script source.
+                with open(scriptPath, 'r') as scriptFile:
+                    LOG.debug("Loading user script: %s", scriptPath)
+                    scriptCode = scriptFile.read()
+                
+                # Construct namespaces. The global namespace will have convenient access to
+                # most of the pyOCD object graph.
+                import pyocd
+                globalNamespace = {
+                    'pyocd': pyocd,
+                    'session': self,
+                    'options': self.options,
+                    'probe': self.probe,
+                    'board': self.board,
+                    'target': self.target,
+                    'dp': self.target.dp,
+                    'aps': self.target.aps,
+                    'Target': pyocd.core.target.Target,
+                    'ResetType': pyocd.core.target.Target.ResetType,
+                    'MemoryType': pyocd.core.memory_map.MemoryType,
+                    'FileProgrammer': pyocd.flash.loader.FileProgrammer,
+                    'FlashEraser': pyocd.flash.loader.FlashEraser,
+                    'FlashLoader': pyocd.flash.loader.FlashLoader,
+                    'LOG': logging.getLogger(os.path.basename(scriptPath)),
+                    }
+                localNamespace = {}
+                
+                # Executing the code will create definitions in the local namespace for any
+                # functions or classes.
+                six.exec_(scriptCode, globalNamespace, localNamespace)
+                
+                # Create the delegate proxy for the user script.
+                self._user_script_delegate = UserScriptDelegateProxy(localNamespace)
+            except IOError as err:
+                LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
 
     ## @brief Initialize the session
     def open(self):
         if not self._inited:
             assert self._probe is not None
+            
+            # Load the user script just before we init everything.
+            self._load_user_script()
+            
             self._probe.open()
             self._probe.set_clock(self._options.get('frequency', DEFAULT_CLOCK_FREQ))
             self._board.init()
@@ -207,3 +272,15 @@ class Session(object):
             except:
                 LOG.error("probe exception during close:", exc_info=True)
 
+class UserScriptDelegateProxy(object):
+    """! @brief Delegate proxy for user scripts."""
+
+    def __init__(self, script_namespace):
+        super(UserScriptDelegateProxy, self).__init__()
+        self._script = script_namespace
+    
+    def __getattr__(self, name):
+        if name in self._script:
+            return self._script[name]
+        else:
+            raise AttributeError(name)

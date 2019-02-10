@@ -612,6 +612,7 @@ class PyOCDCommander(object):
                         blocking=(not self.args.no_wait),
                         project_dir=self.args.project_dir,
                         config_file=self.args.config,
+                        user_script=self.args.script,
                         no_config=self.args.no_config,
                         pack=self.args.pack,
                         unique_id=self.args.unique_id,
@@ -1531,6 +1532,8 @@ class PyOCDTool(object):
             help="Set the project directory. Defaults to the directory where pyocd was run.")
         parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
         parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
+        parser.add_argument('--script', metavar="PATH",
+            help="Use the specified user script. Defaults to pyocd_user.py.")
         parser.add_argument("--pack", metavar="PATH", help="Path to a CMSIS Device Family Pack")
         parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
         parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
