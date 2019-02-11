@@ -156,8 +156,8 @@ class CoreSightTarget(Target):
             klass = region.flash_class
             argspec = getargspec(klass.__init__)
             if 'flash_algo' in argspec.args:
-                if region.flash_algo is not None:
-                    obj = klass(self, region.flash_algo)
+                if region.algo is not None:
+                    obj = klass(self, region.algo)
                 else:
                     logging.warning("flash region '%s' has no flash algo" % region.name)
                     continue

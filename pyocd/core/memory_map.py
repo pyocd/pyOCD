@@ -231,12 +231,20 @@ class FlashRegion(MemoryRegion):
             self._flash_class = Flash
     
     @property
-    def flash_algo(self):
+    def algo(self):
         return self._algo
+    
+    @algo.setter
+    def algo(self, flash_algo):
+        self._algo = flash_algo
     
     @property
     def flash_class(self):
         return self._flash_class
+    
+    @flash_class.setter
+    def flash_class(self, klass):
+        self._flash_class = klass
     
     @property
     def flash(self):
