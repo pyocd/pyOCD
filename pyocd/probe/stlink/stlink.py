@@ -17,6 +17,7 @@
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
 from ...core import exceptions
 from ...coresight import dap
+from ...utility import conversion
 from ...utility.mask import bfx
 import logging
 import struct
@@ -140,18 +141,21 @@ class STLink(object):
         if self._jtag_version == 0:
             raise exceptions.ProbeError("%s firmware does not support JTAG/SWD. Please update"
                 "to a firmware version that supports JTAG/SWD" % (self._version_str))
-        if self._jtag_version < self.MIN_JTAG_VERSION:
+        if not self._check_version(self.MIN_JTAG_VERSION):
             raise exceptions.ProbeError("STLink %s is using an unsupported, older firmware version. "
                 "Please update to the latest STLink firmware. Current version is %s, must be at least version v2J%d.)" 
                 % (self.serial_number, self._version_str, self.MIN_JTAG_VERSION))
 
+    def _check_version(self, min_version):
+        return (self._hw_version >= 3) or (self._jtag_version >= min_version)
+    
     @property
     def vendor_name(self):
         return self._device.vendor_name
 
     @property
     def product_name(self):
-        return self._device.product_name + self._device.version_name
+        return self._device.product_name
 
     @property
     def serial_number(self):
@@ -179,32 +183,66 @@ class STLink(object):
         self._target_voltage = 2 * a1 * 1.2 / a0 if a0 != 0 else None
 
     def enter_idle(self):
-        response = self._device.transfer([Commands.GET_CURRENT_MODE], readSize=2)
-        if response[0] == Commands.DEV_DFU_MODE:
-            self._device.transfer([Commands.DFU_COMMAND, Commands.DFU_EXIT])
-        elif response[0] == Commands.DEV_JTAG_MODE:
-            self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_EXIT])
-        elif response[0] == Commands.DEV_SWIM_MODE:
-            self._device.transfer([Commands.SWIM_COMMAND, Commands.SWIM_EXIT])
-        self._protocol = None
+        with self._lock:
+            response = self._device.transfer([Commands.GET_CURRENT_MODE], readSize=2)
+            if response[0] == Commands.DEV_DFU_MODE:
+                self._device.transfer([Commands.DFU_COMMAND, Commands.DFU_EXIT])
+            elif response[0] == Commands.DEV_JTAG_MODE:
+                self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_EXIT])
+            elif response[0] == Commands.DEV_SWIM_MODE:
+                self._device.transfer([Commands.SWIM_COMMAND, Commands.SWIM_EXIT])
+            self._protocol = None
 
     def set_swd_frequency(self, freq=1800000):
         with self._lock:
-            for f, d in SWD_FREQ_MAP.items():
-                if freq >= f:
-                    response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
-                    self._check_status(response)
-                    return
-            raise exceptions.ProbeError("Selected SWD frequency is too low")
+            if self._hw_version >= 3:
+                self.set_com_frequency(self.Protocol.JTAG, freq)
+            else:
+                for f, d in SWD_FREQ_MAP.items():
+                    if freq >= f:
+                        response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
+                        self._check_status(response)
+                        return
+                else:
+                    raise exceptions.ProbeError("Selected SWD frequency is too low")
 
     def set_jtag_frequency(self, freq=1120000):
         with self._lock:
-            for f, d in JTAG_FREQ_MAP.items():
-                if freq >= f:
-                    response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
-                    self._check_status(response)
-                    return
-            raise exceptions.ProbeError("Selected JTAG frequency is too low")
+            if self._hw_version >= 3:
+                self.set_com_frequency(self.Protocol.JTAG, freq)
+            else:
+                for f, d in JTAG_FREQ_MAP.items():
+                    if freq >= f:
+                        response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
+                        self._check_status(response)
+                        return
+                else:
+                    raise exceptions.ProbeError("Selected JTAG frequency is too low")
+    
+    def get_com_frequencies(self, protocol):
+        assert self._hw_version >= 3
+        
+        with self._lock:
+            cmd = [Commands.JTAG_COMMAND, Commands.GET_COM_FREQ, protocol.value - 1]
+            response = self._device.transfer(cmd, readSize=52)
+            self._check_status(response[0:2])
+        
+            freqs = conversion.byte_list_to_u32le_list(response[4:52])
+            currentFreq = freqs.pop(0)
+            freqCount = freqs.pop(0)
+            return currentFreq, freqs[:freqCount]
+    
+    def set_com_frequency(self, protocol, freq):
+        assert self._hw_version >= 3
+        
+        with self._lock:
+            cmd = [Commands.JTAG_COMMAND, Commands.SET_COM_FREQ, protocol.value - 1, 0]
+            cmd.extend(conversion.u32le_list_to_byte_list([freq // 1000]))
+            response = self._device.transfer(cmd, readSize=8)
+            self._check_status(response[0:2])
+        
+            freqs = conversion.byte_list_to_u32le_list(response[4:8])
+            return freqs[0]
 
     def enter_debug(self, protocol):
         with self._lock:
@@ -220,7 +258,7 @@ class STLink(object):
     
     def open_ap(self, apsel):
         with self._lock:
-            if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
+            if not self._check_version(self.MIN_JTAG_VERSION_MULTI_AP):
                 return
             cmd = [Commands.JTAG_COMMAND, Commands.JTAG_INIT_AP, apsel, Commands.JTAG_AP_NO_CORE]
             response = self._device.transfer(cmd, readSize=2)
@@ -228,7 +266,7 @@ class STLink(object):
     
     def close_ap(self, apsel):
         with self._lock:
-            if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
+            if not self._check_version(self.MIN_JTAG_VERSION_MULTI_AP):
                 return
             cmd = [Commands.JTAG_COMMAND, Commands.JTAG_CLOSE_AP_DBG, apsel]
             response = self._device.transfer(cmd, readSize=2)
@@ -342,7 +380,7 @@ class STLink(object):
     def read_mem16(self, addr, size, apsel):
         assert (addr & 0x1) == 0 and (size & 0x1) == 0, "address and size must be half-word aligned"
 
-        if self._jtag_version < self.MIN_JTAG_VERSION_16BIT_XFER:
+        if not self._check_version(self.MIN_JTAG_VERSION_16BIT_XFER):
             # 16-bit r/w is only available from J26, so revert to 8-bit accesses.
             return self.read_mem8(addr, size, apsel)
         
@@ -351,7 +389,7 @@ class STLink(object):
     def write_mem16(self, addr, data, apsel):
         assert (addr & 0x1) == 0 and (len(data) & 1) == 0, "address and size must be half-word aligned"
 
-        if self._jtag_version < self.MIN_JTAG_VERSION_16BIT_XFER:
+        if not self._check_version(self.MIN_JTAG_VERSION_16BIT_XFER):
             # 16-bit r/w is only available from J26, so revert to 8-bit accesses.
             self.write_mem8(addr, data, apsel)
             return
