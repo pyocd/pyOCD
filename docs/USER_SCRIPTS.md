@@ -87,19 +87,19 @@ both target related objects, as well as parts of the pyOCD Python API.
 
 ## Script functions
 
-- `will_init_board(board)`<br/>
+- `will_connect(board)`<br/>
     Pre-init hook for the board.
 
     *board* - A `Board` instance that is about to be initialized.<br/>
     **Result** - Ignored.
 
-- `did_init_board(board)`<br/>
+- `did_connect(board)`<br/>
     Post-initialization hook for the board.
 
     *board* - A `Board` instance.<br/>
     **Result** - Ignored.
 
-- `will_init(target, init_sequence)`<br/>
+- `will_init_target(target, init_sequence)`<br/>
     Hook to review and modify init call sequence prior to execution.
 
     *target* - A `CoreSightTarget` object about to be initialized.<br/>
@@ -107,10 +107,36 @@ both target related objects, as well as parts of the pyOCD Python API.
         mutable, this parameter can be modified before return to change the init calls.<br/>
     **Result** - Ignored.
 
-- `did_init(target)`<br/>
+- `did_init_target(target)`<br/>
     Post-initialization hook.
 
-    target - Either a `CoreSightTarget` or `CortexM` object.<br/>
+    *target* - Either a `CoreSightTarget` or `CortexM` object.<br/>
+    **Result** - Ignored.
+
+- `will_start_debug_core(core)`<br/>
+    Hook to review and modify init call sequence prior to execution.
+
+    *core* - A `CortexM` object about to be initialized.<br/>
+    **Result** - *True* Do not perform the normal procedure to start core debug.
+        *False/None* Continue with normal behaviour.
+
+- `did_start_debug_core(core)`<br/>
+    Post-initialization hook.
+
+    *core* - A `CortexM` object.<br/>
+    **Result** - Ignored.
+
+- `will_stop_debug_core(core)`<br/>
+    Hook to review and modify init call sequence prior to execution.
+
+    *core* - A `CortexM` object.<br/>
+    **Result** - *True* Do not perform the normal procedure to disable core debug.
+        *False/None* Continue with normal behaviour.
+
+- `did_stop_debug_core(core)`<br/>
+    Post-initialization hook.
+
+    *core* - A `CortexM` object.<br/>
     **Result** - Ignored.
 
 - `will_disconnect(target, resume)`<br/>

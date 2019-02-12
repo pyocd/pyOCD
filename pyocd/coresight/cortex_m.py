@@ -474,29 +474,30 @@ class CortexM(Target, CoreSightComponent):
         """
         Cortex M initialization. The bus must be accessible when this method is called.
         """
-        if self.halt_on_connect:
-            self.halt()
-        self._read_core_type()
-        self._check_for_fpu()
-        self.build_target_xml()
-        self.sw_bp.init()
-        self.call_delegate('did_init', target=self)
+        if not self.call_delegate('will_start_debug_core', core=self):
+            if self.halt_on_connect:
+                self.halt()
+            self._read_core_type()
+            self._check_for_fpu()
+            self.build_target_xml()
+            self.sw_bp.init()
+
+        self.call_delegate('did_start_debug_core', core=self)
 
     def disconnect(self, resume=True):
-        self.call_delegate('will_disconnect', target=self, resume=resume)
+        if not self.call_delegate('will_stop_debug_core', core=self):
+            # Remove breakpoints.
+            self.bp_manager.remove_all_breakpoints()
 
-        # Remove breakpoints.
-        self.bp_manager.remove_all_breakpoints()
+            # Disable other debug blocks.
+            self.write32(CortexM.DEMCR, 0)
 
-        # Disable other debug blocks.
-        self.write32(CortexM.DEMCR, 0)
+            # Disable core debug.
+            if resume:
+                self.resume()
+                self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
-        # Disable core debug.
-        if resume:
-            self.resume()
-            self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
-
-        self.call_delegate('did_disconnect', target=self, resume=resume)
+        self.call_delegate('did_stop_debug_core', core=self)
 
     def build_target_xml(self):
         # Build register_list and targetXML

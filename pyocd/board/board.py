@@ -55,7 +55,7 @@ class Board(object):
             self.delegate = self.session.user_script_delegate
         
         # Delegate pre-init hook.
-        if (self.delegate is not None) and hasattr(self.delegate, 'will_init_board'):
+        if (self.delegate is not None) and hasattr(self.delegate, 'will_connect'):
             self.delegate.will_init_board(self)
         
         # Init the target.
@@ -63,7 +63,7 @@ class Board(object):
         self._inited = True
         
         # Delegate post-init hook.
-        if (self.delegate is not None) and hasattr(self.delegate, 'did_init_board'):
+        if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
             self.delegate.did_init_board(self)
 
     ## @brief Uninitialize the board.

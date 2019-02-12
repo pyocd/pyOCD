@@ -139,9 +139,9 @@ class CoreSightTarget(Target):
         
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
-        self.call_delegate('will_init', target=self, init_sequence=seq)
+        self.call_delegate('will_init_target', target=self, init_sequence=seq)
         seq.invoke()
-        self.call_delegate('did_init', target=self)
+        self.call_delegate('did_init_target', target=self)
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.

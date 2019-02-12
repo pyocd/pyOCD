@@ -24,16 +24,15 @@ class TargetDelegateInterface(object):
     def __init__(self, session):
         self._session = session
     
-    def will_init_board(self, board):
+    def will_connect(self, board):
         """! @brief Pre-init hook for the board.
-        
         @param self
         @param board A Board instance that is about to be initialized.
         @return Ignored.
         """
         pass
     
-    def did_init_board(self, board):
+    def did_connect(self, board):
         """! @brief Post-initialization hook for the board.
         @param self
         @param board A Board instance.
@@ -41,9 +40,8 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def will_init(self, target, init_sequence):
+    def will_init_target(self, target, init_sequence):
         """! @brief Hook to review and modify init call sequence prior to execution.
-        
         @param self
         @param target A CoreSightTarget object about to be initialized.
         @param init_sequence The CallSequence that will be invoked. Because call sequences are
@@ -52,10 +50,44 @@ class TargetDelegateInterface(object):
         """
         pass
     
-    def did_init(self, target):
+    def did_init_target(self, target):
         """! @brief Post-initialization hook.
         @param self
-        @param target Either a CoreSightTarget or CortexM object.
+        @param target A CoreSightTarget.
+        @return Ignored.
+        """
+        pass
+
+    def will_start_debug_core(self, core):
+        """! @brief Hook to review and modify init call sequence prior to execution.
+        @param self
+        @param core A CortexM object about to be initialized.
+        @retval True Do not perform the normal procedure to start core debug.
+        @retval "False or None" Continue with normal behaviour.
+        """
+        pass
+    
+    def did_start_debug_core(self, core):
+        """! @brief Post-initialization hook.
+        @param self
+        @param core A CortexM object.
+        @return Ignored.
+        """
+        pass
+
+    def will_stop_debug_core(self, core):
+        """! @brief Pre-cleanup hook for the core.
+        @param self
+        @param core A CortexM object.
+        @retval True Do not perform the normal procedure to disable core debug.
+        @retval "False or None" Continue with normal behaviour.
+        """
+        pass
+    
+    def did_stop_debug_core(self, core):
+        """! @brief Post-cleanup hook for the core.
+        @param self
+        @param core A CortexM object.
         @return Ignored.
         """
         pass
