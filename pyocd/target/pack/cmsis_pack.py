@@ -28,7 +28,6 @@ from .flash_algo import PackFlashAlgo
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
-from ...utility.conversion import byte_list_to_u32le_list
 
 LOG = logging.getLogger(__name__)
 
@@ -257,14 +256,6 @@ class CmsisPackDevice(object):
     the PDSC.
     """
 
-    ## @brief Standard flash blob header that starts with a breakpoint instruction.
-    _FLASH_BLOB_HEADER = [
-        0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040,
-        0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x04770D1F
-        ]
-    ## @brief Size of the flash blob header in bytes.
-    _FLASH_BLOB_HEADER_SIZE = len(_FLASH_BLOB_HEADER) * 4
-
     def __init__(self, pack, device_info):
         """! @brief Constructor.
         @param self
@@ -381,7 +372,7 @@ class CmsisPackDevice(object):
             
             # Construct the pyOCD algo using the largest sector size. We can share the same
             # algo for all sector sizes.
-            algo = self._get_pyocd_flash_algo(packAlgo,
+            algo = packAlgo.get_pyocd_flash_algo(
                             max(s[1] for s in packAlgo.sector_sizes), self._default_ram)
 
             # Create a separate flash region for each sector size range.
@@ -430,70 +421,6 @@ class CmsisPackDevice(object):
                 return algo
         return None
 
-    def _get_pyocd_flash_algo(self, pack_algo, blocksize, ram_region):
-        """! @brief Return a dictionary representing a pyOCD flash algorithm or None
-        
-        The most interesting operation this method performs is dynamically allocating memory
-        for the flash algo from a given RAM region. Note that the .data and .bss sections are
-        concatenated with .text. That's why there isn't a specific allocation for those sections.
-        
-        Double buffering is supported as long as there is enough RAM.
-        
-        Memory layout:
-        ```
-        [stack] [code] [buf1] [buf2]
-        ```
-        """
-        instructions = self._FLASH_BLOB_HEADER + byte_list_to_u32le_list(pack_algo.algo_data)
-
-        offset = 0
-
-        # Stack
-        offset += 512
-        addr_stack = ram_region.start + offset
-
-        # Load address
-        addr_load = ram_region.start + offset
-        offset += len(instructions) * 4
-
-        # Data buffer 1
-        addr_data = ram_region.start + offset
-        offset += blocksize
-
-        if offset > ram_region.length:
-            # Not enough space for flash algorithm
-            LOG.warning("Not enough space for flash algorithm")
-            return None
-
-        # Data buffer 2
-        addr_data2 = ram_region.start + offset
-        offset += blocksize
-
-        if offset > ram_region.length:
-            page_buffers = [addr_data]
-        else:
-            page_buffers = [addr_data, addr_data2]
-
-        # TODO - analyzer support
-
-        code_start = addr_load + self._FLASH_BLOB_HEADER_SIZE
-        flash_algo = {
-            "load_address": addr_load,
-            "instructions": instructions,
-            "pc_init": code_start + pack_algo.symbols["Init"],
-            "pc_uninit": code_start + pack_algo.symbols["UnInit"],
-            "pc_eraseAll": code_start + pack_algo.symbols["EraseChip"],
-            "pc_erase_sector": code_start + pack_algo.symbols["EraseSector"],
-            "pc_program_page": code_start + pack_algo.symbols["ProgramPage"],
-            "page_buffers": page_buffers,
-            "begin_data": page_buffers[0],
-            "begin_stack": addr_stack,
-            "static_base": code_start + pack_algo.rw_start,
-            "min_program_length": pack_algo.page_size,
-            "analyzer_supported": False
-        }
-        return flash_algo
-    
     @property
     def pack(self):
         """! @brief The CmsisPack object that defines this device."""
