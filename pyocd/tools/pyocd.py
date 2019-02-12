@@ -896,10 +896,10 @@ class PyOCDCommander(object):
             # Look up flash region.
             region = self.session.target.memory_map.get_region_for_address(addr)
             if not region:
-                print("address 0x%08x is not within a memory region", pagaddre_addr)
+                print("address 0x%08x is not within a memory region" % addr)
                 return 1
             if not region.is_flash:
-                print("address 0x%08x is not in flash", addr)
+                print("address 0x%08x is not in flash" % addr)
                 return 1
             assert region.flash is not None
             
@@ -925,10 +925,10 @@ class PyOCDCommander(object):
             # Look up the flash region so we can get the page size.
             region = self.session.target.memory_map.get_region_for_address(addr)
             if not region:
-                print("address 0x%08x is not within a memory region", addr)
+                print("address 0x%08x is not within a memory region" % addr)
                 break
             if not region.is_flash:
-                print("address 0x%08x is not in flash", addr)
+                print("address 0x%08x is not in flash" % addr)
                 break
             
             # Erase this page.
