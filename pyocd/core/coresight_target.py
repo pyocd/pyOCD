@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2018 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.flash_reader import FlashReaderContext
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
+from ..target.pack.flash_algo import PackFlashAlgo
 import logging
 
 # inspect.getargspec is deprecated in Python 3.
@@ -150,6 +151,23 @@ class CoreSightTarget(Target):
         to construct the flash object.
         """
         for region in self.memory_map.get_regions_of_type(MemoryType.FLASH):
+            # If a path to an FLM file was set on the region, examine it first.
+            if region.flm is not None:
+                flmPath = self.session.find_user_file(None, [region.flm])
+                if flmPath is not None:
+                    logging.info("creating flash algo from: %s", flmPath)
+                    packAlgo = PackFlashAlgo(flmPath)
+                    algo = packAlgo.get_pyocd_flash_algo(
+                            max(s[1] for s in packAlgo.sector_sizes),
+                            self.memory_map.get_first_region_of_type(MemoryType.RAM))
+                
+                    # If we got a valid algo from the FLM, set it on the region. This will then
+                    # be used below.
+                    if algo is not None:
+                        region.algo = algo
+                else:
+                    logging.warning("Failed to find FLM file: %s", region.flm)
+            
             # If the constructor of the region's flash class takes the flash_algo arg, then we
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
             # algo is built-in.
