@@ -31,6 +31,8 @@ The API and tools provide these features:
 -  access CoreSight DP and APs
 -  and more!
 
+Configuration and customization is supported through config files and user scripts.
+
 
 Requirements
 ------------
@@ -49,9 +51,8 @@ Status
 
 PyOCD is functionally reliable and fully useable.
 
-The API is considered unstable because we are planning some breaking changes to bring the naming
-convention into compliance with PEP8 prior to releasing version 1.0. We also plan to merge the three
-command line tools into a single tool.
+The Python API is considered unstable as we are restructuring and cleaning it up prior to releasing
+version 1.0.
 
 
 Documentation
@@ -120,7 +121,7 @@ folder in the pyOCD repository. Just copy this file into `/etc/udev/rules.d` to 
 to both [DAPLink](https://os.mbed.com/handbook/DAPLink)-based debug probes as well as STLinkV2 and
 STLinkV3.
 
-If you use different, but compatible, debug probe, you can check the IDs with ``dmesg`` command.
+If you use different, but compatible, debug probe, you can check the IDs with the ``dmesg`` command.
 
    -  Run ``dmesg``
    -  Plug in your board

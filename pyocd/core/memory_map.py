@@ -222,6 +222,7 @@ class FlashRegion(MemoryRegion):
         attrs['erased_byte_value'] = attrs.get('erased_byte_value', 0xff)
         super(FlashRegion, self).__init__(type=MemoryType.FLASH, start=start, end=end, length=length, **attrs)
         self._algo = attrs.get('algo', None)
+        self._flm = None
         self._flash = None
         
         if 'flash_class' in attrs:
@@ -231,12 +232,28 @@ class FlashRegion(MemoryRegion):
             self._flash_class = Flash
     
     @property
-    def flash_algo(self):
+    def algo(self):
         return self._algo
+    
+    @algo.setter
+    def algo(self, flash_algo):
+        self._algo = flash_algo
+    
+    @property
+    def flm(self):
+        return self._flm
+    
+    @flm.setter
+    def flm(self, flm_path):
+        self._flm = flm_path
     
     @property
     def flash_class(self):
         return self._flash_class
+    
+    @flash_class.setter
+    def flash_class(self, klass):
+        self._flash_class = klass
     
     @property
     def flash(self):

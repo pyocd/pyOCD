@@ -25,10 +25,12 @@ OPTIONS_INFO = {
     'frequency': OptionInfo('frequency', int, "SWD/JTAG frequency in Hertz."),
     'halt_on_connect': OptionInfo('halt_on_connect', bool, "Whether to halt CPU when connecting."),
     'no_config': OptionInfo('no_config', bool, "Do not use default config file."),
+    'project_dir': OptionInfo('project_dir', str, "Path to the session's project directory. Defaults to the working directory when the pyocd tool was executed."),
     'resume_on_disconnect': OptionInfo('resume_on_disconnect', bool, "Whether to run target on disconnect."),
     'target_override': OptionInfo('target_override', str, "Name of target to use instead of default."),
     'test_binary': OptionInfo('test_binary', str, "Name of test firmware binary."),
     'reset_type': OptionInfo('reset_type', str, "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated'). The default is 'sw'."),
+    'user_script': OptionInfo('user_script', str, "Path of the user script file."),
     'enable_multicore_debug': OptionInfo('enable_multicore', bool, "Whether to put pyOCD into multicore debug mode."),
 
     # GDBServer options

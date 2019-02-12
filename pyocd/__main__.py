@@ -23,6 +23,7 @@ import traceback
 import argparse
 import json
 import colorama
+import os
 
 from . import __version__
 from .core.helpers import ConnectHelper
@@ -123,10 +124,14 @@ class PyOCDTool(object):
         
         # Define common options for all subcommands, excluding --verbose and --quiet.
         commonOptionsNoLogging = argparse.ArgumentParser(description='common', add_help=False)
+        commonOptionsNoLogging.add_argument('-j', '--dir', metavar="PATH", dest="project_dir", default=os.getcwd(),
+            help="Set the project directory. Defaults to the directory where pyocd was run.")
         commonOptionsNoLogging.add_argument('--config', metavar="PATH",
             help="Specify YAML configuration file. Default is pyocd.yaml or pyocd.yml.")
         commonOptionsNoLogging.add_argument("--no-config", action="store_true",
             help="Do not use a configuration file.")
+        commonOptionsNoLogging.add_argument('--script', metavar="PATH",
+            help="Use the specified user script. Defaults to pyocd_user.py.")
         commonOptionsNoLogging.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
         commonOptionsNoLogging.add_argument("-da", "--daparg", dest="daparg", nargs='+',
@@ -351,7 +356,9 @@ class PyOCDTool(object):
         self._increase_logging(["pyocd.tools.loader", "pyocd", "flash", "flash_builder"])
         
         session = ConnectHelper.session_with_chosen_probe(
+                            project_dir=self._args.project_dir,
                             config_file=self._args.config,
+                            user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
                             unique_id=self._args.unique_id,
@@ -374,7 +381,9 @@ class PyOCDTool(object):
         self._increase_logging(["pyocd.tools.loader", "pyocd"])
         
         session = ConnectHelper.session_with_chosen_probe(
+                            project_dir=self._args.project_dir,
                             config_file=self._args.config,
+                            user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
                             unique_id=self._args.unique_id,
@@ -442,6 +451,8 @@ class PyOCDTool(object):
             
             session = ConnectHelper.session_with_chosen_probe(
                 blocking=(not self._args.no_wait),
+                project_dir=self._args.project_dir,
+                user_script=self._args.script,
                 config_file=self._args.config,
                 no_config=self._args.no_config,
                 pack=self._args.pack,

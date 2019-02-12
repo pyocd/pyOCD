@@ -93,6 +93,7 @@ class Target(MemoryInterface, Notifier):
     def __init__(self, session, memoryMap=None):
         super(Target, self).__init__()
         self._session = session
+        self._delegate = None
         self.root_target = None
         self.vendor = self.VENDOR
         self.part_families = []
@@ -107,6 +108,24 @@ class Target(MemoryInterface, Notifier):
     @property
     def session(self):
         return self._session
+    
+    @property
+    def delegate(self):
+        return self._delegate
+    
+    @delegate.setter
+    def delegate(self, the_delegate):
+        self._delegate = the_delegate
+    
+    def delegate_implements(self, method_name):
+        return (self._delegate is not None) and (hasattr(self._delegate, method_name))
+    
+    def call_delegate(self, method_name, *args, **kwargs):
+        if self.delegate_implements(method_name):
+            return getattr(self._delegate, method_name)(*args, **kwargs)
+        else:
+            # The default action is always taken if None is returned.
+            return None
 
     @property
     def svd_device(self):

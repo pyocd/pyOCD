@@ -480,8 +480,11 @@ class CortexM(Target, CoreSightComponent):
         self._check_for_fpu()
         self.build_target_xml()
         self.sw_bp.init()
+        self.call_delegate('did_init', target=self)
 
     def disconnect(self, resume=True):
+        self.call_delegate('will_disconnect', target=self, resume=resume)
+
         # Remove breakpoints.
         self.bp_manager.remove_all_breakpoints()
 
@@ -492,6 +495,8 @@ class CortexM(Target, CoreSightComponent):
         if resume:
             self.resume()
             self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
+
+        self.call_delegate('did_disconnect', target=self, resume=resume)
 
     def build_target_xml(self):
         # Build register_list and targetXML
@@ -765,23 +770,9 @@ class CortexM(Target, CoreSightComponent):
         self.write_memory_block32(self.NVIC_ICPR0, [0xffffffff] * numregs)
         self.write_memory_block32(self.NVIC_IPR0, [0xffffffff] * (numregs * 8))
 
-    def reset(self, reset_type=None):
-        """! @brief Reset the core.
+    def _get_actual_reset_type(self, reset_type):
+        """! @brief Determine the reset type to use given defaults and passed in type."""
         
-        The reset method is selectable via the reset_type parameter as well as the reset_type
-        session option. If the reset_type parameter is not specified or None, then the reset_type
-        option will be used. If the option is not set, or if it is set to a value of 'default', the
-        the core's default_reset_type property value is used. So, the session option overrides the
-        core's default, while the parameter overrides everything.
-        
-        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
-        is chosen but the core doesn't support it, the the reset method will fall back to an
-        emulated software reset.
-        
-        After a call to this function, the core is running.
-        """
-        self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
-
         # Default to reset_type session option if reset_type parameter is None. If the session
         # option isn't set, then use the core's default reset type.
         if reset_type is None:
@@ -808,10 +799,11 @@ class CortexM(Target, CoreSightComponent):
         # Fall back to emulated sw reset if the vectreset is specified and the core doesn't support it.
         if (reset_type is Target.ResetType.SW_VECTRESET) and (not self._supports_vectreset):
             reset_type = Target.ResetType.SW_EMULATED
+        
+        return reset_type
 
-        self._run_token += 1
-
-        # Perform the reset.
+    def _perform_reset(self, reset_type):
+        """! @brief Perform a reset of the specified type."""
         if reset_type is Target.ResetType.HW:
             self.session.probe.reset()
         elif reset_type is Target.ResetType.SW_EMULATED:
@@ -823,7 +815,7 @@ class CortexM(Target, CoreSightComponent):
                 mask = CortexM.NVIC_AIRCR_VECTRESET
             else:
                 raise RuntimeError("internal error, unhandled reset type")
-            
+        
             try:
                 self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
                 # Without a flush a transfer error can occur
@@ -831,6 +823,34 @@ class CortexM(Target, CoreSightComponent):
             except exceptions.TransferError:
                 self.flush()
 
+    def reset(self, reset_type=None):
+        """! @brief Reset the core.
+        
+        The reset method is selectable via the reset_type parameter as well as the reset_type
+        session option. If the reset_type parameter is not specified or None, then the reset_type
+        option will be used. If the option is not set, or if it is set to a value of 'default', the
+        the core's default_reset_type property value is used. So, the session option overrides the
+        core's default, while the parameter overrides everything.
+        
+        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
+        is chosen but the core doesn't support it, the the reset method will fall back to an
+        emulated software reset.
+        
+        After a call to this function, the core is running.
+        """
+        self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
+
+        reset_type = self._get_actual_reset_type(reset_type)
+
+        self._run_token += 1
+
+        # Give the delegate a chance to overide reset. If the delegate returns True, then it
+        # handled the reset on its own.
+        if not self.call_delegate('will_reset', target=self, reset_type=reset_type):
+            self._perform_reset(reset_type)
+
+        self.call_delegate('did_reset', target=self, reset_type=reset_type)
+        
         # Now wait for the system to come out of reset. Keep reading the DHCSR until
         # we get a good response with S_RESET_ST cleared, or we time out.
         with timeout.Timeout(2.0) as t_o:
@@ -849,14 +869,19 @@ class CortexM(Target, CoreSightComponent):
         """
         perform a reset and stop the core on the reset handler
         """
+        
+        delegateResult = self.call_delegate('set_reset_catch', target=self, reset_type=reset_type)
+        
         # halt the target
-        self.halt()
+        if not delegateResult:
+            self.halt()
 
         # Save CortexM.DEMCR
         demcr = self.read_memory(CortexM.DEMCR)
 
         # enable the vector catch
-        self.write_memory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
+        if not delegateResult:
+            self.write_memory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
 
         self.reset(reset_type)
 
@@ -872,6 +897,8 @@ class CortexM(Target, CoreSightComponent):
         xpsr = self.read_core_register('xpsr')
         if xpsr & self.XPSR_THUMB == 0:
             self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+
+        self.call_delegate('clear_reset_catch', target=self, reset_type=reset_type)
 
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)

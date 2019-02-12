@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,27 @@
 
 from ..board.board import Board
 import logging
-import logging.config
 import six
 import yaml
 import os
 
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
-log = logging.getLogger('session')
+LOG = logging.getLogger(__name__)
+
+## @brief Set of default config filenames to search for.
+_CONFIG_FILE_NAMES = [
+        "pyocd.yaml",
+        "pyocd.yml",
+        ".pyocd.yaml",
+        ".pyocd.yml",
+    ]
+
+## @brief Set of default user script names to search for.
+_USER_SCRIPT_NAMES = [
+        "pyocd_user.py",
+        ".pyocd_user.py",
+    ]
 
 ## @brief Top-level object for a debug session.
 #
@@ -72,10 +85,18 @@ class Session(object):
         self._probe = probe
         self._closed = True
         self._inited = False
+        self._user_script_delegate = None
         
         # Update options.
         self._options = options or {}
         self._options.update(kwargs)
+        
+        # Init project directory.
+        if self._options.get('project_dir', None) is None:
+            self._project_dir = os.getcwd()
+        else:
+            self._project_dir = os.path.abspath(os.path.expanduser(self._options['project_dir']))
+        LOG.debug("Project directory: %s", self.project_dir)
         
         # Bail early if we weren't provided a probe.
         if probe is None:
@@ -87,11 +108,11 @@ class Session(object):
         probesConfig = config.pop('probes', None)
         self._options.update(config)
 
-        # Pick up any config file options for this board.
+        # Pick up any config file options for this probe.
         if probesConfig is not None:
             for uid, settings in probesConfig.items():
                 if str(uid).lower() in probe.unique_id.lower():
-                    log.info("Using config settings for board %s" % (probe.unique_id))
+                    LOG.info("Using config settings for board %s" % (probe.unique_id))
                     self._options.update(settings)
         
         # Ask the probe if it has an associated board, and if not then we create a generic one.
@@ -101,24 +122,40 @@ class Session(object):
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
         if not self._options.get('no_config', False):
-            configPath = self._options.get('config_file', None)
-            
-            # Look for default config files.
-            if configPath is None:
-                if os.path.isfile("pyocd.yaml"):
-                    configPath = "pyocd.yaml"
-                elif os.path.isfile("pyocd.yml"):
-                    configPath = "pyocd.yml"
+            configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
             if isinstance(configPath, six.string_types):
                 try:
                     with open(configPath, 'r') as configFile:
-                        log.debug("loading config from '%s'", configPath)
+                        LOG.debug("Loading config from: %s", configPath)
                         return yaml.safe_load(configFile)
                 except IOError as err:
-                    log.warning("Error attempting to access config file '%s': %s", configPath, err)
+                    LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
         
         return {}
+            
+    def find_user_file(self, option_name, filename_list):
+        """! @brief Search the project directory for a file."""
+        if option_name is not None:
+            filePath = self._options.get(option_name, None)
+        else:
+            filePath = None
+        
+        # Look for default filenames if a path wasn't provided.
+        if filePath is None:
+            for filename in filename_list:
+                thisPath = os.path.join(self.project_dir, filename)
+                if os.path.isfile(thisPath):
+                    filePath = thisPath
+                    break
+        # Use the path passed in options, which may be absolute, relative to the
+        # home directory, or relative to the project directory.
+        else:
+            filePath = os.path.expanduser(filePath)
+            if not os.path.isabs(filePath):
+                filePath = os.path.join(self.project_dir, filePath)
+        
+        return filePath
     
     @property
     def is_open(self):
@@ -139,6 +176,14 @@ class Session(object):
     @property
     def options(self):
         return self._options
+    
+    @property
+    def project_dir(self):
+        return self._project_dir
+    
+    @property
+    def user_script_delegate(self):
+        return self._user_script_delegate
 
     def __enter__(self):
         assert self._probe is not None
@@ -147,11 +192,56 @@ class Session(object):
     def __exit__(self, type, value, traceback):
         self.close()
         return False
+    
+    def _load_user_script(self):
+        scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
+
+        if isinstance(scriptPath, six.string_types):
+            try:
+                # Read the script source.
+                with open(scriptPath, 'r') as scriptFile:
+                    LOG.debug("Loading user script: %s", scriptPath)
+                    scriptCode = scriptFile.read()
+                
+                # Construct namespaces. The global namespace will have convenient access to
+                # most of the pyOCD object graph.
+                import pyocd
+                globalNamespace = {
+                    'pyocd': pyocd,
+                    'session': self,
+                    'options': self.options,
+                    'probe': self.probe,
+                    'board': self.board,
+                    'target': self.target,
+                    'dp': self.target.dp,
+                    'aps': self.target.aps,
+                    'Target': pyocd.core.target.Target,
+                    'ResetType': pyocd.core.target.Target.ResetType,
+                    'MemoryType': pyocd.core.memory_map.MemoryType,
+                    'FileProgrammer': pyocd.flash.loader.FileProgrammer,
+                    'FlashEraser': pyocd.flash.loader.FlashEraser,
+                    'FlashLoader': pyocd.flash.loader.FlashLoader,
+                    'LOG': logging.getLogger(os.path.basename(scriptPath)),
+                    }
+                localNamespace = {}
+                
+                # Executing the code will create definitions in the local namespace for any
+                # functions or classes.
+                six.exec_(scriptCode, globalNamespace, localNamespace)
+                
+                # Create the delegate proxy for the user script.
+                self._user_script_delegate = UserScriptDelegateProxy(localNamespace)
+            except IOError as err:
+                LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
 
     ## @brief Initialize the session
     def open(self):
         if not self._inited:
             assert self._probe is not None
+            
+            # Load the user script just before we init everything.
+            self._load_user_script()
+            
             self._probe.open()
             self._probe.set_clock(self._options.get('frequency', DEFAULT_CLOCK_FREQ))
             self._board.init()
@@ -164,21 +254,33 @@ class Session(object):
             return
         self._closed = True
 
-        log.debug("uninit session %s", self)
+        LOG.debug("uninit session %s", self)
         if self._inited:
             try:
                 self.board.uninit()
                 self._inited = False
             except:
-                log.error("exception during board uninit:", exc_info=True)
+                LOG.error("exception during board uninit:", exc_info=True)
         
         if self._probe.is_open:
             try:
                 self._probe.disconnect()
             except:
-                log.error("probe exception during disconnect:", exc_info=True)
+                LOG.error("probe exception during disconnect:", exc_info=True)
             try:
                 self._probe.close()
             except:
-                log.error("probe exception during close:", exc_info=True)
+                LOG.error("probe exception during close:", exc_info=True)
 
+class UserScriptDelegateProxy(object):
+    """! @brief Delegate proxy for user scripts."""
+
+    def __init__(self, script_namespace):
+        super(UserScriptDelegateProxy, self).__init__()
+        self._script = script_namespace
+    
+    def __getattr__(self, name):
+        if name in self._script:
+            return self._script[name]
+        else:
+            raise AttributeError(name)

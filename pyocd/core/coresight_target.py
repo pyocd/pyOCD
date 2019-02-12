@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2018 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.flash_reader import FlashReaderContext
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
+from ..target.pack.flash_algo import PackFlashAlgo
 import logging
 
 # inspect.getargspec is deprecated in Python 3.
@@ -110,6 +111,7 @@ class CoreSightTarget(Target):
 
     def add_core(self, core):
         core.halt_on_connect = self.halt_on_connect
+        core.delegate = self.delegate
         core.set_target_context(CachingDebugContext(DebugContext(core)))
         self.cores[core.core_number] = core
         self._root_contexts[core.core_number] = None
@@ -131,9 +133,15 @@ class CoreSightTarget(Target):
         return seq
     
     def init(self):
+        # If we don't have a delegate installed yet but there is a user script delegate, use it.
+        if (self.delegate is None) and (self.session.user_script_delegate is not None):
+            self.delegate = self.session.user_script_delegate
+        
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
+        self.call_delegate('will_init', target=self, init_sequence=seq)
         seq.invoke()
+        self.call_delegate('did_init', target=self)
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.
@@ -143,14 +151,31 @@ class CoreSightTarget(Target):
         to construct the flash object.
         """
         for region in self.memory_map.get_regions_of_type(MemoryType.FLASH):
+            # If a path to an FLM file was set on the region, examine it first.
+            if region.flm is not None:
+                flmPath = self.session.find_user_file(None, [region.flm])
+                if flmPath is not None:
+                    logging.info("creating flash algo from: %s", flmPath)
+                    packAlgo = PackFlashAlgo(flmPath)
+                    algo = packAlgo.get_pyocd_flash_algo(
+                            max(s[1] for s in packAlgo.sector_sizes),
+                            self.memory_map.get_first_region_of_type(MemoryType.RAM))
+                
+                    # If we got a valid algo from the FLM, set it on the region. This will then
+                    # be used below.
+                    if algo is not None:
+                        region.algo = algo
+                else:
+                    logging.warning("Failed to find FLM file: %s", region.flm)
+            
             # If the constructor of the region's flash class takes the flash_algo arg, then we
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
             # algo is built-in.
             klass = region.flash_class
             argspec = getargspec(klass.__init__)
             if 'flash_algo' in argspec.args:
-                if region.flash_algo is not None:
-                    obj = klass(self, region.flash_algo)
+                if region.algo is not None:
+                    obj = klass(self, region.algo)
                 else:
                     logging.warning("flash region '%s' has no flash algo" % region.name)
                     continue
@@ -181,9 +206,11 @@ class CoreSightTarget(Target):
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))
+        self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
         self.dp.power_down_debug()
+        self.call_delegate('did_disconnect', target=self, resume=resume)
 
     @property
     def run_token(self):
@@ -199,8 +226,9 @@ class CoreSightTarget(Target):
         return self.selected_core.resume()
 
     def mass_erase(self):
-        # The default mass erase implementation is to simply perform a chip erase.
-        FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
+        if not self.call_delegate('mass_erase', target=self, resume=resume):
+            # The default mass erase implementation is to simply perform a chip erase.
+            FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
         return True
 
     def write_memory(self, addr, value, transfer_size=32):
@@ -258,7 +286,7 @@ class CoreSightTarget(Target):
         return self.selected_core.remove_watchpoint(addr, size, type)
 
     def reset(self, reset_type=None):
-        return self.selected_core.reset(reset_type)
+        self.selected_core.reset(reset_type)
 
     def reset_and_halt(self, reset_type=None):
         return self.selected_core.reset_and_halt(reset_type)
