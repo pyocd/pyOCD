@@ -54,6 +54,7 @@ from . import target_nRF52840_xxAA
 from . import target_STM32F103RC
 from . import target_STM32F051T8
 from . import target_STM32F412xx
+from . import target_STM32F429xx
 from . import target_STM32F439xx
 from . import target_STM32L475xx
 from . import target_STM32L031x6
@@ -121,6 +122,8 @@ BUILTIN_TARGETS = {
           'stm32f051': target_STM32F051T8.STM32F051,
           'stm32f412xe' : target_STM32F412xx.STM32F412xE,
           'stm32f412xg' : target_STM32F412xx.STM32F412xG,
+          'stm32f429xg' : target_STM32F429xx.STM32F429xG,
+          'stm32f429xi' : target_STM32F429xx.STM32F429xI,
           'stm32f439xg' : target_STM32F439xx.STM32F439xG,
           'stm32f439xi' : target_STM32F439xx.STM32F439xI,
           'stm32l475xc' : target_STM32L475xx.STM32L475xC,
