@@ -130,6 +130,6 @@ def convert_reset_type(value):
     """
     value = value.lower()
     if value not in RESET_TYPE_MAP:
-        raise ValueError("unexpected value for reset_type option ('%s')", value)
+        raise ValueError("unexpected value for reset_type option ('%s')" % value)
     return RESET_TYPE_MAP[value]
 
