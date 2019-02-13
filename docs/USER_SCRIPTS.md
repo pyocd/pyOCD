@@ -22,7 +22,7 @@ This example user script shows how to add a new memory region.
 ```py
 # This example applies to the Nordic nRF52 devices.
 
-def will_init_board(board):
+def will_connect(board):
     # Create the new ROM region for the FICR.
     ficr = pyocd.core.memory_map.RomRegion(
                                         name="ficr",
@@ -39,7 +39,7 @@ This example shows how to override the flash algorithm for an external flash mem
 ```py
 # This example applies to the NXP i.MX RT10x0 devices.
 
-def will_init_board(board):
+def will_connect(board):
     # Look up the external flash memory region.
     extFlash = target.memory_map.get_region_by_name("flexspi")
 
@@ -87,19 +87,19 @@ both target related objects, as well as parts of the pyOCD Python API.
 
 ## Script functions
 
-- `will_init_board(board)`<br/>
+- `will_connect(board)`<br/>
     Pre-init hook for the board.
 
     *board* - A `Board` instance that is about to be initialized.<br/>
     **Result** - Ignored.
 
-- `did_init_board(board)`<br/>
+- `did_connect(board)`<br/>
     Post-initialization hook for the board.
 
     *board* - A `Board` instance.<br/>
     **Result** - Ignored.
 
-- `will_init(target, init_sequence)`<br/>
+- `will_init_target(target, init_sequence)`<br/>
     Hook to review and modify init call sequence prior to execution.
 
     *target* - A `CoreSightTarget` object about to be initialized.<br/>
@@ -107,10 +107,36 @@ both target related objects, as well as parts of the pyOCD Python API.
         mutable, this parameter can be modified before return to change the init calls.<br/>
     **Result** - Ignored.
 
-- `did_init(target)`<br/>
+- `did_init_target(target)`<br/>
     Post-initialization hook.
 
-    target - Either a `CoreSightTarget` or `CortexM` object.<br/>
+    *target* - Either a `CoreSightTarget` or `CortexM` object.<br/>
+    **Result** - Ignored.
+
+- `will_start_debug_core(core)`<br/>
+    Hook to review and modify init call sequence prior to execution.
+
+    *core* - A `CortexM` object about to be initialized.<br/>
+    **Result** - *True* Do not perform the normal procedure to start core debug.
+        *False/None* Continue with normal behaviour.
+
+- `did_start_debug_core(core)`<br/>
+    Post-initialization hook.
+
+    *core* - A `CortexM` object.<br/>
+    **Result** - Ignored.
+
+- `will_stop_debug_core(core)`<br/>
+    Hook to review and modify init call sequence prior to execution.
+
+    *core* - A `CortexM` object.<br/>
+    **Result** - *True* Do not perform the normal procedure to disable core debug.
+        *False/None* Continue with normal behaviour.
+
+- `did_stop_debug_core(core)`<br/>
+    Post-initialization hook.
+
+    *core* - A `CortexM` object.<br/>
     **Result** - Ignored.
 
 - `will_disconnect(target, resume)`<br/>
@@ -127,33 +153,33 @@ both target related objects, as well as parts of the pyOCD Python API.
     *resume* - The value of the `disconnect_on_resume` option.<br/>
     **Result** - Ignored.
 
-- `will_reset(target, reset_type)`<br/>
+- `will_reset(core, reset_type)`<br/>
     Pre-reset hook.
 
-    *target* - A CortexM instance.<br/>
+    *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - *True* The hook performed the reset. *False/None* Caller should perform the normal
         reset procedure.
 
-- `did_reset(target, reset_type)`<br/>
+- `did_reset(core, reset_type)`<br/>
     Post-reset hook.
 
-    *target* - A CortexM instance.<br/>
+    *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - Ignored.
 
-- `set_reset_catch(target, reset_type)`<br/>
+- `set_reset_catch(core, reset_type)`<br/>
     Hook to prepare target for halting on reset.
 
-    *target* - A CortexM instance.<br/>
+    *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - *True* This hook handled setting up reset catch, caller should do nothing.
                 *False/None* Perform the default reset catch set using vector catch.
 
-- `clear_reset_catch(target, reset_type)`<br/>
+- `clear_reset_catch(core, reset_type)`<br/>
     Hook to clean up target after a reset and halt.
 
-    *target* - A `CortexM` instance.<br/>
+    *core* - A `CortexM` instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - Ignored.
 
