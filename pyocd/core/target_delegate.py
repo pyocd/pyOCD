@@ -109,39 +109,39 @@ class TargetDelegateInterface(object):
         @return Ignored."""
         pass
 
-    def will_reset(self, target, reset_type):
+    def will_reset(self, core, reset_type):
         """! @brief Pre-reset hook.
         @param self
-        @param target A CortexM instance.
+        @param core A CortexM instance.
         @param reset_type One of the Target.ResetType enumerations.
         @retval True
         @retval "False or None"
         """
         pass
 
-    def did_reset(self, target, reset_type):
+    def did_reset(self, core, reset_type):
         """! @brief Post-reset hook.
         @param self
-        @param target A CortexM instance.
+        @param core A CortexM instance.
         @param reset_type One of the Target.ResetType enumerations.
         @return Ignored.
         """
         pass
 
-    def set_reset_catch(self, target, reset_type):
+    def set_reset_catch(self, core, reset_type):
         """! @brief Hook to prepare target for halting on reset.
         @param self
-        @param target A CortexM instance.
+        @param core A CortexM instance.
         @param reset_type One of the Target.ResetType enumerations.
         @retval True
         @retval "False or None"
         """
         pass
 
-    def clear_reset_catch(self, target, reset_type):
+    def clear_reset_catch(self, core, reset_type):
         """! @brief Hook to clean up target after a reset and halt.
         @param self
-        @param target A CortexM instance.
+        @param core A CortexM instance.
         @param reset_type
         @return Ignored.
         """

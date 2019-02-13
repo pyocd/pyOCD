@@ -22,7 +22,7 @@ This example user script shows how to add a new memory region.
 ```py
 # This example applies to the Nordic nRF52 devices.
 
-def will_init_board(board):
+def will_connect(board):
     # Create the new ROM region for the FICR.
     ficr = pyocd.core.memory_map.RomRegion(
                                         name="ficr",
@@ -39,7 +39,7 @@ This example shows how to override the flash algorithm for an external flash mem
 ```py
 # This example applies to the NXP i.MX RT10x0 devices.
 
-def will_init_board(board):
+def will_connect(board):
     # Look up the external flash memory region.
     extFlash = target.memory_map.get_region_by_name("flexspi")
 
@@ -153,33 +153,33 @@ both target related objects, as well as parts of the pyOCD Python API.
     *resume* - The value of the `disconnect_on_resume` option.<br/>
     **Result** - Ignored.
 
-- `will_reset(target, reset_type)`<br/>
+- `will_reset(core, reset_type)`<br/>
     Pre-reset hook.
 
-    *target* - A CortexM instance.<br/>
+    *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - *True* The hook performed the reset. *False/None* Caller should perform the normal
         reset procedure.
 
-- `did_reset(target, reset_type)`<br/>
+- `did_reset(core, reset_type)`<br/>
     Post-reset hook.
 
-    *target* - A CortexM instance.<br/>
+    *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - Ignored.
 
-- `set_reset_catch(target, reset_type)`<br/>
+- `set_reset_catch(core, reset_type)`<br/>
     Hook to prepare target for halting on reset.
 
-    *target* - A CortexM instance.<br/>
+    *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - *True* This hook handled setting up reset catch, caller should do nothing.
                 *False/None* Perform the default reset catch set using vector catch.
 
-- `clear_reset_catch(target, reset_type)`<br/>
+- `clear_reset_catch(core, reset_type)`<br/>
     Hook to clean up target after a reset and halt.
 
-    *target* - A `CortexM` instance.<br/>
+    *core* - A `CortexM` instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
     **Result** - Ignored.
 

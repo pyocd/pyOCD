@@ -847,10 +847,10 @@ class CortexM(Target, CoreSightComponent):
 
         # Give the delegate a chance to overide reset. If the delegate returns True, then it
         # handled the reset on its own.
-        if not self.call_delegate('will_reset', target=self, reset_type=reset_type):
+        if not self.call_delegate('will_reset', core=self, reset_type=reset_type):
             self._perform_reset(reset_type)
 
-        self.call_delegate('did_reset', target=self, reset_type=reset_type)
+        self.call_delegate('did_reset', core=self, reset_type=reset_type)
         
         # Now wait for the system to come out of reset. Keep reading the DHCSR until
         # we get a good response with S_RESET_ST cleared, or we time out.
@@ -871,7 +871,7 @@ class CortexM(Target, CoreSightComponent):
         perform a reset and stop the core on the reset handler
         """
         
-        delegateResult = self.call_delegate('set_reset_catch', target=self, reset_type=reset_type)
+        delegateResult = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
         
         # halt the target
         if not delegateResult:
@@ -899,7 +899,7 @@ class CortexM(Target, CoreSightComponent):
         if xpsr & self.XPSR_THUMB == 0:
             self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
 
-        self.call_delegate('clear_reset_catch', target=self, reset_type=reset_type)
+        self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
