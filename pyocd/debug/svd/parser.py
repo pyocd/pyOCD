@@ -17,15 +17,15 @@ from xml.etree import ElementTree as ET
 
 import six
 
-from cmsis_svd.model import SVDDevice
-from cmsis_svd.model import SVDPeripheral
-from cmsis_svd.model import SVDInterrupt
-from cmsis_svd.model import SVDAddressBlock
-from cmsis_svd.model import SVDRegister, SVDRegisterArray
-from cmsis_svd.model import SVDRegisterCluster, SVDRegisterClusterArray
-from cmsis_svd.model import SVDField
-from cmsis_svd.model import SVDEnumeratedValue
-from cmsis_svd.model import SVDCpu
+from .model import SVDDevice
+from .model import SVDPeripheral
+from .model import SVDInterrupt
+from .model import SVDAddressBlock
+from .model import SVDRegister, SVDRegisterArray
+from .model import SVDRegisterCluster, SVDRegisterClusterArray
+from .model import SVDField
+from .model import SVDEnumeratedValue
+from .model import SVDCpu
 import pkg_resources
 import re
 
