@@ -28,7 +28,6 @@ from .. import __version__
 from .. import target
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
-from ..debug.svd import IS_CMSIS_SVD_AVAILABLE
 from ..gdbserver import GDBServer
 from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch,
                                 convert_session_options)
@@ -240,15 +239,8 @@ class GDBServerTool(object):
                     'name' : name,
                     'part_number' : t.part_number,
                     }
-                if t._svd_location is not None and IS_CMSIS_SVD_AVAILABLE:
-                    if t._svd_location.is_local:
-                        svdPath = t._svd_location.filename
-                    else:
-                        resource = "data/{vendor}/{filename}".format(
-                            vendor=t._svd_location.vendor,
-                            filename=t._svd_location.filename
-                        )
-                        svdPath = pkg_resources.resource_filename("cmsis_svd", resource)
+                if t._svd_location is not None:
+                    svdPath = t._svd_location.filename
                     if os.path.exists(svdPath):
                         d['svd_path'] = svdPath
                 targets.append(d)

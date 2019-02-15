@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,28 +16,17 @@
 
 import threading
 import logging
-# Make cmsis_svd optional.
-try:
-    from cmsis_svd.parser import SVDParser
-    IS_CMSIS_SVD_AVAILABLE = True
-except ImportError:
-    IS_CMSIS_SVD_AVAILABLE = False
+
+from .parser import SVDParser
 
 class SVDFile(object):
-    def __init__(self, filename=None, vendor=None, is_local=False):
+    def __init__(self, filename=None, vendor=None):
         self.filename = filename
         self.vendor = vendor
-        self.is_local = is_local
         self.device = None
 
     def load(self):
-        if not IS_CMSIS_SVD_AVAILABLE:
-            return
-
-        if self.is_local:
-            self.device = SVDParser.for_xml_file(self.filename).get_device()
-        else:
-            self.device = SVDParser.for_packaged_svd(self.vendor, self.filename).get_device()
+        self.device = SVDParser.for_xml_file(self.filename).get_device()
 
 ## @brief Thread to read an SVD file in the background.
 class SVDLoader(threading.Thread):

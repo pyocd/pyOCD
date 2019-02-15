@@ -24,7 +24,7 @@ from .cmsis_pack import (CmsisPack, MalformedCmsisPackError)
 from ..family import FAMILIES
 from .. import TARGET
 from ...core.coresight_target import CoreSightTarget
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 
 LOG = logging.getLogger(__name__)
 
@@ -63,12 +63,12 @@ def populate_target_from_cache(device_name):
 def _pack_target__init__(self, session):
     """! @brief Constructor for dynamically created target class."""
     super(self.__class__, self).__init__(session, self._pack_device.memory_map)
-    
+
     self.vendor = self._pack_device.vendor
     self.part_families = self._pack_device.families
     self.part_number = self._pack_device.part_number
-    
-    self._svd_location = SVDFile(filename=self._pack_device.svd, is_local=True)
+
+    self._svd_location = SVDFile(filename=self._pack_device.svd)
 
 def _pack_target_create_init_sequence(self):
     """! @brief Creates an init task to set the default reset type."""
@@ -88,7 +88,7 @@ def _find_family_class(dev):
         # Skip if wrong vendor.
         if dev.vendor != familyInfo.vendor:
             continue
-        
+
         # Scan each level of families
         for familyName in dev.families:
             for regex in familyInfo.matches:
@@ -102,7 +102,7 @@ def _find_family_class(dev):
 
 def _create_targets_from_pack(pack_or_path):
     """! @brief Iterator yielding parsed targets for all devices defined by the given pack.
-    
+
     @param pack_or_path May be a string which is a path to a .pack file, a file object, or
         a ZipFile instance.
     @return Each yielded result is a 2-tuple of the target's part number string, plus a
@@ -115,10 +115,10 @@ def _create_targets_from_pack(pack_or_path):
         for dev in pack.devices:
             # Look up the target family superclass.
             superklass = _find_family_class(dev)
-            
+
             # Replace spaces with underscores on the target class name.
             subclassName = dev.part_number.replace(' ', '_')
-            
+
             # Create a new subclass for this target.
             targetClass = type(dev.part_number, (superklass,), {
                         "_pack_device": dev,
@@ -133,9 +133,9 @@ def _create_targets_from_pack(pack_or_path):
 
 def populate_targets_from_pack(pack_list):
     """! @brief Adds targets defined in the provided CMSIS-Pack.
-    
+
     Targets are added to the `#TARGET` list.
-    
+
     @param pack_list Sequence of strings that are paths to .pack files, file objects, or
         ZipFile instances. May also be a single object of one of the accepted types.
     """
@@ -144,9 +144,7 @@ def populate_targets_from_pack(pack_list):
     for pack_or_path in pack_list:
         for part, tgt in _create_targets_from_pack(pack_or_path):
             part = part.lower()
-        
+
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
                 TARGET[part] = tgt
-        
-
