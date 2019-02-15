@@ -182,9 +182,16 @@ class DwarfAddressDecoder(object):
 
                 # Looking for a range of addresses in two consecutive states.
                 if prevstate and not skipThisSequence:
-                    fileinfo = lineprog['file_entry'][prevstate.file - 1]
-                    filename = fileinfo.name
-                    dirname = lineprog['include_directory'][fileinfo.dir_index - 1]
+                    try:
+                        fileinfo = lineprog['file_entry'][prevstate.file - 1]
+                        filename = fileinfo.name
+                        try:
+                            dirname = lineprog['include_directory'][fileinfo.dir_index - 1]
+                        except IndexError:
+                            dirname = ""
+                    except IndexError:
+                        filename = ""
+                        dirname = ""
                     info = LineInfo(cu=cu, filename=filename, dirname=dirname, line=prevstate.line)
                     fromAddr = prevstate.address
                     toAddr = entry.state.address
