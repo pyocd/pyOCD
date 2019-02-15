@@ -261,32 +261,51 @@ class STLinkMemoryInterface(MemoryInterface):
     # By default the transfer size is a word.
     def write_memory(self, addr, data, transfer_size=32):
         assert transfer_size in (8, 16, 32)
-        if transfer_size == 32:
-            self._link.write_mem32(addr, conversion.u32le_list_to_byte_list([data]), self._apsel)
-        elif transfer_size == 16:
-            self._link.write_mem16(addr, conversion.u16le_list_to_byte_list([data]), self._apsel)
-        elif transfer_size == 8:
-            self._link.write_mem8(addr, [data], self._apsel)
+        try:
+            if transfer_size == 32:
+                self._link.write_mem32(addr, conversion.u32le_list_to_byte_list([data]), self._apsel)
+            elif transfer_size == 16:
+                self._link.write_mem16(addr, conversion.u16le_list_to_byte_list([data]), self._apsel)
+            elif transfer_size == 8:
+                self._link.write_mem8(addr, [data], self._apsel)
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
         
     ## @brief Read a memory location.
     #
     # By default, a word will be read.
     def read_memory(self, addr, transfer_size=32, now=True):
         assert transfer_size in (8, 16, 32)
-        if transfer_size == 32:
-            result = conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, 4, self._apsel))[0]
-        elif transfer_size == 16:
-            result = conversion.byte_list_to_u16le_list(self._link.read_mem16(addr, 2, self._apsel))[0]
-        elif transfer_size == 8:
-            result = self._link.read_mem8(addr, 1, self._apsel)[0]
+        try:
+            if transfer_size == 32:
+                result = conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, 4, self._apsel))[0]
+            elif transfer_size == 16:
+                result = conversion.byte_list_to_u16le_list(self._link.read_mem16(addr, 2, self._apsel))[0]
+            elif transfer_size == 8:
+                result = self._link.read_mem8(addr, 1, self._apsel)[0]
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
         
         def read_callback():
             return result
         return result if now else read_callback
 
     def write_memory_block32(self, addr, data):
-        self._link.write_mem32(addr, conversion.u32le_list_to_byte_list(data), self._apsel)
+        try:
+            self._link.write_mem32(addr, conversion.u32le_list_to_byte_list(data), self._apsel)
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
 
     def read_memory_block32(self, addr, size):
-        return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
+        try:
+            return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
+        except STLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+  
+    @staticmethod
+    def _convert_exception(exc):
+        if isinstance(exc, STLinkException):
+            return exceptions.ProbeError(str(exc))
+        else:
+            return exc
 
