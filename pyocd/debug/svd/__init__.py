@@ -17,12 +17,8 @@
 
 import threading
 import logging
-# Make cmsis_svd optional.
-try:
-    from cmsis_svd.parser import SVDParser
-    IS_CMSIS_SVD_AVAILABLE = True
-except ImportError:
-    IS_CMSIS_SVD_AVAILABLE = False
+
+from .parser import SVDParser
 
 class SVDFile(object):
     def __init__(self, filename=None, vendor=None, is_local=False):
@@ -32,9 +28,6 @@ class SVDFile(object):
         self.device = None
 
     def load(self):
-        if not IS_CMSIS_SVD_AVAILABLE:
-            return
-
         if self.is_local:
             self.device = SVDParser.for_xml_file(self.filename).get_device()
         else:

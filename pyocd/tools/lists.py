@@ -21,7 +21,6 @@ from .. import __version__
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..target import TARGET
-from ..debug.svd import IS_CMSIS_SVD_AVAILABLE
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..target.pack import pack_target
 
@@ -72,7 +71,7 @@ class ListGenerator(object):
             'status' : 0,
             'boards' : boards
             }
-    
+
         for board_id, info in BOARD_ID_TO_INFO.items():
             d = {
                 'id' : board_id,
@@ -81,7 +80,7 @@ class ListGenerator(object):
                 'binary' : info.binary,
                 }
             boards.append(d)
-    
+
         return obj
 
     @staticmethod
@@ -107,7 +106,7 @@ class ListGenerator(object):
                 'part_families' : t.part_families,
                 'part_number' : t.part_number,
                 }
-            if t._svd_location is not None and IS_CMSIS_SVD_AVAILABLE:
+            if t._svd_location is not None:
                 if t._svd_location.is_local:
                     svdPath = t._svd_location.filename
                 else:

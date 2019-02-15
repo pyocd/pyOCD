@@ -29,7 +29,6 @@ from .. import __version__
 from .. import target
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
-from ..debug.svd import IS_CMSIS_SVD_AVAILABLE
 from ..gdbserver import GDBServer
 from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch,
                                 convert_session_options)
@@ -253,7 +252,7 @@ class GDBServerTool(object):
                     'name' : name,
                     'part_number' : t.part_number,
                     }
-                if t._svd_location is not None and IS_CMSIS_SVD_AVAILABLE:
+                if t._svd_location is not None:
                     if t._svd_location.is_local:
                         svdPath = t._svd_location.filename
                     else:
@@ -280,7 +279,7 @@ class GDBServerTool(object):
 
             if not self.args.no_deprecation_warning:
                 logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
-        
+
             self.process_commands(self.args.commands)
 
             gdb = None
@@ -294,7 +293,7 @@ class GDBServerTool(object):
                     # Build dict of session options.
                     sessionOptions = convert_session_options(self.args.option)
                     sessionOptions.update(self.gdb_server_settings)
-                    
+
                     session = ConnectHelper.session_with_chosen_probe(
                         config_file=self.args.config,
                         no_config=self.args.no_config,
