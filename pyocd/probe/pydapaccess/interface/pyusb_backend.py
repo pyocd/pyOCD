@@ -21,6 +21,7 @@ import logging
 import os
 import threading
 import six
+from time import sleep
 
 log = logging.getLogger('pyusb')
 
@@ -201,7 +202,8 @@ class PyUSB(Interface):
         read data on the IN endpoint associated to the HID interface
         """
         while len(self.rcv_data) == 0:
-            pass
+            sleep(0)
+
         if self.rcv_data[0] is None:
             raise DAPAccessIntf.DeviceError("Device %s read thread exited" %
                                             self.serial_number)
