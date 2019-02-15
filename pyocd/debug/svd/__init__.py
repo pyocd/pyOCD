@@ -21,17 +21,13 @@ import logging
 from .parser import SVDParser
 
 class SVDFile(object):
-    def __init__(self, filename=None, vendor=None, is_local=False):
+    def __init__(self, filename=None, vendor=None):
         self.filename = filename
         self.vendor = vendor
-        self.is_local = is_local
         self.device = None
 
     def load(self):
-        if self.is_local:
-            self.device = SVDParser.for_xml_file(self.filename).get_device()
-        else:
-            self.device = SVDParser.for_packaged_svd(self.vendor, self.filename).get_device()
+        self.device = SVDParser.for_xml_file(self.filename).get_device()
 
 ## @brief Thread to read an SVD file in the background.
 class SVDLoader(threading.Thread):
