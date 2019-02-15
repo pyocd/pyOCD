@@ -56,7 +56,7 @@ class Board(object):
         
         # Delegate pre-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'will_connect'):
-            self.delegate.will_init_board(self)
+            self.delegate.will_connect(self)
         
         # Init the target.
         self.target.init()
@@ -64,7 +64,7 @@ class Board(object):
         
         # Delegate post-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
-            self.delegate.did_init_board(self)
+            self.delegate.did_connect(self)
 
     ## @brief Uninitialize the board.
     def uninit(self):
