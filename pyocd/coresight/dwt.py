@@ -58,7 +58,7 @@ class DWT(CoreSightComponent):
     def factory(cls, ap, cmpid, address):
         dwt = cls(ap, cmpid, address)
         assert ap.core
-        ap.core.connect(dwt)
+        ap.core.add_child(dwt)
         return dwt
 
     def __init__(self, ap, cmpid=None, addr=None):

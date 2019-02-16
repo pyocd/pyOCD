@@ -37,7 +37,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
     def factory(cls, ap, cmpid, address):
         fpb = cls(ap, cmpid, address)
         assert ap.core
-        ap.core.connect(fpb)
+        ap.core.add_child(fpb)
         return fpb
 
     def __init__(self, ap, cmpid=None, addr=None):

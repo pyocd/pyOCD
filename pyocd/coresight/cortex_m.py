@@ -430,8 +430,8 @@ class CortexM(Target, CoreSightComponent):
         self.bp_manager.add_provider(self.sw_bp, Target.BREAKPOINT_SW)
 
     ## @brief Connect related CoreSight components.
-    def connect(self, cmp):
-        self.add_child(cmp)
+    def add_child(self, cmp):
+        super(CortexM, self).add_child(cmp)
         
         if isinstance(cmp, FPB):
             self.fpb = cmp
