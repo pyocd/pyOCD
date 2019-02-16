@@ -24,6 +24,7 @@ from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
 from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.flash_reader import FlashReaderContext
+from ..utility.graph import GraphNode
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
 from ..target.pack.flash_algo import PackFlashAlgo
@@ -46,10 +47,11 @@ except ImportError:
 # the CortexM object for the core. Multicore devices work differently. This class tracks
 # a "selected core", to which all actions are directed. The selected core can be changed
 # at any time. You may also directly access specific cores and perform operations on them.
-class CoreSightTarget(Target):
+class CoreSightTarget(Target, GraphNode):
 
     def __init__(self, session, memoryMap=None):
-        super(CoreSightTarget, self).__init__(session, memoryMap)
+        Target.__init__(self, session, memoryMap)
+        GraphNode.__init__(self)
         self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
@@ -114,6 +116,7 @@ class CoreSightTarget(Target):
         core.delegate = self.delegate
         core.set_target_context(CachingDebugContext(DebugContext(core)))
         self.cores[core.core_number] = core
+        self.add_child(core)
         self._root_contexts[core.core_number] = None
 
     def create_init_sequence(self):
@@ -189,6 +192,7 @@ class CoreSightTarget(Target):
             region.flash = obj
     
     def _create_component(self, cmpid):
+        logging.debug("Creating %s component", cmpid.name)
         cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
         cmp.init()
 
