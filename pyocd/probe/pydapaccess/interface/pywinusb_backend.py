@@ -20,7 +20,7 @@ from ..dap_access_api import DAPAccessIntf
 import logging
 import os
 import collections
-from time import time
+from time import time, sleep
 import six
 
 OPEN_TIMEOUT_S = 60.0
@@ -154,6 +154,7 @@ class PyWinUSB(Interface):
         """
         start = time()
         while len(self.rcv_data) == 0:
+            sleep(0)
             if time() - start > timeout:
                 # Read operations should typically take ~1-2ms.
                 # If this exception occurs, then it could indicate
