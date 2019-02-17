@@ -212,10 +212,10 @@ class Session(object):
                     LOG.debug("Loading user script: %s", scriptPath)
                     scriptCode = scriptFile.read()
                 
-                # Construct namespaces. The global namespace will have convenient access to
+                # Construct the user script namespace. The namespace will have convenient access to
                 # most of the pyOCD object graph.
                 import pyocd
-                globalNamespace = {
+                namespace = {
                     'pyocd': pyocd,
                     'session': self,
                     'options': self.options,
@@ -230,17 +230,18 @@ class Session(object):
                     'FileProgrammer': pyocd.flash.loader.FileProgrammer,
                     'FlashEraser': pyocd.flash.loader.FlashEraser,
                     'FlashLoader': pyocd.flash.loader.FlashLoader,
-                    'LOG': logging.getLogger(os.path.basename(scriptPath)),
+                    'LOG': logging.getLogger(os.path.basename('pyocd.user_script')),
                     }
-                localNamespace = {}
                 
-                # Executing the code will create definitions in the local namespace for any
-                # functions or classes.
-                six.exec_(scriptCode, globalNamespace, localNamespace)
+                # Executing the code will create definitions in the namespace for any
+                # functions or classes. A single namespace is shared for both globals and
+                # locals so that script-level definitions are available within the
+                # script functions.
+                six.exec_(scriptCode, namespace, namespace)
                 
                 # Create the proxy for the user script. It becomes the delegate unless
                 # another delegate was already set.
-                self._user_script_proxy = UserScriptDelegateProxy(localNamespace)
+                self._user_script_proxy = UserScriptDelegateProxy(namespace)
                 if self._delegate is None:
                     self._delegate = self._user_script_proxy
             except IOError as err:
