@@ -61,7 +61,7 @@ class Board(GraphNode):
         
         # Delegate pre-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'will_connect'):
-            self.delegate.will_connect(self)
+            self.delegate.will_connect(board=self)
         
         # Init the target.
         self.target.init()
@@ -69,7 +69,7 @@ class Board(GraphNode):
         
         # Delegate post-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
-            self.delegate.did_connect(self)
+            self.delegate.did_connect(board=self)
 
     ## @brief Uninitialize the board.
     def uninit(self):

@@ -230,7 +230,7 @@ class CoreSightTarget(Target, GraphNode):
         return self.selected_core.resume()
 
     def mass_erase(self):
-        if not self.call_delegate('mass_erase', target=self, resume=resume):
+        if not self.call_delegate('mass_erase', target=self):
             # The default mass erase implementation is to simply perform a chip erase.
             FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
         return True
