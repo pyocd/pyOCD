@@ -20,6 +20,12 @@ import six
 import yaml
 import os
 
+# inspect.getargspec is deprecated in Python 3.
+try:
+    from inspect import getfullargspec as getargspec
+except ImportError:
+    from inspect import getargspec
+
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
 LOG = logging.getLogger(__name__)
@@ -285,6 +291,23 @@ class Session(object):
             except:
                 LOG.error("probe exception during close:", exc_info=True)
 
+class UserScriptFunctionProxy(object):
+    """! @brief Proxy for user script functions.
+    
+    This proxy makes arguments to user script functions optional. 
+    """
+
+    def __init__(self, fn):
+        self._fn = fn
+        self._spec = getargspec(fn)
+    
+    def __call__(self, **kwargs):
+        args = {}
+        for arg in self._spec.args:
+            if arg in kwargs:
+                args[arg] = kwargs[arg]
+        self._fn(**args)
+
 class UserScriptDelegateProxy(object):
     """! @brief Delegate proxy for user scripts."""
 
@@ -294,6 +317,7 @@ class UserScriptDelegateProxy(object):
     
     def __getattr__(self, name):
         if name in self._script:
-            return self._script[name]
+            fn = self._script[name]
+            return UserScriptFunctionProxy(fn)
         else:
             raise AttributeError(name)
