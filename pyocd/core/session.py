@@ -85,7 +85,8 @@ class Session(object):
         self._probe = probe
         self._closed = True
         self._inited = False
-        self._user_script_delegate = None
+        self._user_script_proxy = None
+        self._delegate = None
         
         # Update options.
         self._options = options or {}
@@ -182,8 +183,16 @@ class Session(object):
         return self._project_dir
     
     @property
-    def user_script_delegate(self):
-        return self._user_script_delegate
+    def delegate(self):
+        return self._delegate
+    
+    @delegate.setter
+    def delegate(self, new_delegate):
+        self._delegate = new_delegate
+    
+    @property
+    def user_script_proxy(self):
+        return self._user_script_proxy
 
     def __enter__(self):
         assert self._probe is not None
@@ -229,8 +238,11 @@ class Session(object):
                 # functions or classes.
                 six.exec_(scriptCode, globalNamespace, localNamespace)
                 
-                # Create the delegate proxy for the user script.
-                self._user_script_delegate = UserScriptDelegateProxy(localNamespace)
+                # Create the proxy for the user script. It becomes the delegate unless
+                # another delegate was already set.
+                self._user_script_proxy = UserScriptDelegateProxy(localNamespace)
+                if self._delegate is None:
+                    self._delegate = self._user_script_proxy
             except IOError as err:
                 LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
 

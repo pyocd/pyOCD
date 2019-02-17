@@ -136,9 +136,9 @@ class CoreSightTarget(Target, GraphNode):
         return seq
     
     def init(self):
-        # If we don't have a delegate installed yet but there is a user script delegate, use it.
-        if (self.delegate is None) and (self.session.user_script_delegate is not None):
-            self.delegate = self.session.user_script_delegate
+        # If we don't have a delegate installed yet but there is a session delegate, use it.
+        if (self.delegate is None) and (self.session.delegate is not None):
+            self.delegate = self.session.delegate
         
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
