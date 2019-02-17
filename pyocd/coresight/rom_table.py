@@ -262,7 +262,8 @@ class ROMTable(CoreSightComponent):
         if addr is None:
             addr = ap.rom_addr
         super(ROMTable, self).__init__(ap, cmpid, addr)
-        self.parent = parent_table
+        if parent_table is not None:
+            parent_table.add_child(self)
         self.number = (self.parent.number + 1) if self.parent else 0
         self.components = []
         self.name = 'ROM'

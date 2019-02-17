@@ -17,16 +17,19 @@
 
 from ..target import TARGET
 from ..target.pack import pack_target
+from ..utility.graph import GraphNode
 import logging
 import six
 
 log = logging.getLogger('board')
 
-class Board(object):
+class Board(GraphNode):
     """
     This class associates a target and flash to create a board.
     """
     def __init__(self, session, target=None):
+        super(Board, self).__init__()
+        
         # As a last resort, default the target to 'cortex_m'.
         if target is None:
             target = 'cortex_m'
@@ -47,6 +50,8 @@ class Board(object):
             log.error("target '%s' not recognized", self._target_type)
             six.raise_from(KeyError("target '%s' not recognized" % self._target_type), exc)
         self._inited = False
+        
+        self.add_child(self.target)
 
     ## @brief Initialize the board.
     def init(self):
