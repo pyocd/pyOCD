@@ -112,6 +112,10 @@ These session options are currently only applied when running the GDB server.
 - `enable_semihosting`: (bool) Set to True to handle semihosting requests. Also see the
     `semihost_console_type` option. Default is False.
 
+- `enable_swv`: (bool) Whether to enable SWV printf output over the semihosting console. Requires
+    the `swv_system_clock` option to be set. The SWO baud rate can be controlled with the `swv_clock`
+    option.
+
 - `fast_program`: (bool) Setting this option to True will use CRC checks of existing flash sector
     contents to determine whether pages need to be programmed. Default is False.
 
@@ -143,6 +147,11 @@ These session options are currently only applied when running the GDB server.
 - `step_into_interrupt`: (bool) Set this option to True to enable interrupts when performing step
     operations. Otherwise interrupts will be disabled and step operations cannot be interrupted.
     Default is False.
+
+- `swv_clock`: (int) Frequency in Hertz of the SWO baud rate. Default is 1 MHz.
+
+- `swv_system_clock`: (int) Frequency in Hertz of the target's system clock. Used to compute the SWO
+    baud rate divider. No default.
 
 - `telnet_port`: (int) Base TCP port number for the semihosting telnet server. The core number,
     which will be 0 for the primary core, is added to this value. Default is 4444.
