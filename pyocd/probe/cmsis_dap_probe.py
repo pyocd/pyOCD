@@ -345,6 +345,42 @@ class CMSISDAPProbe(DebugProbe):
         except DAPAccess.Error as exc:
             self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(exc), exc)
+    
+    # ------------------------------------------- #
+    #          SWO functions
+    # ------------------------------------------- #
+
+    def has_swo(self):
+        """! @brief Returns bool indicating whether the link supports SWO."""
+        try:
+            return self._link.has_swo()
+        except DAPAccess.Error as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
+    def swo_start(self, baudrate):
+        """! @brief Start receiving SWO data at the given baudrate."""
+        try:
+            self._link.swo_configure(True, baudrate)
+            self._link.swo_control(True)
+        except DAPAccess.Error as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
+    def swo_stop(self):
+        """! @brief Stop receiving SWO data."""
+        try:
+            self._link.swo_configure(False, 0)
+        except DAPAccess.Error as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
+    def swo_read(self):
+        """! @brief Read buffered SWO data from the target.
+        
+        @eturn Bytearray of the received data.
+        """
+        try:
+            return self._link.swo_read()
+        except DAPAccess.Error as exc:
+            six.raise_from(self._convert_exception(exc), exc)
 
     def _invalidate_cached_registers(self):
         # Invalidate cached DP SELECT register.

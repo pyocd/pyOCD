@@ -18,11 +18,18 @@ from ..utility.graph import GraphNode
 
 class CoreSightComponent(GraphNode):
     """! @brief CoreSight component base class."""
+    
+    @classmethod
+    def factory(cls, ap, cmpid, address):
+        """! @brief Common CoreSightComponent factory."""
+        cmp = cls(ap, cmpid, address)
+        if ap.core:
+            ap.core.add_child(cmp)
+        return cmp
 
     def __init__(self, ap, cmpid=None, addr=None):
         """! @brief Constructor."""
         super(CoreSightComponent, self).__init__()
-        """! @brief Constructor."""
         self._ap = ap
         self._cmpid = cmpid
         self._address = addr or (cmpid.address if cmpid else None)

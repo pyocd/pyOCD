@@ -36,6 +36,7 @@ OPTIONS_INFO = {
     # GDBServer options
     'chip_erase': OptionInfo('chip_erase', str, "Whether to perform a chip erase or sector erases when programming flash."),
     'enable_semihosting': OptionInfo('enable_semihosting', str, "Set to True to handle semihosting requests."),
+    'enable_swv': OptionInfo('enable_swv', bool, "Whether to enable SWV printf output over the semihosting console. Requires the swv_system_clock option to be set. The SWO baud rate can be controlled with the swv_clock option."),
     'fast_program': OptionInfo('fast_program', str, "Setting this option to True will use CRC checks of existing flash sector contents to determine whether pages need to be programmed."),
     'gdbserver_port': OptionInfo('gdbserver_port', str, "Base TCP port for the gdbserver."),
     'hide_programming_progress': OptionInfo('hide_programming_progress', str, "Disables flash programming progress bar."),
@@ -46,6 +47,8 @@ OPTIONS_INFO = {
     'serve_local_only': OptionInfo('serve_local_only', str, "When this option is True, the GDB server and semihosting telnet ports are only served on localhost."),
     'soft_bkpt_as_hard': OptionInfo('soft_bkpt_as_hard', str, "Whether to force all breakpoints to be hardware breakpoints."),
     'step_into_interrupt': OptionInfo('step_into_interrupt', str, "Enable interrupts when performing step operations."),
+    'swv_clock': OptionInfo('swv_clock', int, "Frequency in Hertz of the SWO baud rate. Default is 1 MHz."),
+    'swv_system_clock': OptionInfo('swv_system_clock', int, "Frequency in Hertz of the target's system clock. Used to compute the SWO baud rate divider. No default."),
     'telnet_port': OptionInfo('telnet_port', str, "Base TCP port number for the semihosting telnet server."),
     'vector_catch': OptionInfo('vector_catch', str, "Enable vector catch sources."),
     }

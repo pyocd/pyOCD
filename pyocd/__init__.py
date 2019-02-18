@@ -23,6 +23,7 @@ from . import gdbserver
 from . import target
 from . import utility
 from . import coresight
+from . import trace
 
 from ._version import version as __version__
 

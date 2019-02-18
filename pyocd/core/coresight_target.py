@@ -333,5 +333,11 @@ class CoreSightTarget(Target, GraphNode):
                 self._irq_table = {i.value : i.name for i in
                     [i for p in self.svd_device.peripherals for i in p.interrupts]}
         return self._irq_table
-        
+    
+    def trace_start(self):
+        self.call_delegate('trace_start', target=self, mode=0)
+    
+    def trace_stop(self):
+        self.call_delegate('trace_stop', target=self, mode=0)
+    
         

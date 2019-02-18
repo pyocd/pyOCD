@@ -156,5 +156,23 @@ class TargetDelegateInterface(object):
             mass erase procedure.
         """
         pass
+
+    def trace_start(self, target, mode):
+        """! @brief Hook to prepare for tracing the target.
+        @param self
+        @param target A CoreSightTarget object.
+        @param mode The trace mode. Currently always 0 to indicate SWO.
+        @return Ignored.
+        """
+        pass
+
+    def trace_stop(self, target, mode):
+        """! @brief Hook to clean up after tracing the target.
+        @param self
+        @param target A CoreSightTarget object.
+        @param mode The trace mode. Currently always 0 to indicate SWO.
+        @return Ignored.
+        """
+        pass
     
 

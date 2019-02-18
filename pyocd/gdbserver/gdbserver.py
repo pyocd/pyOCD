@@ -22,6 +22,8 @@ from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
 from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe, to_str_safe)
+from ..utility.server import StreamServer
+from ..trace.swv import SWVReader
 from .gdb_socket import GDBSocket
 from .gdb_websocket import GDBWebSocket
 from .syscall import GDBSyscallIOHandler
@@ -331,13 +333,25 @@ class GDBServer(threading.Thread):
             semihost_io_handler = semihost.InternalSemihostIOHandler()
 
         if self.semihost_console_type == 'telnet':
-            self.telnet_console = semihost.TelnetSemihostIOHandler(self.telnet_port, self.serve_local_only)
-            semihost_console = self.telnet_console
+            self.telnet_server = StreamServer(self.telnet_port, self.serve_local_only, "Semihost", False)
+            console_file = self.telnet_server
+            semihost_console = semihost.ConsoleIOHandler(self.telnet_server)
         else:
             self.log.info("Semihosting will be output to console")
-            self.telnet_console = None
+            console_file = sys.stdout
+            self.telnet_server = None
             semihost_console = semihost_io_handler
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
+        
+        self._swv_reader = None
+        if session.options.get("enable_swv", False):
+            if "swv_system_clock" not in session.options:
+                self.log.warning("Cannot enable SWV due to missing swv_system_clock option")
+            else:
+                sys_clock = int(session.options.get("swv_system_clock"))
+                swo_clock = int(session.options.get("swv_clock", 1000000))
+                self._swv_reader = SWVReader(session, self.core)
+                self._swv_reader.init(sys_clock, swo_clock, console_file)
 
         # pylint: disable=invalid-name
         
@@ -408,9 +422,12 @@ class GDBServer(threading.Thread):
         if self.semihost:
             self.semihost.cleanup()
             self.semihost = None
-        if self.telnet_console:
-            self.telnet_console.stop()
-            self.telnet_console = None
+        if self.telnet_server:
+            self.telnet_server.stop()
+            self.telnet_server = None
+        if self._swv_reader:
+            self._swv_reader.stop()
+            self._swv_reader = None
         self.abstract_socket.cleanup()
 
     def _cleanup_for_next_connection(self):

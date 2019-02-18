@@ -200,3 +200,16 @@ This section documents all functions that user scripts can provide to modify pyO
                 *False/None* Mass erase was not overridden and the caller should proceed with the
                     standard mass erase procedure.
 
+- `trace_start(self, target, mode)`<br/>
+    Hook to prepare for tracing the target.
+
+    *target* - A CoreSightTarget object.<br/>
+    *mode* - The trace mode. Currently always 0 to indicate SWO.<br/>
+    *Result* - Ignored.
+
+- `trace_stop(self, target, mode)`<br/>
+    Hook to clean up after tracing the target.
+
+    *target* - A CoreSightTarget object.<br/>
+    *mode* - The trace mode. Currently always 0 to indicate SWO.<br/>
+    *Result* - Ignored.

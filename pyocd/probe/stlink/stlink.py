@@ -21,6 +21,7 @@ from ...coresight import dap
 import logging
 import struct
 import six
+import threading
 from enum import Enum
 
 log = logging.getLogger('stlink')
@@ -60,16 +61,19 @@ class STLink(object):
         self._version_str = None
         self._target_voltage = 0
         self._protocol = None
+        self._lock = threading.RLock()
     
     def open(self):
-        self._device.open()
-        self.enter_idle()
-        self.get_version()
-        self.get_target_voltage()
+        with self._lock:
+            self._device.open()
+            self.enter_idle()
+            self.get_version()
+            self.get_target_voltage()
 
     def close(self):
-        self.enter_idle()
-        self._device.close()
+        with self._lock:
+            self.enter_idle()
+            self._device.close()
 
     def get_version(self):
         # GET_VERSION response structure:
@@ -154,54 +158,61 @@ class STLink(object):
         self._protocol = None
 
     def set_swd_frequency(self, freq=1800000):
-        for f, d in SWD_FREQ_MAP.items():
-            if freq >= f:
-                response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
-                self._check_status(response)
-                return
-        raise STLinkException("Selected SWD frequency is too low")
+        with self._lock:
+            for f, d in SWD_FREQ_MAP.items():
+                if freq >= f:
+                    response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
+                    self._check_status(response)
+                    return
+            raise STLinkException("Selected SWD frequency is too low")
 
     def set_jtag_frequency(self, freq=1120000):
-        for f, d in JTAG_FREQ_MAP.items():
-            if freq >= f:
-                response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
-                self._check_status(response)
-                return
-        raise STLinkException("Selected JTAG frequency is too low")
+        with self._lock:
+            for f, d in JTAG_FREQ_MAP.items():
+                if freq >= f:
+                    response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
+                    self._check_status(response)
+                    return
+            raise STLinkException("Selected JTAG frequency is too low")
 
     def enter_debug(self, protocol):
-        self.enter_idle()
+        with self._lock:
+            self.enter_idle()
         
-        if protocol == self.Protocol.SWD:
-            protocolParam = Commands.JTAG_ENTER_SWD
-        elif protocol == self.Protocol.JTAG:
-            protocolParam = Commands.JTAG_ENTER_JTAG_NO_CORE_RESET
-        response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_ENTER2, protocolParam, 0], readSize=2)
-        self._check_status(response)
-        self._protocol = protocol
+            if protocol == self.Protocol.SWD:
+                protocolParam = Commands.JTAG_ENTER_SWD
+            elif protocol == self.Protocol.JTAG:
+                protocolParam = Commands.JTAG_ENTER_JTAG_NO_CORE_RESET
+            response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_ENTER2, protocolParam, 0], readSize=2)
+            self._check_status(response)
+            self._protocol = protocol
     
     def open_ap(self, apsel):
-        if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
-            return
-        cmd = [Commands.JTAG_COMMAND, Commands.JTAG_INIT_AP, apsel, Commands.JTAG_AP_NO_CORE]
-        response = self._device.transfer(cmd, readSize=2)
-        self._check_status(response)
+        with self._lock:
+            if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
+                return
+            cmd = [Commands.JTAG_COMMAND, Commands.JTAG_INIT_AP, apsel, Commands.JTAG_AP_NO_CORE]
+            response = self._device.transfer(cmd, readSize=2)
+            self._check_status(response)
     
     def close_ap(self, apsel):
-        if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
-            return
-        cmd = [Commands.JTAG_COMMAND, Commands.JTAG_CLOSE_AP_DBG, apsel]
-        response = self._device.transfer(cmd, readSize=2)
-        self._check_status(response)
+        with self._lock:
+            if self._jtag_version < self.MIN_JTAG_VERSION_MULTI_AP:
+                return
+            cmd = [Commands.JTAG_COMMAND, Commands.JTAG_CLOSE_AP_DBG, apsel]
+            response = self._device.transfer(cmd, readSize=2)
+            self._check_status(response)
 
     def target_reset(self):
-        response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_DRIVE_NRST, Commands.JTAG_DRIVE_NRST_PULSE], readSize=2)
-        self._check_status(response)
+        with self._lock:
+            response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_DRIVE_NRST, Commands.JTAG_DRIVE_NRST_PULSE], readSize=2)
+            self._check_status(response)
     
     def drive_nreset(self, isAsserted):
-        value = Commands.JTAG_DRIVE_NRST_LOW if isAsserted else Commands.JTAG_DRIVE_NRST_HIGH
-        response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_DRIVE_NRST, value], readSize=2)
-        self._check_status(response)
+        with self._lock:
+            value = Commands.JTAG_DRIVE_NRST_LOW if isAsserted else Commands.JTAG_DRIVE_NRST_HIGH
+            response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_DRIVE_NRST, value], readSize=2)
+            self._check_status(response)
     
     def _check_status(self, response):
         status, = struct.unpack('<H', response)
@@ -209,63 +220,66 @@ class STLink(object):
             raise STLinkException("STLink error (%d): " % status + Status.MESSAGES.get(status, "Unknown error"))
 
     def _clear_sticky_error(self):
-        if self._protocol == self.Protocol.SWD:
-            self.write_dap_register(self.DP_PORT, dap.DP_ABORT, dap.ABORT_STKERRCLR)
-        elif self._protocol == self.Protocol.JTAG:
-            self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT, dap.CTRLSTAT_STICKYERR)
+        with self._lock:
+            if self._protocol == self.Protocol.SWD:
+                self.write_dap_register(self.DP_PORT, dap.DP_ABORT, dap.ABORT_STKERRCLR)
+            elif self._protocol == self.Protocol.JTAG:
+                self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT, dap.CTRLSTAT_STICKYERR)
     
     def _read_mem(self, addr, size, memcmd, max, apsel):
-        result = []
-        while size:
-            thisTransferSize = min(size, max)
+        with self._lock:
+            result = []
+            while size:
+                thisTransferSize = min(size, max)
             
-            cmd = [Commands.JTAG_COMMAND, memcmd]
-            cmd.extend(six.iterbytes(struct.pack('<IHB', addr, thisTransferSize, apsel)))
-            result += self._device.transfer(cmd, readSize=thisTransferSize)
+                cmd = [Commands.JTAG_COMMAND, memcmd]
+                cmd.extend(six.iterbytes(struct.pack('<IHB', addr, thisTransferSize, apsel)))
+                result += self._device.transfer(cmd, readSize=thisTransferSize)
             
-            addr += thisTransferSize
-            size -= thisTransferSize
+                addr += thisTransferSize
+                size -= thisTransferSize
             
-            # Check status of this read.
-            response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
-            status, _, faultAddr = struct.unpack('<HHI', response[0:8])
-            if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
-                # Clear sticky errors.
-                self._clear_sticky_error()
+                # Check status of this read.
+                response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
+                status, _, faultAddr = struct.unpack('<HHI', response[0:8])
+                if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
+                    # Clear sticky errors.
+                    self._clear_sticky_error()
                 
-                exc = exceptions.TransferFaultError()
-                exc.fault_address = faultAddr
-                exc.fault_length = thisTransferSize - (faultAddr - addr)
-                raise exc
-            elif status != Status.JTAG_OK:
-                raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
-        return result
+                    exc = exceptions.TransferFaultError()
+                    exc.fault_address = faultAddr
+                    exc.fault_length = thisTransferSize - (faultAddr - addr)
+                    raise exc
+                elif status != Status.JTAG_OK:
+                    raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+            return result
 
     def _write_mem(self, addr, data, memcmd, max, apsel):
-        while len(data):
-            thisTransferSize = min(len(data), max)
-            thisTransferData = data[:thisTransferSize]
+        with self._lock:
+            while len(data):
+                thisTransferSize = min(len(data), max)
+                thisTransferData = data[:thisTransferSize]
             
-            cmd = [Commands.JTAG_COMMAND, memcmd]
-            cmd.extend(six.iterbytes(struct.pack('<IHB', addr, thisTransferSize, apsel)))
-            self._device.transfer(cmd, writeData=thisTransferData)
+                cmd = [Commands.JTAG_COMMAND, memcmd]
+                cmd.extend(six.iterbytes(struct.pack('<IHB', addr, thisTransferSize, apsel)))
+                self._device.transfer(cmd, writeData=thisTransferData)
             
-            addr += thisTransferSize
-            data = data[thisTransferSize:]
+                addr += thisTransferSize
+                data = data[thisTransferSize:]
             
-            # Check status of this write.
-            response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
-            status, _, faultAddr = struct.unpack('<HHI', response[0:8])
-            if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
-                # Clear sticky errors.
-                self._clear_sticky_error()
+                # Check status of this write.
+                response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
+                status, _, faultAddr = struct.unpack('<HHI', response[0:8])
+                if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
+                    # Clear sticky errors.
+                    self._clear_sticky_error()
                 
-                exc = exceptions.TransferFaultError()
-                exc.fault_address = faultAddr
-                exc.fault_length = thisTransferSize - (faultAddr - addr)
-                raise exc
-            elif status != Status.JTAG_OK:
-                raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                    exc = exceptions.TransferFaultError()
+                    exc.fault_address = faultAddr
+                    exc.fault_length = thisTransferSize - (faultAddr - addr)
+                    raise exc
+                elif status != Status.JTAG_OK:
+                    raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
 
     def read_mem32(self, addr, size, apsel):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"
@@ -304,18 +318,55 @@ class STLink(object):
         assert ((addr & 0xf0) == 0) or (port != self.DP_PORT), "banks are not allowed for DP registers"
         assert (addr >> 16) == 0, "register address must be 16-bit"
         
-        cmd = [Commands.JTAG_COMMAND, Commands.JTAG_READ_DAP_REG]
-        cmd.extend(six.iterbytes(struct.pack('<HH', port, addr)))
-        response = self._device.transfer(cmd, readSize=8)
-        self._check_status(response[:2])
-        value, = struct.unpack('<I', response[4:8])
-        return value
+        with self._lock:
+            cmd = [Commands.JTAG_COMMAND, Commands.JTAG_READ_DAP_REG]
+            cmd.extend(six.iterbytes(struct.pack('<HH', port, addr)))
+            response = self._device.transfer(cmd, readSize=8)
+            self._check_status(response[:2])
+            value, = struct.unpack('<I', response[4:8])
+            return value
     
     def write_dap_register(self, port, addr, value):
         assert ((addr & 0xf0) == 0) or (port != self.DP_PORT), "banks are not allowed for DP registers"
         assert (addr >> 16) == 0, "register address must be 16-bit"
-        cmd = [Commands.JTAG_COMMAND, Commands.JTAG_WRITE_DAP_REG]
-        cmd.extend(six.iterbytes(struct.pack('<HHI', port, addr, value)))
-        response = self._device.transfer(cmd, readSize=2)
-        self._check_status(response)
 
+        with self._lock:
+            cmd = [Commands.JTAG_COMMAND, Commands.JTAG_WRITE_DAP_REG]
+            cmd.extend(six.iterbytes(struct.pack('<HHI', port, addr, value)))
+            response = self._device.transfer(cmd, readSize=2)
+            self._check_status(response)
+
+    def swo_start(self, baudrate):
+        with self._lock:
+            bufferSize = 4096
+            cmd = [Commands.JTAG_COMMAND, Commands.SWV_START_TRACE_RECEPTION]
+            cmd.extend(six.iterbytes(struct.pack('<HI', bufferSize, baudrate)))
+            response = self._device.transfer(cmd, readSize=2)
+            self._check_status(response)
+
+    def swo_stop(self):
+        with self._lock:
+            cmd = [Commands.JTAG_COMMAND, Commands.SWV_STOP_TRACE_RECEPTION]
+            response = self._device.transfer(cmd, readSize=2)
+            self._check_status(response)
+    
+    def swo_read(self):
+        with self._lock:
+            response = None
+            bytesAvailable = None
+            try:
+                cmd = [Commands.JTAG_COMMAND, Commands.SWV_GET_TRACE_NEW_RECORD_NB]
+                response = self._device.transfer(cmd, readSize=2)
+                bytesAvailable, = struct.unpack('<H', response)
+                if bytesAvailable:
+                    return self._device.read_swv(bytesAvailable)
+                else:
+                    return bytearray()
+            except KeyboardInterrupt:
+                # If we're interrupted after sending the SWV_GET_TRACE_NEW_RECORD_NB command,
+                # we have to read the queued SWV data before any other commands can be sent.
+                if response is not None:
+                    if bytesAvailable is None:
+                        bytesAvailable, = struct.unpack('<H', response)
+                    if bytesAvailable:
+                        self._device.read_swv(bytesAvailable)

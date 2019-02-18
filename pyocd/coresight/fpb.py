@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2017 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,23 +27,20 @@ class HardwareBreakpoint(Breakpoint):
         self.type = Target.BREAKPOINT_HW
 
 class FPB(BreakpointProvider, CoreSightComponent):
-    FP_CTRL = 0xE0002000
+    """! @brief Flash Patch and Breakpoint unit"""
+    
+    # FPB registers
+    #
+    # The addresses are offsets from the base address.
+    FP_CTRL = 0x00000000
     FP_CTRL_KEY = 1 << 1
     FP_CTRL_REV_MASK = 0xf0000000
     FP_CTRL_REV_SHIFT = 28
-    FP_COMP0 = 0xE0002008
+    FP_COMP0 = 0x00000008
     
-    @classmethod
-    def factory(cls, ap, cmpid, address):
-        fpb = cls(ap, cmpid, address)
-        assert ap.core
-        ap.core.add_child(fpb)
-        return fpb
-
     def __init__(self, ap, cmpid=None, addr=None):
         CoreSightComponent.__init__(self, ap, cmpid, addr)
         BreakpointProvider.__init__(self)
-        assert self.address == FPB.FP_CTRL, "Unexpected FPB base address 0x%08x" % self.address
         self.hw_breakpoints = []
         self.nb_code = 0
         self.nb_lit = 0
@@ -61,7 +58,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
     # (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
     def init(self):
         # setup FPB (breakpoint)
-        fpcr = self.ap.read32(FPB.FP_CTRL)
+        fpcr = self.ap.read32(self.address + FPB.FP_CTRL)
         self.fpb_rev = 1 + ((fpcr & FPB.FP_CTRL_REV_MASK) >> FPB.FP_CTRL_REV_SHIFT)
         if self.fpb_rev not in (1, 2):
             logging.warning("Unknown FPB version %d", self.fpb_rev)
@@ -69,7 +66,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         self.nb_lit = (fpcr >> 7) & 0xf
         logging.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
         for i in range(self.nb_code):
-            self.hw_breakpoints.append(HardwareBreakpoint(FPB.FP_COMP0 + 4*i, self))
+            self.hw_breakpoints.append(HardwareBreakpoint(self.address + FPB.FP_COMP0 + 4*i, self))
 
         # disable FPB (will be enabled on first bp set)
         self.disable()
@@ -80,13 +77,13 @@ class FPB(BreakpointProvider, CoreSightComponent):
         return Target.BREAKPOINT_HW
 
     def enable(self):
-        self.ap.write_memory(FPB.FP_CTRL, FPB.FP_CTRL_KEY | 1)
+        self.ap.write_memory(self.address + FPB.FP_CTRL, FPB.FP_CTRL_KEY | 1)
         self.enabled = True
         logging.debug('fpb has been enabled')
         return
 
     def disable(self):
-        self.ap.write_memory(FPB.FP_CTRL, FPB.FP_CTRL_KEY | 0)
+        self.ap.write_memory(self.address + FPB.FP_CTRL, FPB.FP_CTRL_KEY | 0)
         self.enabled = False
         logging.debug('fpb has been disabled')
         return
