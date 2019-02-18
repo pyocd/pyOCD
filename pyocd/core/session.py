@@ -20,6 +20,12 @@ import six
 import yaml
 import os
 
+# inspect.getargspec is deprecated in Python 3.
+try:
+    from inspect import getfullargspec as getargspec
+except ImportError:
+    from inspect import getargspec
+
 DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
 
 LOG = logging.getLogger(__name__)
@@ -85,7 +91,8 @@ class Session(object):
         self._probe = probe
         self._closed = True
         self._inited = False
-        self._user_script_delegate = None
+        self._user_script_proxy = None
+        self._delegate = None
         
         # Update options.
         self._options = options or {}
@@ -182,8 +189,16 @@ class Session(object):
         return self._project_dir
     
     @property
-    def user_script_delegate(self):
-        return self._user_script_delegate
+    def delegate(self):
+        return self._delegate
+    
+    @delegate.setter
+    def delegate(self, new_delegate):
+        self._delegate = new_delegate
+    
+    @property
+    def user_script_proxy(self):
+        return self._user_script_proxy
 
     def __enter__(self):
         assert self._probe is not None
@@ -203,10 +218,10 @@ class Session(object):
                     LOG.debug("Loading user script: %s", scriptPath)
                     scriptCode = scriptFile.read()
                 
-                # Construct namespaces. The global namespace will have convenient access to
+                # Construct the user script namespace. The namespace will have convenient access to
                 # most of the pyOCD object graph.
                 import pyocd
-                globalNamespace = {
+                namespace = {
                     'pyocd': pyocd,
                     'session': self,
                     'options': self.options,
@@ -221,16 +236,20 @@ class Session(object):
                     'FileProgrammer': pyocd.flash.loader.FileProgrammer,
                     'FlashEraser': pyocd.flash.loader.FlashEraser,
                     'FlashLoader': pyocd.flash.loader.FlashLoader,
-                    'LOG': logging.getLogger(os.path.basename(scriptPath)),
+                    'LOG': logging.getLogger(os.path.basename('pyocd.user_script')),
                     }
-                localNamespace = {}
                 
-                # Executing the code will create definitions in the local namespace for any
-                # functions or classes.
-                six.exec_(scriptCode, globalNamespace, localNamespace)
+                # Executing the code will create definitions in the namespace for any
+                # functions or classes. A single namespace is shared for both globals and
+                # locals so that script-level definitions are available within the
+                # script functions.
+                six.exec_(scriptCode, namespace, namespace)
                 
-                # Create the delegate proxy for the user script.
-                self._user_script_delegate = UserScriptDelegateProxy(localNamespace)
+                # Create the proxy for the user script. It becomes the delegate unless
+                # another delegate was already set.
+                self._user_script_proxy = UserScriptDelegateProxy(namespace)
+                if self._delegate is None:
+                    self._delegate = self._user_script_proxy
             except IOError as err:
                 LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
 
@@ -272,6 +291,23 @@ class Session(object):
             except:
                 LOG.error("probe exception during close:", exc_info=True)
 
+class UserScriptFunctionProxy(object):
+    """! @brief Proxy for user script functions.
+    
+    This proxy makes arguments to user script functions optional. 
+    """
+
+    def __init__(self, fn):
+        self._fn = fn
+        self._spec = getargspec(fn)
+    
+    def __call__(self, **kwargs):
+        args = {}
+        for arg in self._spec.args:
+            if arg in kwargs:
+                args[arg] = kwargs[arg]
+        self._fn(**args)
+
 class UserScriptDelegateProxy(object):
     """! @brief Delegate proxy for user scripts."""
 
@@ -281,6 +317,7 @@ class UserScriptDelegateProxy(object):
     
     def __getattr__(self, name):
         if name in self._script:
-            return self._script[name]
+            fn = self._script[name]
+            return UserScriptFunctionProxy(fn)
         else:
             raise AttributeError(name)

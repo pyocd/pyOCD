@@ -55,13 +55,13 @@ class Board(GraphNode):
 
     ## @brief Initialize the board.
     def init(self):
-        # If we don't have a delegate set yet, see if there is a user script delegate.
-        if (self.delegate is None) and (self.session.user_script_delegate is not None):
-            self.delegate = self.session.user_script_delegate
+        # If we don't have a delegate set yet, see if there is a session delegate.
+        if (self.delegate is None) and (self.session.delegate is not None):
+            self.delegate = self.session.delegate
         
         # Delegate pre-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'will_connect'):
-            self.delegate.will_connect(self)
+            self.delegate.will_connect(board=self)
         
         # Init the target.
         self.target.init()
@@ -69,7 +69,7 @@ class Board(GraphNode):
         
         # Delegate post-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
-            self.delegate.did_connect(self)
+            self.delegate.did_connect(board=self)
 
     ## @brief Uninitialize the board.
     def uninit(self):

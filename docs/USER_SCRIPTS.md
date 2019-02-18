@@ -14,6 +14,12 @@ automatically detect it and load it as a user script. If you prefer another name
 line argument. If a relative path is set either with the option or command line, it will be searched
 for in the project directory.
 
+The arguments for hook functions defined in user scripts are the same arguments accepted by delegate
+methods. However, all arguments to user script functions are optional. If provided, the argument
+names must match the specification. But you can specify arguments in any order, and exclude any or
+all arguments if they are not needed. In fact, most arguments are not required because the same
+objects are available as script globals, for instance `board` and `target`.
+
 
 ## Examples
 
@@ -39,7 +45,8 @@ This example shows how to override the flash algorithm for an external flash mem
 ```py
 # This example applies to the NXP i.MX RT10x0 devices.
 
-def will_connect(board):
+# Unlike the previous example, the board argument is excluded here.
+def will_connect():
     # Look up the external flash memory region.
     extFlash = target.memory_map.get_region_by_name("flexspi")
 
@@ -54,7 +61,7 @@ This example demonstrates setting the DBGMCU_CR register on reset for STM32 devi
 
 DBG_CR = 0x40015804
 
-def did_reset(target, reset_type):
+def did_reset():
     # Set STANDBY, STOP, and SLEEP bits all to 1.
     target.write32(DBG_CR, 0x3)
 ```
@@ -74,7 +81,7 @@ both target related objects, as well as parts of the pyOCD Python API.
 | `FileProgrammer` | Utility class to program files to target flash. |
 | `FlashEraser` | Utility class to erase target flash. |
 | `FlashLoader` | Utility class to program raw binary data to target flash. |
-| `LOG` | Logger object. |
+| `LOG` | `Logger` object for the user script. |
 | `MemoryType` | Memory region type enumeation. |
 | `options` | The user options dictionary. |
 | `probe` | The connected debug probe object. |
@@ -86,6 +93,8 @@ both target related objects, as well as parts of the pyOCD Python API.
 
 
 ## Script functions
+
+This section documents all functions that user scripts can provide to modify pyOCD's behaviour.
 
 - `will_connect(board)`<br/>
     Pre-init hook for the board.
