@@ -5,7 +5,7 @@ This guide describes how to manually add support for a new target and/or board t
 cases you do not need to add a builtin target anymore, and can use pyOCD's support for CMSIS
 Device Family Packs.
 
-For background information, review the [architecture overview](ARCHITECTURE.md) document first.
+For background information, review the [architecture overview](architecture.md) document first.
 
 ### Steps to add a new target
 

@@ -8,7 +8,7 @@ board bringup, or automated testing.
 
 This document assumes familiarity with the Arm CoreSight debug architecture.
 
-See the [architecture](ARCHITECTURE.md) documentation for an overview of the classes and how
+See the [architecture](architecture.md) documentation for an overview of the classes and how
 they are connected.
 
 ## Connecting
