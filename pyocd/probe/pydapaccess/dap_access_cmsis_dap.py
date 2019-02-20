@@ -24,7 +24,7 @@ import six
 from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
-from .interface import (INTERFACE, USB_BACKEND, WS_BACKEND)
+from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2, WS_BACKEND)
 from .cmsis_dap_core import (Command, Pin, Capabilities, DAP_TRANSFER_OK,
                              DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT,
                              DAPSWOTransport, DAPSWOMode, DAPSWOControl,
@@ -50,10 +50,16 @@ LOG_PACKET_BUILDS = False
 
 def _get_interfaces():
     """Get the connected USB devices"""
+    # Get CMSIS-DAPv2 interfaces.
     if DAPSettings.use_ws:
-        return INTERFACE[WS_BACKEND].get_all_connected_interfaces(DAPSettings.ws_host, DAPSettings.ws_port)
+        interfaces = INTERFACE[WS_BACKEND].get_all_connected_interfaces(DAPSettings.ws_host, DAPSettings.ws_port)
     else:
-        return INTERFACE[USB_BACKEND].get_all_connected_interfaces()
+        interfaces = INTERFACE[USB_BACKEND].get_all_connected_interfaces()
+    
+    # Add in CMSIS-DAPv2 interfaces.
+    interfaces += INTERFACE[USB_BACKEND_V2].get_all_connected_interfaces()
+    
+    return interfaces
 
 
 def _get_unique_id(interface):
@@ -675,7 +681,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         
         try:
             if enabled:
-                if self._protocol.swo_transport(DAPSWOTransport.DAP_SWO_DATA) != 0:
+                # Select the streaming SWO endpoint if available.
+                if self._interface.has_swo_ep:
+                    transport = DAPSWOTransport.DAP_SWO_EP
+                else:
+                    transport = DAPSWOTransport.DAP_SWO_DATA
+                
+                if self._protocol.swo_transport(transport) != 0:
                     self._swo_disable()
                     return False
                 if self._protocol.swo_mode(DAPSWOMode.UART) != 0:
@@ -709,9 +721,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         
         if start:
             self._protocol.swo_control(DAPSWOControl.START)
+            if self._interface.has_swo_ep:
+                self._interface.start_swo()
             self._swo_status = SWOStatus.RUNNING
         else:
             self._protocol.swo_control(DAPSWOControl.STOP)
+            if self._interface.has_swo_ep:
+                self._interface.stop_swo()
             self._swo_status = SWOStatus.CONFIGURED
         return True
     
@@ -719,10 +735,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return self._protocol.swo_status()
     
     def swo_read(self, count=None):
-        if count is None:
-            count = self._packet_size
-        status, count, data = self._protocol.swo_data(count)
-        return bytearray(data)
+        if self._interface.has_swo_ep:
+            return self._interface.read_swo()
+        else:
+            if count is None:
+                count = self._packet_size
+            status, count, data = self._protocol.swo_data(count)
+            return bytearray(data)
 
     def write_reg(self, reg_id, value, dap_index=0):
         assert reg_id in self.REG

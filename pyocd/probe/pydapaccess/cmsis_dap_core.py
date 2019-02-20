@@ -84,6 +84,7 @@ DAP_LED_RUNNING = 1
 class DAPSWOTransport:
     NONE = 0
     DAP_SWO_DATA = 1
+    DAP_SWO_EP = 2
 
 # SWO mode options.
 class DAPSWOMode:
