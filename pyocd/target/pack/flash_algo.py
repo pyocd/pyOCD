@@ -161,7 +161,7 @@ class PackFlashAlgo(object):
             "load_address": addr_load,
             "instructions": instructions,
             "pc_init": code_start + self.symbols["Init"],
-            "pc_uninit": code_start + self.symbols["UnInit"],
+            "pc_unInit": code_start + self.symbols["UnInit"],
             "pc_eraseAll": code_start + self.symbols["EraseChip"],
             "pc_erase_sector": code_start + self.symbols["EraseSector"],
             "pc_program_page": code_start + self.symbols["ProgramPage"],
