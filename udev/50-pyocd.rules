@@ -16,5 +16,6 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374e", MODE:="666"
 SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374f", MODE:="666"
 SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3753", MODE:="666"
 
-
+# c251:2750 Keil ULINKplus
+SUBSYSTEM=="usb", ATTR{idVendor}=="c251", ATTR{idProduct}=="2750", MODE:="666"
 
