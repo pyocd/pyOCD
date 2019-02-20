@@ -169,7 +169,12 @@ class PyUSBv2(Interface):
     def get_all_connected_interfaces():
         """! @brief Returns all the connected devices with a CMSIS-DAPv2 interface."""
         # find all cmsis-dap devices
-        all_devices = usb.core.find(find_all=True, custom_match=HasCmsisDapv2Interface())
+        try:
+            all_devices = usb.core.find(find_all=True, custom_match=HasCmsisDapv2Interface())
+        except usb.core.NoBackendError:
+            # Print a warning if pyusb cannot find a backend, and return no probes.
+            LOG.warning("CMSIS-DAPv2 probes are not supported because no libusb library was found.")
+            return []
 
         # iterate on all devices found
         boards = []
