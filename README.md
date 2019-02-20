@@ -41,8 +41,8 @@ Requirements
 - macOS, Linux, or Windows 7 or newer
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html), such as an on-board debug
-    probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID) and v2 (WinUSB),
+    such as an on-board debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
   - STLinkV2, either on-board or the standalone version.
 
 
