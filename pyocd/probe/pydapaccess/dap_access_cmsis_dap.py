@@ -678,7 +678,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                 if self._protocol.swo_transport(DAPSWOTransport.DAP_SWO_DATA) != 0:
                     self._swo_disable()
                     return False
-                if self._protocol.swo_mode(DAP_SWO_MODE.UART) != 0:
+                if self._protocol.swo_mode(DAPSWOMode.UART) != 0:
                     self._swo_disable()
                     return False
                 if self._protocol.swo_baudrate(rate) == 0:
@@ -721,7 +721,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def swo_read(self, count=None):
         if count is None:
             count = self._packet_size
-        return self._protocol.swo_data(count)
+        status, count, data = self._protocol.swo_data(count)
+        return bytearray(data)
 
     def write_reg(self, reg_id, value, dap_index=0):
         assert reg_id in self.REG
