@@ -19,12 +19,14 @@ import os
 import logging
 from .hidapi_backend import HidApiUSB
 from .pyusb_backend import PyUSB
+from .pyusb_v2_backend import PyUSBv2
 from .pywinusb_backend import PyWinUSB
 from .ws_backend import WebSocketInterface
 
 INTERFACE = {
              'hidapiusb': HidApiUSB,
              'pyusb': PyUSB,
+             'pyusb_v2': PyUSBv2,
              'pywinusb': PyWinUSB,
              'ws': WebSocketInterface
             }
@@ -58,3 +60,4 @@ if not USB_BACKEND:
     else:
         raise Exception("No USB backend found")
 
+USB_BACKEND_V2 = "pyusb_v2"
