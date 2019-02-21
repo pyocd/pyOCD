@@ -1,27 +1,28 @@
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# pyOCD debugger
+# Copyright (c) 2019 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from .interface import Interface
+from .common import CMSIS_DAP_USB_CLASSES
 from ..dap_access_api import DAPAccessIntf
 import logging
 import os
 import threading
 import six
 from time import sleep
+import errno
 
 LOG = logging.getLogger(__name__)
 
@@ -268,14 +269,20 @@ class HasCmsisDapv2Interface(object):
 
     def __call__(self, dev):
         """! @brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
+        # Check if the device class is a valid one for CMSIS-DAP.
+        if dev.bDeviceClass not in CMSIS_DAP_USB_CLASSES:
+            return False
+        
         try:
             config = dev.get_active_configuration()
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=match_cmsis_dap_interface_name)
-        except ValueError as error:
-            # Permission denied error gets reported as ValueError (langid)
-            LOG.debug(("ValueError \"{}\" while trying to access USB device strings "
-                           "for VID=0x{:04x} PID=0x{:04x}. "
-                           "This is probably a permission issue.").format(error, dev.idVendor, dev.idProduct))
+        except OSError as error:
+            if error.errno == errno.EACCES:
+                LOG.debug(("Error \"{}\" while trying to access the USB device configuration "
+                   "for VID=0x{:04x} PID=0x{:04x}. This can probably be remedied with a udev rule.")
+                   .format(error, dev.idVendor, dev.idProduct))
+            else:
+                LOG.warning("OS error getting USB interface string: %s", error)
             return False
         except usb.core.USBError as error:
             LOG.warning("Exception getting product string: %s", error)

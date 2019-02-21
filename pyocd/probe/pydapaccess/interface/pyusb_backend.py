@@ -16,6 +16,7 @@
 """
 
 from .interface import Interface
+from .common import CMSIS_DAP_USB_CLASSES
 from ..dap_access_api import DAPAccessIntf
 import logging
 import os
@@ -256,6 +257,10 @@ class FindDap(object):
 
     def __call__(self, dev):
         """Return True if this is a DAP device, False otherwise"""
+        # Check if the device class is a valid one for CMSIS-DAP.
+        if dev.bDeviceClass not in CMSIS_DAP_USB_CLASSES:
+            return False
+        
         try:
             device_string = dev.product
         except ValueError as error:
