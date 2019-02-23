@@ -29,16 +29,17 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.flash.loader import FileProgrammer
 from test_util import get_session_options
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 print("\n\n------ Test attaching to locked board ------")
 for i in range(0, 10):
     with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
         board = session.board
+        flash = session.target.memory_map.get_boot_memory().flash
         # Erase and then reset - This locks Kinetis devices
-        board.flash.init(board.flash.Operation.ERASE)
-        board.flash.erase_all()
-        board.flash.cleanup()
+        flash.init(flash.Operation.ERASE)
+        flash.erase_all()
+        flash.cleanup()
         board.target.reset()
 
 print("\n\n------ Testing Attaching to board ------")
