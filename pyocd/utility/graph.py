@@ -84,8 +84,7 @@ def dump_graph(node):
     """! @brief Draw the object graph."""
     
     def _dump(node, level):
-        name = node.__class__.__name__
-        print("  " * level + "- " + name)
+        print("  " * level + "- " + str(node))
         for child in node.children:
             _dump(child, level + 1)
     
