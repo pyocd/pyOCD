@@ -1047,6 +1047,7 @@ class PyOCDCommander(object):
 
     def handle_python(self, args):
         try:
+            import pyocd
             env = {
                     'session' : self.session,
                     'board' : self.board,
@@ -1057,6 +1058,7 @@ class PyOCDCommander(object):
                     'aps' : self.target.dp.aps,
                     'elf' : self.elf,
                     'map' : self.target.memory_map,
+                    'pyocd' : pyocd,
                 }
             result = eval(args, globals(), env)
             if result is not None:
