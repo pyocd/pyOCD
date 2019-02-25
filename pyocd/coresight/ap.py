@@ -163,9 +163,12 @@ class AccessPort(object):
         self.rom_addr &= 0xfffffffc # clear format and present bits
 
     def init_rom_table(self):
-        if self.has_rom_table:
-            self.rom_table = ROMTable(self)
-            self.rom_table.init()
+        try:
+            if self.has_rom_table:
+                self.rom_table = ROMTable(self)
+                self.rom_table.init()
+        except exceptions.TransferError as error:
+            logging.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
 
     def read_reg(self, addr, now=True):
         return self.dp.read_ap((self.ap_num << APSEL_SHIFT) | addr, now)
