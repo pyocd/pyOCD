@@ -125,6 +125,11 @@ class SWVReader(threading.Thread):
         thread runs, it reads SWO data from the probe and passes it to the SWO parser created in
         init(). When the thread is signaled to stop, it calls DebugProbe.swo_stop() before exiting.
         """
+        # Stop SWO first in case the probe already had it started. Ignore if this fails.
+        try:
+            self._session.probe.swo_stop()
+        except exceptions.ProbeError:
+            pass
         self._session.probe.swo_start(self._swo_clock)
         
         while not self._shutdown_event.is_set():
