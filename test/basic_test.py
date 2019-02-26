@@ -95,7 +95,7 @@ def basic_test(board_id, file):
         newPrimask = target.read_core_register('primask')
         print("Restored PRIMASK = 0x%02x" % newPrimask)
 
-        if target.has_fpu:
+        if target.selected_core.has_fpu:
             s0 = target.read_core_register('s0')
             print("S0 = %g (0x%08x)" % (s0, float32_to_u32(s0)))
             target.write_core_register('s0', math.pi)
