@@ -43,10 +43,6 @@ class PyUSBv2(Interface):
 
     def __init__(self):
         super(PyUSBv2, self).__init__()
-        self.vid = 0
-        self.pid = 0
-        self.product_name = None
-        self.vendor_name = None
         self.ep_out = None
         self.ep_in = None
         self.ep_swo = None
