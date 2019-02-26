@@ -66,6 +66,8 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 
 ## Options list
 
+- `allow_no_cores`: (bool) Prevents raising an error if no core were found after CoreSight discovery. Default is False.
+
 - `auto_unlock`: (bool) If the target is locked, it will by default be automatically mass erased in
     order to gain debug access. Set this option to False to disable auto unlock. Default is True.
 

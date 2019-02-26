@@ -20,6 +20,7 @@ OptionInfo = namedtuple('OptionInfo', 'name type help')
 
 OPTIONS_INFO = {
     # Common options
+    'allow_no_cores': OptionInfo('allow_no_cores', bool, "Prevents raising an error if no core were found after CoreSight discovery."),
     'auto_unlock': OptionInfo('auto_unlock', bool, "Whether to unlock secured target by erasing."),
     'chip_erase': OptionInfo('chip_erase', str, "Whether to perform a chip erase or sector erases when programming flash."),
     'config_file': OptionInfo('config_file', str, "Path to custom config file."),
