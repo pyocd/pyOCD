@@ -21,8 +21,9 @@ from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from ..core import exceptions
 import logging
 
-LIST_NODE_NEXT_OFFSET = 0
-LIST_NODE_OBJ_OFFSET= 8
+## Mask on EXC_RETURN indicating whether space for FP registers is allocated
+# on the frame. The bit is 0 if the frame is extended.
+EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
 
 ## @brief Reads a null-terminated C string from the target.
 def read_c_string(context, ptr):
