@@ -24,6 +24,7 @@ from .events import TraceITMEvent
 from .swo import SWOParser
 from ..coresight.itm import ITM
 from ..coresight.tpiu import TPIU
+from ..core.target import Target
 
 LOG = logging.getLogger(__name__)
 
@@ -41,7 +42,8 @@ class SWVEventSink(TraceEventSink):
         """! @brief Handle an SWV trace event.
         @param self
         @param event An instance of TraceITMEvent. If the event is not this class, or isn't
-            for ITM port 0, then it will be ignored.
+            for ITM port 0, then it will be ignored. The individual bytes of 16- or 32-bit events
+            will be extracted and written to the console.
         """
         if not isinstance(event, TraceITMEvent):
             return
@@ -49,7 +51,18 @@ class SWVEventSink(TraceEventSink):
         if not event.port == 0:
             return
         
-        self._console.write(chr(event.data))
+        # Extract bytes.
+        if event.width == 8:
+            data = chr(event.data)
+        elif event.width == 16:
+            data = chr(event.data & 0xff) + chr((event.data >> 8) & 0xff)
+        elif event.width == 32:
+            data = (chr(event.data & 0xff)
+                    + chr((event.data >> 8) & 0xff)
+                    + chr((event.data >> 16) & 0xff)
+                    + chr((event.data >> 24) & 0xff))
+
+        self._console.write(data)
 
 class SWVReader(threading.Thread):
     """! @brief Sets up SWV and processes data in a background thread."""
@@ -68,6 +81,8 @@ class SWVReader(threading.Thread):
         self._shutdown_event = threading.Event()
         self._swo_clock = 0
         
+        self._session.target.cores[core_number].subscribe(Target.EVENT_POST_RESET, self._reset_handler)
+        
     def init(self, sys_clock, swo_clock, console):
         """! @brief Configures trace graph and starts thread.
         
@@ -76,12 +91,18 @@ class SWVReader(threading.Thread):
         configures the TPIU and ITM modules. A simple trace data processing graph is created that
         connects an SWVEventSink with a SWOParser. Finally, the reader thread is started.
         
+        If the debug probe does not support SWO, a warning is printed but nothing else is done.
+        
         @param self
         @param sys_clock
         @param swo_clock
         @param console
         """
         self._swo_clock = swo_clock
+        
+        if not self._session.probe.has_swo():
+            LOG.warning("Probe %s does not support SWO", self._session.probe.unique_id)
+            return
         
         self._session.target.trace_start()
         
@@ -109,7 +130,12 @@ class SWVReader(threading.Thread):
         
         The reader thread is terminated first, then the ITM is disabled. The last step is to call
         the target's trace_stop() method.
+        
+        Does nothing if the init() method did not complete successfully.
         """
+        if not self.is_alive():
+            return
+
         self._shutdown_event.set()
         self.join()
 
@@ -140,4 +166,13 @@ class SWVReader(threading.Thread):
             sleep(0.001)
             
         self._session.probe.swo_stop()
+    
+    def _reset_handler(self, notification):
+        """! @brief Reset notification handler.
+        
+        If the target is reset while the SWV reader is running, then the Target::trace_start()
+        method is called to reinit trace output.
+        """
+        if self.is_alive():
+            self._session.target.trace_start()
 
