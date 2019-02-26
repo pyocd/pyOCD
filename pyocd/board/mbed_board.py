@@ -48,7 +48,7 @@ class MbedBoard(Board):
             target = self.native_target
 
         if target is None:
-            log.warning("Unsupported board found %s", board_id)
+            log.warning("Board ID %s is not recognized; you will be able to use pyOCD but not program flash.", board_id)
             target = "cortex_m"
 
         super(MbedBoard, self).__init__(session, target)
