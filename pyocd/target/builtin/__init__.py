@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...core.coresight_target import CoreSightTarget
-from ..family import (target_kinetis, flash_cortex_m)
+from ..family import target_kinetis
 from . import target_MIMXRT1021xxxxx
 from . import target_MIMXRT1052xxxxB
 from . import target_MKE15Z256xxx7
