@@ -167,18 +167,21 @@ class DebugPort(object):
     def find_aps(self):
         if self.valid_aps is not None:
             return
-        self.valid_aps = []
+        apList = []
         ap_num = 0
         while True:
             try:
                 isValid = AccessPort.probe(self, ap_num)
                 if not isValid:
-                    return
-                self.valid_aps.append(ap_num)
+                    break
+                apList.append(ap_num)
             except Exception as e:
                 logging.error("Exception while probing AP#%d: %s", ap_num, repr(e))
                 break
             ap_num += 1
+        
+        # Update the AP list once we know it's complete.
+        self.valid_aps = apList
 
     ## @brief Init task that returns a call sequence to create APs.
     #
