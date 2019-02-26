@@ -59,6 +59,7 @@ from . import target_STM32F439xx
 from . import target_STM32L475xx
 from . import target_STM32L031x6
 from . import target_MAX32600
+from . import target_MAX32620
 from . import target_MAX32625
 from . import target_w7500
 from . import target_LPC1114FN28_102
@@ -110,6 +111,7 @@ BUILTIN_TARGETS = {
           'lpc1768': target_LPC1768.LPC1768,
           'lpc4330': target_LPC4330.LPC4330,
           'max32600': target_MAX32600.MAX32600,
+          'max32620': target_MAX32620.MAX32620,
           'max32625': target_MAX32625.MAX32625,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
           'mimxrt1050_quadspi': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_quadspi,
@@ -144,4 +146,3 @@ BUILTIN_TARGETS = {
           'cy8c6xxa': target_CY8C6xxA.CY8C6xxA,
           'cy8c6xx7': target_CY8C6xx7.CY8C6xx7,
          }
-
