@@ -254,21 +254,40 @@ class Session(object):
                 LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
 
     ## @brief Initialize the session
-    def open(self):
+    def open(self, init_board=True):
+        """! @brief Open the session.
+        
+        This method does everything necessary to begin a debug session. It first loads the user
+        script, if there is one. The user script will be available via the _user_script_proxy_
+        property. Then it opens the debug probe and sets the clock rate from the `frequency` user
+        option. Finally, it inits the board (which will init the target, which performs the
+        full target init sequence).
+        
+        @param self
+        @param init_board This parameter lets you prevent the board from being inited, which can
+            be useful in board bringup situations. It's also used by pyocd commander's "no init"
+            feature.
+        """
         if not self._inited:
-            assert self._probe is not None
+            assert self._probe is not None, "Cannot open a session without a probe."
+            assert self._board is not None, "Must have a board to open a session."
             
             # Load the user script just before we init everything.
             self._load_user_script()
             
             self._probe.open()
             self._probe.set_clock(self._options.get('frequency', DEFAULT_CLOCK_FREQ))
-            self._board.init()
-            self._inited = True
+            if init_board:
+                self._board.init()
+                self._inited = True
             self._closed = False
 
     ## @brief Close the session.
     def close(self):
+        """! @brief Close the session.
+        
+        Uninits the board and disconnects then closes the probe.
+        """
         if self._closed:
             return
         self._closed = True

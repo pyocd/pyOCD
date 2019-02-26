@@ -630,8 +630,7 @@ class PyOCDCommander(object):
             return False
         self.board = self.session.board
         try:
-            if not self.args.no_init:
-                self.session.open()
+            self.session.open(init_board=not self.args.no_init)
         except exceptions.TransferFaultError as e:
             if not self.board.target.is_locked():
                 print("Transfer fault while initing board: %s" % e)
