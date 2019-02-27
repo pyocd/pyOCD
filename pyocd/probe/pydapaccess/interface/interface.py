@@ -24,6 +24,10 @@ class Interface(object):
         self.vendor_name = ""
         self.product_name = ""
         self.packet_count = 1
+    
+    @property
+    def has_swo_ep(self):
+        return False
 
     def open(self):
         return
