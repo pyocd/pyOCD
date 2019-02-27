@@ -38,6 +38,7 @@ from ..core import exceptions
 from ..target.family import target_kinetis
 from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
+from ..coresight.ap import MEM_AP
 from ..core.target import Target
 from ..flash.loader import (FlashEraser, FlashLoader)
 from ..gdbserver.gdbserver import GDBServer
@@ -77,6 +78,16 @@ VC_NAMES_MAP = {
         Target.CATCH_CHECK_ERR : "check error",
         Target.CATCH_COPROCESSOR_ERR : "coprocessor error",
         Target.CATCH_CORE_RESET : "core reset",
+        }
+
+HPROT_BIT_DESC = {
+        0: ("instruction fetch", "data access"),
+        1: ("user", "privileged"),
+        2: ("non-bufferable", "bufferable"),
+        3: ("non-cacheable", "cacheable/modifiable"),
+        4: ("no cache lookup", "lookup in cache"),
+        5: ("no cache allocate", "allocate in cache"),
+        6: ("non-shareable", "shareable"),
         }
 
 ## Default SWD clock in Hz.
@@ -319,6 +330,18 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Show the current value of one or more user options.",
             },
+        'mem-ap' : {
+            'aliases' : [],
+            'help' : "Display the currently selected MEM-AP used for memory read/write commands."
+            },
+        'hnonsec' : {
+            'aliases' : [],
+            'help' : "Display the current HNONSEC value used by the selected MEM-AP."
+            },
+        'hprot' : {
+            'aliases' : [],
+            'help' : "Display the current HPROT value used by the selected MEM-AP."
+            },
         }
 
 OPTION_HELP = {
@@ -347,6 +370,18 @@ OPTION_HELP = {
             'aliases' : [],
             'help' : "Change the value of one or more user options.",
             'extra_help' : "Each parameter should follow the form OPTION=VALUE.",
+            },
+        'mem-ap' : {
+            'aliases' : [],
+            'help' : "Select the MEM-AP used for memory read/write commands."
+            },
+        'hnonsec' : {
+            'aliases' : [],
+            'help' : "Set the current HNONSEC value used by the selected MEM-AP."
+            },
+        'hprot' : {
+            'aliases' : [],
+            'help' : "Set the current HPROT value used by the selected MEM-AP."
             },
         }
 
@@ -453,6 +488,7 @@ class PyOCDCommander(object):
         self.board = None
         self.target = None
         self.probe = None
+        self.selected_ap = 0
         self.did_erase = False
         self.exit_code = 0
         self.step_into_interrupt = False
@@ -538,6 +574,9 @@ class PyOCDCommander(object):
                 'si' :                  self.handle_show_step_interrupts,
                 'nreset' :              self.handle_show_nreset,
                 'option' :              self.handle_show_option,
+                'mem-ap' :              self.handle_show_ap,
+                'hnonsec' :             self.handle_show_hnonsec,
+                'hprot' :               self.handle_show_hprot,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -548,6 +587,9 @@ class PyOCDCommander(object):
                 'log' :                 self.handle_set_log,
                 'clock' :               self.handle_set_clock,
                 'option' :              self.handle_set_option,
+                'mem-ap' :              self.handle_set_ap,
+                'hnonsec' :             self.handle_set_hnonsec,
+                'hprot' :               self.handle_set_hprot,
             }
 
     def run(self):
@@ -665,6 +707,16 @@ class PyOCDCommander(object):
 
         self.target = self.board.target
         self.probe = self.session.probe
+
+        # Select the first core's MEM-AP by default.
+        if not self.args.no_init:
+            try:
+                self.selected_ap = self.target.selected_core.ap.ap_num
+            except IndexError:
+                for ap_num in sorted(self.target.aps.keys()):
+                    if isinstance(self.target.aps[ap_num], MEM_AP):
+                        self.selected_ap = ap_num
+                        break
 
         # Set elf file if provided.
         if self.args.elf:
@@ -853,7 +905,7 @@ class PyOCDCommander(object):
         count = self.convert_value(args[1])
         filename = args[2]
 
-        data = bytearray(self.target.read_memory_block8(addr, count))
+        data = bytearray(self.target.aps[self.selected_ap].read_memory_block8(addr, count))
 
         with open(filename, 'wb') as f:
             f.write(data)
@@ -871,7 +923,7 @@ class PyOCDCommander(object):
             if self.is_flash_write(addr, 8, data):
                 FlashLoader.program_binary_data(self.session, addr, data)
             else:
-                self.target.write_memory_block8(addr, data)
+                self.target.aps[self.selected_ap].write_memory_block8(addr, data)
             print("Loaded %d bytes to 0x%08x" % (len(data), addr))
 
     def do_read(self, args, width):
@@ -885,13 +937,13 @@ class PyOCDCommander(object):
             count = self.convert_value(args[1])
 
         if width == 8:
-            data = self.target.read_memory_block8(addr, count)
+            data = self.target.aps[self.selected_ap].read_memory_block8(addr, count)
             byteData = data
         elif width == 16:
-            byteData = self.target.read_memory_block8(addr, count)
+            byteData = self.target.aps[self.selected_ap].read_memory_block8(addr, count)
             data = utility.conversion.byte_list_to_u16le_list(byteData)
         elif width == 32:
-            byteData = self.target.read_memory_block8(addr, count)
+            byteData = self.target.aps[self.selected_ap].read_memory_block8(addr, count)
             data = utility.conversion.byte_list_to_u32le_list(byteData)
 
         # Print hex dump of output.
@@ -931,7 +983,7 @@ class PyOCDCommander(object):
             region.flash.program_phrase(addr, data)
             region.flash.cleanup()
         else:
-            self.target.write_memory_block8(addr, data)
+            self.target.aps[self.selected_ap].write_memory_block8(addr, data)
             self.target.flush()
 
     def handle_erase(self, args):
@@ -1160,7 +1212,8 @@ class PyOCDCommander(object):
             print("Error: no AP with APSEL={} exists".format(apsel))
             return
         ap = coresight.ap.AccessPort.create(self.target.dp, apsel)
-        self.target.dp.aps[apsel] = ap
+        self.target.dp.aps[apsel] = ap # Same mutable list is target.aps
+        print("AP#{:d} IDR = {:#010x}".format(apsel, ap.idr))
 
     def handle_where(self, args):
         if self.elf is None:
@@ -1251,9 +1304,15 @@ class PyOCDCommander(object):
                 print("Core %d type:  %s" % (i, coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
 
     def handle_show_map(self, args):
-        print("Region          Start         End                 Size    Blocksize")
+        print("Region          Start         End                 Size    Access    Blocksize")
         for region in self.target.get_memory_map():
-            print("{:<15} {:#010x}    {:#010x}    {:#10x}    {}".format(region.name, region.start, region.end, region.length, region.blocksize if region.is_flash else '-'))
+            print("{:<15} {:#010x}    {:#010x}    {:#10x}    {:<9} {}".format(
+                region.name,
+                region.start,
+                region.end,
+                region.length,
+                region.access,
+                region.blocksize if region.is_flash else '-'))
 
     def handle_show_peripherals(self, args):
         for periph in sorted(self.peripherals.values(), key=lambda x:x.base_address):
@@ -1349,6 +1408,29 @@ class PyOCDCommander(object):
             else:
                 print("No option with name '%s'" % name)
 
+    def handle_show_ap(self, args):
+        print("MEM-AP #{} is selected".format(self.selected_ap))
+
+    def handle_show_hnonsec(self, args):
+        print("MEM-AP #{} HNONSEC = {} ({})".format(
+            self.selected_ap,
+            self.target.aps[self.selected_ap].hnonsec,
+            ("nonsecure" if self.target.aps[self.selected_ap].hnonsec else "secure")))
+
+    def handle_show_hprot(self, args):
+        hprot = self.target.aps[self.selected_ap].hprot
+        print("MEM-AP #{} HPROT = {:#x}".format(
+            self.selected_ap,
+            hprot))
+        desc = ""
+        for bitnum in range(7):
+            bitvalue = (hprot >> bitnum) & 1
+            desc += "    HPROT[{}] = {:#x} ({})\n".format(
+                bitnum,
+                bitvalue,
+                HPROT_BIT_DESC[bitnum][bitvalue])
+        print(desc, end='')
+
     def handle_set(self, args):
         if len(args) < 1:
             raise ToolError("missing option name argument")
@@ -1386,6 +1468,35 @@ class PyOCDCommander(object):
             return
         
         self.step_into_interrupt = (args[0] in ('1', 'true', 'yes', 'on'))
+
+    def handle_set_ap(self, args):
+        if len(args) == 0:
+            print("Missing argument")
+            return
+            
+        ap_num = int(args[0], base=0)
+        if ap_num not in self.target.aps:
+            print("Invalid AP number {}".format(ap_num))
+            return
+        ap = self.target.aps[ap_num]
+        if not isinstance(ap, MEM_AP):
+            print("AP #{} is not a MEM-AP".format(ap_num))
+            return
+        self.selected_ap = ap_num
+
+    def handle_set_hnonsec(self, args):
+        if len(args) == 0:
+            print("Missing argument")
+            return
+        value = int(args[0], base=0)
+        self.target.aps[self.selected_ap].hnonsec = value
+
+    def handle_set_hprot(self, args):
+        if len(args) == 0:
+            print("Missing argument")
+            return
+        value = int(args[0], base=0)
+        self.target.aps[self.selected_ap].hprot = value
 
     def handle_help(self, args):
         if not args:
