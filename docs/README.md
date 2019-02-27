@@ -18,7 +18,7 @@
 - [How to add new targets](ADDING_NEW_TARGETS.md)
 - [Building a standalone gdb server executable](HOW_TO_BUILD.md)
 - [Running the automated tests](AUTOMATED_TESTS.md)
-
+- [How to debug on Visual Studio Code](HOW_TO_DEBUG_ON_VSCODE.md)
 
 
 
