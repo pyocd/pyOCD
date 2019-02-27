@@ -24,6 +24,7 @@ from ...core.target import Target
 from ...coresight.cortex_m import CortexM
 from ...flash.flash import Flash
 from ...utility.notification import Notification
+from ...utility.timeout import Timeout
 
 flash_algo_main = {
     'load_address': 0x08000000,
@@ -273,31 +274,31 @@ class CortexM_CY8C6xx7(CortexM):
             except exceptions.TransferError:
                 self.flush()
 
-        start_time = time()
-        while time() - start_time < 5.0:
-            try:
-                dhcsr_reg = self.read32(CortexM.DHCSR)
-                if (dhcsr_reg & CortexM.S_RESET_ST) == 0:
-                    break
-            except exceptions.TransferError:
-                self.flush()
-                self._ap.dp.init()
-                self._ap.dp.power_up_debug()
-                sleep(0.01)
+        with Timeout(5.0) as t_o:
+            while t_o.check():
+                try:
+                    dhcsr_reg = self.read32(CortexM.DHCSR)
+                    if (dhcsr_reg & CortexM.S_RESET_ST) == 0:
+                        break
+                except exceptions.TransferError:
+                    self.flush()
+                    self._ap.dp.init()
+                    self._ap.dp.power_up_debug()
+                    sleep(0.01)
 
         self.notify(Notification(event=Target.EVENT_POST_RESET, source=self))
 
     def wait_halted(self):
-        start_time = time()
-        while time() - start_time < 5.0:
-            try:
-                if not self.is_running():
-                    return
-            except exceptions.TransferError:
-                self.flush()
-                sleep(0.01)
-
-        raise Exception("Timeout waiting for target halt")
+        with Timeout(5.0) as t_o:
+            while t_o.check():
+                try:
+                    if not self.is_running():
+                        return
+                except exceptions.TransferError:
+                    self.flush()
+                    sleep(0.01)
+            else:
+                raise Exception("Timeout waiting for target halt")
 
     def reset_and_halt(self, reset_type=None):
         self.halt()
