@@ -1,19 +1,18 @@
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2017 ARM Limited
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# pyOCD debugger
+# Copyright (c) 2017-2018 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import sys
@@ -21,10 +20,12 @@ import logging
 
 log = logging.getLogger('progress')
 
-## @brief Base progress report class.
-#
-# This base class implements the logic but no output.
 class ProgressReport(object):
+    """!
+    @brief Base progress report class.
+    
+    This base class implements the logic but no output.
+    """
     def __init__(self, file=None):
         self._file = file or sys.stdout
         self.prev_progress = 0
@@ -71,12 +72,15 @@ class ProgressReport(object):
     def _finish(self):
         raise NotImplemented()
 
-## @brief Progress report subclass for TTYs.
-#
-# The progress bar is fully redrawn onscreen as progress is updated to give the
-# impression of animation.
 class ProgressReportTTY(ProgressReport):
-    # These width constants can't be changed yet without changing the code below to match.
+    """!
+    @brief Progress report subclass for TTYs.
+    
+    The progress bar is fully redrawn onscreen as progress is updated to give the
+    impression of animation.
+    """
+
+    ## These width constants can't be changed yet without changing the code below to match.
     WIDTH = 20
     
     def _update(self, progress):
@@ -89,13 +93,16 @@ class ProgressReportTTY(ProgressReport):
         self.done = True
         self._file.write("\n")
 
-## @brief Progress report subclass for non-TTY output.
-#
-# A simpler progress bar is used than for the TTY version. Only the difference between
-# the previous and current progress is drawn for each update, making the output suitable
-# for piping to a file or similar output.
 class ProgressReportNoTTY(ProgressReport):
-    # These width constants can't be changed yet without changing the code below to match.
+    """!
+    @brief Progress report subclass for non-TTY output.
+    
+    A simpler progress bar is used than for the TTY version. Only the difference between
+    the previous and current progress is drawn for each update, making the output suitable
+    for piping to a file or similar output.
+    """
+
+    ## These width constants can't be changed yet without changing the code below to match.
     WIDTH = 40
     
     def _start(self):
@@ -116,14 +123,17 @@ class ProgressReportNoTTY(ProgressReport):
         self._file.write("]\n")
         self._file.flush()
 
-## @brief Progress printer factory.
-#
-# This factory function checks whether the output file is a TTY, and instantiates the
-# appropriate subclass of ProgressReport.
-#
-# @param file The output file. Optional. If not provided, or if set to None, then sys.stdout
-#       will be used automatically.
 def print_progress(file=None):
+    """!
+    @brief Progress printer factory.
+    
+    This factory function checks whether the output file is a TTY, and instantiates the
+    appropriate subclass of ProgressReport.
+    
+    @param file The output file. Optional. If not provided, or if set to None, then sys.stdout
+          will be used automatically.
+    """
+    
     if file is None:
         file = sys.stdout
     try:

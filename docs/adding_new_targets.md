@@ -5,7 +5,7 @@ This guide describes how to manually add support for a new target and/or board t
 cases you do not need to add a builtin target anymore, and can use pyOCD's support for CMSIS
 Device Family Packs.
 
-For background information, review the [architecture overview](ARCHITECTURE.md) document first.
+For background information, review the [architecture overview](architecture.md) document first.
 
 ### Steps to add a new target
 
@@ -44,13 +44,11 @@ For background information, review the [architecture overview](ARCHITECTURE.md) 
     4. Review the addresses in the `flash_algo` dictionary to make sure they are valid. The memory
        layout should look like:
 
-       ```
-       |----------------|-------------|------------|-----|-----------------|-----------------|
-       |  load_address  | static_base | << (stack) | ... | page_buffers[0] | page_buffers[1] |
-       |----------------|-------------|------------|-----|-----------------|-----------------|
-       ^                                           ^     ^
-       RAM start            begin_stack (grows down)     also begin_data
-       ```
+           |----------------|-------------|------------|-----|-----------------|-----------------|
+           |  load_address  | static_base | << (stack) | ... | page_buffers[0] | page_buffers[1] |
+           |----------------|-------------|------------|-----|-----------------|-----------------|
+           ^                                           ^     ^
+           RAM start            begin_stack (grows down)     also begin_data
 
        Each of the addresses in the `page_buffers` list points to a buffer of the maximum page
        size of any flash region. If there is not enough RAM to hold two page buffers, then remove
@@ -89,9 +87,8 @@ Follow these steps:
     board name, target type, and test binary file name.
 
     The new row should look similar to this:
-    ```
+
         "0205": BoardInfo(  "FRDM-KL28Z",           "kl28z",            "l1_kl28z.bin",         ),
-    ```
 
     Be sure to insert the row in sorted order by board ID.
 

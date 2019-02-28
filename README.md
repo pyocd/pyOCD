@@ -29,9 +29,11 @@ The API and tools provide these features:
 -  load binary, hex, or ELF files into flash
 -  reset control
 -  access CoreSight DP and APs
+-  SWO and SWV
 -  and more!
 
-Configuration and customization is supported through config files and user scripts.
+Configuration and customization is supported through [config files](docs/configuration.md) and
+[user scripts](docs/user_scripts.md).
 
 
 Requirements
@@ -58,7 +60,7 @@ version 1.0.
 Documentation
 -------------
 
-The pyOCD documentation is located [in the docs directory](docs/).
+The pyOCD documentation is located in [the docs directory](docs/).
 
 
 Installing
@@ -179,7 +181,7 @@ Next to start the process.
 Development setup
 -----------------
 
-Please see the [Developers' Guide](docs/DEVELOPERS_GUIDE.md) for instructions on how to set up a
+Please see the [Developers' Guide](docs/developers_guide.md) for instructions on how to set up a
 development environment for pyOCD.
 
 

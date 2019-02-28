@@ -7,6 +7,7 @@ the code, you can setup a virtualenv and install the pyOCD
 dependencies for the current platform by following the detailed steps below.
 
 ## Setup
+
 Install the necessary tools listed below. Skip any step where a compatible tool already exists.
 
 * [Install Python](https://www.python.org/downloads/). Version 3.6.0 or above is preferred, while version 2.7.9 or above is also supported. Add to PATH.
@@ -49,7 +50,7 @@ $ pip install -r dev-requirements.txt
 
 **Step 3.** Develop
 
-See the [porting guide](ADDING_NEW_TARGETS.md) for how to add new devices. Of course, we welcome
+See the [porting guide](adding_new_targets.md) for how to add new devices. Of course, we welcome
 all improvements and changes. See the [contributor statement](../CONTRIBUTING.md) for some guidelines.
 
 **Step 4.** Test

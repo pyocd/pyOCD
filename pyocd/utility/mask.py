@@ -79,8 +79,9 @@ def msb(n):
 def same(d1, d2):
     """! @brief Test whether two sequences contain the same values.
     
-    Unlike a simple equality comparison, this function works even when the two sequences
-    are of different types, such as a list and bytearray.
+    Unlike a simple equality comparison, this function works as expected when the two sequences
+    are of different types, such as a list and bytearray. The sequences must return
+    compatible types from indexing.
     """
     if len(d1) != len(d2):
         return False
