@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2018 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,8 @@ from ..core import (exceptions, memory_interface)
 from .rom_table import ROMTable
 from ..utility import conversion
 import logging
+import threading
+from contextlib import contextmanager
 
 # Set to True to enable logging of all DP and AP accesses.
 LOG_DAP = False
@@ -87,17 +89,43 @@ CSW_MSTRCORE =  0x00000000
 CSW_MSTRDBG  =  0x20000000
 CSW_RESERVED =  0x01000000
 
-CSW_VALUE = (CSW_RESERVED | CSW_MSTRDBG | CSW_HPROT | CSW_DBGSTAT | CSW_SADDRINC)
+CSW_VALUE = (CSW_MSTRDBG | CSW_DBGSTAT | CSW_SADDRINC)
 
 TRANSFER_SIZE = {8: CSW_SIZE8,
                  16: CSW_SIZE16,
                  32: CSW_SIZE32
                  }
 
+# HPROT bits
+HPROT_DATA = 0x01
+HPROT_INSTR = 0x00
+HPROT_PRIVILEGED = 0x02
+HPROT_USER = 0x00
+HPROT_BUFFERABLE = 0x04
+HPROT_NONBUFFERABLE = 0x00
+HPROT_CACHEABLE = 0x08
+HPROT_NONCACHEABLE = 0x00
+HPROT_LOOKUP = 0x10
+HPROT_NO_LOOKUP = 0x00
+HPROT_ALLOCATE = 0x20
+HPROT_NO_ALLOCATE = 0x00
+HPROT_SHAREABLE = 0x40
+HPROT_NONSHAREABLE = 0x00
+
 # Debug Exception and Monitor Control Register
 DEMCR = 0xE000EDFC
 # DWTENA in armv6 architecture reference manual
 DEMCR_TRCENA = (1 << 24)
+
+def _locked(func):
+    """! Decorator to automatically lock an AccessPort method."""
+    def _locking(self, *args, **kwargs):
+        try:
+            self.lock()
+            return func(self, *args, **kwargs)
+        finally:
+            self.unlock()
+    return _locking
 
 class AccessPort(object):
     ## @brief Determine if an AP exists with the given AP number.
@@ -151,9 +179,11 @@ class AccessPort(object):
         self.has_rom_table = False
         self.rom_table = None
         self.core = None
+        self._lock = threading.RLock()
         if LOG_DAP:
             self.logger = self.dp.logger.getChild('ap%d' % ap_num)
 
+    @_locked
     def init(self):
         self.idr = self.read_reg(AP_IDR)
 
@@ -162,6 +192,7 @@ class AccessPort(object):
         self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
         self.rom_addr &= 0xfffffffc # clear format and present bits
 
+    @_locked
     def init_rom_table(self):
         try:
             if self.has_rom_table:
@@ -170,18 +201,67 @@ class AccessPort(object):
         except exceptions.TransferError as error:
             logging.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
 
+    @_locked
     def read_reg(self, addr, now=True):
         return self.dp.read_ap((self.ap_num << APSEL_SHIFT) | addr, now)
 
+    @_locked
     def write_reg(self, addr, data):
         self.dp.write_ap((self.ap_num << APSEL_SHIFT) | addr, data)
     
     def reset_did_occur(self):
+        """! @brief Invoked by the DebugPort to inform APs that a reset was performed."""
         pass
+    
+    def lock(self):
+        """! @brief Lock the AP from access by other threads."""
+        self._lock.acquire()
+    
+    def unlock(self):
+        """! @brief Unlock the AP."""
+        self._lock.release()
+    
+    @contextmanager
+    def locked(self):
+        """! @brief Context manager for locking the AP using a with statement.
+        
+        All public methods of AccessPort and its subclasses are automatically locked, so manual
+        locking usually is not necessary unless you need to hold the lock across multiple AP
+        accesses.
+        """
+        self.lock()
+        yield
+        self.unlock()
 
 class MEM_AP(AccessPort, memory_interface.MemoryInterface):
+    """! @brief MEM-AP component.
+    
+    The bits of HPROT have the following meaning. Not all bits are implemented in all
+    MEM-APs. AHB-Lite only implements HPROT[3:0].
+    
+    HPROT[0] = 1 data access, 0 instr fetch<br/>
+    HPROT[1] = 1 priviledge, 0 user<br/>
+    HPROT[2] = 1 bufferable, 0 non bufferable<br/>
+    HPROT[3] = 1 cacheable/modifable, 0 non cacheable<br/>
+    HPROT[4] = 1 lookupincache, 0 no cache<br/>
+    HPROT[5] = 1 allocate in cache, 0 no allocate in cache<br/>
+    HPROT[6] = 1 shareable, 0 non shareable<br/>
+    """
+
+    HPROT_CSW_MASK = 0xf # HPROT[3:0]
+    HPROT_CSW_POS = 24
+    
+    HNONSEC_CSW_MASK = 0x1
+    HNONSEC_CSW_POS = 30
+    
     def __init__(self, dp, ap_num):
         super(MEM_AP, self).__init__(dp, ap_num)
+        
+        ## Default HPROT value for CSW.
+        self._hprot = HPROT_DATA | HPROT_PRIVILEGED
+        
+        ## Default HNONSEC value for CSW.
+        self._hnonsec = 0 # 0 is secure
         
         ## Cached CSW value.
         self._csw = -1
@@ -208,12 +288,113 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.write_memory_block32 = self._write_memory_block32
             self.read_memory_block32 = self._read_memory_block32
 
+    @_locked
+    def init(self):
+        # Read initial values of HPROT and HNONSEC.
+        csw = AccessPort.read_reg(self, MEM_AP_CSW)
+        original_csw = csw
+        
+        self._hprot = (csw >> self.HPROT_CSW_POS) & self.HPROT_CSW_MASK
+        self._hnonsec = (csw >> self.HNONSEC_CSW_POS) & self.HNONSEC_CSW_MASK
+        logging.info("AP#%d default HPROT=%x HNONSEC=%x", self.ap_num, self._hprot, self._hnonsec)
+        
+        # Now attempt to see which HPROT and HNONSEC bits are implemented.
+        AccessPort.write_reg(self, MEM_AP_CSW, csw
+                                            | (self.HNONSEC_CSW_MASK << self.HNONSEC_CSW_POS)
+                                            | (self.HPROT_CSW_MASK << self.HPROT_CSW_POS))
+
+        csw = AccessPort.read_reg(self, MEM_AP_CSW)
+        
+        impl_hprot = (csw >> self.HPROT_CSW_POS) & self.HPROT_CSW_MASK
+        impl_hnonsec = (csw >> self.HNONSEC_CSW_POS) & self.HNONSEC_CSW_MASK
+        logging.info("AP#%d implemented HPROT=%x HNONSEC=%x", self.ap_num, impl_hprot, impl_hnonsec)
+ 
+        # Restore unmodified value of CSW.
+        AccessPort.write_reg(self, MEM_AP_CSW, original_csw)
+
+        super(MEM_AP, self).init()
+
+    @property
+    def hprot(self):
+        return self._hprot
+    
+    @hprot.setter
+    def hprot(self, hprot):
+        """! @brief Setter for current HPROT value used for memory transactions.
+    
+        The bits of HPROT have the following meaning. Not all bits are implemented in all
+        MEM-APs. AHB-Lite only implements HPROT[3:0].
+        
+        HPROT[0] = 1 data access, 0 instr fetch<br/>
+        HPROT[1] = 1 priviledge, 0 user<br/>
+        HPROT[2] = 1 bufferable, 0 non bufferable<br/>
+        HPROT[3] = 1 cacheable/modifable, 0 non cacheable<br/>
+        HPROT[4] = 1 lookup in cache, 0 no cache<br/>
+        HPROT[5] = 1 allocate in cache, 0 no allocate in cache<br/>
+        HPROT[6] = 1 shareable, 0 non shareable<br/>
+        """
+        self._hprot = hprot & self.HPROT_MASK
+    
+    @property
+    def hnonsec(self):
+        return self._hnonsec
+    
+    @hnonsec.setter
+    def hnonsec(self, value):
+        """! @brief Setter for current HNONSEC value used for memory transactions.
+        
+        Not all MEM-APs support control of HNONSEC. In particular, only the AHB5-AP used for
+        v8-M Cortex-M systems does. The AXI-AP for Cortex-A systems also allows this control.
+    
+        @param value 0 is secure, 1 is non-secure.
+        """
+        self._hnonsec = value
+    
+    class _MemAttrContext(object):
+        """! @brief Context manager for temporarily setting HPROT and/or HNONSEC.
+        
+        The AP is locked during the lifetime of the context manager. This means that only the
+        calling thread can perform memory transactions.
+        """
+        def __init__(self, ap, hprot=None, hnonsec=None):
+            self._ap = ap
+            self._hprot = hprot
+            self._saved_hprot = None
+            self._hnonsec = hnonsec
+            self._saved_hnonsec = None
+            
+        def __enter__(self):
+            self._ap.lock()
+            if self._hprot is not None:
+                self._saved_hprot = self._ap.hprot
+                self._ap.hprot = self._hprot
+            if self._hnonsec is not None:
+                self._saved_hnonsec = self._ap.hnonsec
+                self._ap.hnonsec = self._hnonsec
+            return self
+            
+        def __exit__(self, type, value, traceback):
+            if self._saved_hprot is not None:
+                self._ap.hprot = self._saved_hprot
+            if self._saved_hnonsec is not None:
+                self._ap.hnonsec = self._saved_hnonsec
+            self._ap.unlock()
+            return False
+
+    def hprot_lock(self, hprot):
+        return self._MemAttrContext(self, hprot=hprot)
+    
+    def hnonsec_lock(self, hnonsec):
+        return self._MemAttrContext(self, hnonsec=hnonsec)
+
+    @_locked
     def read_reg(self, addr, now=True):
         ap_regaddr = addr & APREG_MASK
         if ap_regaddr == MEM_AP_CSW and self._csw != -1 and now:
             return self._csw
         return super(MEM_AP, self).read_reg(addr, now)
 
+    @_locked
     def write_reg(self, addr, data):
         ap_regaddr = addr & APREG_MASK
 
@@ -235,18 +416,22 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
     
     def reset_did_occur(self):
+        """! @copydoc AccessPort.reset_did_occur()"""
         # TODO use notifications to invalidate CSW cache.
         self._csw = -1
 
     ## @brief Write a single memory location.
     #
     # By default the transfer size is a word
+    @_locked
     def _write_memory(self, addr, data, transfer_size=32):
         assert (addr & (transfer_size // 8 - 1)) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
             self.logger.info("write_mem:%06d (addr=0x%08x, size=%d) = 0x%08x {", num, addr, transfer_size, data)
-        self.write_reg(MEM_AP_CSW, CSW_VALUE | TRANSFER_SIZE[transfer_size])
+        self.write_reg(MEM_AP_CSW, (self._hnonsec << self.HNONSEC_CSW_POS)
+                                    | (self._hprot << self.HPROT_CSW_POS)
+                                    | CSW_VALUE | TRANSFER_SIZE[transfer_size])
         if transfer_size == 8:
             data = data << ((addr & 0x03) << 3)
         elif transfer_size == 16:
@@ -277,7 +462,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.logger.info("read_mem:%06d (addr=0x%08x, size=%d) {", num, addr, transfer_size)
         res = None
         try:
-            self.write_reg(MEM_AP_CSW, CSW_VALUE | TRANSFER_SIZE[transfer_size])
+            self.write_reg(MEM_AP_CSW, (self._hnonsec << self.HNONSEC_CSW_POS)
+                                        | (self._hprot << self.HPROT_CSW_POS)
+                                        | CSW_VALUE | TRANSFER_SIZE[transfer_size])
             self.write_reg(MEM_AP_TAR, addr)
             result_cb = self.read_reg(MEM_AP_DRW, now=False)
         except exceptions.TransferFaultError as error:
@@ -319,13 +506,16 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     ## @brief Write a single transaction's worth of aligned words.
     #
     # The transaction must not cross the MEM-AP's auto-increment boundary.
+    @_locked
     def _write_block32(self, addr, data):
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
             self.logger.info("_write_block32:%06d (addr=0x%08x, size=%d) {", num, addr, len(data))
         # put address in TAR
-        self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
+        self.write_reg(MEM_AP_CSW, (self._hnonsec << self.HNONSEC_CSW_POS)
+                                    | (self._hprot << self.HPROT_CSW_POS)
+                                    | CSW_VALUE | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
             self.link.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
@@ -344,13 +534,16 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     ## @brief Read a single transaction's worth of aligned words.
     #
     # The transaction must not cross the MEM-AP's auto-increment boundary.
+    @_locked
     def _read_block32(self, addr, size):
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
             self.logger.info("_read_block32:%06d (addr=0x%08x, size=%d) {", num, addr, size)
         # put address in TAR
-        self.write_reg(MEM_AP_CSW, CSW_VALUE | CSW_SIZE32)
+        self.write_reg(MEM_AP_CSW, (self._hnonsec << self.HNONSEC_CSW_POS)
+                                    | (self._hprot << self.HPROT_CSW_POS)
+                                    | CSW_VALUE | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
             resp = self.link.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
@@ -368,6 +561,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return resp
 
     ## @brief Write a block of aligned words in memory.
+    @_locked
     def _write_memory_block32(self, addr, data):
         assert (addr & 0x3) == 0
         size = len(data)
@@ -384,6 +578,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     ## @brief Read a block of aligned words in memory.
     #
     # @return An array of word values
+    @_locked
     def _read_memory_block32(self, addr, size):
         assert (addr & 0x3) == 0
         resp = []
