@@ -41,7 +41,7 @@ class FlashReaderContext(DebugContext):
 
     def read_memory(self, addr, transfer_size=32, now=True):
         length = transfer_size // 8
-        matches = self._tree.search(addr, addr + length)
+        matches = self._tree.overlap(addr, addr + length)
         # Must match only one interval (ELF section).
         if len(matches) != 1:
             return self._parent.read_memory(addr, transfer_size, now)
@@ -66,7 +66,7 @@ class FlashReaderContext(DebugContext):
             return read_memory_cb
 
     def read_memory_block8(self, addr, size):
-        matches = self._tree.search(addr, addr + size)
+        matches = self._tree.overlap(addr, addr + size)
         # Must match only one interval (ELF section).
         if len(matches) != 1:
             return self._parent.read_memory_block8(addr, size)
