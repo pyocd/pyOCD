@@ -345,6 +345,13 @@ class MemoryCache(object):
         result = bytearray()
         resultAppend = bytearray()
 
+        # Check for fully contained subrange.
+        if len(combined) and combined[0].begin < addr and combined[0].end > addr + size:
+            offset = addr - combined[0].begin
+            endOffset = offset + size
+            result = combined[0].data[offset:endOffset]
+            return result
+        
         # Take slice of leading ragged edge.
         if len(combined) and combined[0].begin < addr:
             offset = addr - combined[0].begin
@@ -437,6 +444,7 @@ class MemoryCache(object):
 
         # Extract data out of combined intervals.
         result = list(self._merge_data(combined, addr, size))
+        assert len(result) == size, "result size ({}) != requested size ({})".format(len(result), size)
         return result
 
     def read_memory_block32(self, addr, size):
@@ -469,10 +477,10 @@ class MemoryCache(object):
             self._metrics.writes += size
 
             if len(cached):
-                # Write data is entirely within cached data.
+                # Write data is entirely within a single cached interval.
                 if addr >= cached[0].begin and end <= cached[0].end:
                     beginOffset = addr - cached[0].begin
-                    endOffset = end - cached[0].end
+                    endOffset = beginOffset + size
                     cached[0].data[beginOffset:endOffset] = value
 
                 else:
