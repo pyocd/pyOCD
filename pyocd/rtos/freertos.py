@@ -160,7 +160,6 @@ class FreeRTOSThreadContext(DebugContext):
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [self.core.register_name_to_index(reg) for reg in reg_list]
-        reg_vals = []
 
         sp = self._thread.get_stack_pointer()
 
@@ -183,24 +182,7 @@ class FreeRTOSThreadContext(DebugContext):
             except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
-        for reg in reg_list:
-            # Must handle stack pointer specially.
-            if reg == 13:
-                reg_vals.append(sp + stacked)
-                continue
-
-            # Look up offset for this register on the stack.
-            spOffset = table.get(reg, None)
-            if spOffset is None:
-                reg_vals.append(self._parent.read_core_register_raw(reg))
-                continue
-
-            try:
-                reg_vals.append(self._parent.read32(sp + spOffset))
-            except exceptions.TransferError:
-                reg_vals.append(0)
-
-        return reg_vals
+        return self._do_read_regs_in_memory(reg_list, [(sp, table)], { 13: sp + stacked } )
 
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)

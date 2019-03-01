@@ -78,51 +78,14 @@ class ZephyrThreadContext(DebugContext):
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [self.core.register_name_to_index(reg) for reg in reg_list]
-        reg_vals = []
 
         sp = self._thread.get_stack_pointer()
         exceptionFrame = 0x20
 
-        for reg in reg_list:
-
-            # If this is a stack pointer register, add an offset to account for the exception stack frame
-            if reg == 13:
-                val = sp + exceptionFrame
-                log.debug("Reading register %d = 0x%x", reg, val)
-                reg_vals.append(val)
-                continue
-
-            # If this is a callee-saved register, read it from the thread structure
-            calleeOffset = self.CALLEE_SAVED_OFFSETS.get(reg, None)
-            if calleeOffset is not None:
-                try:
-                    addr = self._thread._base + self._thread._offsets["t_stack_ptr"] + calleeOffset
-                    val = self._parent.read32(addr)
-                    reg_vals.append(val)
-                    log.debug("Reading callee-saved register %d at 0x%08x = 0x%x", reg, addr, val)
-                except exceptions.TransferError:
-                    reg_vals.append(0)
-                continue
-
-            # If this is a exception stack frame register, read it from the stack
-            stackFrameOffset = self.STACK_FRAME_OFFSETS.get(reg, None)
-            if stackFrameOffset is not None:
-                try:
-                    addr = sp + stackFrameOffset
-                    val = self._parent.read32(addr)
-                    reg_vals.append(val)
-                    log.debug("Reading stack frame register %d at 0x%08x = 0x%x", reg, addr, val)
-                except exceptions.TransferError:
-                    reg_vals.append(0)
-                continue
-
-            # If we get here, this is a register not in any of the dictionaries
-            val = self._parent.read_core_register_raw(reg)
-            log.debug("Reading live register %d = 0x%x", reg, val)
-            reg_vals.append(val)
-            continue
-
-        return reg_vals
+        return self._do_read_regs_in_memory(reg_list, \
+                [(self._thread._base + self._thread._offsets["t_stack_ptr"], self.CALLEE_SAVED_OFFSETS), \
+                 (sp, self.STACK_FRAME_OFFSETS)], \
+                { 13: sp + exceptionFrame } )
 
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)

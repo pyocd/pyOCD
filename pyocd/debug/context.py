@@ -53,6 +53,48 @@ class DebugContext(MemoryInterface):
     def read_memory_block32(self, addr, size):
         return self._core.read_memory_block32(addr, size)
 
+    # Utility helper to find registers in stack or task control blocks
+    def _do_read_regs_in_memory(self, reg_list, tables, special_cases):
+        reg_vals = []
+
+        for reg in reg_list:
+
+            # Allow for special cases like stack pointer
+            special = special_cases.get(reg, None)
+            if special is not None:
+                reg_vals.append(special)
+                continue
+
+            isDouble = self.core.is_double_float_register(reg)
+
+            for (base, table) in tables:
+                # Look up offset for this register.
+                if isDouble:
+                    baseOffset = table.get(-reg, None)
+                    baseOffset2 = table.get(-reg + 1, None)
+                else:
+                    baseOffset = table.get(reg, None)
+
+                if baseOffset is not None:
+                    break
+
+            # If we don't have an offset, pass to parent context
+            if baseOffset is None:
+                reg_vals.append(self._parent.read_core_register_raw(reg))
+                continue
+
+            try:
+                if isDouble:
+                    first = self._parent.read_memory(base + baseOffset)
+                    second = self._parent.read_memory(base + baseOffset2)
+                    reg_vals.append((second << 32) | first)
+                else:
+                    reg_vals.append(self._parent.read_memory(base + baseOffset))
+            except exceptions.TransferError:
+                reg_vals.append(0)
+
+        return reg_vals
+
     def read_core_register(self, reg):
         """
         read CPU register
