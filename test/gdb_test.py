@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2015 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,20 +31,24 @@ from subprocess import Popen, STDOUT, PIPE, check_output
 import argparse
 import logging
 import traceback
-import tempfile
 
 from pyocd.__main__ import PyOCDTool
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.py3_helpers import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
-from test_util import (Test, TestResult, get_session_options)
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    get_target_test_params,
+    binary_to_elf_file
+    )
 
 # TODO, c1728p9 - run script several times with
 #       with different command line parameters
 
 PYTHON_GDB = "arm-none-eabi-gdb-py"
-OBJCOPY = "arm-none-eabi-objcopy"
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -99,36 +103,18 @@ def test_gdb(board_id=None, n=0):
                                    board.test_binary)
         if board_id is None:
             board_id = board.unique_id
-        test_clock = 10000000
+        target_test_params = get_target_test_params(session)
         test_port = 3333 + n
         telnet_port = 4444 + n
-        error_on_invalid_access = True
         # Hardware breakpoints are not supported above 0x20000000 on
         # CortexM devices
         ignore_hw_bkpt_result = 1 if ram_region.start >= 0x20000000 else 0
-        if target_type in ("nrf51", "nrf52", "nrf52840"):
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-            # Reading invalid ram returns 0 or nrf51
-            error_on_invalid_access = False
-        if target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
 
         # Program with initial test image
         FileProgrammer(session).program(binary_file, base_address=rom_region.start)
 
     # Generate an elf from the binary test file.
-    temp_test_elf_name = tempfile.mktemp('.elf')
-    objcopyOutput = check_output([OBJCOPY,
-        "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
-        "--set-start", "0x%x" % rom_region.start,
-        "--change-addresses", "0x%x" % rom_region.start,
-        binary_file, temp_test_elf_name], stderr=STDOUT)
-    print(to_str_safe(objcopyOutput))
-    # Need to escape backslashes on Windows.
-    if sys.platform.startswith('win'):
-        temp_test_elf_name = temp_test_elf_name.replace('\\', '\\\\')
+    temp_test_elf_name = binary_to_elf_file(binary_file, rom_region.start)
 
     # Write out the test configuration
     test_params = {
@@ -139,7 +125,7 @@ def test_gdb(board_id=None, n=0):
         "ram_length" : ram_region.length,
         "invalid_start" : 0x3E000000,
         "invalid_length" : 0x1000,
-        "expect_error_on_invalid_access" : error_on_invalid_access,
+        "expect_error_on_invalid_access" : target_test_params['error_on_invalid_access'],
         "ignore_hw_bkpt_result" : ignore_hw_bkpt_result,
         "test_elf" : temp_test_elf_name,
         }
@@ -155,7 +141,7 @@ def test_gdb(board_id=None, n=0):
         args = ['gdbserver',
                 '--port=%i' % test_port,
                 "--telnet-port=%i" % telnet_port,
-                "--frequency=%i" % test_clock,
+                "--frequency=%i" % target_test_params['test_clock'],
                 "--uid=%s" % board_id,
                 '-Oboard_config_file=test_boards.json'
                 ]

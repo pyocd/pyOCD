@@ -29,7 +29,7 @@ sys.path.insert(0, parentdir)
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.core.memory_map import MemoryType
-from test_util import (Test, TestResult, get_session_options)
+from test_util import (Test, TestResult, get_session_options, get_target_test_params)
 
 class SpeedTestResult(TestResult):
     def __init__(self):
@@ -41,21 +41,23 @@ class SpeedTest(Test):
         super(SpeedTest, self).__init__("Speed Test", speed_test)
 
     def print_perf_info(self, result_list, output_file=None):
-        format_str = "{:<10}{:<16}{:<16}"
+        format_str = "{:<15}{:>18}{:>18}{:>18}"
         result_list = filter(lambda x: isinstance(x, SpeedTestResult), result_list)
         print("\n\n------ Speed Test Performance ------", file=output_file)
-        print(format_str.format("Target", "Read Speed", "Write Speed"),
+        print(format_str.format("Target", "RAM Read Speed", "RAM Write Speed", "ROM Read Speed"),
               file=output_file)
         print("", file=output_file)
         for result in result_list:
             if result.passed:
                 read_speed = "%.3f KB/s" % (float(result.read_speed) / float(1000))
                 write_speed = "%.3f KB/s" % (float(result.write_speed) / float(1000))
+                rom_read_speed = "%.3f KB/s" % (float(result.rom_read_speed) / float(1000))
             else:
                 read_speed = "Fail"
                 write_speed = "Fail"
+                rom_read_speed = "Fail"
             print(format_str.format(result.board,
-                                    read_speed, write_speed),
+                                    read_speed, write_speed, rom_read_speed),
                   file=output_file)
         print("", file=output_file)
 
@@ -80,14 +82,6 @@ def speed_test(board_id):
         board = session.board
         target_type = board.target_type
 
-        test_clock = 10000000
-        if target_type == "nrf51":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        if target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-
         memory_map = board.target.get_memory_map()
         ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
@@ -103,52 +97,109 @@ def speed_test(board_id):
         test_count = 0
         result = SpeedTestResult()
 
-        session.probe.set_clock(test_clock)
+        test_params = get_target_test_params(session)
+        session.probe.set_clock(test_params['test_clock'])
+        
+        test_config = "uncached"
 
-        print("\n\n------ TEST RAM READ / WRITE SPEED ------")
-        test_addr = ram_start
-        test_size = ram_size
-        data = [randrange(1, 50) for x in range(test_size)]
-        start = time()
-        target.write_memory_block8(test_addr, data)
-        target.flush()
-        stop = time()
-        diff = stop - start
-        result.write_speed = test_size / diff
-        print("Writing %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, result.write_speed))
-        start = time()
-        block = target.read_memory_block8(test_addr, test_size)
-        target.flush()
-        stop = time()
-        diff = stop - start
-        result.read_speed = test_size / diff
-        print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, result.read_speed))
-        error = False
-        for i in range(len(block)):
-            if (block[i] != data[i]):
+        def test_ram(record_speed=False):
+            print("\n\n------ TEST RAM READ / WRITE SPEED [%s] ------" % test_config)
+            test_addr = ram_start
+            test_size = ram_size
+            data = [randrange(1, 50) for x in range(test_size)]
+            start = time()
+            target.write_memory_block8(test_addr, data)
+            target.flush()
+            stop = time()
+            diff = stop - start
+            if diff == 0:
+                print("Unexpected ram write elapsed time of 0!")
+                write_speed = 0
+            else:
+                write_speed = test_size / diff
+            if record_speed:
+                result.write_speed = write_speed
+            print("Writing %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, write_speed))
+            start = time()
+            block = target.read_memory_block8(test_addr, test_size)
+            target.flush()
+            stop = time()
+            diff = stop - start
+            if diff == 0:
+                print("Unexpected ram read elapsed time of 0!")
+                read_speed = 0
+            else:
+                read_speed = test_size / diff
+            if record_speed:
+                result.read_speed = read_speed
+            print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, read_speed))
+            error = False
+            if len(block) != len(data):
                 error = True
-                print("ERROR: 0x%X, 0x%X, 0x%X!!!" % ((addr + i), block[i], data[i]))
-        if error:
-            print("TEST FAILED")
-        else:
+                print("ERROR: read length (%d) != write length (%d)!" % (len(block), len(data)))
+            if not error:
+                for i in range(len(block)):
+                    if (block[i] != data[i]):
+                        error = True
+                        print("ERROR: 0x%X, 0x%X, 0x%X!!!" % ((addr + i), block[i], data[i]))
+            if error:
+                print("TEST FAILED")
+            else:
+                print("TEST PASSED")
+            return not error
+
+        def test_rom(record_speed=False):
+            print("\n\n------ TEST ROM READ SPEED [%s] ------" % test_config)
+            test_addr = rom_start
+            test_size = rom_size
+            start = time()
+            block = target.read_memory_block8(test_addr, test_size)
+            target.flush()
+            stop = time()
+            diff = stop - start
+            if diff == 0:
+                print("Unexpected rom read elapsed time of 0!")
+                read_speed = 0
+            else:
+                read_speed = test_size / diff
+            if record_speed:
+                result.rom_read_speed = read_speed
+            print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, read_speed))
             print("TEST PASSED")
-            test_pass_count += 1
+            return True
+        
+        # Without memcache
+        passed = test_ram(True)
         test_count += 1
-
-        print("\n\n------ TEST ROM READ SPEED ------")
-        test_addr = rom_start
-        test_size = rom_size
-        start = time()
-        block = target.read_memory_block8(test_addr, test_size)
-        target.flush()
-        stop = time()
-        diff = stop - start
-        print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, test_size / diff))
-        print("TEST PASSED")
-        test_pass_count += 1
+        test_pass_count += int(passed)
+        
+        passed = test_rom(True)
         test_count += 1
+        test_pass_count += int(passed)
+        
+        # With memcache
+        target = target.get_target_context()
+        test_config = "cached, pass 1"
+        
+        passed = test_ram()
+        test_count += 1
+        test_pass_count += int(passed)
+        
+        passed = test_rom()
+        test_count += 1
+        test_pass_count += int(passed)
+        
+        # Again with memcache
+        test_config = "cached, pass 2"
+        passed = test_ram()
+        test_count += 1
+        test_pass_count += int(passed)
+        
+        passed = test_rom()
+        test_count += 1
+        test_pass_count += int(passed)
 
-        target.reset()
+        board.target.reset()
 
         result.passed = test_count == test_pass_count
         return result

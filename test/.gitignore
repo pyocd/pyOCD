@@ -5,6 +5,6 @@ test_results*.txt
 automated_test_results*.txt
 automated_test_summary.txt
 test_results.xml
-test_boards.yaml
+pyocd.yaml
 
 

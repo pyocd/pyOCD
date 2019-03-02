@@ -35,7 +35,7 @@ from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
 from pyocd.flash.flash_builder import FlashBuilder
 from pyocd.utility.progress import print_progress
-from test_util import (Test, TestResult, get_session_options)
+from test_util import (Test, TestResult, get_session_options, get_target_test_params)
 
 addr = 0
 size = 0
@@ -123,14 +123,6 @@ def flash_test(board_id):
         board = session.board
         target_type = board.target_type
 
-        test_clock = 10000000
-        if target_type == "nrf51":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        if target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-
         memory_map = board.target.get_memory_map()
         ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
 
@@ -139,7 +131,8 @@ def flash_test(board_id):
 
         target = board.target
 
-        session.probe.set_clock(test_clock)
+        test_params = get_target_test_params(session)
+        session.probe.set_clock(test_params['test_clock'])
 
         test_pass_count = 0
         test_count = 0

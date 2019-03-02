@@ -1,6 +1,6 @@
 """
  mbed CMSIS-DAP debugger
- Copyright (c) 2015-2015 ARM Limited
+ Copyright (c) 2015-2019 ARM Limited
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,15 +22,71 @@ import sys
 import traceback
 from xml.etree import ElementTree
 import six
+import subprocess
+import tempfile
+from pyocd.utility.py3_helpers import to_str_safe
 
 isPy2 = (sys.version_info[0] == 2)
+
+OBJCOPY = "arm-none-eabi-objcopy"
 
 # Returns common option values passed in when creating test sessions.
 def get_session_options():
     return {
-        'config_file' : 'test_boards.yaml',
         'frequency' : 1000000, # 1 MHz
         }
+
+# Returns a dict containing some test parameters for the target in the passed-in session.
+#
+# 'test_clock' : the max supported SWD frequency for the target
+# 'error_on_invalid_access' : whether invalid accesses cause a fault
+#
+def get_target_test_params(session):
+    target_type = session.board.target_type
+    error_on_invalid_access = True
+    if target_type in ("nrf51", "nrf52", "nrf52840"):
+        # Override clock since 10MHz is too fast
+        test_clock = 1000000
+        error_on_invalid_access = False
+    elif target_type == "ncs36510":
+        # Override clock since 10MHz is too fast
+        test_clock = 1000000
+    else:
+        # Default of 10 MHz. Most probes will not actually run this fast, but this
+        # sets them to their max supported frequency.
+        test_clock = 10000000
+    return {
+            'test_clock': test_clock,
+            'error_on_invalid_access': error_on_invalid_access,
+            }
+
+# Generate an Intel hex file from the binary test file.
+def binary_to_hex_file(binary_file, base_address):
+    temp_test_hex_name = tempfile.mktemp('.elf')
+    objcopyOutput = subprocess.check_output([OBJCOPY,
+        "-v", "-I", "binary", "-O", "ihex", "-B", "arm", "-S",
+        "--set-start", "0x%x" % base_address,
+        "--change-addresses", "0x%x" % base_address,
+        binary_file, temp_test_hex_name], stderr=subprocess.STDOUT)
+    print(to_str_safe(objcopyOutput))
+    # Need to escape backslashes on Windows.
+    if sys.platform.startswith('win'):
+        temp_test_hex_name = temp_test_hex_name.replace('\\', '\\\\')
+    return temp_test_hex_name
+
+# Generate an elf from the binary test file.
+def binary_to_elf_file(binary_file, base_address):
+    temp_test_elf_name = tempfile.mktemp('.elf')
+    objcopyOutput = subprocess.check_output([OBJCOPY,
+        "-v", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm", "-S",
+        "--set-start", "0x%x" % base_address,
+        "--change-addresses", "0x%x" % base_address,
+        binary_file, temp_test_elf_name], stderr=subprocess.STDOUT)
+    print(to_str_safe(objcopyOutput))
+    # Need to escape backslashes on Windows.
+    if sys.platform.startswith('win'):
+        temp_test_elf_name = temp_test_elf_name.replace('\\', '\\\\')
+    return temp_test_elf_name
 
 class IOTee(object):
     def __init__(self, *args):

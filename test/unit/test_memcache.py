@@ -135,6 +135,52 @@ class TestMemoryCache:
 
     def test_21_empty_write(self, memcache):
         memcache.write_memory_block8(128, [])
+    
+    # This test reproduces a bug where writes followed by reads will start
+    # accumulating and returning extra data.
+    def test_22_multi_write_read_size(self, memcache):
+        test_size = 128
+        for i in range(100):
+            data = [x for x in range(test_size)]
+            memcache.write_memory_block8(0, data)
+            block = memcache.read_memory_block8(0, test_size)
+            assert data == block
+
+    # Variant of test 22.
+    def test_23_multi_write_1_read_size(self, memcache):
+        test_size = 128
+        data = [x for x in range(test_size)]
+        for i in range(10):
+            memcache.write_memory_block8(0, data)
+        block = memcache.read_memory_block8(0, test_size)
+        assert data == block
+
+    # Variant of test 22.
+    def test_24_1_write_multi_read_size(self, memcache):
+        test_size = 128
+        data = [x for x in range(test_size)]
+        memcache.write_memory_block8(0, data)
+        for i in range(10):
+            block = memcache.read_memory_block8(0, test_size)
+            assert data == block
+
+    # Variant of test 22.
+    def test_25_multi_write_subrange_1_read_size(self, memcache):
+        test_size = 128
+        data = [x for x in range(test_size)]
+        memcache.write_memory_block8(0, data)
+        for i in range(10):
+            memcache.write_memory_block8(64, data[64:96])
+        block = memcache.read_memory_block8(0, test_size)
+        assert data == block
+    
+    def test_26_read_subrange(self, memcache):
+        data = list((n % 256) for n in range(320))
+        memcache.write_memory_block8(0x20000000, data)
+        block = memcache.read_memory_block8(0x2000007e, 4)
+        assert block == data[0x7e:0x82]
+
+     
 
 # TODO test read32/16/8 with and without callbacks
 

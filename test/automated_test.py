@@ -42,6 +42,7 @@ from flash_loader_test import FlashLoaderTest
 from gdb_test import GdbTest
 from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
+from debug_context_test import DebugContextTest
 
 XML_RESULTS = "test_results.xml"
 
@@ -61,6 +62,7 @@ test_list = [
              CortexTest(),
              FlashTest(),
              FlashLoaderTest(),
+             DebugContextTest(),
              GdbTest(),
              ]
 

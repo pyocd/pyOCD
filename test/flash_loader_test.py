@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,9 +30,16 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
+from pyocd.utility.py3_helpers import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
-from test_util import (Test, TestResult, get_session_options)
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    get_target_test_params,
+    binary_to_hex_file
+    )
 
 addr = 0
 size = 0
@@ -66,27 +73,24 @@ def flash_loader_test(board_id):
         target = session.target
         target_type = board.target_type
 
-        test_clock = 10000000
-        if target_type == "nrf51":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        if target_type == "ncs36510":
-            # Override clock since 10MHz is too fast
-            test_clock = 1000000
-        session.probe.set_clock(test_clock)
+        test_params = get_target_test_params(session)
+        session.probe.set_clock(test_params['test_clock'])
 
         memory_map = board.target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
         boot_start_addr = boot_region.start
         boot_end_addr = boot_region.end
         boot_blocksize = boot_region.blocksize
+        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+
+        # Generate an Intel hex file from the binary test file.
+        temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)
 
         test_pass_count = 0
         test_count = 0
         result = FlashLoaderTestResult()
         
-        binary_file_path = os.path.join(parentdir, 'binaries', board.test_binary)
-        with open(binary_file_path, "rb") as f:
+        with open(binary_file, "rb") as f:
             data = list(bytearray(f.read()))
         data_length = len(data)
         
@@ -144,7 +148,18 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
-        programmer.program(binary_file_path, format='bin', base_address=boot_start_addr)
+        programmer.program(binary_file, format='bin', base_address=boot_start_addr)
+        verify_data = target.read_memory_block8(boot_start_addr, data_length)
+        if same(verify_data, data):
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        print("\n------ Test Intel Hex File Load ------")
+        programmer = FileProgrammer(session)
+        programmer.program(temp_test_hex_name, format='hex')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")
