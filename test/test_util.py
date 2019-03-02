@@ -24,7 +24,7 @@ from xml.etree import ElementTree
 import six
 import subprocess
 import tempfile
-from pyocd.utility.py3_helpers import to_str_safe
+from pyocd.utility.compatibility import to_str_safe
 
 isPy2 = (sys.version_info[0] == 2)
 

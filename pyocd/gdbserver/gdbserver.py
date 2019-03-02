@@ -21,7 +21,7 @@ from ..flash.loader import (FlashLoader, FlashEraser)
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
-from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe, to_str_safe)
+from ..utility.compatibility import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..trace.swv import SWVReader
 from ..utility.sockets import ListenerSocket

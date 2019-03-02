@@ -17,7 +17,7 @@
 
 from .interface import Interface
 from ..dap_access_api import DAPAccessIntf
-from ....utility.py3_helpers import to_str_safe
+from ....utility.compatibility import to_str_safe
 import logging
 import os
 import six

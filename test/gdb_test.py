@@ -34,7 +34,7 @@ import traceback
 
 from pyocd.__main__ import PyOCDTool
 from pyocd.core.helpers import ConnectHelper
-from pyocd.utility.py3_helpers import to_str_safe
+from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
 from test_util import (

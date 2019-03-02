@@ -19,7 +19,7 @@ import logging
 import threading
 import socket
 from .sockets import ListenerSocket
-from .py3_helpers import to_bytes_safe
+from .compatibility import to_bytes_safe
 
 LOG = logging.getLogger(__name__)
 
