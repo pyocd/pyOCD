@@ -16,7 +16,7 @@
 """
 
 from ..debug.symbols import SymbolProvider
-from ..utility.py3_helpers import to_bytes_safe
+from ..utility.compatibility import to_bytes_safe
 
 ## @brief Request symbol information from gdb.
 class GDBSymbolProvider(SymbolProvider):

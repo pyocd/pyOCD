@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pyocd.utility.py3_helpers import (
+from pyocd.utility.compatibility import (
     PY3,
     iter_single_bytes,
     to_bytes_safe,

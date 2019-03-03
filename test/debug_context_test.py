@@ -33,7 +33,7 @@ from pyocd.flash.loader import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
-from pyocd.utility.py3_helpers import to_str_safe
+from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from test_util import (
     Test,

@@ -83,3 +83,9 @@ test_results.txt
 .pytest_cache
 .eggs/
 pyOCD/_version.py
+
+# pyocd config files
+pyocd.yaml
+pyocd_user.py
+
+

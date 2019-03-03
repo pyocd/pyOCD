@@ -30,7 +30,7 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
-from pyocd.utility.py3_helpers import to_str_safe
+from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
 from test_util import (
@@ -148,7 +148,7 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
-        programmer.program(binary_file, format='bin', base_address=boot_start_addr)
+        programmer.program(binary_file, file_format='bin', base_address=boot_start_addr)
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")
@@ -159,7 +159,7 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Intel Hex File Load ------")
         programmer = FileProgrammer(session)
-        programmer.program(temp_test_hex_name, format='hex')
+        programmer.program(temp_test_hex_name, file_format='hex')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")

@@ -21,7 +21,7 @@ import logging
 import itertools
 
 from ...debug.elf.elf import ELFBinaryFile
-from ...utility.py3_helpers import to_str_safe
+from ...utility.compatibility import to_str_safe
 from ...core.memory_map import MemoryRange
 from ...core import exceptions
 from ...utility.conversion import byte_list_to_u32le_list

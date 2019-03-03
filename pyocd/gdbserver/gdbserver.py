@@ -21,11 +21,10 @@ from ..flash.loader import (FlashLoader, FlashEraser)
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
-from ..utility.py3_helpers import (iter_single_bytes, to_bytes_safe, to_str_safe)
+from ..utility.compatibility import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..trace.swv import SWVReader
-from .gdb_socket import GDBSocket
-from .gdb_websocket import GDBWebSocket
+from ..utility.sockets import ListenerSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
 from ..debug.cache import MemoryAccessError
@@ -268,15 +267,9 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.log = logging.getLogger('gdbserver')
         self.abstract_socket = None
-        port_urlWSS = session.options.get('gdbserver_port', 3333)
-        if isinstance(port_urlWSS, str) is True:
-            self.port = 0
-            self.wss_server = port_urlWSS
-        else:
-            self.port = port_urlWSS
-            if self.port != 0:
-                self.port += self.core
-            self.wss_server = None
+        self.port = session.options.get('gdbserver_port', 3333)
+        if self.port != 0:
+            self.port += self.core
         self.telnet_port = session.options.get('telnet_port', 4444)
         if self.telnet_port != 0:
             self.telnet_port += self.core
@@ -301,7 +294,6 @@ class GDBServer(threading.Thread):
         self._is_extended_remote = False
         self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
         self.flash_loader = None
-        self.lock = threading.Lock()
         self.shutdown_event = threading.Event()
         self.detach_event = threading.Event()
         if core is None:
@@ -313,15 +305,13 @@ class GDBServer(threading.Thread):
         self.did_init_thread_providers = False
         self.current_thread_id = 0
         self.first_run_after_reset_or_flash = True
-        if self.wss_server is None:
-            self.abstract_socket = GDBSocket(self.port, self.packet_size)
-            if self.serve_local_only:
-                self.abstract_socket.host = 'localhost'
-            self.abstract_socket.init()
-            # Read back bound port in case auto-assigned (port 0)
-            self.port = self.abstract_socket.port
-        else:
-            self.abstract_socket = GDBWebSocket(self.wss_server)
+
+        self.abstract_socket = ListenerSocket(self.port, self.packet_size)
+        if self.serve_local_only:
+            self.abstract_socket.host = 'localhost'
+        self.abstract_socket.init()
+        # Read back bound port in case auto-assigned (port 0)
+        self.port = self.abstract_socket.port
 
         self.target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
 
@@ -514,8 +504,6 @@ class GDBServer(threading.Thread):
                     sleep(0.1)
                     continue
 
-                self.lock.acquire()
-
                 if len(packet) != 0:
                     # decode and prepare resp
                     resp, detach = self.handle_message(packet)
@@ -528,15 +516,12 @@ class GDBServer(threading.Thread):
                         self.abstract_socket.close()
                         self.packet_io.stop()
                         self.packet_io = None
-                        self.lock.release()
                         if self.persist:
                             self._cleanup_for_next_connection()
                             break
                         else:
                             self.shutdown_event.set()
                             return
-
-                self.lock.release()
 
             except Exception as e:
                 self.log.error("Unexpected exception: %s", e)
@@ -911,20 +896,15 @@ class GDBServer(threading.Thread):
             self.log.debug("GDB getMem: addr=%x len=%x", addr, length)
 
         try:
-            val = b''
             mem = self.target_context.read_memory_block8(addr, length)
             # Flush so an exception is thrown now if invalid memory was accesses
             self.target_context.flush()
-            for x in mem:
-                if x >= 0x10:
-                    val += six.b(hex(x)[2:4])
-                else:
-                    val += b'0' + six.b(hex(x)[2:3])
+            val = hex_encode(bytearray(mem))
         except exceptions.TransferError:
             self.log.debug("get_memory failed at 0x%x" % addr)
             val = b'E01' #EPERM
         except MemoryAccessError as e:
-            logging.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            self.log.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
         return self.create_rsp_packet(val)
 
@@ -951,7 +931,7 @@ class GDBServer(threading.Thread):
             self.log.debug("write_memory failed at 0x%x" % addr)
             resp = b'E01' #EPERM
         except MemoryAccessError as e:
-            logging.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            self.log.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
@@ -978,7 +958,7 @@ class GDBServer(threading.Thread):
             self.log.debug("write_memory failed at 0x%x" % addr)
             resp = b'E01' #EPERM
         except MemoryAccessError as e:
-            logging.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            self.log.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)

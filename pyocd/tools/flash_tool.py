@@ -214,7 +214,7 @@ def main():
             # Program the file into flash.
             programmer = FileProgrammer(session, chip_erase=chip_erase, trust_crc=args.fast_program)
             programmer.program(args.file,
-                                format=args.format,
+                                file_format=args.format,
                                 base_address=args.address,
                                 skip=args.skip)
 

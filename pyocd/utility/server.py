@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
 import logging
 import threading
 import socket
-from ..gdbserver.gdb_socket import GDBSocket
-from .py3_helpers import to_bytes_safe
+from .sockets import ListenerSocket
+from .compatibility import to_bytes_safe
 
 LOG = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class StreamServer(threading.Thread):
         self._formatted_name = (name + " ") if (name is not None) else ""
         self._is_read_only = is_read_only
         self._abstract_socket = None
-        self._abstract_socket = GDBSocket(port, 4096)
+        self._abstract_socket = ListenerSocket(port, 4096)
         if serve_local_only:
             self._abstract_socket.host = 'localhost'
         self._abstract_socket.init()

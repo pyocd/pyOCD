@@ -1,23 +1,24 @@
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
+# pyOCD debugger
+# Copyright (c) 2006-2019 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+from __future__ import absolute_import
+import socket
+import select
 
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
-import socket, select
-
-class GDBSocket(object):
+class ListenerSocket(object):
     def __init__(self, port, packet_size):
         self.packet_size = packet_size
         self.listener = None
@@ -48,8 +49,10 @@ class GDBSocket(object):
 
         return self.conn
 
-    def read(self):
-        return self.conn.recv(self.packet_size)
+    def read(self, packet_size=None):
+        if packet_size is None:
+            packet_size = self.packet_size
+        return self.conn.recv(packet_size)
 
     def write(self, data):
         return self.conn.send(data)

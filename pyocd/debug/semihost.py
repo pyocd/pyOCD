@@ -21,13 +21,9 @@ import io
 import logging
 import time
 import datetime
-import threading
-import socket
 import traceback
 import six
 import pyocd
-from ..gdbserver.gdb_socket import GDBSocket
-from ..gdbserver.gdb_websocket import GDBWebSocket
 from ..core import exceptions
 
 # Debug logging options

@@ -16,7 +16,7 @@
 """
 
 from ..core.target import Target
-from ..utility.py3_helpers import to_str_safe
+from ..utility.compatibility import to_str_safe
 
 ## @brief Split command line by whitespace, supporting quoted strings.
 #
