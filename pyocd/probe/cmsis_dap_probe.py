@@ -64,6 +64,9 @@ class CMSISDAPProbe(DebugProbe):
         ( 1,    0xC ) : DAPAccess.REG.AP_0xC,
         }
     
+    ## USB VID and PID pair for DAPLink firmware.
+    DAPLINK_VIDPID = (0x0d28, 0x0204)
+    
     @classmethod
     def get_all_connected_probes(cls):
         try:
@@ -121,7 +124,13 @@ class CMSISDAPProbe(DebugProbe):
         return self._is_open
 
     def create_associated_board(self, session):
-        return MbedBoard(session)
+        # Only support associated Mbed boards for DAPLink firmware. We can't assume other
+        # CMSIS-DAP firmware is using the same serial number format, so we cannot reliably
+        # extract the board ID.
+        if self._link.vidpid == self.DAPLINK_VIDPID:
+            return MbedBoard(session)
+        else:
+            return None
     
     def open(self):
         try:

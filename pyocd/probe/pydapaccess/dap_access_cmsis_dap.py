@@ -494,10 +494,12 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._unique_id = _get_unique_id(interface)
             self._vendor_name = interface.vendor_name
             self._product_name = interface.product_name
+            self._vidpid = (interface.vid, interface.pid)
         else:
             self._unique_id = unique_id
             self._vendor_name = ""
             self._product_name = ""
+            self._vidpid = 0
         self._interface = None
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed
@@ -519,6 +521,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @property
     def product_name(self):
         return self._product_name
+    
+    @property
+    def vidpid(self):
+        """! @brief A tuple of USB VID and PID, in that order."""
+        return self._vidpid
 
     def open(self):
         if self._interface is None:
@@ -538,6 +545,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         self._vendor_name = self._interface.vendor_name
         self._product_name = self._interface.product_name
+        self._vidpid = (self._interface.vid, self._interface.pid)
 
         self._interface.open()
         self._protocol = CMSISDAPProtocol(self._interface)

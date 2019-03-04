@@ -117,6 +117,11 @@ class DAPAccessIntf(object):
     @property
     def product_name(self):
         raise NotImplementedError()
+    
+    @property
+    def vidpid(self):
+        """! @brief A tuple of USB VID and PID, in that order."""
+        raise NotImplementedError()
 
     # ------------------------------------------- #
     #          Host control functions
