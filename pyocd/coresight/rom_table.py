@@ -20,6 +20,7 @@ from .fpb import FPB
 from .dwt import DWT
 from .itm import ITM
 from .tpiu import TPIU
+from .gpr import GPR
 from ..utility.mask import invert32
 from collections import namedtuple
 import logging
@@ -79,6 +80,11 @@ ROM_TABLE_ENTRY_PRESENT_MASK = 0x1
 # Mask for ROM table entry size. 1 if 32-bit entries.
 ROM_TABLE_32BIT_FORMAT_MASK = 0x2
 
+# ROM table entry power ID fields.
+ROM_TABLE_POWERIDVALID_MASK = 0x4
+ROM_TABLE_POWERID_MASK = 0x01f0
+ROM_TABLE_POWERID_SHIFT = 4
+
 # 2's complement offset to debug component from ROM table base address.
 ROM_TABLE_ADDR_OFFSET_NEG_MASK = 0x80000000
 ROM_TABLE_ADDR_OFFSET_MASK = 0xfffff000
@@ -134,7 +140,7 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0x932, 0x31, 0x0a31) : CmpInfo('MTB-M0+',   None            ),
     (ARM_ID, CORESIGHT_CLASS, 0x975, 0x13, 0x4a13) : CmpInfo('ETM-M7',    None            ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a1, 0x11, 0)      : CmpInfo('TPIU-M4',   TPIU.factory    ),
-    (ARM_ID, CORESIGHT_CLASS, 0x9a4, 0x34, 0x0a34) : CmpInfo('GPR',       None            ), # Granular Power Requestor
+    (ARM_ID, CORESIGHT_CLASS, 0x9a4, 0x34, 0x0a34) : CmpInfo('GPR',       GPR.factory     ), # Granular Power Requestor
     (ARM_ID, CORESIGHT_CLASS, 0x9a6, 0x14, 0x1a14) : CmpInfo('CTI',       None            ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a9, 0x11, 0)      : CmpInfo('TPIU-M7',   TPIU.factory    ),
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x11, 0)      : CmpInfo('TPIU-M23',  TPIU.factory    ),
@@ -170,10 +176,12 @@ LOG = logging.getLogger(__name__)
 # in the memory map of all CoreSight components. The various fields from these
 # registers are made available as attributes.
 class CoreSightComponentID(object):
-    def __init__(self, ap, top_addr):
+    def __init__(self, parent_rom_table, ap, top_addr, power_id=None):
+        self.parent_rom_table = parent_rom_table
         self.ap = ap
         self.address = top_addr
         self.top_address = top_addr
+        self.power_id = power_id
         self.component_class = 0
         self.is_rom_table = False
         self.cidr = 0
@@ -245,13 +253,17 @@ class CoreSightComponentID(object):
     def __repr__(self):
         if not self.valid:
             return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, self.name, self.cidr, self.pidr)
-        if self.component_class == CORESIGHT_CLASS:
-            return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x>" % (
-                self.address, self.name, self.component_class, self.designer, self.part,
-                self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2])
+        if self.power_id is not None:
+            pwrid = " pwrid=%d" % self.power_id
         else:
-            return "<%08x:%s class=%d designer=%03x part=%03x>" % (
-                self.address, self.name,self.component_class, self.designer, self.part)
+            pwrid = ""
+        if self.component_class == CORESIGHT_CLASS:
+            return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x%s>" % (
+                self.address, self.name, self.component_class, self.designer, self.part,
+                self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2], pwrid)
+        else:
+            return "<%08x:%s class=%d designer=%03x part=%03x%s>" % (
+                self.address, self.name,self.component_class, self.designer, self.part, pwrid)
 
 
 class ROMTable(CoreSightComponent):
@@ -271,6 +283,7 @@ class ROMTable(CoreSightComponent):
         self.number = (self.parent.number + 1) if self.parent else 0
         self.components = []
         self.name = 'ROM'
+        self.gpr = None
     
     @property
     def depth_indent(self):
@@ -278,7 +291,7 @@ class ROMTable(CoreSightComponent):
 
     def init(self):
         if self.cmpid is None:
-            self.cmpid = CoreSightComponentID(self.ap, self.address)
+            self.cmpid = CoreSightComponentID(self, self.ap, self.address)
             self.cmpid.read_id_registers()
         if not self.cmpid.is_rom_table:
             LOG.warning("Warning: ROM table @ 0x%08x has unexpected CIDR component class (0x%x)", self.address, self.cmpid.component_class)
@@ -293,6 +306,7 @@ class ROMTable(CoreSightComponent):
         entryAddress = self.address
         foundEnd = False
         entriesRead = 0
+        entryNumber = 0
         while not foundEnd and entriesRead < ROM_TABLE_MAX_ENTRIES:
             # Read several entries at a time for performance.
             readCount = min(ROM_TABLE_MAX_ENTRIES - entriesRead, ROM_TABLE_ENTRY_READ_COUNT)
@@ -304,11 +318,12 @@ class ROMTable(CoreSightComponent):
                 if entry == 0:
                     foundEnd = True
                     break
-                self._handle_table_entry(entry)
+                self._handle_table_entry(entry, entryNumber)
 
                 entryAddress += 4
+                entryNumber += 1
 
-    def _handle_table_entry(self, entry):
+    def _handle_table_entry(self, entry, number):
         # Nonzero entries can still be disabled, so check the present bit before handling.
         if (entry & ROM_TABLE_ENTRY_PRESENT_MASK) == 0:
             return
@@ -321,12 +336,35 @@ class ROMTable(CoreSightComponent):
         if (entry & ROM_TABLE_ADDR_OFFSET_NEG_MASK) != 0:
             offset = ~invert32(offset)
         address = self.address + offset
+        
+        # Check power ID.
+        if (entry & ROM_TABLE_POWERIDVALID_MASK) != 0:
+            powerid = (entry & ROM_TABLE_POWERID_MASK) >> ROM_TABLE_POWERID_SHIFT
+            
+            if self.gpr is None:
+                LOG.error("ROM table entry #%d specifies power ID #%d, but no power requestor component has been seen; skipping component (entry=0x%08x)", number, powerid, entry)
+                return
+            
+            # Power up the domain.
+            if not self.gpr.power_up_one(powerid):
+                LOG.error("Failed to power up power domain #%d", powerid)
+                return
+            else:
+                LOG.info("Enabled power to power domain #%d", powerid)
+        else:
+            powerid = None
 
         # Create component instance.
-        cmpid = CoreSightComponentID(self.ap, address)
+        cmpid = CoreSightComponentID(self, self.ap, address, powerid)
         cmpid.read_id_registers()
+        
+        # Is this component a power requestor?
+        if cmpid.factory == GPR.factory:
+            # Create the GPR instance and stash it.
+            self.gpr = cmpid.factory(self.ap, cmpid, None)
+            self.gpr.init()
 
-        LOG.info("%s[%d]%s", self.depth_indent, len(self.components), str(cmpid))
+        LOG.info("%s[%d]%s", self.depth_indent, number, str(cmpid))
 
         # Recurse into child ROM tables.
         if cmpid.is_rom_table:
