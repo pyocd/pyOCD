@@ -162,6 +162,8 @@ COMPONENT_MAP = {
     (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',    None            ),
     }
 
+LOG = logging.getLogger(__name__)
+
 ## @brief Reads and parses CoreSight architectural component ID registers.
 #
 # Reads the CIDR, PIDR, DEVID, and DEVARCH registers present at well known offsets
@@ -195,7 +197,7 @@ class CoreSightComponentID(object):
 
         # Check if the component has a valid CIDR value
         if (self.cidr & CIDR_PREAMBLE_MASK) != CIDR_PREAMBLE_VALUE:
-            logging.warning("Invalid coresight component, cidr=0x%x", self.cidr)
+            LOG.warning("Invalid coresight component, cidr=0x%x", self.cidr)
             return
 
         # Extract class and determine if this is a ROM table.
@@ -279,12 +281,12 @@ class ROMTable(CoreSightComponent):
             self.cmpid = CoreSightComponentID(self.ap, self.address)
             self.cmpid.read_id_registers()
         if not self.cmpid.is_rom_table:
-            logging.warning("Warning: ROM table @ 0x%08x has unexpected CIDR component class (0x%x)", self.address, self.cmpid.component_class)
+            LOG.warning("Warning: ROM table @ 0x%08x has unexpected CIDR component class (0x%x)", self.address, self.cmpid.component_class)
             return
         self._read_table()
 
     def _read_table(self):
-        logging.info("%sAP#%d ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
+        LOG.info("%sAP#%d ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
             self.depth_indent, self.ap.ap_num, self.number, self.address, self.cmpid.designer, self.cmpid.part)
         self.components = []
 
@@ -324,7 +326,7 @@ class ROMTable(CoreSightComponent):
         cmpid = CoreSightComponentID(self.ap, address)
         cmpid.read_id_registers()
 
-        logging.info("%s[%d]%s", self.depth_indent, len(self.components), str(cmpid))
+        LOG.info("%s[%d]%s", self.depth_indent, len(self.components), str(cmpid))
 
         # Recurse into child ROM tables.
         if cmpid.is_rom_table:
