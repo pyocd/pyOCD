@@ -61,6 +61,7 @@ BOARD_ID_TO_INFO = {
     "0324": BoardInfo(  "USB-KW40Z",            "kw40z4",           "l1_kl25z.bin"          ),
     "0400": BoardInfo(  "MAXWSNENV",            "max32600",         "l1_maxwsnenv.bin",     ),
     "0405": BoardInfo(  "MAX32600MBED",         "max32600",         "l1_max32600mbed.bin",  ),
+    "0409": BoardInfo(  "MAX32630FTHR",         "max32630",         "max32630fthr.bin",     ),
     "0415": BoardInfo(  "MAX32625MBED",         "max32625",         "max32625mbed.bin",     ),
     "0416": BoardInfo(  "MAX32625PICO",         "max32625",         "max32625pico.bin",     ),
     "0418": BoardInfo(  "MAX32620FTHR",         "max32620",         "max32620fthr.bin",     ),
