@@ -25,7 +25,8 @@ class MbedBoard(Board):
     
     This class inherits from Board and is specific to mbed boards. Particularly, this class
     will dynamically determine the type of connected board based on the board ID encoded in
-    the debug probe's serial number.
+    the debug probe's serial number. If the board ID is all "0" characters, it indicates the
+    firmware is generic and doesn't have an associated board.
     """
     def __init__(self, session, target=None):
         """! @brief Constructor.
@@ -35,23 +36,32 @@ class MbedBoard(Board):
         """
         target = session.options.get('target_override', target)
         unique_id = session.probe.unique_id
-        try:
-            board_id = unique_id[0:4]
-            board_info = BOARD_ID_TO_INFO[board_id]
-            self._name = board_info.name
-            self.native_target = board_info.target
-        except KeyError:
+        board_id = unique_id[0:4]
+        
+        # Check for null board ID. This indicates a standalone probe or generic firmware.
+        if board_id == "0000":
             board_info = None
-            self._name = "Unknown Board"
+            self._name = "Generic Board"
             self.native_target = None
+        else:
+            # Attempt to look up the board ID in our table.
+            try:
+                board_info = BOARD_ID_TO_INFO[board_id]
+                self._name = board_info.name
+                self.native_target = board_info.target
+            except KeyError:
+                board_info = None
+                self._name = "Unknown Board"
+                self.native_target = None
 
-        # Unless overridden use the native target
-        if target is None:
-            target = self.native_target
+            # Unless overridden use the native target
+            if target is None:
+                target = self.native_target
 
-        if target is None:
-            LOG.warning("Board ID %s is not recognized; you will be able to use pyOCD but not program flash.", board_id)
-            target = "cortex_m"
+            # If there still isn't a known target, tell the user about it. Leaving target
+            # set to None will cause cortex_m to be selected by the Board ctor.
+            if target is None:
+                LOG.warning("Board ID %s is not recognized; you will be able to use pyOCD but not program flash.", board_id)
 
         super(MbedBoard, self).__init__(session, target)
 
