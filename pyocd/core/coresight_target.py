@@ -66,6 +66,13 @@ class CoreSightTarget(Target, GraphNode):
     @property
     def selected_core(self):
         return self.cores[self._selected_core]
+    
+    @selected_core.setter
+    def selected_core(self, core_number):
+        if num not in self.cores:
+            raise ValueError("invalid core number")
+        logging.debug("selected core #%d" % num)
+        self._selected_core = core_number
 
     @property
     def elf(self):
@@ -81,10 +88,8 @@ class CoreSightTarget(Target, GraphNode):
             self.cores[0].set_target_context(FlashReaderContext(self.cores[0].get_target_context(), self._elf))
 
     def select_core(self, num):
-        if num not in self.cores:
-            raise ValueError("invalid core number")
-        logging.debug("selected core #%d" % num)
-        self._selected_core = num
+        """! @note Deprecated."""
+        self.selected_core = num
 
     @property
     def aps(self):

@@ -101,7 +101,6 @@ class Target(MemoryInterface, Notifier):
         self.memory_map = memoryMap or MemoryMap()
         self.halt_on_connect = session.options.get('halt_on_connect', True)
         self.auto_unlock = session.options.get('auto_unlock', True)
-        self.has_fpu = False
         self._svd_location = None
         self._svd_device = None
 

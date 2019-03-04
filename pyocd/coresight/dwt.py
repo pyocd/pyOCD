@@ -77,7 +77,10 @@ class DWT(CoreSightComponent):
     WATCH_TYPE_TO_FUNCT = {
                             Target.WATCHPOINT_READ: 5,
                             Target.WATCHPOINT_WRITE: 6,
-                            Target.WATCHPOINT_READ_WRITE: 7
+                            Target.WATCHPOINT_READ_WRITE: 7,
+                            5: Target.WATCHPOINT_READ,
+                            6: Target.WATCHPOINT_WRITE,
+                            7: Target.WATCHPOINT_READ_WRITE,
                             }
 
     # Only sizes that are powers of 2 are supported
@@ -165,6 +168,11 @@ class DWT(CoreSightComponent):
         watch.func = 0
         self.ap.write_memory(watch.comp_register_addr + DWT.DWT_FUNCTION_OFFSET, 0)
         self.watchpoint_used -= 1
+    
+    def remove_all_watchpoints(self):
+        for watch in self.watchpoints:
+            if watch.func != 0:
+                self.remove_watchpoint(watch.addr, watch.size, DWT.WATCH_TYPE_TO_FUNCT[watch.func])
     
     @property
     def cycle_count(self):

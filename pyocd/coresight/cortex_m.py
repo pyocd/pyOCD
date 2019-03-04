@@ -162,8 +162,7 @@ def register_name_to_index(reg):
     return reg
 
 def is_float_register(index):
-    logging.warning("cortex_m.is_float_register() is deprecated - use is_single_float_register() and/or consider other functions")
-    return is_single_float_register(index)
+    return is_single_float_register(index) or is_double_float_register(index)
 
 # Returns true for registers holding single-precision float values
 def is_single_float_register(index):
@@ -493,8 +492,9 @@ class CortexM(Target, CoreSightComponent):
 
     def disconnect(self, resume=True):
         if not self.call_delegate('will_stop_debug_core', core=self):
-            # Remove breakpoints.
+            # Remove breakpoints and watchpoints.
             self.bp_manager.remove_all_breakpoints()
+            self.dwt.remove_all_watchpoints()
 
             # Disable other debug blocks.
             self.write32(CortexM.DEMCR, 0)

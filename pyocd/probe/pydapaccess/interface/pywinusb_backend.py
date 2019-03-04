@@ -17,6 +17,7 @@
 
 from .interface import Interface
 from ..dap_access_api import DAPAccessIntf
+from ....utility.timeout import Timeout
 import logging
 import os
 import collections
@@ -70,33 +71,31 @@ class PyWinUSB(Interface):
         # Note - this operation must be retried since
         # other instances of pyOCD listing board can prevent
         # opening this device with exclusive access.
-        start = time()
-        while True:
+        with Timeout(OPEN_TIMEOUT_S) as t_o:
+            while t_o.check():
+                # Attempt to open the device
+                try:
+                    self.device.open(shared=False)
+                    break
+                except hid.HIDError:
+                    pass
 
-            # Attempt to open the device
-            try:
-                self.device.open(shared=False)
-                break
-            except hid.HIDError:
-                pass
+                # Attempt to open the device in shared mode to make
+                # sure it is still there
+                try:
+                    self.device.open(shared=True)
+                    self.device.close()
+                except hid.HIDError as exc:
+                    # If the device could not be opened in read only mode
+                    # Then it either has been disconnected or is in use
+                    # by another thread/process
+                    raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
 
-            # Attempt to open the device in shared mode to make
-            # sure it is still there
-            try:
-                self.device.open(shared=True)
-                self.device.close()
-            except hid.HIDError as exc:
-                # If the device could not be opened in read only mode
-                # Then it either has been disconnected or is in use
-                # by another thread/process
-                raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
-
-            if time() - start > OPEN_TIMEOUT_S:
+            else:
                 # If this timeout has elapsed then another process
                 # has locked this device in shared mode. This should
                 # not happen.
                 assert False
-                break
 
 
     @staticmethod
