@@ -378,7 +378,7 @@ class FlashLoader(object):
 
         # We have to use a special sentinel object for chip_erase because None is a valid value.
         self._chip_erase = chip_erase if (chip_erase is not CHIP_ERASE_SENTINEL) \
-                            else self._session.options.get('chip_erase', None)
+                            else self._session.options.get('chip_erase', False)
         self._trust_crc = trust_crc if (trust_crc is not None) \
                             else self._session.options.get('fast_program', False)
         

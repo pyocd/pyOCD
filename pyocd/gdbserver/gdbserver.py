@@ -278,7 +278,7 @@ class GDBServer(threading.Thread):
         self.step_into_interrupt = session.options.get('step_into_interrupt', False)
         self.persist = session.options.get('persist', False)
         self.soft_bkpt_as_hard = session.options.get('soft_bkpt_as_hard', False)
-        self.chip_erase = session.options.get('chip_erase', None)
+        self.chip_erase = session.options.get('chip_erase', False)
         self.hide_programming_progress = session.options.get('hide_programming_progress', False)
         self.fast_program = session.options.get('fast_program', False)
         self.enable_semihosting = session.options.get('enable_semihosting', False)
