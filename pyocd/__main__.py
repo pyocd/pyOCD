@@ -197,8 +197,8 @@ class PyOCDTool(object):
         # Create *flash* subcommand parser.
         flashParser = subparsers.add_parser('flash', parents=[commonOptions, connectOptions],
             help="Program an image to device flash.")
-        flashParser.add_argument("-e", "--erase", choices=ERASE_OPTIONS.keys(), default='auto',
-            help="Choose flash erase method. Default is auto.")
+        flashParser.add_argument("-e", "--erase", choices=ERASE_OPTIONS.keys(), default='sector',
+            help="Choose flash erase method. Default is sector.")
         flashParser.add_argument("-a", "--base-address", metavar="ADDR", type=int_base_0,
             help="Base address used for the address where to flash a binary. Defaults to start of flash.")
         flashParser.add_argument("--trust-crc", action="store_true",
@@ -222,8 +222,8 @@ class PyOCDTool(object):
             help="Keep GDB server running even after remote has detached.")
         gdbserverOptions.add_argument("--elf", metavar="PATH",
             help="Optionally specify ELF file being debugged.")
-        gdbserverOptions.add_argument("-e", "--erase", choices=('auto', 'chip', 'sector'), default='auto',
-            help="Choose flash erase method. Default is auto.")
+        gdbserverOptions.add_argument("-e", "--erase", choices=ERASE_OPTIONS.keys(), default='sector',
+            help="Choose flash erase method. Default is sector.")
         gdbserverOptions.add_argument("--trust-crc", action="store_true",
             help="Use only the CRC of each page to determine if it already has the same data.")
         gdbserverOptions.add_argument("-C", "--vector-catch", default='h',
