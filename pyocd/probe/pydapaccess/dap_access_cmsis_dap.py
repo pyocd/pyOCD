@@ -483,6 +483,21 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                             val = False
                         setattr(DAPSettings, attr, val)
 
+    @staticmethod
+    def _lookup_interface_for_unique_id(unique_id):
+        result_interface = None
+        all_interfaces = _get_interfaces()
+        for interface in all_interfaces:
+            try:
+                if _get_unique_id(interface) == unique_id:
+                    # This assert could indicate that two boards
+                    # had the same ID
+                    assert result_interface is None, "More than one probes with ID {}".format(unique_id)
+                    result_interface = interface
+            except Exception:
+                logger = logging.getLogger(__name__)
+                logger.error('Failed to get unique id for open', exc_info=True)
+        return result_interface
 
     # ------------------------------------------- #
     #          CMSIS-DAP and Other Functions
@@ -490,15 +505,24 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def __init__(self, unique_id, interface=None):
         assert isinstance(unique_id, six.string_types) or (unique_id is None and interface is not None)
         super(DAPAccessCMSISDAP, self).__init__()
+
+        # Search for a matching interface if one wasn't provided.
+        if interface is None:
+            interface = DAPAccessCMSISDAP._lookup_interface_for_unique_id(unique_id)
+
         if interface is not None:
             self._unique_id = _get_unique_id(interface)
             self._vendor_name = interface.vendor_name
             self._product_name = interface.product_name
+            self._vidpid = (interface.vid, interface.pid)
         else:
+            # Set default values for an unknown interface.
             self._unique_id = unique_id
             self._vendor_name = ""
             self._product_name = ""
-        self._interface = None
+            self._vidpid = (0, 0)
+            
+        self._interface = interface
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed
         self._packet_count = None
@@ -519,25 +543,15 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @property
     def product_name(self):
         return self._product_name
+    
+    @property
+    def vidpid(self):
+        """! @brief A tuple of USB VID and PID, in that order."""
+        return self._vidpid
 
     def open(self):
         if self._interface is None:
-            all_interfaces = _get_interfaces()
-            for interface in all_interfaces:
-                try:
-                    unique_id = _get_unique_id(interface)
-                    if self._unique_id == unique_id:
-                        # This assert could indicate that two boards
-                        # had the same ID
-                        assert self._interface is None
-                        self._interface = interface
-                except Exception:
-                    self._logger.error('Failed to get unique id for open', exc_info=True)
-            if self._interface is None:
-                raise DAPAccessIntf.DeviceError("Unable to open device")
-
-        self._vendor_name = self._interface.vendor_name
-        self._product_name = self._interface.product_name
+            raise DAPAccessIntf.DeviceError("Unable to open device with no interface")
 
         self._interface.open()
         self._protocol = CMSISDAPProtocol(self._interface)
