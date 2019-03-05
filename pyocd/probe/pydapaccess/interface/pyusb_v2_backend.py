@@ -286,6 +286,9 @@ class HasCmsisDapv2Interface(object):
         except IndexError as error:
             LOG.warning("Internal pyusb error: %s", error)
             return False
+        except NotImplementedError as error:
+            LOG.debug("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
+            return False
 
         if cmsis_dap_interface is None:
             return False
