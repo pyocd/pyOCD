@@ -72,13 +72,46 @@ class Flash(object):
     """!
     @brief Low-level control of flash programming algorithms.
     
-    Instances of this class are bound to a flash memory region (FlashRegion) and support
+    Instances of this class are bound to a flash memory region
+    (@ref pyocd.core.memory_map.FlashRegion "FlashRegion") and support
     programming only within that region's address range. To program images that cross flash
-    memory region boundaries, use the FlashLoader or FileProgrammer classes.
+    memory region boundaries, use the @ref pyocd.flash.loader.FlashLoader "FlashLoader" or
+    @ref pyocd.flash.loader.FileProgrammer "FileProgrammer" classes.
+    
+    Terminology:
+    - sector: The size of an erasable block.
+    - page: The size of a nominal programming block. Often flash can be programmed in much smaller
+        increments (phrases). In that case, the page size determines the data buffers and the size
+        passed to the ProgramPage() flash algo API. Pages must be the same size or smaller than
+        sectors.
+    - phrase: The minimum programming granularity, often from 1-16 bytes. For some flash
+        technologies, the is no distinction between a phrase and a page.
+    
+    The `flash_algo` parameter of the constructor is a dictionary that defines all the details
+    of the flash algorithm. The keys of this dictionary are as follows.
+    - `load_address`: Memory address where the flash algo instructions will be loaded.
+    - `instructions`: List of 32-bit words containing the position-independant code for the algo.
+    - `pc_init`: Address of the `Init()` entry point. Optional.
+    - `pc_eraseAll`: Address of the `EraseAll()` entry point. Optional.
+    - `pc_erase_sector`: Address of the `EraseSector()` entry point.
+    - `pc_program_page`: Address of the `ProgramPage()` entry point.
+    - `pc_unInit`: Address of the `UnInit()` entry point. Optional.
+    - `begin_data`: Base address of the page buffer. Used if `page_buffers` is not provided.
+    - `page_buffers`: An optional list of base addresses for page buffers. The buffers must be at
+        least as large as the region's page_size attribute. If at least 2 buffers are included in
+        the list, then double buffered programming will be enabled.
+    - `begin_stack`: Initial value of the stack pointer when calling any flash algo API.
+    - `static_base`: Initial value of the R9 register for calling flash algo entry points, which
+        determines where the position-independant data resides.
+    - `analyzer_supported`: Whether the CRC32-based analyzer is supported.
+    - `analyzer_address`: RAM base address where the analyzer code will be placed. There must be at
+        least 0x600 free bytes after this address.
+    
+    All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
     class Operation(Enum):
         """! @brief Operations passed to init(). """
-        ## Erase all or page erase.
+        ## Erase all or sector erase.
         ERASE = 1
         ## Program page or phrase.
         PROGRAM = 2

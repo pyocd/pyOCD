@@ -117,8 +117,40 @@ class MemoryRange(MemoryRangeBase):
             id(self), self.start, self.end, self.length, self.region)
 
 class MemoryRegion(MemoryRangeBase):
-    """! @brief One contiguous range of memory."""
+    """! @brief One contiguous range of memory.
     
+    Memory regions have attributes accessible via the normal dot syntax.
+    
+    - `name`: Name of the region, which defaults to the region type in lowercase.
+    - `access`: Composition of r, w, x, s.
+    - `alias`: If set, this is the name of another region that of which this region is an alias.
+    - `is_boot_memory`: Whether the device boots from this memory. This normally implies that the
+        boot NVIC vector table is placed at the base address of this region, but that is not
+        always the case.
+    - `is_default`: Whether the region should be used as a default of the given type.
+    - `is_powered_on_boot`: Whether the memory is powered and accessible without special configuration
+        at system boot. For internal memories, this will almost always be true.
+    - `is_cacheable`: Determines whether data should be cached from this region. True for most
+        memory types, except DEVICE.
+    - `invalidate_cache_on_run`: Whether to invalidate any cached data from the region whenever the
+        target resumes execution or steps. Usually true, though this can be false for regions such
+        as memory-mapped OTP or configuration flash.
+    - `is_testable`: Whether pyOCD should consider the region in its functional tests.
+    - `is_external`: If true, the region is backed by an external memory device such as SDRAM or QSPI.
+    
+    Several attributes are available whose values are computed from other attributes. These should
+    not be set when creating the region.
+    - `is_ram`
+    - `is_rom`
+    - `is_flash`
+    - `is_device`
+    - `is_readable`
+    - `is_writable`
+    - `is_executable`
+    - `is_secure`
+    """
+    
+    ## Default attribute values for all memory region types.
     DEFAULT_ATTRS = {
         'name': lambda r: r.type.name.lower(),
         'access': 'rwx',
@@ -145,16 +177,12 @@ class MemoryRegion(MemoryRangeBase):
         
         Memory regions are required to have non-zero lengths, unlike memory ranges.
         
-        Optional region attributes passed as keyword arguments:
+        Some common optional region attributes passed as keyword arguments:
         - name: If a name is not provided, the name is set to the region type in lowercase.
         - access: composition of r, w, x, s
         - alias
-        - blocksize
-        - page_size
         - is_boot_memory
         - is_powered_on_boot
-        - is_cacheable
-        - invalidate_cache_on_run
         - is_testable
         """
         super(MemoryRegion, self).__init__(start=start, end=end, length=length)
@@ -225,7 +253,23 @@ class DefaultFlashWeights:
     ERASE_ALL_WEIGHT = 0.174
 
 class FlashRegion(MemoryRegion):
-    """! @brief Contiguous region of flash memory."""
+    """! @brief Contiguous region of flash memory.
+    
+    Flash regions have a number of attributes in addition to those available in all region types.
+    - `blocksize`: Erase sector size in bytes.
+    - `page_size`: Program page size in bytes. If not set, this will default to the `blocksize`.
+    - `phrase_size`: The minimum programming granularity in bytes. Defaults to the `page_size` if not set.
+    - `erase_all_weight`: Time it takes to erase the entire region.
+    - `erase_sector_weight`: Time it takes to erase one sector.
+    - `program_page_weight`: Time it takes to program a single page.
+    - `erased_byte_value`: The value of an erased byte of this flash. Most flash technologies erase to
+        all 1s, which would be an `erased_byte_value` of 0xff.
+    - `algo`: The flash algorithm dictionary.
+    - `flm`: Path to an FLM flash algorithm.
+    - `flash_class`: The class that manages individual flash algorithm operations. Must be either
+        @ref pyocd.flash.flash.Flash "Flash", which is the default, or a subclass.
+    - `flash`: After connection, this attribute holds the instance of `flash_class` for this region.
+    """
 
     # Add some default attribute values for flash regions.
     DEFAULT_ATTRS = MemoryRegion.DEFAULT_ATTRS.copy()
