@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ..core.target import Target
-from ..core.exceptions import FlashFailure
+from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
 from ..utility.mask import msb
 import logging
 from struct import unpack
@@ -27,7 +27,7 @@ DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
 DEFAULT_PAGE_ERASE_WEIGHT = 0.048
 DEFAULT_CHIP_ERASE_WEIGHT = 0.174
 
-LOG = logging.getLogger('flash')
+LOG = logging.getLogger(__name__)
 
 # Program to compute the CRC of sectors.  This works on cortex-m processors.
 # Code is relocatable and only needs to be on a 4 byte boundary.
@@ -254,69 +254,69 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            LOG.error('erase_all error: %i', result)
+            raise FlashEraseFailure('erase_all error: %i' % result, result_code=result)
 
-    def erase_page(self, flashPtr):
+    def erase_page(self, address):
         """!
         @brief Erase one page.
         """
         assert self._active_operation == self.Operation.ERASE
 
         # update core register to execute the erase_page subroutine
-        result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], flashPtr)
+        result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address)
 
         # check the return code
         if result != 0:
-            LOG.error('erase_page(0x%x) error: %i', flashPtr, result)
+            raise FlashEraseFailure('erase_sector(0x%x) error: %i' % (address, result), address, result)
 
-    def program_page(self, flashPtr, bytes):
+    def program_page(self, address, bytes):
         """!
         @brief Flash one or more pages.
         """
         assert self._active_operation == self.Operation.PROGRAM
 
         # prevent security settings from locking the device
-        bytes = self.override_security_bits(flashPtr, bytes)
+        bytes = self.override_security_bits(address, bytes)
 
         # first transfer in RAM
         self.target.write_memory_block8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
 
         # check the return code
         if result != 0:
-            LOG.error('program_page(0x%x) error: %i', flashPtr, result)
+            raise FlashProgramFailure('program_page(0x%x) error: %i' % (address, result), address, result)
 
-    def start_program_page_with_buffer(self, bufferNumber, flashPtr):
+    def start_program_page_with_buffer(self, buffer_number, address):
         """!
         @brief Start flashing one or more pages.
         """
-        assert bufferNumber < len(self.page_buffers), "Invalid buffer number"
+        assert buffer_number < len(self.page_buffers), "Invalid buffer number"
         assert self._active_operation == self.Operation.PROGRAM
 
         # get info about this page
-        page_info = self.get_page_info(flashPtr)
+        page_info = self.get_page_info(address)
 
         # update core register to execute the program_page subroutine
-        result = self._call_function(self.flash_algo['pc_program_page'], flashPtr, page_info.size, self.page_buffers[bufferNumber])
+        result = self._call_function(self.flash_algo['pc_program_page'], address, page_info.size, self.page_buffers[buffer_number])
 
-    def load_page_buffer(self, bufferNumber, flashPtr, bytes):
+    def load_page_buffer(self, buffer_number, address, bytes):
         """!
         @brief Load data to a numbered page buffer.
         
         This method is used in conjunction with start_program_page_with_buffer() to implement
         double buffered programming.
         """
-        assert bufferNumber < len(self.page_buffers), "Invalid buffer number"
+        assert buffer_number < len(self.page_buffers), "Invalid buffer number"
 
         # prevent security settings from locking the device
-        bytes = self.override_security_bits(flashPtr, bytes)
+        bytes = self.override_security_bits(address, bytes)
 
         # transfer the buffer to device RAM
-        self.target.write_memory_block8(self.page_buffers[bufferNumber], bytes)
+        self.target.write_memory_block8(self.page_buffers[buffer_number], bytes)
 
-    def program_phrase(self, flashPtr, bytes):
+    def program_phrase(self, address, bytes):
         """!
         @brief Flash a portion of a page.
         
@@ -329,7 +329,7 @@ class Flash(object):
         if self.min_program_length:
             min_len = self.min_program_length
         else:
-            min_len = self.get_page_info(flashPtr).size
+            min_len = self.get_page_info(address).size
 
         # Require write address and length to be aligned to min write size.
         if flashPtr % min_len:
@@ -338,23 +338,21 @@ class Flash(object):
             raise FlashFailure("phrase length is unaligned or too small")
 
         # prevent security settings from locking the device
-        bytes = self.override_security_bits(flashPtr, bytes)
+        bytes = self.override_security_bits(address, bytes)
 
         # first transfer in RAM
         self.target.write_memory_block8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], flashPtr, len(bytes), self.begin_data)
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
 
         # check the return code
         if result != 0:
-            LOG.error('program_phrase(0x%x) error: %i', flashPtr, result)
+            raise FlashProgramFailure('program_phrase(0x%x) error: %i' % (address, result), address, result)
 
     def get_page_info(self, addr):
         """!
         @brief Get info about the page that contains this address.
-
-        Override this method if variable page sizes are supported.
         """
         assert self.region is not None
         if not self.region.contains_address(addr):
@@ -436,7 +434,7 @@ class Flash(object):
         """!
         @brief Wait until the breakpoint is hit.
         """
-        while(self.target.get_state() == Target.TARGET_RUNNING):
+        while self.target.get_state() == Target.TARGET_RUNNING:
             pass
 
         if self.flash_algo_debug:

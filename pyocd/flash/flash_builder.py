@@ -95,15 +95,11 @@ class FlashBuilder(object):
         self.page_list = []
         self.perf = ProgrammingInfo()
         self.enable_double_buffering = True
-        self.max_errors = 10
         self.log_performance = True
         self.buffered_data_size = 0
 
     def enable_double_buffer(self, enable):
         self.enable_double_buffering = enable
-
-    def set_max_errors(self, count):
-        self.max_errors = count
 
     def add_data(self, addr, data):
         """
@@ -464,7 +460,6 @@ class FlashBuilder(object):
         progress += self.flash.get_flash_info().erase_weight
 
         # Set up page and buffer info.
-        error_count = 0
         current_buf = 0
         next_buf = 1
         page, i = self._next_unerased_page(0)
@@ -487,14 +482,6 @@ class FlashBuilder(object):
 
             # Wait for the program to complete.
             result = self.flash.wait_for_completion()
-
-            # check the return code
-            if result != 0:
-                LOG.error('program_page(0x%x) error: %i', current_addr, result)
-                error_count += 1
-                if error_count > self.max_errors:
-                    LOG.error("Too many page programming errors, aborting program operation")
-                    break
 
             # Swap buffers.
             temp = current_buf
@@ -603,7 +590,6 @@ class FlashBuilder(object):
         progress = self._scan_pages_for_same(progress_cb)
 
         # Set up page and buffer info.
-        error_count = 0
         current_buf = 0
         next_buf = 1
         page, i = self._next_nonsame_page(0)
@@ -637,14 +623,6 @@ class FlashBuilder(object):
 
                 # Wait for the program to complete.
                 result = self.flash.wait_for_completion()
-
-                # check the return code
-                if result != 0:
-                    LOG.error('program_page(0x%x) error: %i', current_addr, result)
-                    error_count += 1
-                    if error_count > self.max_errors:
-                        LOG.error("Too many page programming errors, aborting program operation")
-                        break
                 
                 self.flash.uninit()
                 
