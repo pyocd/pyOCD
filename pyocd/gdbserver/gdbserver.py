@@ -464,13 +464,10 @@ class GDBServer(threading.Thread):
                 if self.detach_event.isSet():
                     break
 
-                if self.packet_io.interrupt_event.isSet():
-                    if self.non_stop:
-                        self.target.halt()
-                        self.is_target_running = False
-                        self.send_stop_notification()
-                    else:
-                        self.log.error("Got unexpected ctrl-c, ignoring")
+                if self.non_stop and self.packet_io.interrupt_event.isSet():
+                    self.target.halt()
+                    self.is_target_running = False
+                    self.send_stop_notification()
                     self.packet_io.interrupt_event.clear()
 
                 if self.non_stop and self.is_target_running:
@@ -675,6 +672,12 @@ class GDBServer(threading.Thread):
 
     def resume(self, data):
         addr = self._get_resume_step_addr(data)
+
+        if self.packet_io.interrupt_event.isSet():
+            self.packet_io.interrupt_event.clear()
+            self.log.debug("resume skipped due to pending CTRL-C")
+            return self.create_rsp_packet(self.get_t_response(forceSignal=signals.SIGINT))
+
         self.target.resume()
         self.log.debug("target resumed")
 
@@ -726,6 +729,10 @@ class GDBServer(threading.Thread):
 
     def step(self, data):
         addr = self._get_resume_step_addr(data)
+        if self.packet_io.interrupt_event.isSet():
+            self.packet_io.interrupt_event.clear()
+            self.log.debug("step skipped due to pending CTRL-C")
+            return self.create_rsp_packet(self.get_t_response(forceSignal=signals.SIGINT))
         self.log.debug("GDB step: %s", data)
         self.target.step(not self.step_into_interrupt)
         return self.create_rsp_packet(self.get_t_response())
@@ -795,16 +802,27 @@ class GDBServer(threading.Thread):
 
         if thread_actions[currentThread][0:1] in (b'c', b'C'):
             if self.non_stop:
-                self.target.resume()
-                self.is_target_running = True
-                return self.create_rsp_packet(b"OK")
+                self.packet_io.send(self.create_rsp_packet(b"OK"))
+                if self.packet_io.interrupt_event.isSet():
+                    self.packet_io.interrupt_event.clear()
+                    self.send_stop_notification(forceSignal=signals.SIGINT)
+                    self.log.debug("resume skipped due to pending CTRL-C")
+                else:
+                    self.target.resume()
+                    self.is_target_running = True
+                return None
             else:
                 return self.resume(None)
         elif thread_actions[currentThread][0:1] in (b's', b'S'):
             if self.non_stop:
-                self.target.step(not self.step_into_interrupt)
                 self.packet_io.send(self.create_rsp_packet(b"OK"))
-                self.send_stop_notification()
+                if self.packet_io.interrupt_event.isSet():
+                    self.packet_io.interrupt_event.clear()
+                    self.send_stop_notification(forceSignal=signals.SIGINT)
+                    self.log.debug("step skipped due to pending CTRL-C")
+                else:
+                    self.target.step(not self.step_into_interrupt)
+                    self.send_stop_notification()
                 return None
             else:
                 return self.step(None)
