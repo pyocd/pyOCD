@@ -359,9 +359,9 @@ class Flash(object):
             return None
 
         info = PageInfo()
-        info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
-        info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
-        info.size = self.region.blocksize
+        info.erase_weight = self.region.erase_sector_weight
+        info.program_weight = self.region.program_page_weight
+        info.size = self.region.page_size
         info.base_addr = addr - (addr % info.size)
         return info
 
@@ -375,7 +375,7 @@ class Flash(object):
 
         info = FlashInfo()
         info.rom_start = self.region.start
-        info.erase_weight = DEFAULT_CHIP_ERASE_WEIGHT
+        info.erase_weight = self.region.erase_all_weight
         info.crc_supported = self.use_analyzer
         return info
 

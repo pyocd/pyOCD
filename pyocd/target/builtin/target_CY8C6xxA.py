@@ -364,55 +364,37 @@ flash_algo_sflash = {
     )
 }
 
-
-class PSoC6FlashCommon(Flash):
-    def __init__(self, target, flash_algo):
-        super(PSoC6FlashCommon, self).__init__(target, flash_algo)
-
-    def get_flash_info(self):
-        info = super(PSoC6FlashCommon, self).get_flash_info()
-        # Time it takes to perform a chip erase
-        info.erase_weight = 0.5
-
-        return info
-
-    def get_page_info(self, addr):
-        info = super(PSoC6FlashCommon, self).get_page_info(addr)
-        if info is not None:
-            # Time it takes to erase a page
-            info.erase_weight = 0.05
-            # Time it takes to program a page (Not including data transfer time)
-            info.program_weight = 0.07
-
-        return info
-
-
-class Flash_CY8C6xxA_Main(PSoC6FlashCommon):
-    def __init__(self, target):
-        super(Flash_CY8C6xxA_Main, self).__init__(target, flash_algo_main)
-
-
-class Flash_CY8C6xxA_Work(PSoC6FlashCommon):
-    def __init__(self, target):
-        super(Flash_CY8C6xxA_Work, self).__init__(target, flash_algo_work)
-
-
-class Flash_CY8C6xxA_SFlash(PSoC6FlashCommon):
-    def __init__(self, target):
-        super(Flash_CY8C6xxA_SFlash, self).__init__(target, flash_algo_sflash)
-
+ERASE_ALL_WEIGHT = 0.5 # Time it takes to perform a chip erase
+ERASE_SECTOR_WEIGHT = 0.05 # Time it takes to erase a page
+PROGRAM_PAGE_WEIGHT = 0.07 # Time it takes to program a page (Not including data transfer time)
 
 class CY8C6xxA(CoreSightTarget):
     VENDOR = "Cypress"
     
     memoryMap = MemoryMap(
         RomRegion(start=0x00000000, length=0x20000),
-        FlashRegion(start=0x10000000, length=0x200000, blocksize=0x200, is_boot_memory=True, erased_byte_value=0,
-                    algo=flash_algo_main, flash_class=Flash_CY8C6xxA_Main),
-        FlashRegion(start=0x14000000, length=0x8000, blocksize=0x200, is_boot_memory=False, erased_byte_value=0,
-                    algo=flash_algo_work, flash_class=Flash_CY8C6xxA_Work),
-        FlashRegion(start=0x16000000, length=0x8000, blocksize=0x200, is_boot_memory=False, erased_byte_value=0,
-                    is_testable=False, algo=flash_algo_sflash, flash_class=Flash_CY8C6xxA_SFlash),
+        FlashRegion(start=0x10000000, length=0x200000,  blocksize=0x200,
+                                                        is_boot_memory=True,
+                                                        erased_byte_value=0,
+                                                        algo=flash_algo_main,
+                                                        erase_all_weight=ERASE_ALL_WEIGHT,
+                                                        erase_sector_weight=ERASE_SECTOR_WEIGHT,
+                                                        program_page_weight=PROGRAM_PAGE_WEIGHT),
+        FlashRegion(start=0x14000000, length=0x8000,    blocksize=0x200,
+                                                        is_boot_memory=False,
+                                                        erased_byte_value=0,
+                                                        algo=flash_algo_work,
+                                                        erase_all_weight=ERASE_ALL_WEIGHT,
+                                                        erase_sector_weight=ERASE_SECTOR_WEIGHT,
+                                                        program_page_weight=PROGRAM_PAGE_WEIGHT),
+        FlashRegion(start=0x16000000, length=0x8000,    blocksize=0x200,
+                                                        is_boot_memory=False,
+                                                        erased_byte_value=0,
+                                                        is_testable=False,
+                                                        algo=flash_algo_sflash,
+                                                        erase_all_weight=ERASE_ALL_WEIGHT,
+                                                        erase_sector_weight=ERASE_SECTOR_WEIGHT,
+                                                        program_page_weight=PROGRAM_PAGE_WEIGHT),
         RamRegion(start=0x08000000, length=0x10000)
     )
 

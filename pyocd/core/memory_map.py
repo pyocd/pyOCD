@@ -123,8 +123,6 @@ class MemoryRegion(MemoryRangeBase):
         'name': lambda r: r.type.name.lower(),
         'access': 'rwx',
         'alias': None,
-        'blocksize': 0,
-        'erased_byte_value': 0,
         'is_boot_memory': False,
         'is_default': True,
         'is_powered_on_boot': True,
@@ -152,6 +150,7 @@ class MemoryRegion(MemoryRangeBase):
         - access: composition of r, w, x, s
         - alias
         - blocksize
+        - page_size
         - is_boot_memory
         - is_powered_on_boot
         - is_cacheable
@@ -219,8 +218,27 @@ class RomRegion(MemoryRegion):
         attrs['access'] = attrs.get('access', 'rx')
         super(RomRegion, self).__init__(type=MemoryType.ROM, start=start, end=end, length=length, **attrs)
 
+class DefaultFlashWeights:
+    """! @brief Default weights for flash programming operations."""
+    PROGRAM_PAGE_WEIGHT = 0.130
+    ERASE_SECTOR_WEIGHT = 0.048
+    ERASE_ALL_WEIGHT = 0.174
+
 class FlashRegion(MemoryRegion):
     """! @brief Contiguous region of flash memory."""
+
+    # Add some default attribute values for flash regions.
+    DEFAULT_ATTRS = MemoryRegion.DEFAULT_ATTRS.copy()
+    DEFAULT_ATTRS.update({
+        'blocksize': 0, # Erase sector size.
+        'page_size': lambda r: r.blocksize, # Program page size.
+        'phrase_size': lambda r: r.page_size, # Minimum programmable unit.
+        'erase_all_weight': DefaultFlashWeights.ERASE_ALL_WEIGHT,
+        'erase_sector_weight': DefaultFlashWeights.ERASE_SECTOR_WEIGHT,
+        'program_page_weight': DefaultFlashWeights.PROGRAM_PAGE_WEIGHT,
+        'erased_byte_value': 0,
+        })
+
     def __init__(self, start=0, end=0, length=None, **attrs):
         # Import locally to prevent import loops.
         from ..flash.flash import Flash
@@ -289,7 +307,7 @@ class FlashRegion(MemoryRegion):
 class DeviceRegion(MemoryRegion):
     """! @brief Device or peripheral memory."""
     def __init__(self, start=0, end=0, length=None, **attrs):
-        attrs['access'] = attrs.get('access', 'rw') # By default flash is not executable.
+        attrs['access'] = attrs.get('access', 'rw') # By default device regions are not executable.
         attrs['is_cacheable'] = False
         attrs['is_testable'] = False
         super(DeviceRegion, self).__init__(type=MemoryType.DEVICE, start=start, end=end, length=length, **attrs)
