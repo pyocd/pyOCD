@@ -63,7 +63,7 @@ DBG_CR = 0x40015804
 
 def did_reset():
     # Set STANDBY, STOP, and SLEEP bits all to 1.
-    target.write32(DBG_CR, 0x3)
+    target.write32(DBG_CR, 0x7)
 ```
 
 Another common use for a script is to initialize external memory such as SDRAM.
@@ -82,14 +82,14 @@ both target related objects, as well as parts of the pyOCD Python API.
 | `FlashEraser` | Utility class to erase target flash. |
 | `FlashLoader` | Utility class to program raw binary data to target flash. |
 | `LOG` | `Logger` object for the user script. |
-| `MemoryType` | Memory region type enumeation. |
+| `MemoryType` | Memory region type enumeration. |
 | `options` | The user options dictionary. |
 | `probe` | The connected debug probe object. |
 | `pyocd` | The root pyOCD package. |
 | `ResetType` | Reset type enumeration. |
 | `session` | The session object, which is the root of the connection object graph. |
-| `Target` | Base class, mostly usefule for numerous constants that are defined within the class. |
-| `target` | The `CoreSightTarget` subclass instance representing the MCU. |
+| `Target` | Base class, mostly useful for numerous constants that are defined within the class. |
+| `target` | The `CoreSightTarget` or subclass instance representing the MCU. |
 
 
 ## Script functions
@@ -123,7 +123,7 @@ This section documents all functions that user scripts can provide to modify pyO
     **Result** - Ignored.
 
 - `will_start_debug_core(core)`<br/>
-    Hook to review and modify init call sequence prior to execution.
+    Hook to enable debug for the given core.
 
     *core* - A `CortexM` object about to be initialized.<br/>
     **Result** - *True* Do not perform the normal procedure to start core debug.
@@ -136,14 +136,14 @@ This section documents all functions that user scripts can provide to modify pyO
     **Result** - Ignored.
 
 - `will_stop_debug_core(core)`<br/>
-    Hook to review and modify init call sequence prior to execution.
+    Pre-cleanup hook for the core.
 
     *core* - A `CortexM` object.<br/>
     **Result** - *True* Do not perform the normal procedure to disable core debug.
         *False/None* Continue with normal behaviour.
 
 - `did_stop_debug_core(core)`<br/>
-    Post-initialization hook.
+    Post-cleanup hook for the core.
 
     *core* - A `CortexM` object.<br/>
     **Result** - Ignored.

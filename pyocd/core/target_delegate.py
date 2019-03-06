@@ -59,7 +59,7 @@ class TargetDelegateInterface(object):
         pass
 
     def will_start_debug_core(self, core):
-        """! @brief Hook to review and modify init call sequence prior to execution.
+        """! @brief Hook to enable debug for the given core.
         @param self
         @param core A CortexM object about to be initialized.
         @retval True Do not perform the normal procedure to start core debug.
