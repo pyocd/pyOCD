@@ -81,6 +81,11 @@ class RegisterCache(object):
                     CORE_REGISTER['iepsr'],
                     ]
 
+    SP_REGS = [     CORE_REGISTER['sp'],
+                    CORE_REGISTER['msp'],
+                    CORE_REGISTER['psp'],
+                    ]
+
     def __init__(self, parentContext):
         self._context = parentContext
         self._run_token = -1
@@ -185,6 +190,7 @@ class RegisterCache(object):
 
         writing_cfbp = any(r for r in reg_list if r in self.CFBP_REGS)
         writing_xpsr = any(r for r in reg_list if r in self.XPSR_REGS)
+        writing_sp   = any(r for r in reg_list if r in self.SP_REGS)
 
         # Update cached register values.
         for i, r in enumerate(reg_list):
@@ -198,6 +204,10 @@ class RegisterCache(object):
 
         if writing_xpsr:
             for r in self.XPSR_REGS:
+                self._cache.pop(r, None)
+
+        if writing_sp:
+            for r in self.SP_REGS:
                 self._cache.pop(r, None)
 
         # Write new register values to target.
