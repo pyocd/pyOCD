@@ -45,23 +45,36 @@ analyzer = (
     0x00000042, 
     )
 
+class SectorInfo(object):
+    """! @brief Info about an erase sector."""
+
+    def __init__(self):
+        self.base_addr = None           # Start address of this sector
+        self.erase_weight = None        # Time it takes to erase a page
+        self.size = None                # Size of sector
+
+    def __repr__(self):
+        return "<SectorInfo@0x%x base=0x%x size=0x%x erswt=%g>" \
+            % (id(self), self.base_addr, self.size, self.erase_weight)
+
 class PageInfo(object):
+    """! @brief Info about a program page."""
 
     def __init__(self):
         self.base_addr = None           # Start address of this page
-        self.erase_weight = None        # Time it takes to erase a page
         self.program_weight = None      # Time it takes to program a page (Not including data transfer time)
         self.size = None                # Size of page
 
     def __repr__(self):
-        return "<PageInfo@0x%x base=0x%x size=0x%x erswt=%g prgwt=%g>" \
-            % (id(self), self.base_addr, self.size, self.erase_weight, self.program_weight)
+        return "<PageInfo@0x%x base=0x%x size=0x%x prgwt=%g>" \
+            % (id(self), self.base_addr, self.size, self.program_weight)
 
 class FlashInfo(object):
+    """! @brief Info about the entire flash region."""
 
     def __init__(self):
         self.rom_start = None           # Starting address of ROM
-        self.erase_weight = None        # Time it takes to perform a chip erase
+        self.erase_weight = None        # Time it takes to perform an erase all
         self.crc_supported = None       # Is the function compute_crcs supported?
 
     def __repr__(self):
@@ -164,7 +177,7 @@ class Flash(object):
 
     @property
     def minimum_program_length(self):
-        return self.min_program_length
+        return self.min_program_length or self.region.phrase_size
 
     @property
     def page_buffer_count(self):
@@ -289,13 +302,13 @@ class Flash(object):
         if result != 0:
             raise FlashEraseFailure('erase_all error: %i' % result, result_code=result)
 
-    def erase_page(self, address):
+    def erase_sector(self, address):
         """!
-        @brief Erase one page.
+        @brief Erase one sector.
         """
         assert self._active_operation == self.Operation.ERASE
 
-        # update core register to execute the erase_page subroutine
+        # update core register to execute the erase_sector subroutine
         result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address)
 
         # check the return code
@@ -383,6 +396,20 @@ class Flash(object):
         if result != 0:
             raise FlashProgramFailure('program_phrase(0x%x) error: %i' % (address, result), address, result)
 
+    def get_sector_info(self, addr):
+        """!
+        @brief Get info about the sector that contains this address.
+        """
+        assert self.region is not None
+        if not self.region.contains_address(addr):
+            return None
+
+        info = SectorInfo()
+        info.erase_weight = self.region.erase_sector_weight
+        info.size = self.region.blocksize
+        info.base_addr = addr - (addr % info.size)
+        return info
+
     def get_page_info(self, addr):
         """!
         @brief Get info about the page that contains this address.
@@ -392,7 +419,6 @@ class Flash(object):
             return None
 
         info = PageInfo()
-        info.erase_weight = self.region.erase_sector_weight
         info.program_weight = self.region.program_page_weight
         info.size = self.region.page_size
         info.base_addr = addr - (addr % info.size)
@@ -413,7 +439,7 @@ class Flash(object):
         return info
 
     def get_flash_builder(self):
-        return FlashBuilder(self, self.get_flash_info().rom_start)
+        return FlashBuilder(self)
 
     def flash_block(self, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
         """!
@@ -422,7 +448,7 @@ class Flash(object):
         assert self.region is not None
         assert self.region.contains_range(start=addr, length=len(data))
         
-        fb = FlashBuilder(self, self.region.start)
+        fb = FlashBuilder(self)
         fb.add_data(addr, data)
         info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
         return info

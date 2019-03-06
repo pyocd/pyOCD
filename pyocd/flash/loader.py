@@ -23,7 +23,7 @@ from enum import Enum
 import six
 import errno
 
-from .flash_builder import FlashBuilder
+from .flash_builder import (FlashBuilder, get_page_count, get_sector_count)
 from ..core.memory_map import MemoryType
 from ..utility.progress import print_progress
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
@@ -316,7 +316,7 @@ class FlashEraser(object):
         
                 # Erase this page.
                 LOG.info("Erasing sector 0x%08x (%d bytes)", page_addr, page_info.size)
-                flash.erase_page(page_addr)
+                flash.erase_sector(page_addr)
                 
                 page_addr += page_info.size
 
@@ -480,32 +480,43 @@ class FlashLoader(object):
             
             self._progress_offset += self._current_progress_fraction
 
+        # Report programming statistics.
+        self._log_performance(perfList)
+        
+        # Clear state to allow reuse.
+        self._reset_state()
+    
+    def _log_performance(self, perf_list):
+        """! @brief Log a report of programming performance numbers."""
         # Compute overall performance numbers.
-        totalByteCount = 0
-        totalPageCount = 0
-        totalSamePageCount = 0
-        totalProgramTime = 0
-        for perf in perfList:
-            totalByteCount += perf.program_byte_count
-            totalPageCount += perf.page_count
-            totalSamePageCount += perf.same_page_count
-            totalProgramTime += perf.program_time
+        totalProgramTime = sum(perf.program_time for perf in perf_list)
+        program_byte_count = sum(perf.total_byte_count for perf in perf_list)
+        actual_program_byte_count = sum(perf.program_byte_count for perf in perf_list)
+        actual_program_page_count = sum(perf.program_page_count for perf in perf_list)
+        skipped_byte_count = sum(perf.skipped_byte_count for perf in perf_list)
+        skipped_page_count = sum(perf.skipped_page_count for perf in perf_list)
         
         # Compute kbps while avoiding a potential zero-div error.
         if totalProgramTime == 0:
             kbps = 0
         else:
-            kbps = (totalByteCount/1024) / totalProgramTime
+            kbps = (program_byte_count/1024) / totalProgramTime
         
-        LOG.info("Programmed %d bytes (%d pages) at %.02f kB/s (%d pages unchanged)",
-            totalByteCount,
-            totalPageCount,
-            kbps,
-            totalSamePageCount)
+        if any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
+            LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+                actual_program_byte_count, get_page_count(actual_program_page_count),
+                skipped_byte_count, get_page_count(skipped_page_count),
+                kbps)
+        else:
+            erase_byte_count = sum(perf.erase_byte_count for perf in perf_list)
+            erase_sector_count = sum(perf.erase_sector_count for perf in perf_list)
+
+            LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s", 
+                erase_byte_count, get_sector_count(erase_sector_count),
+                actual_program_byte_count, get_page_count(actual_program_page_count),
+                skipped_byte_count, get_page_count(skipped_page_count),
+                kbps)
         
-        # Clear state to allow reuse.
-        self._reset_state()
-    
     def _progress_cb(self, amount):
         if self._progress is not None:
             self._progress((amount * self._current_progress_fraction) + self._progress_offset)

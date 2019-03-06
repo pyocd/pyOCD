@@ -89,7 +89,7 @@ class Flash_cc3220sf(Flash):
             logging.error('init error: %i', result)
 
         # erase the cookie which take up one page
-        self.erase_page(0x01000000)
+        self.erase_sector(0x01000000)
         time.sleep(.5)
 
         #do a hardware reset which will put the pc looping in rom

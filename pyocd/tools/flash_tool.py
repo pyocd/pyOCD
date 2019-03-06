@@ -194,7 +194,7 @@ def main():
                                 print("Warning: sector address 0x%08x is unaligned" % page_addr)
                                 page_addr -= delta
                         print("Erasing sector 0x%08x" % page_addr)
-                        flash.erase_page(page_addr)
+                        flash.erase_sector(page_addr)
                         page_addr += page_info.size
 
                     flash.cleanup()
