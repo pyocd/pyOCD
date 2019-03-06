@@ -23,10 +23,6 @@ from time import time
 from enum import Enum
 from .flash_builder import FlashBuilder
 
-DEFAULT_PAGE_PROGRAM_WEIGHT = 0.130
-DEFAULT_PAGE_ERASE_WEIGHT = 0.048
-DEFAULT_CHIP_ERASE_WEIGHT = 0.174
-
 LOG = logging.getLogger(__name__)
 
 # Program to compute the CRC of sectors.  This works on cortex-m processors.

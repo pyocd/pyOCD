@@ -14,14 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...flash.flash import Flash, PageInfo, DEFAULT_PAGE_PROGRAM_WEIGHT, DEFAULT_PAGE_ERASE_WEIGHT
 from ...core.coresight_target import (SVDFile, CoreSightTarget)
-from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
 
 LARGE_PAGE_START_ADDR = 0x10000
 SMALL_PAGE_SIZE = 0x1000
 LARGE_PAGE_SIZE = 0x8000
 LARGE_TO_SMALL_RATIO = LARGE_PAGE_SIZE / SMALL_PAGE_SIZE
+LARGE_ERASE_SECTOR_WEIGHT = DefaultFlashWeights.ERASE_SECTOR_WEIGHT * LARGE_TO_SMALL_RATIO
+LARGE_PROGRAM_PAGE_WEIGHT = DefaultFlashWeights.PROGRAM_PAGE_WEIGHT * LARGE_TO_SMALL_RATIO
 WRITE_SIZE = 1024
 
 FLASH_ALGO = { 'load_address' : 0x10000000,
@@ -50,6 +51,7 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'pc_program_page' : 0x10000169,
                'begin_data' : 0x2007c000,       # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
                # Double buffering is not supported since there is not enough ram
+               'page_buffers': [0x2007c000, 0x2007c400],
                'begin_stack' : 0x10001000,
                'static_base' : 0x10000214,
                'min_program_length' : 256,
@@ -57,48 +59,20 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600
               }
 
-class Flash_lpc1768(Flash):
-
-    def __init__(self, target):
-        super(Flash_lpc1768, self).__init__(target, FLASH_ALGO)
-
-    def erase_page(self, flashPtr):
-        Flash.erase_page(self, flashPtr)
-
-    def program_page(self, flashPtr, bytes):
-        if flashPtr < LARGE_PAGE_START_ADDR:
-            assert len(bytes) <= SMALL_PAGE_SIZE
-        else:
-            assert len(bytes) <= LARGE_PAGE_SIZE
-
-        pages = (len(bytes) + WRITE_SIZE - 1) // WRITE_SIZE
-
-        for i in range(0, pages):
-            data = bytes[i * WRITE_SIZE : (i + 1) * WRITE_SIZE]
-            Flash.program_page(self, flashPtr + i * WRITE_SIZE, data)
-
-    def get_page_info(self, addr):
-        info = PageInfo()
-        if addr < LARGE_PAGE_START_ADDR:
-            info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT
-            info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT
-            info.size = SMALL_PAGE_SIZE
-        else:
-            info.erase_weight = DEFAULT_PAGE_ERASE_WEIGHT * LARGE_TO_SMALL_RATIO
-            info.program_weight = DEFAULT_PAGE_PROGRAM_WEIGHT * LARGE_TO_SMALL_RATIO
-            info.size = LARGE_PAGE_SIZE
-        info.base_addr = addr - (addr % info.size)
-        return info
-
 class LPC1768(CoreSightTarget):
 
     VENDOR = "NXP"
     
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
-            flash_class=Flash_lpc1768),
+        FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
+                                                                blocksize=0x1000,
+                                                                page_size=0x400,
+                                                                phrase_size=256),
         FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
-            flash_class=Flash_lpc1768),
+                                                                page_size=0x400,
+                                                                phrase_size=256,
+                                                                erase_sector_weight=LARGE_ERASE_SECTOR_WEIGHT,
+                                                                program_page_weight=LARGE_PROGRAM_PAGE_WEIGHT),
         RamRegion(      start=0x10000000,  length=0x8000),
         RamRegion(      start=0x2007C000,  length=0x8000)
         )

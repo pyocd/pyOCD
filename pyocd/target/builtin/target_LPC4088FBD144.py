@@ -14,14 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...flash.flash import Flash, PageInfo, DEFAULT_PAGE_PROGRAM_WEIGHT, DEFAULT_PAGE_ERASE_WEIGHT
 from ...core.coresight_target import (SVDFile, CoreSightTarget)
-from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
 
 LARGE_PAGE_START_ADDR = 0x10000
 SMALL_PAGE_SIZE = 0x1000
 LARGE_PAGE_SIZE = 0x8000
 LARGE_TO_SMALL_RATIO = LARGE_PAGE_SIZE / SMALL_PAGE_SIZE
+LARGE_ERASE_SECTOR_WEIGHT = DefaultFlashWeights.ERASE_SECTOR_WEIGHT * LARGE_TO_SMALL_RATIO
+LARGE_PROGRAM_PAGE_WEIGHT = DefaultFlashWeights.PROGRAM_PAGE_WEIGHT * LARGE_TO_SMALL_RATIO
 WRITE_SIZE = 512
 
 FLASH_ALGO = {
@@ -50,7 +51,7 @@ FLASH_ALGO = {
 
     'static_base' : 0x10000000 + 0x00000020 + 0x00000200,
     'begin_stack' : 0x10000000 + 0x00000800,
-    # Double buffering is not supported since there is not enough ram
+    'page_buffers': [0x10000A00, 0x10000C00],
     'begin_data' : 0x10000000 + 0x00000A00, # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
     'page_size' : 0x00001000,
     'min_program_length' : 512,
@@ -59,33 +60,20 @@ FLASH_ALGO = {
 }
 
 
-class Flash_lpc4088(Flash):
-    def __init__(self, target, algo=None):
-        if algo is None:
-            algo = FLASH_ALGO
-        super(Flash_lpc4088, self).__init__(target, algo)
-
-    def program_page(self, flashPtr, bytes):
-        if flashPtr < LARGE_PAGE_START_ADDR:
-            assert len(bytes) <= SMALL_PAGE_SIZE
-        else:
-            assert len(bytes) <= LARGE_PAGE_SIZE
-
-        pages = (len(bytes) + WRITE_SIZE - 1) // WRITE_SIZE
-
-        for i in range(0, pages):
-            data = bytes[i * WRITE_SIZE: (i + 1) * WRITE_SIZE]
-            Flash.program_page(self, flashPtr + i * WRITE_SIZE, data)
-
 class LPC4088(CoreSightTarget):
 
     VENDOR = "NXP"
     
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
-            flash_class=Flash_lpc4088),
+        FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
+                                                                blocksize=0x1000,
+                                                                page_size=0x200,
+                                                                algo=FLASH_ALGO),
         FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
-            flash_class=Flash_lpc4088),
+                                                                page_size=0x200,
+                                                                erase_sector_weight=LARGE_ERASE_SECTOR_WEIGHT,
+                                                                program_page_weight=LARGE_PROGRAM_PAGE_WEIGHT,
+                                                                algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x10000),
         )
 

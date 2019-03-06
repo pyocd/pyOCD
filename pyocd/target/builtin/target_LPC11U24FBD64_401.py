@@ -47,24 +47,14 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'analyzer_supported' : False
               }
 
-class Flash_lpc11u24(Flash):
-
-    def __init__(self, target):
-        super(Flash_lpc11u24, self).__init__(target, FLASH_ALGO)
-
-    # TODO - temporary until flash algo is rebuilt with 4K page program size
-    def program_page(self, flashPtr, bytes):
-        write_size = 1024
-        for i in range(0, 4):
-            data = bytes[i * write_size : (i + 1) * write_size]
-            Flash.program_page(self, flashPtr + i * write_size, data)
-
 class LPC11U24(CoreSightTarget):
     VENDOR = "NXP"
     
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, is_boot_memory=True,
-            flash_class=Flash_lpc11u24),
+        FlashRegion(    start=0,           length=0x8000,   is_boot_memory=True,
+                                                            blocksize=0x1000,
+                                                            page_size=0x400,
+                                                            phrase_size=256),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 

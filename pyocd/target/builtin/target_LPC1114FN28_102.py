@@ -18,8 +18,6 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
-WRITE_SIZE = 256
-
 FLASH_ALGO = {
     'load_address' : 0x10000000,
     'instructions' : [
@@ -47,30 +45,18 @@ FLASH_ALGO = {
     'begin_data' : 0x10000000 + 0x00000A00,
     # Double buffering is not supported since there is not enough ram
     'begin_stack' : 0x10000800,
-    'page_size' : 0x00001000,
-    'min_program_length' : 1024,
+    'min_program_length' : 256, #1024,
     'analyzer_supported' : False,
 }
-
-class Flash_lpc11xx_32(Flash):
-    def __init__(self, target):
-        super(Flash_lpc11xx_32, self).__init__(target, FLASH_ALGO)
-
-    # Override program_page and break the operation into 4 1KB writes
-    # since there isn't enough ram to do a 4K sector write directly
-    def program_page(self, flashPtr, bytes):
-        pages = (len(bytes) + WRITE_SIZE - 1) // WRITE_SIZE
-        for i in range(0, pages):
-            data = bytes[i * WRITE_SIZE : (i + 1) * WRITE_SIZE]
-            Flash.program_page(self, flashPtr + i * WRITE_SIZE, data)
 
 class LPC11XX_32(CoreSightTarget):
 
     VENDOR = "NXP"
     
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x8000,       blocksize=0x1000, is_boot_memory=True,
-            flash_class=Flash_lpc11xx_32),
+        FlashRegion(    start=0,           length=0x8000,       is_boot_memory=True,
+                                                                blocksize=4096,
+                                                                page_size=256),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 
