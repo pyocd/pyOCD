@@ -96,6 +96,7 @@ class PyOCDTool(object):
     """
     def __init__(self):
         self._args = None
+        self._default_log_level = logging.INFO
         self._log_level_delta = 0
         self._parser = None
         self.echo_msg = None
@@ -269,15 +270,16 @@ class PyOCDTool(object):
         self._parser = parser
         return parser
 
-    def _setup_logging(self, defaultLogLevel):
+    def _setup_logging(self):
         self._log_level_delta = (self._args.quiet * 10) - (self._args.verbose * 10)
-        level = max(1, defaultLogLevel + self._log_level_delta)
+        level = max(1, self._default_log_level + self._log_level_delta)
         logging.basicConfig(level=level, format=LOG_FORMAT)
     
     def _increase_logging(self, loggers):
         if self._log_level_delta <= 0:
+            level = max(1, self._default_log_level + self._log_level_delta - 10)
             for logger in loggers:
-                logging.getLogger(logger).setLevel(logging.INFO)
+                logging.getLogger(logger).setLevel(level)
 
     def run(self, args=None):
         try:
@@ -292,8 +294,8 @@ class PyOCDTool(object):
                 return 1
             
             # The default log level differs for some subcommands.
-            defaultLogLevel = DEFAULT_CMD_LOG_LEVEL[self._args.cmd]
-            self._setup_logging(defaultLogLevel)
+            self._default_log_level = DEFAULT_CMD_LOG_LEVEL[self._args.cmd]
+            self._setup_logging()
             
             # Pass any options to DAPAccess.
             DAPAccess.set_args(self._args.daparg)
@@ -352,7 +354,7 @@ class PyOCDTool(object):
             print(json.dumps(obj, indent=4))
     
     def do_flash(self):
-        self._increase_logging(["pyocd.tools.loader", "pyocd", "flash", "flash_builder"])
+        self._increase_logging(["pyocd.tools.loader", "pyocd", "pyocd.flash", "pyocd.flash.flash", "pyocd.flash.flash_builder"])
         
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,

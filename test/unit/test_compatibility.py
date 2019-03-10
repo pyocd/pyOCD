@@ -22,7 +22,7 @@ from pyocd.utility.compatibility import (
 import pytest
 import six
 
-class TestPy3Helpers(object):
+class TestCompatibility(object):
     def test_iter_single_bytes_bytes(self):
         i = iter_single_bytes(b"1234")
         assert next(i) == b'1'

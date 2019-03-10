@@ -69,6 +69,9 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `auto_unlock`: (bool) If the target is locked, it will by default be automatically mass erased in
     order to gain debug access. Set this option to False to disable auto unlock. Default is True.
 
+- `chip_erase`: (bool) Whether to perform a chip erase or sector erases when programming
+    flash. If not set, pyOCD will use the fastest erase method.
+
 - `config_file`: (str) Relative path to a YAML config file that lets you specify session options
     either globally or per probe. The format of the file is documented above. The default is a
     `pyocd.yaml` or `pyocd.yml` file in the working directory.
@@ -77,9 +80,17 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
     is to modify the default software reset type for secondary cores to use VECTRESET, which will
     fall back to emulated reset if the secondary core is not v7-M.
 
+- `fast_program`: (bool) Setting this option to True will use CRC checks of existing flash sector
+    contents to determine whether pages need to be programmed. Default is False.
+
 - `frequency`: (int) SWD/JTAG frequency in Hertz. Default is 1 MHz.
 
 - `halt_on_connect`: (bool) Whether to halt the target immediately upon connecting. Default is True.
+
+- `hide_programming_progress`: (bool) Disables flash programming progress bar when True. Default is
+    False.
+
+- `no_config`: (bool) Do not use default config file.
 
 - `pack`: (str or list of str) Path or list of paths to CMSIS Device Family Packs. Devices defined
     in the pack(s) are added to the list of available targets.
@@ -106,9 +117,6 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 
 These session options are currently only applied when running the GDB server.
 
-- `chip_erase`: (bool) Whether to perform a chip erase or sector erases when programming
-    flash. If not set, pyOCD will use the fastest erase method.
-
 - `enable_semihosting`: (bool) Set to True to handle semihosting requests. Also see the
     `semihost_console_type` option. Default is False.
 
@@ -116,14 +124,8 @@ These session options are currently only applied when running the GDB server.
     the `swv_system_clock` option to be set. The SWO baud rate can be controlled with the `swv_clock`
     option.
 
-- `fast_program`: (bool) Setting this option to True will use CRC checks of existing flash sector
-    contents to determine whether pages need to be programmed. Default is False.
-
 - `gdbserver_port`: (int) Base TCP port for the gdbserver. The core number, which is 0 for the
     primary core, will be added to this value. Default is 3333.
-
-- `hide_programming_progress`: (bool) Disables flash programming progress bar when True. Default is
-    False.
 
 - `persist`: (bool) If True, the GDB server will not exit after GDB disconnects. Default is False.
 
