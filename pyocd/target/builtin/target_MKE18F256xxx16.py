@@ -84,7 +84,7 @@ FLASH_ALGO = {
     'analyzer_address' : 0x1ffff000,  # Analyzer 0x1ffff000..0x1ffff600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
-};
+}
 
 class KE18F16(Kinetis):
 

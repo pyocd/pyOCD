@@ -150,7 +150,7 @@ FLASH_ALGO = {
     'min_program_length' : 8,
     'analyzer_supported' : True,
     'analyzer_address' : 0x1fffc000
-};
+}
 
 class KW36Z4(Kinetis):
 

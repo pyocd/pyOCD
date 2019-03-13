@@ -82,7 +82,7 @@ FLASH_ALGO = {
     'analyzer_address' : 0x1fffa000,             # [modified] default is zero. Use 8K block before flash algo. Can be any unused SRAM.
     'page_buffers' : [0x20000a00, 0x20001200],   # [added] Use areas above algo. Note 'begin_data' is unused if double buffering. Can be any unused SRAM.
     'min_program_length' : 4                     # [added] See FSL_FEATURE_FLASH_PFLASH_BLOCK_WRITE_UNIT_SIZE in KSDK features header file
-};
+}
 
 class KL82Z7(Kinetis):
 

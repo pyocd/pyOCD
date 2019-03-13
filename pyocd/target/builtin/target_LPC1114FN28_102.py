@@ -50,7 +50,7 @@ FLASH_ALGO = {
     'page_size' : 0x00001000,
     'min_program_length' : 1024,
     'analyzer_supported' : False,
-};
+}
 
 class Flash_lpc11xx_32(Flash):
     def __init__(self, target):

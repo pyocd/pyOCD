@@ -310,7 +310,7 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'min_program_length' : 512,
                'analyzer_supported' : False,    # Analyzer works, but would fail if a full ROM analysis was performed since there is not enough ram
                'analyzer_address' : 0x10005000  # Analyzer 0x10005000..0x10005600
-              };
+              }
 
 class LPC4330(CoreSightTarget):
 

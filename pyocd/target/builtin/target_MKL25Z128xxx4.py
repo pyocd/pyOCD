@@ -84,7 +84,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'page_buffers' : [0x20000800, 0x20000c00], # Enable double buffering
                'analyzer_supported' : True,
                'analyzer_address' : 0x1ffff000  # Analyzer 0x1ffff000..0x1ffff600
-              };
+              }
 
 class KL25Z(Kinetis):
 

@@ -87,7 +87,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'min_program_length' : 4,
     'analyzer_supported' : True,
     'analyzer_address' : 0x1ffff800
-  };
+  }
 
 class KW01Z4(Kinetis):
 

@@ -35,7 +35,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'page_size'        : 256,
                'analyzer_supported' : True,
                'analyzer_address' : 0x20001000 # Analyzer 0x20001000..0x20001600
-              };
+              }
 
 
 class W7500(CoreSightTarget):

@@ -55,7 +55,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'page_size' : 0x00000100,
     'min_program_length' : 256,
     'analyzer_supported' : False
-};
+}
 
 class Flash_lpc54114(Flash):
     def __init__(self, target):

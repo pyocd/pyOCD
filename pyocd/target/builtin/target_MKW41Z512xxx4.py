@@ -78,7 +78,7 @@ FLASH_ALGO = {
     'page_size' : 0x00000200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000  # ITCM, Analyzer 0x00000000..0x000000600
-};
+}
 
 class KW41Z4(Kinetis):
 

@@ -82,7 +82,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'static_base' : 0x20000000 + 0x20 + 0x5E8,
                'min_program_length' : 4,
                'analyzer_supported' : False     # Not enough space on KL02 and KL05
-              };
+              }
 
 class KL02Z(Kinetis):
 

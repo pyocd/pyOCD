@@ -72,7 +72,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'analyzer_address' : 0x1ffff000,  # Analyzer 0x1ffff000..0x1ffff600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
-  };
+  }
 
 class K28F15(Kinetis):
 
