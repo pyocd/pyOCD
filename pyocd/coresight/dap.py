@@ -226,7 +226,7 @@ class DebugPort(object):
             try:
                 result = result_cb()
                 if LOG_DAP:
-                    self.logger.info("read_dp:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr.value, result)
+                    self.logger.info("read_dp:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
             except exceptions.ProbeError as error:
                 self._handle_error(error, num)
@@ -236,7 +236,7 @@ class DebugPort(object):
             return read_dp_cb()
         else:
             if LOG_DAP:
-                self.logger.info("read_dp:%06d (addr=0x%08x) -> ...", num, addr.value)
+                self.logger.info("read_dp:%06d (addr=0x%08x) -> ...", num, addr)
             return read_dp_cb
 
     def write_dp(self, addr, data):
@@ -245,7 +245,7 @@ class DebugPort(object):
         # Write the DP register.
         try:
             if LOG_DAP:
-                self.logger.info("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr.value, data)
+                self.logger.info("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.link.write_dp(addr, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
