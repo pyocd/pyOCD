@@ -71,7 +71,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'min_program_length' : 8,
                'analyzer_supported' : True,
                'analyzer_address' : 0x1fffe000  # Analyzer 0x1fffe000..0x1fffe600
-              };
+              }
 
 class K20D50M(Kinetis):
 

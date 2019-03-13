@@ -45,7 +45,7 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'static_base' : 0x1000019c,
                'min_program_length' : 256,
                'analyzer_supported' : False
-              };
+              }
 
 class Flash_lpc11u24(Flash):
 

@@ -63,7 +63,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'min_program_length' : 2,
                'analyzer_supported' : True,
                'analyzer_address' : 0x20001400 # Analyzer 0x20001400..0x20001A00
-              };
+              }
 
 
 class STM32F051(CoreSightTarget):

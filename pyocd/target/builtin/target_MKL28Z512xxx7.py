@@ -1,19 +1,18 @@
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013,2018 ARM Limited
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# pyOCD debugger
+# Copyright (c) 2006-2013,2018 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
@@ -123,7 +122,7 @@ FLASH_ALGO = {
     'analyzer_address' : 0x1fffa000,             # [modified] default is zero. Use 8K block before flash algo. Can be any unused SRAM.
     'page_buffers' : [0x20000a00, 0x20001200],   # [added] Use areas above algo. Note 'begin_data' is unused if double buffering. Can be any unused SRAM.
     'min_program_length' : 4                     # [added] See FSL_FEATURE_FLASH_PFLASH_BLOCK_WRITE_UNIT_SIZE in KSDK features header file
-};
+}
 
 class Flash_kl28z(Flash_Kinetis):
     def __init__(self, target):

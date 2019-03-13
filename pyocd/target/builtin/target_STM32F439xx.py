@@ -59,7 +59,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'min_program_length' : 1,
     'analyzer_supported' : True,
     'analyzer_address' : 0x20002000
-  };
+  }
 
 # @brief Flash algorithm for STM32F439xx device.
 class Flash_stm32f439xx(Flash):

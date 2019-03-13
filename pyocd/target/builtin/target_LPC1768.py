@@ -55,7 +55,7 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'min_program_length' : 256,
                'analyzer_supported' : True,
                'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600
-              };
+              }
 
 class Flash_lpc1768(Flash):
 

@@ -154,7 +154,7 @@ FLASH_ALGO = {
     'analyzer_address' : 0x8000000,  # Analyzer 0x8000000..0x80000600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
-};
+}
 
 class K32W042S(Kinetis):
 
