@@ -40,6 +40,7 @@ from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..core.target import Target
 from ..flash.loader import (FlashEraser, FlashLoader)
+from ..gdbserver.gdbserver import GDBServer
 from ..utility import mask
 from ..utility.cmdline import convert_session_options
 from ..utility.hex import (format_hex_width, dump_hex_data)
@@ -268,6 +269,12 @@ COMMAND_INFO = {
             'help' : "Show a symbol's value.",
             'extra_help' : "An ELF file must have been specified with the --elf option.",
             },
+        'gdbserver' : {
+            'aliases' : [],
+            'args' : "ACTION",
+            'help' : "Start or stop the gdbserver.",
+            'extra_help' : "The action argument should be either 'start' or 'stop'. Use the 'gdbserver_port' and 'telnet_port' user options to control the ports the gdbserver uses.",
+            },
         }
 
 INFO_HELP = {
@@ -308,6 +315,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Current nRESET signal state.",
             },
+        'option' : {
+            'aliases' : [],
+            'help' : "Show the current value of one or more user options.",
+            },
         }
 
 OPTION_HELP = {
@@ -331,6 +342,11 @@ OPTION_HELP = {
         'clock' : {
             'aliases' : [],
             'help' : "Set SWD or JTAG clock frequency in kilohertz."
+            },
+        'option' : {
+            'aliases' : [],
+            'help' : "Change the value of one or more user options.",
+            'extra_help' : "Each parameter should follow the form OPTION=VALUE.",
             },
         }
 
@@ -443,6 +459,7 @@ class PyOCDCommander(object):
         self.elf = None
         self._peripherals = {}
         self._loaded_peripherals = False
+        self._gdbserver = None
         
         self.command_list = {
                 'list' :    self.handle_list,
@@ -506,6 +523,7 @@ class PyOCDCommander(object):
                 'initdp' :  self.handle_initdp,
                 'makeap' :  self.handle_makeap,
                 'symbol' :  self.handle_symbol,
+                'gdbserver':self.handle_gdbserver,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -519,6 +537,7 @@ class PyOCDCommander(object):
                 'step-into-interrupt' : self.handle_show_step_interrupts,
                 'si' :                  self.handle_show_step_interrupts,
                 'nreset' :              self.handle_show_nreset,
+                'option' :              self.handle_show_option,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -528,6 +547,7 @@ class PyOCDCommander(object):
                 'nreset' :              self.handle_set_nreset,
                 'log' :                 self.handle_set_log,
                 'clock' :               self.handle_set_clock,
+                'option' :              self.handle_set_option,
             }
 
     def run(self):
@@ -630,8 +650,7 @@ class PyOCDCommander(object):
             return False
         self.board = self.session.board
         try:
-            if not self.args.no_init:
-                self.session.open()
+            self.session.open(init_board=not self.args.no_init)
         except exceptions.TransferFaultError as e:
             if not self.board.target.is_locked():
                 print("Transfer fault while initing board: %s" % e)
@@ -1047,6 +1066,7 @@ class PyOCDCommander(object):
 
     def handle_python(self, args):
         try:
+            import pyocd
             env = {
                     'session' : self.session,
                     'board' : self.board,
@@ -1057,6 +1077,7 @@ class PyOCDCommander(object):
                     'aps' : self.target.dp.aps,
                     'elf' : self.elf,
                     'map' : self.target.memory_map,
+                    'pyocd' : pyocd,
                 }
             result = eval(args, globals(), env)
             if result is not None:
@@ -1183,6 +1204,24 @@ class PyOCDCommander(object):
         else:
             print("No symbol named '{}' was found".format(name))
 
+    def handle_gdbserver(self, args):
+        if len(args) < 1:
+            raise ToolError("missing action argument")
+        action = args[0].lower()
+        if action == 'start':
+            if self._gdbserver is None:
+                self._gdbserver = GDBServer(self.session, core=self.target.selected_core.core_number)
+            else:
+                print("gdbserver is already running")
+        elif action == 'stop':
+            if self._gdbserver is not None:
+                self._gdbserver.stop()
+                self._gdbserver = None
+            else:
+                print("gdbserver is not running")
+        else:
+            print("Invalid action")
+
     def handle_reinit(self, args):
         self.target.init()
 
@@ -1300,6 +1339,16 @@ class PyOCDCommander(object):
         rst = int(not self.probe.is_reset_asserted())
         print("nRESET = {}".format(rst))
 
+    def handle_show_option(self, args):
+        if len(args) < 1:
+            raise ToolError("missing user option name argument")
+        for name in args:
+            if name in self.session.options:
+                value = self.session.options[name]
+                print("Option '%s' = %s" % (name, value))
+            else:
+                print("No option with name '%s'" % name)
+
     def handle_set(self, args):
         if len(args) < 1:
             raise ToolError("missing option name argument")
@@ -1381,6 +1430,12 @@ Prefix line with ! to execute a shell command.""")
                 print_help(subcmd, OPTION_HELP, "set {cmd} VALUE")
             else:
                 print("Error: invalid arguments")
+
+    def handle_set_option(self, args):
+        if len(args) < 1:
+            raise ToolError("missing user option setting")
+        opts = convert_session_options(args)
+        self.session.options.update(opts)
 
     def _list_commands(self, title, commandList, helpFormat):
         print(title + ":\n" + ("-" * len(title)))
@@ -1501,10 +1556,14 @@ Prefix line with ! to execute a shell command.""")
 
     def print_disasm(self, code, startAddr, maxInstructions=None):
         if not isCapstoneAvailable:
-            print("Warning: Disassembly is not available because the Capstone library is not installed")
+            print("Warning: Disassembly is not available because the Capstone library is not installed. "
+                  "To install Capstone, run 'pip install capstone'.")
             return
 
-        pc = self.target.read_core_register('pc') & ~1
+        if self.target.is_halted():
+            pc = self.target.read_core_register('pc') & ~1
+        else:
+            pc = -1
         md = capstone.Cs(capstone.CS_ARCH_ARM, capstone.CS_MODE_THUMB)
 
         addrLine = 0

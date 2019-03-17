@@ -317,10 +317,14 @@ class PyOCDTool(object):
     def show_options_help(self):
         for infoName in sorted(options.OPTIONS_INFO.keys()):
             info = options.OPTIONS_INFO[infoName]
+            if isinstance(info.type, tuple):
+                typename = ", ".join(t.__name__ for t in info.type)
+            else:
+                typename = info.type.__name__
             print((colorama.Fore.BLUE + "{name}"
                 + colorama.Style.RESET_ALL + colorama.Fore.GREEN + " ({typename})"
                 + colorama.Style.RESET_ALL + " {help}").format(
-                name=info.name, typename=info.type.__name__, help=info.help))
+                name=info.name, typename=typename, help=info.help))
     
     def do_list(self):
         # Default to listing probes.
@@ -476,7 +480,7 @@ class PyOCDTool(object):
                 gdb = gdbs[0]
                 while gdb.isAlive():
                     gdb.join(timeout=0.5)
-        except Exception as e:
+        except (KeyboardInterrupt, Exception):
             for gdb in gdbs:
                 gdb.stop()
             raise
