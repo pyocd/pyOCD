@@ -22,3 +22,21 @@ CMSIS_DAP_USB_CLASSES = [
     USB_CLASS_MISCELLANEOUS,
     ]
 
+NXP_VID = 0x1fc9
+NXP_LPCLINK2_PID = 0x0090
+
+CMSIS_DAP_HID_USAGE_PAGE = 0xff00
+
+def filter_device(vid, pid, usage_page):
+    """! @brief Test whether the device should be ignored.
+    
+    This function performs device-specific tests to determine whether the device is
+    a CMSIS-DAP interface. An example is the NXP LPC-Link2, which has extra HID interfaces
+    with usage pages other than 0xff00.
+    
+    @retval True Skip the device.
+    @retval False The device is valid.
+    """
+    return (vid == NXP_VID) and (pid == NXP_LPCLINK2_PID) \
+        and (usage_page != CMSIS_DAP_HID_USAGE_PAGE)
+

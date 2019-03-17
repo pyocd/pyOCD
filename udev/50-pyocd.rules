@@ -19,3 +19,6 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3753", MODE:="666"
 # c251:2750 Keil ULINKplus
 SUBSYSTEM=="usb", ATTR{idVendor}=="c251", ATTR{idProduct}=="2750", MODE:="666"
 
+# 1fc9:0090 NXP LPC-LinkII
+SUBSYSTEM=="usb", ATTR{idVendor}=="1fc9", ATTR{idProduct}=="0090", MODE:="666"
+

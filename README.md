@@ -130,6 +130,13 @@ If you use different, but compatible, debug probe, you can check the IDs with th
    -  Run ``dmesg`` again and check what was added
    -  Look for line similar to ``usb 2-2.1: New USB device found, idVendor=0d28, idProduct=0204``
 
+To see your changes without a reboot, you can force the udev system to reload:
+
+```
+$ sudo udevadm control --reload
+$ sudo udevadm trigger
+```
+
 
 Standalone GDB server
 ---------------------
