@@ -16,6 +16,7 @@
 
 from .target import Target
 from .memory_map import MemoryType
+from . import exceptions
 from ..flash.loader import FlashEraser
 from ..coresight import (dap, cortex_m, rom_table)
 from ..debug.svd import (SVDFile, SVDLoader)
@@ -134,6 +135,7 @@ class CoreSightTarget(Target, GraphNode):
             ('init_ap_roms',        self.dp.init_ap_roms),
             ('create_cores',        self.create_cores),
             ('create_components',   self.create_components),
+            ('check_for_cores',     self.check_for_cores),
             ('notify',              lambda : self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self)))
             )
         
@@ -211,6 +213,15 @@ class CoreSightTarget(Target, GraphNode):
         # Iterate over every top-level ROM table.
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
             ap.rom_table.for_each(action, filter)
+
+    def check_for_cores(self):
+        """! @brief Init task: verify that at least one core was discovered."""
+        if not len(self.cores):
+            # Allow the user to override the exception to enable uses like chip bringup.
+            if self.session.options.get('allow_no_cores', False):
+                logging.error("No cores were discovered!")
+            else:
+                raise exceptions.Error("No cores were discovered!")
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))

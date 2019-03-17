@@ -544,7 +544,10 @@ class PyOCDCommander(object):
                         if self.target.is_locked():
                             status = "locked"
                         else:
-                            status = CORE_STATUS_DESC[self.target.get_state()]
+                            try:
+                                status = CORE_STATUS_DESC[self.target.get_state()]
+                            except KeyError:
+                                status = "<no core>"
 
                         # Say what we're connected to.
                         print("Connected to %s [%s]: %s" % (self.target.part_number,
