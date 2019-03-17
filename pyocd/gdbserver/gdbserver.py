@@ -398,7 +398,6 @@ class GDBServer(threading.Thread):
             while self.isAlive():
                 pass
             self.log.info("GDB server thread killed")
-        self.board.uninit()
 
     def _cleanup(self):
         self.log.debug("GDB server cleaning up")

@@ -476,7 +476,7 @@ class PyOCDTool(object):
                 gdb = gdbs[0]
                 while gdb.isAlive():
                     gdb.join(timeout=0.5)
-        except Exception as e:
+        except (KeyboardInterrupt, Exception):
             for gdb in gdbs:
                 gdb.stop()
             raise
