@@ -1556,10 +1556,14 @@ Prefix line with ! to execute a shell command.""")
 
     def print_disasm(self, code, startAddr, maxInstructions=None):
         if not isCapstoneAvailable:
-            print("Warning: Disassembly is not available because the Capstone library is not installed")
+            print("Warning: Disassembly is not available because the Capstone library is not installed. "
+                  "To install Capstone, run 'pip install capstone'.")
             return
 
-        pc = self.target.read_core_register('pc') & ~1
+        if self.target.is_halted():
+            pc = self.target.read_core_register('pc') & ~1
+        else:
+            pc = -1
         md = capstone.Cs(capstone.CS_ARCH_ARM, capstone.CS_MODE_THUMB)
 
         addrLine = 0
