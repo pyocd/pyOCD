@@ -277,14 +277,18 @@ class HasCmsisDapv2Interface(object):
                 LOG.debug(("Error \"{}\" while trying to access the USB device configuration "
                    "for VID=0x{:04x} PID=0x{:04x}. This can probably be remedied with a udev rule.")
                    .format(error, dev.idVendor, dev.idProduct))
+            elif error.errno == errno.ENOENT:
+                # This error happens on devices that don't have an interface description string.
+                pass
             else:
-                LOG.warning("OS error getting USB interface string: %s", error)
+                LOG.debug("OS error getting USB interface string for VID=0x%x PID=0x%x: %s",
+                    dev.idVendor, dev.idProduct, error)
             return False
         except usb.core.USBError as error:
-            LOG.warning("Exception getting product string: %s", error)
+            LOG.debug("Exception getting product string: %s", error)
             return False
         except IndexError as error:
-            LOG.warning("Internal pyusb error: %s", error)
+            LOG.debug("Internal pyusb error: %s", error)
             return False
         except NotImplementedError as error:
             LOG.debug("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)

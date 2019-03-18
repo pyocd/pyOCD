@@ -72,13 +72,13 @@ class STLinkUSBInterface(object):
                         "This is probably a permission issue.", error, dev.idVendor, dev.idProduct)
             return False
         except usb.core.USBError as error:
-            log.warning("Exception getting device info (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
+            log.debug("Exception getting device info (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
         except IndexError as error:
-            log.warning("Internal pyusb error (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
+            log.debug("Internal pyusb error (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
         except NotImplementedError as error:
-            log.warning("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
+            log.debug("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
             return False
 
     @classmethod
