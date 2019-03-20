@@ -59,7 +59,7 @@ setup(
         'pyusb>=1.0.0b2,<2.0',
         'pywinusb>=0.4.0;platform_system=="Windows"',
         'hidapi;platform_system=="Darwin"',
-        'pyyaml>=4.2b1,<5.0',
+        'pyyaml>=5.1,<6.0',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",
