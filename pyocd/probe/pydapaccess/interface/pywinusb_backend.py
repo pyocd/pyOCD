@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from .interface import Interface
-from .common import filter_device
+from .common import filter_device_by_usage_page
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
 import logging
@@ -114,7 +114,7 @@ class PyWinUSB(Interface):
                 dev.open(shared=True)
 
                 # Perform device-specific filtering.
-                if filter_device(dev.vendor_id, dev.product_id, dev.hid_caps.usage_page):
+                if filter_device_by_usage_page(dev.vendor_id, dev.product_id, dev.hid_caps.usage_page):
                     dev.close()
                     continue
 

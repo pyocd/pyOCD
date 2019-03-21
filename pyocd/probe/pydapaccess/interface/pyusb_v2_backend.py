@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from .interface import Interface
-from .common import CMSIS_DAP_USB_CLASSES
+from .common import filter_device_by_class
 from ..dap_access_api import DAPAccessIntf
 from ... import common
 import logging
@@ -266,7 +266,7 @@ class HasCmsisDapv2Interface(object):
     def __call__(self, dev):
         """! @brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
         # Check if the device class is a valid one for CMSIS-DAP.
-        if dev.bDeviceClass not in CMSIS_DAP_USB_CLASSES:
+        if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
         
         try:

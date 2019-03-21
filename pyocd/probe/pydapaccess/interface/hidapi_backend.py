@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from .interface import Interface
-from .common import filter_device
+from .common import filter_device_by_usage_page
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
 import logging
@@ -78,7 +78,7 @@ class HidApiUSB(Interface):
             pid = deviceInfo['product_id']
             
             # Perform device-specific filtering.
-            if filter_device(vid, pid, deviceInfo['usage_page']):
+            if filter_device_by_usage_page(vid, pid, deviceInfo['usage_page']):
                 continue
 
             try:
