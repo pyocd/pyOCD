@@ -17,6 +17,7 @@
 from .interface import Interface
 from .common import CMSIS_DAP_USB_CLASSES
 from ..dap_access_api import DAPAccessIntf
+from ... import common
 import logging
 import os
 import threading
@@ -169,8 +170,7 @@ class PyUSBv2(Interface):
         try:
             all_devices = usb.core.find(find_all=True, custom_match=HasCmsisDapv2Interface())
         except usb.core.NoBackendError:
-            # Print a warning if pyusb cannot find a backend, and return no probes.
-            LOG.warning("CMSIS-DAPv2 probes are not supported because no libusb library was found.")
+            common.show_no_libusb_warning()
             return []
 
         # iterate on all devices found

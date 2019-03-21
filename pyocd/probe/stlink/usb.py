@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 from . import STLinkException
+from .. import common
 import usb.core
 import usb.util
 import logging
@@ -86,8 +87,7 @@ class STLinkUSBInterface(object):
         try:
             devices = usb.core.find(find_all=True, custom_match=cls._usb_match)
         except usb.core.NoBackendError:
-            # Print a warning if pyusb cannot find a backend, and return no probes.
-            log.warning("STLink probes are not supported because no libusb library was found.")
+            common.show_no_libusb_warning()
             return []
         
         intfList = []
