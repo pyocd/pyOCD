@@ -29,6 +29,11 @@ from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 
 LOG = logging.getLogger(__name__)
 
+
+class ArgumentError(Exception):
+    pass
+
+
 def ranges(i):
     """!
     Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
