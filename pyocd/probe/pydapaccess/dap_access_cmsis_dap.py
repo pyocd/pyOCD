@@ -50,12 +50,19 @@ LOG_PACKET_BUILDS = False
 def _get_interfaces():
     """Get the connected USB devices"""
     # Get CMSIS-DAPv1 interfaces.
-    interfaces = INTERFACE[USB_BACKEND].get_all_connected_interfaces()
+    v1_interfaces = INTERFACE[USB_BACKEND].get_all_connected_interfaces()
     
-    # Add in CMSIS-DAPv2 interfaces.
-    interfaces += INTERFACE[USB_BACKEND_V2].get_all_connected_interfaces()
+    # Get CMSIS-DAPv2 interfaces.
+    v2_interfaces = INTERFACE[USB_BACKEND_V2].get_all_connected_interfaces()
     
-    return interfaces
+    # Prefer v2 over v1 if a device provides both.
+    devices_in_both = [v1 for v1 in v1_interfaces for v2 in v2_interfaces
+                        if _get_unique_id(v1) == _get_unique_id(v2)]
+    for dev in devices_in_both:
+        v1_interfaces.remove(dev)
+        
+    # Return the combined list.
+    return v1_interfaces + v2_interfaces
 
 
 def _get_unique_id(interface):
