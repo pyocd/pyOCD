@@ -43,8 +43,6 @@ class PyWinUSB(Interface):
     a USB HID device using pywinusb:
         - write/read an endpoint
     """
-    vid = 0
-    pid = 0
 
     isAvailable = IS_AVAILABLE
 
@@ -57,7 +55,6 @@ class PyWinUSB(Interface):
         # comprable to a based list implmentation.
         self.rcv_data = collections.deque()
         self.device = None
-        self.packet_size = 64
 
     # handler called when a report is received
     def rx_handler(self, data):

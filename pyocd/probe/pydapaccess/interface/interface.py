@@ -23,6 +23,7 @@ class Interface(object):
         self.vendor_name = ""
         self.product_name = ""
         self.packet_count = 1
+        self.packet_size = 64
     
     @property
     def has_swo_ep(self):
