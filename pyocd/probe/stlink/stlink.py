@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import STLinkException
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
 from ...core import exceptions
 from ...coresight import dap
@@ -107,10 +106,10 @@ class STLink(object):
 
         # Check versions.
         if self._jtag_version == 0:
-            raise STLinkException("%s firmware does not support JTAG/SWD. Please update"
+            raise exceptions.ProbeError("%s firmware does not support JTAG/SWD. Please update"
                 "to a firmware version that supports JTAG/SWD" % (self._version_str))
         if self._jtag_version < self.MIN_JTAG_VERSION:
-            raise STLinkException("STLink %s is using an unsupported, older firmware version. "
+            raise exceptions.ProbeError("STLink %s is using an unsupported, older firmware version. "
                 "Please update to the latest STLink firmware. Current version is %s, must be at least version v2J%d.)" 
                 % (self.serial_number, self._version_str, self.MIN_JTAG_VERSION))
 
@@ -164,7 +163,7 @@ class STLink(object):
                     response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
                     self._check_status(response)
                     return
-            raise STLinkException("Selected SWD frequency is too low")
+            raise exceptions.ProbeError("Selected SWD frequency is too low")
 
     def set_jtag_frequency(self, freq=1120000):
         with self._lock:
@@ -173,7 +172,7 @@ class STLink(object):
                     response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
                     self._check_status(response)
                     return
-            raise STLinkException("Selected JTAG frequency is too low")
+            raise exceptions.ProbeError("Selected JTAG frequency is too low")
 
     def enter_debug(self, protocol):
         with self._lock:
@@ -216,8 +215,9 @@ class STLink(object):
     
     def _check_status(self, response):
         status, = struct.unpack('<H', response)
+        
         if status != Status.JTAG_OK:
-            raise STLinkException("STLink error (%d): " % status + Status.MESSAGES.get(status, "Unknown error"))
+            raise exceptions.ProbeError("STLink error (%d): " % status + Status.MESSAGES.get(status, "Unknown error"))
 
     def _clear_sticky_error(self):
         with self._lock:
@@ -253,7 +253,7 @@ class STLink(object):
                     exc.fault_length = thisTransferSize - (faultAddr - addr)
                     raise exc
                 elif status != Status.JTAG_OK:
-                    raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                    raise exceptions.ProbeError("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
             return result
 
     def _write_mem(self, addr, data, memcmd, max, apsel):
@@ -281,7 +281,7 @@ class STLink(object):
                     exc.fault_length = thisTransferSize - (faultAddr - addr)
                     raise exc
                 elif status != Status.JTAG_OK:
-                    raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                    raise exceptions.ProbeError("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
 
     def read_mem32(self, addr, size, apsel):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"

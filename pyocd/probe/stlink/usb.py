@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from __future__ import absolute_import
-from . import STLinkException
+from ...core import exceptions
 from .. import common
 import usb.core
 import usb.util
@@ -124,9 +124,9 @@ class STLinkUSBInterface(object):
                 self._ep_swv = endpoint
         
         if not self._ep_out:
-            raise STLinkException("Unable to find OUT endpoint")
+            raise exceptions.ProbeError("Unable to find OUT endpoint")
         if not self._ep_in:
-            raise STLinkException("Unable to find IN endpoint")
+            raise exceptions.ProbeError("Unable to find IN endpoint")
 
         self._max_packet_size = self._ep_in.wMaxPacketSize
         
@@ -208,7 +208,7 @@ class STLinkUSBInterface(object):
                     log.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
                 return data
         except usb.core.USBError as exc:
-            six.raise_from(STLinkException("USB Error: %s" % exc), exc)
+            six.raise_from(exceptions.ProbeError("USB Error: %s" % exc), exc)
         return None
 
     def read_swv(self, size, timeout=1000):
