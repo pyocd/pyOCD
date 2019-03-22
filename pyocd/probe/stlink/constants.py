@@ -78,7 +78,7 @@ class Commands:
     JTAG_STLINK_SWD_COM = 0x00
     JTAG_STLINK_JTAG_COM = 0x01
     
-class Status:
+class Status(object):
     """!
     @brief STLink status codes and messages.
     """
@@ -144,6 +144,10 @@ class Status:
         JTAG_FREQ_NOT_SUPPORTED : "Frequency not supported",
         JTAG_UNKNOWN_CMD : "Unknown command",
     }
+    
+    @staticmethod
+    def get_error_message(status):
+        return "STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error"))
 
 ## Map from SWD frequency in Hertz to delay loop count.
 SWD_FREQ_MAP = {

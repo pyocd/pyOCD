@@ -53,6 +53,35 @@ class STLink(object):
     ## Port number to use to indicate DP registers.
     DP_PORT = 0xffff
 
+    ## Map to convert from STLink error response codes to exception classes.
+    _ERROR_CLASSES = {
+        # AP protocol errors
+        Status.SWD_AP_WAIT: exceptions.TransferTimeoutError,
+        Status.SWD_AP_FAULT: exceptions.TransferFaultError,
+        Status.SWD_AP_ERROR: exceptions.TransferError,
+        Status.SWD_AP_PARITY_ERROR: exceptions.TransferError,
+        
+        # DP protocol errors
+        Status.SWD_DP_WAIT: exceptions.TransferTimeoutError,
+        Status.SWD_DP_FAULT: exceptions.TransferFaultError,
+        Status.SWD_DP_ERROR: exceptions.TransferError,
+        Status.SWD_DP_PARITY_ERROR: exceptions.TransferError,
+        
+        # High level transaction errors
+        Status.SWD_AP_WDATA_ERROR: exceptions.TransferFaultError,
+        Status.SWD_AP_STICKY_ERROR: exceptions.TransferError,
+        Status.SWD_AP_STICKYORUN_ERROR: exceptions.TransferError,
+        }
+    
+    ## These errors indicate a memory fault.
+    _MEM_FAULT_ERRORS = (
+        Status.JTAG_UNKNOWN_ERROR, # Returned in some cases by older STLink firmware.
+        Status.SWD_AP_FAULT,
+        Status.SWD_DP_FAULT,
+        Status.SWD_AP_WDATA_ERROR,
+        Status.SWD_AP_STICKY_ERROR,
+        )
+
     def __init__(self, device):
         self._device = device
         self._hw_version = 0
@@ -217,7 +246,11 @@ class STLink(object):
         status, = struct.unpack('<H', response)
         
         if status != Status.JTAG_OK:
-            raise exceptions.ProbeError("STLink error (%d): " % status + Status.MESSAGES.get(status, "Unknown error"))
+            error_message = Status.get_error_message(status)
+            if status in self._ERROR_CLASSES:
+                raise self._ERROR_CLASSES[status](error_message)
+            else:
+                raise exceptions.ProbeError(error_message)
 
     def _clear_sticky_error(self):
         with self._lock:
@@ -244,16 +277,22 @@ class STLink(object):
                 # Check status of this read.
                 response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
                 status, _, faultAddr = struct.unpack('<HHI', response[0:8])
-                if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
-                    # Clear sticky errors.
-                    self._clear_sticky_error()
+
+                # Handle transfer faults specially so we can assign the address info.
+                if status != Status.JTAG_OK:
+                    error_message = Status.get_error_message(status)
+                    if status in self._MEM_FAULT_ERRORS:
+                        # Clear sticky errors.
+                        self._clear_sticky_error()
                 
-                    exc = exceptions.TransferFaultError()
-                    exc.fault_address = faultAddr
-                    exc.fault_length = thisTransferSize - (faultAddr - addr)
-                    raise exc
-                elif status != Status.JTAG_OK:
-                    raise exceptions.ProbeError("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                        exc = exceptions.TransferFaultError()
+                        exc.fault_address = faultAddr
+                        exc.fault_length = thisTransferSize - (faultAddr - addr)
+                        raise exc
+                    elif status in self._ERROR_CLASSES:
+                        raise self._ERROR_CLASSES[status](error_message)
+                    elif status != Status.JTAG_OK:
+                        raise exceptions.ProbeError(error_message)
             return result
 
     def _write_mem(self, addr, data, memcmd, max, apsel):
@@ -272,16 +311,22 @@ class STLink(object):
                 # Check status of this write.
                 response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
                 status, _, faultAddr = struct.unpack('<HHI', response[0:8])
-                if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
-                    # Clear sticky errors.
-                    self._clear_sticky_error()
                 
-                    exc = exceptions.TransferFaultError()
-                    exc.fault_address = faultAddr
-                    exc.fault_length = thisTransferSize - (faultAddr - addr)
-                    raise exc
-                elif status != Status.JTAG_OK:
-                    raise exceptions.ProbeError("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                # Handle transfer faults specially so we can assign the address info.
+                if status != Status.JTAG_OK:
+                    error_message = Status.get_error_message(status)
+                    if status in self._MEM_FAULT_ERRORS:
+                        # Clear sticky errors.
+                        self._clear_sticky_error()
+                
+                        exc = exceptions.TransferFaultError()
+                        exc.fault_address = faultAddr
+                        exc.fault_length = thisTransferSize - (faultAddr - addr)
+                        raise exc
+                    elif status in self._ERROR_CLASSES:
+                        raise self._ERROR_CLASSES[status](error_message)
+                    elif status != Status.JTAG_OK:
+                        raise exceptions.ProbeError(error_message)
 
     def read_mem32(self, addr, size, apsel):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"
