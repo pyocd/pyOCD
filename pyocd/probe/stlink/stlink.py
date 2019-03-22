@@ -222,9 +222,11 @@ class STLink(object):
     def _clear_sticky_error(self):
         with self._lock:
             if self._protocol == self.Protocol.SWD:
-                self.write_dap_register(self.DP_PORT, dap.DP_ABORT, dap.ABORT_STKERRCLR)
+                self.write_dap_register(self.DP_PORT, dap.DP_ABORT,
+                    dap.ABORT_ORUNERRCLR | dap.ABORT_WDERRCLR | dap.ABORT_STKERRCLR | dap.ABORT_STKCMPCLR)
             elif self._protocol == self.Protocol.JTAG:
-                self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT, dap.CTRLSTAT_STICKYERR)
+                self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT,
+                    dap.CTRLSTAT_STICKYERR | dap.CTRLSTAT_STICKYCMP | dap.CTRLSTAT_STICKYORUN)
     
     def _read_mem(self, addr, size, memcmd, max, apsel):
         with self._lock:
