@@ -30,10 +30,6 @@ from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 LOG = logging.getLogger(__name__)
 
 
-class ArgumentError(Exception):
-    pass
-
-
 def ranges(i):
     """!
     Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
@@ -102,11 +98,11 @@ class FileProgrammer(object):
         - `skip`: Number of bytes to skip at the start of the binary file. Does not affect the
             base address.
         
-        @exception ArgumentError Invalid argument value, for instance providing a file object but
+        @exception ValueError Invalid argument value, for instance providing a file object but
             not setting file_format.
         """
         if not file_or_path:
-            raise ArgumentError("No file provided")
+            raise ValueError("No file provided")
         
         # If no format provided, use the file's extension.
         isPath = isinstance(file_or_path, six.string_types)
@@ -114,11 +110,11 @@ class FileProgrammer(object):
             if isPath:
                 file_format = os.path.splitext(file_or_path)[1][1:]
             else:
-                raise ArgumentError("file object provided but no format is set")
+                raise ValueError("file object provided but no format is set")
         
         # Check the format is one we understand.
         if file_format not in self._format_handlers:
-            raise ArgumentError("unknown file format '%s'" % file_format)
+            raise ValueError("unknown file format '%s'" % file_format)
             
         self._loader = FlashLoader(self._session,
                                     progress=self._progress,
