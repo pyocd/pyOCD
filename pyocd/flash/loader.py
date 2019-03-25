@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,11 +21,13 @@ import itertools
 from intelhex import IntelHex
 from enum import Enum
 import six
+import errno
 
 from .flash_builder import FlashBuilder
 from ..core.memory_map import MemoryType
 from ..utility.progress import print_progress
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
+from ..utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
 
@@ -98,17 +100,26 @@ class FileProgrammer(object):
         - `skip`: Number of bytes to skip at the start of the binary file. Does not affect the
             base address.
         
+        @exception FileNotFoundError Provided file_or_path string does not reference a file.
         @exception ValueError Invalid argument value, for instance providing a file object but
             not setting file_format.
         """
-        if not file_or_path:
-            raise ValueError("No file provided")
+        isPath = isinstance(file_or_path, six.string_types)
+        
+        # Check for valid path first.
+        if isPath and not os.path.isfile(file_or_path):
+            raise FileNotFoundError_(errno.ENOENT, "No such file: '{}'".format(file_or_path))
         
         # If no format provided, use the file's extension.
-        isPath = isinstance(file_or_path, six.string_types)
         if not file_format:
             if isPath:
+                # Extract the extension from the path.
                 file_format = os.path.splitext(file_or_path)[1][1:]
+                
+                # Explicitly check for no extension.
+                if file_format == '':
+                    raise ValueError("file path '{}' does not have an extension and "
+                                        "no format is set".format(file_or_path))
             else:
                 raise ValueError("file object provided but no format is set")
         
@@ -120,6 +131,8 @@ class FileProgrammer(object):
                                     progress=self._progress,
                                     chip_erase=self._chip_erase,
                                     trust_crc=self._trust_crc)
+        
+        file_obj = None
         try:
             # Open the file if a path was provided.
             if isPath:
@@ -135,7 +148,7 @@ class FileProgrammer(object):
             self._format_handlers[file_format](file_obj, **kwargs)
             self._loader.commit()
         finally:
-            if isPath:
+            if isPath and file_obj is not None:
                 file_obj.close()
 
     # Binary file format

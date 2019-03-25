@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,3 +60,10 @@ else:
         else:
             return v
 
+# Make FileNotFoundError available to Python 2.x.
+if not PY3:
+    class FileNotFoundError(IOError):
+        pass
+
+# Symbol to reference either the builtin FNF or our custom subclass.
+FileNotFoundError_ = FileNotFoundError
