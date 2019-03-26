@@ -15,13 +15,15 @@
 # limitations under the License.
 
 from .interface import Interface
-from .common import filter_device_by_class
+from .common import (filter_device_by_class, is_known_cmsis_dap_vid_pid)
 from ..dap_access_api import DAPAccessIntf
 import logging
 import os
 import threading
 import six
 from time import sleep
+import platform
+import errno
 
 log = logging.getLogger('pyusb')
 
@@ -261,19 +263,32 @@ class FindDap(object):
             return False
         
         try:
+            # First attempt to get the active config. This produces a more direct error
+            # when you don't have device permissions on Linux
+            dev.get_active_configuration()
+            
+            # Now read the product name string.
             device_string = dev.product
-        except ValueError as error:
-            # Permission denied error gets reported as ValueError (langid)
-            log.debug(("ValueError \"{}\" while trying to access dev.product "
-                           "for idManufacturer=0x{:04x} idProduct=0x{:04x}. "
-                           "This is probably a permission issue.").format(error, dev.idVendor, dev.idProduct))
-            return False
         except usb.core.USBError as error:
-            log.warning("Exception getting product string: %s", error)
+            if error.errno == errno.EACCES and platform.system() == "Linux":
+                msg = ("%s while trying to interrogate a USB device "
+                   "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
+                   "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help." %
+                   (error, dev.idVendor, dev.idProduct))
+                # If we recognize this device as one that should be CMSIS-DAP, we can raise
+                # the level of the log message since it's almost certainly a permissions issue.
+                if is_known_cmsis_dap_vid_pid(dev.idVendor, dev.idProduct):
+                    log.warning(msg)
+                else:
+                    log.debug(msg)
+            else:
+                log.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
+                    dev.idVendor, dev.idProduct, error)
             return False
-        except IndexError as error:
-            log.warning("Internal pyusb error: %s", error)
+        except (IndexError, NotImplementedError) as error:
+            log.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
+
         if device_string is None:
             return False
         if device_string.find("CMSIS-DAP") < 0:

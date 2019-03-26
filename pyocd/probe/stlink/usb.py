@@ -24,6 +24,7 @@ import six
 import threading
 from collections import namedtuple
 import platform
+import errno
 
 # Set to True to enable debug logs of USB data transfers.
 LOG_USB_DATA = False
@@ -62,27 +63,29 @@ class STLinkUSBInterface(object):
             # Check VID/PID.
             isSTLink = (dev.idVendor == cls.USB_VID) and (dev.idProduct in cls.USB_PID_EP_MAP)
             
-            # Try accessing the product name, which will cause a permission error on Linux. Better
+            # Try accessing the current config, which will cause a permission error on Linux. Better
             # to error out here than later when building the device description. For Windows we
             # don't need to worry about device permissions, but reading descriptors requires special
-            # handling due to the bug described in __init__().
+            # handling due to the libusb bug described in __init__().
             if isSTLink and platform.system() != "Windows":
-                dev.product
+                dev.get_active_configuration()
             
             return isSTLink
-        except ValueError as error:
-            # Permission denied error gets reported as ValueError (The device has no langid).
-            log.debug("ValueError \"%s\" while trying to access STLink USB device fields (VID=%04x PID=%04x). "
-                        "This is probably a permission issue.", error, dev.idVendor, dev.idProduct)
-            return False
         except usb.core.USBError as error:
-            log.debug("Exception getting device info (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
+            if error.errno == errno.EACCES and platform.system() == "Linux":
+                # We've already checked that this is an STLink device by VID/PID, so we
+                # can use a warning log level to let the user know it's almost certainly
+                # a permissions issue.
+                log.warning("%s while trying to get the STLink USB device configuration "
+                   "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
+                   "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help.",
+                   error, dev.idVendor, dev.idProduct)
+            else:
+                log.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
+                    dev.idVendor, dev.idProduct, error)
             return False
-        except IndexError as error:
-            log.debug("Internal pyusb error (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
-            return False
-        except NotImplementedError as error:
-            log.debug("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
+        except (IndexError, NotImplementedError) as error:
+            log.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
     @classmethod

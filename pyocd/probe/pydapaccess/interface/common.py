@@ -24,13 +24,23 @@ CMSIS_DAP_USB_CLASSES = [
     USB_CLASS_MISCELLANEOUS,
     ]
 
-NXP_VID = 0x1fc9
-NXP_LPCLINK2_PID = 0x0090
-
-ARM_VID = 0x0d28
-DAPLINK_PID = 0x0204
-
 CMSIS_DAP_HID_USAGE_PAGE = 0xff00
+
+# Various known USB VID/PID values.
+ARM_DAPLINK_ID = (0x0d28, 0x0204)
+KEIL_ULINKPLUS_ID = (0xc251, 0x2750)
+NXP_LPCLINK2_ID = (0x1fc9, 0x0090)
+
+## List of VID/PID pairs for known CMSIS-DAP USB devices.
+KNOWN_CMSIS_DAP_IDS = [
+    ARM_DAPLINK_ID,
+    KEIL_ULINKPLUS_ID,
+    NXP_LPCLINK2_ID,
+    ]
+
+def is_known_cmsis_dap_vid_pid(vid, pid):
+    """! @brief Test whether a VID/PID pair belong to a known CMSIS-DAP device."""
+    return (vid, pid) in KNOWN_CMSIS_DAP_IDS
 
 def filter_device_by_class(vid, pid, device_class):
     """! @brief Test whether the device should be ignored by comparing bDeviceClass.
@@ -45,7 +55,7 @@ def filter_device_by_class(vid, pid, device_class):
     if device_class in CMSIS_DAP_USB_CLASSES:
         return False
     # Old "Mbed CMSIS-DAP" firmware has an incorrect bDeviceClass.
-    if (vid == ARM_VID) and (pid == DAPLINK_PID) and (device_class == USB_CLASS_COMMUNICATIONS):
+    if ((vid, pid) == ARM_DAPLINK_ID) and (device_class == USB_CLASS_COMMUNICATIONS):
         return False
     # Any other class indicates the device is not CMSIS-DAP.
     return True
@@ -61,6 +71,6 @@ def filter_device_by_usage_page(vid, pid, usage_page):
     @retval True Skip the device.
     @retval False The device is valid.
     """
-    return (vid == NXP_VID) and (pid == NXP_LPCLINK2_PID) \
+    return ((vid, pid) == NXP_LPCLINK2_ID) \
         and (usage_page != CMSIS_DAP_HID_USAGE_PAGE)
 
