@@ -23,6 +23,7 @@ import logging
 import six
 import threading
 from collections import namedtuple
+import platform
 
 # Set to True to enable debug logs of USB data transfers.
 LOG_USB_DATA = False
@@ -54,7 +55,7 @@ class STLinkUSBInterface(object):
     
     ## STLink devices only have one USB interface.
     DEBUG_INTERFACE_NUMBER = 0
-
+    
     @classmethod
     def _usb_match(cls, dev):
         try:
@@ -62,8 +63,10 @@ class STLinkUSBInterface(object):
             isSTLink = (dev.idVendor == cls.USB_VID) and (dev.idProduct in cls.USB_PID_EP_MAP)
             
             # Try accessing the product name, which will cause a permission error on Linux. Better
-            # to error out here than later when building the device description.
-            if isSTLink:
+            # to error out here than later when building the device description. For Windows we
+            # don't need to worry about device permissions, but reading descriptors requires special
+            # handling due to the bug described in __init__().
+            if isSTLink and platform.system() != "Windows":
                 dev.product
             
             return isSTLink
@@ -89,12 +92,16 @@ class STLinkUSBInterface(object):
         except usb.core.NoBackendError:
             common.show_no_libusb_warning()
             return []
-        
+    
         intfList = []
         for dev in devices:
-            intf = cls(dev)
-            intfList.append(intf)
-        
+            try:
+                intf = cls(dev)
+                intfList.append(intf)
+            except (ValueError, usb.core.USBError, IndexError, NotImplementedError) as error:
+                # Ignore errors that can be raised by libusb, just don't add the device to the list.
+                pass
+    
         return intfList
 
     def __init__(self, dev):
@@ -106,6 +113,21 @@ class STLinkUSBInterface(object):
         self._ep_swv = None
         self._max_packet_size = 64
         self._closed = True
+
+        # Open the device temporarily to read the descriptor strings. The Windows libusb
+        # (version 1.0.22 at the time of this writing) appears to have a bug where it can fail to
+        # properly close a device automatically opened for reading descriptors. The bug manifests
+        # as every other call to get_all_connected_devices() returning no available probes,
+        # caused by a getting a permissions error ("The device has no langid" ValueError) when
+        # attempting to read descriptor strings. If we manually call dispose_resources() after
+        # reading the strings, everything is ok. This workaround doesn't cause any issues with
+        # Linux or macOS.
+        try:
+            self._serial_number = self._dev.serial_number
+            self._vendor_name =  self._dev.manufacturer
+            self._product_name = self._dev.product
+        finally:
+            usb.util.dispose_resources(self._dev)
     
     def open(self):
         assert self._closed
@@ -131,7 +153,7 @@ class STLinkUSBInterface(object):
         self._max_packet_size = self._ep_in.wMaxPacketSize
         
         # Claim this interface to prevent other processes from accessing it.
-        usb.util.claim_interface(self._dev, 0)
+        usb.util.claim_interface(self._dev, self.DEBUG_INTERFACE_NUMBER)
         
         self._flush_rx()
         self._closed = False
@@ -146,15 +168,15 @@ class STLinkUSBInterface(object):
 
     @property
     def serial_number(self):
-        return self._dev.serial_number
+        return self._serial_number
 
     @property
     def vendor_name(self):
-        return self._dev.manufacturer
+        return self._vendor_name
 
     @property
     def product_name(self):
-        return self._dev.product
+        return self._product_name
 
     @property
     def version_name(self):
