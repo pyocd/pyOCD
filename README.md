@@ -62,6 +62,9 @@ Documentation
 
 The pyOCD documentation is located in [the docs directory](docs/).
 
+In addition to user guides, you can generate reference documentation using Doxygen with the
+supplied config file in the `docs/` directory.
+
 
 Installing
 ----------
@@ -114,28 +117,14 @@ How to install libusb depends on your OS:
 
 ### udev rules on Linux
 
-If you encounter an issue on Linux where `pyocd list` won't detect attached boards without
-sudo, the reason is most likely USB device access permissions. In Ubuntu 16.04+ these are handled
-with udev and can be solved by adding a new udev rule.
+On Linux, particularly Ubuntu 16.04+, you must configure udev rules to allow pyOCD to access debug
+probes from user space. Otherwise you will need to run pyOCD as root, using sudo, which is very
+highly discouraged. (You should _never_ run pyOCD as root on any OS.)
 
-An example udev rule file is included in the [udev](https://github.com/mbedmicro/pyOCD/tree/master/udev)
-folder in the pyOCD repository. Just copy this file into `/etc/udev/rules.d` to enable user access
-to both [DAPLink](https://os.mbed.com/handbook/DAPLink)-based debug probes as well as STLinkV2 and
-STLinkV3.
-
-If you use different, but compatible, debug probe, you can check the IDs with the ``dmesg`` command.
-
-   -  Run ``dmesg``
-   -  Plug in your board
-   -  Run ``dmesg`` again and check what was added
-   -  Look for line similar to ``usb 2-2.1: New USB device found, idVendor=0d28, idProduct=0204``
-
-To see your changes without a reboot, you can force the udev system to reload:
-
-```
-$ sudo udevadm control --reload
-$ sudo udevadm trigger
-```
+To help with this, example udev rules files are included with pyOCD in the
+[udev](https://github.com/mbedmicro/pyOCD/tree/master/udev) folder. The
+[readme](https://github.com/mbedmicro/pyOCD/tree/master/udev/README.md) in this folder has detailed
+instructions.
 
 
 Standalone GDB server
