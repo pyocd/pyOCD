@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 
+LOG = logging.getLogger(__name__)
 
+## Whether the warning about no libusb was printed already.
+#
+# Used to prevent warning spewage if repeatedly scanning for probes, such as when ConnectHelper
+# is used in blocking mode and no probes are connected.
+did_show_no_libusb_warning = False
 
+def show_no_libusb_warning():
+    global did_show_no_libusb_warning
+    if not did_show_no_libusb_warning:
+        LOG.warning("STLink and CMSIS-DAPv2 probes are not supported because no libusb library was found.")
+        did_show_no_libusb_warning = True
+    

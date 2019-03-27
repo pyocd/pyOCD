@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import STLinkException
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
 from ...core import exceptions
 from ...coresight import dap
@@ -53,6 +52,35 @@ class STLink(object):
     
     ## Port number to use to indicate DP registers.
     DP_PORT = 0xffff
+
+    ## Map to convert from STLink error response codes to exception classes.
+    _ERROR_CLASSES = {
+        # AP protocol errors
+        Status.SWD_AP_WAIT: exceptions.TransferTimeoutError,
+        Status.SWD_AP_FAULT: exceptions.TransferFaultError,
+        Status.SWD_AP_ERROR: exceptions.TransferError,
+        Status.SWD_AP_PARITY_ERROR: exceptions.TransferError,
+        
+        # DP protocol errors
+        Status.SWD_DP_WAIT: exceptions.TransferTimeoutError,
+        Status.SWD_DP_FAULT: exceptions.TransferFaultError,
+        Status.SWD_DP_ERROR: exceptions.TransferError,
+        Status.SWD_DP_PARITY_ERROR: exceptions.TransferError,
+        
+        # High level transaction errors
+        Status.SWD_AP_WDATA_ERROR: exceptions.TransferFaultError,
+        Status.SWD_AP_STICKY_ERROR: exceptions.TransferError,
+        Status.SWD_AP_STICKYORUN_ERROR: exceptions.TransferError,
+        }
+    
+    ## These errors indicate a memory fault.
+    _MEM_FAULT_ERRORS = (
+        Status.JTAG_UNKNOWN_ERROR, # Returned in some cases by older STLink firmware.
+        Status.SWD_AP_FAULT,
+        Status.SWD_DP_FAULT,
+        Status.SWD_AP_WDATA_ERROR,
+        Status.SWD_AP_STICKY_ERROR,
+        )
 
     def __init__(self, device):
         self._device = device
@@ -107,10 +135,10 @@ class STLink(object):
 
         # Check versions.
         if self._jtag_version == 0:
-            raise STLinkException("%s firmware does not support JTAG/SWD. Please update"
+            raise exceptions.ProbeError("%s firmware does not support JTAG/SWD. Please update"
                 "to a firmware version that supports JTAG/SWD" % (self._version_str))
         if self._jtag_version < self.MIN_JTAG_VERSION:
-            raise STLinkException("STLink %s is using an unsupported, older firmware version. "
+            raise exceptions.ProbeError("STLink %s is using an unsupported, older firmware version. "
                 "Please update to the latest STLink firmware. Current version is %s, must be at least version v2J%d.)" 
                 % (self.serial_number, self._version_str, self.MIN_JTAG_VERSION))
 
@@ -164,7 +192,7 @@ class STLink(object):
                     response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
                     self._check_status(response)
                     return
-            raise STLinkException("Selected SWD frequency is too low")
+            raise exceptions.ProbeError("Selected SWD frequency is too low")
 
     def set_jtag_frequency(self, freq=1120000):
         with self._lock:
@@ -173,7 +201,7 @@ class STLink(object):
                     response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
                     self._check_status(response)
                     return
-            raise STLinkException("Selected JTAG frequency is too low")
+            raise exceptions.ProbeError("Selected JTAG frequency is too low")
 
     def enter_debug(self, protocol):
         with self._lock:
@@ -216,15 +244,22 @@ class STLink(object):
     
     def _check_status(self, response):
         status, = struct.unpack('<H', response)
+        
         if status != Status.JTAG_OK:
-            raise STLinkException("STLink error (%d): " % status + Status.MESSAGES.get(status, "Unknown error"))
+            error_message = Status.get_error_message(status)
+            if status in self._ERROR_CLASSES:
+                raise self._ERROR_CLASSES[status](error_message)
+            else:
+                raise exceptions.ProbeError(error_message)
 
     def _clear_sticky_error(self):
         with self._lock:
             if self._protocol == self.Protocol.SWD:
-                self.write_dap_register(self.DP_PORT, dap.DP_ABORT, dap.ABORT_STKERRCLR)
+                self.write_dap_register(self.DP_PORT, dap.DP_ABORT,
+                    dap.ABORT_ORUNERRCLR | dap.ABORT_WDERRCLR | dap.ABORT_STKERRCLR | dap.ABORT_STKCMPCLR)
             elif self._protocol == self.Protocol.JTAG:
-                self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT, dap.CTRLSTAT_STICKYERR)
+                self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT,
+                    dap.CTRLSTAT_STICKYERR | dap.CTRLSTAT_STICKYCMP | dap.CTRLSTAT_STICKYORUN)
     
     def _read_mem(self, addr, size, memcmd, max, apsel):
         with self._lock:
@@ -242,16 +277,22 @@ class STLink(object):
                 # Check status of this read.
                 response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
                 status, _, faultAddr = struct.unpack('<HHI', response[0:8])
-                if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
-                    # Clear sticky errors.
-                    self._clear_sticky_error()
+
+                # Handle transfer faults specially so we can assign the address info.
+                if status != Status.JTAG_OK:
+                    error_message = Status.get_error_message(status)
+                    if status in self._MEM_FAULT_ERRORS:
+                        # Clear sticky errors.
+                        self._clear_sticky_error()
                 
-                    exc = exceptions.TransferFaultError()
-                    exc.fault_address = faultAddr
-                    exc.fault_length = thisTransferSize - (faultAddr - addr)
-                    raise exc
-                elif status != Status.JTAG_OK:
-                    raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                        exc = exceptions.TransferFaultError()
+                        exc.fault_address = faultAddr
+                        exc.fault_length = thisTransferSize - (faultAddr - addr)
+                        raise exc
+                    elif status in self._ERROR_CLASSES:
+                        raise self._ERROR_CLASSES[status](error_message)
+                    elif status != Status.JTAG_OK:
+                        raise exceptions.ProbeError(error_message)
             return result
 
     def _write_mem(self, addr, data, memcmd, max, apsel):
@@ -270,16 +311,22 @@ class STLink(object):
                 # Check status of this write.
                 response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GETLASTRWSTATUS2], readSize=12)
                 status, _, faultAddr = struct.unpack('<HHI', response[0:8])
-                if status in (Status.JTAG_UNKNOWN_ERROR, Status.SWD_AP_FAULT, Status.SWD_DP_FAULT):
-                    # Clear sticky errors.
-                    self._clear_sticky_error()
                 
-                    exc = exceptions.TransferFaultError()
-                    exc.fault_address = faultAddr
-                    exc.fault_length = thisTransferSize - (faultAddr - addr)
-                    raise exc
-                elif status != Status.JTAG_OK:
-                    raise STLinkException("STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error")))
+                # Handle transfer faults specially so we can assign the address info.
+                if status != Status.JTAG_OK:
+                    error_message = Status.get_error_message(status)
+                    if status in self._MEM_FAULT_ERRORS:
+                        # Clear sticky errors.
+                        self._clear_sticky_error()
+                
+                        exc = exceptions.TransferFaultError()
+                        exc.fault_address = faultAddr
+                        exc.fault_length = thisTransferSize - (faultAddr - addr)
+                        raise exc
+                    elif status in self._ERROR_CLASSES:
+                        raise self._ERROR_CLASSES[status](error_message)
+                    elif status != Status.JTAG_OK:
+                        raise exceptions.ProbeError(error_message)
 
     def read_mem32(self, addr, size, apsel):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"

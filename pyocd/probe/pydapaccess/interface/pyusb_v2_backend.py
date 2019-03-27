@@ -15,14 +15,16 @@
 # limitations under the License.
 
 from .interface import Interface
-from .common import CMSIS_DAP_USB_CLASSES
+from .common import (filter_device_by_class, is_known_cmsis_dap_vid_pid)
 from ..dap_access_api import DAPAccessIntf
+from ... import common
 import logging
 import os
 import threading
 import six
 from time import sleep
 import errno
+import platform
 
 LOG = logging.getLogger(__name__)
 
@@ -169,8 +171,7 @@ class PyUSBv2(Interface):
         try:
             all_devices = usb.core.find(find_all=True, custom_match=HasCmsisDapv2Interface())
         except usb.core.NoBackendError:
-            # Print a warning if pyusb cannot find a backend, and return no probes.
-            LOG.warning("CMSIS-DAPv2 probes are not supported because no libusb library was found.")
+            common.show_no_libusb_warning()
             return []
 
         # iterate on all devices found
@@ -252,10 +253,6 @@ class PyUSBv2(Interface):
         self.intf_number = None
         self.thread = None
 
-def match_cmsis_dap_interface_name(desc):
-    interface_name = usb.util.get_string(desc.device, desc.iInterface)
-    return (interface_name is not None) and ("CMSIS-DAP" in interface_name)
-
 class HasCmsisDapv2Interface(object):
     """! @brief CMSIS-DAPv2 match class to be used with usb.core.find"""
 
@@ -266,28 +263,38 @@ class HasCmsisDapv2Interface(object):
     def __call__(self, dev):
         """! @brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
         # Check if the device class is a valid one for CMSIS-DAP.
-        if dev.bDeviceClass not in CMSIS_DAP_USB_CLASSES:
+        if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
         
         try:
+            def match_cmsis_dap_interface_name(desc):
+                interface_name = usb.util.get_string(desc.device, desc.iInterface)
+                return (interface_name is not None) and ("CMSIS-DAP" in interface_name)
+
             config = dev.get_active_configuration()
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=match_cmsis_dap_interface_name)
-        except OSError as error:
-            if error.errno == errno.EACCES:
-                LOG.debug(("Error \"{}\" while trying to access the USB device configuration "
-                   "for VID=0x{:04x} PID=0x{:04x}. This can probably be remedied with a udev rule.")
-                   .format(error, dev.idVendor, dev.idProduct))
-            else:
-                LOG.warning("OS error getting USB interface string: %s", error)
-            return False
         except usb.core.USBError as error:
-            LOG.warning("Exception getting product string: %s", error)
+            # Produce a more helpful error message if we get a permissions error on Linux.
+            if error.errno == errno.EACCES and platform.system() == "Linux":
+                msg = ("%s while trying to interrogate a USB device "
+                   "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
+                   "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help." %
+                   (error, dev.idVendor, dev.idProduct))
+                # If we recognize this device as one that should be CMSIS-DAP, we can raise
+                # the level of the log message since it's almost certainly a permissions issue.
+                if is_known_cmsis_dap_vid_pid(dev.idVendor, dev.idProduct):
+                    LOG.warning(msg)
+                else:
+                    LOG.debug(msg)
+            elif error.errno == errno.ENOENT:
+                # This error happens on devices that don't have an interface description string.
+                pass
+            else:
+                LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
+                    dev.idVendor, dev.idProduct, error)
             return False
-        except IndexError as error:
-            LOG.warning("Internal pyusb error: %s", error)
-            return False
-        except NotImplementedError as error:
-            LOG.debug("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
+        except (IndexError, NotImplementedError) as error:
+            LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
         if cmsis_dap_interface is None:

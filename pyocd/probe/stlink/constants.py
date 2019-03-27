@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,12 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from . import STLinkException
-from ...core import exceptions
-import logging
-import struct
-import six
 
 class Commands:    
     """!
@@ -84,7 +78,7 @@ class Commands:
     JTAG_STLINK_SWD_COM = 0x00
     JTAG_STLINK_JTAG_COM = 0x01
     
-class Status:
+class Status(object):
     """!
     @brief STLink status codes and messages.
     """
@@ -150,6 +144,10 @@ class Status:
         JTAG_FREQ_NOT_SUPPORTED : "Frequency not supported",
         JTAG_UNKNOWN_CMD : "Unknown command",
     }
+    
+    @staticmethod
+    def get_error_message(status):
+        return "STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error"))
 
 ## Map from SWD frequency in Hertz to delay loop count.
 SWD_FREQ_MAP = {

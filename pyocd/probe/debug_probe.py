@@ -159,5 +159,8 @@ class DebugProbe(object):
         @eturn Bytearray of the received data.
         """
         raise NotImplementedError()
+    
+    def __repr__(self):
+        return "<{}@{:x} {}>".format(self.__class__.__name__, id(self), self.description)
   
 

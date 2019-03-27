@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,13 +15,16 @@
 # limitations under the License.
 
 from __future__ import absolute_import
-from . import STLinkException
+from ...core import exceptions
+from .. import common
 import usb.core
 import usb.util
 import logging
 import six
 import threading
 from collections import namedtuple
+import platform
+import errno
 
 # Set to True to enable debug logs of USB data transfers.
 LOG_USB_DATA = False
@@ -53,32 +56,36 @@ class STLinkUSBInterface(object):
     
     ## STLink devices only have one USB interface.
     DEBUG_INTERFACE_NUMBER = 0
-
+    
     @classmethod
     def _usb_match(cls, dev):
         try:
             # Check VID/PID.
             isSTLink = (dev.idVendor == cls.USB_VID) and (dev.idProduct in cls.USB_PID_EP_MAP)
             
-            # Try accessing the product name, which will cause a permission error on Linux. Better
-            # to error out here than later when building the device description.
-            if isSTLink:
-                dev.product
+            # Try accessing the current config, which will cause a permission error on Linux. Better
+            # to error out here than later when building the device description. For Windows we
+            # don't need to worry about device permissions, but reading descriptors requires special
+            # handling due to the libusb bug described in __init__().
+            if isSTLink and platform.system() != "Windows":
+                dev.get_active_configuration()
             
             return isSTLink
-        except ValueError as error:
-            # Permission denied error gets reported as ValueError (The device has no langid).
-            log.debug("ValueError \"%s\" while trying to access STLink USB device fields (VID=%04x PID=%04x). "
-                        "This is probably a permission issue.", error, dev.idVendor, dev.idProduct)
-            return False
         except usb.core.USBError as error:
-            log.warning("Exception getting device info (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
+            if error.errno == errno.EACCES and platform.system() == "Linux":
+                # We've already checked that this is an STLink device by VID/PID, so we
+                # can use a warning log level to let the user know it's almost certainly
+                # a permissions issue.
+                log.warning("%s while trying to get the STLink USB device configuration "
+                   "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
+                   "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help.",
+                   error, dev.idVendor, dev.idProduct)
+            else:
+                log.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
+                    dev.idVendor, dev.idProduct, error)
             return False
-        except IndexError as error:
-            log.warning("Internal pyusb error (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
-            return False
-        except NotImplementedError as error:
-            log.warning("Received USB unimplemented error (VID=%04x PID=%04x)", dev.idVendor, dev.idProduct)
+        except (IndexError, NotImplementedError) as error:
+            log.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
     @classmethod
@@ -86,15 +93,18 @@ class STLinkUSBInterface(object):
         try:
             devices = usb.core.find(find_all=True, custom_match=cls._usb_match)
         except usb.core.NoBackendError:
-            # Print a warning if pyusb cannot find a backend, and return no probes.
-            log.warning("STLink probes are not supported because no libusb library was found.")
+            common.show_no_libusb_warning()
             return []
-        
+    
         intfList = []
         for dev in devices:
-            intf = cls(dev)
-            intfList.append(intf)
-        
+            try:
+                intf = cls(dev)
+                intfList.append(intf)
+            except (ValueError, usb.core.USBError, IndexError, NotImplementedError) as error:
+                # Ignore errors that can be raised by libusb, just don't add the device to the list.
+                pass
+    
         return intfList
 
     def __init__(self, dev):
@@ -106,6 +116,21 @@ class STLinkUSBInterface(object):
         self._ep_swv = None
         self._max_packet_size = 64
         self._closed = True
+
+        # Open the device temporarily to read the descriptor strings. The Windows libusb
+        # (version 1.0.22 at the time of this writing) appears to have a bug where it can fail to
+        # properly close a device automatically opened for reading descriptors. The bug manifests
+        # as every other call to get_all_connected_devices() returning no available probes,
+        # caused by a getting a permissions error ("The device has no langid" ValueError) when
+        # attempting to read descriptor strings. If we manually call dispose_resources() after
+        # reading the strings, everything is ok. This workaround doesn't cause any issues with
+        # Linux or macOS.
+        try:
+            self._serial_number = self._dev.serial_number
+            self._vendor_name =  self._dev.manufacturer
+            self._product_name = self._dev.product
+        finally:
+            usb.util.dispose_resources(self._dev)
     
     def open(self):
         assert self._closed
@@ -124,14 +149,14 @@ class STLinkUSBInterface(object):
                 self._ep_swv = endpoint
         
         if not self._ep_out:
-            raise STLinkException("Unable to find OUT endpoint")
+            raise exceptions.ProbeError("Unable to find OUT endpoint")
         if not self._ep_in:
-            raise STLinkException("Unable to find IN endpoint")
+            raise exceptions.ProbeError("Unable to find IN endpoint")
 
         self._max_packet_size = self._ep_in.wMaxPacketSize
         
         # Claim this interface to prevent other processes from accessing it.
-        usb.util.claim_interface(self._dev, 0)
+        usb.util.claim_interface(self._dev, self.DEBUG_INTERFACE_NUMBER)
         
         self._flush_rx()
         self._closed = False
@@ -146,15 +171,15 @@ class STLinkUSBInterface(object):
 
     @property
     def serial_number(self):
-        return self._dev.serial_number
+        return self._serial_number
 
     @property
     def vendor_name(self):
-        return self._dev.manufacturer
+        return self._vendor_name
 
     @property
     def product_name(self):
-        return self._dev.product
+        return self._product_name
 
     @property
     def version_name(self):
@@ -208,7 +233,7 @@ class STLinkUSBInterface(object):
                     log.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
                 return data
         except usb.core.USBError as exc:
-            six.raise_from(STLinkException("USB Error: %s" % exc), exc)
+            six.raise_from(exceptions.ProbeError("USB Error: %s" % exc), exc)
         return None
 
     def read_swv(self, size, timeout=1000):
