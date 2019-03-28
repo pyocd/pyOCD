@@ -66,10 +66,6 @@ ERASE_OPTIONS = {
     'sector': False,
     }
 
-class InvalidArgumentError(RuntimeError):
-    """! @brief Exception class raised for invalid target names."""
-    pass
-
 def convert_frequency(value):
     """! @brief Applies scale suffix to frequency value string."""
     value = value.strip()
@@ -305,9 +301,6 @@ class PyOCDTool(object):
 
             # Successful exit.
             return 0
-        except InvalidArgumentError as e:
-            self._parser.error(e)
-            return 1
         except KeyboardInterrupt:
             return 0
         except Exception as e:
