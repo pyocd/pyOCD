@@ -45,7 +45,8 @@ def _pack_target_create_init_sequence(self):
 
 def _pack_target_set_default_reset_type(self):
     """! @brief Set's the first core's default reset type to the one specified in the pack."""
-    self.cores[0].default_reset_type = self._pack_device.default_reset_type
+    if 0 in self.cores:
+        self.cores[0].default_reset_type = self._pack_device.default_reset_type
 
 def _find_family_class(dev):
     """! @brief Search the families list for matching entry."""
