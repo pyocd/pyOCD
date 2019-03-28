@@ -47,18 +47,6 @@ LEVELS = {
 SUPPORTED_TARGETS = list(sorted(target.TARGET.keys()))
 DEBUG_LEVELS = list(LEVELS.keys())
 
-class InvalidArgumentError(RuntimeError):
-    pass
-
-## @brief Argparse type function to validate the supplied target device name.
-#
-# If the target name is valid, it is returned unmodified to become the --target option's
-# attribute value.
-def validate_target(value):
-    if value.lower() not in SUPPORTED_TARGETS:
-        raise InvalidArgumentError("invalid target option '{}'".format(value))
-    return value
-
 class GDBServerTool(object):
     def __init__(self):
         self.args = None
@@ -84,7 +72,7 @@ class GDBServerTool(object):
         parser.add_argument("--list-targets", action="store_true", dest="list_targets", default=False, help="List all available targets.")
         parser.add_argument("--json", action="store_true", dest="output_json", default=False, help="Output lists in JSON format. Only applies to --list and --list-targets.")
         parser.add_argument("-d", "--debug", dest="debug_level", choices=DEBUG_LEVELS, default='info', help="Set the level of system logging output. Supported choices are: " + ", ".join(DEBUG_LEVELS), metavar="LEVEL")
-        parser.add_argument("-t", "--target", dest="target_override", default=None, help="Override target to debug.", metavar="TARGET", type=validate_target)
+        parser.add_argument("-t", "--target", dest="target_override", default=None, help="Override target to debug.", metavar="TARGET")
         parser.add_argument("-n", "--nobreak", dest="no_break_at_hardfault", action="store_true", help="Disable halt at hardfault handler. (Deprecated)")
         parser.add_argument("-r", "--reset-break", dest="break_on_reset", action="store_true", help="Halt the target when reset. (Deprecated)")
         parser.add_argument("-C", "--vector-catch", default='h', help="Enable vector catch sources, one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none). (Default is hard fault.)")
@@ -271,67 +259,63 @@ class GDBServerTool(object):
                 print(t)
 
     def run(self, args=None):
-        try:
-            self.args = self.build_parser().parse_args(args)
-            self.gdb_server_settings = self.get_gdb_server_settings(self.args)
-            self.setup_logging(self.args)
-            DAPAccess.set_args(self.args.daparg)
+        self.args = self.build_parser().parse_args(args)
+        self.gdb_server_settings = self.get_gdb_server_settings(self.args)
+        self.setup_logging(self.args)
+        DAPAccess.set_args(self.args.daparg)
 
-            if not self.args.no_deprecation_warning:
-                logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
-        
-            self.process_commands(self.args.commands)
+        if not self.args.no_deprecation_warning:
+            logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
+    
+        self.process_commands(self.args.commands)
 
-            gdb = None
-            gdbs = []
-            if self.args.list_all == True:
-                self.list_boards()
-            elif self.args.list_targets == True:
-                self.list_targets()
-            else:
-                try:
-                    # Build dict of session options.
-                    sessionOptions = convert_session_options(self.args.option)
-                    sessionOptions.update(self.gdb_server_settings)
-                    
-                    session = ConnectHelper.session_with_chosen_probe(
-                        config_file=self.args.config,
-                        no_config=self.args.no_config,
-                        pack=self.args.pack,
-                        board_id=self.args.board_id,
-                        target_override=self.args.target_override,
-                        frequency=self.args.frequency,
-                        **sessionOptions)
-                    if session is None:
-                        print("No board selected")
-                        return 1
-                    with session:
-                        # Set ELF if provided.
-                        if self.args.elf:
-                            session.board.target.elf = self.args.elf
-                        for core_number, core in session.board.target.cores.items():
-                            gdb = GDBServer(session,
-                                core=core_number,
-                                server_listening_callback=self.server_listening)
-                            gdbs.append(gdb)
-                        gdb = gdbs[0]
-                        while gdb.isAlive():
-                            gdb.join(timeout=0.5)
-                except KeyboardInterrupt:
-                    for gdb in gdbs:
-                        gdb.stop()
-                except Exception as e:
-                    print("uncaught exception: %s" % e)
-                    traceback.print_exc()
-                    for gdb in gdbs:
-                        gdb.stop()
+        gdb = None
+        gdbs = []
+        if self.args.list_all == True:
+            self.list_boards()
+        elif self.args.list_targets == True:
+            self.list_targets()
+        else:
+            try:
+                # Build dict of session options.
+                sessionOptions = convert_session_options(self.args.option)
+                sessionOptions.update(self.gdb_server_settings)
+                
+                session = ConnectHelper.session_with_chosen_probe(
+                    config_file=self.args.config,
+                    no_config=self.args.no_config,
+                    pack=self.args.pack,
+                    board_id=self.args.board_id,
+                    target_override=self.args.target_override,
+                    frequency=self.args.frequency,
+                    **sessionOptions)
+                if session is None:
+                    print("No board selected")
                     return 1
+                with session:
+                    # Set ELF if provided.
+                    if self.args.elf:
+                        session.board.target.elf = self.args.elf
+                    for core_number, core in session.board.target.cores.items():
+                        gdb = GDBServer(session,
+                            core=core_number,
+                            server_listening_callback=self.server_listening)
+                        gdbs.append(gdb)
+                    gdb = gdbs[0]
+                    while gdb.isAlive():
+                        gdb.join(timeout=0.5)
+            except KeyboardInterrupt:
+                for gdb in gdbs:
+                    gdb.stop()
+            except Exception as e:
+                print("uncaught exception: %s" % e)
+                traceback.print_exc()
+                for gdb in gdbs:
+                    gdb.stop()
+                return 1
 
-            # Successful exit.
-            return 0
-        except InvalidArgumentError as e:
-            self.parser.error(e)
-            return 1
+        # Successful exit.
+        return 0
 
 def main():
     sys.exit(GDBServerTool().run())
