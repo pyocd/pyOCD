@@ -31,6 +31,8 @@ from ..utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
 
+## Sentinel object used to identify an unset chip_erase parameter.
+CHIP_ERASE_SENTINEL = object()
 
 def ranges(i):
     """!
@@ -57,7 +59,7 @@ class FileProgrammer(object):
     - Intel Hex (.hex)
     - ELF (.elf or .axf)
     """
-    def __init__(self, session, progress=None, chip_erase=None, trust_crc=None):
+    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, trust_crc=None):
         """! @brief Constructor.
         
         @param self
@@ -343,9 +345,6 @@ class FlashEraser(object):
             page_addr = spec
             end_addr = page_addr + 1
         return page_addr, end_addr
-
-## Sentinel object used to identify an unset chip_erase parameter.
-CHIP_ERASE_SENTINEL = object()
 
 class FlashLoader(object):
     """! @brief Handles high level programming of raw binary data to flash.
