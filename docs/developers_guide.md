@@ -10,9 +10,15 @@ dependencies for the current platform by following the detailed steps below.
 
 Install the necessary tools listed below. Skip any step where a compatible tool already exists.
 
-* [Install Python](https://www.python.org/downloads/). Version 3.6.0 or above is preferred, while version 2.7.9 or above is also supported. Add to PATH.
+* [Install Python](https://www.python.org/downloads/). It is recommended that you install both
+    Python 3.7.0 or above and Python 2.7.15 or above, in order to test under both versions. Add to
+    PATH.
+    *  Note that on Windows, the 32-bit Python 2.7 must be installed for the Python-enabled gdb to
+        work properly and for the `test/gdb_test.py` functional test to pass.
 * [Install Git](https://git-scm.com/downloads). Add to PATH.
-* [Install virtualenv](https://virtualenv.pypa.io/en/latest/) in your global Python installation, eg: `pip install virtualenv`
+* [Install virtualenv](https://virtualenv.pypa.io/en/latest/) in your global Python installation, eg: `pip install virtualenv`.
+* [Install GNU Arm Embedded toolchain](https://developer.arm.com/tools-and-software/open-source-software/gnu-toolchain/gnu-rm).
+    This provides `arm-none-eabi-gdb` used for testing the gdbserver. Add to PATH.
 
 ## Steps
 
@@ -33,7 +39,7 @@ $ python3 -mvirtualenv venv3
 
 **Step 2.** Activate virtual environment
 
-Activate your virtualenv and install the PyOCD dependencies for the current platform by doing
+Activate your virtualenv and install the pyOCD dependencies for the current platform by doing
 the following.
 
 Linux or Mac:

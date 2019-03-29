@@ -157,6 +157,10 @@ existing setups. The primary difference is the set of gdb monitor commands.
 Recommended GDB and IDE setup
 -----------------------------
 
+The recommended toolchain for embedded Arm Cortex-M development is [GNU Arm
+Embedded](https://developer.arm.com/tools-and-software/open-source-software/gnu-toolchain/gnu-rm),
+provided by Arm. GDB is included with this toolchain.
+
 The GDB server works well with [Eclipse](https://www.eclipse.org/) and the [GNU MCU Eclipse
 plug-ins](https://gnu-mcu-eclipse.github.io/). GNU MCU Eclipse fully supports pyOCD with an included
 pyOCD debugging plugin.
@@ -185,7 +189,7 @@ Contributions
 -------------
 
 We welcome contributions to pyOCD in any area. Please see the [contribution
-guidelines](CONTRIBUTING.md) for details.
+guidelines](CONTRIBUTING.md) for detailed requirements for contributions.
 
 To report bugs, please [create an issue](https://github.com/mbedmicro/pyOCD/issues/new) in the
 GitHub project.
@@ -194,6 +198,7 @@ GitHub project.
 License
 -------
 
-PyOCD is licensed with Apache 2.0. See the [LICENSE](LICENSE) file for the full text of the license.
+PyOCD is licensed with the permissive Apache 2.0 license. See the [LICENSE](LICENSE) file for the
+full text of the license.
 
-Copyright © 2006-2018 Arm Ltd
+Copyright © 2006-2019 Arm Ltd
