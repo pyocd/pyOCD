@@ -22,7 +22,8 @@ from pyocd.core.memory_map import (
     MemoryMap,
     FlashRegion,
     RomRegion,
-    RamRegion
+    RamRegion,
+    DeviceRegion,
     )
 import pytest
 import logging
@@ -140,6 +141,19 @@ class TestMemoryRegion:
     def test_empty_region_2(self):
         with pytest.raises(AssertionError):
             rgn = MemoryRegion(start=0x1000, end=0xfff)
+    
+    def test_default_name(self):
+        rgn = RamRegion(start=0x1000, end=0x1fff)
+        assert rgn.name == 'ram'
+
+        rgn = RomRegion(start=0x1000, end=0x1fff)
+        assert rgn.name == 'rom'
+
+        rgn = FlashRegion(start=0x1000, end=0x1fff)
+        assert rgn.name == 'flash'
+
+        rgn = DeviceRegion(start=0x1000, end=0x1fff)
+        assert rgn.name == 'device'
     
     def test_flash_attrs(self, flash):
         assert flash.type == MemoryType.FLASH

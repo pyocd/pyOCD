@@ -120,7 +120,7 @@ class MemoryRegion(MemoryRangeBase):
     """! @brief One contiguous range of memory."""
     
     DEFAULT_ATTRS = {
-        'name': lambda r: r.attributes.get('name', r.type.name.lower()),
+        'name': lambda r: r.type.name.lower(),
         'access': 'rwx',
         'alias': None,
         'blocksize': 0,
