@@ -48,26 +48,40 @@ class TPIU(CoreSightComponent):
         return self._has_swo_uart
 
     def init(self):
-        """! @brief Configures the TPIU for SWO UART mode."""
+        """! @brief Reads TPIU capabilities.
+        
+        Currently this method simply checks whether the TPIU supports SWO in asynchronous
+        UART mode. The result of this check is available via the has_swo_uart property.
+        """
         devid = self.ap.read32(self.address + TPIU.DEVID)
         self._has_swo_uart = (devid & TPIU.DEVID_NRZ_MASK) != 0
         
+    def set_swo_clock(self, swo_clock, system_clock):
+        """! @brief Prepare TPIU for transmitting SWO at a given baud rate.
+        
+        Configures the TPIU for SWO UART mode, then sets the SWO clock frequency based on
+        the provided system clock.
+        
+        @param self
+        @param swo_clock Desired SWO baud rate in Hertz.
+        @param system_clock The frequency of the SWO clock source in Hertz. This is almost always
+            the system clock, also called the HCLK or fast clock.
+        @return Boolean indicating if SWO UART mode could be configured with the requested
+            baud rate set within 3%.
+        """
+        # First check whether SWO UART is supported.
+        if not self.has_swo_uart:
+            return False
+            
         # Go ahead and configure for SWO.
         self.ap.write32(self.address + TPIU.SPPR, TPIU.SPPR_TXMODE_NRZ) # Select SWO UART mode.
         self.ap.write32(self.address + TPIU.FFCR, 0) # Disable formatter.
     
-    def set_swo_clock(self, swo_clock, system_clock):
-        """! @brief Sets the SWO clock frequency based on the system clock.
-        
-        @param self
-        @param Desired SWO baud rate in Hertz.
-        @param system_clock The frequency of the SWO clock source in Hertz. This is almost always
-            the system clock, also called the HCLK or fast clock.
-        @return Boolean indicating if the requested frequency could be set within 3%.
-        """
+        # Compute the divider.
         div = (system_clock // swo_clock) - 1
         actual = system_clock // (div + 1)
         deltaPercent = abs(swo_clock - actual) / swo_clock
+        # Make sure the target baud rate was met with 3%.
         if deltaPercent > 0.03:
             return False
         self.ap.write32(self.address + TPIU.ACPR, div & TPIU.ACPR_PRESCALER_MASK)

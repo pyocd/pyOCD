@@ -18,7 +18,7 @@ from .target import Target
 from .memory_map import MemoryType
 from . import exceptions
 from ..flash.loader import FlashEraser
-from ..coresight import (dap, cortex_m, rom_table)
+from ..coresight import (dap, cortex_m, cortex_m_v8m, rom_table)
 from ..debug.svd import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
@@ -204,10 +204,13 @@ class CoreSightTarget(Target, GraphNode):
 
     def create_cores(self):
         self._new_core_num = 0
-        self._apply_to_all_components(self._create_component, filter=lambda c: c.factory == cortex_m.CortexM.factory)
+        self._apply_to_all_components(self._create_component,
+            filter=lambda c: c.factory in (cortex_m.CortexM.factory, cortex_m_v8m.CortexM_v8M.factory))
 
     def create_components(self):
-        self._apply_to_all_components(self._create_component, filter=lambda c: c.factory is not None and c.factory != cortex_m.CortexM.factory)
+        self._apply_to_all_components(self._create_component,
+            filter=lambda c: c.factory is not None
+                and c.factory not in (cortex_m.CortexM.factory, cortex_m_v8m.CortexM_v8M.factory))
     
     def _apply_to_all_components(self, action, filter=None):
         # Iterate over every top-level ROM table.

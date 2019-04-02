@@ -46,7 +46,7 @@ CORE_TYPE_NAME = {
                  ARM_CortexM3 : "Cortex-M3",
                  ARM_CortexM4 : "Cortex-M4",
                  ARM_CortexM7 : "Cortex-M7",
-                 ARM_CortexM0p : "Cortex-M0+"
+                 ARM_CortexM0p : "Cortex-M0+",
                }
 
 # Map from register name to DCRSR register index.

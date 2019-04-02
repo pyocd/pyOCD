@@ -320,6 +320,7 @@ class CmsisPackDevice(object):
                         'name': name,
                         'start': start,
                         'length': size,
+                        'access': access,
                         'is_default': isDefault,
                         'is_boot_memory': isStartup,
                         'is_testable': isDefault,
