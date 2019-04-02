@@ -14,13 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...flash.flash import Flash
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from .target_LPC4088FBD144 import (Flash_lpc4088, LPC4088)
-
-SPIFI_START = 0x28000000
-SPIFI_SIZE = 16 * 1024 * 1024
-SPIFI_SECTOR_SIZE = 4 * 1024
+from .target_LPC4088FBD144 import (LARGE_ERASE_SECTOR_WEIGHT, LARGE_PROGRAM_PAGE_WEIGHT, LPC4088)
+from .target_LPC4088FBD144 import FLASH_ALGO as INTERNAL_FLASH_ALGO
 
 FLASH_ALGO = {
     'load_address' : 0x10000000,
@@ -74,26 +70,21 @@ FLASH_ALGO = {
 }
 
 
-class Flash_lpc4088qsb_dm(Flash_lpc4088):
-    def __init__(self, target):
-        super(Flash_lpc4088qsb_dm, self).__init__(target, FLASH_ALGO)
-
-    def program_page(self, flashPtr, bytes):
-        if SPIFI_START <= flashPtr < SPIFI_START + SPIFI_SIZE:
-            assert len(bytes) <= SPIFI_SECTOR_SIZE
-            Flash.program_page(self, flashPtr, bytes)
-        else:
-            super(Flash_lpc4088qsb_dm, self).program_page(flashPtr, bytes)
-
 class LPC4088dm(LPC4088):
 
     memoryMap = MemoryMap(
-        FlashRegion(    start=0,           length=0x10000,      blocksize=0x1000, is_boot_memory=True,
-            flash_class=Flash_lpc4088qsb_dm),
+        FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
+                                                                blocksize=0x1000,
+                                                                page_size=0x200,
+                                                                algo=INTERNAL_FLASH_ALGO),
         FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
-            flash_class=Flash_lpc4088qsb_dm),
-        FlashRegion(    start=0x28000000,  length=0x1000000,    blocksize=0x400,
-            flash_class=Flash_lpc4088qsb_dm),
+                                                                page_size=0x400,
+                                                                erase_sector_weight=LARGE_ERASE_SECTOR_WEIGHT,
+                                                                program_page_weight=LARGE_PROGRAM_PAGE_WEIGHT,
+                                                                algo=INTERNAL_FLASH_ALGO),
+        FlashRegion(    start=0x28000000,  length=0x1000000,    blocksize=0x1000,
+                                                                page_size=0x200,
+                                                                algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x10000),
         )
 

@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ...flash.flash import Flash
 from ...core.coresight_target import (SVDFile, CoreSightTarget)
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...coresight import ap
@@ -53,23 +52,14 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'analyzer_supported' : False
 }
 
-class Flash_lpc54608(Flash):
-    def __init__(self, target):
-        super(Flash_lpc54608, self).__init__(target, FLASH_ALGO)
-
-    def program_page(self, flashPtr, bytes):
-        write_size = 256
-        for i in range(0, 128):
-            data = bytes[i * write_size : (i + 1) * write_size]
-            Flash.program_page(self, flashPtr + i * write_size, data)
-
 class LPC54608(CoreSightTarget):
 
     VENDOR = "NXP"
     
     memoryMap = MemoryMap(
-        FlashRegion(name='flash',   start=0,           length=0x80000,       blocksize=0x8000, is_boot_memory=True,
-            flash_class=Flash_lpc54608),
+        FlashRegion(name='flash',   start=0,           length=0x80000,  is_boot_memory=True,
+                                                                        blocksize=0x8000,
+                                                                        page_size=0x100),
         RamRegion(  name='sramx',   start=0x04000000,  length=0x8000),
         RamRegion(  name='sram0',   start=0x20000000,  length=0x10000),
         RamRegion(  name='sram1',   start=0x20010000,  length=0x10000),

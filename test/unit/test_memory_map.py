@@ -24,6 +24,7 @@ from pyocd.core.memory_map import (
     RomRegion,
     RamRegion,
     DeviceRegion,
+    DefaultFlashWeights
     )
 import pytest
 import logging
@@ -161,6 +162,11 @@ class TestMemoryRegion:
         assert flash.end == 0x3ff
         assert flash.length == 0x400
         assert flash.blocksize == 0x100
+        assert flash.page_size == 0x100
+        assert flash.phrase_size == 0x100
+        assert flash.erase_all_weight == DefaultFlashWeights.ERASE_ALL_WEIGHT
+        assert flash.erase_sector_weight == DefaultFlashWeights.ERASE_SECTOR_WEIGHT
+        assert flash.program_page_weight == DefaultFlashWeights.PROGRAM_PAGE_WEIGHT
         assert flash.name == 'flash'
         assert flash.is_flash
         assert not flash.is_ram
@@ -172,12 +178,38 @@ class TestMemoryRegion:
         assert not flash.is_writable
         assert flash.is_executable
 
+    def test_custom_flash_attrs(self):
+        flash = FlashRegion(start=0x01000000, length=4*1024, blocksize=0x800, name='myflash',
+                            is_boot_memory=False, page_size=256, phrase_size=4,
+                            erase_all_weight=1.2, erase_sector_weight=0.1, program_page_weight=0.25)
+        assert flash.type == MemoryType.FLASH
+        assert flash.start == 0x01000000
+        assert flash.end == 0x01000fff
+        assert flash.length == 0x1000
+        assert flash.blocksize == 0x800
+        assert flash.page_size == 256
+        assert flash.phrase_size == 4
+        assert flash.erase_all_weight == 1.2
+        assert flash.erase_sector_weight == 0.1
+        assert flash.program_page_weight == 0.25
+        assert flash.name == 'myflash'
+        assert flash.is_flash
+        assert not flash.is_ram
+        assert not flash.is_rom
+        assert not flash.is_boot_memory
+        assert flash.is_cacheable
+        assert flash.is_powered_on_boot
+        assert flash.is_readable
+        assert not flash.is_writable
+        assert flash.is_executable
+
     def test_rom_attrs(self, rom):
         assert rom.type == MemoryType.ROM
         assert rom.start == 0x1c000000
         assert rom.end == 0x1c003fff
         assert rom.length == 0x4000
-        assert rom.blocksize == 0
+        with pytest.raises(KeyError):
+            rom.blocksize
         assert rom.name == 'rom'
         assert not rom.is_flash
         assert not rom.is_ram
@@ -194,7 +226,8 @@ class TestMemoryRegion:
         assert ram1.start == 0x20000000
         assert ram1.end == 0x200003ff
         assert ram1.length == 0x400
-        assert ram1.blocksize == 0
+        with pytest.raises(KeyError):
+            ram1.blocksize
         assert ram1.name == 'ram'
         assert not ram1.is_flash
         assert ram1.is_ram
@@ -211,7 +244,8 @@ class TestMemoryRegion:
         assert ram2.start == 0x20000400
         assert ram2.end == 0x200007ff
         assert ram2.length == 0x400
-        assert ram2.blocksize == 0
+        with pytest.raises(KeyError):
+            ram2.blocksize
         assert ram2.name == 'ram2'
         assert not ram2.is_flash
         assert ram2.is_ram

@@ -23,7 +23,7 @@ from enum import Enum
 import six
 import errno
 
-from .flash_builder import FlashBuilder
+from .flash_builder import (FlashBuilder, get_page_count, get_sector_count)
 from ..core.memory_map import MemoryType
 from ..utility.progress import print_progress
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
@@ -59,7 +59,8 @@ class FileProgrammer(object):
     - Intel Hex (.hex)
     - ELF (.elf or .axf)
     """
-    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, trust_crc=None):
+    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, smart_flash=None,
+        trust_crc=None, keep_unwritten=None):
         """! @brief Constructor.
         
         @param self
@@ -70,13 +71,22 @@ class FileProgrammer(object):
         @param chip_erase Sets whether to use chip erase or sector erase. The value must be one of
             None, True, or False. None means the fastest erase method should be used. True means
             to force chip erase, while False means force sector erase.
+        @param smart_flash If set to True, the programmer will attempt to not program pages whose
+            contents are not going to change by scanning target flash memory. A value of False will
+            force all pages to be erased and programmed.
         @param trust_crc Boolean indicating whether to use only the sector CRC32 to decide whether a
             sector already contains the data to be programmed. Use with caution, as CRC32 may return
             the same value for different content.
+        @param keep_unwritten Depending on the sector versus page size and the amount of data
+            written, there may be ranges of flash that would be erased but not written with new
+            data. This parameter sets whether the existing contents of those unwritten ranges will
+            be read from memory and restored while programming.
         """
         self._session = session
         self._chip_erase = chip_erase
+        self._smart_flash = smart_flash
         self._trust_crc = trust_crc
+        self._keep_unwritten = keep_unwritten
         self._progress = progress
         
         self._format_handlers = {
@@ -132,7 +142,9 @@ class FileProgrammer(object):
         self._loader = FlashLoader(self._session,
                                     progress=self._progress,
                                     chip_erase=self._chip_erase,
-                                    trust_crc=self._trust_crc)
+                                    smart_flash=self._smart_flash,
+                                    trust_crc=self._trust_crc,
+                                    keep_unwritten=self._keep_unwritten)
         
         file_obj = None
         try:
@@ -316,7 +328,7 @@ class FlashEraser(object):
         
                 # Erase this page.
                 LOG.info("Erasing sector 0x%08x (%d bytes)", page_addr, page_info.size)
-                flash.erase_page(page_addr)
+                flash.erase_sector(page_addr)
                 
                 page_addr += page_info.size
 
@@ -364,7 +376,8 @@ class FlashLoader(object):
     
     Internally, FlashBuilder is used to optimise programming within each memory region.
     """
-    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, trust_crc=None):
+    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, smart_flash=None,
+        trust_crc=None, keep_unwritten=None):
         """! @brief Constructor.
         
         @param self
@@ -375,9 +388,16 @@ class FlashLoader(object):
         @param chip_erase Sets whether to use chip erase or sector erase. The value must be one of
             None, True, or False. None means the fastest erase method should be used. True means
             to force chip erase, while False means force sector erase.
+        @param smart_flash If set to True, the flash loader will attempt to not program pages whose
+            contents are not going to change by scanning target flash memory. A value of False will
+            force all pages to be erased and programmed.
         @param trust_crc Boolean indicating whether to use only the sector CRC32 to decide whether a
             sector already contains the data to be programmed. Use with caution, as CRC32 may return
-            the same value for different content.
+            the same value for different content. Only applies if smart_flash is True.
+        @param keep_unwritten Depending on the sector versus page size and the amount of data
+            written, there may be ranges of flash that would be erased but not written with new
+            data. This parameter sets whether the existing contents of those unwritten ranges will
+            be read from memory and restored while programming.
         """
         self._session = session
         self._map = session.board.target.memory_map
@@ -392,8 +412,12 @@ class FlashLoader(object):
         # We have to use a special sentinel object for chip_erase because None is a valid value.
         self._chip_erase = chip_erase if (chip_erase is not CHIP_ERASE_SENTINEL) \
                             else self._session.options.get('chip_erase', False)
+        self._smart_flash = smart_flash if (smart_flash is not None) \
+                            else self._session.options.get('smart_flash', True)
         self._trust_crc = trust_crc if (trust_crc is not None) \
                             else self._session.options.get('fast_program', False)
+        self._keep_unwritten = keep_unwritten if (keep_unwritten is not None) \
+                            else self._session.options.get('keep_unwritten', True)
         
         self._reset_state()
     
@@ -474,38 +498,53 @@ class FlashLoader(object):
             
             # Program the data.
             chipErase = self._chip_erase if not didChipErase else False
-            perf = builder.program(chip_erase=chipErase, progress_cb=self._progress_cb, fast_verify=self._trust_crc)
+            perf = builder.program(chip_erase=chipErase,
+                                    progress_cb=self._progress_cb,
+                                    smart_flash=self._smart_flash,
+                                    fast_verify=self._trust_crc,
+                                    keep_unwritten=self._keep_unwritten)
             perfList.append(perf)
             didChipErase = True
             
             self._progress_offset += self._current_progress_fraction
 
+        # Report programming statistics.
+        self._log_performance(perfList)
+        
+        # Clear state to allow reuse.
+        self._reset_state()
+    
+    def _log_performance(self, perf_list):
+        """! @brief Log a report of programming performance numbers."""
         # Compute overall performance numbers.
-        totalByteCount = 0
-        totalPageCount = 0
-        totalSamePageCount = 0
-        totalProgramTime = 0
-        for perf in perfList:
-            totalByteCount += perf.program_byte_count
-            totalPageCount += perf.page_count
-            totalSamePageCount += perf.same_page_count
-            totalProgramTime += perf.program_time
+        totalProgramTime = sum(perf.program_time for perf in perf_list)
+        program_byte_count = sum(perf.total_byte_count for perf in perf_list)
+        actual_program_byte_count = sum(perf.program_byte_count for perf in perf_list)
+        actual_program_page_count = sum(perf.program_page_count for perf in perf_list)
+        skipped_byte_count = sum(perf.skipped_byte_count for perf in perf_list)
+        skipped_page_count = sum(perf.skipped_page_count for perf in perf_list)
         
         # Compute kbps while avoiding a potential zero-div error.
         if totalProgramTime == 0:
             kbps = 0
         else:
-            kbps = (totalByteCount/1024) / totalProgramTime
+            kbps = (program_byte_count/1024) / totalProgramTime
         
-        LOG.info("Programmed %d bytes (%d pages) at %.02f kB/s (%d pages unchanged)",
-            totalByteCount,
-            totalPageCount,
-            kbps,
-            totalSamePageCount)
+        if any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
+            LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+                actual_program_byte_count, get_page_count(actual_program_page_count),
+                skipped_byte_count, get_page_count(skipped_page_count),
+                kbps)
+        else:
+            erase_byte_count = sum(perf.erase_byte_count for perf in perf_list)
+            erase_sector_count = sum(perf.erase_sector_count for perf in perf_list)
+
+            LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s", 
+                erase_byte_count, get_sector_count(erase_sector_count),
+                actual_program_byte_count, get_page_count(actual_program_page_count),
+                skipped_byte_count, get_page_count(skipped_page_count),
+                kbps)
         
-        # Clear state to allow reuse.
-        self._reset_state()
-    
     def _progress_cb(self, amount):
         if self._progress is not None:
             self._progress((amount * self._current_progress_fraction) + self._progress_offset)

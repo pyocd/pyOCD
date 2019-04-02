@@ -922,8 +922,8 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
         RamRegion(name="semc_alias",        start=0x10000000, length=0x10000000, alias='semc'), # 256 MB
         RamRegion(name="dtcm",              start=0x20000000, length=0x80000), # 512 KB
         RamRegion(name="ocram",             start=0x20200000, length=0x80000), # 512 KB
-        FlashRegion(name="flexspi",         start=0x60000000, length=0x1f800000, blocksize=0x1000,
-            is_boot_memory=True, algo=FLASH_ALGO_HYPERFLASH),
+        FlashRegion(name="flexspi",         start=0x60000000, length=0x1f800000, blocksize=0x40000,
+            is_boot_memory=True, algo=FLASH_ALGO_HYPERFLASH, page_size=0x200),
         RamRegion(name="semc",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
 
@@ -946,7 +946,7 @@ class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
         RamRegion(name="dtcm",              start=0x20000000, length=0x80000), # 512 KB
         RamRegion(name="ocram",             start=0x20200000, length=0x80000), # 512 KB
         FlashRegion(name="flexspi",         start=0x60000000, length=0x1f800000, blocksize=0x1000,
-            is_boot_memory=True, algo=FLASH_ALGO_QUADSPI),
+            is_boot_memory=True, algo=FLASH_ALGO_QUADSPI, page_size=0x100),
         RamRegion(name="semc",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
 

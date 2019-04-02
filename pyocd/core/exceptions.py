@@ -67,7 +67,25 @@ class TransferFaultError(TransferError):
   
 class FlashFailure(RuntimeError):
     """! @brief Exception raised when flashing fails for some reason. """
+    def __init__(self, msg, address=None, result_code=None):
+        super(FlashFailure, self).__init__(msg)
+        self._address = address
+        self._result_code = result_code
+    
+    @property
+    def address(self):
+        return self._address
+    
+    @property
+    def result_code(self):
+        return self._result_code
+
+class FlashEraseFailure(FlashFailure):
+    """! @brief An attempt to erase flash failed. """
     pass
 
+class FlashProgramFailure(FlashFailure):
+    """! @brief An attempt to program flash failed. """
+    pass
 
 

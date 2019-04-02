@@ -201,7 +201,7 @@ def basic_test(board_id, file):
             assert address % current_page_size == 0
 
             flash.init(flash.Operation.ERASE)
-            flash.erase_page(address)
+            flash.erase_sector(address)
             flash.uninit()
 
             flash.init(flash.Operation.PROGRAM)
@@ -209,7 +209,7 @@ def basic_test(board_id, file):
             flash.uninit()
         # Erase the middle page
         flash.init(flash.Operation.ERASE)
-        flash.erase_page(addr_flash + page_size)
+        flash.erase_sector(addr_flash + page_size)
         flash.cleanup()
         # Verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
         data = target.read_memory_block8(addr_flash, page_size * 3)

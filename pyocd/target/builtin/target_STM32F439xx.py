@@ -19,6 +19,9 @@ from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd import SVDFile
 
+# Chip erase takes a really long time.
+CHIP_ERASE_WEIGHT = 15.0
+
 class DBGMCU:
     CR = 0xE0042004
     CR_VALUE = 0x7 # DBG_STANDBY | DBG_STOP | DBG_SLEEP
@@ -61,28 +64,18 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'analyzer_address' : 0x20002000
   }
 
-# @brief Flash algorithm for STM32F439xx device.
-class Flash_stm32f439xx(Flash):
-    # Chip erase takes a really long time.
-    CHIP_ERASE_WEIGHT = 15.0
-
-    def __init__(self, target):
-        super(Flash_stm32f439xx, self).__init__(target, FLASH_ALGO)
-
-    def get_flash_info(self):
-        info = super(Flash_stm32f439xx, self).get_flash_info()
-        info.erase_weight = self.CHIP_ERASE_WEIGHT
-        return info
-
 class STM32F439xG(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
     
     memoryMap = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True,
-            flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08020000, length=0x60000, blocksize=0x20000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08000000, length=0x10000,  blocksize=0x4000, 
+                                                        is_boot_memory=True,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08010000, length=0x10000,  blocksize=0x10000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08020000, length=0x60000,  blocksize=0x20000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
         RamRegion(   start=0x20000000, length=0x40000)
         )
 
@@ -109,13 +102,19 @@ class STM32F439xI(CoreSightTarget):
     VENDOR = "STMicroelectronics"
     
     memoryMap = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True,
-            flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08020000, length=0xe0000, blocksize=0x20000, flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08100000, length=0x10000, blocksize=0x4000, flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08110000, length=0x10000, blocksize=0x10000, flash_class=Flash_stm32f439xx),
-        FlashRegion( start=0x08120000, length=0xe0000, blocksize=0x20000, flash_class=Flash_stm32f439xx),
+        FlashRegion( start=0x08000000, length=0x10000,  blocksize=0x4000,
+                                                        is_boot_memory=True,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08010000, length=0x10000,  blocksize=0x10000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08020000, length=0xe0000,  blocksize=0x20000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08100000, length=0x10000,  blocksize=0x4000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08110000, length=0x10000,  blocksize=0x10000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+        FlashRegion( start=0x08120000, length=0xe0000,  blocksize=0x20000,
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
         RamRegion(   start=0x20000000, length=0x30000)
         )
 
