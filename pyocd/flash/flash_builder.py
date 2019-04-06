@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ..core.target import Target
-from ..core.exceptions import FlashFailure
+from ..core.exceptions import (FlashFailure, FlashProgramFailure)
 from ..utility.notification import Notification
 from ..utility.mask import same
 import logging
@@ -689,6 +689,9 @@ class FlashBuilder(object):
 
             # Wait for the program to complete.
             result = self.flash.wait_for_completion()
+            if result != 0:
+                raise FlashProgramFailure('program_page(0x%x) error: %i'
+                        % (current_addr, result), current_addr, result)
 
             # Swap buffers.
             current_buf, next_buf = next_buf, current_buf
@@ -857,6 +860,9 @@ class FlashBuilder(object):
 
                 # Wait for the program to complete.
                 result = self.flash.wait_for_completion()
+                if result != 0:
+                    raise FlashProgramFailure('program_page(0x%x) error: %i'
+                            % (current_addr, result), current_addr, result)
                 
                 # Swap buffers.
                 current_buf, next_buf = next_buf, current_buf

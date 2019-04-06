@@ -247,7 +247,7 @@ class Flash(object):
 
             # check the return code
             if result != 0:
-                LOG.error('init error: %i', result)
+                raise FlashFailure('init error: %i' % result, result_code=result)
         
         self._active_operation = operation
 
@@ -280,7 +280,7 @@ class Flash(object):
             
             # check the return code
             if result != 0:
-                LOG.error('init error: %i', result)
+                raise FlashFailure('uninit error: %i' % result, result_code=result)
             
         self._active_operation = None
 
@@ -324,6 +324,8 @@ class Flash(object):
     def erase_all(self):
         """!
         @brief Erase all the flash.
+        
+        @exception FlashEraseFailure
         """
         assert self._active_operation == self.Operation.ERASE
         assert self.is_erase_all_supported
@@ -338,6 +340,8 @@ class Flash(object):
     def erase_sector(self, address):
         """!
         @brief Erase one sector.
+        
+        @exception FlashEraseFailure
         """
         assert self._active_operation == self.Operation.ERASE
 
@@ -351,6 +355,8 @@ class Flash(object):
     def program_page(self, address, bytes):
         """!
         @brief Flash one or more pages.
+        
+        @exception FlashProgramFailure
         """
         assert self._active_operation == self.Operation.PROGRAM
 
@@ -401,6 +407,7 @@ class Flash(object):
         
         @exception FlashFailure The address or data length is not aligned to the minimum
             programming length specified in the flash algorithm.
+        @exception FlashProgramFailure
         """
         assert self._active_operation == self.Operation.PROGRAM
 
