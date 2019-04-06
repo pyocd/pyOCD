@@ -95,13 +95,24 @@ FLASH_ALGO = {
 class MuscaA1(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='qspi',     start=0x10200000, length=0x40000, blocksize=0x100,
-            is_boot_memory=True, algo=FLASH_ALGO),
-        RamRegion(  name='code_ram', start=0x00000000, length=0x200000),
-        RamRegion(  name='sys_ram',  start=0x20000000, length=0x20000),
+        FlashRegion(name='nqspi',    start=0x00200000, length=0x00040000, access='rx',
+                        blocksize=0x10000,
+                        page_size=0x100,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        FlashRegion(name='sqspi',    start=0x10200000, length=0x00040000, access='rxs',
+                        blocksize=0x10000,
+                        page_size=0x100,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        RamRegion(  name='ncoderam', start=0x00000000, length=0x00200000, access='rwx'),
+        RamRegion(  name='scoderam', start=0x10000000, length=0x00200000, access='rwxs',
+                        alias='ncoderam'),
+        RamRegion(  name='nsysram',  start=0x20000000, length=0x00020000, access='rwx'),
+        RamRegion(  name='ssysram',  start=0x30000000, length=0x00020000, access='rwxs',
+                        alias='nsysram'),
         )
 
     def __init__(self, link):
         super(MuscaA1, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Arm", filename="Musca.svd", is_local=False)
 

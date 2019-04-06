@@ -198,14 +198,38 @@ class Flash(object):
 
     def init(self, operation, address=None, clock=0, reset=True):
         """!
-        @brief Prepare the flash algorithm for performing erase and program operations.
+        @brief Prepare the flash algorithm for performing operations.
+        
+        First, the target is prepared to execute flash algo operations, including loading the algo
+        to target RAM. This step is skipped if the target is already prepared, i.e., init() has been
+        called, but cleanup() not called yet.
+        
+        Next, the algo's Init() function is called with the provided parameters. If the algo does
+        not have an Init() function, this step is skipped. Calling Init() is also skipped if the
+        algo was previously inited for the same operation without an intervening uninit. If the
+        algo is already inited for a different operation, uninit() is automatically called prior
+        to intiting for the new operation.
+        
+        @exception FlashFailure
         """
         if address is None:
             address = self.get_flash_info().rom_start
         
         assert isinstance(operation, self.Operation)
+        assert (self._did_prepare_target) or (not self._did_prepare_target and self._active_operation is None)
         
         self.target.halt()
+        
+        # Handle the algo already being inited.
+        if self._active_operation is not None:
+            # Uninit if the algo was left inited for a different operation.
+            if self._active_operation != operation:
+                self.uninit()
+            # Don't need to reinit for the same operation.
+            else:
+                return
+
+        # Setup target for running the flash algo.
         if not self._did_prepare_target:
             if reset:
                 self.target.reset_and_halt(Target.ResetType.SW)
@@ -223,16 +247,29 @@ class Flash(object):
 
             # check the return code
             if result != 0:
-                LOG.error('init error: %i', result)
+                raise FlashFailure('init error: %i' % result, result_code=result)
         
         self._active_operation = operation
 
     def cleanup(self):
+        """! @brief Deinitialize the flash algo and restore the target.
+        
+        Before further operations are executed, the algo must be reinited. Unlike uninit(), this
+        method marks the target and unprepared to execute flash algo functions. So on the next call
+        to init(), the target will be prepared and the algo loaded into RAM.
+        """
         self.uninit()
         self.restore_target()
         self._did_prepare_target = False
 
     def uninit(self):
+        """! @brief Uninitialize the flash algo.
+        
+        Before further operations are executed, the algo must be reinited. The target is left in
+        a state where algo does not have to be reloaded when init() is called.
+        
+        @exception FlashFailure
+        """
         if self._active_operation is None:
             return
         
@@ -243,7 +280,7 @@ class Flash(object):
             
             # check the return code
             if result != 0:
-                LOG.error('init error: %i', result)
+                raise FlashFailure('uninit error: %i' % result, result_code=result)
             
         self._active_operation = None
 
@@ -287,6 +324,8 @@ class Flash(object):
     def erase_all(self):
         """!
         @brief Erase all the flash.
+        
+        @exception FlashEraseFailure
         """
         assert self._active_operation == self.Operation.ERASE
         assert self.is_erase_all_supported
@@ -301,6 +340,8 @@ class Flash(object):
     def erase_sector(self, address):
         """!
         @brief Erase one sector.
+        
+        @exception FlashEraseFailure
         """
         assert self._active_operation == self.Operation.ERASE
 
@@ -314,6 +355,8 @@ class Flash(object):
     def program_page(self, address, bytes):
         """!
         @brief Flash one or more pages.
+        
+        @exception FlashProgramFailure
         """
         assert self._active_operation == self.Operation.PROGRAM
 
@@ -364,6 +407,7 @@ class Flash(object):
         
         @exception FlashFailure The address or data length is not aligned to the minimum
             programming length specified in the flash algorithm.
+        @exception FlashProgramFailure
         """
         assert self._active_operation == self.Operation.PROGRAM
 
