@@ -31,6 +31,8 @@ from pyocd.core.memory_map import MemoryType
 from pyocd.utility import conversion
 from test_util import (Test, TestResult, get_session_options, get_target_test_params)
 
+_1MB = (1 * 1024 * 1024)
+
 class SpeedTestResult(TestResult):
     def __init__(self):
         super(SpeedTestResult, self).__init__(None, None, None)
@@ -86,10 +88,12 @@ def speed_test(board_id):
         ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
+        # Limit region sizes used for performance testing to 1 MB. We don't really need to
+        # be reading all 32 MB of a QSPI!
         ram_start = ram_region.start
-        ram_size = ram_region.length
+        ram_size = min(ram_region.length, _1MB)
         rom_start = rom_region.start
-        rom_size = rom_region.length
+        rom_size = min(rom_region.length, _1MB)
 
         target = board.target
 

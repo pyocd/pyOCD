@@ -770,7 +770,7 @@ class FlashBuilder(object):
             for page in unknown_pages:
                 if page.cached_estimate_data is not None:
                     data = page.cached_estimate_data
-                    offset = len(cached_data)
+                    offset = len(data)
                 else:
                     data = []
                     offset = 0
