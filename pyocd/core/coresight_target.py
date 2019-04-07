@@ -69,9 +69,9 @@ class CoreSightTarget(Target, GraphNode):
     
     @selected_core.setter
     def selected_core(self, core_number):
-        if num not in self.cores:
-            raise ValueError("invalid core number")
-        logging.debug("selected core #%d" % num)
+        if core_number not in self.cores:
+            raise ValueError("invalid core number %d" % core_number)
+        logging.debug("selected core #%d" % core_number)
         self._selected_core = core_number
 
     @property
