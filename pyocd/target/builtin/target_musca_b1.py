@@ -186,6 +186,8 @@ FLASH_ALGO_EFLASH = {
 
 class MuscaB1(CoreSightTarget):
 
+    VENDOR = "Arm"
+    
     memoryMap = MemoryMap(
         FlashRegion(name='neflash',     start=0x0A000000, length=0x00200000, access='rx',
                         blocksize=0x4000,
