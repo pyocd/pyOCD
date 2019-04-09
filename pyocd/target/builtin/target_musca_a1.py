@@ -96,21 +96,45 @@ FLASH_ALGO = {
 class MuscaA1(CoreSightTarget):
 
     memoryMap = MemoryMap(
+        # Due to an errata, only the first 256 kB of QSPI is memory mapped. The remainder
+        # of the 8 MB region can be read and written via register accesses only.
         FlashRegion(name='nqspi',    start=0x00200000, length=0x00040000, access='rx',
                         blocksize=0x10000,
                         page_size=0x100,
                         is_boot_memory=True,
+                        is_external=True,
                         algo=FLASH_ALGO),
         FlashRegion(name='sqspi',    start=0x10200000, length=0x00040000, access='rxs',
                         blocksize=0x10000,
                         page_size=0x100,
                         is_boot_memory=True,
+                        is_external=True,
+                        algo=FLASH_ALGO,
+                        alias='nqspi'),
+        # Because of the above mentioned errata, these "*qspix" regions don't really exist
+        # in the memory map, but are present to allow the full QSPI to be programmed by the
+        # flash algo.
+        FlashRegion(name='nqspix',   start=0x00240000, length=0x007c0000, access='',
+                        blocksize=0x10000,
+                        page_size=0x100,
+                        is_default=False,
+                        is_testable=False,
+                        is_external=True,
                         algo=FLASH_ALGO),
+        FlashRegion(name='sqspix',   start=0x10240000, length=0x007c0000, access='s',
+                        blocksize=0x10000,
+                        page_size=0x100,
+                        is_default=False,
+                        is_testable=False,
+                        is_external=True,
+                        algo=FLASH_ALGO,
+                        alias='nqspix'),
         RamRegion(  name='ncoderam', start=0x00000000, length=0x00200000, access='rwx'),
         RamRegion(  name='scoderam', start=0x10000000, length=0x00200000, access='rwxs',
                         alias='ncoderam'),
-        RamRegion(  name='nsysram',  start=0x20000000, length=0x00020000, access='rwx'),
-        RamRegion(  name='ssysram',  start=0x30000000, length=0x00020000, access='rwxs',
+        # Due to an errata, the first 8 kB of sysram is not accessible to the debugger.
+        RamRegion(  name='nsysram',  start=0x20002000, length=0x0001e000, access='rwx'),
+        RamRegion(  name='ssysram',  start=0x30002000, length=0x0001e000, access='rwxs',
                         alias='nsysram'),
         )
 
