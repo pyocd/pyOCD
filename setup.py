@@ -51,8 +51,6 @@ setup(
         'intelhex>=2.0,<3.0',
         'six>=1.0,<2.0',
         'enum34>=1.0,<2.0;python_version<"3.4"',
-        'future',
-        'websocket-client',
         'intervaltree>=3.0.2,<4.0',
         'colorama',
         'pyelftools',
