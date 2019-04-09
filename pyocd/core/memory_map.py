@@ -148,6 +148,7 @@ class MemoryRegion(MemoryRangeBase):
     - `is_writable`
     - `is_executable`
     - `is_secure`
+    - `is_nonsecure`
     """
     
     ## Default attribute values for all memory region types.
@@ -170,6 +171,7 @@ class MemoryRegion(MemoryRangeBase):
         'is_writable': lambda r: 'w' in r.access,
         'is_executable': lambda r: 'x' in r.access,
         'is_secure': lambda r: 's' in r.access,
+        'is_nonsecure': lambda r: not r.is_secure,
         }
     
     def __init__(self, type=MemoryType.OTHER, start=0, end=0, length=None, **attrs):
@@ -242,8 +244,14 @@ class RamRegion(MemoryRegion):
 
 class RomRegion(MemoryRegion):
     """! @brief Contiguous region of ROM."""
+
+    # Default attribute values for ROM regions.
+    DEFAULT_ATTRS = MemoryRegion.DEFAULT_ATTRS.copy()
+    DEFAULT_ATTRS.update({
+        'access': 'rx', # ROM is by definition not writable.
+        })
+
     def __init__(self, start=0, end=0, length=None, **attrs):
-        attrs['access'] = attrs.get('access', 'rx')
         super(RomRegion, self).__init__(type=MemoryType.ROM, start=start, end=end, length=length, **attrs)
 
 class DefaultFlashWeights:
@@ -269,26 +277,30 @@ class FlashRegion(MemoryRegion):
     - `flash_class`: The class that manages individual flash algorithm operations. Must be either
         @ref pyocd.flash.flash.Flash "Flash", which is the default, or a subclass.
     - `flash`: After connection, this attribute holds the instance of `flash_class` for this region.
+    
+    `sector_size` and `blocksize` are aliases of each other. If one is set via the constructor, the
+    other will have the same value.
     """
 
     # Add some default attribute values for flash regions.
     DEFAULT_ATTRS = MemoryRegion.DEFAULT_ATTRS.copy()
     DEFAULT_ATTRS.update({
-        'blocksize': 0, # Erase sector size.
+        'blocksize': lambda r: r.sector_size, # Erase sector size. Alias for sector_size.
+        'sector_size': lambda r: r.blocksize, # Erase sector size. Alias for blocksize.
         'page_size': lambda r: r.blocksize, # Program page size.
         'phrase_size': lambda r: r.page_size, # Minimum programmable unit.
         'erase_all_weight': DefaultFlashWeights.ERASE_ALL_WEIGHT,
         'erase_sector_weight': DefaultFlashWeights.ERASE_SECTOR_WEIGHT,
         'program_page_weight': DefaultFlashWeights.PROGRAM_PAGE_WEIGHT,
-        'erased_byte_value': 0,
+        'erased_byte_value': 0xff,
+        'access': 'rx', # By default flash is not writable.
         })
 
     def __init__(self, start=0, end=0, length=None, **attrs):
         # Import locally to prevent import loops.
         from ..flash.flash import Flash
 
-        attrs['access'] = attrs.get('access', 'rx') # By default flash is not writable.
-        attrs['erased_byte_value'] = attrs.get('erased_byte_value', 0xff)
+        assert ('blocksize' in attrs) or ('sector_size' in attrs)
         super(FlashRegion, self).__init__(type=MemoryType.FLASH, start=start, end=end, length=length, **attrs)
         self._algo = attrs.get('algo', None)
         self._flm = None
@@ -350,10 +362,16 @@ class FlashRegion(MemoryRegion):
 
 class DeviceRegion(MemoryRegion):
     """! @brief Device or peripheral memory."""
+
+    # Default attribute values for device regions.
+    DEFAULT_ATTRS = MemoryRegion.DEFAULT_ATTRS.copy()
+    DEFAULT_ATTRS.update({
+        'access': 'rw', # By default device regions are not executable.
+        'is_cacheable': False,
+        'is_testable': False,
+        })
+
     def __init__(self, start=0, end=0, length=None, **attrs):
-        attrs['access'] = attrs.get('access', 'rw') # By default device regions are not executable.
-        attrs['is_cacheable'] = False
-        attrs['is_testable'] = False
         super(DeviceRegion, self).__init__(type=MemoryType.DEVICE, start=start, end=end, length=length, **attrs)
 
 ## @brief Map from memory type to class.         
