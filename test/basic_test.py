@@ -59,7 +59,6 @@ def basic_test(board_id, file):
         addr = ram_region.start
         size = 0x502
         addr_bin = rom_region.start
-        addr_flash = rom_region.start + rom_region.length // 2
 
         target = board.target
         flash = rom_region.flash
@@ -190,10 +189,12 @@ def basic_test(board_id, file):
 
         print("\n\n------ TEST PROGRAM/ERASE PAGE ------")
         # Fill 3 pages with 0x55
-        sector_size = flash.get_sector_info(addr_flash).size
-        page_size = flash.get_page_info(addr_flash).size
+        sector_size = rom_region.sector_size
+        page_size = rom_region.page_size
+        sectors_to_test = min(rom_region.length // sector_size, 3)
+        addr_flash = rom_region.start + rom_region.length - sector_size * sectors_to_test
         fill = [0x55] * page_size
-        for i in range(0, 3):
+        for i in range(0, sectors_to_test):
             address = addr_flash + sector_size * i
             # Test only supports a location with 3 aligned
             # pages of the same size
@@ -220,10 +221,11 @@ def basic_test(board_id, file):
                     print("FAILED to program page @ 0x%x (%d bytes)" % (address, page_size))
 
         # Erase the middle sector
-        address = addr_flash + sector_size
-        print("Erasing sector @ 0x%x (%d bytes)" % (address, sector_size))
-        flash.init(flash.Operation.ERASE)
-        flash.erase_sector(address)
+        if sectors_to_test > 1:
+            address = addr_flash + sector_size
+            print("Erasing sector @ 0x%x (%d bytes)" % (address, sector_size))
+            flash.init(flash.Operation.ERASE)
+            flash.erase_sector(address)
         flash.cleanup()
 
         print("Verifying erased sector @ 0x%x (%d bytes)" % (address, sector_size))
@@ -233,7 +235,7 @@ def basic_test(board_id, file):
        
         # Re-verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
         did_pass = False
-        for i in range(0, 3):
+        for i in range(0, sectors_to_test):
             address = addr_flash + sector_size * i
             print("Verifying page @ 0x%x (%d bytes)" % (address, page_size))
             data = target.read_memory_block8(address, page_size)
