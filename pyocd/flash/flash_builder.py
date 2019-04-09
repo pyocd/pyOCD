@@ -293,7 +293,7 @@ class FlashBuilder(object):
         if len(current_page.data) != current_page.size:
             page_data_end = current_page.addr + len(current_page.data)
             old_data_len = current_page.size - len(current_page.data)
-            if keep_unwritten:
+            if keep_unwritten and self.flash.region.is_readable:
                 self._enable_read_access()
                 old_data = self.flash.target.read_memory_block8(page_data_end, old_data_len)
             else:
@@ -302,7 +302,7 @@ class FlashBuilder(object):
             self.program_byte_count += old_data_len
         
         # Go back through sectors and fill any missing pages with existing data.
-        if keep_unwritten:
+        if keep_unwritten and self.flash.region.is_readable:
             self._fill_unwritten_sector_pages()
         
     def _fill_unwritten_sector_pages(self):
@@ -588,9 +588,14 @@ class FlashBuilder(object):
         if self.flash.get_flash_info().crc_supported:
             self._analyze_pages_with_crc32(fast_verify)
             self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_CRC32
-        else:
+        elif self.flash.region.is_readable:
             self._analyze_pages_with_partial_read()
             self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_PARTIAL_PAGE_READ
+        else:
+            # The CRC analyzer isn't supported and flash isn't directly readable, so
+            # just mark all pages as needing programming. This will also prevent
+            # _scan_pages_for_same() from trying to read flash.
+            self._mark_all_pages_for_programming()
 
         # Put together page and time estimate.
         sector_erase_count = 0
