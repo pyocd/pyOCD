@@ -1,6 +1,7 @@
 include pytest.ini
 include Doxyfile
 include dev-requirements.txt
+include pyocd/debug/svd/*.zip
 recursive-include docs *
 recursive-include udev *
 recursive-include binaries *
