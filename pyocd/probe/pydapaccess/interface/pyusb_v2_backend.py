@@ -293,7 +293,7 @@ class HasCmsisDapv2Interface(object):
                 LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
                     dev.idVendor, dev.idProduct, error)
             return False
-        except (IndexError, NotImplementedError) as error:
+        except (IndexError, NotImplementedError, ValueError) as error:
             LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
