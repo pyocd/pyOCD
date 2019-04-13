@@ -25,6 +25,7 @@ import threading
 from collections import namedtuple
 import platform
 import errno
+from binascii import hexlify
 
 # Set to True to enable debug logs of USB data transfers.
 LOG_USB_DATA = False
@@ -126,8 +127,12 @@ class STLinkUSBInterface(object):
         # reading the strings, everything is ok. This workaround doesn't cause any issues with
         # Linux or macOS.
         try:
-            self._serial_number = self._dev.serial_number
-            self._vendor_name =  self._dev.manufacturer
+            if len(self._dev.serial_number) == 12:  # Workaround for unprintable characters in the ST-Link V2 probes
+                self._serial_number = hexlify(self._dev.serial_number.encode('utf-16-le')[::2])\
+                    .decode('utf-8', 'replace').upper()
+            else:
+                self._serial_number = self._dev.serial_number
+            self._vendor_name = self._dev.manufacturer
             self._product_name = self._dev.product
         finally:
             usb.util.dispose_resources(self._dev)
