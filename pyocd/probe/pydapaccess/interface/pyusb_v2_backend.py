@@ -268,8 +268,15 @@ class HasCmsisDapv2Interface(object):
         
         try:
             def match_cmsis_dap_interface_name(desc):
-                interface_name = usb.util.get_string(desc.device, desc.iInterface)
-                return (interface_name is not None) and ("CMSIS-DAP" in interface_name)
+                try:
+                    interface_name = usb.util.get_string(desc.device, desc.iInterface)
+                    return (interface_name is not None) and ("CMSIS-DAP" in interface_name)
+                except UnicodeDecodeError:
+                    # This exception can be raised if the device has a corrupted interface name.
+                    # Certain versions of STLinkV2 are known to have this problem. If we can't
+                    # read the interface name, there's no way to tell if it's a CMSIS-DAPv2
+                    # interface.
+                    return False
 
             config = dev.get_active_configuration()
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=match_cmsis_dap_interface_name)
