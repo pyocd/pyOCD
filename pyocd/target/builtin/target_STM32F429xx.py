@@ -71,11 +71,14 @@ class STM32F429xG(CoreSightTarget):
     memoryMap = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000,  blocksize=0x4000,
                                                         is_boot_memory=True,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08010000, length=0x10000,  blocksize=0x10000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08020000, length=0x60000,  blocksize=0x20000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x40000)
         )
 
@@ -104,17 +107,23 @@ class STM32F429xI(CoreSightTarget):
     memoryMap = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000,  blocksize=0x4000,
                                                         is_boot_memory=True,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08010000, length=0x10000,  blocksize=0x10000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08020000, length=0xe0000,  blocksize=0x20000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08100000, length=0x10000,  blocksize=0x4000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08110000, length=0x10000,  blocksize=0x10000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         FlashRegion( start=0x08120000, length=0xe0000,  blocksize=0x20000,
-                                                        erase_all_weight=CHIP_ERASE_WEIGHT),
+                                                        erase_all_weight=CHIP_ERASE_WEIGHT,
+                                                        algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x30000)
         )
 
