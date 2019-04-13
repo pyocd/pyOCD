@@ -17,7 +17,7 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 
 class DBGMCU:
     # en.DM00108282.pdf (STM32L0x1 Reference manual)
@@ -89,6 +89,7 @@ class STM32L031x6(CoreSightTarget):
 
     def __init__(self, link):
         super(STM32L031x6, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile.from_builtin("STM32L0x1.svd")
 
     def create_init_sequence(self):
         seq = super(STM32L031x6, self).create_init_sequence()

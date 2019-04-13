@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 
 FLASH_ALGO = { 'load_address' : 0x10000000,
                'instructions' : [
@@ -328,7 +329,7 @@ class LPC4330(CoreSightTarget):
     def __init__(self, link):
         super(LPC4330, self).__init__(link, self.memoryMap)
         self.ignoreReset = False
-        self._svd_location = SVDFile(vendor="NXP", filename="LPC43xx_svd_v5.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("LPC43xx_svd_v5.svd")
 
     def reset(self, reset_type=None):
         # Always use software reset for LPC4330 since the hardware version

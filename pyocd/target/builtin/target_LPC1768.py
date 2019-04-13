@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
+from ...debug.svd.loader import SVDFile
 
 LARGE_PAGE_START_ADDR = 0x10000
 SMALL_PAGE_SIZE = 0x1000
@@ -81,7 +82,7 @@ class LPC1768(CoreSightTarget):
 
     def __init__(self, link):
         super(LPC1768, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="NXP", filename="LPC176x5x_v0.2.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("LPC176x5x_v0.2.svd")
 
     def reset(self, reset_type=None):
         super(LPC1768, self).reset(self.ResetType.HW)

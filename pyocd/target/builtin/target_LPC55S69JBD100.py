@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
@@ -121,6 +122,7 @@ class LPC55S69JBD100(CoreSightTarget):
 
     def __init__(self, link):
         super(LPC55S69JBD100, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile.from_builtin("LPC55S69_cm33_core0.xml")
 
     def create_init_sequence(self):
         seq = super(LPC55S69JBD100, self).create_init_sequence()

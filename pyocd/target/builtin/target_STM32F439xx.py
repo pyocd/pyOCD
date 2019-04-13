@@ -17,7 +17,7 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 
 # Chip erase takes a really long time.
 CHIP_ERASE_WEIGHT = 15.0
@@ -84,7 +84,7 @@ class STM32F439xG(CoreSightTarget):
 
     def __init__(self, transport):
         super(STM32F439xG, self).__init__(transport, self.memoryMap)
-        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F439x.svd")
+        self._svd_location = SVDFile.from_builtin("STM32F439x.svd")
         
     def create_init_sequence(self):
         seq = super(STM32F439xG, self).create_init_sequence()
@@ -129,7 +129,7 @@ class STM32F439xI(CoreSightTarget):
 
     def __init__(self, transport):
         super(STM32F439xI, self).__init__(transport, self.memoryMap)
-        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F439x.svd")
+        self._svd_location = SVDFile.from_builtin("STM32F439x.svd")
         
     def create_init_sequence(self):
         seq = super(STM32F439xI, self).create_init_sequence()

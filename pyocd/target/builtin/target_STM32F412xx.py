@@ -17,7 +17,7 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 
 class DBGMCU:
     CR = 0xE0042004
@@ -74,7 +74,7 @@ class STM32F412xE(CoreSightTarget):
 
     def __init__(self, transport):
         super(STM32F412xE, self).__init__(transport, self.memoryMap)
-        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F41x.svd")
+        self._svd_location = SVDFile.from_builtin("STM32F41x.svd")
         
     def create_init_sequence(self):
         seq = super(STM32F412xE, self).create_init_sequence()
@@ -103,7 +103,7 @@ class STM32F412xG(CoreSightTarget):
 
     def __init__(self, transport):
         super(STM32F412xG, self).__init__(transport, self.memoryMap)
-        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F41x.svd")
+        self._svd_location = SVDFile.from_builtin("STM32F41x.svd")
         
     def create_init_sequence(self):
         seq = super(STM32F412xG, self).create_init_sequence()

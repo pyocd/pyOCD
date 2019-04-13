@@ -15,8 +15,9 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 import logging
 
 #DBGMCU clock
@@ -78,7 +79,7 @@ class STM32F051(CoreSightTarget):
 
     def __init__(self, link):
         super(STM32F051, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="STMicro", filename="STM32F0xx.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("STM32F0xx.svd")
 
     def create_init_sequence(self):
         seq = super(STM32F051, self).create_init_sequence()

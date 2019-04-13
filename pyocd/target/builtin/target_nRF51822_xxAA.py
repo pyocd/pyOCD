@@ -15,8 +15,9 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 import logging
 
 # NRF51 specific registers
@@ -61,7 +62,7 @@ class NRF51(CoreSightTarget):
 
     def __init__(self, link):
         super(NRF51, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Nordic", filename="nrf51.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("nrf51.svd")
 
     def resetn(self):
         """
