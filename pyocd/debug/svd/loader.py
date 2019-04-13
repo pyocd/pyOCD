@@ -16,13 +16,23 @@
 
 import threading
 import logging
+import pkg_resources
+from zipfile import ZipFile
 
 from .parser import SVDParser
 
+## Path within the pyocd package to the generated zip containing builting SVD files.
+BUILTIN_SVD_DATA_PATH = "debug/svd/svd_data.zip"
+
 class SVDFile(object):
-    def __init__(self, filename=None, vendor=None):
+    @classmethod
+    def from_builtin(cls, svd_name):
+        zip_stream = pkg_resources.resource_stream("pyocd", BUILTIN_SVD_DATA_PATH)
+        zip = ZipFile(zip_stream, 'r')
+        return SVDFile(zip.open(svd_name))
+    
+    def __init__(self, filename=None):
         self.filename = filename
-        self.vendor = vendor
         self.device = None
 
     def load(self):
