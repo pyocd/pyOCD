@@ -56,7 +56,8 @@ class LPC11XX_32(CoreSightTarget):
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,       is_boot_memory=True,
                                                                 blocksize=4096,
-                                                                page_size=256),
+                                                                page_size=256,
+                                                                algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 

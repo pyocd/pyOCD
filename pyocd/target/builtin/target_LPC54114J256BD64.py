@@ -63,7 +63,8 @@ class LPC54114(CoreSightTarget):
     memoryMap = MemoryMap(
         FlashRegion(name='flash',   start=0,           length=0x40000,  is_boot_memory=True,
                                                                         blocksize=0x8000,
-                                                                        page_size=0x100),
+                                                                        page_size=0x100,
+                                                                        algo=FLASH_ALGO),
         RamRegion(  name='sramx',   start=0x04000000,  length=0x8000),
         RamRegion(  name='sram0',   start=0x20000000,  length=0x10000),
         RamRegion(  name='sram1',   start=0x20010000,  length=0x10000),

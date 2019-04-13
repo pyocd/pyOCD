@@ -54,7 +54,8 @@ class LPC11U24(CoreSightTarget):
         FlashRegion(    start=0,           length=0x8000,   is_boot_memory=True,
                                                             blocksize=0x1000,
                                                             page_size=0x400,
-                                                            phrase_size=256),
+                                                            phrase_size=256,
+                                                            algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 

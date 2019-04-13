@@ -54,7 +54,8 @@ class LPC824(CoreSightTarget):
     memoryMap = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,       is_boot_memory=True,
                                                                 blocksize=1024,
-                                                                page_size=512),
+                                                                page_size=512,
+                                                                algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x2000)
         )
 
