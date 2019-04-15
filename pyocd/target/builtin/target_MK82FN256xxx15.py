@@ -17,7 +17,7 @@
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 import logging
 
 FLASH_ALGO = {
@@ -92,5 +92,5 @@ class K82F25615(Kinetis):
         )
     def __init__(self, transport):
         super(K82F25615, self).__init__(transport, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Freescale", filename="MK82F25615.svd")
+        self._svd_location = SVDFile.from_builtin("MK82F25615.svd")
 

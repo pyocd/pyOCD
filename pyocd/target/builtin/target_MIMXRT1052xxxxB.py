@@ -18,6 +18,7 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 import logging
 
 FLASH_ALGO_QUADSPI = {
@@ -929,6 +930,7 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
 
     def __init__(self, link):
         super(MIMXRT1052xxxxB_hyperflash, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
 
 class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
 
@@ -952,3 +954,4 @@ class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
 
     def __init__(self, link):
         super(MIMXRT1052xxxxB_quadspi, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")

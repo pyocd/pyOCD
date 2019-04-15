@@ -16,9 +16,9 @@
 
 from ...flash.flash import Flash
 from ...core import exceptions
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
-from ...coresight.cortex_m import (CortexM)
-from ...coresight import(ap, dap)
+from ...core.coresight_target import CoreSightTarget
+from ...coresight.cortex_m import CortexM
+from ...coresight import (ap, dap)
 from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 import logging
 import time

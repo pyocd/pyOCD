@@ -13,10 +13,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...coresight import ap
 from ...coresight.cortex_m import CortexM
+from ...debug.svd.loader import SVDFile
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -70,7 +71,7 @@ class LPC54608(CoreSightTarget):
     def __init__(self, link):
         super(LPC54608, self).__init__(link, self.memoryMap)
         self.ignoreReset = False
-        self._svd_location = SVDFile(vendor="NXP", filename="LPC54608.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("LPC54608.xml")
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
         super(LPC54608, self).reset_and_halt(reset_type)

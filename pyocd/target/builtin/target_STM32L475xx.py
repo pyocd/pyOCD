@@ -17,7 +17,7 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 
 class DBGMCU:
     CR = 0xE0042004
@@ -95,7 +95,7 @@ class STM32L475xC(STM32L475xx):
 
     def __init__(self, transport):
         super(STM32L475xC, self).__init__(transport, self.memoryMap)
-        # cmsis-svd doesn't have this device's SVD file
+        self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
 
 class STM32L475xE(STM32L475xx):
 
@@ -108,7 +108,7 @@ class STM32L475xE(STM32L475xx):
 
     def __init__(self, transport):
         super(STM32L475xE, self).__init__(transport, self.memoryMap)
-        # cmsis-svd doesn't have this device's SVD file
+        self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
 
 class STM32L475xG(STM32L475xx):
 
@@ -121,6 +121,6 @@ class STM32L475xG(STM32L475xx):
 
     def __init__(self, transport):
         super(STM32L475xG, self).__init__(transport, self.memoryMap)
-        # cmsis-svd doesn't have this device's SVD file
+        self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
 
 

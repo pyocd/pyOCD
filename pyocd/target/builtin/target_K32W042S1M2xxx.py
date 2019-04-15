@@ -19,7 +19,7 @@ from ...flash.flash import Flash
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 from ...coresight import ap
 from ...coresight.cortex_m import CortexM
 from ...utility.timeout import Timeout
@@ -173,10 +173,7 @@ class K32W042S(Kinetis):
 
     def __init__(self, link):
         super(K32W042S, self).__init__(link, self.memoryMap)
-
-        svdPath = os.path.join(os.path.dirname(__file__), "K32W042S1M2_M4.xml")
-        if os.path.exists(svdPath):
-            self._svd_location = SVDFile(vendor="NXP", filename=svdPath, is_local=True)
+        self._svd_location = SVDFile.from_builtin("K32W042S1M2_M4.xml")
 
     def create_init_sequence(self):
         seq = super(K32W042S, self).create_init_sequence()

@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
+from ...debug.svd.loader import SVDFile
 
 LARGE_PAGE_START_ADDR = 0x10000
 SMALL_PAGE_SIZE = 0x1000
@@ -82,7 +83,7 @@ class LPC4088(CoreSightTarget):
             mem_map = self.memoryMap
         super(LPC4088, self).__init__(link, mem_map)
         self.ignoreReset = False
-        self._svd_location = SVDFile(vendor="NXP", filename="LPC408x_7x_v0.7.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("LPC408x_7x_v0.7.svd")
 
     def reset(self, reset_type=None):
         # Use hardware reset since software reset cause a debug logic reset

@@ -17,7 +17,7 @@
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 import logging
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
@@ -100,5 +100,5 @@ class KW40Z4(Kinetis):
 
     def __init__(self, transport):
         super(KW40Z4, self).__init__(transport, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Freescale", filename="MKW40Z4.svd")
+        self._svd_location = SVDFile.from_builtin("MKW40Z4.svd")
 

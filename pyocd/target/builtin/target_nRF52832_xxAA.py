@@ -15,8 +15,9 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 import logging
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
@@ -57,7 +58,7 @@ class NRF52(CoreSightTarget):
 
     def __init__(self, link):
         super(NRF52, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Nordic", filename="nrf52.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("nrf52.svd")
 
     def resetn(self):
         """

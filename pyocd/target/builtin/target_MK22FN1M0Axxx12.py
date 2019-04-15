@@ -17,7 +17,7 @@
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 import logging
 
 SIM_FCFG1 = 0x4004804C
@@ -100,7 +100,7 @@ class K22FA12(Kinetis):
 
     def __init__(self, link):
         super(K22FA12, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Freescale", filename="MK22FA12.svd", is_local=False)
+        self._svd_location = SVDFile.from_builtin("MK22FA12.svd")
 
     def create_init_sequence(self):
         seq = super(K22FA12, self).create_init_sequence()

@@ -15,7 +15,9 @@
 # limitations under the License.
 
 import sys
+import os
 from setuptools import setup, find_packages
+import zipfile
 
 open_args = { 'mode': 'r' }
 if sys.version_info[0] > 2:
@@ -87,5 +89,8 @@ setup(
     },
     packages=find_packages(),
     include_package_data=True,  # include files from MANIFEST.in
+    package_data={
+        'pyocd': ['debug/svd/svd_data.zip'],
+    },
     zip_safe=True,
 )

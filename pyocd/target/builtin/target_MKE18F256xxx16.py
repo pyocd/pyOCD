@@ -19,7 +19,7 @@
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd import SVDFile
+from ...debug.svd.loader import SVDFile
 import logging
 
 RCM_MR = 0x4007f010
@@ -96,7 +96,7 @@ class KE18F16(Kinetis):
 
     def __init__(self, link):
         super(KE18F16, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile(vendor="Freescale", filename="MKE18F16.svd")
+        self._svd_location = SVDFile.from_builtin("MKE18F16.svd")
 
     def create_init_sequence(self):
         seq = super(KE18F16, self).create_init_sequence()

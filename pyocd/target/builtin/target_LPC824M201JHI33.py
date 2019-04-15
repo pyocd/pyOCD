@@ -15,8 +15,9 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import (SVDFile, CoreSightTarget)
+from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 
 FLASH_ALGO = {
     'load_address' : 0x10000000,
@@ -61,6 +62,7 @@ class LPC824(CoreSightTarget):
 
     def __init__(self, link):
         super(LPC824, self).__init__(link, self.memoryMap)
+        self._svd_location = SVDFile.from_builtin("LPC824.xml")
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
         super(LPC824, self).reset_and_halt(reset_type)
