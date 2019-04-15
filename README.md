@@ -9,12 +9,17 @@ A command line tool is provided that covers most use cases, or you can make use 
 API to enable low-level target control. A common use for the Python API is to run and control CI
 tests.
 
+Upwards of 70 popular MCUs are supported built-in. In addition, through the use of CMSIS-Packs,
+nearly every Cortex-M device on the market is supported.
+
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
 - `gdbserver`: GDB remote server allows you to debug using gdb via either
     [GNU MCU Eclipse plug-in](https://gnu-mcu-eclipse.github.io/) or the console.
 - `flash`: Program files of various formats into flash memory.
 - `erase`: Erase part or all of an MCU's flash memory.
+- `pack`: Manage [CMSIS Device Family Packs](http://arm-software.github.io/CMSIS_5/Pack/html/index.html)
+    that provide additional target device support.
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `list`: Show connected devices.
 
@@ -125,6 +130,12 @@ To help with this, example udev rules files are included with pyOCD in the
 [udev](https://github.com/mbedmicro/pyOCD/tree/master/udev) folder. The
 [readme](https://github.com/mbedmicro/pyOCD/tree/master/udev/README.md) in this folder has detailed
 instructions.
+
+### Target support
+
+See the [target support documentation](docs/target_support.md) for information on how to check if
+the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
+CMSIS-Packs.
 
 
 Standalone GDB server

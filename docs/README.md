@@ -5,6 +5,7 @@
 
 ### User documentation
 
+- [Target support](target_support.md)
 - [Configuration](configuration.md)
 - [User scripts](user_scripts.md)
 - [Debugging multicore devices](multicore_debug.md)
