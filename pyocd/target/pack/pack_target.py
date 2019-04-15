@@ -15,8 +15,10 @@
 # limitations under the License.
 
 from __future__ import print_function
+import cmsis_pack_manager
 import logging
 import six
+import os
 
 from .cmsis_pack import (CmsisPack, MalformedCmsisPackError)
 from ..family import FAMILIES
@@ -25,6 +27,38 @@ from ...core.coresight_target import CoreSightTarget
 from ...debug.svd import SVDFile
 
 LOG = logging.getLogger(__name__)
+
+def get_supported_targets():
+    """! @brief Return a list containing the names of all supported targets"""
+    try:
+        cache = cmsis_pack_manager.Cache(True, True)
+        results = []
+        for dev in sorted([dev for name, dev in cache.index.items() if name != "version"],
+                       key=lambda dev: dev['name']):
+            pack, = cache.packs_for_devices([dev])
+            pack_path = os.path.join(cache.data_path,
+                                pack.vendor,
+                                pack.pack,
+                                pack.version + ".pack")
+            if os.path.exists(pack_path) and os.path.isfile(pack_path):
+                results.append(dev)
+        return results
+    except FileNotFoundError:
+        # cmsis-pack-manage can raise this exception if the cache is empty.
+        return []
+
+def populate_target_from_cache(device_name):
+    """! @brief Add targets from cmsis-pack-manager matching the given name."""
+    try:
+        cache = cmsis_pack_manager.Cache(True, True)
+        for name in cache.index.keys():
+            if name.lower() == device_name.lower():
+                dev = cache.index[name]
+                pack = cache.pack_from_cache(dev)
+                populate_targets_from_pack(pack)
+    except FileNotFoundError:
+        # cmsis-pack-manager can raise this exception if the cache is empty.
+        pass
 
 def _pack_target__init__(self, session):
     """! @brief Constructor for dynamically created target class."""

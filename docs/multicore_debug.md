@@ -6,9 +6,12 @@ you connect independant gdb instances. This is the most reliable method of debug
 embedded devices using gdb.
 
 `pyocd gdbserver` automatically creates one `GDBServer` instance per core. The first core is given the
-user-specified port number. Additional cores have port numbers incremented from there. To prevent
-reset requests from multiple connected gdb instances causing havoc, the reset monitor commands are
-only honoured for core 0.
+user-specified port number. Additional cores have port numbers incremented from there.
+
+To prevent reset requests from multiple connected gdb instances causing havoc, secondary cores have
+their default reset type set to core-only reset (VECTRESET), which will fall back to an emulated
+reset for non-v7-M architectures. This feature can be disabled by setting the
+`enable_multicore_debug` user option to false.
 
 To debug a multicore device, run `pyocd gdbserver` as usual. This will connect to the device, detect
 the cores, and create the gdb server instances on separate ports. Next, start up two gdb instances

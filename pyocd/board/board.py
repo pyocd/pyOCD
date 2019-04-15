@@ -41,7 +41,11 @@ class Board(GraphNode):
         if ('pack' in session.options) and (session.options['pack'] is not None):
             pack_target.populate_targets_from_pack(session.options['pack'])
 
-        # Create Target and Flash instances.
+        # Create targets from the cmsis-pack-manager cache.
+        if self._target_type not in TARGET:
+            pack_target.populate_target_from_cache(target)
+        
+        # Create Target instance.
         try:
             log.info("Target type is %s", self._target_type)
             self.target = TARGET[self._target_type](session)

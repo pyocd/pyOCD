@@ -9,12 +9,17 @@ A command line tool is provided that covers most use cases, or you can make use 
 API to enable low-level target control. A common use for the Python API is to run and control CI
 tests.
 
+Upwards of 70 popular MCUs are supported built-in. In addition, through the use of CMSIS-Packs,
+nearly every Cortex-M device on the market is supported.
+
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
 - `gdbserver`: GDB remote server allows you to debug using gdb via either
     [GNU MCU Eclipse plug-in](https://gnu-mcu-eclipse.github.io/) or the console.
 - `flash`: Program files of various formats into flash memory.
 - `erase`: Erase part or all of an MCU's flash memory.
+- `pack`: Manage [CMSIS Device Family Packs](http://arm-software.github.io/CMSIS_5/Pack/html/index.html)
+    that provide additional target device support.
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `list`: Show connected devices.
 
@@ -43,8 +48,14 @@ Requirements
 - macOS, Linux, or Windows 7 or newer
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID) and v2 (WinUSB),
-    such as an on-board debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID),
+    such as:
+    - An on-board debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
+    - NXP LPC-LinkII
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v2 (WinUSB),
+    such as:
+    - Cypress KitProg3
+    - Keil ULINKplus
   - STLinkV2, either on-board or the standalone version.
 
 
@@ -53,8 +64,8 @@ Status
 
 PyOCD is functionally reliable and fully useable.
 
-The Python API is considered unstable as we are restructuring and cleaning it up prior to releasing
-version 1.0.
+The Python API is considered partially unstable as we are restructuring and cleaning it up prior to
+releasing version 1.0.
 
 
 Documentation
@@ -63,7 +74,7 @@ Documentation
 The pyOCD documentation is located in [the docs directory](docs/).
 
 In addition to user guides, you can generate reference documentation using Doxygen with the
-supplied config file in the `docs/` directory.
+supplied [config file](docs/Doxyfile).
 
 
 Installing
@@ -105,7 +116,7 @@ You have a few options here:
 
 [pyusb](https://github.com/pyusb/pyusb) and its backend library [libusb](https://libusb.info/) are
 dependencies on all supported operating systems. pyusb is a regular Python package and will be
-installed along with pyOCD. However, libusb is binary shared library that does not get installed
+installed along with pyOCD. However, libusb is a binary shared library that does not get installed
 automatically via pip dependency management.
 
 How to install libusb depends on your OS:
@@ -113,7 +124,8 @@ How to install libusb depends on your OS:
 - macOS: use Homebrew: `brew install libusb`
 - Linux: should already be installed.
 - Windows: download libusb from [libusb.info](https://libusb.info/) and place the DLL in your Python
-  installation folder next to python.exe.
+  installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
+  your Python installation.
 
 ### udev rules on Linux
 
@@ -125,6 +137,12 @@ To help with this, example udev rules files are included with pyOCD in the
 [udev](https://github.com/mbedmicro/pyOCD/tree/master/udev) folder. The
 [readme](https://github.com/mbedmicro/pyOCD/tree/master/udev/README.md) in this folder has detailed
 instructions.
+
+### Target support
+
+See the [target support documentation](docs/target_support.md) for information on how to check if
+the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
+CMSIS-Packs.
 
 
 Standalone GDB server
