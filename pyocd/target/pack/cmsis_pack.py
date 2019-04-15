@@ -382,7 +382,7 @@ class CmsisPackDevice(object):
                 if i + 1 >= len(packAlgo.sector_sizes):
                     nextStart = region.length
                 else:
-                    nextStart = packAlgo.sector_sizes[i + 1]
+                    nextStart, _ = packAlgo.sector_sizes[i + 1]
                 
                 length = nextStart - start
                 start += region.start
