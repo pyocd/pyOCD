@@ -48,8 +48,14 @@ Requirements
 - macOS, Linux, or Windows 7 or newer
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID) and v2 (WinUSB),
-    such as an on-board debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID),
+    such as:
+    - An on-board debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
+    - NXP LPC-LinkII
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v2 (WinUSB),
+    such as:
+    - Cypress KitProg3
+    - Keil ULINKplus
   - STLinkV2, either on-board or the standalone version.
 
 
@@ -58,8 +64,8 @@ Status
 
 PyOCD is functionally reliable and fully useable.
 
-The Python API is considered unstable as we are restructuring and cleaning it up prior to releasing
-version 1.0.
+The Python API is considered partially unstable as we are restructuring and cleaning it up prior to
+releasing version 1.0.
 
 
 Documentation
@@ -68,7 +74,7 @@ Documentation
 The pyOCD documentation is located in [the docs directory](docs/).
 
 In addition to user guides, you can generate reference documentation using Doxygen with the
-supplied config file in the `docs/` directory.
+supplied [config file](docs/Doxyfile).
 
 
 Installing
@@ -110,7 +116,7 @@ You have a few options here:
 
 [pyusb](https://github.com/pyusb/pyusb) and its backend library [libusb](https://libusb.info/) are
 dependencies on all supported operating systems. pyusb is a regular Python package and will be
-installed along with pyOCD. However, libusb is binary shared library that does not get installed
+installed along with pyOCD. However, libusb is a binary shared library that does not get installed
 automatically via pip dependency management.
 
 How to install libusb depends on your OS:
@@ -118,7 +124,8 @@ How to install libusb depends on your OS:
 - macOS: use Homebrew: `brew install libusb`
 - Linux: should already be installed.
 - Windows: download libusb from [libusb.info](https://libusb.info/) and place the DLL in your Python
-  installation folder next to python.exe.
+  installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
+  your Python installation.
 
 ### udev rules on Linux
 

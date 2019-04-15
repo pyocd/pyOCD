@@ -9,8 +9,8 @@
 - [Configuration](configuration.md)
 - [User scripts](user_scripts.md)
 - [Debugging multicore devices](multicore_debug.md)
-- [Introduction to pyOCD API](python_api.md)
-- [Python API Examples](api_examples.md)
+- [Introduction to the pyOCD Python API](python_api.md)
+- [Python API examples](api_examples.md)
 
 ### Developer documentation
 
