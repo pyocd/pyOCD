@@ -62,8 +62,7 @@ else:
 
 # Make FileNotFoundError available to Python 2.x.
 if not PY3:
-    class FileNotFoundError(IOError):
-        pass
+    FileNotFoundError = IOError
 
 # Symbol to reference either the builtin FNF or our custom subclass.
 FileNotFoundError_ = FileNotFoundError

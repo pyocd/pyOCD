@@ -25,6 +25,7 @@ from ..family import FAMILIES
 from .. import TARGET
 from ...core.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
+from ...utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
 
@@ -127,7 +128,7 @@ def _create_targets_from_pack(pack_or_path):
                         "set_default_reset_type": _pack_target_set_default_reset_type,
                     })
             yield (dev.part_number, targetClass)
-    except MalformedCmsisPackError as err:
+    except (MalformedCmsisPackError, FileNotFoundError_) as err:
         LOG.warning(err)
         return
 
