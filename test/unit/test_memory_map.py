@@ -150,11 +150,20 @@ class TestMemoryRegion:
         rgn = RomRegion(start=0x1000, end=0x1fff)
         assert rgn.name == 'rom'
 
-        rgn = FlashRegion(start=0x1000, end=0x1fff)
+        rgn = FlashRegion(start=0x1000, end=0x1fff, blocksize=256)
         assert rgn.name == 'flash'
 
         rgn = DeviceRegion(start=0x1000, end=0x1fff)
         assert rgn.name == 'device'
+    
+    def test_block_sector_size(self):
+        rgn = FlashRegion(start=0x1000, end=0x1fff, blocksize=256)
+        assert rgn.blocksize == 256
+        assert rgn.sector_size == 256
+
+        rgn = FlashRegion(start=0x1000, end=0x1fff, sector_size=256)
+        assert rgn.blocksize == 256
+        assert rgn.sector_size == 256
     
     def test_flash_attrs(self, flash):
         assert flash.type == MemoryType.FLASH
