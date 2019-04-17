@@ -48,6 +48,8 @@ CTRLSTAT_WDATAERR = 0x00000080
 DPIDR_MIN_MASK = 0x10000
 DPIDR_VERSION_MASK = 0xf000
 DPIDR_VERSION_SHIFT = 12
+DPIDR_REVISION_MASK = 0xf0000000
+DPIDR_REVISION_SHIFT = 28
 
 CSYSPWRUPACK = 0x80000000
 CDBGPWRUPACK = 0x20000000
@@ -99,6 +101,8 @@ class DebugPort(object):
         self.link.swj_sequence()
         try:
             self.read_id_code()
+            logging.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr, self.dp_version,
+                " MINDP" if self.is_mindp else "", self.dp_revision)
         except exceptions.TransferError:
             # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
             # in a state where it thought the SWJ sequence was an invalid transfer.
@@ -110,8 +114,8 @@ class DebugPort(object):
         # Read ID register and get DP version
         self.dpidr = self.read_reg(DP_IDCODE)
         self.dp_version = (self.dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
+        self.dp_revision = (self.dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
         self.is_mindp = (self.dpidr & DPIDR_MIN_MASK) != 0
-        logging.info("DP IDR = 0x%08x", self.dpidr)
         return self.dpidr
 
     def flush(self):
@@ -205,7 +209,6 @@ class DebugPort(object):
     def create_1_ap(self, ap_num):
         try:
             ap = AccessPort.create(self, ap_num)
-            logging.info("AP#%d IDR = 0x%08x", ap_num, ap.idr)
             self.aps[ap_num] = ap
         except Exception as e:
             logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
