@@ -72,6 +72,13 @@ AP_TYPE_APB = 0x2
 AP_TYPE_AXI = 0x4
 AP_TYPE_AHB5 = 0x5
 
+AP_TYPE_NAME = {
+        AP_TYPE_AHB: "AHB-AP",
+        AP_TYPE_APB: "APB-AP",
+        AP_TYPE_AXI: "AXI-AP",
+        AP_TYPE_AHB5: "AHB5-AP",
+    }
+
 # AP Control and Status Word definitions
 CSW_SIZE     =  0x00000007
 CSW_SIZE8    =  0x00000000
@@ -171,19 +178,20 @@ class AccessPort(object):
         variant = (idr & AP_IDR_VARIANT_MASK) >> AP_IDR_VARIANT_SHIFT
         apType = idr & AP_IDR_TYPE_MASK
 
-        # Get the AccessPort class to instantiate.        
+        # Get the AccessPort class to instantiate.
         key = (designer, apClass, variant, apType)
         klass = AP_TYPE_MAP.get(key, AccessPort)
         
-        ap = klass(dp, ap_num)
+        ap = klass(dp, ap_num, idr)
         ap.init()
         return ap
     
-    def __init__(self, dp, ap_num):
+    def __init__(self, dp, ap_num, idr=None):
         self.dp = dp
         self.ap_num = ap_num
         self.link = dp.link
-        self.idr = 0
+        self.idr = idr
+        self.type_name = None
         self.rom_addr = 0
         self.has_rom_table = False
         self.rom_table = None
@@ -194,13 +202,29 @@ class AccessPort(object):
 
     @_locked
     def init(self):
-        self.idr = self.read_reg(AP_IDR)
+        # Read IDR if it wasn't given to us in the ctor.
+        if self.idr is None:
+            self.idr = self.read_reg(AP_IDR)
+        
+        self.variant = (self.idr & AP_IDR_VARIANT_MASK) >> AP_IDR_VARIANT_SHIFT
+        self.revision = (self.idr & AP_IDR_REVISION_MASK) >> AP_IDR_REVISION_SHIFT
+        
+        # Get the type name for this AP.
+        self.ap_type = self.idr & AP_IDR_TYPE_MASK
+        if self.ap_type in AP_TYPE_NAME:
+            self.type_name = AP_TYPE_NAME[self.ap_type]
+            desc = "{} var{} rev{}".format(self.type_name, self.variant, self.revision)
+        else:
+            self.type_name = "proprietary"
+            desc = self.type_name
 
         # Init ROM table
         self.rom_addr = self.read_reg(AP_BASE)
         self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
         self.rom_addr &= 0xfffffffc # clear format and present bits
 
+        logging.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
+ 
     @_locked
     def init_rom_table(self):
         try:
@@ -241,6 +265,10 @@ class AccessPort(object):
         self.lock()
         yield
         self.unlock()
+    
+    def __repr__(self):
+        return "<{}@{:x} type={} apsel={} idr={:08x} rom={:08x}>".format(
+            self.__class__.__name__, id(self), self.type_name, self.ap_num, self.idr, self.rom_addr)
 
 class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     """! @brief MEM-AP component.
@@ -257,8 +285,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     HPROT[6] = 1 shareable, 0 non shareable<br/>
     """
 
-    def __init__(self, dp, ap_num):
-        super(MEM_AP, self).__init__(dp, ap_num)
+    def __init__(self, dp, ap_num, idr=None):
+        super(MEM_AP, self).__init__(dp, ap_num, idr)
         
         self._impl_hprot = 0
         self._impl_hnonsec = 0
@@ -684,8 +712,8 @@ class AHB_AP_4k_Wrap(AHB_AP):
     The only known AHB-AP with a 4k wrap is the one documented in the CM3 and CM4 TRMs.
     It has an IDR of 0x24770011, which decodes to AHB-AP, variant 1, version 2.
     """
-    def __init__(self, dp, ap_num):
-        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num)
+    def __init__(self, dp, ap_num, idr=None):
+        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num, idr)
 
         # Set a 4 kB auto increment wrap size.
         self.auto_increment_page_size = 0x1000
