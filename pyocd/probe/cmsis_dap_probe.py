@@ -77,7 +77,11 @@ class CMSISDAPProbe(DebugProbe):
     @classmethod
     def get_probe_with_id(cls, unique_id):
         try:
-            return cls(DAPAccess(unique_id))
+            dap_access = DAPAccess.get_device(unique_id)
+            if dap_access is not None:
+                return cls(dap_access)
+            else:
+                return None
         except DAPAccess.Error as exc:
             six.raise_from(cls._convert_exception(exc), exc)
 

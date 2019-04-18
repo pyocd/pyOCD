@@ -466,7 +466,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @staticmethod
     def get_device(device_id):
         assert isinstance(device_id, six.string_types)
-        return DAPAccessCMSISDAP(device_id)
+        iface = DAPAccessCMSISDAP._lookup_interface_for_unique_id(device_id)
+        if iface is not None:
+            return DAPAccessCMSISDAP(device_id, iface)
+        else:
+            return None
 
     @staticmethod
     def set_args(arg_list):
@@ -515,6 +519,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # Search for a matching interface if one wasn't provided.
         if interface is None:
             interface = DAPAccessCMSISDAP._lookup_interface_for_unique_id(unique_id)
+            if interface is None:
+                raise self.DeviceError("no device with ID %s" % unique_id)
 
         if interface is not None:
             self._unique_id = _get_unique_id(interface)
