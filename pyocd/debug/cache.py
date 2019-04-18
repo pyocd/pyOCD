@@ -17,10 +17,6 @@
 from .context import DebugContext
 from ..coresight.cortex_m import (
     CORE_REGISTER,
-    register_name_to_index,
-    is_fpu_register,
-    is_cfbp_subregister,
-    is_psr_subregister,
     sysm_to_psr_mask
 )
 from ..utility import conversion
@@ -85,6 +81,11 @@ class RegisterCache(object):
                     CORE_REGISTER['iepsr'],
                     ]
 
+    SP_REGS = [     CORE_REGISTER['sp'],
+                    CORE_REGISTER['msp'],
+                    CORE_REGISTER['psp'],
+                    ]
+
     def __init__(self, parentContext):
         self._context = parentContext
         self._run_token = -1
@@ -113,13 +114,13 @@ class RegisterCache(object):
 
     def _convert_and_check_registers(self, reg_list):
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self._context.core.register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self._context.core.has_fpu):
+            elif self._context.core.is_fpu_register(reg) and (not self._context.core.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         return reg_list
@@ -189,6 +190,7 @@ class RegisterCache(object):
 
         writing_cfbp = any(r for r in reg_list if r in self.CFBP_REGS)
         writing_xpsr = any(r for r in reg_list if r in self.XPSR_REGS)
+        writing_sp   = any(r for r in reg_list if r in self.SP_REGS)
 
         # Update cached register values.
         for i, r in enumerate(reg_list):
@@ -202,6 +204,10 @@ class RegisterCache(object):
 
         if writing_xpsr:
             for r in self.XPSR_REGS:
+                self._cache.pop(r, None)
+
+        if writing_sp:
+            for r in self.SP_REGS:
                 self._cache.pop(r, None)
 
         # Write new register values to target.

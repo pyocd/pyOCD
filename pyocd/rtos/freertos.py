@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
+from .common import read_c_string
 from ..core import exceptions
 from ..core.target import Target
+from ..coresight.cortex_m import CortexM
 from ..debug.context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..debug.cortex_m_thread_provider import (ProcessStackThread, PSPThreadContext)
+from ..debug.thread_provider import (TargetThread, ThreadProvider, RootThread)
 import logging
 
 FREERTOS_MAX_PRIORITIES	= 63
@@ -158,78 +159,30 @@ class FreeRTOSThreadContext(DebugContext):
         self._has_fpu = parentContext.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
-        reg_vals = []
+        reg_list = [self.core.register_name_to_index(reg) for reg in reg_list]
 
-        isCurrent = self._thread.is_current
-        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
-
-        # If this is the current thread and we're not in an exception, just read the live registers.
-        if isCurrent and not inException:
-            return self._parent.read_core_registers_raw(reg_list)
-
-        # Because of above tests, from now on, inException implies isCurrent;
-        # we are generating the thread view for the RTOS thread where the
-        # exception occurred; the actual Handler Mode thread view is produced
-        # by HandlerModeThread
-        if inException:
-            # Reasonable to assume PSP is still valid
-            sp = self._parent.read_core_register('psp')
-        else:
-            sp = self._thread.get_stack_pointer()
+        sp = self._thread.get_stack_pointer()
 
         # Determine which register offset table to use and the offsets past the saved state.
-        hwStacked = 0x20
-        swStacked = 0x20
+        stacked = 0x40
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
-                if inException and self._parent.core.is_vector_catch():
-                    # Vector catch has just occurred, take live LR
-                    exceptionLR = self._parent.read_core_register('lr')
-                else:
-                    # Read stacked exception return LR.
-                    offset = self.FPU_BASIC_REGISTER_OFFSETS[-1]
-                    exceptionLR = self._parent.read32(sp + offset)
+                # Read stacked exception return LR.
+                offset = self.FPU_BASIC_REGISTER_OFFSETS[-1]
+                exceptionLR = self._parent.read32(sp + offset)
 
                 # Check bit 4 of the saved exception LR to determine if FPU registers were stacked.
-                if (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) != 0:
+                if (exceptionLR & CortexM.EXC_RETURN_FTYPE) != 0:
                     table = self.FPU_BASIC_REGISTER_OFFSETS
-                    swStacked = 0x24
+                    stacked = 0x44
                 else:
                     table = self.FPU_EXTENDED_REGISTER_OFFSETS
-                    hwStacked = 0x68
-                    swStacked = 0x64
+                    stacked = 0xCC
             except exceptions.TransferError:
                 log.debug("Transfer error while reading thread's saved LR")
 
-        for reg in reg_list:
-            # Must handle stack pointer specially.
-            if reg == 13:
-                if inException:
-                    reg_vals.append(sp + hwStacked)
-                else:
-                    reg_vals.append(sp + swStacked + hwStacked)
-                continue
-
-            # Look up offset for this register on the stack.
-            spOffset = table.get(reg, None)
-            if spOffset is None:
-                reg_vals.append(self._parent.read_core_register_raw(reg))
-                continue
-            if inException:
-                spOffset -= swStacked
-
-            try:
-                if spOffset >= 0:
-                    reg_vals.append(self._parent.read32(sp + spOffset))
-                else:
-                    # Not available - try live one
-                    reg_vals.append(self._parent.read_core_register_raw(reg))
-            except exceptions.TransferError:
-                reg_vals.append(0)
-
-        return reg_vals
+        return self._do_read_regs_in_memory(reg_list, [(sp, table)], { 13: sp + stacked } )
 
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
@@ -256,7 +209,8 @@ class FreeRTOSThread(TargetThread):
         self._provider = provider
         self._base = base
         self._state = FreeRTOSThread.READY
-        self._thread_context = FreeRTOSThreadContext(self._target_context, self)
+        self._psp_context = PSPThreadContext(self._target_context, self)
+        self._freertos_context = FreeRTOSThreadContext(self._target_context, self)
 
         self._priority = self._target_context.read32(self._base + THREAD_PRIORITY_OFFSET)
 
@@ -271,6 +225,11 @@ class FreeRTOSThread(TargetThread):
         except exceptions.TransferError:
             log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
             return 0
+
+    def get_exc_return_ftype(self):
+        # FreeRTOS does not store this in TCB, but on process stack, so
+        # it can't offer a hint to PSPThreadContext
+        return None
 
     @property
     def state(self):
@@ -302,7 +261,10 @@ class FreeRTOSThread(TargetThread):
 
     @property
     def context(self):
-        return self._thread_context
+        if self.is_current:
+            return self._psp_context
+        else:
+            return self._freertos_context
 
     def __str__(self):
         return "<FreeRTOSThread@0x%08x id=%x name=%s>" % (id(self), self.unique_id, self.name)
@@ -325,8 +287,8 @@ class FreeRTOSThreadProvider(ThreadProvider):
         "xSchedulerRunning",
         ]
 
-    def __init__(self, target):
-        super(FreeRTOSThreadProvider, self).__init__(target)
+    def __init__(self, target, parent):
+        super(FreeRTOSThreadProvider, self).__init__(target, parent)
         self._symbols = None
         self._total_priorities = 0
         self._threads = {}
@@ -385,7 +347,11 @@ class FreeRTOSThreadProvider(ThreadProvider):
         self.invalidate();
 
     def _build_thread_list(self):
-        newThreads = {}
+        if not self.is_enabled:
+            self._threads = self._parent.threads
+            return
+
+        newThreads = self._parent.threads.copy()
 
         # Read the number of threads.
         threadCount = self._target_context.read32(self._symbols['uxCurrentNumberOfTasks'])
@@ -438,6 +404,11 @@ class FreeRTOSThreadProvider(ThreadProvider):
                     # Set thread state.
                     if threadBase == currentThread:
                         t.state = FreeRTOSThread.RUNNING
+                        # Our current thread replaces the PSP thread from CortexMThreadProvider
+                        newThreads.pop(ProcessStackThread.UNIQUE_ID, None)
+                        # Our current thread replaces the root thread, if on PSP stack
+                        if (self.get_current_stack_pointer_id() == CortexM.PSP):
+                            newThreads.pop(RootThread.UNIQUE_ID, None)
                     else:
                         t.state = state
 
@@ -449,53 +420,16 @@ class FreeRTOSThreadProvider(ThreadProvider):
         if len(newThreads) != threadCount:
             log.warning("FreeRTOS: thread count mismatch")
 
-        # Create fake handler mode thread.
-        if self._target_context.read_core_register('ipsr') > 0:
-            log.debug("FreeRTOS: creating handler mode thread")
-            t = HandlerModeThread(self._target_context, self)
-            newThreads[t.unique_id] = t
-
         self._threads = newThreads
 
-    def get_threads(self):
-        if not self.is_enabled:
-            return []
+    @property
+    def threads(self):
         self.update_threads()
-        return list(self._threads.values())
-
-    def get_thread(self, threadId):
-        if not self.is_enabled:
-            return None
-        self.update_threads()
-        return self._threads.get(threadId, None)
+        return self._threads
 
     @property
     def is_enabled(self):
         return self._symbols is not None and self.get_is_running()
-
-    @property
-    def current_thread(self):
-        if not self.is_enabled:
-            return None
-        self.update_threads()
-        id = self.get_current_thread_id()
-        try:
-            return self._threads[id]
-        except KeyError:
-            return None
-
-    def is_valid_thread_id(self, threadId):
-        if not self.is_enabled:
-            return False
-        self.update_threads()
-        return threadId in self._threads
-
-    def get_current_thread_id(self):
-        if not self.is_enabled:
-            return None
-        if self._target_context.read_core_register('ipsr') > 0:
-            return HandlerModeThread.UNIQUE_ID
-        return self.get_actual_current_thread_id()
 
     def get_actual_current_thread_id(self):
         if not self.is_enabled:

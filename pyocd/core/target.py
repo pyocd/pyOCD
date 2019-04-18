@@ -232,3 +232,6 @@ class Target(MemoryInterface, Notifier):
 
     def set_root_context(self, context, core=None):
         raise NotImplementedError()
+
+    def get_core_thread_provider(self, parent, core=None):
+        raise NotImplementedError()

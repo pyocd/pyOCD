@@ -18,7 +18,7 @@ from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
 from pyocd.coresight.cortex_m import (
     CORE_REGISTER,
-    register_name_to_index,
+    CortexM,
     is_cfbp_subregister,
     is_psr_subregister,
     sysm_to_psr_mask
@@ -49,6 +49,14 @@ class MockCore(object):
         self.has_fpu = True
         self.clear_all_regs()
     
+    @staticmethod
+    def register_name_to_index(reg):
+        return CortexM.register_name_to_index(reg)
+
+    @staticmethod
+    def is_fpu_register(index):
+        return CortexM.is_fpu_register(index)
+
     def clear_all_regs(self):
         self.regs = {i:0 for i in range(0, 19)} # r0-15, xpsr, msp, psp
         self.regs[CORE_REGISTER['cfbp']] = 0
@@ -57,7 +65,7 @@ class MockCore(object):
         return False
 
     def read_core_registers_raw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self.register_name_to_index(reg) for reg in reg_list]
         results = []
         for r in reg_list:
             if is_cfbp_subregister(r):
@@ -75,7 +83,7 @@ class MockCore(object):
         return results
 
     def write_core_registers_raw(self, reg, data):
-        reg = [register_name_to_index(r) for r in reg]
+        reg = [self.register_name_to_index(r) for r in reg]
 #         logging.info("mockcore[%x]:write(%s, %s)", id(self), reg, data)
         for r, v in zip(reg, data):
             if is_cfbp_subregister(r):

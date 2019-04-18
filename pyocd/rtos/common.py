@@ -14,15 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .provider import (TargetThread, ThreadProvider)
-from ..debug.context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from ..core import exceptions
 import logging
-
-## Mask on EXC_RETURN indicating whether space for FP registers is allocated
-# on the frame. The bit is 0 if the frame is extended.
-EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
 
 ## @brief Reads a null-terminated C string from the target.
 def read_c_string(context, ptr):
@@ -58,49 +51,4 @@ def read_c_string(context, ptr):
         logging.debug("TransferError while trying to read 16 bytes at 0x%08x", ptr)
 
     return s
-
-## @brief Class representing the handler mode.
-class HandlerModeThread(TargetThread):
-    UNIQUE_ID = 2
-    
-    def __init__(self, targetContext, provider):
-        super(HandlerModeThread, self).__init__()
-        self._target_context = targetContext
-        self._provider = provider
-
-    def get_stack_pointer(self):
-        return self._target_context.read_core_register('msp')
-
-    @property
-    def priority(self):
-        return 0
-
-    @property
-    def unique_id(self):
-        return self.UNIQUE_ID
-
-    @property
-    def name(self):
-        return "Handler mode"
-
-    @property
-    def description(self):
-        ipsr = self._target_context.read_core_register('ipsr');
-        return self._target_context.core.exception_number_to_name(ipsr)
-
-    @property
-    def is_current(self):
-        return self._target_context.read_core_register('ipsr') > 0
-
-    @property
-    def context(self):
-        return self._target_context
-
-    def __str__(self):
-        return "<HandlerModeThread@0x%08x>" % (id(self))
-
-    def __repr__(self):
-        return str(self)
-
-
 

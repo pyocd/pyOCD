@@ -183,3 +183,10 @@ These session options are currently only applied when running the GDB server.
     - `n`=none
 
     Default is only hard fault enabled.
+
+- `vector_catch_show_origin`: (bool) When a vector catch occurs from code running on another
+    stack, report the thread representing that stack to GDB as the current thread, rather than
+    the thread for the vector handler. This means that GDB will report a SIGSEGV location as the
+    instruction that caused it, rather than the first instruction of the fault handler.
+    This depends on a thread provider showing separate threads for processor stacks being active.
+    Default is True.

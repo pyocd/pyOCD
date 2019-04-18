@@ -27,6 +27,7 @@ from ..utility.sockets import ListenerSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
 from ..debug.cache import MemoryAccessError
+from ..debug.thread_provider import RootThreadProvider
 from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
@@ -286,7 +287,6 @@ class GDBServer(threading.Thread):
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
-        self.non_stop = False
         self._is_extended_remote = False
         self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
         self.flash_loader = None
@@ -297,9 +297,7 @@ class GDBServer(threading.Thread):
         else:
             self.target_context = self.board.target.get_target_context(core=core)
         self.target_facade = GDBDebugContextFacade(self.target_context)
-        self.thread_provider = None
-        self.did_init_thread_providers = False
-        self.current_thread_id = 0
+        self._cleanup_for_next_connection()
         self.first_run_after_reset_or_flash = True
 
         self.abstract_socket = ListenerSocket(self.port, self.packet_size)
@@ -417,7 +415,10 @@ class GDBServer(threading.Thread):
 
     def _cleanup_for_next_connection(self):
         self.non_stop = False
-        self.thread_provider = None
+        self.thread_provider = RootThreadProvider(self.target)
+        core_thread_provider = self.target.get_core_thread_provider(self.thread_provider)
+        if core_thread_provider is not None:
+            self.thread_provider = core_thread_provider
         self.did_init_thread_providers = False
         self.current_thread_id = 0
 
@@ -463,13 +464,10 @@ class GDBServer(threading.Thread):
                 if self.detach_event.isSet():
                     break
 
-                if self.packet_io.interrupt_event.isSet():
-                    if self.non_stop:
-                        self.target.halt()
-                        self.is_target_running = False
-                        self.send_stop_notification()
-                    else:
-                        self.log.error("Got unexpected ctrl-c, ignoring")
+                if self.non_stop and self.packet_io.interrupt_event.isSet():
+                    self.target.halt()
+                    self.is_target_running = False
+                    self.send_stop_notification()
                     self.packet_io.interrupt_event.clear()
 
                 if self.non_stop and self.is_target_running:
@@ -611,9 +609,6 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(b"OK")
 
     def set_thread(self, data):
-        if not self.is_threading_enabled():
-            return self.create_rsp_packet(b'OK')
-
         self.log.debug("set_thread:%s", data)
         op = data[0:1]
         thread_id = int(data[1:-3], 16)
@@ -641,28 +636,18 @@ class GDBServer(threading.Thread):
     def is_thread_alive(self, data):
         threadId = int(data[1:-3], 16)
 
-        if self.is_threading_enabled():
-            isAlive = self.thread_provider.is_valid_thread_id(threadId)
-        else:
-            isAlive = (threadId == 1)
-
-        if isAlive:
+        if self.thread_provider.is_valid_thread_id(threadId):
             return self.create_rsp_packet(b'OK')
         else:
             self.validate_debug_context()
             return self.create_rsp_packet(b'E00')
 
     def validate_debug_context(self):
-        if self.is_threading_enabled():
-            currentThread = self.thread_provider.current_thread
-            if self.current_thread_id != currentThread.unique_id:
-                self.target_facade.set_context(currentThread.context)
-                self.current_thread_id = currentThread.unique_id
-        else:
-            if self.current_thread_id != 1:
-                self.log.debug("Current thread %x is no longer valid, switching context to target", self.current_thread_id)
-                self.target_facade.set_context(self.target_context)
-                self.current_thread_id = 1
+        currentThread = self.thread_provider.current_thread
+        if self.current_thread_id != currentThread.unique_id:
+            self.log.debug("Current thread %x is no longer valid, switching context to %x", self.current_thread_id, currentThread.unique_id)
+            self.target_facade.set_context(currentThread.context)
+            self.current_thread_id = currentThread.unique_id
 
     def stop_reason_query(self):
         # In non-stop mode, if no threads are stopped we need to reply with OK.
@@ -687,6 +672,12 @@ class GDBServer(threading.Thread):
 
     def resume(self, data):
         addr = self._get_resume_step_addr(data)
+
+        if self.packet_io.interrupt_event.isSet():
+            self.packet_io.interrupt_event.clear()
+            self.log.debug("resume skipped due to pending CTRL-C")
+            return self.create_rsp_packet(self.get_t_response(forceSignal=signals.SIGINT))
+
         self.target.resume()
         self.log.debug("target resumed")
 
@@ -738,6 +729,10 @@ class GDBServer(threading.Thread):
 
     def step(self, data):
         addr = self._get_resume_step_addr(data)
+        if self.packet_io.interrupt_event.isSet():
+            self.packet_io.interrupt_event.clear()
+            self.log.debug("step skipped due to pending CTRL-C")
+            return self.create_rsp_packet(self.get_t_response(forceSignal=signals.SIGINT))
         self.log.debug("GDB step: %s", data)
         self.target.step(not self.step_into_interrupt)
         return self.create_rsp_packet(self.get_t_response())
@@ -779,15 +774,11 @@ class GDBServer(threading.Thread):
         if not ops:
             return self.create_rsp_packet(b"OK")
 
-        if self.is_threading_enabled():
-            thread_actions = {}
-            threads = self.thread_provider.get_threads()
-            for k in threads:
-                thread_actions[k.unique_id] = None
-            currentThread = self.thread_provider.get_current_thread_id()
-        else:
-            thread_actions = { 1 : None } # our only thread
-            currentThread = 1
+        thread_actions = {}
+        threads = self.thread_provider.threads.values()
+        for k in threads:
+            thread_actions[k.unique_id] = None
+        currentThread = self.thread_provider.get_current_thread_id()
         default_action = None
 
         for op in ops:
@@ -811,16 +802,27 @@ class GDBServer(threading.Thread):
 
         if thread_actions[currentThread][0:1] in (b'c', b'C'):
             if self.non_stop:
-                self.target.resume()
-                self.is_target_running = True
-                return self.create_rsp_packet(b"OK")
+                self.packet_io.send(self.create_rsp_packet(b"OK"))
+                if self.packet_io.interrupt_event.isSet():
+                    self.packet_io.interrupt_event.clear()
+                    self.send_stop_notification(forceSignal=signals.SIGINT)
+                    self.log.debug("resume skipped due to pending CTRL-C")
+                else:
+                    self.target.resume()
+                    self.is_target_running = True
+                return None
             else:
                 return self.resume(None)
         elif thread_actions[currentThread][0:1] in (b's', b'S'):
             if self.non_stop:
-                self.target.step(not self.step_into_interrupt)
                 self.packet_io.send(self.create_rsp_packet(b"OK"))
-                self.send_stop_notification()
+                if self.packet_io.interrupt_event.isSet():
+                    self.packet_io.interrupt_event.clear()
+                    self.send_stop_notification(forceSignal=signals.SIGINT)
+                    self.log.debug("step skipped due to pending CTRL-C")
+                else:
+                    self.target.step(not self.step_into_interrupt)
+                    self.send_stop_notification()
                 return None
             else:
                 return self.step(None)
@@ -1017,11 +1019,8 @@ class GDBServer(threading.Thread):
                 return None
 
         elif query[0].startswith(b'C'):
-            if not self.is_threading_enabled():
-                return self.create_rsp_packet(b"QC1")
-            else:
-                self.validate_debug_context()
-                return self.create_rsp_packet(("QC%x" % self.current_thread_id).encode())
+            self.validate_debug_context()
+            return self.create_rsp_packet(("QC%x" % self.current_thread_id).encode())
 
         elif query[0].find(b'Attached') != -1:
             return self.create_rsp_packet(b"1")
@@ -1054,7 +1053,7 @@ class GDBServer(threading.Thread):
         for rtosName, rtosClass in RTOS.items():
             try:
                 self.log.info("Attempting to load %s", rtosName)
-                rtos = rtosClass(self.target)
+                rtos = rtosClass(self.target, self.thread_provider)
                 if rtos.init(symbol_provider):
                     self.log.info("%s loaded successfully", rtosName)
                     self.thread_provider = rtos
@@ -1271,13 +1270,10 @@ class GDBServer(threading.Thread):
         response = self.target_facade.get_t_response(forceSignal)
 
         # Append thread
-        if not self.is_threading_enabled():
-            response += b"thread:1;"
+        if self.current_thread_id in (-1, 0):
+            response += ("thread:%x;" % self.thread_provider.current_thread.unique_id).encode()
         else:
-            if self.current_thread_id in (-1, 0, 1):
-                response += ("thread:%x;" % self.thread_provider.current_thread.unique_id).encode()
-            else:
-                response += ("thread:%x;" % self.current_thread_id).encode()
+            response += ("thread:%x;" % self.current_thread_id).encode()
 
         # Optionally append core
         if self.report_core:
@@ -1288,28 +1284,20 @@ class GDBServer(threading.Thread):
     def get_threads_xml(self):
         root = Element('threads')
 
-        if not self.is_threading_enabled():
-            t = SubElement(root, 'thread', id="1")
+        # Old "threading not enabled" code could fill in "Reset" or exception
+        # name here. RootThread does not offer that, but we do get
+        # the equivalent from MainStackThread.
+        threads = self.thread_provider.threads.values()
+        for thread in threads:
+            hexId = "%x" % thread.unique_id
+            t = SubElement(root, 'thread', id=hexId)
+            if thread.name is not None:
+                t.set("name", thread.name)
             if self.report_core:
                 t.set("core", str(self.core))
-            if self.is_target_in_reset():
-                t.text = "Reset"
-            else:
-                t.text = self.exception_name()
-        else:
-            threads = self.thread_provider.get_threads()
-            for thread in threads:
-                hexId = "%x" % thread.unique_id
-                t = SubElement(root, 'thread', id=hexId, name=thread.name)
-                if self.report_core:
-                    t.set("core", str(self.core))
-                t.text = thread.description
+            t.text = thread.description
 
         return b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
-
-    def is_threading_enabled(self):
-        return (self.thread_provider is not None) and self.thread_provider.is_enabled \
-            and (self.thread_provider.current_thread is not None)
 
     def is_target_in_reset(self):
         return self.target.get_state() == Target.TARGET_RESET

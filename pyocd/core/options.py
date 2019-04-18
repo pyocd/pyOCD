@@ -55,4 +55,5 @@ OPTIONS_INFO = {
     'swv_system_clock': OptionInfo('swv_system_clock', int, "Frequency in Hertz of the target's system clock. Used to compute the SWO baud rate divider. No default."),
     'telnet_port': OptionInfo('telnet_port', str, "Base TCP port number for the semihosting telnet server."),
     'vector_catch': OptionInfo('vector_catch', str, "Enable vector catch sources."),
+    'vector_catch_show_origin': OptionInfo('vector_catch_show_origin', bool, "Whether to show origin of vector catches.")
     }

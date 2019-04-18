@@ -19,7 +19,6 @@ from pyocd.debug.context import DebugContext
 from pyocd.coresight.cortex_m import (
     CortexM,
     CORE_REGISTER,
-    register_name_to_index,
     is_psr_subregister,
     sysm_to_psr_mask
 )
@@ -51,7 +50,7 @@ def get_modifier(r):
     return REG_MODIFIER.get(r, 7)
 
 def get_expected_reg_value(r):
-    i = register_name_to_index(r)
+    i = CortexM.register_name_to_index(r)
     if is_psr_subregister(i):
         return 0x55555555 & sysm_to_psr_mask(i)
     if i < 0:

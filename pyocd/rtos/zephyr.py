@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread)
+from .common import read_c_string
 from ..core import exceptions
 from ..core.target import Target
+from ..coresight.cortex_m import CortexM
 from ..debug.context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..debug.cortex_m_thread_provider import ProcessStackThread, PSPThreadContext
+from ..debug.thread_provider import (TargetThread, ThreadProvider, RootThread)
 import logging
 
 # Create a logger for this module.
@@ -76,68 +77,15 @@ class ZephyrThreadContext(DebugContext):
         self._has_fpu = parentContext.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
-        reg_vals = []
+        reg_list = [self.core.register_name_to_index(reg) for reg in reg_list]
 
-        isCurrent = self._thread.is_current
-        inException = isCurrent and self._parent.read_core_register('ipsr') > 0
-
-        # If this is the current thread and we're not in an exception, just read the live registers.
-        if isCurrent and not inException:
-            log.debug("Reading live registers")
-            return self._parent.read_core_registers_raw(reg_list)
-
-        # Because of above tests, from now on, inException implies isCurrent;
-        # we are generating the thread view for the RTOS thread where the
-        # exception occurred; the actual Handler Mode thread view is produced
-        # by HandlerModeThread
-        if inException:
-            # Reasonable to assume PSP is still valid
-            sp = self._parent.read_core_register('psp')
-        else:
-            sp = self._thread.get_stack_pointer()
+        sp = self._thread.get_stack_pointer()
         exceptionFrame = 0x20
 
-        for reg in reg_list:
-
-            # If this is a stack pointer register, add an offset to account for the exception stack frame
-            if reg == 13:
-                val = sp + exceptionFrame
-                log.debug("Reading register %d = 0x%x", reg, val)
-                reg_vals.append(val)
-                continue
-
-            # If this is a callee-saved register, read it from the thread structure
-            calleeOffset = self.CALLEE_SAVED_OFFSETS.get(reg, None)
-            if calleeOffset is not None:
-                try:
-                    addr = self._thread._base + self._thread._offsets["t_stack_ptr"] + calleeOffset
-                    val = self._parent.read32(addr)
-                    reg_vals.append(val)
-                    log.debug("Reading callee-saved register %d at 0x%08x = 0x%x", reg, addr, val)
-                except exceptions.TransferError:
-                    reg_vals.append(0)
-                continue
-
-            # If this is a exception stack frame register, read it from the stack
-            stackFrameOffset = self.STACK_FRAME_OFFSETS.get(reg, None)
-            if stackFrameOffset is not None:
-                try:
-                    addr = sp + stackFrameOffset
-                    val = self._parent.read32(addr)
-                    reg_vals.append(val)
-                    log.debug("Reading stack frame register %d at 0x%08x = 0x%x", reg, addr, val)
-                except exceptions.TransferError:
-                    reg_vals.append(0)
-                continue
-
-            # If we get here, this is a register not in any of the dictionaries
-            val = self._parent.read_core_register_raw(reg)
-            log.debug("Reading live register %d = 0x%x", reg, val)
-            reg_vals.append(val)
-            continue
-
-        return reg_vals
+        return self._do_read_regs_in_memory(reg_list, \
+                [(self._thread._base + self._thread._offsets["t_stack_ptr"], self.CALLEE_SAVED_OFFSETS), \
+                 (sp, self.STACK_FRAME_OFFSETS)], \
+                { 13: sp + exceptionFrame } )
 
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
@@ -167,7 +115,8 @@ class ZephyrThread(TargetThread):
         self._target_context = targetContext
         self._provider = provider
         self._base = base
-        self._thread_context = ZephyrThreadContext(self._target_context, self)
+        self._psp_context = PSPThreadContext(self._target_context, self)
+        self._zephyr_context = ZephyrThreadContext(self._target_context, self)
         self._offsets = offsets
         self._state = ZephyrThread.READY
         self._priority = 0
@@ -186,6 +135,11 @@ class ZephyrThread(TargetThread):
         except exceptions.TransferError:
             log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", addr)
             return 0
+
+    def get_exc_return_ftype(self):
+        # This code does not support floating point, so can assume all threads
+        # use standard frames
+        return True
 
     def update_info(self):
         try:
@@ -233,7 +187,10 @@ class ZephyrThread(TargetThread):
 
     @property
     def context(self):
-        return self._thread_context
+        if is_current:
+            return self._psp_context
+        else:
+            return self._zephyr_context
 
     def __str__(self):
         return "<ZephyrThread@0x%08x id=%x name=%s>" % (id(self), self.unique_id, self.name)
@@ -264,8 +221,8 @@ class ZephyrThreadProvider(ThreadProvider):
         't_name',
     ]
 
-    def __init__(self, target):
-        super(ZephyrThreadProvider, self).__init__(target)
+    def __init__(self, target, parent):
+        super(ZephyrThreadProvider, self).__init__(target, parent)
         self._symbols = None
         self._offsets = None
         self._version = None
@@ -327,8 +284,13 @@ class ZephyrThreadProvider(ThreadProvider):
             self._update()
 
     def _build_thread_list(self):
+        if not self.is_enabled:
+            self._threads = self._parent.threads
+            return
+
+        newThreads = self._parent.threads.copy()
+
         allThreads = TargetList(self._target_context, self._all_threads, self._offsets["t_next_thread"])
-        newThreads = {}
 
         currentThread = self._target_context.read32(self._curr_thread)
         log.debug("currentThread = 0x%08x", currentThread)
@@ -347,59 +309,27 @@ class ZephyrThreadProvider(ThreadProvider):
                 # Set thread state.
                 if threadBase == currentThread:
                     t.state = ZephyrThread.RUNNING
+                    # Our current thread replaces the PSP thread from CortexMThreadProvider
+                    newThreads.pop(ProcessStackThread.UNIQUE_ID, None)
+                    # Our current thread replaces the root thread, if on PSP stack
+                    if (self.get_current_stack_pointer_id() == CortexM.PSP):
+                        newThreads.pop(RootThread.UNIQUE_ID, None)
 
                 log.debug("Thread 0x%08x (%s)", threadBase, t.name)
                 newThreads[t.unique_id] = t
             except exceptions.TransferError:
                 log.debug("TransferError while examining thread 0x%08x", threadBase)
 
-        # Create fake handler mode thread.
-        if self._target_context.read_core_register('ipsr') > 0:
-            log.debug("creating handler mode thread")
-            t = HandlerModeThread(self._target_context, self)
-            newThreads[t.unique_id] = t
-
         self._threads = newThreads
 
-    def get_threads(self):
-        if not self.is_enabled:
-            return []
+    @property
+    def threads(self):
         self.update_threads()
-        return list(self._threads.values())
-
-    def get_thread(self, threadId):
-        if not self.is_enabled:
-            return None
-        self.update_threads()
-        return self._threads.get(threadId, None)
+        return self._threads
 
     @property
     def is_enabled(self):
         return self._symbols is not None and self.get_is_running()
-
-    @property
-    def current_thread(self):
-        if not self.is_enabled:
-            return None
-        self.update_threads()
-        id = self.get_current_thread_id()
-        try:
-            return self._threads[id]
-        except KeyError:
-            return None
-
-    def is_valid_thread_id(self, threadId):
-        if not self.is_enabled:
-            return False
-        self.update_threads()
-        return threadId in self._threads
-
-    def get_current_thread_id(self):
-        if not self.is_enabled:
-            return None
-        if self._target_context.read_core_register('ipsr') > 0:
-            return HandlerModeThread.UNIQUE_ID
-        return self.get_actual_current_thread_id()
 
     def get_actual_current_thread_id(self):
         if not self.is_enabled:

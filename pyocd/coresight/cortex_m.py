@@ -152,28 +152,6 @@ CORE_REGISTER = {
                  'd15': -0x5e,
                  }
 
-def register_name_to_index(reg):
-    if isinstance(reg, str):
-        try:
-            reg = CORE_REGISTER[reg.lower()]
-        except KeyError:
-            raise KeyError('cannot find %s core register' % reg)
-    return reg
-
-def is_float_register(index):
-    return is_single_float_register(index) or is_double_float_register(index)
-
-# Returns true for registers holding single-precision float values
-def is_single_float_register(index):
-    return 0x40 <= index <= 0x5f
-
-# Returns true for registers holding double-precision float values
-def is_double_float_register(index):
-    return -0x40 >= index > -0x60
-
-def is_fpu_register(index):
-    return index == 33 or is_single_float_register(index) or is_double_float_register(index)
-
 def is_cfbp_subregister(index):
     return -4 <= index <= -1
 
@@ -208,6 +186,13 @@ class CortexM(Target, CoreSightComponent):
     
     # Thumb bit in XPSR.
     XPSR_THUMB = 0x01000000
+
+    # Exception Return Payload
+    EXC_RETURN_PREFIX_MASK = 0xF0000000
+    EXC_RETURN_PREFIX = 0xF0000000
+    EXC_RETURN_FTYPE = (1 << 4)
+    EXC_RETURN_MODE = (1 << 3)
+    EXC_RETURN_SPSEL = (1 << 2)
 
     # Control Register
     CONTROL_FPCA = (1 << 2)
@@ -322,6 +307,12 @@ class CortexM(Target, CoreSightComponent):
     MVFR2_VFP_MISC_MASK = 0x000000f0
     MVFR2_VFP_MISC_SHIFT = 4
 
+    # Constants representing stack IDs, used for thread logic.
+    # Values correspond to register numbers, but don't necessarily have to.
+    SP = 13
+    MSP = 17
+    PSP = 18
+
     class RegisterInfo(object):
         def __init__(self, name, bitsize, reg_type, reg_group):
             self.name = name
@@ -384,6 +375,33 @@ class CortexM(Target, CoreSightComponent):
         RegisterInfo('d14',     64,         'ieee_double',  'float'),
         RegisterInfo('d15',     64,         'ieee_double',  'float'),
         ]
+
+    @staticmethod
+    def register_name_to_index(reg):
+        if isinstance(reg, str):
+            try:
+                reg = CORE_REGISTER[reg.lower()]
+            except KeyError:
+                raise KeyError('cannot find %s core register' % reg)
+        return reg
+
+    @staticmethod
+    def is_float_register(index):
+        return CortexM.is_single_float_register(index) or CortexM.is_double_float_register(index)
+
+    # Returns true for registers holding single-precision float values
+    @staticmethod
+    def is_single_float_register(index):
+        return 0x40 <= index <= 0x5f
+
+    # Returns true for registers holding double-precision float values
+    @staticmethod
+    def is_double_float_register(index):
+        return -0x40 >= index > -0x60
+
+    @staticmethod
+    def is_fpu_register(index):
+        return index == 33 or CortexM.is_float_register(index)
 
     @classmethod
     def factory(cls, ap, cmpid, address):
@@ -480,6 +498,7 @@ class CortexM(Target, CoreSightComponent):
         Cortex M initialization. The bus must be accessible when this method is called.
         """
         if not self.call_delegate('will_start_debug_core', core=self):
+            self.clear_debug_cause_bits()
             if self.halt_on_connect:
                 self.halt()
             self._read_core_type()
@@ -961,12 +980,12 @@ class CortexM(Target, CoreSightComponent):
         read CPU register
         Unpack floating point register values
         """
-        regIndex = register_name_to_index(reg)
+        regIndex = self.register_name_to_index(reg)
         regValue = self.read_core_register_raw(regIndex)
         # Convert int to float.
-        if is_single_float_register(regIndex):
+        if self.is_single_float_register(regIndex):
             regValue = conversion.u32_to_float32(regValue)
-        elif is_double_float_register(regIndex):
+        elif self.is_double_float_register(regIndex):
             regValue = conversion.u64_to_float64(regValue)
         return regValue
 
@@ -988,23 +1007,23 @@ class CortexM(Target, CoreSightComponent):
         associated to this register in the lookup table CORE_REGISTER.
         """
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self.register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self.has_fpu):
+            elif self.is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         # Handle doubles.
-        doubles = [reg for reg in reg_list if is_double_float_register(reg)]
+        doubles = [reg for reg in reg_list if self.is_double_float_register(reg)]
         hasDoubles = len(doubles) > 0
         if hasDoubles:
             originalRegList = reg_list
             
             # Strip doubles from reg_list.
-            reg_list = [reg for reg in reg_list if not is_double_float_register(reg)]
+            reg_list = [reg for reg in reg_list if not self.is_double_float_register(reg)]
             
             # Read float regs required to build doubles.
             singleRegList = []
@@ -1053,7 +1072,7 @@ class CortexM(Target, CoreSightComponent):
             results = []
             for reg in originalRegList:
                 # Double
-                if is_double_float_register(reg):
+                if self.is_double_float_register(reg):
                     doubleIndex = doubles.index(reg)
                     singleLow = singleValues[doubleIndex * 2]
                     singleHigh = singleValues[doubleIndex * 2 + 1]
@@ -1071,11 +1090,11 @@ class CortexM(Target, CoreSightComponent):
         write a CPU register.
         Will need to pack floating point register values before writing.
         """
-        regIndex = register_name_to_index(reg)
+        regIndex = self.register_name_to_index(reg)
         # Convert float to int.
-        if is_single_float_register(regIndex) and type(data) is float:
+        if self.is_single_float_register(regIndex) and type(data) is float:
             data = conversion.float32_to_u32(data)
-        elif is_double_float_register(regIndex) and type(data) is float:
+        elif self.is_double_float_register(regIndex) and type(data) is float:
             data = conversion.float64_to_u64(data)
         self.write_core_register_raw(regIndex, data)
 
@@ -1097,13 +1116,13 @@ class CortexM(Target, CoreSightComponent):
         """
         assert len(reg_list) == len(data_list)
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [self.register_name_to_index(reg) for reg in reg_list]
 
         # Sanity check register values
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self.has_fpu):
+            elif self.is_fpu_register(reg) and (not self.has_fpu):
                 raise ValueError("attempt to write FPU register without FPU")
 
         # Read special register if it is present in the list and
@@ -1112,7 +1131,7 @@ class CortexM(Target, CoreSightComponent):
         xpsrValue = None
         reg_data_list = []
         for reg, data in zip(reg_list, data_list):
-            if is_double_float_register(reg):
+            if self.is_double_float_register(reg):
                 # Replace double with two single float register writes. For instance,
                 # a write of D2 gets converted to writes to S4 and S5.
                 singleLow = data & 0xffffffff
@@ -1264,6 +1283,9 @@ class CortexM(Target, CoreSightComponent):
     def set_target_context(self, context):
         self._target_context = context
 
+    def get_core_thread_provider(self, parent, core=None):
+        return CortexMThreadProvider(self, parent)
+
     # Names for built-in Exception numbers found in IPSR
     CORE_EXCEPTION = [
            "Thread",
@@ -1303,3 +1325,18 @@ class CortexM(Target, CoreSightComponent):
     def in_thread_mode_on_main_stack(self):
         return (self._target_context.read_core_register('ipsr') == 0 and
                 (self._target_context.read_core_register('control') & CortexM.CONTROL_SPSEL) == 0)
+
+    def get_vector_catch_originating_stack_pointer_id(self):
+        # Reset vector catch has to be treated specially - LR is 0xFFFFFFFF in
+        # some circumstances, but not always, so can't rely on it. Instead check
+        # ipsr - if it says we're in Thread mode, then deduce it was a Reset,
+        # in which case we want to show MSP.
+        if self._target_context.read_core_register('ipsr') == 0:
+            return CortexM.MSP
+
+        if self._target_context.read_core_register('lr') & CortexM.EXC_RETURN_SPSEL:
+            return CortexM.PSP
+        else:
+            return CortexM.MSP
+
+from ..debug.cortex_m_thread_provider import CortexMThreadProvider
