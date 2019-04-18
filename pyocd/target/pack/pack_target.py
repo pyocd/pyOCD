@@ -29,37 +29,61 @@ from ...utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
 
-def get_supported_targets():
-    """! @brief Return a list containing the names of all supported targets"""
-    try:
-        cache = cmsis_pack_manager.Cache(True, True)
-        results = []
-        for dev in sorted([dev for name, dev in cache.index.items() if name != "version"],
-                       key=lambda dev: dev['name']):
-            pack, = cache.packs_for_devices([dev])
-            pack_path = os.path.join(cache.data_path,
-                                pack.vendor,
-                                pack.pack,
-                                pack.version + ".pack")
-            if os.path.exists(pack_path) and os.path.isfile(pack_path):
-                results.append(dev)
-        return results
-    except FileNotFoundError:
-        # cmsis-pack-manage can raise this exception if the cache is empty.
-        return []
+class ManagedPacks(object):
+    """! @brief Namespace for managed CMSIS-Pack utilities.
+    
+    By managed, we mean managed by the cmsis-pack-manager package. All the methods on this class
+    apply only to those packs managed by cmsis-pack-manager, not any targets from packs specified
+    by the user.
+    """
 
-def populate_target_from_cache(device_name):
-    """! @brief Add targets from cmsis-pack-manager matching the given name."""
-    try:
-        cache = cmsis_pack_manager.Cache(True, True)
-        for name in cache.index.keys():
-            if name.lower() == device_name.lower():
-                dev = cache.index[name]
-                pack = cache.pack_from_cache(dev)
-                populate_targets_from_pack(pack)
-    except FileNotFoundError:
-        # cmsis-pack-manager can raise this exception if the cache is empty.
-        pass
+    @staticmethod
+    def get_installed_packs(cache=None):
+        """! @brief Return a list containing CmsisPackRef objects for all installed packs."""
+        try:
+            cache = cache or cmsis_pack_manager.Cache(True, True)
+            results = []
+            # packs_for_devices() returns only unique packs.
+            for pack in cache.packs_for_devices(cache.index.values()):
+                pack_path = os.path.join(cache.data_path, pack.get_pack_name())
+                if os.path.isfile(pack_path):
+                    results.append(pack)
+            return results
+        except FileNotFoundError:
+            # cmsis-pack-manage can raise this exception if the cache is empty.
+            return []
+
+    @staticmethod
+    def get_installed_targets():
+        """! @brief Return a list of CmsisPackDevice objects for installed pack targets."""
+        try:
+            cache = cmsis_pack_manager.Cache(True, True)
+            results = []
+            for pack in ManagedPacks.get_installed_packs(cache=cache):
+                pack_path = os.path.join(cache.data_path, pack.get_pack_name())
+                pack = CmsisPack(pack_path)
+                results += list(pack.devices)
+            return sorted(results, key=lambda dev:dev.part_number)
+        except FileNotFoundError:
+            # cmsis-pack-manager can raise this exception if the cache is empty.
+            pass
+
+    @staticmethod
+    def populate_target(device_name):
+        """! @brief Add targets from cmsis-pack-manager matching the given name.
+
+        Targets are added to the `#TARGET` list.
+        """
+        try:
+            cache = cmsis_pack_manager.Cache(True, True)
+            for name in cache.index.keys():
+                if name.lower() == device_name.lower():
+                    dev = cache.index[name]
+                    pack = cache.pack_from_cache(dev)
+                    populate_targets_from_pack(pack)
+        except FileNotFoundError:
+            # cmsis-pack-manager can raise this exception if the cache is empty.
+            pass
 
 def _pack_target__init__(self, session):
     """! @brief Constructor for dynamically created target class."""

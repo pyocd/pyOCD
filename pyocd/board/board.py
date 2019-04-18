@@ -43,7 +43,7 @@ class Board(GraphNode):
 
         # Create targets from the cmsis-pack-manager cache.
         if self._target_type not in TARGET:
-            pack_target.populate_target_from_cache(target)
+            pack_target.ManagedPacks.populate_target(target)
         
         # Create Target instance.
         try:
