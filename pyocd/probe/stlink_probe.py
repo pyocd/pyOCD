@@ -34,7 +34,7 @@ class StlinkProbe(DebugProbe):
     def get_probe_with_id(cls, unique_id):
         for dev in STLinkUSBInterface.get_all_connected_devices():
             if dev.serial_number == unique_id:
-                return cls(STLinkUSBInterface(unique_id))
+                return cls(dev)
         else:
             return None
 
