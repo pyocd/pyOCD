@@ -132,7 +132,7 @@ class CMSISDAPProbe(DebugProbe):
         # CMSIS-DAP firmware is using the same serial number format, so we cannot reliably
         # extract the board ID.
         if self._link.vidpid == self.DAPLINK_VIDPID:
-            return MbedBoard(session)
+            return MbedBoard(session, board_id=self.unique_id[0:4])
         else:
             return None
     
