@@ -166,8 +166,13 @@ class CoreSightTarget(Target, GraphNode):
                 if flmPath is not None:
                     logging.info("creating flash algo from: %s", flmPath)
                     packAlgo = PackFlashAlgo(flmPath)
+                    if self.session.options.get("debug.log_flm_info", False):
+                        logging.debug("Flash algo info: %s", packAlgo.flash_info)
+                    page_size = packAlgo.page_size
+                    if page_size <= 32:
+                        page_size = min(s[1] for s in packAlgo.sector_sizes)
                     algo = packAlgo.get_pyocd_flash_algo(
-                            max(s[1] for s in packAlgo.sector_sizes),
+                            page_size,
                             self.memory_map.get_first_region_of_type(MemoryType.RAM))
                 
                     # If we got a valid algo from the FLM, set it on the region. This will then

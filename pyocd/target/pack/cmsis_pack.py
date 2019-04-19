@@ -376,14 +376,19 @@ class CmsisPackDevice(object):
             if current_session and current_session.options.get("debug.log_flm_info", False):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
             
+            # Choose the page size. The check for <=32 is to handle some flash algos with incorrect
+            # page sizes that are too small and probably represent the phrase size.
+            page_size = packAlgo.page_size
+            if page_size <= 32:
+                page_size = min(s[1] for s in packAlgo.sector_sizes)
+            
             # Construct the pyOCD algo using the largest sector size. We can share the same
             # algo for all sector sizes.
-            algo = packAlgo.get_pyocd_flash_algo(
-                            max(s[1] for s in packAlgo.sector_sizes), self._default_ram)
+            algo = packAlgo.get_pyocd_flash_algo(page_size, self._default_ram)
 
             # Create a separate flash region for each sector size range.
             for i, sectorInfo in enumerate(packAlgo.sector_sizes):
-                start, blocksize = sectorInfo
+                start, sector_size = sectorInfo
                 if i + 1 >= len(packAlgo.sector_sizes):
                     nextStart = region.length
                 else:
@@ -404,7 +409,8 @@ class CmsisPackDevice(object):
                                 access=region.access,
                                 start=start,
                                 length=length,
-                                blocksize=blocksize,
+                                sector_size=sector_size,
+                                page_size=page_size,
                                 flm=packAlgo,
                                 algo=algo,
                                 erased_byte_value=packAlgo.flash_info.value_empty,
