@@ -54,8 +54,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
     'static_base' : 0x20000000 + 0x00000020 + 0x0000014c,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20020000,
-    'page_buffers' : [0x20020000], # Disable double buffering, sectors are too large to fit 2 in RAM.
+    'begin_data' : 0x20002000,
+    'page_buffers' : [0x20003000, 0x20004000],
     'min_program_length' : 2,
     'analyzer_supported' : True,
     'analyzer_address' : 0x20002000
@@ -66,9 +66,16 @@ class STM32F412xE(CoreSightTarget):
     VENDOR = "STMicroelectronics"
     
     memoryMap = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True, algo=FLASH_ALGO),
-        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, algo=FLASH_ALGO),
-        FlashRegion( start=0x08020000, length=0x20000, blocksize=0x20000, algo=FLASH_ALGO),
+        FlashRegion( start=0x08000000, length=0x10000, sector_size=0x4000,
+                        page_size=0x1000,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x08010000, length=0x10000, sector_size=0x10000,
+                        page_size=0x1000,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x08020000, length=0x20000, sector_size=0x20000,
+                        page_size=0x1000,
+                        algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x40000)
         )
 
@@ -95,9 +102,16 @@ class STM32F412xG(CoreSightTarget):
     VENDOR = "STMicroelectronics"
     
     memoryMap = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x10000, blocksize=0x4000,  is_boot_memory=True, algo=FLASH_ALGO),
-        FlashRegion( start=0x08010000, length=0x10000, blocksize=0x10000, algo=FLASH_ALGO),
-        FlashRegion( start=0x08020000, length=0xE0000, blocksize=0x20000, algo=FLASH_ALGO),
+        FlashRegion( start=0x08000000, length=0x10000, sector_size=0x4000,
+                        page_size=0x1000,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x08010000, length=0x10000, sector_size=0x10000,
+                        page_size=0x1000,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x08020000, length=0xE0000, sector_size=0x20000,
+                        page_size=0x1000,
+                        algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x40000)
         )
 
