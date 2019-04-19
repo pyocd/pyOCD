@@ -25,7 +25,7 @@ import six
 import struct
 
 from .flash_algo import PackFlashAlgo
-from ...core import exceptions
+from ...core import (exceptions, session)
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
 
@@ -370,6 +370,11 @@ class CmsisPackDevice(object):
             # Load flash algo from .FLM file.
             algoData = self.pack.get_file(algo.attrib['name'])
             packAlgo = PackFlashAlgo(algoData)
+            
+            # Log details of this flash algo if the debug option is enabled.
+            current_session = session.Session.get_current()
+            if current_session and current_session.options.get("debug.log_flm_info", False):
+                LOG.debug("Flash algo info: %s", packAlgo.flash_info)
             
             # Construct the pyOCD algo using the largest sector size. We can share the same
             # algo for all sector sizes.
