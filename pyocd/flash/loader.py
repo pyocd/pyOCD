@@ -292,16 +292,16 @@ class FlashEraser(object):
 
         for spec in addresses:
             # Convert the spec into a start and end address.
-            page_addr, end_addr = self._convert_spec(spec)
+            sector_addr, end_addr = self._convert_spec(spec)
             
-            while page_addr < end_addr:
+            while sector_addr < end_addr:
                 # Look up the flash memory region for the current address.
-                region = self._session.target.memory_map.get_region_for_address(page_addr)
+                region = self._session.target.memory_map.get_region_for_address(sector_addr)
                 if region is None:
-                    LOG.warning("address 0x%08x is not within a memory region", page_addr)
+                    LOG.warning("address 0x%08x is not within a memory region", sector_addr)
                     break
                 if not region.is_flash:
-                    LOG.warning("address 0x%08x is not in flash", page_addr)
+                    LOG.warning("address 0x%08x is not in flash", sector_addr)
                     break
             
                 # Handle switching regions.
@@ -314,23 +314,23 @@ class FlashEraser(object):
                     flash = region.flash
                     flash.init(flash.Operation.ERASE)
         
-                # Get page info for the current address.
-                page_info = flash.get_page_info(page_addr)
-                if not page_info:
-                    # Should not fail to get page info within a flash region.
-                    raise RuntimeError("sector address 0x%08x within flash region '%s' is invalid" % (page_addr, region.name))
+                # Get sector info for the current address.
+                sector_info = flash.get_sector_info(sector_addr)
+                if not sector_info:
+                    # Should not fail to get sector info within a flash region.
+                    raise RuntimeError("sector address 0x%08x within flash region '%s' is invalid" % (sector_addr, region.name))
                 
                 # Align first page address.
-                delta = page_addr % page_info.size
+                delta = sector_addr % sector_info.size
                 if delta:
-                    LOG.warning("sector address 0x%08x is unaligned", page_addr)
-                    page_addr -= delta
+                    LOG.warning("sector address 0x%08x is unaligned", sector_addr)
+                    sector_addr -= delta
         
                 # Erase this page.
-                LOG.info("Erasing sector 0x%08x (%d bytes)", page_addr, page_info.size)
-                flash.erase_sector(page_addr)
+                LOG.info("Erasing sector 0x%08x (%d bytes)", sector_addr, sector_info.size)
+                flash.erase_sector(sector_addr)
                 
-                page_addr += page_info.size
+                sector_addr += sector_info.size
 
         if flash is not None:
             flash.cleanup()
