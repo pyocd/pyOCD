@@ -760,7 +760,7 @@ class GDBServer(threading.Thread):
 
         # v_cont capabilities query.
         elif b'Cont?' == cmd:
-            return self.create_rsp_packet(b"v_cont;c;C;s;S;t")
+            return self.create_rsp_packet(b"vCont;c;C;s;S;t")
 
         # v_cont, thread action command.
         elif cmd.startswith(b'Cont'):
