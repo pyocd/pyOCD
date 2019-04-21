@@ -448,6 +448,7 @@ class GDBServer(threading.Thread):
                 self.log.info("One client connected!")
                 self._run_connection()
                 self.log.info("Client disconnected!")
+                self._cleanup_for_next_connection()
 
             except Exception as e:
                 self.log.error("Unexpected exception: %s", e)
