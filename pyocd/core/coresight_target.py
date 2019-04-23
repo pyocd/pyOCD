@@ -241,8 +241,8 @@ class CoreSightTarget(Target, GraphNode):
     def halt(self):
         return self.selected_core.halt()
 
-    def step(self, disable_interrupts=True):
-        return self.selected_core.step(disable_interrupts)
+    def step(self, disable_interrupts=True, start=0, end=0):
+        return self.selected_core.step(disable_interrupts, start, end)
 
     def resume(self):
         return self.selected_core.resume()

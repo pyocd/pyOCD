@@ -448,6 +448,7 @@ class GDBServer(threading.Thread):
                 self.log.info("One client connected!")
                 self._run_connection()
                 self.log.info("Client disconnected!")
+                self._cleanup_for_next_connection()
 
             except Exception as e:
                 self.log.error("Unexpected exception: %s", e)
@@ -736,10 +737,10 @@ class GDBServer(threading.Thread):
 
         return self.create_rsp_packet(val)
 
-    def step(self, data):
+    def step(self, data, start=0, end=0):
         addr = self._get_resume_step_addr(data)
-        self.log.debug("GDB step: %s", data)
-        self.target.step(not self.step_into_interrupt)
+        self.log.debug("GDB step: %s (start=0x%x, end=0x%x)", data, start, end)
+        self.target.step(not self.step_into_interrupt, start, end)
         return self.create_rsp_packet(self.get_t_response())
 
     def halt(self):
@@ -760,7 +761,7 @@ class GDBServer(threading.Thread):
 
         # v_cont capabilities query.
         elif b'Cont?' == cmd:
-            return self.create_rsp_packet(b"v_cont;c;C;s;S;t")
+            return self.create_rsp_packet(b"vCont;c;C;s;S;r;t")
 
         # v_cont, thread action command.
         elif cmd.startswith(b'Cont'):
@@ -816,14 +817,19 @@ class GDBServer(threading.Thread):
                 return self.create_rsp_packet(b"OK")
             else:
                 return self.resume(None)
-        elif thread_actions[currentThread][0:1] in (b's', b'S'):
+        elif thread_actions[currentThread][0:1] in (b's', b'S', b'r'):
+            start = 0
+            end = 0
+            if thread_actions[currentThread][0:1] == b'r':
+                start, end = [int(addr, base=16) for addr in thread_actions[currentThread][1:].split(b',')]
+	
             if self.non_stop:
-                self.target.step(not self.step_into_interrupt)
+                self.target.step(not self.step_into_interrupt, start, end)
                 self.packet_io.send(self.create_rsp_packet(b"OK"))
                 self.send_stop_notification()
                 return None
             else:
-                return self.step(None)
+                return self.step(None, start, end)
         elif thread_actions[currentThread] == b't':
             # Must ignore t command in all-stop mode.
             if not self.non_stop:
