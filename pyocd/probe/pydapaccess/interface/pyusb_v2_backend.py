@@ -330,7 +330,8 @@ class HasCmsisDapv2Interface(object):
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_interface)
         except usb.core.USBError as error:
             # Produce a more helpful error message if we get a permissions error on Linux.
-            if error.errno == errno.EACCES and platform.system() == "Linux":
+            if error.errno == errno.EACCES and platform.system() == "Linux" \
+                and common.should_show_libusb_device_error((dev.idVendor, dev.idProduct)):
                 msg = ("%s while trying to interrogate a USB device "
                    "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
                    "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help." %
@@ -341,15 +342,8 @@ class HasCmsisDapv2Interface(object):
                     LOG.warning(msg)
                 else:
                     LOG.debug(msg)
-            elif error.errno == errno.ENOENT:
-                # This error happens on devices that don't have an interface description string.
-                pass
-            else:
-                LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
-                    dev.idVendor, dev.idProduct, error)
             return False
         except (IndexError, NotImplementedError, ValueError) as error:
-            LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
         if cmsis_dap_interface is None:

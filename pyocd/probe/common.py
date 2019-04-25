@@ -24,9 +24,26 @@ LOG = logging.getLogger(__name__)
 # is used in blocking mode and no probes are connected.
 did_show_no_libusb_warning = False
 
+## Set of VID/PID tuples for which libusb errors have been reported.
+#
+# Used to prevent spewing lots of errors for the same devices when repeatedly scanning for probes.
+libusb_error_device_set = set()
+
 def show_no_libusb_warning():
+    """! @brief Logs a warning about missing libusb library only the first time it is called."""
     global did_show_no_libusb_warning
     if not did_show_no_libusb_warning:
         LOG.warning("STLink and CMSIS-DAPv2 probes are not supported because no libusb library was found.")
         did_show_no_libusb_warning = True
     
+def should_show_libusb_device_error(vidpid):
+    """! @brief Returns whether a debug warning should be shown for the given VID/PID pair.
+    
+    The first time a given VID/PID is passed to this function, the result will be True. Any
+    subsequent times, False will be returned for the same VID/PID pair.
+    
+    @param vidpi A bi-tuple of USB VID and PID, in that order.
+    """
+    should_log = vidpid not in libusb_error_device_set
+    libusb_error_device_set.add(vidpid)
+    return should_log

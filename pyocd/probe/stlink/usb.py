@@ -73,7 +73,8 @@ class STLinkUSBInterface(object):
             
             return isSTLink
         except usb.core.USBError as error:
-            if error.errno == errno.EACCES and platform.system() == "Linux":
+            if error.errno == errno.EACCES and platform.system() == "Linux" \
+                and common.should_show_libusb_device_error((dev.idVendor, dev.idProduct)):
                 # We've already checked that this is an STLink device by VID/PID, so we
                 # can use a warning log level to let the user know it's almost certainly
                 # a permissions issue.
@@ -81,12 +82,8 @@ class STLinkUSBInterface(object):
                    "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
                    "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help.",
                    error, dev.idVendor, dev.idProduct)
-            else:
-                log.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
-                    dev.idVendor, dev.idProduct, error)
             return False
         except (IndexError, NotImplementedError, ValueError) as error:
-            log.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
     @classmethod
