@@ -275,7 +275,7 @@ class PyOCDTool(object):
         packParser.add_argument("-u", "--update", action='store_true',
             help="Update the pack index.")
         packParser.add_argument("-s", "--show", action='store_true',
-            help="Show the list of installed devices and packs.")
+            help="Show the list of installed packs.")
         packParser.add_argument("-f", "--find", dest="find_devices", metavar="GLOB", action='append',
             help="Look up a device part number in the index using a glob pattern. The pattern is "
                 "suffixed with '*'. Can be specified multiple times.")
@@ -377,7 +377,7 @@ class PyOCDTool(object):
         elif self._args.targets:
             # Create targets from provided CMSIS pack.
             if ('pack' in session.options) and (session.options['pack'] is not None):
-                pack_target.populate_targets_from_pack(session.options['pack'])
+                pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
             obj = ListGenerator.list_targets()
             pt = self._get_pretty_table(["Name", "Vendor", "Part Number", "Families", "Source"])
@@ -423,7 +423,7 @@ class PyOCDTool(object):
         elif self._args.targets:
             # Create targets from provided CMSIS pack.
             if ('pack' in session.options) and (session.options['pack'] is not None):
-                pack_target.populate_targets_from_pack(session.options['pack'])
+                pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
             obj = ListGenerator.list_targets()
             print(json.dumps(obj, indent=4))
@@ -590,12 +590,10 @@ class PyOCDTool(object):
             cache.cache_descriptors()
         
         if self._args.show:
-            devices = pack_target.get_supported_targets()
-            pt = self._get_pretty_table(["Part", "Vendor", "Pack", "Version"])
-            for info in devices:
-                ref, = cache.packs_for_devices([info])
+            packs = pack_target.ManagedPacks.get_installed_packs()
+            pt = self._get_pretty_table(["Vendor", "Pack", "Version"])
+            for ref in packs:
                 pt.add_row([
-                            info['name'],
                             ref.vendor,
                             ref.pack,
                             ref.version,

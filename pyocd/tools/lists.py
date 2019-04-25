@@ -127,18 +127,13 @@ class ListGenerator(object):
             targets.append(d)
         
         # Add targets from cmsis-pack-manager cache.
-        for dev in pack_target.get_supported_targets():
+        for dev in pack_target.ManagedPacks.get_installed_targets():
             try:
-                if 'vendor' in dev:
-                    vendor = dev['vendor'].split(':')[0]
-                else:
-                    vendor = dev['from_pack']['vendor']
-            
                 targets.append({
-                    'name' : dev['name'].lower(),
-                    'part_families' : [],
-                    'part_number' : dev['name'],
-                    'vendor' : vendor,
+                    'name' : dev.part_number.lower(),
+                    'part_families' : dev.families,
+                    'part_number' : dev.part_number,
+                    'vendor' : dev.vendor,
                     'source' : 'pack',
                     })
             except KeyError:
