@@ -39,7 +39,7 @@ class Board(GraphNode):
         
         # Create targets from provided CMSIS pack.
         if ('pack' in session.options) and (session.options['pack'] is not None):
-            pack_target.populate_targets_from_pack(session.options['pack'])
+            pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
         # Create targets from the cmsis-pack-manager cache.
         if self._target_type not in TARGET:
