@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2018 Arm Limited
+# Copyright (c) 2017-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@ import os
 import sys
 import logging
 
-log = logging.getLogger('progress')
+LOG = logging.getLogger(__name__)
 
 class ProgressReport(object):
     """!
@@ -35,11 +35,11 @@ class ProgressReport(object):
     
     def __call__(self, progress):
         assert progress >= 0.0
-#         assert progress <= 1.0 # TODO restore this assert when the progress > 1 bug is fixed
-#         assert (progress == 0 and self.prev_progress == 1.0) or (progress >= self.prev_progress)
-        
+
+        # Cap progress at 1.0.        
         if progress > 1.0:
-            log.debug("progress out of bounds: %.3f", progress)
+            progress = 1.0
+            LOG.debug("progress out of bounds: %.3f", progress)
 
         # Reset state on 0.0
         if progress == 0.0:
@@ -56,9 +56,10 @@ class ProgressReport(object):
 
             # Finish on 1.0
             if progress >= 1.0:
+                self.done = True
                 self._finish()
                 if self.backwards_progress:
-                    log.warning("Progress went backwards!")
+                    LOG.debug("Progress went backwards!")
     
     def _start(self):
         self.prev_progress = 0
@@ -90,7 +91,6 @@ class ProgressReportTTY(ProgressReport):
         self._file.flush()
 
     def _finish(self):
-        self.done = True
         self._file.write("\n")
 
 class ProgressReportNoTTY(ProgressReport):
@@ -119,7 +119,6 @@ class ProgressReportNoTTY(ProgressReport):
         self.last = i
 
     def _finish(self):
-        self.done = True
         self._file.write("]\n")
         self._file.flush()
 

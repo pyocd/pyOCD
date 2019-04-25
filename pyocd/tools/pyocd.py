@@ -24,6 +24,7 @@ import optparse
 from optparse import make_option
 import traceback
 import six
+import prettytable
 
 # Attempt to import readline.
 try:
@@ -1312,15 +1313,20 @@ class PyOCDCommander(object):
                 print("Core %d type:  %s" % (i, coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
 
     def handle_show_map(self, args):
-        print("Region          Start         End                 Size    Access    Blocksize")
+        pt = prettytable.PrettyTable(["Region", "Start", "End", "Size", "Access", "Sector", "Page"])
+        pt.align = 'l'
+        pt.border = False
         for region in self.target.get_memory_map():
-            print("{:<15} {:#010x}    {:#010x}    {:#10x}    {:<9} {}".format(
+            pt.add_row([
                 region.name,
-                region.start,
-                region.end,
-                region.length,
+                "0x%08x" % region.start,
+                "0x%08x" % region.end,
+                "0x%08x" % region.length,
                 region.access,
-                region.blocksize if region.is_flash else '-'))
+                ("0x%08x" % region.sector_size) if region.is_flash else '-',
+                ("0x%08x" % region.page_size) if region.is_flash else '-',
+                ])
+        print(pt)
 
     def handle_show_peripherals(self, args):
         for periph in sorted(self.peripherals.values(), key=lambda x:x.base_address):

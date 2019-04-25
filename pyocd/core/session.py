@@ -19,6 +19,7 @@ import logging
 import six
 import yaml
 import os
+import weakref
 
 # inspect.getargspec is deprecated in Python 3.
 try:
@@ -72,6 +73,22 @@ _USER_SCRIPT_NAMES = [
 # - target_override
 # - test_binary
 class Session(object):
+    
+    ## @brief Weak reference to the most recently created session.
+    _current_session = None
+    
+    @classmethod
+    def get_current(cls):
+        """! @brief Return the most recently created Session instance.
+        
+        Used primarily so code that doesn't have a session reference can access user options. This
+        method should only be used to access options that are unlikely to differ between sessions,
+        or for debug or other purposes.
+        """
+        if cls._current_session is not None:
+            return cls._current_session()
+        else:
+            return None
 
     ## @brief Session constructor.
     #
@@ -88,6 +105,8 @@ class Session(object):
     # @param options Optional user options dictionary.
     # @param kwargs User options passed as keyword arguments.
     def __init__(self, probe, options=None, **kwargs):
+        Session._current_session = weakref.ref(self)
+        
         self._probe = probe
         self._closed = True
         self._inited = False

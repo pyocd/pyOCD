@@ -65,7 +65,7 @@ FLASH_ALGO = {
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [0x20001000, 0x20001400],   # Enable double buffering
+    'page_buffers' : [0x20001000, 0x20002000],   # Enable double buffering
     'min_program_length' : 0x400,
 
     # Flash information

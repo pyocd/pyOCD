@@ -78,6 +78,8 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
     either globally or per probe. The format of the file is documented above. The default is a
     `pyocd.yaml` or `pyocd.yml` file in the working directory.
 
+- `debug.log_flm_info`: (bool) Log details of loaded .FLM flash algos.
+
 - `enable_multicore_debug`: (bool) Whether to put pyOCD into multicore debug mode. The primary effect
     is to modify the default software reset type for secondary cores to use VECTRESET, which will
     fall back to emulated reset if the secondary core is not v7-M.

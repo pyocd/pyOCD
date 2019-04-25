@@ -78,9 +78,11 @@ def flash_loader_test(board_id):
 
         memory_map = board.target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
+        print(boot_region)
         boot_start_addr = boot_region.start
         boot_end_addr = boot_region.end
         boot_blocksize = boot_region.blocksize
+        num_test_sectors = min(2, boot_region.length // boot_blocksize)
         binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
 
         # Generate an Intel hex file from the binary test file.
@@ -108,14 +110,20 @@ def flash_loader_test(board_id):
         
         print("\n------ Test Load Sector Erase ------")
         test_data = [0x55] * boot_blocksize
-        addr = (boot_end_addr + 1) - (boot_blocksize * 2)
+        addr = (boot_end_addr + 1) - (boot_blocksize * num_test_sectors)
+        if addr < (boot_start_addr + data_length):
+            orig_data_length = addr - boot_start_addr
+        else:
+            orig_data_length = data_length
+        
         loader = FlashLoader(session, chip_erase=False)
         loader.add_data(addr, test_data)
         loader.add_data(addr + boot_blocksize, test_data)
         loader.commit()
-        verify_data = target.read_memory_block8(addr, boot_blocksize * 2)
-        verify_data2 = target.read_memory_block8(boot_start_addr, data_length)
-        if same(verify_data, test_data * 2) and same(verify_data2, data):
+        
+        verify_data = target.read_memory_block8(addr, boot_blocksize * num_test_sectors)
+        verify_data2 = target.read_memory_block8(boot_start_addr, orig_data_length)
+        if same(verify_data, test_data * num_test_sectors) and same(verify_data2, data[:orig_data_length]):
             print("TEST PASSED")
             test_pass_count += 1
         else:
@@ -123,6 +131,7 @@ def flash_loader_test(board_id):
         test_count += 1
         
         print("\n------ Test Basic Sector Erase ------")
+        addr = (boot_end_addr + 1) - (boot_blocksize * num_test_sectors)
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
@@ -138,8 +147,7 @@ def flash_loader_test(board_id):
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
-        verify_data2 = target.read_memory_block8(addr, boot_blocksize * 2)
-        if same(verify_data, data) and target.memory_map.get_region_for_address(addr).is_erased(verify_data2):
+        if same(verify_data, data):
             print("TEST PASSED")
             test_pass_count += 1
         else:

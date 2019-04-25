@@ -457,7 +457,7 @@ class FlashBuilder(object):
                 actual_program_page_count += 1
         for sector in self.sector_list:
             if sector.are_any_pages_not_same():
-                erase_byte_count += page.size
+                erase_byte_count += sector.size
                 erase_sector_count += 1
         
         self.perf.total_byte_count = self.program_byte_count

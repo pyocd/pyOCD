@@ -24,6 +24,7 @@ OPTIONS_INFO = {
     'auto_unlock': OptionInfo('auto_unlock', bool, "Whether to unlock secured target by erasing."),
     'chip_erase': OptionInfo('chip_erase', str, "Whether to perform a chip erase or sector erases when programming flash."),
     'config_file': OptionInfo('config_file', str, "Path to custom config file."),
+    'debug.log_flm_info': OptionInfo('debug.log_flm_info', bool, "Log details of loaded .FLM flash algos."),
     'enable_multicore_debug': OptionInfo('enable_multicore', bool, "Whether to put pyOCD into multicore debug mode."),
     'fast_program': OptionInfo('fast_program', str, "Setting this option to True will use CRC checks of existing flash sector contents to determine whether pages need to be programmed."),
     'frequency': OptionInfo('frequency', int, "SWD/JTAG frequency in Hertz."),
