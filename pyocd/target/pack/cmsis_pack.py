@@ -25,7 +25,8 @@ import six
 import struct
 
 from .flash_algo import PackFlashAlgo
-from ...core import (exceptions, session)
+from ... import core
+from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
 
@@ -372,7 +373,7 @@ class CmsisPackDevice(object):
             packAlgo = PackFlashAlgo(algoData)
             
             # Log details of this flash algo if the debug option is enabled.
-            current_session = session.Session.get_current()
+            current_session = core.session.Session.get_current()
             if current_session and current_session.options.get("debug.log_flm_info", False):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
             
