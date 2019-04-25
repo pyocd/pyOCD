@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from .interface import Interface
-from .common import (filter_device_by_class, is_known_cmsis_dap_vid_pid)
+from .common import (USB_CLASS_VENDOR_SPECIFIC, filter_device_by_class, is_known_cmsis_dap_vid_pid)
 from ..dap_access_api import DAPAccessIntf
 from ... import common
 import logging
@@ -80,7 +80,7 @@ class PyUSBv2(Interface):
         config = dev.get_active_configuration()
 
         # Get CMSIS-DAPv2 interface
-        interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_interface_name)
+        interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_interface)
         if interface is None:
             raise DAPAccessIntf.DeviceError("Device %s has no CMSIS-DAPv2 interface" %
                                             self.serial_number)
@@ -253,16 +253,63 @@ class PyUSBv2(Interface):
         self.intf_number = None
         self.thread = None
 
-def _match_cmsis_dap_interface_name(desc):
-    """! @brief Returns true if the interface name contains 'CMSIS-DAP'."""
+def _check_ep(interface, ep_index, ep_dir, ep_type):
+    """! @brief Tests an endpoint type and direction."""
+    ep = interface[ep_index]
+    return (usb.util.endpoint_direction(ep.bEndpointAddress) == ep_dir) \
+        and (usb.util.endpoint_type(ep.bmAttributes) == ep_type)
+
+def _match_cmsis_dap_interface(interface):
+    """! @brief Returns true for a CMSIS-DAP v2 interface.
+    
+    This match function performs several tests on the provided USB interface descriptor, to
+    determine whether it is a CMSIS-DAPv2 interface. These requirements must be met by the
+    interface:
+    
+    1. Have an interface name string containing "CMSIS-DAP".
+    2. bInterfaceClass must be 0xff.
+    3. bInterfaceSubClass must be 0.
+    4. Must have bulk out and bulk in endpoints, with an optional extra bulk in endpoint, in
+        that order.
+    """
     try:
-        interface_name = usb.util.get_string(desc.device, desc.iInterface)
-        return (interface_name is not None) and ("CMSIS-DAP" in interface_name)
-    except UnicodeDecodeError:
-        # This exception can be raised if the device has a corrupted interface name.
-        # Certain versions of STLinkV2 are known to have this problem. If we can't
-        # read the interface name, there's no way to tell if it's a CMSIS-DAPv2
-        # interface.
+        interface_name = usb.util.get_string(interface.device, interface.iInterface)
+        
+        # This tells us whether the interface is CMSIS-DAP, but not whether it's v1 or v2.
+        if (interface_name is None) or ("CMSIS-DAP" not in interface_name):
+            return False
+
+        # Now check the interface class to distinguish v1 from v2.
+        if (interface.bInterfaceClass != USB_CLASS_VENDOR_SPECIFIC) \
+            or (interface.bInterfaceSubClass != 0):
+            return False
+
+        # Must have either 2 or 3 endpoints.
+        if interface.bNumEndpoints not in (2, 3):
+            return False
+        
+        # Endpoint 0 must be bulk out.
+        if not _check_ep(interface, 0, usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_BULK):
+            return False
+        
+        # Endpoint 1 must be bulk in.
+        if not _check_ep(interface, 1, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_BULK):
+            return False
+        
+        # Endpoint 2 is optional. If present it must be bulk in.
+        if (interface.bNumEndpoints == 3) \
+            and not _check_ep(interface, 2, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_BULK):
+            return False
+        
+        # All checks passed, this is a CMSIS-DAPv2 interface!
+        return True
+
+    except (UnicodeDecodeError, IndexError):
+        # UnicodeDecodeError exception can be raised if the device has a corrupted interface name.
+        # Certain versions of STLinkV2 are known to have this problem. If we can't read the
+        # interface name, there's no way to tell if it's a CMSIS-DAPv2 interface.
+        #
+        # IndexError can be raised if an endpoint is missing.
         return False
 
 class HasCmsisDapv2Interface(object):
@@ -280,7 +327,7 @@ class HasCmsisDapv2Interface(object):
         
         try:
             config = dev.get_active_configuration()
-            cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_interface_name)
+            cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_interface)
         except usb.core.USBError as error:
             # Produce a more helpful error message if we get a permissions error on Linux.
             if error.errno == errno.EACCES and platform.system() == "Linux":
@@ -306,10 +353,6 @@ class HasCmsisDapv2Interface(object):
             return False
 
         if cmsis_dap_interface is None:
-            return False
-        
-        # Check the class and subclass are vendor-specific.
-        if (cmsis_dap_interface.bInterfaceClass != 0xff) or (cmsis_dap_interface.bInterfaceSubClass != 0):
             return False
 
         if self._serial is not None:
