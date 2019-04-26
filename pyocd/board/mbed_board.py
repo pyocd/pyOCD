@@ -28,7 +28,7 @@ class MbedBoard(Board):
     the debug probe's serial number. If the board ID is all "0" characters, it indicates the
     firmware is generic and doesn't have an associated board.
     """
-    def __init__(self, session, target=None):
+    def __init__(self, session, target=None, board_id=None):
         """! @brief Constructor.
         
         This constructor attempts to use the board ID from the serial number to determine
@@ -36,7 +36,8 @@ class MbedBoard(Board):
         """
         target = session.options.get('target_override', target)
         unique_id = session.probe.unique_id
-        board_id = unique_id[0:4]
+        if board_id is None:
+            board_id = unique_id[0:4]
         
         # Check for null board ID. This indicates a standalone probe or generic firmware.
         if board_id == "0000":

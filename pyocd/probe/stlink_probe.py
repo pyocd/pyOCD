@@ -20,6 +20,9 @@ from ..core import exceptions
 from ..coresight.ap import (APSEL, APSEL_SHIFT)
 from .stlink.usb import STLinkUSBInterface
 from .stlink.stlink import STLink
+from .stlink.detect.factory import create_mbed_detector
+from ..board.mbed_board import MbedBoard
+from ..board.board_ids import BOARD_ID_TO_INFO
 from ..utility import conversion
 import six
 
@@ -44,10 +47,25 @@ class StlinkProbe(DebugProbe):
         self._is_connected = False
         self._nreset_state = False
         self._memory_interfaces = {}
+        self._mbed_info = None
+        self._board_id = None
+        
+        # Try to detect associated board info via the STLinkV2-1 MSD volume.
+        detector = create_mbed_detector()
+        for info in detector.list_mbeds():
+            if info['target_id_usb_id'] == self._link.serial_number:
+                self._mbed_info = info
+                self._board_id = info['target_id_mbed_htm'][0:4]
+                break
         
     @property
     def description(self):
-        return self.product_name
+        try:
+            board_info = BOARD_ID_TO_INFO[self._board_id]
+        except KeyError:
+            return self.product_name
+        else:
+            return "{0} [{1}]".format(board_info.name, board_info.target)
     
     @property
     def vendor_name(self):
@@ -73,6 +91,12 @@ class StlinkProbe(DebugProbe):
     @property
     def is_open(self):
         return self._is_open
+
+    def create_associated_board(self, session):
+        if self._mbed_info:
+            return MbedBoard(session, board_id=self._mbed_info['target_id_mbed_htm'][0:4])
+        else:
+            return None
     
     def open(self):
         self._link.open()
