@@ -57,6 +57,7 @@ from . import target_STM32F412xx
 from . import target_STM32F429xx
 from . import target_STM32F439xx
 from . import target_STM32L475xx
+from . import target_STM32L4xxxx
 from . import target_STM32L031x6
 from . import target_MAX32600
 from . import target_MAX32620
@@ -136,6 +137,10 @@ BUILTIN_TARGETS = {
           'stm32l475xc' : target_STM32L475xx.STM32L475xC,
           'stm32l475xe' : target_STM32L475xx.STM32L475xE,
           'stm32l475xg' : target_STM32L475xx.STM32L475xG,
+	  'stm32l4xxxb' : target_STM32L4xxxx.STM32L4xxxB,
+	  'stm32l4xxxc' : target_STM32L4xxxx.STM32L4xxxC,
+	  'stm32l4xxxe' : target_STM32L4xxxx.STM32L4xxxE,
+	  'stm32l4xxxg' : target_STM32L4xxxx.STM32L4xxxG,
           'stm32l031x6' : target_STM32L031x6.STM32L031x6,
           'w7500': target_w7500.W7500,
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
