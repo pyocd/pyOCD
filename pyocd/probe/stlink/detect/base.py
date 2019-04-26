@@ -58,7 +58,6 @@ class StlinkDetectBase(object):
         """
         platform_count = {}
         candidates = list(self.find_candidates())
-        logger.debug("Candidates for display %r", candidates)
         result = []
         for device in candidates:
             if not device.get("mount_point", None):
@@ -97,11 +96,6 @@ class StlinkDetectBase(object):
         """
         htm_target_id, daplink_info = self._read_htm_ids(device["mount_point"])
         if htm_target_id:
-            logger.debug(
-                "Found htm target id, %s, for usb target id %s",
-                htm_target_id,
-                device["target_id_usb_id"],
-            )
             device["target_id"] = htm_target_id
         else:
             logger.debug(
@@ -139,13 +133,11 @@ class StlinkDetectBase(object):
         m = re.search("\\?code=([a-fA-F0-9]+)", line)
         if m:
             result = m.groups()[0]
-            logger.debug("Found target id %s in htm line %s", result, line)
             return result
         # Last resort, we can try to see if old mbed.htm format is there
         m = re.search("\\?auth=([a-fA-F0-9]+)", line)
         if m:
             result = m.groups()[0]
-            logger.debug("Found target id %s in htm line %s", result, line)
             return result
 
         return None

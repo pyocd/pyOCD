@@ -17,15 +17,12 @@ import re
 import sys
 from collections import defaultdict
 from copy import copy
+import logging
 
 from .base import StlinkDetectBase
 
-import logging
-
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-DEBUG = logging.DEBUG
-del logging
 
 if sys.version_info[0] < 3:
     import _winreg as winreg
@@ -36,10 +33,6 @@ else:
 MAX_COMPOSITE_DEVICE_SUBDEVICES = 5
 MBED_STORAGE_DEVICE_VENDOR_STRINGS = [
     "ven_mbed",
-    "ven_segger",
-    "ven_arm_v2m",
-    "ven_nxp",
-    "ven_atmel",
 ]
 
 
@@ -95,9 +88,6 @@ def _get_cached_mounted_points():
                 continue
 
             mount_point = mount_point_match.group(1)
-            logger.debug(
-                "Mount point %s found for volume %s", mount_point, volume_string
-            )
 
             result.append({"mount_point": mount_point, "volume_string": volume_string})
     except OSError:
@@ -236,7 +226,6 @@ def _iter_keys(key):
 def _iter_vals(key):
     """! Iterate over values of a key
     """
-    logger.debug("_iter_vals %r", key)
     for i in range(winreg.QueryInfoKey(key)[1]):
         yield winreg.EnumValue(key, i)
 
@@ -365,12 +354,6 @@ class MbedLsToolsWindows(StlinkDetectBase):
                     if any(
                         e.startswith(new_entry_key_string) for e in entry_key_strings
                     ):
-                        logger.debug(
-                            "Assigning new entry key string of %s to device %s, "
-                            "as found in ParentIdPrefix",
-                            new_entry_key_string,
-                            target_id_usb_id,
-                        )
                         entry_key_string = new_entry_key_string
                         is_prefix = True
                 except OSError:
@@ -503,14 +486,5 @@ class MbedLsToolsWindows(StlinkDetectBase):
         """
         stdout, stderr, retcode = self._run_cli_process("dir %s" % path)
         result = True if retcode == 0 else False
-
-        if result:
-            logger.debug("Mount point %s is ready", path)
-        else:
-            logger.debug(
-                "Mount point %s reported not ready with error '%s'",
-                path,
-                stderr.strip(),
-            )
 
         return result

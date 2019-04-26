@@ -15,14 +15,12 @@
 
 import re
 import os
+import logging
 
 from .base import StlinkDetectBase
 
-import logging
-
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-del logging
 
 SYSFS_BLOCK_DEVICE_PATH = "/sys/class/block"
 
@@ -49,15 +47,12 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
 
     def find_candidates(self):
         disk_ids = self._dev_by_id("disk")
-#         serial_ids = self._dev_by_id("serial")
         mount_ids = dict(self._fat_mounts())
         usb_info = self._sysfs_block_devices(disk_ids.values())
-        logger.debug("Mount mapping %r", mount_ids)
 
         return [
             {
                 "mount_point": mount_ids.get(disk_dev),
-#                 "serial_port": serial_ids.get(disk_uuid),
                 "target_id_usb_id": disk_uuid,
                 "vendor_id": usb_info.get(disk_dev, {}).get("vendor_id"),
                 "product_id": usb_info.get(disk_dev, {}).get("product_id"),
@@ -76,7 +71,6 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
             to_ret = dict(
                 self._hex_ids([os.path.join(dir, f) for f in os.listdir(dir)])
             )
-            logger.debug("Found %s devices by id %r", device_type, to_ret)
             return to_ret
         else:
             logger.error(
@@ -110,7 +104,6 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
         @details Uses regular expressions to get a USBID (TargeTIDs) a "by-id"
           symbolic link
         """
-        logger.debug("Converting device list %r", dev_list)
         for dl in dev_list:
             match = self.nlp.search(dl)
             if match:
