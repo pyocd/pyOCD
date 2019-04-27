@@ -43,12 +43,11 @@ from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
 from debug_context_test import DebugContextTest
 
-XML_RESULTS = "test_results.xml"
+XML_RESULTS_TEMPLATE = "test_results{}.xml"
+LOG_FILE_TEMPLATE = "automated_test_result{}.txt"
+SUMMARY_FILE_TEMPLATE = "automated_test_summary{}.txt"
 
 LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
-
-LOG_FILE = "automated_test_result.txt"
-SUMMARY_FILE = "automated_test_summary.txt"
 
 JOB_TIMEOUT = 30 * 60 # 30 minutes
 
@@ -64,6 +63,10 @@ test_list = [
              DebugContextTest(),
              GdbTest(),
              ]
+
+def get_env_file_name(template):
+    env_name = os.environ.get('TOX_ENV_NAME', '')
+    return template.format(("_" + env_name) if env_name else '')
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -130,7 +133,8 @@ def generate_xml_results(result_list):
     root.set('failures', str(total_failures))
     root.set('time', "%.3f" % total_time)
     
-    ElementTree.ElementTree(root).write(XML_RESULTS, encoding="UTF-8", xml_declaration=True)
+    xml_results = get_env_file_name(XML_RESULTS_TEMPLATE)
+    ElementTree.ElementTree(root).write(xml_results, encoding="UTF-8", xml_declaration=True)
 
 def print_board_header(outputFile, board, n, includeDividers=True, includeLeadingNewline=False):
     header = "TESTING BOARD {name} [{target}] [{uid}] #{n}".format(
@@ -170,7 +174,9 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     originalStderr = sys.stderr
 
     # Open board-specific output file.
-    log_filename = "automated_test_results_%s_%d.txt" % (board.name, n)
+    env_name = (("_" + os.environ['TOX_ENV_NAME']) if ('TOX_ENV_NAME' in os.environ) else '')
+    name_info = "{}_{}_{}".format(env_name, board.name, n)
+    log_filename = LOG_FILE_TEMPLATE.format(name_info)
     if os.path.exists(log_filename):
         os.remove(log_filename)
     log_file = open(log_filename, "a", buffering=1) # 1=Unbuffered
@@ -247,11 +253,9 @@ def main():
     parser.add_argument('-b', '--board', action="append", metavar="ID", help="Limit testing to boards with specified unique IDs. Multiple boards can be listed.")
     args = parser.parse_args()
     
-    # Force jobs to 1 when running under CI until concurrency issues with enumerating boards are
-    # solved. Specifically, the connect test has intermittently failed to open boards on Linux and
-    # Win7. This is only done under CI, and in this script, to make testing concurrent runs easy.
-    if 'CI_TEST' in os.environ:
-        args.jobs = 1
+    # Allow CI to override the number of concurrent jobs.
+    if 'CI_JOBS' in os.environ:
+        args.jobs = int(os.environ['CI_JOBS'])
     
     # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
     # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()
@@ -265,11 +269,12 @@ def main():
     # Setup logging based on concurrency and quiet option.
     level = logging.DEBUG if args.debug else logging.INFO
     if args.jobs == 1 and not args.quiet:
+        log_file = get_env_file_name(LOG_FILE_TEMPLATE)
         # Create common log file.
-        if os.path.exists(LOG_FILE):
-            os.remove(LOG_FILE)
+        if os.path.exists(log_file):
+            os.remove(log_file)
         logToConsole = True
-        commonLogFile = open(LOG_FILE, "a")
+        commonLogFile = open(log_file, "a")
     else:
         logToConsole = False
         commonLogFile = None
@@ -309,7 +314,8 @@ def main():
     test_time = (stop - start)
 
     print_summary(test_list, result_list, test_time)
-    with open(SUMMARY_FILE, "w") as output_file:
+    summary_file = get_env_file_name(SUMMARY_FILE_TEMPLATE)
+    with open(summary_file, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
     generate_xml_results(result_list)
     
