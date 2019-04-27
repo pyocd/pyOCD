@@ -16,6 +16,7 @@
 import re
 import subprocess
 import platform
+import logging
 
 try:
     from plistlib import loads
@@ -25,14 +26,11 @@ from xml.parsers.expat import ExpatError
 
 from .base import StlinkDetectBase
 
-import logging
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-DEBUG = logging.DEBUG
-del logging
 
-mbed_volume_name_match = re.compile(r"\b(mbed|SEGGER MSD|ATMEL EDBG Media)\b", re.I)
+mbed_volume_name_match = re.compile(r"\b(mbed)\b", re.I)
 
 
 def _plist_from_popen(popen):
@@ -43,20 +41,6 @@ def _plist_from_popen(popen):
         return loads(out)
     except ExpatError:
         return []
-
-
-# def _find_TTY(obj):
-#     """ Find the first tty (AKA IODialinDevice) that we can find in the
-#         children of the specified object, or None if no tty is present.
-#     """
-#     try:
-#         return obj["IODialinDevice"]
-#     except KeyError:
-#         for child in obj.get("IORegistryEntryChildren", []):
-#             found = _find_TTY(child)
-#             if found:
-#                 return found
-#         return None
 
 
 def _prune(current, keys):
@@ -90,19 +74,11 @@ def _dfs_usb_info(obj, parents):
         and mbed_volume_name_match.search(obj["IORegistryEntryName"])
     ):
         disk_id = obj["BSD Name"]
-        usb_info = {"serial": None} #, "vendor_id": None, "product_id": None, "tty": None}
+        usb_info = {"serial": None}
         for parent in [obj] + parents:
             if "USB Serial Number" in parent:
                 usb_info["serial"] = parent["USB Serial Number"]
                 break
-#             if "idVendor" in parent and "idProduct" in parent:
-#                 usb_info["vendor_id"] = format(parent["idVendor"], "04x")
-#                 usb_info["product_id"] = format(parent["idProduct"], "04x")
-#             if usb_info["serial"]:
-#                 usb_info["tty"] = _find_TTY(parent)
-#             if all(usb_info.values()):
-#                 break
-        logger.debug("found usb info %r", usb_info)
         output[disk_id] = usb_info
     for child in obj.get("IORegistryEntryChildren", []):
         output.update(_dfs_usb_info(child, [obj] + parents))
@@ -126,7 +102,6 @@ class StlinkDetectDarwin(StlinkDetectBase):
         return [
             {
                 "mount_point": mounts[v],
-#                 "serial_port": volumes[v]["tty"],
                 "target_id_usb_id": volumes[v].get("serial"),
                 "vendor_id": volumes[v].get("vendor_id"),
                 "product_id": volumes[v].get("product_id"),
@@ -142,12 +117,6 @@ class StlinkDetectDarwin(StlinkDetectBase):
         )
         disks = _plist_from_popen(diskutil_ls)
 
-        if logger.isEnabledFor(DEBUG):
-            import pprint
-
-            logger.debug(
-                "disks dict \n%s", pprint.PrettyPrinter(indent=2).pformat(disks)
-            )
         return {
             disk["DeviceIdentifier"]: disk.get("MountPoint", None)
             for disk in disks["AllDisksAndPartitions"]
@@ -165,10 +134,13 @@ class StlinkDetectDarwin(StlinkDetectBase):
         # of the same composite device
         # ioreg -a -r -n <usb_controller_name> -l
         usb_controllers = [
-            "AppleUSBXHCI",
-            "AppleUSBUHCI",
-            "AppleUSBEHCI",
-            "AppleUSBOHCI",
+            # Leaving these here for reference. The code nominally scanned each controller,
+            # but a bug (?) caused it to only pay attention to the last one. That seems to
+            # work fine, so the others are commented out.
+#             "AppleUSBXHCI",
+#             "AppleUSBUHCI",
+#             "AppleUSBEHCI",
+#             "AppleUSBOHCI",
             "IOUSBHostDevice",
         ]
 
@@ -196,17 +168,8 @@ class StlinkDetectDarwin(StlinkDetectBase):
                     "BSD Name",
                     "IORegistryEntryName",
                     "idProduct",
-                    "IODialinDevice",
                 ],
             )
-            if logger.isEnabledFor(DEBUG):
-                import pprint
-
-                logger.debug(
-                    "finding in \n%s",
-                    pprint.PrettyPrinter(indent=2).pformat(pruned_obj),
-                )
             r.update(_dfs_usb_info(pruned_obj, []))
 
-        logger.debug("_volumes return %r", r)
         return r

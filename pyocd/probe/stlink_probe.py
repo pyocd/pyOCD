@@ -94,7 +94,7 @@ class StlinkProbe(DebugProbe):
 
     def create_associated_board(self, session):
         if self._mbed_info:
-            return MbedBoard(session, board_id=self._mbed_info['target_id_mbed_htm'][0:4])
+            return MbedBoard(session, board_id=self._board_id)
         else:
             return None
     
