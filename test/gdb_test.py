@@ -142,7 +142,6 @@ def test_gdb(board_id=None, n=0):
                 "--telnet-port=%i" % telnet_port,
                 "--frequency=%i" % target_test_params['test_clock'],
                 "--uid=%s" % board_id,
-                '-Oboard_config_file=test_boards.json'
                 ]
         server = PyOCDTool()
         server.run(args)

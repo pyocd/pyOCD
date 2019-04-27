@@ -76,14 +76,16 @@ class ManagedPacks(object):
         device part number is used to find the target to populate. If multiple packs are installed
         that provide the same part numbers, all matching targets will be populated.
         """
+        device_name = device_name.lower()
         targets = ManagedPacks.get_installed_targets()
         for dev in targets:
-            if device_name.lower() == dev.part_number.lower():
+            if device_name == dev.part_number.lower():
                 PackTargets.populate_device(dev)
 
 class _PackTargetMethods(object):
     """! @brief Container for methods added to the dynamically generated pack target subclass."""
 
+    @staticmethod
     def _pack_target__init__(self, session):
         """! @brief Constructor for dynamically created target class."""
         super(self.__class__, self).__init__(session, self._pack_device.memory_map)
@@ -94,13 +96,15 @@ class _PackTargetMethods(object):
 
         self._svd_location = SVDFile(filename=self._pack_device.svd)
 
+    @staticmethod
     def _pack_target_create_init_sequence(self):
         """! @brief Creates an init task to set the default reset type."""
-        seq = super(self.__class__,self).create_init_sequence()
+        seq = super(self.__class__, self).create_init_sequence()
         seq.insert_after('create_cores',
             ('set_default_reset_type', self.set_default_reset_type))
         return seq
 
+    @staticmethod
     def _pack_target_set_default_reset_type(self):
         """! @brief Set's the first core's default reset type to the one specified in the pack."""
         if 0 in self.cores:
@@ -129,10 +133,8 @@ class PackTargets(object):
             return CoreSightTarget
 
     @staticmethod
-    def _generate_pack_target(dev):
-        """! @brief Generates a new.
-
-        The new target class is added to the `#TARGET` list.
+    def _generate_pack_target_class(dev):
+        """! @brief Generates a new target class from a CmsisPackDevice.
 
         @param dev A CmsisPackDevice object.
         @return A new subclass of either CoreSightTarget or one of the family classes.
@@ -165,10 +167,11 @@ class PackTargets(object):
         @param dev A CmsisPackDevice object.
         """
         try:
-            tgt = PackTargets._generate_pack_target(dev)
+            tgt = PackTargets._generate_pack_target_class(dev)
             if tgt is None:
                 return
             part = dev.part_number.lower()
+            LOG.debug("Loading target '%s' from CMSIS-Pack", part)
 
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
@@ -189,9 +192,7 @@ class PackTargets(object):
         if not isinstance(pack_list, (list, tuple)):
             pack_list = [pack_list]
         for pack_or_path in pack_list:
-            if isinstance(pack_or_path, six.string_types):
-                LOG.info("Loading CMSIS-Pack: %s", pack_or_path)
-            if not isinstane(pack_or_path, CmsisPack):
+            if not isinstance(pack_or_path, CmsisPack):
                 pack = CmsisPack(pack_or_path)
             for dev in pack.devices:
                 PackTargets.populate_device(dev)
