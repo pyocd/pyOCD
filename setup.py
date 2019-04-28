@@ -17,7 +17,6 @@
 import sys
 import os
 from setuptools import setup, find_packages
-import zipfile
 
 open_args = { 'mode': 'r' }
 if sys.version_info[0] > 2:
@@ -93,4 +92,9 @@ setup(
         'pyocd': ['debug/svd/svd_data.zip'],
     },
     zip_safe=True,
+    options={
+        'bdist_wheel': {
+            'universal': True,
+        },
+    },
 )
