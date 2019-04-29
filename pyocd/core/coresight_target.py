@@ -229,7 +229,7 @@ class CoreSightTarget(Target, GraphNode):
             if self.session.options.get('allow_no_cores', False):
                 logging.error("No cores were discovered!")
             else:
-                raise exceptions.Error("No cores were discovered!")
+                raise exceptions.DebugError("No cores were discovered!")
 
     def disconnect(self, resume=True):
         self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))

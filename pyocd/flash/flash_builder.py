@@ -180,6 +180,10 @@ class FlashBuilder(object):
         @param addr Base address of the block of data passed to this method. The entire block of
             data must be contained within the flash memory region associated with this instance.
         @param data Data to be programmed. Should be a list of byte values.
+        
+        @exception FlashFailure Address range of added data is outside the address range of the
+            flash region associated with the builder.
+        @exception ValueError Attempt to add overlapping data.
         """
         # Ignore empty data.
         if len(data) == 0:
@@ -225,6 +229,8 @@ class FlashBuilder(object):
         @param keep_unwritten If true, unwritten pages in an erased sector and unwritten
             contents of a modified page will be read from the target and added to the data to be
             programmed.
+
+        @exception FlashFailure Could not get sector or page info for an address.
         """
         assert len(self.flash_operation_list) > 0
         

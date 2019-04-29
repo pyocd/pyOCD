@@ -18,11 +18,27 @@ class Error(RuntimeError):
     """! @brief Parent of all errors pyOCD can raise"""
     pass
 
-class ProbeError(Error):
-    """! @brief Error communicating with device"""
+class TargetSupportError(Error):
+    """! @brief Error related to target support"""
     pass
 
-class TransferError(ProbeError):
+class ProbeError(Error):
+    """! @brief Error communicating with the debug probe"""
+    pass
+
+class ProbeDisconnected(ProbeError):
+    """! @brief The connection to the debug probe was lost"""
+    pass
+
+class TargetError(Error):
+    """! @brief An error that happens on the target"""
+    pass
+
+class DebugError(TargetError):
+    """! @brief Error controlling target debug resources"""
+    pass
+
+class TransferError(DebugError):
     """! @brief Error ocurred with a transfer over SWD or JTAG"""
     pass
 
@@ -65,7 +81,7 @@ class TransferFaultError(TransferError):
                 desc += "-0x%08x" % self.fault_end_address
         return desc
   
-class FlashFailure(RuntimeError):
+class FlashFailure(TargetError):
     """! @brief Exception raised when flashing fails for some reason. """
     def __init__(self, msg, address=None, result_code=None):
         super(FlashFailure, self).__init__(msg)

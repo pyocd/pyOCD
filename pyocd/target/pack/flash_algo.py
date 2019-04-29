@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
 
 FLASH_ALGO_STACK_SIZE = 512
 
-class FlashAlgoException(exceptions.Error):
+class FlashAlgoException(exceptions.TargetSupportError):
     """! @brief Exception class for errors parsing an FLM file."""
     pass
 

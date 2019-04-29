@@ -23,12 +23,13 @@ from ..coresight.cortex_m import (
     is_psr_subregister,
     sysm_to_psr_mask
 )
+from ..core import exceptions
 from ..utility import conversion
 from intervaltree import (Interval, IntervalTree)
 import logging
 
 ## @brief Generic failure to access memory.
-class MemoryAccessError(RuntimeError):
+class MemoryAccessError(exceptions.Error):
     pass
 
 ## @brief Holds hit ratio metrics for the caches.

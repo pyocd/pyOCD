@@ -32,7 +32,7 @@ from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, Fl
 
 LOG = logging.getLogger(__name__)
 
-class MalformedCmsisPackError(exceptions.Error):
+class MalformedCmsisPackError(exceptions.TargetSupportError):
     """! @brief Exception raised for errors parsing a CMSIS-Pack."""
     pass
 
