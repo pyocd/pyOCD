@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ..core import exceptions
 from ..target import TARGET
 from ..target.pack import pack_target
 from ..utility.graph import GraphNode
@@ -36,6 +37,7 @@ class Board(GraphNode):
         self._target_type = target.lower()
         self._test_binary = session.options.get('test_binary', None)
         self._delegate = None
+        self._inited = False
         
         # Create targets from provided CMSIS pack.
         if ('pack' in session.options) and (session.options['pack'] is not None):
@@ -44,15 +46,24 @@ class Board(GraphNode):
         # Create targets from the cmsis-pack-manager cache.
         if self._target_type not in TARGET:
             pack_target.ManagedPacks.populate_target(target)
-        
+
         # Create Target instance.
         try:
-            log.info("Target type is %s", self._target_type)
             self.target = TARGET[self._target_type](session)
         except KeyError as exc:
-            log.error("target '%s' not recognized", self._target_type)
-            six.raise_from(KeyError("target '%s' not recognized" % self._target_type), exc)
-        self._inited = False
+            six.raise_from(exceptions.TargetSupportError(
+                "Target '%s' not recognized. Use the 'pyocd list --targets' command to see "
+                "all available targets." % self._target_type), exc)
+        
+        # Tell the user what target type is selected.
+        log.info("Target type is %s", self._target_type)
+        
+        # Log a helpful warning when using the generic cortex_m target.
+        if self._target_type == 'cortex_m':
+            log.warning("Generic cortex_m target type is selected; is this intentional? "
+                        "You will be able to debug but not program flash. To set the "
+                        "target type use the '--target' argument or target_type option. "
+                        "Use 'pyocd list --targets' to see available targets.")
         
         self.add_child(self.target)
 

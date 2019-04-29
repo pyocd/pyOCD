@@ -62,7 +62,7 @@ class MbedBoard(Board):
             # If there still isn't a known target, tell the user about it. Leaving target
             # set to None will cause cortex_m to be selected by the Board ctor.
             if target is None:
-                LOG.warning("Board ID %s is not recognized; you will be able to use pyOCD but not program flash.", board_id)
+                LOG.warning("Board ID %s is not recognized, using generic cortex_m target.", board_id)
 
         super(MbedBoard, self).__init__(session, target)
 
