@@ -35,7 +35,6 @@ import logging, threading, socket
 from struct import unpack
 from time import (sleep, time)
 import sys
-import traceback
 import six
 from six.moves import queue
 from xml.etree.ElementTree import (Element, SubElement, tostring)
@@ -451,8 +450,7 @@ class GDBServer(threading.Thread):
                 self._cleanup_for_next_connection()
 
             except Exception as e:
-                self.log.error("Unexpected exception: %s", e)
-                traceback.print_exc()
+                self.log.error("Unexpected exception: %s", e, exc_info=self.session.log_tracebacks)
 
     def _run_connection(self):
         while True:
@@ -480,8 +478,7 @@ class GDBServer(threading.Thread):
                             self.is_target_running = False
                             self.send_stop_notification()
                     except Exception as e:
-                        self.log.error("Unexpected exception: %s", e)
-                        traceback.print_exc()
+                        self.log.error("Unexpected exception: %s", e, exc_info=self.session.log_tracebacks)
 
                 # read command
                 try:
@@ -520,8 +517,7 @@ class GDBServer(threading.Thread):
                             return
 
             except Exception as e:
-                self.log.error("Unexpected exception: %s", e)
-                traceback.print_exc()
+                self.log.error("Unexpected exception: %s", e, exc_info=self.session.log_tracebacks)
 
     def handle_message(self, msg):
         try:
@@ -541,8 +537,7 @@ class GDBServer(threading.Thread):
             return reply, detach
 
         except Exception as e:
-            self.log.error("Unhandled exception in handle_message: %s", e)
-            traceback.print_exc()
+            self.log.error("Unhandled exception in handle_message: %s", e, exc_info=self.session.log_tracebacks)
             return self.create_rsp_packet(b"E01"), 0
 
     def extended_remote(self):
@@ -730,8 +725,7 @@ class GDBServer(threading.Thread):
                     self.target.halt()
                 except:
                     pass
-                traceback.print_exc()
-                self.log.debug('Target is unavailable temporarily.')
+                self.log.warning('Exception while target was running: %s', e, exc_info=self.session.log_tracebacks)
                 val = ('S%02x' % self.target_facade.get_signal_value()).encode()
                 break
 
@@ -1066,8 +1060,7 @@ class GDBServer(threading.Thread):
                     self.thread_provider = rtos
                     break
             except RuntimeError as e:
-                self.log.error("Error during symbol lookup: " + str(e))
-                traceback.print_exc()
+                self.log.error("Error during symbol lookup: " + str(e), exc_info=self.session.log_tracebacks)
 
         self.did_init_thread_providers = True
 

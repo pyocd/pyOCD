@@ -31,6 +31,7 @@ import cmsis_pack_manager
 from . import __version__
 from .core.session import Session
 from .core.helpers import ConnectHelper
+from .core import exceptions
 from .target import TARGET
 from .target.pack import pack_target
 from .gdbserver import GDBServer
@@ -332,8 +333,10 @@ class PyOCDTool(object):
             return 0
         except KeyboardInterrupt:
             return 0
+        except exceptions.Error as e:
+            LOG.error(e, exc_info=Session.get_current().log_tracebacks)
         except Exception as e:
-            LOG.error("uncaught exception: %s", e, exc_info=True)
+            LOG.error("uncaught exception: %s", e, exc_info=Session.get_current().log_tracebacks)
             return 1
     
     def show_options_help(self):

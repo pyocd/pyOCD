@@ -410,7 +410,7 @@ class CMSISDAPProbe(DebugProbe):
         elif isinstance(exc, (DAPAccess.DeviceError, DAPAccess.CommandError)):
             return exceptions.ProbeError(str(exc))
         elif isinstance(exc, DAPAccess.Error):
-            return exceptions.PyOCDError(str(exc))
+            return exceptions.Error(str(exc))
         else:
             return exc
 

@@ -79,7 +79,11 @@ class Session(object):
     
     @classmethod
     def get_current(cls):
-        """! @brief Return the most recently created Session instance.
+        """! @brief Return the most recently created Session instance or a default Session.
+        
+        By default this method will return the most recently created Session object that is
+        still alive. If no live session exists, a new default session will be created and returned.
+        That at least provides access to the user's config file(s).
         
         Used primarily so code that doesn't have a session reference can access user options. This
         method should only be used to access options that are unlikely to differ between sessions,
@@ -88,7 +92,7 @@ class Session(object):
         if cls._current_session is not None:
             return cls._current_session()
         else:
-            return None
+            return Session(None)
 
     ## @brief Session constructor.
     #
@@ -218,6 +222,11 @@ class Session(object):
     @property
     def user_script_proxy(self):
         return self._user_script_proxy
+    
+    @property
+    def log_tracebacks(self):
+        """! @brief Quick access to debug.traceback option since it is widely used."""
+        return self._options.get('debug.traceback', True)
 
     def __enter__(self):
         assert self._probe is not None
@@ -317,17 +326,17 @@ class Session(object):
                 self.board.uninit()
                 self._inited = False
             except:
-                LOG.error("exception during board uninit:", exc_info=True)
+                LOG.error("exception during board uninit:", exc_info=self.log_tracebacks)
         
         if self._probe.is_open:
             try:
                 self._probe.disconnect()
             except:
-                LOG.error("probe exception during disconnect:", exc_info=True)
+                LOG.error("probe exception during disconnect:", exc_info=self.log_tracebacks)
             try:
                 self._probe.close()
             except:
-                LOG.error("probe exception during close:", exc_info=True)
+                LOG.error("probe exception during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy(object):
     """! @brief Proxy for user script functions.
