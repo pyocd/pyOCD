@@ -28,6 +28,7 @@ from .cmsis_dap_core import (Command, Pin, Capabilities, DAP_TRANSFER_OK,
                              DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT,
                              DAPSWOTransport, DAPSWOMode, DAPSWOControl,
                              DAPSWOStatus)
+from ...core import session
 
 # CMSIS-DAP values
 AP_ACC = 1 << 0
@@ -460,7 +461,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                 all_daplinks.append(new_daplink)
             except DAPAccessIntf.TransferError:
                 logger = logging.getLogger(__name__)
-                logger.error('Failed to get unique id', exc_info=True)
+                logger.error('Failed to get unique id', exc_info=session.Session.get_current().log_tracebacks)
         return all_daplinks
 
     @staticmethod
@@ -506,7 +507,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                     result_interface = interface
             except Exception:
                 logger = logging.getLogger(__name__)
-                logger.error('Failed to get unique id for open', exc_info=True)
+                logger.error('Failed to get unique id for open', exc_info=session.Session.get_current().log_tracebacks)
         return result_interface
 
     # ------------------------------------------- #

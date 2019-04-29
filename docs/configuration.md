@@ -80,6 +80,8 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 
 - `debug.log_flm_info`: (bool) Log details of loaded .FLM flash algos.
 
+- `debug.traceback`: (bool) Print tracebacks for exceptions.
+
 - `enable_multicore_debug`: (bool) Whether to put pyOCD into multicore debug mode. The primary effect
     is to modify the default software reset type for secondary cores to use VECTRESET, which will
     fall back to emulated reset if the secondary core is not v7-M.

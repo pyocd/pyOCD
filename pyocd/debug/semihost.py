@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,10 +20,9 @@ import io
 import logging
 import time
 import datetime
-import traceback
 import six
 import pyocd
-from ..core import exceptions
+from ..core import (exceptions, session)
 
 # Debug logging options
 LOG_SEMIHOST = True
@@ -189,8 +188,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             return fd
         except IOError as e:
             self._errno = e.errno
-            logging.error("Semihost: failed to open file '%s'", filename)
-            traceback.print_exc()
+            logging.error("Semihost: failed to open file '%s'", filename, exc_info=session.Session.get_current().log_tracebacks)
             return -1
 
     def close(self, fd):
@@ -439,8 +437,8 @@ class SemihostAgent(object):
                 logging.warning("Semihost: unimplemented request pc=%x r0=%x r1=%x", pc, op, args)
                 result = -1
             except Exception as e:
-                logging.warning("Exception while handling semihost request: %s", e)
-                traceback.print_exc(e)
+                logging.warning("Exception while handling semihost request: %s", e,
+                    exc_info=session.Session.get_current().log_tracebacks)
                 result = -1
         else:
             result = -1

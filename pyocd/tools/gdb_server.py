@@ -19,7 +19,6 @@ from __future__ import print_function
 import sys
 import os
 import logging
-import traceback
 import argparse
 import json
 import pkg_resources
@@ -300,8 +299,7 @@ class GDBServerTool(object):
                 for gdb in gdbs:
                     gdb.stop()
             except Exception as e:
-                print("uncaught exception: %s" % e)
-                traceback.print_exc()
+                logging.error("uncaught exception: %s" % e, exc_info=Session.get_current().log_tracebacks)
                 for gdb in gdbs:
                     gdb.stop()
                 return 1

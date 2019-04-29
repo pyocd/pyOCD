@@ -22,7 +22,6 @@ import os
 import sys
 import optparse
 from optparse import make_option
-import traceback
 import six
 import prettytable
 
@@ -35,7 +34,7 @@ except ImportError:
 from .. import __version__
 from .. import (utility, coresight)
 from ..core.helpers import ConnectHelper
-from ..core import exceptions
+from ..core import (exceptions, session)
 from ..target.family import target_kinetis
 from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
@@ -467,17 +466,20 @@ class PyOCDConsole(object):
             handler(args)
         except ValueError:
             print("Error: invalid argument")
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
         except exceptions.TransferError as e:
             print("Error:", e)
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
         except ToolError as e:
             print("Error:", e)
         except ToolExitException:
             raise
         except Exception as e:
             print("Unexpected exception:", e)
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
 
 class PyOCDCommander(object):
     def __init__(self, args, cmds=None):
@@ -654,10 +656,12 @@ class PyOCDCommander(object):
             self.exit_code = 0
         except ValueError:
             print("Error: invalid argument")
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
         except exceptions.TransferError:
             print("Error: transfer failed")
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
             self.exit_code = 2
         except ToolError as e:
             print("Error:", e)
@@ -697,12 +701,14 @@ class PyOCDCommander(object):
         except exceptions.TransferFaultError as e:
             if not self.board.target.is_locked():
                 print("Transfer fault while initing board: %s" % e)
-                traceback.print_exc()
+                if session.Session.get_current().log_tracebacks:
+                    traceback.print_exc()
                 self.exit_code = 1
                 return False
         except Exception as e:
             print("Exception while initing board: %s" % e)
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
             self.exit_code = 1
             return False
 
@@ -1148,7 +1154,8 @@ class PyOCDCommander(object):
                     print(result)
         except Exception as e:
             print("Exception while executing expression:", e)
-            traceback.print_exc()
+            if session.Session.get_current().log_tracebacks:
+                traceback.print_exc()
 
     def handle_core(self, args):
         if len(args) < 1:
