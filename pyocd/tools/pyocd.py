@@ -24,6 +24,7 @@ import optparse
 from optparse import make_option
 import six
 import prettytable
+import traceback
 
 # Attempt to import readline.
 try:
