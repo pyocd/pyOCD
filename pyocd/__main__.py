@@ -363,7 +363,7 @@ class PyOCDTool(object):
     def do_list(self):
         """! @brief Handle 'list' subcommand."""
         # Default to listing probes.
-        if (self._args.probes, self._args.targets, self._args.boards) == (False, False, False):
+        if not any((self._args.probes, self._args.targets, self._args.boards)):
             self._args.probes = True
         
         # Create a session with no device so we load any config.
@@ -408,7 +408,7 @@ class PyOCDTool(object):
     def do_json(self):
         """! @brief Handle 'json' subcommand."""
         # Default to listing probes.
-        if (self._args.probes, self._args.targets, self._args.boards) == (False, False, False):
+        if not any((self._args.probes, self._args.targets, self._args.boards)):
             self._args.probes = True
         
         # Create a session with no device so we load any config.
@@ -420,19 +420,20 @@ class PyOCDTool(object):
                             **convert_session_options(self._args.options)
                             )
         
-        if self._args.probes:
-            obj = ListGenerator.list_probes()
-            print(json.dumps(obj, indent=4))
-        elif self._args.targets:
+        if self._args.targets or self._args.boards:
             # Create targets from provided CMSIS pack.
             if ('pack' in session.options) and (session.options['pack'] is not None):
                 pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
+        if self._args.probes:
+            obj = ListGenerator.list_probes()
+        elif self._args.targets:
             obj = ListGenerator.list_targets()
-            print(json.dumps(obj, indent=4))
         elif self._args.boards:
             obj = ListGenerator.list_boards()
-            print(json.dumps(obj, indent=4))
+        else:
+            assert False
+        print(json.dumps(obj, indent=4))
     
     def do_flash(self):
         """! @brief Handle 'flash' subcommand."""

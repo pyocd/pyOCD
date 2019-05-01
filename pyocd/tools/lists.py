@@ -21,6 +21,7 @@ from .. import __version__
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..target import TARGET
+from ..target.builtin import BUILTIN_TARGETS
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..target.pack import pack_target
 
@@ -73,14 +74,17 @@ class ListGenerator(object):
         
         Output version history:
         - 1.0, initial version
+        - 1.1, added is_target_builtin and is_target_supported keys
         """
         boards = []
         obj = {
             'pyocd_version' : __version__,
-            'version' : { 'major' : 1, 'minor' : 0 },
+            'version' : { 'major' : 1, 'minor' : 1 },
             'status' : 0,
             'boards' : boards
             }
+
+        managed_targets = [dev.part_number.lower() for dev in pack_target.ManagedPacks.get_installed_targets()]
 
         for board_id, info in BOARD_ID_TO_INFO.items():
             d = {
@@ -88,6 +92,8 @@ class ListGenerator(object):
                 'name' : info.name,
                 'target': info.target,
                 'binary' : info.binary,
+                'is_target_builtin': (info.target in BUILTIN_TARGETS),
+                'is_target_supported': (info.target in TARGET or info.target in managed_targets)
                 }
             boards.append(d)
 
