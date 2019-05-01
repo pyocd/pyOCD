@@ -139,9 +139,13 @@ class TestResult(object):
         self.board_name = newBoard.name
 
     def get_test_case(self):
+        if 'TOX_ENV_NAME' in os.environ:
+            classname = "{}.{}.{}.{}".format(os.environ['TOX_ENV_NAME'], self.board_name, self.board, self.name)
+        else:
+            classname = "{}.{}.{}".format(self.board_name, self.board, self.name)
         case = ElementTree.Element('testcase',
                     name=self.name,
-                    classname="{}.{}.{}".format(self.board_name, self.board, self.name),
+                    classname=classname,
                     status=("passed" if self.passed else "failed"),
                     time="%.3f" % self.time
                     )
