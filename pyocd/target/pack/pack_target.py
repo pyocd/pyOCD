@@ -40,33 +40,28 @@ class ManagedPacks(object):
     @staticmethod
     def get_installed_packs(cache=None):
         """! @brief Return a list containing CmsisPackRef objects for all installed packs."""
-        try:
-            cache = cache or cmsis_pack_manager.Cache(True, True)
-            results = []
-            # packs_for_devices() returns only unique packs.
-            for pack in cache.packs_for_devices(cache.index.values()):
-                pack_path = os.path.join(cache.data_path, pack.get_pack_name())
-                if os.path.isfile(pack_path):
-                    results.append(pack)
-            return results
-        except FileNotFoundError:
-            # cmsis-pack-manage can raise this exception if the cache is empty.
-            return []
+        cache = cache or cmsis_pack_manager.Cache(True, True)
+        results = []
+        # packs_for_devices() returns only unique packs.
+        for pack in cache.packs_for_devices(cache.index.values()):
+            # Generate full path to the .pack file.
+            pack_path = os.path.join(cache.data_path, pack.get_pack_name())
+            
+            # If the .pack file exists, the pack is installed.
+            if os.path.isfile(pack_path):
+                results.append(pack)
+        return results
 
     @staticmethod
     def get_installed_targets():
         """! @brief Return a list of CmsisPackDevice objects for installed pack targets."""
-        try:
-            cache = cmsis_pack_manager.Cache(True, True)
-            results = []
-            for pack in ManagedPacks.get_installed_packs(cache=cache):
-                pack_path = os.path.join(cache.data_path, pack.get_pack_name())
-                pack = CmsisPack(pack_path)
-                results += list(pack.devices)
-            return sorted(results, key=lambda dev:dev.part_number)
-        except FileNotFoundError:
-            # cmsis-pack-manager can raise this exception if the cache is empty.
-            pass
+        cache = cmsis_pack_manager.Cache(True, True)
+        results = []
+        for pack in ManagedPacks.get_installed_packs(cache=cache):
+            pack_path = os.path.join(cache.data_path, pack.get_pack_name())
+            pack = CmsisPack(pack_path)
+            results += list(pack.devices)
+        return sorted(results, key=lambda dev:dev.part_number)
 
     @staticmethod
     def populate_target(device_name):
