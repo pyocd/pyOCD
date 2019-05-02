@@ -234,7 +234,7 @@ class CompatibleIDsNotFoundException(Exception):
     pass
 
 
-class MbedLsToolsWindows(StlinkDetectBase):
+class StlinkDetectWindows(StlinkDetectBase):
     """ mbed-enabled platform detection for Windows
     """
 
