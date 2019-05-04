@@ -430,7 +430,7 @@ class CortexM(Target, CoreSightComponent):
         # Set up breakpoints manager.
         self.sw_bp = SoftwareBreakpointProvider(self)
         self.bp_manager = BreakpointManager(self)
-        self.bp_manager.add_provider(self.sw_bp, Target.BREAKPOINT_SW)
+        self.bp_manager.add_provider(self.sw_bp)
 
     ## @brief Connect related CoreSight components.
     def add_child(self, cmp):
@@ -438,7 +438,7 @@ class CortexM(Target, CoreSightComponent):
         
         if isinstance(cmp, FPB):
             self.fpb = cmp
-            self.bp_manager.add_provider(cmp, Target.BREAKPOINT_HW)
+            self.bp_manager.add_provider(cmp)
         elif isinstance(cmp, DWT):
             self.dwt = cmp
 

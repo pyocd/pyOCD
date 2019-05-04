@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2017 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,70 +14,171 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.target import Target
 import logging
+from copy import copy
 
-##
-# @brief
+from .provider import Breakpoint
+from ...core.target import Target
+
+class UnrealizedBreakpoint(Breakpoint):
+    """! @brief Breakpoint class used until a breakpoint's type is decided."""
+    pass
+
 class BreakpointManager(object):
+    """! @brief Manages all breakpoints for one core.
+
+    The most important function of the breakpoint manager is to decide which breakpoint provider
+    to use when a breakpoint is added. The caller can request a particular breakpoint type, but
+    the manager may decide to use another depending on the situation. For instance, it tries to
+    keep one hardware breakpoint available to use for stepping.
+
+    The manager is also responsible for optimising breakpoint adding and removing. When the caller
+    requests to add or remove breakpoints, the target is not immediately modified. Instead, the
+    add/remove request is recorded for later. Then, before the target is stepped or resumed, the
+    manager flushes breakpoint changes to the target. It is at this point when it decides which
+    provider to use for each new breakpoint.
+    """
+
     ## Number of hardware breakpoints to try to keep available.
     MIN_HW_BREAKPOINTS = 0
 
     def __init__(self, core):
         self._breakpoints = {}
+        self._updated_breakpoints = {}
+        self._session = core.session
         self._core = core
         self._fpb = None
         self._providers = {}
+        self._ignore_notifications = False
 
-    def add_provider(self, provider, type):
-        self._providers[type] = provider
-        if type == Target.BREAKPOINT_HW:
+        # Subscribe to some notifications.
+        self._core.subscribe(Target.EVENT_PRE_RUN, self._pre_run_handler)
+        self._core.subscribe(Target.EVENT_PRE_DISCONNECT, self._pre_disconnect_handler)
+
+    def add_provider(self, provider):
+        self._providers[provider.bp_type] = provider
+        if provider.bp_type == Target.BREAKPOINT_HW:
             self._fpb = provider
 
-    ## @brief Return a list of all breakpoint addresses.
     def get_breakpoints(self):
+        """! @brief Return a list of all breakpoint addresses."""
         return self._breakpoints.keys()
 
     def find_breakpoint(self, addr):
-        return self._breakpoints.get(addr, None)
+        return self._updated_breakpoints.get(addr, None)
 
-    ## @brief Set a hardware or software breakpoint at a specific location in memory.
-    #
-    # @retval True Breakpoint was set.
-    # @retval False Breakpoint could not be set.
     def set_breakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
+        """! @brief Set a hardware or software breakpoint at a specific location in memory.
+        
+        @retval True Breakpoint was set.
+        @retval False Breakpoint could not be set.
+        """
         logging.debug("set bkpt type %d at 0x%x", type, addr)
 
         # Clear Thumb bit in case it is set.
         addr = addr & ~1
-
-        in_hw_bkpt_range = (self._fpb is not None) and (self._fpb.can_support_address(addr))
-        fbp_available = ((self._fpb is not None) and
-                         (self._fpb.available_breakpoints() > 0))
-        fbp_below_min = ((self._fpb is None) or
-                         (self._fpb.available_breakpoints() <= self.MIN_HW_BREAKPOINTS))
 
         # Check for an existing breakpoint at this address.
         bp = self.find_breakpoint(addr)
         if bp is not None:
             return True
 
-        if self._core.memory_map is None:
-            # No memory map - fallback to hardware breakpoints.
-            type = Target.BREAKPOINT_HW
-            is_flash = False
-            is_ram = False
+        # Reuse breakpoint objects from the live list.
+        if addr in self._breakpoints:
+            bp = self._breakpoints[addr]
         else:
-            # Look up the memory type for the requested address.
-            region = self._core.memory_map.get_region_for_address(addr)
-            if region is not None:
-                is_flash = region.is_flash
-                is_ram = region.is_ram
-            else:
-                # No memory region - fallback to hardware breakpoints.
-                type = Target.BREAKPOINT_HW
-                is_flash = False
-                is_ram = False
+            # Create temp bp object. This will be replaced with the real object once
+            # breakpoints are flushed and the provider sets the bp.
+            bp = UnrealizedBreakpoint(self)
+            bp.type = type
+            bp.addr = addr
+
+            # Check whether this breakpoint can be added when we flush.
+            if not self._check_added_breakpoint(bp):
+                return False
+
+        self._updated_breakpoints[addr] = bp
+        return True
+
+    def _check_added_breakpoint(self, bp):
+        """! @brief Check whether a new breakpoint is likely to actually be added when we flush.
+        
+        First, software breakpoints are assumed to always be addable. For hardware breakpoints,
+        the current free hardware breakpoint count is updated based on the current set of to-be
+        added and removed breakpoints. If there are enough free hardware breakpoints to meet the
+        minimum requirement and still add the new breakpoint, True is returned.
+        """
+        # If there is no FPB available, just go by whether we can install a sw bp.
+        if self._fpb is None:
+            region = self._core.memory_map.get_region_for_address(bp.addr)
+            return region is not None and region.is_writable
+        
+        likely_bp_type = self._select_breakpoint_type(bp, False)
+        if likely_bp_type == Target.BREAKPOINT_SW:
+            return True
+        
+        # Count updated hw breakpoints.
+        free_hw_bp_count = self._fpb.available_breakpoints
+        added, removed = self._get_updated_breakpoints()
+        for bp in removed:
+            if bp.type == Target.BREAKPOINT_HW:
+                free_hw_bp_count += 1
+        for bp in added:
+            likely_bp_type = self._select_breakpoint_type(bp, False)
+            if bp.type == Target.BREAKPOINT_HW:
+                free_hw_bp_count -= 1
+        
+        return free_hw_bp_count > self.MIN_HW_BREAKPOINTS
+
+    def remove_breakpoint(self, addr):
+        """! @brief Remove a breakpoint at a specific location."""
+        try:
+            logging.debug("remove bkpt at 0x%x", addr)
+
+            # Clear Thumb bit in case it is set.
+            addr = addr & ~1
+
+            # Remove bp from dict.
+            del self._updated_breakpoints[addr]
+        except KeyError:
+            logging.debug("Tried to remove breakpoint 0x%08x that wasn't set" % addr)
+
+    def _get_updated_breakpoints(self):
+        """! @brief Compute added and removed breakpoints since last flush.
+        @return Bi-tuple of (added breakpoint list, removed breakpoint list).
+        """
+        added = []
+        removed = []
+
+        # Get added breakpoints.
+        for bp in self._updated_breakpoints.values():
+            if not bp.addr in self._breakpoints:
+                added.append(bp)
+
+        # Get removed breakpoints.
+        for bp in self._breakpoints.values():
+            if not bp.addr in self._updated_breakpoints:
+                removed.append(bp)
+
+        # Return the list of pages to update.
+        return added, removed
+
+    def _select_breakpoint_type(self, bp, allow_all_hw_bps):
+        type = bp.type
+
+        # Look up the memory type for the requested address.
+        region = self._core.memory_map.get_region_for_address(bp.addr)
+        if region is not None:
+            is_writable = region.is_writable
+        else:
+            # No memory region - fallback to hardware breakpoints.
+            type = Target.BREAKPOINT_HW
+            is_writable = False
+
+        in_hw_bkpt_range = (self._fpb is not None) and (self._fpb.can_support_address(bp.addr))
+        have_hw_bp = (self._fpb is not None) \
+                    and ((self._fpb.available_breakpoints > self.MIN_HW_BREAKPOINTS) \
+                    or (allow_all_hw_bps and self._fpb.available_breakpoints > 0))
 
         # Determine best type to use if auto.
         if type == Target.BREAKPOINT_AUTO:
@@ -87,8 +188,12 @@ class BreakpointManager(object):
             #  3. Number of remaining hw breaks are at or less than the minimum we want to keep.
             #
             # Otherwise use hw.
-            if not in_hw_bkpt_range or is_ram or fbp_below_min:
-                type = Target.BREAKPOINT_SW
+            if not in_hw_bkpt_range or (not have_hw_bp):
+                if is_writable:
+                    type = Target.BREAKPOINT_SW
+                else:
+                    logging.debug("unable to set bp because no hw bp available")
+                    return None
             else:
                 type = Target.BREAKPOINT_HW
 
@@ -96,52 +201,68 @@ class BreakpointManager(object):
 
         # Revert to sw bp if out of hardware breakpoint range.
         if (type == Target.BREAKPOINT_HW) and not in_hw_bkpt_range:
-            if is_ram:
+            if is_writable:
                 logging.debug("using sw bp instead because of unsupported addr")
                 type = Target.BREAKPOINT_SW
             else:
                 logging.debug("could not fallback to software breakpoint")
-                return False
+                return None
 
         # Revert to hw bp if region is flash.
-        if is_flash:
-            if in_hw_bkpt_range and fbp_available:
+        if not is_writable:
+            if in_hw_bkpt_range and have_hw_bp:
                 logging.debug("using hw bp instead because addr is flash")
                 type = Target.BREAKPOINT_HW
             else:
                 logging.debug("could not fallback to hardware breakpoint")
-                return False
+                return None
 
-        # Set the bp.
+        logging.debug("selected bkpt type %d for addr 0x%x", type, bp.addr)
+        return type
+
+    def flush(self, is_step=False):
         try:
-            provider = self._providers[type]
-            bp = provider.set_breakpoint(addr)
-        except KeyError:
-            raise RuntimeError("Unknown breakpoint type %d" % type)
+            # Ignore any notifications while we modify breakpoints.
+            self._ignore_notifications = True
 
+            added, removed = self._get_updated_breakpoints()
+            logging.debug("bpmgr: added=%s removed=%s", added, removed)
 
-        if bp is None:
-            return False
+            # Handle removed breakpoints first by asking the providers to remove them.
+            for bp in removed:
+                assert bp.provider is not None
+                bp.provider.remove_breakpoint(bp)
+                del self._breakpoints[bp.addr]
 
-        # Save the bp.
-        self._breakpoints[addr] = bp
-        return True
+            # Only allow use of all hardware breakpoints if we're not stepping and there is
+            # only a single added breakpoint.
+            allow_all_hw_bps = not is_step and len(added) == 1
 
-    ## @brief Remove a breakpoint at a specific location.
-    def remove_breakpoint(self, addr):
-        try:
-            logging.debug("remove bkpt at 0x%x", addr)
+            # Now handle added breakpoints.
+            for bp in added:
+                type = self._select_breakpoint_type(bp, allow_all_hw_bps)
+                if type is None:
+                    continue
 
-            # Clear Thumb bit in case it is set.
-            addr = addr & ~1
+                # Set the bp.
+                try:
+                    provider = self._providers[type]
+                    bp = provider.set_breakpoint(bp.addr)
+                except KeyError:
+                    raise RuntimeError("Unknown breakpoint type %d" % type)
 
-            # Get bp and remove from dict.
-            bp = self._breakpoints.pop(addr)
+                # Save the bp.
+                if bp is not None:
+                    self._breakpoints[bp.addr] = bp
 
-            assert bp.provider is not None
-            bp.provider.remove_breakpoint(bp)
-        except KeyError:
-            logging.debug("Tried to remove breakpoint 0x%08x that wasn't set" % addr)
+            # Update breakpoint lists.
+            logging.debug("bpmgr: bps after flush=%s", self._breakpoints)
+            self._updated_breakpoints = copy(self._breakpoints)
+
+            # Flush all providers.
+            self._flush_all()
+        finally:
+            self._ignore_notifications = False
 
     def get_breakpoint_type(self, addr):
         bp = self.find_breakpoint(addr)
@@ -165,6 +286,7 @@ class BreakpointManager(object):
         return data
 
     def remove_all_breakpoints(self):
+        """! @brief Remove all breakpoints immediately."""
         for bp in self._breakpoints.values():
             bp.provider.remove_breakpoint(bp)
         self._breakpoints = {}
@@ -175,10 +297,12 @@ class BreakpointManager(object):
         for provider in self._providers.values():
             provider.flush()
 
-    def flush(self):
-        try:
-            # Flush all providers.
-            self._flush_all()
-        finally:
-            pass
+    def _pre_run_handler(self, notification):
+        if not self._ignore_notifications:
+            is_step = notification.data == Target.RUN_TYPE_STEP
+            self.flush(is_step)
+
+    def _pre_disconnect_handler(self, notification):
+        pass
+
 

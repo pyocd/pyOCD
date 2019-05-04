@@ -72,6 +72,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         for bp in self.hw_breakpoints:
             self.ap.write_memory(bp.comp_register_addr, 0)
 
+    @property
     def bp_type(self):
         return Target.BREAKPOINT_HW
 
@@ -87,6 +88,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         logging.debug('fpb has been disabled')
         return
 
+    @property
     def available_breakpoints(self):
         return len(self.hw_breakpoints) - self.num_hw_breakpoint_used
 
@@ -106,8 +108,8 @@ class FPB(BreakpointProvider, CoreSightComponent):
             logging.error('Breakpoint out of range 0x%X', addr)
             return None
 
-        if self.available_breakpoints() == 0:
-            logging.error('No more available breakpoint!!, dropped bp at 0x%X', addr)
+        if self.available_breakpoints == 0:
+            logging.error('No more hardware breakpoints are available, dropped breakpoint at 0x%08x', addr)
             return None
 
         for bp in self.hw_breakpoints:
