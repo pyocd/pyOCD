@@ -156,9 +156,6 @@ These session options are currently only applied when running the GDB server.
     are only served on localhost, making them inaccessible across the network. If False, you can
     connect to these ports from any machine that is on the same network. Default is True.
 
-- `soft_bkpt_as_hard`: (bool) Whether to force all breakpoints to be hardware breakpoints. Default
-    is False.
-
 - `step_into_interrupt`: (bool) Set this option to True to enable interrupts when performing step
     operations. Otherwise interrupts will be disabled and step operations cannot be interrupted.
     Default is False.

@@ -51,7 +51,6 @@ OPTIONS_INFO = {
     'semihost_console_type': OptionInfo('semihost_console_type', str, "If set to \"telnet\" then the semihosting telnet server will be started, otherwise semihosting will print to the console."),
     'semihost_use_syscalls': OptionInfo('semihost_use_syscalls', str, "Whether to use GDB syscalls for semihosting file access operations."),
     'serve_local_only': OptionInfo('serve_local_only', str, "When this option is True, the GDB server and semihosting telnet ports are only served on localhost."),
-    'soft_bkpt_as_hard': OptionInfo('soft_bkpt_as_hard', str, "Whether to force all breakpoints to be hardware breakpoints."),
     'step_into_interrupt': OptionInfo('step_into_interrupt', str, "Enable interrupts when performing step operations."),
     'swv_clock': OptionInfo('swv_clock', int, "Frequency in Hertz of the SWO baud rate. Default is 1 MHz."),
     'swv_system_clock': OptionInfo('swv_system_clock', int, "Frequency in Hertz of the target's system clock. Used to compute the SWO baud rate divider. No default."),

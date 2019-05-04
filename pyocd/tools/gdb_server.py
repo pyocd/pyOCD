@@ -77,7 +77,7 @@ class GDBServerTool(object):
         parser.add_argument("-s", "--step-int", dest="step_into_interrupt", default=False, action="store_true", help="Allow single stepping to step into interrupts.")
         parser.add_argument("-f", "--frequency", dest="frequency", default=1000000, type=int, help="Set the SWD clock frequency in Hz.")
         parser.add_argument("-o", "--persist", dest="persist", default=False, action="store_true", help="Keep GDB server running even after remote has detached.")
-        parser.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=False, action="store_true", help="Replace software breakpoints with hardware breakpoints.")
+        parser.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=False, action="store_true", help="Replace software breakpoints with hardware breakpoints (ignored).")
         group = parser.add_mutually_exclusive_group()
         group.add_argument("-ce", "--chip_erase", action="store_true", help="Use chip erase when programming.")
         group.add_argument("-se", "--sector_erase", action="store_true", help="Use sector erase when programming.")
@@ -127,7 +127,6 @@ class GDBServerTool(object):
             'gdbserver_port' : self.args.port_number,
             'step_into_interrupt' : args.step_into_interrupt,
             'persist' : args.persist,
-            'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
             'chip_erase': self.get_chip_erase(args),
             'hide_programming_progress' : args.hide_progress,
             'fast_program' : args.fast_program,

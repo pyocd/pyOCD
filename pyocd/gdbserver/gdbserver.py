@@ -275,7 +275,6 @@ class GDBServer(threading.Thread):
         self.target.set_vector_catch(convert_vector_catch(self.vector_catch))
         self.step_into_interrupt = session.options.get('step_into_interrupt', False)
         self.persist = session.options.get('persist', False)
-        self.soft_bkpt_as_hard = session.options.get('soft_bkpt_as_hard', False)
         self.enable_semihosting = session.options.get('enable_semihosting', False)
         self.semihost_console_type = session.options.get('semihost_console_type', 'telnet')
         self.semihost_use_syscalls = session.options.get('semihost_use_syscalls', False)
@@ -568,7 +567,7 @@ class GDBServer(threading.Thread):
         self.log.debug("GDB breakpoint %s%d @ %x" % (data[0:1], int(data[1:2]), addr))
 
         # handle software breakpoint Z0/z0
-        if data[1:2] == b'0' and not self.soft_bkpt_as_hard:
+        if data[1:2] == b'0':
             if data[0:1] == b'Z':
                 if not self.target.set_breakpoint(addr, Target.BREAKPOINT_SW):
                     return self.create_rsp_packet(b'E01') #EPERM
@@ -577,7 +576,7 @@ class GDBServer(threading.Thread):
             return self.create_rsp_packet(b"OK")
 
         # handle hardware breakpoint Z1/z1
-        if data[1:2] == b'1' or (self.soft_bkpt_as_hard and data[1:2] == b'0'):
+        if data[1:2] == b'1':
             if data[0:1] == b'Z':
                 if self.target.set_breakpoint(addr, Target.BREAKPOINT_HW) is False:
                     return self.create_rsp_packet(b'E01') #EPERM
