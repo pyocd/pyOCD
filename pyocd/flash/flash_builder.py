@@ -251,6 +251,19 @@ class FlashBuilder(object):
         current_sector.add_page(current_page)
         self.page_list.append(current_page)
         
+        def fill_end_of_page_gap():
+            # Fill the gap at the end of the soon to be previous page if there is one
+            if len(current_page.data) != current_page.size:
+                page_data_end = current_page.addr + len(current_page.data)
+                old_data_len = current_page.size - len(current_page.data)
+                if keep_unwritten and self.flash.region.is_readable:
+                    self._enable_read_access()
+                    old_data = self.flash.target.read_memory_block8(page_data_end, old_data_len)
+                else:
+                    old_data = [self.flash.region.erased_byte_value] * old_data_len
+                current_page.data.extend(old_data)
+                self.program_byte_count += old_data_len
+        
         for flash_operation in self.flash_operation_list:
             pos = 0
             while pos < len(flash_operation.data):
@@ -266,6 +279,10 @@ class FlashBuilder(object):
 
                 # Check if operation is in a different page
                 if flash_addr >= current_page.addr + current_page.size:
+                    # Fill any gap at the end of the current page before switching to a new page.
+                    fill_end_of_page_gap()
+                    
+                    # Create the new page.
                     page_info = self.flash.get_page_info(flash_addr)
                     if page_info is None:
                         raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
@@ -277,7 +294,7 @@ class FlashBuilder(object):
                 page_data_end = current_page.addr + len(current_page.data)
                 if flash_addr != page_data_end:
                     old_data_len = flash_addr - page_data_end
-                    if keep_unwritten:
+                    if keep_unwritten and self.flash.region.is_readable:
                         self._enable_read_access()
                         old_data = self.flash.target.read_memory_block8(page_data_end, old_data_len)
                     else:
@@ -296,16 +313,7 @@ class FlashBuilder(object):
                 pos += amount
 
         # Fill the page gap at the end if there is one
-        if len(current_page.data) != current_page.size:
-            page_data_end = current_page.addr + len(current_page.data)
-            old_data_len = current_page.size - len(current_page.data)
-            if keep_unwritten and self.flash.region.is_readable:
-                self._enable_read_access()
-                old_data = self.flash.target.read_memory_block8(page_data_end, old_data_len)
-            else:
-                old_data = [self.flash.region.erased_byte_value] * old_data_len
-            current_page.data.extend(old_data)
-            self.program_byte_count += old_data_len
+        fill_end_of_page_gap()
         
         # Go back through sectors and fill any missing pages with existing data.
         if keep_unwritten and self.flash.region.is_readable:
@@ -785,7 +793,7 @@ class FlashBuilder(object):
                 else:
                     data = []
                     offset = 0
-                assert len(page.data) == page.size
+                assert len(page.data) == page.size, "page data size (%d) != page size (%d)" % (len(page.data), page.size)
                 data.extend(self.flash.target.read_memory_block8(page.addr + offset,
                                                                     page.size - offset))
                 page.same = same(page.data, data)
