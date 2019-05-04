@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,7 +37,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
     0x8f4ff3bf, 0x48584770, 0x49586800, 0x0d000500, 0xd0001840, 0x47702001, 0x6a004855, 0x0fc00280,
     0xb5004770, 0xf7ff4602, 0x2801ffee, 0xf7ffd108, 0x2801fff3, 0x484fd104, 0xd3014282, 0xbd002001,
-    0xbd002000, 0x4602b500, 0xffddf7ff, 0xd0022801, 0x0d8002d0, 0x4948bd00, 0x40080ad0, 0xd5f90351,
+    0xbd002000, 0x4602b500, 0xffddf7ff, 0xd0022801, 0x0d8002d0, 0x4948bd00, 0x40080ad0, 0xd5f90311,
     0x300130ff, 0x4842bd00, 0x60814944, 0x60814944, 0x60012100, 0x61014943, 0x03c06a00, 0x4843d406,
     0x60014941, 0x60412106, 0x60814941, 0x47702000, 0x49372001, 0x614807c0, 0x47702000, 0x47702001,
     0x49384833, 0x13c16101, 0x69416141, 0x04122201, 0x61414311, 0x4a354937, 0x6011e000, 0x03db6903,
@@ -46,7 +46,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     0x03db690b, 0x2000d4fb, 0x69086148, 0xd0014020, 0x2001610c, 0xb5f0bd10, 0x4d151dc9, 0x4f1908c9,
     0x612f00c9, 0x616b2300, 0xe0184c1a, 0x616b2301, 0x60036813, 0x60436853, 0x8f4ff3bf, 0xe0004b13,
     0x692e601c, 0xd4fb03f6, 0x616b2300, 0x423b692b, 0x612fd002, 0xbdf02001, 0x39083008, 0x29003208,
-    0x2000d1e4, 0x0000bdf0, 0xe0042000, 0xfffffbcb, 0x40022000, 0x08040000, 0x0000037f, 0x45670123,
+    0x2000d1e4, 0x0000bdf0, 0xe0042000, 0xfffffbcb, 0x40022000, 0x08080000, 0x000002ff, 0x45670123,
     0xcdef89ab, 0x0000c3fa, 0x00005555, 0x40003000, 0x00000fff, 0x0000aaaa, 0x00000000
     ],
 
@@ -59,7 +59,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'static_base' : 0x20000000 + 0x00000020 + 0x00000198,
     'begin_stack' : 0x20000000 + 0x00000400,
     'begin_data' : 0x20001000,
-    'page_buffers' : [0x20001000, 0x20001800],
+    'page_buffers' : [0x20001000, 0x20001400],
     'min_program_length' : 8,
     'analyzer_supported' : True,
     'analyzer_address' : 0x20002000
@@ -87,8 +87,11 @@ class STM32L475xx(CoreSightTarget):
 class STM32L475xC(STM32L475xx):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash', start=0x08000000, length=0x40000, blocksize=0x800,  is_boot_memory=True,
-            algo=FLASH_ALGO),
+        FlashRegion(name='flash', start=0x08000000, length=0x40000,
+                        sector_size=0x800,
+                        page_size=0x400,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
         RamRegion(name='sram1',   start=0x20000000, length=0x18000),
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
@@ -100,8 +103,11 @@ class STM32L475xC(STM32L475xx):
 class STM32L475xE(STM32L475xx):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash', start=0x08000000, length=0x80000, blocksize=0x800,  is_boot_memory=True,
-            algo=FLASH_ALGO),
+        FlashRegion(name='flash', start=0x08000000, length=0x80000,
+                        sector_size=0x800,
+                        page_size=0x400,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
         RamRegion(name='sram1',   start=0x20000000, length=0x18000),
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
@@ -113,8 +119,11 @@ class STM32L475xE(STM32L475xx):
 class STM32L475xG(STM32L475xx):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='flash', start=0x08000000, length=0x100000, blocksize=0x800,  is_boot_memory=True,
-            algo=FLASH_ALGO),
+        FlashRegion(name='flash', start=0x08000000, length=0x100000,
+                        sector_size=0x800,
+                        page_size=0x400,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
         RamRegion(name='sram1',   start=0x20000000, length=0x18000),
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
