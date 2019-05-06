@@ -60,7 +60,7 @@ class CortexM_v8M(CortexM):
 
         implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
         if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
-            logging.warning("CPU implementer is not ARM!")
+            LOG.warning("CPU implementer is not ARM!")
 
         self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
@@ -73,9 +73,9 @@ class CortexM_v8M(CortexM):
         
         if self.core_type in CORE_TYPE_NAME:
             if self.has_security_extension:
-                logging.info("CPU core #%d is %s r%dp%d (security ext present)", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
+                LOG.info("CPU core #%d is %s r%dp%d (security ext present)", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
             else:
-                logging.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
+                LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
         else:
-            logging.warning("CPU core #%d type is unrecognized", self.core_number)
+            LOG.warning("CPU core #%d type is unrecognized", self.core_number)
 

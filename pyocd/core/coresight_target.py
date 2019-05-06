@@ -36,6 +36,8 @@ try:
 except ImportError:
     from inspect import getargspec
 
+LOG = logging.getLogger(__name__)
+
 class CoreSightTarget(Target, GraphNode):
     """! @brief Represents a chip that uses CoreSight debug infrastructure.
     
@@ -71,7 +73,7 @@ class CoreSightTarget(Target, GraphNode):
     def selected_core(self, core_number):
         if core_number not in self.cores:
             raise ValueError("invalid core number %d" % core_number)
-        logging.debug("selected core #%d" % core_number)
+        LOG.debug("selected core #%d" % core_number)
         self._selected_core = core_number
 
     @property
@@ -99,18 +101,18 @@ class CoreSightTarget(Target, GraphNode):
     def svd_device(self):
         """! @brief Waits for SVD file to complete loading before returning."""
         if not self._svd_device and self._svd_load_thread:
-            logging.debug("Waiting for SVD load to complete")
+            LOG.debug("Waiting for SVD load to complete")
             self._svd_device = self._svd_load_thread.device
         return self._svd_device
 
     def load_svd(self):
         def svd_load_completed_cb(svdDevice):
-#             logging.debug("Completed loading SVD")
+#             LOG.debug("Completed loading SVD")
             self._svd_device = svdDevice
             self._svd_load_thread = None
 
         if not self._svd_device and self._svd_location:
-#             logging.debug("Started loading SVD")
+#             LOG.debug("Started loading SVD")
 
             # Spawn thread to load SVD in background.
             self._svd_load_thread = SVDLoader(self._svd_location, svd_load_completed_cb)
@@ -164,10 +166,10 @@ class CoreSightTarget(Target, GraphNode):
             if region.flm is not None:
                 flmPath = self.session.find_user_file(None, [region.flm])
                 if flmPath is not None:
-                    logging.info("creating flash algo from: %s", flmPath)
+                    LOG.info("creating flash algo from: %s", flmPath)
                     packAlgo = PackFlashAlgo(flmPath)
                     if self.session.options.get("debug.log_flm_info", False):
-                        logging.debug("Flash algo info: %s", packAlgo.flash_info)
+                        LOG.debug("Flash algo info: %s", packAlgo.flash_info)
                     page_size = packAlgo.page_size
                     if page_size <= 32:
                         page_size = min(s[1] for s in packAlgo.sector_sizes)
@@ -180,7 +182,7 @@ class CoreSightTarget(Target, GraphNode):
                     if algo is not None:
                         region.algo = algo
                 else:
-                    logging.warning("Failed to find FLM file: %s", region.flm)
+                    LOG.warning("Failed to find FLM file: %s", region.flm)
             
             # If the constructor of the region's flash class takes the flash_algo arg, then we
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
@@ -191,7 +193,7 @@ class CoreSightTarget(Target, GraphNode):
                 if region.algo is not None:
                     obj = klass(self, region.algo)
                 else:
-                    logging.warning("flash region '%s' has no flash algo" % region.name)
+                    LOG.warning("flash region '%s' has no flash algo" % region.name)
                     continue
             else:
                 obj = klass(self)
@@ -203,7 +205,7 @@ class CoreSightTarget(Target, GraphNode):
             region.flash = obj
     
     def _create_component(self, cmpid):
-        logging.debug("Creating %s component", cmpid.name)
+        LOG.debug("Creating %s component", cmpid.name)
         cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
         cmp.init()
 
@@ -227,7 +229,7 @@ class CoreSightTarget(Target, GraphNode):
         if not len(self.cores):
             # Allow the user to override the exception to enable uses like chip bringup.
             if self.session.options.get('allow_no_cores', False):
-                logging.error("No cores were discovered!")
+                LOG.error("No cores were discovered!")
             else:
                 raise exceptions.DebugError("No cores were discovered!")
 

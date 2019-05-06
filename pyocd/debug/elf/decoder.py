@@ -23,6 +23,8 @@ from collections import namedtuple
 from itertools import islice
 import logging
 
+LOG = logging.getLogger(__name__)
+
 FunctionInfo = namedtuple('FunctionInfo', 'name subprogram low_pc high_pc')
 LineInfo = namedtuple('LineInfo', 'cu filename dirname line')
 SymbolInfo = namedtuple('SymbolInfo', 'name address size type')
@@ -200,7 +202,7 @@ class DwarfAddressDecoder(object):
                                 toAddr += 1
                             self.line_tree.addi(fromAddr, toAddr, info)
                     except:
-                        logging.debug("Problematic lineprog:")
+                        LOG.debug("Problematic lineprog:")
                         self._dump_lineprog(lineprog)
                         raise
 
@@ -214,9 +216,9 @@ class DwarfAddressDecoder(object):
         for i, e in enumerate(lineprog.get_entries()):
             s = e.state
             if s is None:
-                logging.debug("%d: cmd=%d ext=%d args=%s", i, e.command, int(e.is_extended), repr(e.args))
+                LOG.debug("%d: cmd=%d ext=%d args=%s", i, e.command, int(e.is_extended), repr(e.args))
             else:
-                logging.debug("%d: %06x %4d stmt=%1d block=%1d end=%d file=[%d]%s", i, s.address, s.line, s.is_stmt, int(s.basic_block), int(s.end_sequence), s.file, lineprog['file_entry'][s.file-1].name)
+                LOG.debug("%d: %06x %4d stmt=%1d block=%1d end=%d file=[%d]%s", i, s.address, s.line, s.is_stmt, int(s.basic_block), int(s.end_sequence), s.file, lineprog['file_entry'][s.file-1].name)
 
     def dump_subprograms(self):
         for prog in self.subprograms:
@@ -230,6 +232,6 @@ class DwarfAddressDecoder(object):
             except KeyError:
                 high_pc = 0xffffffff
             filename = os.path.basename(prog._parent.attributes['DW_AT_name'].value.replace('\\', '/'))
-            logging.debug("%s%s%08x %08x %s", name, (' ' * (50-len(name))), low_pc, high_pc, filename)
+            LOG.debug("%s%s%08x %08x %s", name, (' ' * (50-len(name))), low_pc, high_pc, filename)
 
 

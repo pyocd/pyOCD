@@ -24,6 +24,8 @@ import logging
 import os.path
 from time import (time, sleep)
 
+LOG = logging.getLogger(__name__)
+
 SIM_SDID = 0x40075024
 SIM_SDID_KEYATTR_MASK = 0x70
 SIM_SDID_KEYATTR_SHIFT = 4
@@ -150,7 +152,7 @@ class Flash_kl28z(Flash_Kinetis):
         self.target.write32(SCG_RCCR, (0x3 << SCS_SHIFT) | (1 << DIVSLOW_SHIFT))
 
         csr = self.target.read32(SCG_CSR)
-        logging.debug("SCG_CSR = 0x%08x", csr)
+        LOG.debug("SCG_CSR = 0x%08x", csr)
 
     ##
     # Restore clock registers to original values.
@@ -212,10 +214,10 @@ class KL28x(Kinetis):
         # Check if this is the dual core part.
         sdid = self.aps[0].read_memory(SIM_SDID)
         keyattr = (sdid & SIM_SDID_KEYATTR_MASK) >> SIM_SDID_KEYATTR_SHIFT
-        logging.debug("KEYATTR=0x%x SDID=0x%08x", keyattr, sdid)
+        LOG.debug("KEYATTR=0x%x SDID=0x%08x", keyattr, sdid)
         self.is_dual_core = (keyattr == KEYATTR_DUAL_CORE)
         if self.is_dual_core:
-            logging.info("KL28 is dual core")
+            LOG.info("KL28 is dual core")
             self.memory_map = self.dualMap
 
     def disable_rom_remap(self):

@@ -18,7 +18,6 @@ from ..core.memory_interface import MemoryInterface
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_single_float_register,
                                     is_double_float_register)
 from ..utility import conversion
-import logging
 
 class DebugContext(MemoryInterface):
     """! @brief Viewport for inspecting the system being debugged.

@@ -23,6 +23,8 @@ from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 import logging
 import time
 
+LOG = logging.getLogger(__name__)
+
 FLASH_ALGO = { 'load_address' : 0x20000000,
                'instructions' : [
                                 0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
@@ -86,7 +88,7 @@ class Flash_cc3220sf(Flash):
 
         # check the return code
         if result != 0:
-            logging.error('init error: %i', result)
+            LOG.error('init error: %i', result)
 
         # erase the cookie which take up one page
         self.erase_sector(0x01000000)
@@ -108,7 +110,7 @@ class Flash_cc3220sf(Flash):
 
         # check the return code
         if result != 0:
-            logging.error('init error: %i', result)
+            LOG.error('init error: %i', result)
 
 
 class CC3220SF(CoreSightTarget):

@@ -21,8 +21,7 @@ import logging
 
 from .base import StlinkDetectBase
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+LOG = logging.getLogger(__name__)
 
 if sys.version_info[0] < 3:
     import _winreg as winreg
@@ -48,7 +47,7 @@ def _get_values_with_numeric_keys(reg_key):
             except ValueError:
                 continue
     except OSError:
-        logger.debug("Failed to iterate over all keys")
+        LOG.debug("Failed to iterate over all keys")
 
     return result
 
@@ -84,20 +83,20 @@ def _get_cached_mounted_points():
             mount_point_match = re.match(".*\\\\(.:)$", v[0])
 
             if not mount_point_match:
-                logger.debug("Invalid disk pattern for entry %s, skipping", v[0])
+                LOG.debug("Invalid disk pattern for entry %s, skipping", v[0])
                 continue
 
             mount_point = mount_point_match.group(1)
 
             result.append({"mount_point": mount_point, "volume_string": volume_string})
     except OSError:
-        logger.error('Failed to open "MountedDevices" in registry')
+        LOG.error('Failed to open "MountedDevices" in registry')
 
     return result
 
 
 def _get_disks():
-    logger.debug("Fetching mounted devices from disk service registry entry")
+    LOG.debug("Fetching mounted devices from disk service registry entry")
     try:
         disks_key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\Disk\\Enum"
@@ -105,12 +104,12 @@ def _get_disks():
         disk_strings = _get_values_with_numeric_keys(disks_key)
         return [v for v in disk_strings if _is_mbed_volume(v)]
     except OSError:
-        logger.debug("No disk service found, no device can be detected")
+        LOG.debug("No disk service found, no device can be detected")
         return []
 
 
 def _get_usb_storage_devices():
-    logger.debug("Fetching usb storage devices from USBSTOR service registry entry")
+    LOG.debug("Fetching usb storage devices from USBSTOR service registry entry")
     try:
         usbstor_key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
@@ -118,7 +117,7 @@ def _get_usb_storage_devices():
         )
         return _get_values_with_numeric_keys(usbstor_key)
     except OSError:
-        logger.debug("No USBSTOR service found, no device can be detected")
+        LOG.debug("No USBSTOR service found, no device can be detected")
         return []
 
 
@@ -132,20 +131,20 @@ def _determine_valid_non_composite_devices(devices, target_id_usb_id_mount_point
         try:
             device_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, device_key_string)
         except OSError:
-            logger.debug('Key "%s" not found', device_key_string)
+            LOG.debug('Key "%s" not found', device_key_string)
             continue
 
         try:
             capability = _determine_subdevice_capability(device_key)
         except CompatibleIDsNotFoundException:
-            logger.debug(
+            LOG.debug(
                 'Expected %s to have subkey "CompatibleIDs". Skipping.',
                 device_key_string,
             )
             continue
 
         if capability != "msd":
-            logger.debug(
+            LOG.debug(
                 "Expected msd device but got %s, skipping %s",
                 capability,
                 device["full_path"],
@@ -182,7 +181,7 @@ def _determine_subdevice_capability(key):
     elif "usb\\class_02" in compatible_ids:
         return "serial"
     else:
-        logger.debug("Unknown capabilities from the following ids: %s", compatible_ids)
+        LOG.debug("Unknown capabilities from the following ids: %s", compatible_ids)
         return None
 
 
@@ -198,7 +197,7 @@ def _vid_pid_path_to_usb_info(vid_pid_path):
         component_part = component.lower().split("_")
 
         if len(component_part) != 2:
-            logger.debug("Unexpected VID/PID string structure %s", component)
+            LOG.debug("Unexpected VID/PID string structure %s", component)
             break
 
         if component_part[0] == "vid":
@@ -257,7 +256,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                         cached_mount_point_info["volume_string"],
                     )
                     if not target_id_usb_id_match:
-                        logger.debug(
+                        LOG.debug(
                             "Entry %s has invalid target id pattern %s, skipping",
                             cached_mount_point_info["mount_point"],
                             cached_mount_point_info["volume_string"],
@@ -270,7 +269,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                     disks.pop(index)
                     break
 
-        logger.debug(
+        LOG.debug(
             "target_id_usb_id -> mount_point mapping: %s ",
             target_id_usb_id_mount_point_map,
         )
@@ -283,7 +282,7 @@ class StlinkDetectWindows(StlinkDetectBase):
             vid_pid_components = vid_pid_path_componets[1].split("&")
 
             if len(vid_pid_components) != 2 and len(vid_pid_components) != 3:
-                logger.debug(
+                LOG.debug(
                     "Skipping USBSTOR device with unusual VID/PID string format '%s'",
                     vid_pid_path,
                 )
@@ -330,7 +329,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                     [k for k in _iter_keys_as_str(vid_pid_key)]
                 )
             except OSError:
-                logger.debug('VID/PID "%s" not found', vid_pid_key_string)
+                LOG.debug('VID/PID "%s" not found', vid_pid_key_string)
                 continue
 
             overlapping_target_id_usb_ids = target_id_usb_id_sub_keys.intersection(
@@ -357,7 +356,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                         entry_key_string = new_entry_key_string
                         is_prefix = True
                 except OSError:
-                    logger.debug(
+                    LOG.debug(
                         'Device %s did not have a "ParentIdPrefix" key, '
                         "sticking with %s as entry key string",
                         composite_device_key_string,
@@ -386,7 +385,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                         winreg.HKEY_LOCAL_MACHINE, subdevice_type_key_string
                     )
                 except OSError:
-                    logger.debug(
+                    LOG.debug(
                         "Composite device subdevice key %s was not found, skipping",
                         subdevice_type_key_string,
                     )
@@ -412,7 +411,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                             subdevice_type_key, prepared_entry_key_string
                         )
                     except OSError:
-                        logger.debug(
+                        LOG.debug(
                             "Sub-device %s not found, skipping", subdevice_key_string
                         )
                         continue
@@ -420,7 +419,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                     try:
                         capability = _determine_subdevice_capability(subdevice_key)
                     except CompatibleIDsNotFoundException:
-                        logger.debug(
+                        LOG.debug(
                             'Expected %s to have subkey "CompatibleIDs". Skipping.',
                             subdevice_key_string,
                         )
@@ -441,7 +440,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                                 subdevice_key, "Device Parameters"
                             )
                         except OSError:
-                            logger.debug(
+                            LOG.debug(
                                 'Key "Device Parameters" not under serial device entry'
                             )
                             continue
@@ -456,7 +455,7 @@ class StlinkDetectWindows(StlinkDetectBase):
                                 _vid_pid_path_to_usb_info(vid_pid_path)
                             )
                         except OSError:
-                            logger.debug(
+                            LOG.debug(
                                 '"PortName" value not found under serial device entry'
                             )
                             continue

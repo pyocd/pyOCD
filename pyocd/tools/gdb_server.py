@@ -34,6 +34,8 @@ from ..probe.cmsis_dap_probe import CMSISDAPProbe
 from ..probe.pydapaccess import DAPAccess
 from ..core.session import Session
 
+LOG = logging.getLogger(__name__)
+
 LEVELS = {
     'debug': logging.DEBUG,
     'info': logging.INFO,
@@ -255,7 +257,7 @@ class GDBServerTool(object):
         DAPAccess.set_args(self.args.daparg)
 
         if not self.args.no_deprecation_warning:
-            logging.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
+            LOG.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
     
         self.process_commands(self.args.commands)
 
@@ -298,7 +300,7 @@ class GDBServerTool(object):
                 for gdb in gdbs:
                     gdb.stop()
             except Exception as e:
-                logging.error("uncaught exception: %s" % e, exc_info=Session.get_current().log_tracebacks)
+                LOG.error("uncaught exception: %s" % e, exc_info=Session.get_current().log_tracebacks)
                 for gdb in gdbs:
                     gdb.stop()
                 return 1

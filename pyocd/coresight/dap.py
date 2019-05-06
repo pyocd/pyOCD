@@ -24,6 +24,8 @@ import os
 import os.path
 import six
 
+LOG = logging.getLogger(__name__)
+
 # DP register addresses.
 DP_IDCODE = 0x0 # read-only
 DP_ABORT = 0x0 # write-only
@@ -89,7 +91,7 @@ class DebugPort(object):
         """
         cwd = os.getcwd()
         logfile = os.path.join(cwd, self.DAP_LOG_FILE)
-        logging.info("dap logfile: %s", logfile)
+        LOG.info("dap logfile: %s", logfile)
         self.logger = logging.getLogger('dap')
         self.logger.propagate = False
         formatter = logging.Formatter('%(relativeCreated)010dms:%(levelname)s:%(name)s:%(message)s')
@@ -105,7 +107,7 @@ class DebugPort(object):
         self.link.swj_sequence()
         try:
             self.read_id_code()
-            logging.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr, self.dp_version,
+            LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr, self.dp_version,
                 " MINDP" if self.is_mindp else "", self.dp_revision)
         except exceptions.TransferError:
             # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
@@ -191,7 +193,7 @@ class DebugPort(object):
                     break
                 apList.append(ap_num)
             except Exception as e:
-                logging.error("Exception while probing AP#%d: %s", ap_num, repr(e))
+                LOG.error("Exception while probing AP#%d: %s", ap_num, repr(e))
                 break
             ap_num += 1
         
@@ -217,7 +219,7 @@ class DebugPort(object):
             ap = AccessPort.create(self, ap_num)
             self.aps[ap_num] = ap
         except Exception as e:
-            logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
+            LOG.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
     
     def init_ap_roms(self):
         """! @brief Init task that generates a call sequence to init all AP ROMs."""

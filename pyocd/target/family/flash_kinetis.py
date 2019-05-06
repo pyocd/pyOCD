@@ -17,6 +17,8 @@
 from ...flash.flash import Flash
 import logging
 
+LOG = logging.getLogger(__name__)
+
 # Kinetis security values and addresses
 SECURITY_START = 0x400
 SECURITY_SIZE = 16
@@ -72,26 +74,26 @@ class Flash_Kinetis(Flash):
             for i in range(FPROT_ADDR, FPROT_ADDR_END):
                 if (data[i - address] != 0xff):
                     data[i - address] = 0xff
-                    logging.debug("FCF[%d] at addr 0x%X changed to 0x%X", i - FPROT_ADDR, i, data[i - address])
+                    LOG.debug("FCF[%d] at addr 0x%X changed to 0x%X", i - FPROT_ADDR, i, data[i - address])
 
             # FSEC must be 0xff
             if data[FSEC_ADDR - address] != FSEC_VAL:
                 data[FSEC_ADDR - address] = FSEC_VAL
-                logging.debug("FSEC at addr 0x%X changed to 0x%X", FSEC_ADDR, FSEC_VAL)
+                LOG.debug("FSEC at addr 0x%X changed to 0x%X", FSEC_ADDR, FSEC_VAL)
 
             # FOPT must not be 0x00, any other value is acceptable.
             if data[FOPT_ADDR - address] == 0x00:
-                logging.debug("FOPT is restricted value 0x00")
+                LOG.debug("FOPT is restricted value 0x00")
 
             # FEPROT must be 0xff
             if data[FEPROT_ADDR - address] != FEPROT_VAL:
                 data[FEPROT_ADDR - address] = FEPROT_VAL
-                logging.debug("FEPROT at addr 0x%X changed to 0x%X", FEPROT_ADDR, FEPROT_VAL)
+                LOG.debug("FEPROT at addr 0x%X changed to 0x%X", FEPROT_ADDR, FEPROT_VAL)
 
             # FDPROT must be 0xff
             if data[FDPROT_ADDR - address] != FDPROT_VAL:
                 data[FDPROT_ADDR - address] = FDPROT_VAL
-                logging.debug("FDPROT at addr 0x%X changed to 0x%X", FDPROT_ADDR, FDPROT_VAL)
+                LOG.debug("FDPROT at addr 0x%X changed to 0x%X", FDPROT_ADDR, FDPROT_VAL)
 
             # convert back to tuple
             data = tuple(data)

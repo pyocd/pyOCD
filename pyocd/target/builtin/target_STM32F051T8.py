@@ -18,7 +18,6 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 #DBGMCU clock
 RCC_APB2ENR_CR = 0x40021018
@@ -91,7 +90,6 @@ class STM32F051(CoreSightTarget):
         return seq
         
     def setup_dbgmcu(self):
-        logging.debug('stm32f051 init')
         enclock = self.read_memory(RCC_APB2ENR_CR)
         enclock |= RCC_APB2ENR_DBGMCU
         self.write_memory(RCC_APB2ENR_CR, enclock)

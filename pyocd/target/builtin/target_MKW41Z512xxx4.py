@@ -18,7 +18,6 @@ from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,

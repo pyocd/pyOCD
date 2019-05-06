@@ -34,7 +34,7 @@ THREAD_PRIORITY_OFFSET = 44
 THREAD_NAME_OFFSET = 52
 
 # Create a logger for this module.
-log = logging.getLogger("freertos")
+LOG = logging.getLogger(__name__)
 
 class TargetList(object):
     def __init__(self, context, ptr):
@@ -61,7 +61,7 @@ class TargetList(object):
                 prev = node
                 node = self._context.read32(node + LIST_NODE_NEXT_OFFSET)
             except exceptions.TransferError:
-                log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
+                LOG.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
 
 class FreeRTOSThreadContext(DebugContext):
@@ -202,7 +202,7 @@ class FreeRTOSThreadContext(DebugContext):
                     hwStacked = 0x68
                     swStacked = 0x64
             except exceptions.TransferError:
-                log.debug("Transfer error while reading thread's saved LR")
+                LOG.debug("Transfer error while reading thread's saved LR")
 
         for reg in reg_list:
             # Must handle stack pointer specially.
@@ -271,7 +271,7 @@ class FreeRTOSThread(TargetThread):
         try:
             return self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
         except exceptions.TransferError:
-            log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
+            LOG.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
             return 0
 
     @property
@@ -358,20 +358,20 @@ class FreeRTOSThreadProvider(ThreadProvider):
         # size of a single list.
         delta = self._symbols['xDelayedTaskList2'] - self._symbols['xDelayedTaskList1']
         if delta != LIST_SIZE:
-            log.warning("FreeRTOS: list size is unexpected, maybe an unsupported configuration of FreeRTOS")
+            LOG.warning("FreeRTOS: list size is unexpected, maybe an unsupported configuration of FreeRTOS")
             return False
 
         # xDelayedTaskList1 immediately follows pxReadyTasksLists, so subtracting their addresses gives
         # us the total size of the pxReadyTaskLists array.
         delta = self._symbols['xDelayedTaskList1'] - self._symbols['pxReadyTasksLists']
         if delta % LIST_SIZE:
-            log.warning("FreeRTOS: pxReadyTasksLists size is unexpected, maybe an unsupported version of FreeRTOS")
+            LOG.warning("FreeRTOS: pxReadyTasksLists size is unexpected, maybe an unsupported version of FreeRTOS")
             return False
         self._total_priorities = delta // LIST_SIZE
         if self._total_priorities > FREERTOS_MAX_PRIORITIES:
-            log.warning("FreeRTOS: number of priorities is too large (%d)", self._total_priorities)
+            LOG.warning("FreeRTOS: number of priorities is too large (%d)", self._total_priorities)
             return False
-        log.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
+        LOG.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
 
         self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
         self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
@@ -383,7 +383,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
 
     def event_handler(self, notification):
         # Invalidate threads list if flash is reprogrammed.
-        log.debug("FreeRTOS: invalidating threads list: %s" % (repr(notification)))
+        LOG.debug("FreeRTOS: invalidating threads list: %s" % (repr(notification)))
         self.invalidate();
 
     def _build_thread_list(self):
@@ -398,7 +398,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
         # We should only be building the thread list if the scheduler is running, so a zero thread
         # count or a null current thread means something is bizarrely wrong.
         if threadCount == 0 or currentThread == 0:
-            log.warning("FreeRTOS: no threads even though the scheduler is running")
+            LOG.warning("FreeRTOS: no threads even though the scheduler is running")
             return
 
         # Read the top ready priority.
@@ -443,17 +443,17 @@ class FreeRTOSThreadProvider(ThreadProvider):
                     else:
                         t.state = state
 
-                    log.debug("Thread 0x%08x (%s)", threadBase, t.name)
+                    LOG.debug("Thread 0x%08x (%s)", threadBase, t.name)
                     newThreads[t.unique_id] = t
                 except exceptions.TransferError:
-                    log.debug("TransferError while examining thread 0x%08x", threadBase)
+                    LOG.debug("TransferError while examining thread 0x%08x", threadBase)
 
         if len(newThreads) != threadCount:
-            log.warning("FreeRTOS: thread count mismatch")
+            LOG.warning("FreeRTOS: thread count mismatch")
 
         # Create fake handler mode thread.
         if self._target_context.read_core_register('ipsr') > 0:
-            log.debug("FreeRTOS: creating handler mode thread")
+            LOG.debug("FreeRTOS: creating handler mode thread")
             t = HandlerModeThread(self._target_context, self)
             newThreads[t.unique_id] = t
 

@@ -22,13 +22,13 @@ import logging
 import os
 import six
 
-log = logging.getLogger('hidapi')
+LOG = logging.getLogger(__name__)
 
 try:
     import hid
 except:
     if os.name == "posix" and os.uname()[0] == 'Darwin':
-        log.error("cython-hidapi is required on a Mac OS X Machine")
+        LOG.error("cython-hidapi is required on a Mac OS X Machine")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
@@ -60,7 +60,7 @@ class HidApiUSB(Interface):
         devices = hid.enumerate()
 
         if not devices:
-            log.debug("No Mbed device connected")
+            LOG.debug("No Mbed device connected")
             return []
 
         boards = []
@@ -81,7 +81,7 @@ class HidApiUSB(Interface):
             try:
                 dev = hid.device(vendor_id=vid, product_id=pid, path=deviceInfo['path'])
             except IOError as exc:
-                log.debug("Failed to open USB device: %s", exc)
+                LOG.debug("Failed to open USB device: %s", exc)
                 continue
 
             # Create the USB interface object for this device.
@@ -118,7 +118,7 @@ class HidApiUSB(Interface):
     def close(self):
         """! @brief Close the interface
         """
-        log.debug("closing interface")
+        LOG.debug("closing interface")
         self.device.close()
 
     def set_packet_count(self, count):

@@ -16,7 +16,6 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (RamRegion, MemoryMap)
-import logging
 
 class RTL8195AM(CoreSightTarget):
 
@@ -31,7 +30,3 @@ class RTL8195AM(CoreSightTarget):
 
     def __init__(self, link):
         super(RTL8195AM, self).__init__(link, self.memoryMap)
-
-    def init(self):
-        logging.debug('rtl8195am init')
-        super(RTL8195AM, self).init()

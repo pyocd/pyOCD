@@ -26,13 +26,13 @@ import six
 
 OPEN_TIMEOUT_S = 60.0
 
-log = logging.getLogger('pywinusb')
+LOG = logging.getLogger(__name__)
 
 try:
     import pywinusb.hid as hid
 except:
     if os.name == "nt":
-        log.error("PyWinUSB is required on a Windows Machine")
+        LOG.error("PyWinUSB is required on a Windows Machine")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
@@ -130,7 +130,7 @@ class PyWinUSB(Interface):
                 boards.append(new_board)
             except Exception as e:
                 if (str(e) != "Failure to get HID pre parsed data"):
-                    log.error("Receiving Exception: %s", e)
+                    LOG.error("Receiving Exception: %s", e)
                 dev.close()
 
         return boards
@@ -175,5 +175,5 @@ class PyWinUSB(Interface):
     def close(self):
         """! @brief Close the interface
         """
-        log.debug("closing interface")
+        LOG.debug("closing interface")
         self.device.close()

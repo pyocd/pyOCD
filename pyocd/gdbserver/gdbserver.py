@@ -41,6 +41,8 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 CTRL_C = b'\x03'
 
+LOG = logging.getLogger(__name__)
+
 # Logging options. Set to True to enable.
 LOG_MEM = False # Log memory accesses.
 LOG_ACK = False # Log ack or nak.
@@ -100,7 +102,7 @@ class GDBServerPacketIOThread(threading.Thread):
     
     def __init__(self, abstract_socket):
         super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
-        self.log = logging.getLogger('gdbpacket.%d' % abstract_socket.port)
+        self.log = LOG.getChild('gdbpacket')
         self._abstract_socket = abstract_socket
         self._receive_queue = queue.Queue()
         self._shutdown_event = threading.Event()
@@ -268,7 +270,7 @@ class GDBServer(threading.Thread):
         else:
             self.core = core
             self.target = self.board.target.cores[core]
-        self.log = logging.getLogger('gdbserver')
+        self.log = LOG.getChild('gdbserver')
         self.abstract_socket = None
         self.port = session.options.get('gdbserver_port', 3333)
         if self.port != 0:

@@ -20,7 +20,6 @@ from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 RCM_MR = 0x4007f010
 RCM_MR_BOOTROM_MASK = 0x6

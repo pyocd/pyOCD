@@ -20,6 +20,8 @@ from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from ..core import exceptions
 import logging
 
+LOG = logging.getLogger(__name__)
+
 ## Mask on EXC_RETURN indicating whether space for FP registers is allocated
 # on the frame. The bit is 0 if the frame is extended.
 EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
@@ -55,7 +57,7 @@ def read_c_string(context, ptr):
                     s += chr(c)
                     badCount = 0
     except exceptions.TransferError:
-        logging.debug("TransferError while trying to read 16 bytes at 0x%08x", ptr)
+        LOG.debug("TransferError while trying to read 16 bytes at 0x%08x", ptr)
 
     return s
 

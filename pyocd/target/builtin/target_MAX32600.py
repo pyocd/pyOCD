@@ -19,6 +19,8 @@ from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, DeviceRegion, MemoryMap)
 import logging
 
+LOG = logging.getLogger(__name__)
+
 FLASH_ALGO = { 'load_address' : 0x20000000,
                'instructions' : [
     0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
@@ -67,7 +69,7 @@ class MAX32600(CoreSightTarget):
         super(MAX32600, self).__init__(link, self.memoryMap)
 
     def dsb(self):
-        logging.info("Triggering Destructive Security Bypass...")
+        LOG.info("Triggering Destructive Security Bypass...")
 
         self.link.vendor(1)
 
@@ -75,7 +77,7 @@ class MAX32600(CoreSightTarget):
         self.link.init()
 
     def fge(self):
-        logging.info("Triggering Factory Global Erase...")
+        LOG.info("Triggering Factory Global Erase...")
 
         self.link.vendor(2)
 

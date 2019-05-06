@@ -16,6 +16,11 @@
 
 import logging
 
+LOG = logging.getLogger(__name__)
+
+## Set to true to log all notifications.
+LOG_NOTIFICATIONS = False
+
 class Notification(object):
     """!@brief Class that holds information about a notification to subscribers."""
     def __init__(self, event, source, data=None):
@@ -59,7 +64,8 @@ class Notifier(object):
         for note in notifications:
             # This debug log is commented out because it produces too much output unless you
             # are specifically working on notifications.
-#             logging.debug("Sending notification: %s", repr(note))
+            if LOG_NOTIFICATIONS:
+                LOG.debug("Sending notification: %s", repr(note))
             for cb in self._subscribers.get(note.event, []):
                 cb(note)
 

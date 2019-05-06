@@ -45,6 +45,8 @@ class SWOStatus:
     RUNNING = 3
     ERROR = 4
 
+LOG = logging.getLogger(__name__)
+
 # Set to True to enable logging of packet filling logic.
 LOG_PACKET_BUILDS = False
 
@@ -164,8 +166,7 @@ class _Command(object):
         self._dap_index = None
         self._data_encoded = False
         if LOG_PACKET_BUILDS:
-            self._logger = logging.getLogger(__name__)
-            self._logger.debug("New _Command")
+            LOG.debug("New _Command")
 
     def _get_free_words(self, blockAllowed, isRead):
         """! @brief Return the number of words free in the transmit packet
@@ -230,10 +231,10 @@ class _Command(object):
             delta = max_count - 255
             size = min(size - delta, size)
             if LOG_PACKET_BUILDS:
-                self._logger.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)" %
+                LOG.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)" %
                     (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free, delta))
         elif LOG_PACKET_BUILDS:
-            self._logger.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)" %
+            LOG.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)" %
                 (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free))
 
         # We can get a negative free count if the packet already contains more data than can be
@@ -271,7 +272,7 @@ class _Command(object):
         self._data.append((count, request, data))
 
         if LOG_PACKET_BUILDS:
-            self._logger.debug("add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]" %
+            LOG.debug("add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]" %
                 (count, request, 'r' if (request & READ) else 'w', self._write_count, self._read_count, self._block_allowed))
 
     def _encode_transfer_data(self):
@@ -441,8 +442,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                 new_daplink = DAPAccessCMSISDAP(None, interface=interface)
                 all_daplinks.append(new_daplink)
             except DAPAccessIntf.TransferError:
-                logger = logging.getLogger(__name__)
-                logger.error('Failed to get unique id', exc_info=session.Session.get_current().log_tracebacks)
+                LOG.error('Failed to get unique id', exc_info=session.Session.get_current().log_tracebacks)
         return all_daplinks
 
     @staticmethod
@@ -487,8 +487,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                     assert result_interface is None, "More than one probes with ID {}".format(unique_id)
                     result_interface = interface
             except Exception:
-                logger = logging.getLogger(__name__)
-                logger.error('Failed to get unique id for open', exc_info=session.Session.get_current().log_tracebacks)
+                LOG.error('Failed to get unique id for open', exc_info=session.Session.get_current().log_tracebacks)
         return result_interface
 
     # ------------------------------------------- #
@@ -528,7 +527,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._commands_to_read = None
         self._command_response_buf = None
         self._swo_status = None
-        self._logger = logging.getLogger(__name__)
 
     @property
     def vendor_name(self):
@@ -552,7 +550,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         if DAPSettings.limit_packets:
             self._packet_count = 1
-            self._logger.debug("Limiting packet count to %d", self._packet_count)
+            LOG.debug("Limiting packet count to %d", self._packet_count)
         else:
             self._packet_count = self._protocol.dap_info(self.ID.MAX_PACKET_COUNT)
 
@@ -705,7 +703,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                 self._swo_disable()
                 return True
         except DAPAccessIntf.CommandError as e:
-            self._logger.debug("Exception while configuring SWO: %s", e)
+            LOG.debug("Exception while configuring SWO: %s", e)
             self._swo_disable()
             return False
     
@@ -714,7 +712,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._protocol.swo_mode(DAPSWOMode.OFF)
             self._protocol.swo_transport(DAPSWOTransport.NONE)
         except DAPAccessIntf.CommandError as e:
-            self._logger.debug("Exception while disabling SWO: %s", e)
+            LOG.debug("Exception while disabling SWO: %s", e)
         finally:
             self._swo_status = SWOStatus.DISABLED
     
@@ -941,7 +939,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             # This request doesn't fit in the packet so send it.
             if size == 0:
                 if LOG_PACKET_BUILDS:
-                    self._logger.debug("_write: send packet [size==0]")
+                    LOG.debug("_write: send packet [size==0]")
                 self._send_packet()
                 cmd = self._crnt_cmd
                 continue
@@ -958,7 +956,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             # Packet has been filled so send it
             if cmd.get_full():
                 if LOG_PACKET_BUILDS:
-                    self._logger.debug("_write: send packet [full]")
+                    LOG.debug("_write: send packet [full]")
                 self._send_packet()
                 cmd = self._crnt_cmd
 

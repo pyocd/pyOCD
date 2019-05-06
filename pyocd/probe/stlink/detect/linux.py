@@ -19,8 +19,7 @@ import logging
 
 from .base import StlinkDetectBase
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+LOG = logging.getLogger(__name__)
 
 SYSFS_BLOCK_DEVICE_PATH = "/sys/class/block"
 
@@ -73,7 +72,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
             )
             return to_ret
         else:
-            logger.error(
+            LOG.error(
                 "Could not get %s devices by id. "
                 "This could be because your Linux distribution "
                 "does not use udev, or does not create /dev/%s/by-id "
@@ -126,7 +125,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
                     end_index = index
 
             if end_index is None:
-                logger.debug(
+                LOG.debug(
                     "Did not find suitable usb folder for usb info: %s", full_sysfs_path
                 )
                 continue
@@ -146,7 +145,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
                 with open(vendor_id_file_paths, "r") as vendor_file:
                     vendor_id = vendor_file.read().strip()
             except OSError as e:
-                logger.debug(
+                LOG.debug(
                     "Failed to read vendor id file %s weith error:",
                     vendor_id_file_paths,
                     e,
@@ -156,7 +155,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
                 with open(product_id_file_paths, "r") as product_file:
                     product_id = product_file.read().strip()
             except OSError as e:
-                logger.debug(
+                LOG.debug(
                     "Failed to read product id file %s weith error:",
                     product_id_file_paths,
                     e,

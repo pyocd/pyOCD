@@ -38,6 +38,8 @@ from ..utility.cmdline import convert_session_options
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 from ..flash.loader import (FileProgrammer, FlashEraser)
 
+LOG = logging.getLogger(__name__)
+
 LEVELS = {
     'debug': logging.DEBUG,
     'info': logging.INFO,
@@ -133,7 +135,7 @@ def main():
     DAPAccess.set_args(args.daparg)
 
     if not args.no_deprecation_warning:
-        logging.warning("pyocd-flashtool is deprecated; please use the new combined pyocd tool.")
+        LOG.warning("pyocd-flashtool is deprecated; please use the new combined pyocd tool.")
         
     # Sanity checks before attaching to board
     if args.format == 'hex' and not intelhex_available:

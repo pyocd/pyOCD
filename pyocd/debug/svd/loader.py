@@ -21,6 +21,8 @@ from zipfile import ZipFile
 
 from .parser import SVDParser
 
+LOG = logging.getLogger(__name__)
+
 ## Path within the pyocd package to the generated zip containing builting SVD files.
 BUILTIN_SVD_DATA_PATH = "debug/svd/svd_data.zip"
 
@@ -65,4 +67,4 @@ class SVDLoader(threading.Thread):
             if self._callback:
                 self._callback(self._svd_device)
         except IOError:
-            logging.warning("Failed to load SVD file %s", self._svd_location.filename)
+            LOG.warning("Failed to load SVD file %s", self._svd_location.filename)

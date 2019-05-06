@@ -21,6 +21,8 @@ import logging
 import threading
 from contextlib import contextmanager
 
+LOG = logging.getLogger(__name__)
+
 # Set to True to enable logging of all DP and AP accesses.
 LOG_DAP = False
 
@@ -225,7 +227,7 @@ class AccessPort(object):
         self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
         self.rom_addr &= 0xfffffffc # clear format and present bits
 
-        logging.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
+        LOG.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
  
     @_locked
     def init_rom_table(self):
@@ -234,7 +236,7 @@ class AccessPort(object):
                 self.rom_table = ROMTable(self)
                 self.rom_table.init()
         except exceptions.TransferError as error:
-            logging.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
+            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
 
     @_locked
     def read_reg(self, addr, now=True):
@@ -316,7 +318,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # memory interface based on AP register accesses.
         memoryInterface = self.dp.link.get_memory_interface_for_ap(self.ap_num)
         if memoryInterface is not None:
-            logging.debug("Using accelerated memory access interface")
+            LOG.debug("Using accelerated memory access interface")
             self.write_memory = memoryInterface.write_memory
             self.read_memory = memoryInterface.read_memory
             self.write_memory_block32 = memoryInterface.write_memory_block32
@@ -337,7 +339,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         default_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
         default_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
-        logging.debug("AP#%d default HPROT=%x HNONSEC=%x", self.ap_num, default_hprot, default_hnonsec)
+        LOG.debug("AP#%d default HPROT=%x HNONSEC=%x", self.ap_num, default_hprot, default_hnonsec)
         
         # Now attempt to see which HPROT and HNONSEC bits are implemented.
         AccessPort.write_reg(self, MEM_AP_CSW, csw | CSW_HNONSEC_MASK | CSW_HPROT_MASK)
@@ -345,7 +347,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         self._impl_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
         self._impl_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
-        logging.debug("AP#%d implemented HPROT=%x HNONSEC=%x", self.ap_num, self._impl_hprot, self._impl_hnonsec)
+        LOG.debug("AP#%d implemented HPROT=%x HNONSEC=%x", self.ap_num, self._impl_hprot, self._impl_hnonsec)
         
         # Update current HPROT and HNONSEC, and the current base CSW value.
         self.hprot = self._hprot & self._impl_hprot
