@@ -22,8 +22,8 @@ PROBE_CLASSES = [
     StlinkProbe,
     ]
 
-## @brief Simple class to enable collecting probes of all supported probe types.
 class DebugProbeAggregator(object):
+    """! @brief Simple class to enable collecting probes of all supported probe types."""
 
     @staticmethod
     def get_all_connected_probes(unique_id=None):

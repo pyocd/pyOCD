@@ -16,56 +16,57 @@
 
 from ..utility import conversion
 
-## @brief Interface for memory access.
 class MemoryInterface(object):
+    """! @brief Interface for memory access."""
 
-    ## @brief Write a single memory location.
-    #
-    # By default the transfer size is a word.
     def write_memory(self, addr, data, transfer_size=32):
+        """! @brief Write a single memory location.
+        
+        By default the transfer size is a word."""
         raise NotImplementedError()
         
-    ## @brief Read a memory location.
-    #
-    # By default, a word will be read.
     def read_memory(self, addr, transfer_size=32, now=True):
+        """! @brief Read a memory location.
+        
+        By default, a word will be read."""
         raise NotImplementedError()
 
-    ## @brief Write an aligned block of 32-bit words.
     def write_memory_block32(self, addr, data):
+        """! @brief Write an aligned block of 32-bit words."""
         raise NotImplementedError()
 
-    ## @brief Read an aligned block of 32-bit words.
     def read_memory_block32(self, addr, size):
+        """! @brief Read an aligned block of 32-bit words."""
         raise NotImplementedError()
   
-    # @brief Shorthand to write a 32-bit word.
     def write32(self, addr, value):
+        ## @brief Shorthand to write a 32-bit word.
         self.write_memory(addr, value, 32)
 
-    # @brief Shorthand to write a 16-bit halfword.
     def write16(self, addr, value):
+        """! @brief Shorthand to write a 16-bit halfword."""
         self.write_memory(addr, value, 16)
 
-    # @brief Shorthand to write a byte.
     def write8(self, addr, value):
+        """! @brief Shorthand to write a byte."""
         self.write_memory(addr, value, 8)
 
-    # @brief Shorthand to read a 32-bit word.
     def read32(self, addr, now=True):
+        """! @brief Shorthand to read a 32-bit word."""
         return self.read_memory(addr, 32, now)
 
-    # @brief Shorthand to read a 16-bit halfword.
     def read16(self, addr, now=True):
+        """! @brief Shorthand to read a 16-bit halfword."""
         return self.read_memory(addr, 16, now)
 
-    # @brief Shorthand to read a byte.
     def read8(self, addr, now=True):
+        """! @brief Shorthand to read a byte."""
         return self.read_memory(addr, 8, now)
 
-    ## @brief Read a block of unaligned bytes in memory.
-    # @return an array of byte values
     def read_memory_block8(self, addr, size):
+        """! @brief Read a block of unaligned bytes in memory.
+        @return an array of byte values
+        """
         res = []
 
         # try to read 8bits data
@@ -103,8 +104,8 @@ class MemoryInterface(object):
 
         return res
 
-    ## @brief Write a block of unaligned bytes in memory.
     def write_memory_block8(self, addr, data):
+        """! @brief Write a block of unaligned bytes in memory."""
         size = len(data)
         idx = 0
 

@@ -36,19 +36,19 @@ try:
 except ImportError:
     from inspect import getargspec
 
-##
-# @brief Represents a chip that uses CoreSight debug infrastructure.
-#
-# An instance of this class is the root of the chip-level object graph. It has child
-# nodes for the DP and all cores. As a concrete subclass of Target, it provides methods
-# to control the device, access memory, adjust breakpoints, and so on.
-#
-# For single core devices, the CoreSightTarget has mostly equivalent functionality to
-# the CortexM object for the core. Multicore devices work differently. This class tracks
-# a "selected core", to which all actions are directed. The selected core can be changed
-# at any time. You may also directly access specific cores and perform operations on them.
 class CoreSightTarget(Target, GraphNode):
-
+    """! @brief Represents a chip that uses CoreSight debug infrastructure.
+    
+    An instance of this class is the root of the chip-level object graph. It has child
+    nodes for the DP and all cores. As a concrete subclass of Target, it provides methods
+    to control the device, access memory, adjust breakpoints, and so on.
+    
+    For single core devices, the CoreSightTarget has mostly equivalent functionality to
+    the CortexM object for the core. Multicore devices work differently. This class tracks
+    a "selected core", to which all actions are directed. The selected core can be changed
+    at any time. You may also directly access specific cores and perform operations on them.
+    """
+    
     def __init__(self, session, memoryMap=None):
         Target.__init__(self, session, memoryMap)
         GraphNode.__init__(self)
@@ -96,8 +96,8 @@ class CoreSightTarget(Target, GraphNode):
         return self.dp.aps
 
     @property
-    ## @brief Waits for SVD file to complete loading before returning.
     def svd_device(self):
+        """! @brief Waits for SVD file to complete loading before returning."""
         if not self._svd_device and self._svd_load_thread:
             logging.debug("Waiting for SVD load to complete")
             self._svd_device = self._svd_load_thread.device

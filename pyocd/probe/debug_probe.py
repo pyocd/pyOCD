@@ -16,11 +16,11 @@
 
 from enum import Enum
 
-## @brief Abstract debug probe class.
 class DebugProbe(object):
+    """! @brief Abstract debug probe class."""
 
-    ## @brief Debug wire protocols.
     class Protocol(Enum):
+        """! @brief Debug wire protocols."""
         DEFAULT = 0
         SWD = 1
         JTAG = 2
@@ -49,35 +49,38 @@ class DebugProbe(object):
     def supported_wire_protocols(self):
         raise NotImplementedError()
 
-    ## @brief The unique ID of this device.
-    #
-    # This property will be valid before open() is called. This value can be passed to
-    # get_probe_with_id().
     @property
     def unique_id(self):
+        """! @brief The unique ID of this device.
+        
+        This property will be valid before open() is called. This value can be passed to
+        get_probe_with_id().
+        """
         raise NotImplementedError()
 
-    ## @brief Currently selected wire protocol.
-    #
-    # If the probe is not connected, i.e., connect() has not been called, then this
-    # property will be None.
     @property
     def wire_protocol(self):
+        """! @brief Currently selected wire protocol.
+        
+        If the probe is not connected, i.e., connect() has not been called, then this
+        property will be None.
+        """
         raise NotImplementedError()
     
     @property
     def is_open(self):
         raise NotImplementedError()
 
-    ## @brief Create a board instance representing the board of which the probe is a component.
-    #
-    # If the probe is part of a board, then this property will be a Board instance that represents
-    # the associated board. Usually, for an on-board debug probe, this would be the Board that
-    # the probe physically is part of. If the probe does not have an associated board, then this
-    # method returns None.
-    #
-    # @param session Session to pass to the board upon construction.
     def create_associated_board(self, session):
+        """! @brief Create a board instance representing the board of which the probe is a component.
+        
+        If the probe is part of a board, then this property will be a Board instance that represents
+        the associated board. Usually, for an on-board debug probe, this would be the Board that
+        the probe physically is part of. If the probe does not have an associated board, then this
+        method returns None.
+        
+        @param session Session to pass to the board upon construction.
+        """
         return None
 
     def open(self):
@@ -90,34 +93,34 @@ class DebugProbe(object):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """Initailize DAP IO pins for JTAG or SWD"""
+        """! @brief Initailize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
     def disconnect(self):
-        """Deinitialize the DAP I/O pins"""
+        """! @brief Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
 
     def set_clock(self, frequency):
-        """Set the frequency for JTAG and SWD in Hz
+        """! @brief Set the frequency for JTAG and SWD in Hz
 
         This function is safe to call before connect is called.
         """
         raise NotImplementedError()
 
     def reset(self):
-        """Reset the target"""
+        """! @brief Reset the target"""
         raise NotImplementedError()
 
     def assert_reset(self, asserted):
-        """Assert or de-assert target reset line"""
+        """! @brief Assert or de-assert target reset line"""
         raise NotImplementedError()
     
     def is_reset_asserted(self):
-        """Returns True if the target reset line is asserted or False if de-asserted"""
+        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
         raise NotImplementedError()
 
     def flush(self):
-        """Write out all unsent commands"""
+        """! @brief Write out all unsent commands"""
         raise NotImplementedError()
 
     def read_dp(self, addr, now=True):

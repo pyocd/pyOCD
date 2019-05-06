@@ -24,7 +24,7 @@ LIST_TYPE_KEYS = {"register_arrays", "registers", "fields", "peripherals", "inte
 
 
 def _check_type(value, expected_type):
-    """Perform type checking on the provided value
+    """! @brief Perform type checking on the provided value
 
     This is a helper that will raise ``TypeError`` if the provided value is
     not an instance of the provided type.  This method should be used sparingly
@@ -66,7 +66,7 @@ class SVDJSONEncoder(json.JSONEncoder):
 
 
 class SVDElement(object):
-    """Base class for all SVD Elements"""
+    """! @brief Base class for all SVD Elements"""
 
     def __init__(self):
         self.parent = None
@@ -155,7 +155,7 @@ class SVDField(SVDElement):
 
     @property
     def is_enumerated_type(self):
-        """Return True if the field is an enumerated type"""
+        """! @brief Return True if the field is an enumerated type"""
         return self.enumerated_values is not None
 
     @property
@@ -164,7 +164,7 @@ class SVDField(SVDElement):
 
 
 class SVDRegisterArray(SVDElement):
-    """Represent a register array in the tree"""
+    """! @brief Represent a register array in the tree"""
 
     def __init__(self, name, derived_from, description, address_offset, size,
                  access, protection, reset_value, reset_mask, fields,
@@ -283,7 +283,7 @@ class SVDRegister(SVDElement):
 
 
 class SVDRegisterCluster(SVDElement):
-    """Represent a register cluster in the tree"""
+    """! @brief Represent a register cluster in the tree"""
 
     def __init__(self, name, derived_from, description, address_offset, size,
                  alternate_cluster, header_struct_name,
@@ -359,7 +359,7 @@ class SVDRegisterCluster(SVDElement):
 
 
 class SVDRegisterClusterArray(SVDElement):
-    """Represent a register cluster in the tree"""
+    """! @brief Represent a register cluster in the tree"""
 
     def __init__(self, name, derived_from, description, address_offset, size,
                  alternate_cluster, header_struct_name,

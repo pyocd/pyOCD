@@ -16,8 +16,9 @@
 
 import logging
 
-## @brief Base class representing a thread on the target.
 class TargetThread(object):
+    """! @brief Base class representing a thread on the target."""
+
     def __init__(self):
         pass
 
@@ -41,8 +42,9 @@ class TargetThread(object):
     def context(self):
         raise NotImplementedError()
 
-## @brief Base class for RTOS support plugins.
 class ThreadProvider(object):
+    """! @brief Base class for RTOS support plugins."""
+
     def __init__(self, target):
         self._target = target
         self._target_context = self._target.get_target_context()
@@ -59,10 +61,11 @@ class ThreadProvider(object):
             syms[name] = addr
         return syms
 
-    ##
-    # @retval True The provider was successfully initialzed.
-    # @retval False The provider could not be initialized successfully.
     def init(self, symbolProvider):
+        """!
+        @retval True The provider was successfully initialzed.
+        @retval False The provider could not be initialized successfully.
+        """
         raise NotImplementedError()
 
     def _build_thread_list(self):
@@ -110,10 +113,10 @@ class ThreadProvider(object):
     def is_valid_thread_id(self, threadId):
         raise NotImplementedError()
 
-    # From GDB's point of view, where Handler Mode is a thread
     def get_current_thread_id(self):
+        """! From GDB's point of view, where Handler Mode is a thread"""
         raise NotImplementedError()
 
-    # From OS's point of view, so the current OS thread even in Handler Mode
     def get_actual_current_thread_id(self):
+        """! From OS's point of view, so the current OS thread even in Handler Mode"""
         raise NotImplementedError()

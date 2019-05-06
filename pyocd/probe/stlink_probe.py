@@ -75,9 +75,9 @@ class StlinkProbe(DebugProbe):
     def product_name(self):
         return self._link.product_name
 
-    ## @brief Only valid after opening.
     @property
     def supported_wire_protocols(self):
+        """! @brief Only valid after opening."""
         return [DebugProbe.Protocol.DEFAULT, DebugProbe.Protocol.SWD, DebugProbe.Protocol.JTAG]
 
     @property

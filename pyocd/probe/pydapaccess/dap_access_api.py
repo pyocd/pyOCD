@@ -21,13 +21,13 @@ from enum import Enum
 class DAPAccessIntf(object):
 
     class PORT(Enum):
-        """Physical access ports"""
+        """! @brief Physical access ports"""
         DEFAULT = 0
         SWD = 1
         JTAG = 2
 
     class REG(Enum):
-        """Register for DAP access functions"""
+        """! @brief Register for DAP access functions"""
         DP_0x0 = 0
         DP_0x4 = 1
         DP_0x8 = 2
@@ -38,7 +38,7 @@ class DAPAccessIntf(object):
         AP_0xC = 7
 
     class ID(Enum):
-        """Information ID used for call to identify"""
+        """! @brief Information ID used for call to identify"""
         VENDOR = 1
         PRODUCT = 2
         SER_NUM = 3
@@ -51,27 +51,27 @@ class DAPAccessIntf(object):
         MAX_PACKET_SIZE = 0xff
 
     class Error(Exception):
-        """Parent of all error DAPAccess can raise"""
+        """! @brief Parent of all error DAPAccess can raise"""
         pass
 
     class DeviceError(Error):
-        """Error communicating with device"""
+        """! @brief Error communicating with device"""
         pass
 
     class CommandError(DeviceError):
-        """The host debugger reported failure for the given command"""
+        """! @brief The host debugger reported failure for the given command"""
         pass
 
     class TransferError(CommandError):
-        """Error ocurred with a transfer over SWD or JTAG"""
+        """! @brief Error ocurred with a transfer over SWD or JTAG"""
         pass
 
     class TransferTimeoutError(TransferError):
-        """A SWD or JTAG timeout occurred"""
+        """! @brief A SWD or JTAG timeout occurred"""
         pass
 
     class TransferFaultError(TransferError):
-        """A SWD Fault occurred"""
+        """! @brief A SWD Fault occurred"""
         def __init__(self, faultAddress=None):
             super(DAPAccessIntf.TransferFaultError, self).__init__(faultAddress)
             self._address = faultAddress
@@ -91,22 +91,22 @@ class DAPAccessIntf(object):
             return desc
 
     class TransferProtocolError(TransferError):
-        """A SWD protocol error occurred"""
+        """! @brief A SWD protocol error occurred"""
         pass
 
     @staticmethod
     def get_connected_devices():
-        """Return a list of DAPAccess devices"""
+        """! @brief Return a list of DAPAccess devices"""
         raise NotImplementedError()
 
     @staticmethod
     def get_device(device_id):
-        """Return the DAPAccess device with the give ID"""
+        """! @brief Return the DAPAccess device with the give ID"""
         raise NotImplementedError()
 
     @staticmethod
     def set_args(arg_list):
-        """Set arguments to configure behavior"""
+        """! @brief Set arguments to configure behavior"""
         raise NotImplementedError()
 
     @property
@@ -126,15 +126,15 @@ class DAPAccessIntf(object):
     #          Host control functions
     # ------------------------------------------- #
     def open(self):
-        """Open device and lock it for exclusive access"""
+        """! @brief Open device and lock it for exclusive access"""
         raise NotImplementedError()
 
     def close(self):
-        """Close device and unlock it"""
+        """! @brief Close device and unlock it"""
         raise NotImplementedError()
 
     def get_unique_id(self):
-        """Get the unique ID of this device which can be used in get_device
+        """! @brief Get the unique ID of this device which can be used in get_device
 
         This function is safe to call before open is called.
         """
@@ -148,71 +148,73 @@ class DAPAccessIntf(object):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, port=None):
-        """Initailize DAP IO pins for JTAG or SWD"""
+        """! @brief Initailize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
     def swj_sequence(self):
-        """Send seqeunce to activate JTAG or SWD on the target"""
+        """! @brief Send seqeunce to activate JTAG or SWD on the target"""
         raise NotImplementedError()
 
     def disconnect(self):
-        """Deinitialize the DAP I/O pins"""
+        """! @brief Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
 
     def set_clock(self, frequency):
-        """Set the frequency for JTAG and SWD in Hz
+        """! @brief Set the frequency for JTAG and SWD in Hz
 
         This function is safe to call before connect is called.
         """
         raise NotImplementedError()
 
     def get_swj_mode(self):
-        """Return the current port type - SWD or JTAG"""
+        """! @brief Return the current port type - SWD or JTAG"""
         raise NotImplementedError()
 
     def reset(self):
-        """Reset the target"""
+        """! @brief Reset the target"""
         raise NotImplementedError()
 
     def assert_reset(self, asserted):
-        """Assert or de-assert target reset line"""
+        """! @brief Assert or de-assert target reset line"""
         raise NotImplementedError()
     
     def is_reset_asserted(self):
-        """Returns True if the target reset line is asserted or False if de-asserted"""
+        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
         raise NotImplementedError()
 
     def set_deferred_transfer(self, enable):
-        """Allow reads and writes to be buffered for increased speed"""
+        """! @brief Allow reads and writes to be buffered for increased speed"""
         raise NotImplementedError()
 
     def flush(self):
-        """Write out all unsent commands"""
+        """! @brief Write out all unsent commands"""
         raise NotImplementedError()
 
     def vendor(self, index, data=None):
-        """Send a vendor specific command"""
+        """! @brief Send a vendor specific command"""
         raise NotImplementedError()
     
     def has_swo(self):
-        """Returns bool indicating whether the link supports SWO."""
+        """! @brief Returns bool indicating whether the link supports SWO."""
         raise NotImplementedError()
 
     def swo_configure(self, enabled, rate):
-        """Enable or disable SWO and set the baud rate."""
+        """! @brief Enable or disable SWO and set the baud rate."""
         raise NotImplementedError()
 
     def swo_control(self, start):
-        """Pass True to start recording SWO data, False to stop."""
+        """! @brief Pass True to start recording SWO data, False to stop."""
         raise NotImplementedError()
 
     def get_swo_status(self):
-        """Returns a 2-tuple with a status mask at index 0, and the number of buffered
+        """! @brief Returns a 2-tuple with a status mask at index 0, and the number of buffered
         SWO data bytes at index 1."""
         raise NotImplementedError()
 
     def swo_read(self, count=None):
-        """Read buffered SWO data from the target. The count parameter is optional. If
+        """! @brief Read buffered SWO data from the target.
+        
+        The count parameter is optional. If
         provided, it is the number of bytes to read, which must be less than the packet size.
         If count is not provided, the packet size will be used instead.
         
@@ -224,17 +226,17 @@ class DAPAccessIntf(object):
     #          DAP Access functions
     # ------------------------------------------- #
     def write_reg(self, reg_id, value, dap_index=0):
-        """Write a single word to a DP or AP register"""
+        """! @brief Write a single word to a DP or AP register"""
         raise NotImplementedError()
 
     def read_reg(self, reg_id, dap_index=0, now=True):
-        """Read a single word to a DP or AP register"""
+        """! @brief Read a single word to a DP or AP register"""
         raise NotImplementedError()
 
     def reg_write_repeat(self, num_repeats, reg_id, data_array, dap_index=0):
-        """Write one or more words to the same DP or AP register"""
+        """! @brief Write one or more words to the same DP or AP register"""
         raise NotImplementedError()
 
     def reg_read_repeat(self, num_repeats, reg_id, dap_index=0, now=True):
-        """Read one or more words from the same DP or AP register"""
+        """! @brief Read one or more words from the same DP or AP register"""
         raise NotImplementedError()

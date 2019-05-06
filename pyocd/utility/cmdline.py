@@ -17,10 +17,8 @@
 from ..core.target import Target
 from ..utility.compatibility import to_str_safe
 
-## @brief Split command line by whitespace, supporting quoted strings.
-#
-# Accepts
 def split_command_line(cmd_line):
+    """! @brief Split command line by whitespace, supporting quoted strings."""
     result = []
     if type(cmd_line) is str:
         args = [cmd_line]
@@ -66,10 +64,11 @@ VECTOR_CATCH_CHAR_MAP = {
         'n': Target.CATCH_NONE,
     }
 
-## @brief Convert a vector catch string to a mask.
-#
-# @exception ValueError Raised if an invalid vector catch character is encountered.
 def convert_vector_catch(value):
+    """! @brief Convert a vector catch string to a mask.
+    
+    @exception ValueError Raised if an invalid vector catch character is encountered.
+    """
     # Make case insensitive.
     value = to_str_safe(value).lower()
 
@@ -86,10 +85,8 @@ def convert_vector_catch(value):
         # Reraise an error with a more helpful message.
         raise ValueError("invalid vector catch option '{}'".format(e.args[0]))
 
-## @brief Convert a list of session option settings to a dictionary.
-#
-#
 def convert_session_options(option_list):
+    """! @brief Convert a list of session option settings to a dictionary."""
     options = {}
     if option_list is not None:
         for o in option_list:

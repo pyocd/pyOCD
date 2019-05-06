@@ -21,8 +21,8 @@ from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
 import six
 
-## @brief Wraps a pydapaccess link as a DebugProbe.
 class CMSISDAPProbe(DebugProbe):
+    """! @brief Wraps a pydapaccess link as a DebugProbe."""
 
     # Masks for CMSIS-DAP capabilities.
     SWD_CAPABILITY_MASK = 1
@@ -110,9 +110,9 @@ class CMSISDAPProbe(DebugProbe):
     def product_name(self):
         return self._link.product_name
 
-    ## @brief Only valid after opening.
     @property
     def supported_wire_protocols(self):
+        """! @brief Only valid after opening."""
         return self._supported_protocols
 
     @property
@@ -163,7 +163,7 @@ class CMSISDAPProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """Initialize DAP IO pins for JTAG or SWD"""
+        """! @brief Initialize DAP IO pins for JTAG or SWD"""
         # Convert protocol to port enum.
         if protocol is not None:
             port = self.PORT_MAP[protocol]
@@ -183,14 +183,14 @@ class CMSISDAPProbe(DebugProbe):
 
     # TODO remove
     def swj_sequence(self):
-        """Send sequence to activate JTAG or SWD on the target"""
+        """! @brief Send sequence to activate JTAG or SWD on the target"""
         try:
             self._link.swj_sequence()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def disconnect(self):
-        """Deinitialize the DAP I/O pins"""
+        """! @brief Deinitialize the DAP I/O pins"""
         try:
             self._link.disconnect()
             self._protocol = None
@@ -199,7 +199,7 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def set_clock(self, frequency):
-        """Set the frequency for JTAG and SWD in Hz
+        """! @brief Set the frequency for JTAG and SWD in Hz
 
         This function is safe to call before connect is called.
         """
@@ -209,7 +209,7 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def reset(self):
-        """Reset the target"""
+        """! @brief Reset the target"""
         try:
             self._invalidate_cached_registers()
             self._link.reset()
@@ -217,7 +217,7 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def assert_reset(self, asserted):
-        """Assert or de-assert target reset line"""
+        """! @brief Assert or de-assert target reset line"""
         try:
             self._invalidate_cached_registers()
             self._link.assert_reset(asserted)
@@ -225,14 +225,14 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
     
     def is_reset_asserted(self):
-        """Returns True if the target reset line is asserted or False if de-asserted"""
+        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
         try:
             return self._link.is_reset_asserted()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def flush(self):
-        """Write out all unsent commands"""
+        """! @brief Write out all unsent commands"""
         try:
             self._link.flush()
         except DAPAccess.Error as exc:
@@ -242,14 +242,15 @@ class CMSISDAPProbe(DebugProbe):
     #          DAP Access functions
     # ------------------------------------------- #
 
-    ## @brief Read a DP register.
-    #
-    # @param self
-    # @param addr Integer register address being one of (0x0, 0x4, 0x8, 0xC).
-    # @param now
-    #
-    # @todo Handle auto DPBANKSEL.
     def read_dp(self, addr, now=True):
+        """! @brief Read a DP register.
+        
+        @param self
+        @param addr Integer register address being one of (0x0, 0x4, 0x8, 0xC).
+        @param now
+        
+        @todo Handle auto DPBANKSEL.
+        """
         reg_id = self.REG_ADDR_TO_ID_MAP[self.DP, addr]
         
         try:

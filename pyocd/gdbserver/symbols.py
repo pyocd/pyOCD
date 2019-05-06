@@ -17,8 +17,9 @@
 from ..debug.symbols import SymbolProvider
 from ..utility.compatibility import to_bytes_safe
 
-## @brief Request symbol information from gdb.
 class GDBSymbolProvider(SymbolProvider):
+    """! @brief Request symbol information from gdb."""
+
     def __init__(self, gdbserver):
         self._gdbserver = gdbserver
 

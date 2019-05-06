@@ -34,10 +34,7 @@ else:
     IS_AVAILABLE = True
 
 class HidApiUSB(Interface):
-    """
-    This class provides basic functions to access
-    a USB HID device using cython-hidapi:
-        - write/read an endpoint
+    """! @brief CMSIS-DAP USB interface class using cython-hidapi backend.
     """
 
     isAvailable = IS_AVAILABLE
@@ -55,8 +52,8 @@ class HidApiUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """
-        returns all the connected devices which matches HidApiUSB.vid/HidApiUSB.pid.
+        """! @brief Returns all the connected devices with CMSIS-DAP in the name.
+        
         returns an array of HidApiUSB (Interface) objects
         """
 
@@ -101,8 +98,7 @@ class HidApiUSB(Interface):
         return boards
 
     def write(self, data):
-        """
-        write data on the OUT endpoint associated to the HID interface
+        """! @brief Write data on the OUT endpoint associated to the HID interface
         """
         for _ in range(self.packet_size - len(data)):
             data.append(0)
@@ -112,8 +108,7 @@ class HidApiUSB(Interface):
 
 
     def read(self, timeout=-1):
-        """
-        read data on the IN endpoint associated to the HID interface
+        """! @brief Read data on the IN endpoint associated to the HID interface
         """
         return self.device.read(self.packet_size)
 
@@ -121,8 +116,7 @@ class HidApiUSB(Interface):
         return self.serial_number
 
     def close(self):
-        """
-        close the interface
+        """! @brief Close the interface
         """
         log.debug("closing interface")
         self.device.close()

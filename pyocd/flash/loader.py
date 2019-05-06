@@ -165,8 +165,8 @@ class FileProgrammer(object):
             if isPath and file_obj is not None:
                 file_obj.close()
 
-    # Binary file format
     def _program_bin(self, file_obj, **kwargs):
+        """! @brief Binary file format loader"""
         # If no base address is specified use the start of the boot memory.
         address = kwargs.get('base_address', None)
         if address is None:
@@ -177,8 +177,8 @@ class FileProgrammer(object):
         
         self._loader.add_data(address, data)
 
-    # Intel hex file format
     def _program_hex(self, file_obj, **kwargs):
+        """! Intel hex file format loader"""
         hexfile = IntelHex(file_obj)
         addresses = hexfile.addresses()
         addresses.sort()
@@ -196,8 +196,8 @@ class FileProgrammer(object):
             except ValueError as e:
                 logging.warning("Failed to add data chunk: %s", e)
 
-    # ELF format
     def _program_elf(self, file_obj, **kwargs):
+        """! ELF format loader"""
         elf = ELFBinaryFile(file_obj, self._session.target.memory_map)
         for section in elf.sections:
             if ((section.type == 'SHT_PROGBITS')

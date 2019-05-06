@@ -38,10 +38,7 @@ else:
     IS_AVAILABLE = True
 
 class PyWinUSB(Interface):
-    """
-    This class provides basic functions to access
-    a USB HID device using pywinusb:
-        - write/read an endpoint
+    """! @brief CMSIS-DAP USB interface class using pyWinUSB for the backend.
     """
 
     isAvailable = IS_AVAILABLE
@@ -97,8 +94,7 @@ class PyWinUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """
-        returns all the connected CMSIS-DAP devices
+        """! @brief Returns all the connected CMSIS-DAP devices
         """
         all_devices = hid.find_all_hid_devices()
 
@@ -140,8 +136,7 @@ class PyWinUSB(Interface):
         return boards
 
     def write(self, data):
-        """
-        write data on the OUT endpoint associated to the HID interface
+        """! @brief Write data on the OUT endpoint associated to the HID interface
         """
         for _ in range(self.packet_size - len(data)):
             data.append(0)
@@ -151,8 +146,7 @@ class PyWinUSB(Interface):
 
 
     def read(self, timeout=20.0):
-        """
-        read data on the IN endpoint associated to the HID interface
+        """! @brief Read data on the IN endpoint associated to the HID interface
         """
         start = time()
         while len(self.rcv_data) == 0:
@@ -179,8 +173,7 @@ class PyWinUSB(Interface):
         return self.serial_number
 
     def close(self):
-        """
-        close the interface
+        """! @brief Close the interface
         """
         log.debug("closing interface")
         self.device.close()

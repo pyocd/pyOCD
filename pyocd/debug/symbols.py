@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-## @brief Abstract class for getting information about symbols in the target program.
 class SymbolProvider(object):
+    """! @brief Abstract class for getting information about symbols in the target program."""
+
     def get_symbol_value(self, name):
         raise NotImplementedError()
 
