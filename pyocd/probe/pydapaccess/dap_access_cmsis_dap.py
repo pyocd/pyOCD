@@ -551,6 +551,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         else:
             self._packet_count = self._protocol.dap_info(self.ID.MAX_PACKET_COUNT)
 
+        # Log probe's firmware version.
+        fw_version = self._protocol.dap_info(self.ID.FW_VER)
+        if fw_version:
+            LOG.debug("CMSIS-DAP probe %s firmware version: %s", self._unique_id, fw_version)
+
         self._interface.set_packet_count(self._packet_count)
         self._packet_size = self._protocol.dap_info(self.ID.MAX_PACKET_SIZE)
         self._interface.set_packet_size(self._packet_size)
