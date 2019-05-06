@@ -101,7 +101,8 @@ class GDBServerPacketIOThread(threading.Thread):
     """
     
     def __init__(self, abstract_socket):
-        super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
+        super(GDBServerPacketIOThread, self).__init__()
+        self.name = "gdb-packet-thread-port%d" % abstract_socket.port
         self.log = LOG.getChild('gdbpacket')
         self._abstract_socket = abstract_socket
         self._receive_queue = queue.Queue()
@@ -153,6 +154,8 @@ class GDBServerPacketIOThread(threading.Thread):
                     raise ConnectionClosedException()
 
     def run(self):
+        self.log.debug("Starting GDB server packet I/O thread")
+
         self._abstract_socket.set_timeout(0.01)
 
         while not self._shutdown_event.is_set():
@@ -261,7 +264,7 @@ class GDBServer(threading.Thread):
     It implements the RSP (Remote Serial Protocol).
     """
     def __init__(self, session, core=None, server_listening_callback=None):
-        threading.Thread.__init__(self)
+        super(GDBServer, self).__init__()
         self.session = session
         self.board = session.board
         if core is None:
@@ -270,6 +273,7 @@ class GDBServer(threading.Thread):
         else:
             self.core = core
             self.target = self.board.target.cores[core]
+        self.name = "gdb-server-core%d" % self.core
         self.log = LOG.getChild('gdbserver')
         self.abstract_socket = None
         self.port = session.options.get('gdbserver_port', 3333)
