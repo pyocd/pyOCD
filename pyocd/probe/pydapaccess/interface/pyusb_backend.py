@@ -38,10 +38,7 @@ else:
     IS_AVAILABLE = True
 
 class PyUSB(Interface):
-    """
-    This class provides basic functions to access
-    a USB HID device using pyusb:
-        - write/read an endpoint
+    """! @brief CMSIS-DAP USB interface class using pyusb for the backend.
     """
 
     isAvailable = IS_AVAILABLE
@@ -151,8 +148,8 @@ class PyUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """
-        returns all the connected devices which matches PyUSB.vid/PyUSB.pid.
+        """! @brief Returns all the connected CMSIS-DAP devices.
+
         returns an array of PyUSB (Interface) objects
         """
         # find all cmsis-dap devices
@@ -172,8 +169,7 @@ class PyUSB(Interface):
         return boards
 
     def write(self, data):
-        """
-        write data on the OUT endpoint associated to the HID interface
+        """! @brief Write data on the OUT endpoint associated to the HID interface
         """
 
         report_size = self.packet_size
@@ -200,8 +196,7 @@ class PyUSB(Interface):
 
 
     def read(self):
-        """
-        read data on the IN endpoint associated to the HID interface
+        """! @brief Read data on the IN endpoint associated to the HID interface
         """
         while len(self.rcv_data) == 0:
             sleep(0)
@@ -222,8 +217,7 @@ class PyUSB(Interface):
         return self.serial_number
 
     def close(self):
-        """
-        close the interface
+        """! @brief Close the interface
         """
         assert self.closed is False
 
@@ -250,14 +244,14 @@ class PyUSB(Interface):
 
 
 class FindDap(object):
-    """CMSIS-DAP match class to be used with usb.core.find"""
+    """! @brief CMSIS-DAP match class to be used with usb.core.find"""
 
     def __init__(self, serial=None):
-        """Create a new FindDap object with an optional serial number"""
+        """! @brief Create a new FindDap object with an optional serial number"""
         self._serial = serial
 
     def __call__(self, dev):
-        """Return True if this is a DAP device, False otherwise"""
+        """! @brief Return True if this is a DAP device, False otherwise"""
         # Check if the device class is a valid one for CMSIS-DAP.
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False

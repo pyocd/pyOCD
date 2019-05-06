@@ -1592,14 +1592,15 @@ Prefix line with ! to execute a shell command.""")
 
         return region.contains_range(addr, length=l)
 
-    ## @brief Convert an argument to a 32-bit integer.
-    #
-    # Handles the usual decimal, binary, and hex numbers with the appropriate prefix.
-    # Also recognizes register names and address dereferencing. Dereferencing using the
-    # ARM assembler syntax. To dereference, put the value in brackets, i.e. '[r0]' or
-    # '[0x1040]'. You can also use put an offset in the brackets after a comma, such as
-    # '[r3,8]'. The offset can be positive or negative, and any supported base.
     def convert_value(self, arg):
+        """! @brief Convert an argument to a 32-bit integer.
+        
+        Handles the usual decimal, binary, and hex numbers with the appropriate prefix.
+        Also recognizes register names and address dereferencing. Dereferencing using the
+        ARM assembler syntax. To dereference, put the value in brackets, i.e. '[r0]' or
+        '[0x1040]'. You can also use put an offset in the brackets after a comma, such as
+        '[r3,8]'. The offset can be positive or negative, and any supported base.
+        """
         deref = (arg[0] == '[')
         if deref:
             arg = arg[1:-1]

@@ -24,8 +24,8 @@ import logging
 # on the frame. The bit is 0 if the frame is extended.
 EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
 
-## @brief Reads a null-terminated C string from the target.
 def read_c_string(context, ptr):
+    """! @brief Reads a null-terminated C string from the target."""
     if ptr == 0:
         return ""
 
@@ -59,8 +59,9 @@ def read_c_string(context, ptr):
 
     return s
 
-## @brief Class representing the handler mode.
 class HandlerModeThread(TargetThread):
+    """! @brief Class representing the handler mode."""
+
     UNIQUE_ID = 2
     
     def __init__(self, targetContext, provider):

@@ -99,12 +99,14 @@ DEVARCH_ARCHID_MASK = 0xffff
 
 LOG = logging.getLogger(__name__)
 
-## @brief Reads and parses CoreSight architectural component ID registers.
-#
-# Reads the CIDR, PIDR, DEVID, and DEVARCH registers present at well known offsets
-# in the memory map of all CoreSight components. The various fields from these
-# registers are made available as attributes.
 class CoreSightComponentID(object):
+    """! @brief Reads and parses CoreSight architectural component ID registers.
+    
+    Reads the CIDR, PIDR, DEVID, and DEVARCH registers present at well known offsets
+    in the memory map of all CoreSight components. The various fields from these
+    registers are made available as attributes.
+    """
+    
     def __init__(self, parent_rom_table, ap, top_addr, power_id=None):
         self.parent_rom_table = parent_rom_table
         self.ap = ap
@@ -126,8 +128,8 @@ class CoreSightComponentID(object):
         self.valid = False
 
     def read_id_registers(self):
-        # Read Component ID, Peripheral ID, and DEVID/DEVARCH registers. This is done as a single
-        # block read for performance reasons.
+        """! @brief Read Component ID, Peripheral ID, and DEVID/DEVARCH registers."""
+        # Read registers as a single block read for performance reasons.
         regs = self.ap.read_memory_block32(self.top_address + IDR_READ_START, IDR_READ_COUNT)
         self.cidr = self._extract_id_register_value(regs, CIDR0_OFFSET)
         self.pidr = (self._extract_id_register_value(regs, PIDR4_OFFSET) << 32) | self._extract_id_register_value(regs, PIDR0_OFFSET)

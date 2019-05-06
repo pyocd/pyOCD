@@ -28,12 +28,12 @@ from ..utility import conversion
 from intervaltree import (Interval, IntervalTree)
 import logging
 
-## @brief Generic failure to access memory.
 class MemoryAccessError(exceptions.Error):
+    """! @brief Generic failure to access memory."""
     pass
 
-## @brief Holds hit ratio metrics for the caches.
 class CacheMetrics(object):
+    """! @brief Holds hit ratio metrics for the caches."""
     def __init__(self):
         self.hits = 0
         self.misses = 0
@@ -58,17 +58,18 @@ class CacheMetrics(object):
         else:
             return 0
 
-## @brief Cache of a core's register values.
-#
-# The only interesting part of this cache is how it handles the special registers: CONTROL,
-# FAULTMASK, BASEPRI, PRIMASK, and CFBP. The values of the first four registers are read and written
-# all at once as the CFBP register through the hardware DCRSR register. On reads of any of these
-# registers, or the combined CFBP, the cache will ask the underlying context to read CFBP. It will
-# then update the cache entries for all five registers. Writes to any of these registers just
-# invalidate all five.
-#
-# Same logic applies for XPSR submasks.
 class RegisterCache(object):
+    """! @brief Cache of a core's register values.
+    
+    The only interesting part of this cache is how it handles the special registers: CONTROL,
+    FAULTMASK, BASEPRI, PRIMASK, and CFBP. The values of the first four registers are read and written
+    all at once as the CFBP register through the hardware DCRSR register. On reads of any of these
+    registers, or the combined CFBP, the cache will ask the underlying context to read CFBP. It will
+    then update the cache entries for all five registers. Writes to any of these registers just
+    invalidate all five.
+    
+    Same logic applies for XPSR submasks.
+    """
 
     CFBP_REGS = [   CORE_REGISTER['cfbp'],
                     CORE_REGISTER['control'],
@@ -211,19 +212,21 @@ class RegisterCache(object):
     def invalidate(self):
         self._reset_cache()
 
-## @brief Memory cache.
-#
-# Maintains a cache of target memory. The constructor is passed a backing DebugContext object that
-# will be used to fill the cache.
-#
-# The cache is invalidated whenever the target has run since the last cache operation (based on run
-# tokens). If the target is currently running, all accesses cause the cache to be invalidated.
-#
-# The target's memory map is referenced. All memory accesses must be fully contained within a single
-# memory region, or a MemoryAccessError will be raised. However, if an access is outside of all regions,
-# the access is passed to the underlying context unmodified. When an access is within a region, that
-# region's cacheability flag is honoured.
 class MemoryCache(object):
+    """! @brief Memory cache.
+    
+    Maintains a cache of target memory. The constructor is passed a backing DebugContext object that
+    will be used to fill the cache.
+    
+    The cache is invalidated whenever the target has run since the last cache operation (based on run
+    tokens). If the target is currently running, all accesses cause the cache to be invalidated.
+    
+    The target's memory map is referenced. All memory accesses must be fully contained within a single
+    memory region, or a MemoryAccessError will be raised. However, if an access is outside of all regions,
+    the access is passed to the underlying context unmodified. When an access is within a region, that
+    region's cacheability flag is honoured.
+    """
+    
     def __init__(self, context):
         self._context = context
         self._run_token = -1
@@ -234,9 +237,8 @@ class MemoryCache(object):
         self._cache = IntervalTree()
         self._metrics = CacheMetrics()
 
-    ##
-    # @brief Invalidates the cache if appropriate.
     def _check_cache(self):
+        """! @brief Invalidates the cache if appropriate."""
         if self._context.core.is_running():
             self._log.debug("core is running; invalidating cache")
             self._reset_cache()
@@ -246,12 +248,12 @@ class MemoryCache(object):
             self._reset_cache()
             self._run_token = self._context.core.run_token
 
-    ##
-    # @brief Splits a memory address range into cached and uncached subranges.
-    # @return Returns a 2-tuple with the first element being a set of Interval objects for each
-    #   of the cached subranges. The second element is a set of Interval objects for each of the
-    #   non-cached subranges.
     def _get_ranges(self, addr, count):
+        """! @brief Splits a memory address range into cached and uncached subranges.
+        @return Returns a 2-tuple with the first element being a set of Interval objects for each
+          of the cached subranges. The second element is a set of Interval objects for each of the
+          non-cached subranges.
+        """
         cached = self._cache.overlap(addr, addr + count)
         uncached = {Interval(addr, addr + count)}
         for cachedIv in cached:
@@ -273,11 +275,11 @@ class MemoryCache(object):
             uncached = newUncachedSet
         return cached, uncached
 
-    ##
-    # @brief Reads uncached memory ranges and updates the cache.
-    # @return A list of Interval objects is returned. Each Interval has its @a data attribute set
-    #   to a bytearray of the data read from target memory.
     def _read_uncached(self, uncached):
+        """! "@brief Reads uncached memory ranges and updates the cache.
+        @return A list of Interval objects is returned. Each Interval has its @a data attribute set
+          to a bytearray of the data read from target memory.
+        """
         uncachedData = []
         for uncachedIv in uncached:
             data = self._context.read_memory_block8(uncachedIv.begin, uncachedIv.end - uncachedIv.begin)
@@ -311,10 +313,10 @@ class MemoryCache(object):
         else:
             self._log.debug("no reads")
 
-    ##
-    # @brief Performs a cached read operation of an address range.
-    # @return A list of Interval objects sorted by address.
     def _read(self, addr, size):
+        """! @brief Performs a cached read operation of an address range.
+        @return A list of Interval objects sorted by address.
+        """
         # Get the cached and uncached subranges of the requested read.
         cached, uncached = self._get_ranges(addr, size)
         self._update_metrics(cached, uncached, addr, size)
@@ -327,21 +329,21 @@ class MemoryCache(object):
         combined.sort(key=lambda x: x.begin)
         return combined
 
-    ##
-    # @brief Extracts data from the intersection of an address range across a list of interval objects.
-    #
-    # The range represented by @a addr and @a size are assumed to overlap the intervals. The first
-    # and last interval in the list may have ragged edges not fully contained in the address range, in
-    # which case the correct slice of those intervals is extracted.
-    #
-    # @param self
-    # @param combined List of Interval objects forming a contiguous range. The @a data attribute of
-    #   each interval must be a bytearray.
-    # @param addr Start address. Must be within the range of the first interval.
-    # @param size Number of bytes. (@a addr + @a size) must be within the range of the last interval.
-    # @return A single bytearray object with all data from the intervals that intersects the address
-    #   range.
     def _merge_data(self, combined, addr, size):
+        """! @brief Extracts data from the intersection of an address range across a list of interval objects.
+        
+        The range represented by @a addr and @a size are assumed to overlap the intervals. The first
+        and last interval in the list may have ragged edges not fully contained in the address range, in
+        which case the correct slice of those intervals is extracted.
+        
+        @param self
+        @param combined List of Interval objects forming a contiguous range. The @a data attribute of
+          each interval must be a bytearray.
+        @param addr Start address. Must be within the range of the first interval.
+        @param size Number of bytes. (@a addr + @a size) must be within the range of the last interval.
+        @return A single bytearray object with all data from the intervals that intersects the address
+          range.
+        """
         result = bytearray()
         resultAppend = bytearray()
 
@@ -370,8 +372,6 @@ class MemoryCache(object):
 
         return result
 
-    ##
-    # @brief
     def _update_contiguous(self, cached, addr, value):
         size = len(value)
         end = addr + size
@@ -394,11 +394,11 @@ class MemoryCache(object):
         data = leadData + value + trailData
         self._cache.addi(leadBegin, trailEnd, data)
 
-    ##
-    # @return A bool indicating whether the given address range is fully contained within
-    #       one known memory region, and that region is cacheable.
-    # @exception MemoryAccessError Raised if the access is not entirely contained within a single region.
     def _check_regions(self, addr, count):
+        """! @return A bool indicating whether the given address range is fully contained within
+              one known memory region, and that region is cacheable.
+        @exception MemoryAccessError Raised if the access is not entirely contained within a single region.
+        """
         regions = self._context.core.memory_map.get_intersecting_regions(addr, length=count)
 
         # If no regions matched, then allow an uncached operation.
@@ -497,8 +497,9 @@ class MemoryCache(object):
     def invalidate(self):
         self._reset_cache()
 
-## @brief Debug context combining register and memory caches.
 class CachingDebugContext(DebugContext):
+    """! @brief Debug context combining register and memory caches."""
+
     def __init__(self, parentContext):
         super(CachingDebugContext, self).__init__(parentContext.core)
         self._regcache = RegisterCache(parentContext)

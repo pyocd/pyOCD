@@ -45,34 +45,25 @@ _USER_SCRIPT_NAMES = [
         ".pyocd_user.py",
     ]
 
-## @brief Top-level object for a debug session.
-#
-# This class represents a debug session with a single debug probe. It is the root of the object
-# graph, where it owns the debug probe and the board objects.
-#
-# Another important function of this class is that it contains a dictionary of session-scope
-# user options. These would normally be passed in from the command line, or perhaps a config file.
-#
-# See the ConnectHelper class for several methods that make it easy to create new
-# sessions, with or without user interaction in the case of multiple available debug probes.
-#
-# A Session instance can be used as a context manager. The session will *not* be automatically
-# opened. However, it will be closed when the `with` block is exited (which is harmless if the
-# session was never opened). A common pattern is to combine ConnectHelper.session_with_chosen_probe()
-# and a `with` block. Unless the `open_session` parameter to ConnectHelper.session_with_chosen_probe()
-# is changed from the default of True, the newly created Session will be opened for you prior to
-# entering the with block.
-#
-# Supported user options:
-# - auto_unlock
-# - config_file
-# - frequency
-# - halt_on_connect
-# - no_config
-# - resume_on_disconnect
-# - target_override
-# - test_binary
 class Session(object):
+    """! @brief Top-level object for a debug session.
+    
+    This class represents a debug session with a single debug probe. It is the root of the object
+    graph, where it owns the debug probe and the board objects.
+    
+    Another important function of this class is that it contains a dictionary of session-scope
+    user options. These would normally be passed in from the command line, or perhaps a config file.
+    
+    See the ConnectHelper class for several methods that make it easy to create new
+    sessions, with or without user interaction in the case of multiple available debug probes.
+    
+    A Session instance can be used as a context manager. The session will *not* be automatically
+    opened. However, it will be closed when the `with` block is exited (which is harmless if the
+    session was never opened). A common pattern is to combine ConnectHelper.session_with_chosen_probe()
+    and a `with` block. Unless the `open_session` parameter to ConnectHelper.session_with_chosen_probe()
+    is changed from the default of True, the newly created Session will be opened for you prior to
+    entering the with block.
+    """
     
     ## @brief Weak reference to the most recently created session.
     _current_session = None
@@ -94,21 +85,22 @@ class Session(object):
         else:
             return Session(None)
 
-    ## @brief Session constructor.
-    #
-    # Creates a new session using the provided debug probe. User options are merged from the
-    # _options_ parameter and any keyword arguments. Normally a board instance is created that can
-    # either be a generic board or a board associated with the debug probe.
-    #
-    # Passing in a _probe_ that is None is allowed. This is useful to create a session that operates
-    # only as a container for user options. In this case, the board instance is not created, so the
-    # #board attribute will be None. Such a Session cannot be opened.
-    #
-    # @param self
-    # @param probe The DebugProbe instance.
-    # @param options Optional user options dictionary.
-    # @param kwargs User options passed as keyword arguments.
     def __init__(self, probe, options=None, **kwargs):
+        """! @brief Session constructor.
+        
+        Creates a new session using the provided debug probe. User options are merged from the
+        _options_ parameter and any keyword arguments. Normally a board instance is created that can
+        either be a generic board or a board associated with the debug probe.
+        
+        Passing in a _probe_ that is None is allowed. This is useful to create a session that operates
+        only as a container for user options. In this case, the board instance is not created, so the
+        #board attribute will be None. Such a Session cannot be opened.
+        
+        @param self
+        @param probe The DebugProbe instance.
+        @param options Optional user options dictionary.
+        @param kwargs User options passed as keyword arguments.
+        """
         Session._current_session = weakref.ref(self)
         
         self._probe = probe
@@ -281,7 +273,6 @@ class Session(object):
             except IOError as err:
                 LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
 
-    ## @brief Initialize the session
     def open(self, init_board=True):
         """! @brief Open the session.
         
@@ -310,7 +301,6 @@ class Session(object):
                 self._inited = True
             self._closed = False
 
-    ## @brief Close the session.
     def close(self):
         """! @brief Close the session.
         

@@ -20,16 +20,18 @@ from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index, is_sing
 from ..utility import conversion
 import logging
 
-## @brief Viewport for inspecting the system being debugged.
-#
-# A debug context is used to access registers and other target information. It enables these
-# accesses to be redirected to different locations. For instance, if you want to read registers
-# from a call frame that is not the topmost, then a context would redirect those reads to
-# locations on the stack.
-#
-# A context always has a specific core associated with it, which cannot be changed after the
-# context is created.
 class DebugContext(MemoryInterface):
+    """! @brief Viewport for inspecting the system being debugged.
+    
+    A debug context is used to access registers and other target information. It enables these
+    accesses to be redirected to different locations. For instance, if you want to read registers
+    from a call frame that is not the topmost, then a context would redirect those reads to
+    locations on the stack.
+    
+    A context always has a specific core associated with it, which cannot be changed after the
+    context is created.
+    """
+    
     def __init__(self, core):
         self._core = core
 
@@ -56,8 +58,8 @@ class DebugContext(MemoryInterface):
         return self._core.read_memory_block32(addr, size)
 
     def read_core_register(self, reg):
-        """
-        read CPU register
+        """! @brief Read CPU register
+        
         Unpack floating point register values
         """
         regIndex = register_name_to_index(reg)
@@ -70,8 +72,8 @@ class DebugContext(MemoryInterface):
         return regValue
 
     def read_core_register_raw(self, reg):
-        """
-        read a core register (r0 .. r16).
+        """! @brief Read a core register.
+        
         If reg is a string, find the number associated to this register
         in the lookup table CORE_REGISTER
         """
@@ -82,8 +84,8 @@ class DebugContext(MemoryInterface):
         return self._core.read_core_registers_raw(reg_list)
 
     def write_core_register(self, reg, data):
-        """
-        write a CPU register.
+        """! Write a CPU register.
+        
         Will need to pack floating point register values before writing.
         """
         regIndex = register_name_to_index(reg)
@@ -95,8 +97,8 @@ class DebugContext(MemoryInterface):
         self.write_core_register_raw(regIndex, data)
 
     def write_core_register_raw(self, reg, data):
-        """
-        write a core register (r0 .. r16)
+        """! @brief Write a core register.
+        
         If reg is a string, find the number associated to this register
         in the lookup table CORE_REGISTER
         """

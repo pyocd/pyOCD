@@ -53,8 +53,8 @@ class CortexM_v8M(CortexM):
         # Only v7-M supports VECTRESET.
         self._supports_vectreset = False
 
-    ## @brief Read the CPUID register and determine core type and architecture.
     def _read_core_type(self):
+        """! @brief Read the CPUID register and determine core type and architecture."""
         # Read CPUID register
         cpuid = self.read32(CortexM.CPUID)
 

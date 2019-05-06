@@ -19,10 +19,12 @@ from ..utility.timeout import Timeout
 
 ACK_TIMEOUT = 5.0
 
-## @brief Granular Power Requestor.
-#
-# Currently only supports enabling power domains.
 class GPR(CoreSightComponent):
+    """! @brief Granular Power Requestor.
+    
+    Currently only supports enabling power domains.
+    """
+    
     CPWRUPREQ = 0x0
     CPWRUPACK = 0x0
     
@@ -42,16 +44,17 @@ class GPR(CoreSightComponent):
     def __init__(self, ap, cmpid=None, addr=None):
         super(GPR, self).__init__(ap, cmpid, addr)
 
-    ## @brief Inits the GPR.
     def init(self):
+        """! @brief Inits the GPR."""
         self.domain_count = self.cmpid.devid[2] & self.CPWRUPM_COUNT_MASK
     
-    ## @brief Enable power to a power domaind by mask.
-    # @param self
-    # @param mask Bitmask of the domains to power up.
-    # @retval True Requested domains were successfully powered on.
-    # @return False Timeout waiting for power ack bit(s) to set.
     def _power_up(self, mask):
+        """! @brief Enable power to a power domaind by mask.
+        @param self
+        @param mask Bitmask of the domains to power up.
+        @retval True Requested domains were successfully powered on.
+        @return False Timeout waiting for power ack bit(s) to set.
+        """
         # Enable power up request bits.
         self.ap.write32(self.address + self.CPWRUPREQ, mask)
         
@@ -64,20 +67,22 @@ class GPR(CoreSightComponent):
             else:
                 return False
     
-    ## @brief Enable power to all available power domains.
-    # @param self
-    # @retval True All domains were successfully powered on.
-    # @return False Timeout waiting for power ack bit(s) to set.
     def power_up_all(self):
+        """! @brief Enable power to all available power domains.
+        @param self
+        @retval True All domains were successfully powered on.
+        @return False Timeout waiting for power ack bit(s) to set.
+        """
         mask = (1 << self.domain_count) - 1
         return self._power_up(mask)
     
-    ## @brief Power up a single power domain by domain ID.
-    # @param self
-    # @param domain_id Integer power domain ID.
-    # @retval True Requested domain was powered on successfully.
-    # @return False Timeout waiting for power ack bit to set.
     def power_up_one(self, domain_id):
+        """! @brief Power up a single power domain by domain ID.
+        @param self
+        @param domain_id Integer power domain ID.
+        @retval True Requested domain was powered on successfully.
+        @return False Timeout waiting for power ack bit to set.
+        """
         mask = 1 << domain_id
         return self._power_up(mask)
     

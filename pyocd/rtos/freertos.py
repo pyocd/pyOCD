@@ -64,8 +64,9 @@ class TargetList(object):
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
 
-## @brief
 class FreeRTOSThreadContext(DebugContext):
+    """! @brief Thread context for FreeRTOS."""
+    
     # SP/PSP are handled specially, so it is not in these dicts.
 
     COMMON_REGISTER_OFFSETS = {
@@ -234,8 +235,9 @@ class FreeRTOSThreadContext(DebugContext):
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
 
-## @brief A FreeRTOS task.
 class FreeRTOSThread(TargetThread):
+    """! @brief A FreeRTOS task."""
+
     RUNNING = 1
     READY = 2
     BLOCKED = 3
@@ -310,8 +312,8 @@ class FreeRTOSThread(TargetThread):
     def __repr__(self):
         return str(self)
 
-## @brief Thread provider for FreeRTOS.
 class FreeRTOSThreadProvider(ThreadProvider):
+    """! @brief Thread provider for FreeRTOS."""
 
     ## Required FreeRTOS symbols.
     FREERTOS_SYMBOLS = [

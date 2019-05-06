@@ -92,11 +92,12 @@ class DWT(CoreSightComponent):
         self.watchpoint_used = 0
         self.dwt_configured = False
 
-    ## @brief Inits the DWT.
-    #
-    # Reads the number of hardware watchpoints available on the core  and makes sure that they
-    # are all disabled and ready for future use.
     def init(self):
+        """! @brief Inits the DWT.
+        
+        Reads the number of hardware watchpoints available on the core  and makes sure that they
+        are all disabled and ready for future use.
+        """
         # Make sure trace is enabled.
         demcr = self.ap.read_memory(DEMCR)
         if (demcr & DEMCR_TRCENA) == 0:
@@ -121,8 +122,8 @@ class DWT(CoreSightComponent):
                 return watch
         return None
 
-    ## @brief Set a hardware watchpoint.
     def set_watchpoint(self, addr, size, type):
+        """! @brief Set a hardware watchpoint."""
         if self.dwt_configured is False:
             self.init()
 
@@ -158,8 +159,8 @@ class DWT(CoreSightComponent):
         logging.error('No more watchpoints are available, dropped watchpoint at 0x%08x', addr)
         return False
 
-    ## @brief Remove a hardware watchpoint.
     def remove_watchpoint(self, addr, size, type):
+        """! @brief Remove a hardware watchpoint."""
         watch = self.find_watchpoint(addr, size, type)
         if watch is None:
             return

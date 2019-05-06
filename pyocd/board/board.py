@@ -24,8 +24,8 @@ import six
 log = logging.getLogger('board')
 
 class Board(GraphNode):
-    """
-    This class associates a target and flash to create a board.
+    """!
+    @brief This class associates a target and flash to create a board.
     """
     def __init__(self, session, target=None):
         super(Board, self).__init__()
@@ -67,8 +67,8 @@ class Board(GraphNode):
         
         self.add_child(self.target)
 
-    ## @brief Initialize the board.
     def init(self):
+        """! @brief Initialize the board."""
         # If we don't have a delegate set yet, see if there is a session delegate.
         if (self.delegate is None) and (self.session.delegate is not None):
             self.delegate = self.session.delegate
@@ -85,8 +85,8 @@ class Board(GraphNode):
         if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
             self.delegate.did_connect(board=self)
 
-    ## @brief Uninitialize the board.
     def uninit(self):
+        """! @brief Uninitialize the board."""
         if self._inited:
             log.debug("uninit board %s", self)
             try:

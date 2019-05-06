@@ -51,12 +51,13 @@ class FPB(BreakpointProvider, CoreSightComponent):
     def revision(self):
         return self.fpb_rev
 
-    ## @brief Inits the FPB.
-    #
-    # Reads the number of hardware breakpoints available on the core and disable the FPB
-    # (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
     def init(self):
-        # setup FPB (breakpoint)
+        """! @brief Inits the FPB.
+        
+        Reads the number of hardware breakpoints available on the core and disable the FPB
+        (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
+        setup FPB (breakpoint)
+        """
         fpcr = self.ap.read32(self.address + FPB.FP_CTRL)
         self.fpb_rev = 1 + ((fpcr & FPB.FP_CTRL_REV_MASK) >> FPB.FP_CTRL_REV_SHIFT)
         if self.fpb_rev not in (1, 2):
@@ -92,15 +93,16 @@ class FPB(BreakpointProvider, CoreSightComponent):
     def available_breakpoints(self):
         return len(self.hw_breakpoints) - self.num_hw_breakpoint_used
 
-    ## @brief Test whether an address is supported by the FPB.
-    #
-    # For FPBv1, hardware breakpoints are only supported in the range 0x00000000 - 0x1fffffff.
-    # This was fixed for FPBv2, which supports hardware breakpoints at any address.
     def can_support_address(self, addr):
+        """! @brief Test whether an address is supported by the FPB.
+        
+        For FPBv1, hardware breakpoints are only supported in the range 0x00000000 - 0x1fffffff.
+        This was fixed for FPBv2, which supports hardware breakpoints at any address.
+        """
         return (self.fpb_rev == 2) or (addr < 0x20000000)
 
-    ## @brief Set a hardware breakpoint at a specific location in flash.
     def set_breakpoint(self, addr):
+        """! @brief Set a hardware breakpoint at a specific location in flash."""
         if not self.enabled:
             self.enable()
 
@@ -130,8 +132,8 @@ class FPB(BreakpointProvider, CoreSightComponent):
                 return bp
         return None
 
-    ## @brief Remove a hardware breakpoint at a specific location in flash.
     def remove_breakpoint(self, bp):
+        """! @brief Remove a hardware breakpoint at a specific location in flash."""
         for hwbp in self.hw_breakpoints:
             if hwbp.enabled and hwbp.addr == bp.addr:
                 hwbp.enabled = False

@@ -44,8 +44,9 @@ class TargetList(object):
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
 
-## @brief
 class ZephyrThreadContext(DebugContext):
+    """! @brief Thread context for Zephyr."""
+    
     STACK_FRAME_OFFSETS = {
                  0: 0, # r0
                  1: 4, # r1
@@ -142,8 +143,9 @@ class ZephyrThreadContext(DebugContext):
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
 
-## @brief A Zephyr task.
 class ZephyrThread(TargetThread):
+    """! @brief A Zephyr task."""
+
     READY = 0
     PENDING = 1 << 1
     PRESTART = 1 << 2
@@ -241,8 +243,8 @@ class ZephyrThread(TargetThread):
     def __repr__(self):
         return str(self)
 
-## @brief Thread provider for Zephyr.
 class ZephyrThreadProvider(ThreadProvider):
+    """! @brief Thread provider for Zephyr."""
 
     ## Required Zephyr symbols.
     ZEPHYR_SYMBOLS = [

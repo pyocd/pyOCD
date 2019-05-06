@@ -50,6 +50,8 @@ ACCESS_TEST_ATTEMPTS = 10
 log = logging.getLogger("target.family.kinetis")
 
 class Kinetis(CoreSightTarget):
+    """! @brief Family class for NXP Kinetis devices.
+    """
 
     VENDOR = "NXP"
     
@@ -84,25 +86,26 @@ class Kinetis(CoreSightTarget):
         self.mdm_ap_version = (self.mdm_ap.idr & MDM_IDR_VERSION_MASK) >> MDM_IDR_VERSION_SHIFT
         log.debug("MDM-AP version %d", self.mdm_ap_version)
 
-    ## @brief Check security and unlock device.
-    #
-    # This init task determines whether the device is locked (flash security enabled). If it is,
-    # and if auto unlock is enabled, then perform a mass erase to unlock the device.
-    #
-    # This whole sequence is greatly complicated by some behaviour of the device when flash is
-    # blank. If flash is blank and the device does not have a ROM, then it will repeatedly enter
-    # lockup and then reset.
-    #
-    # Immediately after reset asserts, the flash controller begins to initialise. The device is
-    # always locked, and flash security reads as enabled, until the flash controller has finished
-    # its init sequence. Thus, depending on exactly when the debugger reads the MDM-AP status
-    # register, a blank, unlocked device may be detected as locked.
-    #
-    # There is also the possibility that the device will be (correctly) detected as unlocked, but
-    # it resets again before the core can be halted, thus causing connect to fail.
-    #
-    # This init task runs *before* cores are created.
     def check_flash_security(self):
+        """! @brief Check security and unlock device.
+        
+        This init task determines whether the device is locked (flash security enabled). If it is,
+        and if auto unlock is enabled, then perform a mass erase to unlock the device.
+        
+        This whole sequence is greatly complicated by some behaviour of the device when flash is
+        blank. If flash is blank and the device does not have a ROM, then it will repeatedly enter
+        lockup and then reset.
+        
+        Immediately after reset asserts, the flash controller begins to initialise. The device is
+        always locked, and flash security reads as enabled, until the flash controller has finished
+        its init sequence. Thus, depending on exactly when the debugger reads the MDM-AP status
+        register, a blank, unlocked device may be detected as locked.
+        
+        There is also the possibility that the device will be (correctly) detected as unlocked, but
+        it resets again before the core can be halted, thus causing connect to fail.
+        
+        This init task runs *before* cores are created.
+        """
         # check for flash security
         isLocked = self.is_locked()
         
@@ -160,8 +163,8 @@ class Kinetis(CoreSightTarget):
         else:
             log.info("%s not in secure state", self.part_number)
 
-    # This init task runs *after* cores are created.
     def perform_halt_on_connect(self):
+        """! This init task runs *after* cores are created."""
         if self.halt_on_connect:
             # Prevent the target from resetting if it has invalid code
             with Timeout(HALT_TIMEOUT) as to:
@@ -214,11 +217,12 @@ class Kinetis(CoreSightTarget):
                 sleep(0.01)
         return not to.did_time_out
 
-    ## @brief Perform a mass erase operation.
-    # @note Reset is held for the duration of this function.
-    # @return True Mass erase succeeded.
-    # @return False Mass erase failed or is disabled.
     def mass_erase(self):
+        """! @brief Perform a mass erase operation.
+        @note Reset is held for the duration of this function.
+        @return True Mass erase succeeded.
+        @return False Mass erase failed or is disabled.
+        """
         # Read current reset state so we can restore it, then assert reset if needed.
         wasResetAsserted = self.dp.is_reset_asserted()
         if not wasResetAsserted:
@@ -232,8 +236,8 @@ class Kinetis(CoreSightTarget):
             self.dp.assert_reset(False)
         return result
 
-    ## @brief Private mass erase routine.
     def _mass_erase(self):
+        """! @brief Private mass erase routine."""
         # Flash must finish initing before we can mass erase.
         if not self._wait_for_flash_init():
             log.error("Mass erase timeout waiting for flash to finish init")

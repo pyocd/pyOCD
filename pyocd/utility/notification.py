@@ -16,9 +16,8 @@
 
 import logging
 
-##
-# @brief Class that holds information about a notification to subscribers.
 class Notification(object):
+    """!@brief Class that holds information about a notification to subscribers."""
     def __init__(self, event, source, data=None):
         self._event = event
         self._source = source
@@ -39,9 +38,8 @@ class Notification(object):
     def __repr__(self):
         return "<Notification@0x%08x event=%s source=%s data=%s>" % (id(self), repr(self.event), repr(self.source), repr(self.data))
 
-##
-# @brief Mix-in class that provides notification capabilities.
 class Notifier(object):
+    """!@brief Mix-in class that provides notification capabilities."""
     def __init__(self):
         self._subscribers = {}
 

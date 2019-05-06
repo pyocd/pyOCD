@@ -19,8 +19,9 @@ from ...utility import conversion
 import logging
 from intervaltree import (Interval, IntervalTree)
 
-## @brief Reads flash memory regions from an ELF file instead of the target.
 class FlashReaderContext(DebugContext):
+    """! @brief Reads flash memory regions from an ELF file instead of the target."""
+
     def __init__(self, parentContext, elf):
         super(FlashReaderContext, self).__init__(parentContext.core)
         self._parent = parentContext

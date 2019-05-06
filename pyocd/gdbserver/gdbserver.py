@@ -49,11 +49,12 @@ LOG_PACKETS = False # Log all packets sent and received.
 def checksum(data):
     return ("%02x" % (sum(six.iterbytes(data)) % 256)).encode()
 
-## @brief De-escapes binary data from Gdb.
-#
-# @param data Bytes-like object with possibly escaped values.
-# @return List of integers in the range 0-255, with all escaped bytes de-escaped.
 def unescape(data):
+    """! @brief De-escapes binary data from Gdb.
+    
+    @param data Bytes-like object with possibly escaped values.
+    @return List of integers in the range 0-255, with all escaped bytes de-escaped.
+    """
     data_idx = 0
 
     # unpack the data into binary array
@@ -70,11 +71,12 @@ def unescape(data):
 
     return data
 
-## @brief Escape binary data to be sent to Gdb.
-#
-# @param data Bytes-like object containing raw binary.
-# @return Bytes object with the characters in '#$}*' escaped as required by Gdb.
 def escape(data):
+    """! @brief Escape binary data to be sent to Gdb.
+    
+    @param data Bytes-like object containing raw binary.
+    @return Bytes object with the characters in '#$}*' escaped as required by Gdb.
+    """
     result = b''
     for c in iter_single_bytes(data):
         if c in b'#$}*':
@@ -83,17 +85,19 @@ def escape(data):
             result += c
     return result
 
-## @brief Exception used to signal the GDB server connection closed.
 class ConnectionClosedException(Exception):
+    """! @brief Exception used to signal the GDB server connection closed."""
     pass
 
-## @brief Packet I/O thread.
-#
-# This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
-# handles verifying checksums, acking, and receiving Ctrl-C interrupts. There is a queue
-# for received packets. The interface to this queue is the receive() method. The send()
-# method writes outgoing packets to the socket immediately.
 class GDBServerPacketIOThread(threading.Thread):
+    """! @brief Packet I/O thread.
+    
+    This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
+    handles verifying checksums, acking, and receiving Ctrl-C interrupts. There is a queue
+    for received packets. The interface to this queue is the receive() method. The send()
+    method writes outgoing packets to the socket immediately.
+    """
+    
     def __init__(self, abstract_socket):
         super(GDBServerPacketIOThread, self).__init__(name="gdb-packet-thread")
         self.log = logging.getLogger('gdbpacket.%d' % abstract_socket.port)
@@ -208,7 +212,7 @@ class GDBServerPacketIOThread(threading.Thread):
             self.log.debug("GDB: expected n/ack but got '%s'", c)
 
     def _process_data(self):
-        # Process all incoming data until there are no more complete packets.
+        """! @brief Process all incoming data until there are no more complete packets."""
         while len(self._buffer):
             if self._expecting_ack:
                 self._expecting_ack = False
@@ -249,7 +253,8 @@ class GDBServerPacketIOThread(threading.Thread):
             self._receive_queue.put(packet)
 
 class GDBServer(threading.Thread):
-    """
+    """! @brief GDB remote server thread.
+    
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """

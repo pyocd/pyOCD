@@ -27,8 +27,8 @@ class Breakpoint(object):
     def __repr__(self):
         return "<%s@0x%08x type=%d addr=0x%08x>" % (self.__class__.__name__, id(self), self.type, self.addr)
 
-## @brief Abstract base class for breakpoint providers.
 class BreakpointProvider(object):
+    """! @brief Abstract base class for breakpoint providers."""
     def init(self):
         raise NotImplementedError()
 

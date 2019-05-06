@@ -16,39 +16,41 @@
 
 from time import time
 
-## @brief Timeout helper context manager.
-#
-# The recommended way to use this class is demonstrated here. It uses an else block on a
-# while loop to handle the timeout. The code in the while loop must use a break statement
-# to exit in the successful case.
-#
-# @code
-# with Timeout(5) as t_o:
-#     while t_o.check(): # or "while not t_o.did_time_out"
-#         # Perform some operation, check, etc.
-#         if foobar:
-#             break
-#         sleep(0.1)
-#     else:
-#         print("Timed out!")
-# @endcode
-#
-# Another method of using the class is to check the `did_time_out` property from within the
-# while loop, as shown below.
-#
-# @code
-# with Timeout(5) as t_o:
-#     while perform_some_test():
-#         # Check for timeout.
-#         if t_o.did_time_out:
-#             print("Timed out!")
-#             break
-#         sleep(0.1)
-# @endcode
-#
-# You may also combine the call to check() in the while loop with other boolean expressions
-# related to the operation being performed.
 class Timeout(object):
+    """! @brief Timeout helper context manager.
+    
+    The recommended way to use this class is demonstrated here. It uses an else block on a
+    while loop to handle the timeout. The code in the while loop must use a break statement
+    to exit in the successful case.
+    
+    @code
+    with Timeout(5) as t_o:
+        while t_o.check(): # or "while not t_o.did_time_out"
+            # Perform some operation, check, etc.
+            if foobar:
+                break
+            sleep(0.1)
+        else:
+            print("Timed out!")
+    @endcode
+    
+    Another method of using the class is to check the `did_time_out` property from within the
+    while loop, as shown below.
+    
+    @code
+    with Timeout(5) as t_o:
+        while perform_some_test():
+            # Check for timeout.
+            if t_o.did_time_out:
+                print("Timed out!")
+                break
+            sleep(0.1)
+    @endcode
+    
+    You may also combine the call to check() in the while loop with other boolean expressions
+    related to the operation being performed.
+    """
+
     def __init__(self, timeout):
         self._timeout = timeout
         self._timed_out = False

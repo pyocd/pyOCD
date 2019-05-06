@@ -60,6 +60,9 @@ TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
 
 class DebugPort(object):
+    """! @brief Represents the DebugPort (DP)."
+    """
+    
     # DAP log file name.
     DAP_LOG_FILE = "pyocd_dap.log"
 
@@ -77,12 +80,13 @@ class DebugPort(object):
         self._access_number += 1
         return self._access_number
 
-    ## @brief Set up DAP logging.
-    #
-    # A memory handler is created that buffers log records before flushing them to a file
-    # handler that writes to DAP_LOG_FILE. This improves logging performance by writing to the
-    # log file less often.
     def _setup_logging(self):
+        """! @brief Set up DAP logging.
+        
+        A memory handler is created that buffers log records before flushing them to a file
+        handler that writes to DAP_LOG_FILE. This improves logging performance by writing to the
+        log file less often.
+        """
         cwd = os.getcwd()
         logfile = os.path.join(cwd, self.DAP_LOG_FILE)
         logging.info("dap logfile: %s", logfile)
@@ -96,7 +100,7 @@ class DebugPort(object):
         self.logger.setLevel(logging.DEBUG)
 
     def init(self):
-        # Connect to the target.
+        """! @brief Connect to the target."""
         self.link.connect()
         self.link.swj_sequence()
         try:
@@ -111,7 +115,7 @@ class DebugPort(object):
         self.clear_sticky_err()
 
     def read_id_code(self):
-        # Read ID register and get DP version
+        """! @brief Read ID register and get DP version"""
         self.dpidr = self.read_reg(DP_IDCODE)
         self.dp_version = (self.dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
         self.dp_revision = (self.dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
@@ -166,15 +170,16 @@ class DebugPort(object):
     def set_clock(self, frequency):
         self.link.set_clock(frequency)
         
-    ## @brief Find valid APs.
-    #
-    # Scans for valid APs starting at APSEL=0 and stopping the first time a 0 is returned
-    # when reading the AP's IDR.
-    #
-    # Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
-    # modify the init call sequence to substitute a fixed list of valid APs. In fact, that
-    # is a major reason this method is separated from create_aps().
     def find_aps(self):
+        """! @brief Find valid APs.
+        
+        Scans for valid APs starting at APSEL=0 and stopping the first time a 0 is returned
+        when reading the AP's IDR.
+        
+        Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
+        modify the init call sequence to substitute a fixed list of valid APs. In fact, that
+        is a major reason this method is separated from create_aps().
+        """
         if self.valid_aps is not None:
             return
         apList = []
@@ -193,11 +198,12 @@ class DebugPort(object):
         # Update the AP list once we know it's complete.
         self.valid_aps = apList
 
-    ## @brief Init task that returns a call sequence to create APs.
-    #
-    # For each AP in the #valid_aps list, an AccessPort object is created. The new objects
-    # are added to the #aps dict, keyed by their AP number.
     def create_aps(self):
+        """! @brief Init task that returns a call sequence to create APs.
+        
+        For each AP in the #valid_aps list, an AccessPort object is created. The new objects
+        are added to the #aps dict, keyed by their AP number.
+        """
         seq = CallSequence()
         for ap_num in self.valid_aps:
             seq.append(
@@ -205,16 +211,16 @@ class DebugPort(object):
                 )
         return seq
     
-    ## @brief Init task to create a single AP object.
     def create_1_ap(self, ap_num):
+        """! @brief Init task to create a single AP object."""
         try:
             ap = AccessPort.create(self, ap_num)
             self.aps[ap_num] = ap
         except Exception as e:
             logging.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
     
-    ## @brief Init task that generates a call sequence to init all AP ROMs.
     def init_ap_roms(self):
+        """! @brief Init task that generates a call sequence to init all AP ROMs."""
         seq = CallSequence()
         for ap in [x for x in self.aps.values() if x.has_rom_table]:
             seq.append(

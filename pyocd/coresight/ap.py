@@ -144,28 +144,30 @@ def _locked(func):
     return _locking
 
 class AccessPort(object):
-    ## @brief Determine if an AP exists with the given AP number.
-    # @param dp DebugPort instance.
-    # @param ap_num The AP number (APSEL) to probe.
-    # @return Boolean indicating if a valid AP exists with APSEL=ap_num.
+    """! @brief Determine if an AP exists with the given AP number.
+    @param dp DebugPort instance.
+    @param ap_num The AP number (APSEL) to probe.
+    @return Boolean indicating if a valid AP exists with APSEL=ap_num.
+    """
     @staticmethod
     def probe(dp, ap_num):
         idr = dp.read_ap((ap_num << APSEL_SHIFT) | AP_IDR)
         return idr != 0
     
-    ## @brief Create a new AP object.
-    #
-    # Determines the type of the AP by examining the IDR value and creates a new
-    # AP object of the appropriate class. See #AP_TYPE_MAP for the mapping of IDR
-    # fields to class.
-    # 
-    # @param dp DebugPort instance.
-    # @param ap_num The AP number (APSEL) to probe.
-    # @return An AccessPort subclass instance.
-    #
-    # @exception RuntimeError Raised if there is not a valid AP for the ap_num.
     @staticmethod
     def create(dp, ap_num):
+        """! @brief Create a new AP object.
+        
+        Determines the type of the AP by examining the IDR value and creates a new
+        AP object of the appropriate class. See #AP_TYPE_MAP for the mapping of IDR
+        fields to class.
+        
+        @param dp DebugPort instance.
+        @param ap_num The AP number (APSEL) to probe.
+        @return An AccessPort subclass instance.
+        
+        @exception RuntimeError Raised if there is not a valid AP for the ap_num.
+        """
         # Attempt to read the IDR for this APSEL. If we get a zero back then there is
         # no AP present, so we return None.
         idr = dp.read_ap((ap_num << APSEL_SHIFT) | AP_IDR)
@@ -487,11 +489,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # TODO use notifications to invalidate CSW cache.
         self._cached_csw = -1
 
-    ## @brief Write a single memory location.
-    #
-    # By default the transfer size is a word
     @_locked
     def _write_memory(self, addr, data, transfer_size=32):
+        """! @brief Write a single memory location.
+        
+        By default the transfer size is a word
+        """
         assert (addr & (transfer_size // 8 - 1)) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
@@ -517,10 +520,11 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         if LOG_DAP:
             self.logger.info("write_mem:%06d }", num)
 
-    ## @brief Read a memory location.
-    #
-    # By default, a word will be read.
     def _read_memory(self, addr, transfer_size=32, now=True):
+        """! @brief Read a memory location.
+        
+        By default, a word will be read.
+        """
         assert (addr & (transfer_size // 8 - 1)) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
@@ -566,11 +570,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         else:
             return read_mem_cb
 
-    ## @brief Write a single transaction's worth of aligned words.
-    #
-    # The transaction must not cross the MEM-AP's auto-increment boundary.
     @_locked
     def _write_block32(self, addr, data):
+        """! @brief Write a single transaction's worth of aligned words.
+        
+        The transaction must not cross the MEM-AP's auto-increment boundary.
+        """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
@@ -592,11 +597,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         if LOG_DAP:
             self.logger.info("_write_block32:%06d }", num)
 
-    ## @brief Read a single transaction's worth of aligned words.
-    #
-    # The transaction must not cross the MEM-AP's auto-increment boundary.
     @_locked
     def _read_block32(self, addr, size):
+        """! @brief Read a single transaction's worth of aligned words.
+        
+        The transaction must not cross the MEM-AP's auto-increment boundary.
+        """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
         if LOG_DAP:
@@ -619,9 +625,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.logger.info("_read_block32:%06d }", num)
         return resp
 
-    ## @brief Write a block of aligned words in memory.
     @_locked
     def _write_memory_block32(self, addr, data):
+        """! @brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
         size = len(data)
         while size > 0:
@@ -634,11 +640,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             addr += n
         return
 
-    ## @brief Read a block of aligned words in memory.
-    #
-    # @return An array of word values
     @_locked
     def _read_memory_block32(self, addr, size):
+        """! @brief Read a block of aligned words in memory.
+        
+        @return An array of word values
+        """
         assert (addr & 0x3) == 0
         resp = []
         while size > 0:

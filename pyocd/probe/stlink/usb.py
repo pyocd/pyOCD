@@ -34,9 +34,9 @@ log = logging.getLogger('stlink.usb')
 
 STLinkInfo = namedtuple('STLinkInfo', 'version_name out_ep in_ep swv_ep')
 
-##
-# @brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices.
 class STLinkUSBInterface(object):
+    """!@brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices."""
+
     ## Command packet size.
     CMD_SIZE = 16
     

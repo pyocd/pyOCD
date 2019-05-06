@@ -66,8 +66,9 @@ class TargetList(object):
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 is_valid = False
 
-## @brief
 class ArgonThreadContext(DebugContext):
+    """! @brief Thread context for Argon."""
+    
     # SP is handled specially, so it is not in these dicts.
 
     CORE_REGISTER_OFFSETS = {
@@ -226,8 +227,9 @@ class ArgonThreadContext(DebugContext):
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
 
-## @brief Base class representing a thread on the target.
 class ArgonThread(TargetThread):
+    """! @brief Base class representing a thread on the target."""
+
     UNKNOWN = 0
     SUSPENDED = 1
     READY = 2
@@ -329,8 +331,9 @@ class ArgonThread(TargetThread):
     def __repr__(self):
         return str(self)
 
-## @brief Base class for RTOS support plugins.
 class ArgonThreadProvider(ThreadProvider):
+    """! @brief Base class for RTOS support plugins."""
+
     def __init__(self, target):
         super(ArgonThreadProvider, self).__init__(target)
         self.g_ar = None
@@ -443,8 +446,9 @@ class ArgonThreadProvider(ThreadProvider):
         flags = self._target_context.read32(self.g_ar + KERNEL_FLAGS_OFFSET)
         return (flags & IS_RUNNING_MASK) != 0
 
-## @brief Argon kernel trace event.
 class ArgonTraceEvent(events.TraceEvent):
+    """! @brief Argon kernel trace event."""
+
     kArTraceThreadSwitch = 1 # 2 value: 0=previous thread's new state, 1=new thread id
     kArTraceThreadCreated = 2 # 1 value
     kArTraceThreadDeleted = 3 # 1 value
@@ -484,11 +488,12 @@ class ArgonTraceEvent(events.TraceEvent):
             desc = "Unknown kernel event #{}".format(self.event_id)
         return "[{}] Argon: {}".format(self.timestamp, desc)
 
-## @brief Trace event filter to identify Argon kernel trace events sent via ITM.
-#
-# As Argon kernel trace events are identified, the ITM trace events are replaced with instances
-# of ArgonTraceEvent.
 class ArgonTraceEventFilter(TraceEventFilter):
+    """! @brief Trace event filter to identify Argon kernel trace events sent via ITM.
+    
+    As Argon kernel trace events are identified, the ITM trace events are replaced with instances
+    of ArgonTraceEvent.
+    """
     def __init__(self, threads):
         super(ArgonTraceEventFilter, self).__init__()
         self._threads = threads

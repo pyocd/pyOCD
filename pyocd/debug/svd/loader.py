@@ -38,8 +38,9 @@ class SVDFile(object):
     def load(self):
         self.device = SVDParser.for_xml_file(self.filename).get_device()
 
-## @brief Thread to read an SVD file in the background.
 class SVDLoader(threading.Thread):
+    """! @brief Thread to read an SVD file in the background."""
+
     def __init__(self, svdFile, completionCallback):
         super(SVDLoader, self).__init__(name='load-svd')
         self.daemon = True

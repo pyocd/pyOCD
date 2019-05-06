@@ -45,8 +45,9 @@ class TargetList(object):
                 log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list: %s", self._list, node, exc)
                 break
 
-## @brief
 class RTXThreadContext(DebugContext):
+    """! @brief Thread context for RTX5."""
+    
     # SP/PSP are handled specially, so it is not in these dicts.
 
     # Offsets are relative to stored SP in a task switch block, for the
@@ -211,8 +212,9 @@ class RTXThreadContext(DebugContext):
     def write_core_registers_raw(self, reg_list, data_list):
         self._parent.write_core_registers_raw(reg_list, data_list)
 
-## @brief Base class representing a thread on the target.
 class RTXTargetThread(TargetThread):
+    """! @brief Base class representing a thread on the target."""
+
     STATE_OFFSET = 1
     NAME_OFFSET = 4
     PRIORITY_OFFSET = 33
@@ -307,8 +309,9 @@ class RTXTargetThread(TargetThread):
             log.debug("Transfer error while reading thread's stack frame @ 0x%08x", self._base + RTXTargetThread.STACKFRAME_OFFSET)
             return 0xFFFFFFFD
 
-## @brief Thread provider for RTX5 RTOS.
 class RTX5ThreadProvider(ThreadProvider):
+    """! @brief Thread provider for RTX5 RTOS."""
+
     # Offsets in osRtxInfo_t
     KERNEL_STATE_OFFSET = 8
     CURRENT_OFFSET = 20

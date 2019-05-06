@@ -111,8 +111,9 @@ DAP_TRANSFER_WAIT = 2
 DAP_TRANSFER_FAULT = 4
 DAP_TRANSFER_NO_ACK = 7
 
-## @brief This class implements the CMSIS-DAP wire protocol.
 class CMSISDAPProtocol(object):
+    """! @brief This class implements the CMSIS-DAP wire protocol."""
+
     def __init__(self, interface):
         self.interface = interface
 

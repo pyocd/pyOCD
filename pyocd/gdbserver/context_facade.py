@@ -44,8 +44,9 @@ GDB_TYPE_MAP = {
     MemoryType.FLASH: 'flash',
     }
 
-## @brief Provides GDB specific transformations to a DebugContext.
 class GDBDebugContextFacade(object):
+    """! @brief Provides GDB specific transformations to a DebugContext."""
+
     def __init__(self, context):
         self._context = context
         self._register_list = self._context.core.register_list
@@ -58,8 +59,7 @@ class GDBDebugContextFacade(object):
         self._context = newContext
 
     def get_register_context(self):
-        """
-        return hexadecimal dump of registers as expected by GDB
+        """! @brief Return hexadecimal dump of registers as expected by GDB.
         """
         logging.debug("GDB getting register context")
         resp = b''
@@ -76,8 +76,7 @@ class GDBDebugContextFacade(object):
         return resp
 
     def set_register_context(self, data):
-        """
-        Set registers from GDB hexadecimal string.
+        """! @brief Set registers from GDB hexadecimal string.
         """
         logging.debug("GDB setting register context")
         reg_num_list = []
@@ -95,9 +94,9 @@ class GDBDebugContextFacade(object):
         self._context.write_core_registers_raw(reg_num_list, reg_data_list)
 
     def set_register(self, reg, data):
-        """
-        Set single register from GDB hexadecimal string.
-        reg parameter is the index of register in targetXML sent to GDB.
+        """! @brief Set single register from GDB hexadecimal string.
+        
+        @param reg The index of register in targetXML sent to GDB.
         """
         if reg < 0:
             return
@@ -125,10 +124,11 @@ class GDBDebugContextFacade(object):
         return resp
 
     def get_t_response(self, forceSignal=None):
-        """
-        Returns a GDB T response string.  This includes:
-            The signal encountered.
-            The current value of the important registers (sp, lr, pc).
+        """! @brief Returns a GDB T response string.
+        
+        This includes:
+        - The signal encountered.
+        - The current value of the important registers (sp, lr, pc).
         """
         if forceSignal is not None:
             response = six.b('T' + conversion.byte_to_hex2(forceSignal))
@@ -158,10 +158,11 @@ class GDBDebugContextFacade(object):
         return signal
 
     def get_reg_index_value_pairs(self, regIndexList):
-        """
+        """! @brief Return register values as pairs.
+        
         Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
-            for the T response string.  NN is the index of the
-            register to follow MMMMMMMM is the value of the register.
+        for the T response string.  NN is the index of the
+        register to follow MMMMMMMM is the value of the register.
         """
         str = b''
         regList = self._context.read_core_registers_raw(regIndexList)

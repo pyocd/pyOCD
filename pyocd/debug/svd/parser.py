@@ -31,7 +31,7 @@ import re
 
 
 def _get_text(node, tag, default=None):
-    """Get the text for the provided tag from the provided node"""
+    """! @brief Get the text for the provided tag from the provided node"""
     try:
         return node.find(tag).text
     except AttributeError:
@@ -68,7 +68,7 @@ def _get_int(node, tag, default=None):
 
 
 class SVDParser(object):
-    """The SVDParser is responsible for mapping the SVD XML to Python Objects"""
+    """! @brief The SVDParser is responsible for mapping the SVD XML to Python Objects"""
 
     @classmethod
     def for_xml_file(cls, path, remove_reserved=False):
@@ -408,7 +408,7 @@ class SVDParser(object):
         )
 
     def get_device(self):
-        """Get the device described by this SVD"""
+        """! @brief Get the device described by this SVD"""
         return self._parse_device(self._root)
 
 
