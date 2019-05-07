@@ -47,8 +47,8 @@ class SWOStatus:
 
 LOG = logging.getLogger(__name__)
 
-# Set to True to enable logging of packet filling logic.
-LOG_PACKET_BUILDS = False
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 def _get_interfaces():
     """! @brief Get the connected USB devices"""
@@ -165,8 +165,7 @@ class _Command(object):
         self._data = []
         self._dap_index = None
         self._data_encoded = False
-        if LOG_PACKET_BUILDS:
-            LOG.debug("New _Command")
+        TRACE.debug("New _Command")
 
     def _get_free_words(self, blockAllowed, isRead):
         """! @brief Return the number of words free in the transmit packet
@@ -230,11 +229,10 @@ class _Command(object):
             max_count = self._write_count + self._read_count + size
             delta = max_count - 255
             size = min(size - delta, size)
-            if LOG_PACKET_BUILDS:
-                LOG.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)" %
+            TRACE.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)" %
                     (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free, delta))
-        elif LOG_PACKET_BUILDS:
-            LOG.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)" %
+        else:
+            TRACE.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)" %
                 (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free))
 
         # We can get a negative free count if the packet already contains more data than can be
@@ -271,8 +269,7 @@ class _Command(object):
             self._write_count += count
         self._data.append((count, request, data))
 
-        if LOG_PACKET_BUILDS:
-            LOG.debug("add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]" %
+        TRACE.debug("add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]" %
                 (count, request, 'r' if (request & READ) else 'w', self._write_count, self._read_count, self._block_allowed))
 
     def _encode_transfer_data(self):
@@ -938,8 +935,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
             # This request doesn't fit in the packet so send it.
             if size == 0:
-                if LOG_PACKET_BUILDS:
-                    LOG.debug("_write: send packet [size==0]")
+                TRACE.debug("_write: send packet [size==0]")
                 self._send_packet()
                 cmd = self._crnt_cmd
                 continue
@@ -955,8 +951,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
             # Packet has been filled so send it
             if cmd.get_full():
-                if LOG_PACKET_BUILDS:
-                    LOG.debug("_write: send packet [full]")
+                TRACE.debug("_write: send packet [full]")
                 self._send_packet()
                 cmd = self._crnt_cmd
 

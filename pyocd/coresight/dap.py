@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2018 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
-from .ap import (MEM_AP_CSW, LOG_DAP, APSEL, APBANKSEL, APREG_MASK, AccessPort)
+from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APREG_MASK, AccessPort)
 from ..utility.sequencer import CallSequence
 import logging
 import logging.handlers
@@ -25,6 +25,9 @@ import os.path
 import six
 
 LOG = logging.getLogger(__name__)
+
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 # DP register addresses.
 DP_IDCODE = 0x0 # read-only
@@ -65,41 +68,17 @@ class DebugPort(object):
     """! @brief Represents the DebugPort (DP)."
     """
     
-    # DAP log file name.
-    DAP_LOG_FILE = "pyocd_dap.log"
-
     def __init__(self, link, target):
         self.link = link
         self.target = target
         self.valid_aps = None
         self.aps = {}
         self._access_number = 0
-        if LOG_DAP:
-            self._setup_logging()
 
     @property
     def next_access_number(self):
         self._access_number += 1
         return self._access_number
-
-    def _setup_logging(self):
-        """! @brief Set up DAP logging.
-        
-        A memory handler is created that buffers log records before flushing them to a file
-        handler that writes to DAP_LOG_FILE. This improves logging performance by writing to the
-        log file less often.
-        """
-        cwd = os.getcwd()
-        logfile = os.path.join(cwd, self.DAP_LOG_FILE)
-        LOG.info("dap logfile: %s", logfile)
-        self.logger = logging.getLogger('dap')
-        self.logger.propagate = False
-        formatter = logging.Formatter('%(relativeCreated)010dms:%(levelname)s:%(name)s:%(message)s')
-        fileHandler = logging.FileHandler(logfile, mode='w+', delay=True)
-        fileHandler.setFormatter(formatter)
-        memHandler = logging.handlers.MemoryHandler(capacity=128, target=fileHandler)
-        self.logger.addHandler(memHandler)
-        self.logger.setLevel(logging.DEBUG)
 
     def init(self):
         """! @brief Connect to the target."""
@@ -243,8 +222,7 @@ class DebugPort(object):
         def read_dp_cb():
             try:
                 result = result_cb()
-                if LOG_DAP:
-                    self.logger.info("read_dp:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
+                TRACE.debug("read_dp:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
             except exceptions.ProbeError as error:
                 self._handle_error(error, num)
@@ -253,8 +231,7 @@ class DebugPort(object):
         if now:
             return read_dp_cb()
         else:
-            if LOG_DAP:
-                self.logger.info("read_dp:%06d (addr=0x%08x) -> ...", num, addr)
+            TRACE.debug("read_dp:%06d (addr=0x%08x) -> ...", num, addr)
             return read_dp_cb
 
     def write_dp(self, addr, data):
@@ -262,8 +239,7 @@ class DebugPort(object):
 
         # Write the DP register.
         try:
-            if LOG_DAP:
-                self.logger.info("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
+            TRACE.debug("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.link.write_dp(addr, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
@@ -276,8 +252,7 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
-            if LOG_DAP:
-                self.logger.info("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
+            TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.link.write_ap(addr, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
@@ -299,8 +274,7 @@ class DebugPort(object):
         def read_ap_cb():
             try:
                 result = result_cb()
-                if LOG_DAP:
-                    self.logger.info("read_ap:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
+                TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
             except exceptions.ProbeError as error:
                 self._handle_error(error, num)
@@ -309,13 +283,11 @@ class DebugPort(object):
         if now:
             return read_ap_cb()
         else:
-            if LOG_DAP:
-                self.logger.info("read_ap:%06d (addr=0x%08x) -> ...", num, addr)
+            TRACE.debug("read_ap:%06d (addr=0x%08x) -> ...", num, addr)
             return read_ap_cb
 
     def _handle_error(self, error, num):
-        if LOG_DAP:
-            self.logger.info("error:%06d %s", num, error)
+        TRACE.debug("error:%06d %s", num, error)
         # Clear sticky error for fault errors.
         if isinstance(error, exceptions.TransferFaultError):
             self.clear_sticky_err()

@@ -26,8 +26,8 @@ from ..core import (exceptions, session)
 
 LOG = logging.getLogger(__name__)
 
-# Debug logging options
-LOG_SEMIHOST = True
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 ## bkpt #0xab instruction
 BKPT_INSTR = 0xbeab
@@ -503,31 +503,26 @@ class SemihostAgent(object):
             return -1
         mode = self.OPEN_MODES[mode]
 
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: open %x/%x, mode %s", fnptr, fnlen, mode)
+        TRACE.debug("Semihost: open %x/%x, mode %s", fnptr, fnlen, mode)
         return self.io_handler.open(fnptr, fnlen, mode)
 
     def handle_sys_close(self, args):
         fd = self._get_args(args, 1)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: close fd=%d", fd)
+        TRACE.debug("Semihost: close fd=%d", fd)
         return self.io_handler.close(fd)
 
     def handle_sys_writec(self, args):
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: writec %x", args)
+        TRACE.debug("Semihost: writec %x", args)
         return self.console.write(STDOUT_FD, args, 1)
 
     def handle_sys_write0(self, args):
         msg = self._get_string(args)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: write0 msg='%s'", msg)
+        TRACE.debug("Semihost: write0 msg='%s'", msg)
         return self.console.write(STDOUT_FD, args, len(msg))
 
     def handle_sys_write(self, args):
         fd, data_ptr, length = self._get_args(args, 3)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
+        TRACE.debug("Semihost: write fd=%d ptr=%x len=%d", fd, data_ptr, length)
         if fd in (STDOUT_FD, STDERR_FD):
             return self.console.write(fd, data_ptr, length)
         else:
@@ -535,16 +530,14 @@ class SemihostAgent(object):
 
     def handle_sys_read(self, args):
         fd, ptr, length = self._get_args(args, 3)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: read fd=%d ptr=%x len=%d", fd, ptr, length)
+        TRACE.debug("Semihost: read fd=%d ptr=%x len=%d", fd, ptr, length)
         if fd == STDIN_FD:
             return self.console.read(fd, ptr, length)
         else:
             return self.io_handler.read(fd, ptr, length)
 
     def handle_sys_readc(self, args):
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: readc")
+        TRACE.debug("Semihost: readc")
         return self.console.readc()
 
     def handle_sys_iserror(self, args):
@@ -552,20 +545,17 @@ class SemihostAgent(object):
 
     def handle_sys_istty(self, args):
         fd = self._get_args(args, 1)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: istty fd=%d", fd)
+        TRACE.debug("Semihost: istty fd=%d", fd)
         return self.io_handler.istty(fd)
 
     def handle_sys_seek(self, args):
         fd, pos = self._get_args(args, 2)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: seek fd=%d pos=%d", fd, pos)
+        TRACE.debug("Semihost: seek fd=%d pos=%d", fd, pos)
         return self.io_handler.seek(fd, pos)
 
     def handle_sys_flen(self, args):
         fd = self._get_args(args, 1)
-        if LOG_SEMIHOST:
-            LOG.debug("Semihost: flen fd=%d", fd)
+        TRACE.debug("Semihost: flen fd=%d", fd)
         return self.io_handler.flen(fd)
 
     def handle_sys_tmpnam(self, args):

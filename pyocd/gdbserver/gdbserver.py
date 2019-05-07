@@ -43,10 +43,14 @@ CTRL_C = b'\x03'
 
 LOG = logging.getLogger(__name__)
 
-# Logging options. Set to True to enable.
-LOG_MEM = False # Log memory accesses.
-LOG_ACK = False # Log ack or nak.
-LOG_PACKETS = False # Log all packets sent and received.
+TRACE_MEM = LOG.getChild("trace_mem")
+TRACE_MEM.setLevel(logging.CRITICAL)
+
+TRACE_ACK = LOG.getChild("trace_ack")
+TRACE_ACK.setLevel(logging.CRITICAL)
+
+TRACE_PACKETS = LOG.getChild("trace_packet")
+TRACE_PACKETS.setLevel(logging.CRITICAL)
 
 def checksum(data):
     return ("%02x" % (sum(six.iterbytes(data)) % 256)).encode()
@@ -168,8 +172,7 @@ class GDBServerPacketIOThread(threading.Thread):
                     self._closed = True
                     break
 
-                if LOG_PACKETS:
-                    self.log.debug('-->>>>>>>>>>>> GDB read %d bytes: %s', len(data), data)
+                TRACE_PACKETS.debug('-->>>> GDB read %d bytes: %s', len(data), data)
 
                 self._buffer += data
             except socket.error:
@@ -183,8 +186,7 @@ class GDBServerPacketIOThread(threading.Thread):
         self.log.debug("GDB packet thread stopping")
 
     def _write_packet(self, packet):
-        if LOG_PACKETS:
-            self.log.debug('--<<<<<<<<<<<< GDB send %d bytes: %s', len(packet), packet)
+        TRACE_PACKETS.debug('--<<<< GDB send %d bytes: %s', len(packet), packet)
 
         # Make sure the entire packet is sent.
         remaining = len(packet)
@@ -202,8 +204,7 @@ class GDBServerPacketIOThread(threading.Thread):
         c = self._buffer[0:1]
         if c in (b'+', b'-'):
             self._buffer = self._buffer[1:]
-            if LOG_ACK:
-                self.log.debug('got ack: %s', c)
+            TRACE_ACK.debug('got ack: %s', c)
             if c == b'-':
                 # Handle nack from gdb
                 self._write_packet(self._last_packet)
@@ -251,8 +252,7 @@ class GDBServerPacketIOThread(threading.Thread):
         if self.send_acks:
             ack = b'+' if goodPacket else b'-'
             self._abstract_socket.write(ack)
-            if LOG_ACK:
-                self.log.debug(ack)
+            TRACE_ACK.debug(ack)
 
         if goodPacket:
             self._receive_queue.put(packet)
@@ -897,8 +897,7 @@ class GDBServer(threading.Thread):
         length = split[1].split(b'#')[0]
         length = int(length, 16)
 
-        if LOG_MEM:
-            self.log.debug("GDB getMem: addr=%x len=%x", addr, length)
+        TRACE_MEM.debug("GDB getMem: addr=%x len=%x", addr, length)
 
         try:
             mem = self.target_context.read_memory_block8(addr, length)
@@ -923,8 +922,7 @@ class GDBServer(threading.Thread):
         split = split[1].split(b'#')
         data = hex_to_byte_list(split[0])
 
-        if LOG_MEM:
-            self.log.debug("GDB writeMemHex: addr=%x len=%x", addr, length)
+        TRACE_MEM.debug("GDB writeMemHex: addr=%x len=%x", addr, length)
 
         try:
             if length > 0:
@@ -946,8 +944,7 @@ class GDBServer(threading.Thread):
         addr = int(split[0], 16)
         length = int(split[1].split(b':')[0], 16)
 
-        if LOG_MEM:
-            self.log.debug("GDB writeMem: addr=%x len=%x", addr, length)
+        TRACE_MEM.debug("GDB writeMem: addr=%x len=%x", addr, length)
 
         idx_begin = data.index(b':') + 1
         data = data[idx_begin:len(data) - 3]

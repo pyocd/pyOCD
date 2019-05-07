@@ -27,10 +27,10 @@ import platform
 import errno
 from binascii import hexlify
 
-# Set to True to enable debug logs of USB data transfers.
-LOG_USB_DATA = False
-
 LOG = logging.getLogger(__name__)
+
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 STLinkInfo = namedtuple('STLinkInfo', 'version_name out_ep in_ep swv_ep')
 
@@ -214,25 +214,21 @@ class STLinkUSBInterface(object):
         
         try:
             # Command phase.
-            if LOG_USB_DATA:
-                LOG.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
+            TRACE.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
             count = self._ep_out.write(paddedCmd, timeout)
             assert count == len(paddedCmd)
             
             # Optional data out phase.
             if writeData is not None:
-                if LOG_USB_DATA:
-                    LOG.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
+                TRACE.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
                 count = self._ep_out.write(writeData, timeout)
                 assert count == len(writeData)
             
             # Optional data in phase.
             if readSize is not None:
-                if LOG_USB_DATA:
-                    LOG.debug("  USB IN < (%d bytes)" % readSize)
+                TRACE.debug("  USB IN < (%d bytes)" % readSize)
                 data = self._read(readSize)
-                if LOG_USB_DATA:
-                    LOG.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
+                TRACE.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
                 return data
         except usb.core.USBError as exc:
             six.raise_from(exceptions.ProbeError("USB Error: %s" % exc), exc)
