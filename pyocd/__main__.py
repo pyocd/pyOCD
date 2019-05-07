@@ -334,9 +334,10 @@ class PyOCDTool(object):
         except KeyboardInterrupt:
             return 0
         except exceptions.Error as e:
-            LOG.error(e, exc_info=Session.get_current().log_tracebacks)
+            LOG.critical(e, exc_info=Session.get_current().log_tracebacks)
+            return 1
         except Exception as e:
-            LOG.error("uncaught exception: %s", e, exc_info=Session.get_current().log_tracebacks)
+            LOG.critical("uncaught exception: %s", e, exc_info=Session.get_current().log_tracebacks)
             return 1
     
     def show_options_help(self):
