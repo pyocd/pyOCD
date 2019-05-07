@@ -99,26 +99,9 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `keep_unwritten`: (bool) Whether to load existing flash content for ranges of sectors that will
     be erased but not written with new data. Default is True.
 
-- `logging`: (dict or file path) Specifies a [logging configuration
-    dictionary](https://docs.python.org/2.7/library/logging.config.html#logging-config-dictschema).
-    Alternately the value can be a file path string that points to a local YAML file
-    containing the logging configuration. The file path is most useful when passing the `logging`
-    option via the command line, since you can't provide a dictionary this way. No default.
-
-    Example logging configuration:
-    ````yaml
-    logging:
-      version: 1
-      root:
-        level: INFO
-      loggers:
-        flash:
-          level: DEBUG
-    ````
-
-    Note that the `version` key is optional in the logging configuration. If not present, pyOCD
-    will set the schema version to 1 (currently the only version). This behaviour may change in the
-    future if a new logging configuration schema is introduced.
+- `logging`: (dict or file path) Either a dictionary with logging configuration, or a path to a
+    separate yaml logging configuration file. See the [logging configuration
+    documentation](configuring_logging.md) for details of how to use this option.
 
 - `no_config`: (bool) Do not use default config file.
 

@@ -8,6 +8,7 @@
 - [Target support](target_support.md)
 - [Configuration](configuration.md)
 - [User scripts](user_scripts.md)
+- [Configuring logging](configuring_logging.md)
 - [Debugging multicore devices](multicore_debug.md)
 - [Introduction to the pyOCD Python API](python_api.md)
 - [Python API examples](api_examples.md)
