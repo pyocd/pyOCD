@@ -17,7 +17,7 @@
 from collections import (OrderedDict, Callable)
 import logging
 
-log = logging.getLogger("sequencer")
+LOG = logging.getLogger(__name__)
 
 class CallSequence(object):
     """! @brief Call sequence manager.
@@ -197,12 +197,12 @@ class CallSequence(object):
         executed.
         """
         for name, call in self._calls.items():
-            log.debug("Running task %s", name)
+            LOG.debug("Running task %s", name)
             resultSequence = call()
             
             # Invoke returned call sequence.
             if resultSequence is not None and isinstance(resultSequence, CallSequence):
-#                 log.debug("Invoking returned call sequence: %s", resultSequence)
+#                 LOG.debug("Invoking returned call sequence: %s", resultSequence)
                 resultSequence.invoke()
     
     def __call__(self, *args, **kwargs):

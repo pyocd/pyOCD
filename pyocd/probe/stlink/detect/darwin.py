@@ -27,8 +27,7 @@ from xml.parsers.expat import ExpatError
 from .base import StlinkDetectBase
 
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+LOG = logging.getLogger(__name__)
 
 mbed_volume_name_match = re.compile(r"\b(mbed)\b", re.I)
 

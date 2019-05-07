@@ -28,6 +28,8 @@ from ..utility import conversion
 from intervaltree import (Interval, IntervalTree)
 import logging
 
+LOG = logging.getLogger(__name__)
+
 class MemoryAccessError(exceptions.Error):
     """! @brief Generic failure to access memory."""
     pass
@@ -90,7 +92,7 @@ class RegisterCache(object):
     def __init__(self, parentContext):
         self._context = parentContext
         self._run_token = -1
-        self._log = logging.getLogger('regcache')
+        self._log = LOG.getChild('regcache')
         self._reset_cache()
 
     def _reset_cache(self):
@@ -230,7 +232,7 @@ class MemoryCache(object):
     def __init__(self, context):
         self._context = context
         self._run_token = -1
-        self._log = logging.getLogger('memcache')
+        self._log = LOG.getChild('memcache')
         self._reset_cache()
 
     def _reset_cache(self):

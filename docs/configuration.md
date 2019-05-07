@@ -99,6 +99,10 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `keep_unwritten`: (bool) Whether to load existing flash content for ranges of sectors that will
     be erased but not written with new data. Default is True.
 
+- `logging`: (dict or file path) Either a dictionary with logging configuration, or a path to a
+    separate yaml logging configuration file. See the [logging configuration
+    documentation](configuring_logging.md) for details of how to use this option.
+
 - `no_config`: (bool) Do not use default config file.
 
 - `pack`: (str or list of str) Path or list of paths to CMSIS Device Family Packs. Devices defined

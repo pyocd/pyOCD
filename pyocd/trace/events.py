@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 class TraceEvent(object):
     """! @brief Base trace event class."""
     def __init__(self, desc="", ts=0):

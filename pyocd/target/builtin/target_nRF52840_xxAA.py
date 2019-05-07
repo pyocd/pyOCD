@@ -18,7 +18,6 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
                'instructions' : [

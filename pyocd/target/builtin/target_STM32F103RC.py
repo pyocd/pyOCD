@@ -18,7 +18,6 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 DBGMCU_CR = 0xE0042004
 #0111 1110 0011 1111 1111 1111 0000 0000
@@ -74,7 +73,6 @@ class STM32F103RC(CoreSightTarget):
         return seq
 
     def setup_dbgmcu(self):
-        logging.debug('stm32f103rc init')
         self.write_memory(DBGMCU_CR, DBGMCU_VAL)
 
 

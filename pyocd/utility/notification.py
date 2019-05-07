@@ -16,6 +16,11 @@
 
 import logging
 
+LOG = logging.getLogger(__name__)
+
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
+
 class Notification(object):
     """!@brief Class that holds information about a notification to subscribers."""
     def __init__(self, event, source, data=None):
@@ -57,9 +62,7 @@ class Notifier(object):
 
     def notify(self, *notifications):
         for note in notifications:
-            # This debug log is commented out because it produces too much output unless you
-            # are specifically working on notifications.
-#             logging.debug("Sending notification: %s", repr(note))
+            TRACE.debug("Sending notification: %s", repr(note))
             for cb in self._subscribers.get(note.event, []):
                 cb(note)
 

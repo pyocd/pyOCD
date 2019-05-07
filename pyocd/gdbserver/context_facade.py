@@ -21,6 +21,8 @@ import logging
 import six
 from xml.etree import ElementTree
 
+LOG = logging.getLogger(__name__)
+
 MAP_XML_HEADER = b"""<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 """
@@ -61,7 +63,7 @@ class GDBDebugContextFacade(object):
     def get_register_context(self):
         """! @brief Return hexadecimal dump of registers as expected by GDB.
         """
-        logging.debug("GDB getting register context")
+        LOG.debug("GDB getting register context")
         resp = b''
         reg_num_list = [reg.reg_num for reg in self._register_list]
         vals = self._context.read_core_registers_raw(reg_num_list)
@@ -71,14 +73,14 @@ class GDBDebugContextFacade(object):
                 resp += six.b(conversion.u64_to_hex16le(regValue))
             else:
                 resp += six.b(conversion.u32_to_hex8le(regValue))
-            logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
+            LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
 
         return resp
 
     def set_register_context(self, data):
         """! @brief Set registers from GDB hexadecimal string.
         """
-        logging.debug("GDB setting register context")
+        LOG.debug("GDB setting register context")
         reg_num_list = []
         reg_data_list = []
         for reg in self._register_list:
@@ -90,7 +92,7 @@ class GDBDebugContextFacade(object):
                 data = data[8:]
             reg_num_list.append(reg.reg_num)
             reg_data_list.append(regValue)
-            logging.debug("GDB reg: %s = 0x%X", reg.name, regValue)
+            LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
         self._context.write_core_registers_raw(reg_num_list, reg_data_list)
 
     def set_register(self, reg, data):
@@ -107,7 +109,7 @@ class GDBDebugContextFacade(object):
                 value = conversion.hex16_to_u64be(data)
             else:
                 value = conversion.hex8_to_u32be(data)
-            logging.debug("GDB: write reg %s: 0x%X", regName, value)
+            LOG.debug("GDB: write reg %s: 0x%X", regName, value)
             self._context.write_core_register_raw(regName, value)
 
     def gdb_get_register(self, reg):
@@ -120,7 +122,7 @@ class GDBDebugContextFacade(object):
                 resp = six.b(conversion.u64_to_hex16le(regValue))
             else:
                 resp = six.b(conversion.u32_to_hex8le(regValue))
-            logging.debug("GDB reg: %s = 0x%X", regName, regValue)
+            LOG.debug("GDB reg: %s = 0x%X", regName, regValue)
         return resp
 
     def get_t_response(self, forceSignal=None):
@@ -154,7 +156,7 @@ class GDBDebugContextFacade(object):
             except IndexError:
                 pass
 
-        logging.debug("GDB lastSignal: %d", signal)
+        LOG.debug("GDB lastSignal: %d", signal)
         return signal
 
     def get_reg_index_value_pairs(self, regIndexList):

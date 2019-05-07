@@ -25,14 +25,14 @@ from time import sleep
 import platform
 import errno
 
-log = logging.getLogger('pyusb')
+LOG = logging.getLogger(__name__)
 
 try:
     import usb.core
     import usb.util
 except:
     if os.name == "posix" and not os.uname()[0] == 'Darwin':
-        log.error("PyUSB is required on a Linux Machine")
+        LOG.error("PyUSB is required on a Linux Machine")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
@@ -102,7 +102,7 @@ class PyUSB(Interface):
                 kernel_driver_was_attached = True
         except NotImplementedError as e:
             # Some implementations don't don't have kernel attach/detach
-            log.debug('Exception detaching kernel driver: %s' %
+            LOG.debug('Exception detaching kernel driver: %s' %
                           str(e))
 
         # Explicitly claim the interface
@@ -221,7 +221,7 @@ class PyUSB(Interface):
         """
         assert self.closed is False
 
-        log.debug("closing interface")
+        LOG.debug("closing interface")
         self.closed = True
         self.read_sem.release()
         self.thread.join()
@@ -232,7 +232,7 @@ class PyUSB(Interface):
             try:
                 self.dev.attach_kernel_driver(self.intf_number)
             except Exception as exception:
-                log.warning('Exception attaching kernel driver: %s',
+                LOG.warning('Exception attaching kernel driver: %s',
                                 str(exception))
         usb.util.dispose_resources(self.dev)
         self.ep_out = None
@@ -272,15 +272,15 @@ class FindDap(object):
                 # If we recognize this device as one that should be CMSIS-DAP, we can raise
                 # the level of the log message since it's almost certainly a permissions issue.
                 if is_known_cmsis_dap_vid_pid(dev.idVendor, dev.idProduct):
-                    log.warning(msg)
+                    LOG.warning(msg)
                 else:
-                    log.debug(msg)
+                    LOG.debug(msg)
             else:
-                log.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
+                LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
                     dev.idVendor, dev.idProduct, error)
             return False
         except (IndexError, NotImplementedError) as error:
-            log.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
+            LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s", dev.idVendor, dev.idProduct, error)
             return False
 
         if device_string is None:

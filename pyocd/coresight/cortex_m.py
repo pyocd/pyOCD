@@ -27,6 +27,8 @@ import logging
 from time import (time, sleep)
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
+LOG = logging.getLogger(__name__)
+
 # pylint: disable=invalid_name
 
 # CPUID PARTNO values
@@ -537,7 +539,7 @@ class CortexM(Target, CoreSightComponent):
 
         implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
         if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
-            logging.warning("CPU implementer is not ARM!")
+            LOG.warning("CPU implementer is not ARM!")
 
         self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
@@ -550,9 +552,9 @@ class CortexM(Target, CoreSightComponent):
             self._supports_vectreset = True
         
         if self.core_type in CORE_TYPE_NAME:
-            logging.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
+            LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
         else:
-            logging.warning("CPU core #%d type is unrecognized", self.core_number)
+            LOG.warning("CPU core #%d type is unrecognized", self.core_number)
 
     def _check_for_fpu(self):
         """! @brief Determine if a core has an FPU.
@@ -589,7 +591,7 @@ class CortexM(Target, CoreSightComponent):
                 fpu_type = "FPv5-SP"
             else:
                 fpu_type = "FPv4-SP"
-            logging.info("FPU present: " + fpu_type)
+            LOG.info("FPU present: " + fpu_type)
 
     def write_memory(self, addr, value, transfer_size=32):
         """! @brief Write a single memory location.
@@ -649,7 +651,7 @@ class CortexM(Target, CoreSightComponent):
         # but now value of dhcsr is saved
         dhcsr = self.read_memory(CortexM.DHCSR)
         if not (dhcsr & (CortexM.C_STEP | CortexM.C_HALT)):
-            logging.error('cannot step: target not halted')
+            LOG.error('cannot step: target not halted')
             return
 
         self.notify(Notification(event=Target.EVENT_PRE_RUN, source=self, data=Target.RUN_TYPE_STEP))
@@ -947,7 +949,7 @@ class CortexM(Target, CoreSightComponent):
         """! @brief Resume execution of the core.
         """
         if self.get_state() != Target.TARGET_HALTED:
-            logging.debug('cannot resume: target not halted')
+            LOG.debug('cannot resume: target not halted')
             return
         self.notify(Notification(event=Target.EVENT_PRE_RUN, source=self, data=Target.RUN_TYPE_RESUME))
         self._run_token += 1

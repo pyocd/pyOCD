@@ -41,7 +41,7 @@ LIST_NODE_NEXT_OFFSET = 0
 LIST_NODE_OBJ_OFFSET= 8
 
 # Create a logger for this module.
-log = logging.getLogger("argon")
+LOG = logging.getLogger(__name__)
 
 class TargetList(object):
     def __init__(self, context, ptr):
@@ -63,7 +63,7 @@ class TargetList(object):
                 next = self._context.read32(node + LIST_NODE_NEXT_OFFSET)
                 node = next
             except exceptions.TransferError:
-                log.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
+                LOG.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 is_valid = False
 
 class ArgonThreadContext(DebugContext):
@@ -264,16 +264,16 @@ class ArgonThread(TargetThread):
 
             ptr = self._target_context.read32(self._base + THREAD_NAME_OFFSET)
             self._name = read_c_string(self._target_context, ptr)
-            log.debug("Thread@%x name=%x '%s'", self._base, ptr, self._name)
+            LOG.debug("Thread@%x name=%x '%s'", self._base, ptr, self._name)
         except exceptions.TransferError:
-            log.debug("Transfer error while reading thread info")
+            LOG.debug("Transfer error while reading thread info")
 
     def get_stack_pointer(self):
         # Get stack pointer saved in thread struct.
         try:
             return self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
         except exceptions.TransferError:
-            log.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
+            LOG.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
             return 0
 
     def update_info(self):
@@ -284,7 +284,7 @@ class ArgonThread(TargetThread):
             if self._state > self.DONE:
                 self._state = self.UNKNOWN
         except exceptions.TransferError:
-            log.debug("Transfer error while reading thread info")
+            LOG.debug("Transfer error while reading thread info")
 
     @property
     def state(self):
@@ -322,7 +322,7 @@ class ArgonThread(TargetThread):
             flag = self._target_context.read8(self._base + THREAD_EXTENDED_FRAME_OFFSET)
             return flag != 0
         except exceptions.TransferError:
-            log.debug("Transfer error while reading thread's extended frame flag @ 0x%08x", self._base + THREAD_EXTENDED_FRAME_OFFSET)
+            LOG.debug("Transfer error while reading thread's extended frame flag @ 0x%08x", self._base + THREAD_EXTENDED_FRAME_OFFSET)
             return False
 
     def __str__(self):
@@ -345,12 +345,12 @@ class ArgonThreadProvider(ThreadProvider):
         self.g_ar = symbolProvider.get_symbol_value("g_ar")
         if self.g_ar is None:
             return False
-        log.debug("Argon: g_ar = 0x%08x", self.g_ar)
+        LOG.debug("Argon: g_ar = 0x%08x", self.g_ar)
 
         self.g_ar_objects = symbolProvider.get_symbol_value("g_ar_objects")
         if self.g_ar_objects is None:
             return False
-        log.debug("Argon: g_ar_objects = 0x%08x", self.g_ar_objects)
+        LOG.debug("Argon: g_ar_objects = 0x%08x", self.g_ar_objects)
 
         self._all_threads = self.g_ar_objects + ALL_OBJECTS_THREADS_OFFSET
 
@@ -364,7 +364,7 @@ class ArgonThreadProvider(ThreadProvider):
 
     def event_handler(self, notification):
         # Invalidate threads list if flash is reprogrammed.
-        log.debug("Argon: invalidating threads list: %s" % (repr(notification)))
+        LOG.debug("Argon: invalidating threads list: %s" % (repr(notification)))
         self.invalidate();
 
     def _build_thread_list(self):
@@ -380,14 +380,14 @@ class ArgonThreadProvider(ThreadProvider):
                     t.update_info()
                 else:
                     t = ArgonThread(self._target_context, self, threadBase)
-                log.debug("Thread 0x%08x (%s)", threadBase, t.name)
+                LOG.debug("Thread 0x%08x (%s)", threadBase, t.name)
                 newThreads[t.unique_id] = t
             except exceptions.TransferError:
-                log.debug("TransferError while examining thread 0x%08x", threadBase)
+                LOG.debug("TransferError while examining thread 0x%08x", threadBase)
 
         # Create fake handler mode thread.
         if self._target_context.read_core_register('ipsr') > 0:
-            log.debug("creating handler mode thread")
+            LOG.debug("creating handler mode thread")
             t = HandlerModeThread(self._target_context, self)
             newThreads[t.unique_id] = t
 
@@ -418,7 +418,7 @@ class ArgonThreadProvider(ThreadProvider):
         try:
             return self._threads[id]
         except KeyError:
-            log.debug("key error getting current thread id=%s; self._threads = %s",
+            LOG.debug("key error getting current thread id=%s; self._threads = %s",
                 ("%x" % id) if (id is not None) else id, repr(self._threads))
             return None
 

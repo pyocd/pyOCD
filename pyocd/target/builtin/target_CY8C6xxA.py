@@ -25,6 +25,8 @@ from ...flash.flash import Flash
 from ...utility.notification import Notification
 from ...utility.timeout import Timeout
 
+LOG = logging.getLogger(__name__)
+
 flash_algo_main = {
     'load_address': 0x08000000,
 
@@ -489,12 +491,12 @@ class CortexM_CY8C6xxA(CortexM):
 
         vtbase &= 0xFFFFFF00
         if vtbase < 0x10000000 or vtbase > 0x18000000:
-            logging.info("Vector Table address invalid (0x%08X), will not halt at main()", vtbase)
+            LOG.info("Vector Table address invalid (0x%08X), will not halt at main()", vtbase)
             return
 
         entry = self.read_memory(vtbase + 4)
         if entry < 0x10000000 or entry > 0x18000000:
-            logging.info("Entry Point address invalid (0x%08X), will not halt at main()", entry)
+            LOG.info("Entry Point address invalid (0x%08X), will not halt at main()", entry)
             return
 
         self.set_breakpoint(entry)

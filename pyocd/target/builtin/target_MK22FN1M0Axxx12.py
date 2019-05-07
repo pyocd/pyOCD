@@ -24,7 +24,7 @@ SIM_FCFG1 = 0x4004804C
 SIM_FCFG2 = 0x40048050
 SIM_FCFG2_PFLSH = (1 << 23)
 
-log = logging.getLogger("target.k22fa12")
+LOG = logging.getLogger(__name__)
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
@@ -116,9 +116,9 @@ class K22FA12(Kinetis):
         # If the device has FlexNVM, then it has half-sized program flash.
         fcfg2 = self.dp.aps[0].read32(SIM_FCFG2)
         if (fcfg2 & SIM_FCFG2_PFLSH) == 0:
-            log.debug("%s: device has FlexNVM", self.part_number)
+            LOG.debug("%s: device has FlexNVM", self.part_number)
             rgn = self.memory_map.get_region_for_address(0)
             rgn._end = 0x7ffff
         else:
-            log.debug("%s: device does not have FlexNVM", self.part_number)
+            LOG.debug("%s: device does not have FlexNVM", self.part_number)
 

@@ -27,10 +27,10 @@ import platform
 import errno
 from binascii import hexlify
 
-# Set to True to enable debug logs of USB data transfers.
-LOG_USB_DATA = False
+LOG = logging.getLogger(__name__)
 
-log = logging.getLogger('stlink.usb')
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 STLinkInfo = namedtuple('STLinkInfo', 'version_name out_ep in_ep swv_ep')
 
@@ -78,7 +78,7 @@ class STLinkUSBInterface(object):
                 # We've already checked that this is an STLink device by VID/PID, so we
                 # can use a warning log level to let the user know it's almost certainly
                 # a permissions issue.
-                log.warning("%s while trying to get the STLink USB device configuration "
+                LOG.warning("%s while trying to get the STLink USB device configuration "
                    "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
                    "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help.",
                    error, dev.idVendor, dev.idProduct)
@@ -214,25 +214,21 @@ class STLinkUSBInterface(object):
         
         try:
             # Command phase.
-            if LOG_USB_DATA:
-                log.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
+            TRACE.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
             count = self._ep_out.write(paddedCmd, timeout)
             assert count == len(paddedCmd)
             
             # Optional data out phase.
             if writeData is not None:
-                if LOG_USB_DATA:
-                    log.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
+                TRACE.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
                 count = self._ep_out.write(writeData, timeout)
                 assert count == len(writeData)
             
             # Optional data in phase.
             if readSize is not None:
-                if LOG_USB_DATA:
-                    log.debug("  USB IN < (%d bytes)" % readSize)
+                TRACE.debug("  USB IN < (%d bytes)" % readSize)
                 data = self._read(readSize)
-                if LOG_USB_DATA:
-                    log.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
+                TRACE.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
                 return data
         except usb.core.USBError as exc:
             six.raise_from(exceptions.ProbeError("USB Error: %s" % exc), exc)

@@ -17,7 +17,6 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-import logging
 
 FLASH_ALGO = {
     'load_address' : 0x3fff4000,

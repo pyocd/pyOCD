@@ -19,7 +19,6 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 FLASH_ALGO_QUADSPI = {
     'load_address' : 0x20000000,

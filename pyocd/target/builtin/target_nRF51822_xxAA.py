@@ -20,6 +20,8 @@ from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 import logging
 
+LOG = logging.getLogger(__name__)
+
 # NRF51 specific registers
 RESET = 0x40000544
 RESET_ENABLE = (1 << 0)
@@ -70,8 +72,8 @@ class NRF51(CoreSightTarget):
         is running
         """
         #Regular reset will kick NRF out of DBG mode
-        logging.debug("target_nrf51.reset: enable reset pin")
+        LOG.debug("target_nrf51.reset: enable reset pin")
         self.write_memory(RESET, RESET_ENABLE)
         #reset
-        logging.debug("target_nrf51.reset: trigger nRST pin")
+        LOG.debug("target_nrf51.reset: trigger nRST pin")
         self.reset()

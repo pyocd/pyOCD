@@ -16,6 +16,7 @@
 
 from ..board.board import Board
 import logging
+import logging.config
 import six
 import yaml
 import os
@@ -132,6 +133,9 @@ class Session(object):
                     LOG.info("Using config settings for board %s" % (probe.unique_id))
                     self._options.update(settings)
         
+        # Logging config.
+        self._configure_logging()
+        
         # Bail early if we weren't provided a probe.
         if probe is None:
             self._board = None
@@ -178,6 +182,41 @@ class Session(object):
                 filePath = os.path.join(self.project_dir, filePath)
         
         return filePath
+    
+    def _configure_logging(self):
+        """! @brief Load a logging config dict or file."""
+        config = None
+        
+        if 'logging' in self._options:
+            # Get logging config that could have been loaded from the config file.
+            configValue = self._options['logging']
+            
+            # Allow logging setting to refer to another file.
+            if isinstance(configValue, six.string_types):
+                loggingConfigPath = self.find_user_file(None, [configValue])
+                
+                if loggingConfigPath is not None:
+                    try:
+                        with open(loggingConfigPath, 'r') as configFile:
+                            config = yaml.safe_load(configFile)
+                            LOG.debug("Using logging configuration from: %s", configValue)
+                    except IOError as err:
+                        LOG.warning("Error attempting to load logging config file '%s': %s", configValue, err)
+            else:
+                config = configValue
+
+        if config is not None:
+            # Stuff a version key if it's missing, to make it easier to use.
+            if 'version' not in config:
+                config['version'] = 1
+            # Set a different default for disabling existing loggers.
+            if 'disable_existing_loggers' not in config:
+                config['disable_existing_loggers'] = False
+            
+            try:
+                logging.config.dictConfig(config)
+            except (ValueError, TypeError, AttributeError, ImportError) as err:
+                LOG.warning("Error applying logging configuration: %s", err)
     
     @property
     def is_open(self):

@@ -21,8 +21,7 @@ from os.path import expanduser, isfile, join, exists, isdir
 import logging
 import functools
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+LOG = logging.getLogger(__name__)
 
 
 class StlinkDetectBase(object):
@@ -82,7 +81,7 @@ class StlinkDetectBase(object):
                 self._update_device_from_htm(device)
 
         except (OSError, IOError) as e:
-            logger.warning(
+            LOG.warning(
                 'Marking device with mount point "%s" as unmounted due to the '
                 "following error: %s",
                 device["mount_point"],
@@ -98,7 +97,7 @@ class StlinkDetectBase(object):
         if htm_target_id:
             device["target_id"] = htm_target_id
         else:
-            logger.debug(
+            LOG.debug(
                 "Could not read htm on from usb id %s. Falling back to usb id",
                 device["target_id_usb_id"],
             )

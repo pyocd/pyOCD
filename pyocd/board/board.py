@@ -21,7 +21,7 @@ from ..utility.graph import GraphNode
 import logging
 import six
 
-log = logging.getLogger('board')
+LOG = logging.getLogger(__name__)
 
 class Board(GraphNode):
     """!
@@ -56,11 +56,11 @@ class Board(GraphNode):
                 "all available targets." % self._target_type), exc)
         
         # Tell the user what target type is selected.
-        log.info("Target type is %s", self._target_type)
+        LOG.info("Target type is %s", self._target_type)
         
         # Log a helpful warning when using the generic cortex_m target.
         if self._target_type == 'cortex_m':
-            log.warning("Generic cortex_m target type is selected; is this intentional? "
+            LOG.warning("Generic cortex_m target type is selected; is this intentional? "
                         "You will be able to debug but not program flash. To set the "
                         "target type use the '--target' argument or target_type option. "
                         "Use 'pyocd list --targets' to see available targets.")
@@ -88,13 +88,13 @@ class Board(GraphNode):
     def uninit(self):
         """! @brief Uninitialize the board."""
         if self._inited:
-            log.debug("uninit board %s", self)
+            LOG.debug("uninit board %s", self)
             try:
                 resume = self.session.options.get('resume_on_disconnect', True)
                 self.target.disconnect(resume)
                 self._inited = False
             except:
-                log.error("link exception during target disconnect:", exc_info=self._session.log_tracebacks)
+                LOG.error("link exception during target disconnect:", exc_info=self._session.log_tracebacks)
 
     @property
     def session(self):

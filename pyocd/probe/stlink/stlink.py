@@ -23,7 +23,7 @@ import six
 import threading
 from enum import Enum
 
-log = logging.getLogger('stlink')
+LOG = logging.getLogger(__name__)
 
 class STLink(object):
     """!

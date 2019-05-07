@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import os
-import logging
 from ..debug.semihost import SemihostIOHandler
 
 # Open mode flags

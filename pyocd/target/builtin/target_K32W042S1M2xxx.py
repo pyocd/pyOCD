@@ -52,7 +52,7 @@ MDM_CORE_STATUS_CM0P_HALTED = (1 << 15)
 
 HALT_TIMEOUT = 2.0
 
-log = logging.getLogger("target.k32w042s")
+LOG = logging.getLogger(__name__)
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
@@ -209,7 +209,7 @@ class K32W042S(Kinetis):
                 while to.check():
                     if self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED != MDM_CORE_STATUS_CM4_HALTED:
                         break
-                    log.debug("Waiting for mdm halt")
+                    LOG.debug("Waiting for mdm halt")
                     sleep(0.01)
                 else:
                     raise RuntimeError("Timed out waiting for core to halt")

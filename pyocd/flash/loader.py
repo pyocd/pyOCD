@@ -194,7 +194,7 @@ class FileProgrammer(object):
             try:
                 self._loader.add_data(start, data)
             except ValueError as e:
-                logging.warning("Failed to add data chunk: %s", e)
+                LOG.warning("Failed to add data chunk: %s", e)
 
     def _program_elf(self, file_obj, **kwargs):
         """! ELF format loader"""

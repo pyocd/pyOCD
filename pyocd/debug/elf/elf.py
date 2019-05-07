@@ -18,7 +18,6 @@ from ...core.memory_map import (MemoryRange, MemoryMap)
 from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder)
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import SH_FLAGS
-import logging
 import six
 
 class ELFSection(MemoryRange):

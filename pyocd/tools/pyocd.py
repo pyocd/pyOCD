@@ -54,6 +54,8 @@ try:
 except ImportError:
     isCapstoneAvailable = False # pylint: disable=invalid-name
 
+LOG = logging.getLogger(__name__)
+
 LEVELS = {
         'debug':logging.DEBUG,
         'info':logging.INFO,
@@ -1763,7 +1765,7 @@ class PyOCDTool(object):
         DAPAccess.set_args(self.args.daparg)
         
         if not self.args.no_deprecation_warning:
-            logging.warning("pyocd-tool is deprecated; please use the new combined pyocd tool.")
+            LOG.warning("pyocd-tool is deprecated; please use the new combined pyocd tool.")
         
         # Convert args to new names.
         self.args.target_override = self.args.target

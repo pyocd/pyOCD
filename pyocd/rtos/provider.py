@@ -16,6 +16,8 @@
 
 import logging
 
+LOG = logging.getLogger(__name__)
+
 class TargetThread(object):
     """! @brief Base class representing a thread on the target."""
 
@@ -55,7 +57,7 @@ class ThreadProvider(object):
         syms = {}
         for name in symbolList:
             addr = symbolProvider.get_symbol_value(name)
-            logging.debug("Value for symbol %s = %s", name, hex(addr) if addr is not None else "<none>")
+            LOG.debug("Value for symbol %s = %s", name, hex(addr) if addr is not None else "<none>")
             if addr is None:
                 return None
             syms[name] = addr
