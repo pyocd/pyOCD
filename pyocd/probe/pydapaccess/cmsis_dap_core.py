@@ -143,10 +143,7 @@ class CMSISDAPProtocol(object):
                 return (resp[5] << 24) | (resp[4] << 16) | (resp[3] << 8) | resp[2]
 
         # String values. They are sent as C strings with a terminating null char, so we strip it out.
-        x = array.array('B', [i for i in resp[2:2 + resp[1]]]).tostring()
-        if x[-1] == '\x00':
-            x = x[0:-1]
-        return x
+        return bytearray(resp[2:2 + resp[1] - 1]).decode('ascii')
 
     def set_led(self, type, enabled):
         cmd = []

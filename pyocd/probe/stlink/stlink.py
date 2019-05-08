@@ -17,6 +17,7 @@
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
 from ...core import exceptions
 from ...coresight import dap
+from ...utility.mask import bfx
 import logging
 import struct
 import six
@@ -113,11 +114,10 @@ class STLink(object):
         #   Byte 4-5: STLINK_PID
         response = self._device.transfer([Commands.GET_VERSION], readSize=6)
         ver, = struct.unpack('>H', response[:2])
-        dev_ver = self._device.version_name
         # TODO create version bitfield constants
-        self._hw_version = (ver >> 12) & 0xf
-        self._jtag_version = (ver >> 6) & 0x3f
-        self._version_str = "%s v%dJ%d" % (dev_ver, self._hw_version, self._jtag_version)
+        self._hw_version = bfx(ver, 15, 12)
+        self._jtag_version = bfx(ver, 11, 6)
+        self._msc_version = bfx(ver, 5, 0)
         
         # For STLinkV3 we must use the extended get version command.
         if self._hw_version >= 3:
@@ -131,7 +131,10 @@ class STLink(object):
             #   8-9: ST_VID
             #   10-11: STLINK_PID
             response = self._device.transfer([Commands.GET_VERSION_EXT], readSize=12)
-            hw_vers, _, self._jtag_version = struct.unpack('<3B', response[0:3])
+            hw_vers, _, self._jtag_version, self._msc_version = struct.unpack('<4B', response[0:4])
+
+        self._version_str = "V%dJ%dM%d" % (self._hw_version, self._jtag_version, self._msc_version)
+        LOG.debug("STLink probe %s firmware version: %s", self.serial_number, self._version_str)
 
         # Check versions.
         if self._jtag_version == 0:
