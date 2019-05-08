@@ -418,7 +418,7 @@ class Flash(object):
             min_len = self.get_page_info(address).size
 
         # Require write address and length to be aligned to min write size.
-        if flashPtr % min_len:
+        if address % min_len:
             raise FlashFailure("unaligned flash write address")
         if len(bytes) % min_len:
             raise FlashFailure("phrase length is unaligned or too small")
