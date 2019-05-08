@@ -380,11 +380,8 @@ class Flash(object):
         assert buffer_number < len(self.page_buffers), "Invalid buffer number"
         assert self._active_operation == self.Operation.PROGRAM
 
-        # get info about this page
-        page_info = self.get_page_info(address)
-
         # update core register to execute the program_page subroutine
-        result = self._call_function(self.flash_algo['pc_program_page'], address, page_info.size, self.page_buffers[buffer_number])
+        result = self._call_function(self.flash_algo['pc_program_page'], address, self.region.page_size, self.page_buffers[buffer_number])
 
     def load_page_buffer(self, buffer_number, address, bytes):
         """!
@@ -415,10 +412,10 @@ class Flash(object):
         if self.min_program_length:
             min_len = self.min_program_length
         else:
-            min_len = self.get_page_info(address).size
+            min_len = self.region.page_size
 
         # Require write address and length to be aligned to min write size.
-        if flashPtr % min_len:
+        if address % min_len:
             raise FlashFailure("unaligned flash write address")
         if len(bytes) % min_len:
             raise FlashFailure("phrase length is unaligned or too small")
@@ -446,7 +443,7 @@ class Flash(object):
 
         info = SectorInfo()
         info.erase_weight = self.region.erase_sector_weight
-        info.size = self.region.blocksize
+        info.size = self.region.sector_size
         info.base_addr = addr - (addr % info.size)
         return info
 

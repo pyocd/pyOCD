@@ -16,7 +16,7 @@
 
 from __future__ import print_function
 from xml.etree.ElementTree import ElementTree
-from zipfile import ZipFile
+import zipfile
 from collections import namedtuple
 import logging
 import io
@@ -71,11 +71,18 @@ class CmsisPack(object):
         @param self
         @param file_or_path The .pack file to open. May be a string that is the path to the pack,
             or may be a ZipFile, or a file-like object that is already opened.
+        
+        @exception MalformedCmsisPackError The pack is not a zip file, or the .pdsc file is missing
+            from within the pack.
         """
-        if isinstance(file_or_path, ZipFile):
+        if isinstance(file_or_path, zipfile.ZipFile):
             self._pack_file = file_or_path
         else:
-            self._pack_file = ZipFile(file_or_path, 'r')
+            try:
+                self._pack_file = zipfile.ZipFile(file_or_path, 'r')
+            except zipfile.BadZipFile as err:
+                six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
+                    file_or_path, err)), err)
         
         # Find the .pdsc file.
         for name in self._pack_file.namelist():
@@ -83,7 +90,7 @@ class CmsisPack(object):
                 self._pdscName = name
                 break
         else:
-            raise MalformedCmsisPackError("CMSIS-Pack is missing a .pdsc file")
+            raise MalformedCmsisPackError("CMSIS-Pack '{}' is missing a .pdsc file".format(file_or_path))
         
         # Convert PDSC into an ElementTree.
         with self._pack_file.open(self._pdscName) as pdscFile:
