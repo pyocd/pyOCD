@@ -24,6 +24,12 @@ import itertools
 import six
 import struct
 
+# zipfile from Python 2 has a misspelled BadZipFile exception class.
+try:
+    from zipfile import BadZipFile
+except ImportError:
+    from zipfile import BadZipfile as BadZipFile
+
 from .flash_algo import PackFlashAlgo
 from ... import core
 from ...core import exceptions
@@ -80,7 +86,7 @@ class CmsisPack(object):
         else:
             try:
                 self._pack_file = zipfile.ZipFile(file_or_path, 'r')
-            except zipfile.BadZipFile as err:
+            except BadZipFile as err:
                 six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
                     file_or_path, err)), err)
         
