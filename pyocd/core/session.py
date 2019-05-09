@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..board.board import Board
 import logging
 import logging.config
 import six
@@ -28,7 +27,8 @@ try:
 except ImportError:
     from inspect import getargspec
 
-DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
+from .options import OPTIONS_INFO
+from ..board.board import Board
 
 LOG = logging.getLogger(__name__)
 
@@ -143,11 +143,11 @@ class Session(object):
             
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board(self) \
-                        or Board(self, self._options.get('target_override', None))
+                        or Board(self, self.option('target_override'))
     
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
-        if not self._options.get('no_config', False):
+        if not self.option('no_config'):
             configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
             if isinstance(configPath, six.string_types):
@@ -163,7 +163,7 @@ class Session(object):
     def find_user_file(self, option_name, filename_list):
         """! @brief Search the project directory for a file."""
         if option_name is not None:
-            filePath = self._options.get(option_name, None)
+            filePath = self.option(option_name)
         else:
             filePath = None
         
@@ -185,25 +185,21 @@ class Session(object):
     
     def _configure_logging(self):
         """! @brief Load a logging config dict or file."""
-        config = None
+        # Get logging config that could have been loaded from the config file.
+        config = self.option('logging')
         
-        if 'logging' in self._options:
-            # Get logging config that could have been loaded from the config file.
-            configValue = self._options['logging']
+        # Allow logging setting to refer to another file.
+        if isinstance(config, six.string_types):
+            loggingConfigPath = self.find_user_file(None, [config])
             
-            # Allow logging setting to refer to another file.
-            if isinstance(configValue, six.string_types):
-                loggingConfigPath = self.find_user_file(None, [configValue])
-                
-                if loggingConfigPath is not None:
-                    try:
-                        with open(loggingConfigPath, 'r') as configFile:
-                            config = yaml.safe_load(configFile)
-                            LOG.debug("Using logging configuration from: %s", configValue)
-                    except IOError as err:
-                        LOG.warning("Error attempting to load logging config file '%s': %s", configValue, err)
-            else:
-                config = configValue
+            if loggingConfigPath is not None:
+                try:
+                    with open(loggingConfigPath, 'r') as configFile:
+                        config = yaml.safe_load(configFile)
+                        LOG.debug("Using logging configuration from: %s", config)
+                except IOError as err:
+                    LOG.warning("Error attempting to load logging config file '%s': %s", config, err)
+                    return
 
         if config is not None:
             # Stuff a version key if it's missing, to make it easier to use.
@@ -257,7 +253,12 @@ class Session(object):
     @property
     def log_tracebacks(self):
         """! @brief Quick access to debug.traceback option since it is widely used."""
-        return self._options.get('debug.traceback', True)
+        return self.option('debug.traceback')
+    
+    def option(self, name):
+        if name not in OPTIONS_INFO:
+            raise KeyError("unknown option '{}'".format(name))
+        return self._options.get(name, OPTIONS_INFO[name].default)
 
     def __enter__(self):
         assert self._probe is not None
@@ -334,7 +335,7 @@ class Session(object):
             self._load_user_script()
             
             self._probe.open()
-            self._probe.set_clock(self._options.get('frequency', DEFAULT_CLOCK_FREQ))
+            self._probe.set_clock(self.option('frequency'))
             if init_board:
                 self._board.init()
                 self._inited = True
