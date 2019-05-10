@@ -5,6 +5,7 @@
 
 ### User documentation
 
+- [Terminology](terminology.md)
 - [Target support](target_support.md)
 - [Configuration](configuration.md)
 - [User scripts](user_scripts.md)
