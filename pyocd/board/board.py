@@ -62,7 +62,7 @@ class Board(GraphNode):
         if self._target_type == 'cortex_m':
             LOG.warning("Generic cortex_m target type is selected; is this intentional? "
                         "You will be able to debug but not program flash. To set the "
-                        "target type use the '--target' argument or target_type option. "
+                        "target type use the '--target' argument or 'target_override' option. "
                         "Use 'pyocd list --targets' to see available targets.")
         
         self.add_child(self.target)
