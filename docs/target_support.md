@@ -8,16 +8,88 @@ In addition, because pyOCD dynamically inspects the target's debug infrastructur
 debug functionality is enabled for any target that correctly implement the CoreSight architecture.
 
 
-## Built-in
+## Target types
+
+When pyOCD connects to a device, it needs to know what type of device (target) it is controlling.
+The type of device is known as the "target type". The target type defines the flash programming
+algorithm and determine the device's memory map and other important information. Each target type is
+identified by a short string that is either the full or partial part number for the device. For
+example, "k64f" or "stm32l072".
+
+Target types are either built-in to pyOCD or come from CMSIS-Packs. The sections below describe more
+about the sources of target support.
+
+To see the available target types you can run `pyocd list --targets`. This command will print a
+table of supported target types, including the target name, vendor, and part number. In addition, it
+prints whether each target target is built-in or comes from a CMSIS-Pack.
+
+
+### Generic target type
+
+PyOCD furnishes a generic target type named "cortex_m". This target type will be able to connect to
+and debug almost any Cortex-M device that correctly implements the CoreSight architecture. However,
+flash memory cannot be programmed, and a memory map is not provided. In addition, it may not work
+for certain devices that require special handling of operations such as reset and halt.
+
+Because of the limitations of the generic "cortex_m" target, the warning shown below will be logged
+if the target type is "cortex_m".
+
+    0000183:WARNING:board:Generic cortex_m target type is selected; is this intentional? You will be
+    able to debug but not program flash. To set the target type use the '--target' argument or
+    'target_override' option. Use 'pyocd list --targets' to see available targets.
+
+
+### Setting the target type
+
+There are two ways to specify the target type.
+
+The first is to pass the `--target` command line argument to the `pyocd` tool and pass the target
+type name. This argument must be passed every time you run `pyocd` with a subcommand that connects
+to the target.
+
+Another method is to set the `target_override` user option in a `pyocd.yaml` configuration file. The
+[configuration file documentation](configuration.md) describes how to do this for a specific debug
+probe instead of globally.
+
+
+### Target type auto-detection
+
+Certain on-board debug probes know the type of target with which they are connected. The Arm DAPLink
+and STLinkV2-1 firmwares both support this feature. When using a probe with target type
+auto-detection, you do not need to tell pyOCD
+
+To check whether your debug probe supports auto-detection, run `pyocd list`. This command prints
+a list of all connected debug probes. If a probe does not support auto-detection, the name of the
+probe firmware is printed. Whereas probes that do support auto-detection will show up with the
+name of the board plus the target type in brackets.
+
+Example probe listing:
+
+    ## => Board Name | Unique ID
+    -- -- ----------------------
+     0 => ARM DAPLink CMSIS-DAP | 000000004420312043574641313035203730303897969903
+     1 => DISCO-L475VG-IOT01A [stm32l475xg] | 066EFF555051897267233656
+
+This example shows two probes. The first does not support auto-detection, while the second does. You
+can see how the second probe's description shows the name of the board and the target type
+"stm32l475xg" in brackets.
+
+If the target type is *not* auto-detected, it will default to "cortex_m" unless specified as
+described above.
+
+
+## Target support sources
+
+### Built-in
 
 PyOCD has built-in support for over 70 popular MCUs from various vendors.
 
 Because new targets are addded fairly often, the best way to see the available built-in targets is
-by running `pyocd list --targets`. This command will print a table of supported targets, including
-the target name, vendor, and part number.
+by running `pyocd list --targets`. This command will print a table of supported target types.
+Built-in targets will be identified as such in the "SOURCE" column.
 
 
-## CMSIS-Packs
+### CMSIS-Packs
 
 The [CMSIS](http://arm-software.github.io/CMSIS_5/General/html/index.html) specification defines the
 [Device Family Pack](http://arm-software.github.io/CMSIS_5/Pack/html/index.html) (DFP) standard for
@@ -41,7 +113,7 @@ site](https://www.github.com/mbedmicro/pyOCD/issues). You should also report the
 vendor.
 
 
-### Managed packs
+#### Managed packs
 
 The `pyocd` tool's `pack` subcommand provides completely automated management of CMSIS-Packs. It
 allows you to install new device support with a single command line invocation.
@@ -81,7 +153,7 @@ Once a DFP is installed, the `pyocd list --targets` command will show the new ta
 and you can immediately begin using the target support with the other `pyocd` subcommands.
 
 
-### Manual pack usage
+#### Manual pack usage
 
 If you prefer to manually manage packs, or if the managed pack system cannot access online packs
 from your network, you can download them yourself from the [official CMSIS-Pack
