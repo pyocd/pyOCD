@@ -126,11 +126,11 @@ class PyOCDTool(object):
         
         # Define common options for all subcommands, excluding --verbose and --quiet.
         commonOptionsNoLogging = argparse.ArgumentParser(description='common', add_help=False)
-        commonOptionsNoLogging.add_argument('-j', '--dir', metavar="PATH", dest="project_dir", default=os.getcwd(),
+        commonOptionsNoLogging.add_argument('-j', '--dir', metavar="PATH", dest="project_dir",
             help="Set the project directory. Defaults to the directory where pyocd was run.")
         commonOptionsNoLogging.add_argument('--config', metavar="PATH",
             help="Specify YAML configuration file. Default is pyocd.yaml or pyocd.yml.")
-        commonOptionsNoLogging.add_argument("--no-config", action="store_true",
+        commonOptionsNoLogging.add_argument("--no-config", action="store_true", default=None,
             help="Do not use a configuration file.")
         commonOptionsNoLogging.add_argument('--script', metavar="PATH",
             help="Use the specified user script. Defaults to pyocd_user.py.")
@@ -153,14 +153,14 @@ class PyOCDTool(object):
             help="Set the board type (not yet implemented).")
         connectOptions.add_argument("-t", "--target", dest="target_override", metavar="TARGET",
             help="Set the target type.")
-        connectOptions.add_argument("-f", "--frequency", dest="frequency", default=1000000, type=convert_frequency,
+        connectOptions.add_argument("-f", "--frequency", dest="frequency", default=None, type=convert_frequency,
             help="SWD/JTAG clock frequency in Hz, with optional k/K or m/M suffix for kHz or MHz.")
         connectOptions.add_argument("-W", "--no-wait", action="store_true",
             help="Do not wait for a probe to be connected if none are available.")
 
         # Create *commander* subcommand parser.
         commandOptions = argparse.ArgumentParser(description='command', add_help=False)
-        commandOptions.add_argument("-H", "--halt", action="store_true",
+        commandOptions.add_argument("-H", "--halt", action="store_true", default=None,
             help="Halt core upon connect.")
         commandOptions.add_argument("-N", "--no-init", action="store_true",
             help="Do not init debug system.")

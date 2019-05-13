@@ -676,7 +676,7 @@ class PyOCDCommander(object):
         return self.exit_code
 
     def connect(self):
-        if self.args.frequency != DEFAULT_CLOCK_FREQ_HZ:
+        if (self.args.frequency is not None) and (self.args.frequency != DEFAULT_CLOCK_FREQ_HZ):
             print("Setting SWD clock to %d kHz" % (self.args.frequency // 1000))
 
         # Connect to board.
@@ -689,12 +689,13 @@ class PyOCDCommander(object):
                         pack=self.args.pack,
                         unique_id=self.args.unique_id,
                         target_override=self.args.target_override,
-                        init_board=False,
-                        auto_unlock=False,
                         halt_on_connect=self.args.halt,
-                        resume_on_disconnect=False,
                         frequency=self.args.frequency,
-                        options=convert_session_options(self.args.options))
+                        options=convert_session_options(self.args.options),
+                        option_defaults=dict(
+                            auto_unlock=False,
+                            resume_on_disconnect=False,
+                            ))
         if self.session is None:
             self.exit_code = 3
             return False
@@ -1725,14 +1726,14 @@ class PyOCDTool(object):
 
         parser = argparse.ArgumentParser(description='Target inspection utility', epilog=epi)
         parser.add_argument('--version', action='version', version=__version__)
-        parser.add_argument('-j', '--dir', metavar="PATH", dest="project_dir", default=os.getcwd(),
+        parser.add_argument('-j', '--dir', metavar="PATH", dest="project_dir",
             help="Set the project directory. Defaults to the directory where pyocd was run.")
         parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
-        parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
+        parser.add_argument("--no-config", action="store_true", default=None, help="Do not use a configuration file.")
         parser.add_argument('--script', metavar="PATH",
             help="Use the specified user script. Defaults to pyocd_user.py.")
         parser.add_argument("--pack", metavar="PATH", help="Path to a CMSIS Device Family Pack")
-        parser.add_argument("-H", "--halt", action="store_true", help="Halt core upon connect.")
+        parser.add_argument("-H", "--halt", action="store_true", default=None, help="Halt core upon connect.")
         parser.add_argument("-N", "--no-init", action="store_true", help="Do not init debug system.")
         parser.add_argument('-k', "--clock", metavar='KHZ', default=(DEFAULT_CLOCK_FREQ_HZ // 1000), type=int, help="Set SWD speed in kHz. (Default 1 MHz.)")
         parser.add_argument('-b', "--board", action='store', dest="unique_id", metavar='ID', help="Use the specified board. Only a unique part of the board ID needs to be provided.")

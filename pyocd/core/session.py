@@ -86,20 +86,33 @@ class Session(object):
         else:
             return Session(None)
 
-    def __init__(self, probe, options=None, **kwargs):
+    def __init__(self, probe, options=None, option_defaults=None, **kwargs):
         """! @brief Session constructor.
         
         Creates a new session using the provided debug probe. User options are merged from the
         _options_ parameter and any keyword arguments. Normally a board instance is created that can
         either be a generic board or a board associated with the debug probe.
         
+        Precedence for user options:
+        1. Keyword arguments to constructor.
+        2. _options_ parameter to constructor.
+        3. Probe-specific options from a config file.
+        4. General options from a config file.
+        5. _option_defaults_ parameter to constructor.
+        
+        Note that the 'project_dir' and 'config' options must be set in either keyword arguments or
+        the _options_ parameter.
+        
         Passing in a _probe_ that is None is allowed. This is useful to create a session that operates
         only as a container for user options. In this case, the board instance is not created, so the
         #board attribute will be None. Such a Session cannot be opened.
         
         @param self
-        @param probe The DebugProbe instance.
+        @param probe The DebugProbe instance. May be None.
         @param options Optional user options dictionary.
+        @param option_defaults Optional dictionary of user option values. This dictionary has the
+            lowest priority in determining final user option values, and is intended to set new
+            defaults for option if they are not set through any other method.
         @param kwargs User options passed as keyword arguments.
         """
         Session._current_session = weakref.ref(self)
@@ -109,13 +122,14 @@ class Session(object):
         self._inited = False
         self._user_script_proxy = None
         self._delegate = None
+        self._options = {}
         
         # Update options.
-        self._options = options or {}
-        self._options.update(kwargs)
+        self._merge_options(kwargs)
+        self._merge_options(options)
         
         # Init project directory.
-        if self._options.get('project_dir', None) is None:
+        if self.option('project_dir') is None:
             self._project_dir = os.getcwd()
         else:
             self._project_dir = os.path.abspath(os.path.expanduser(self._options['project_dir']))
@@ -124,14 +138,17 @@ class Session(object):
         # Apply common configuration settings from the config file.
         config = self._get_config()
         probesConfig = config.pop('probes', None)
-        self._options.update(config)
+        self._merge_options(config)
 
         # Pick up any config file options for this board.
         if (probe is not None) and (probesConfig is not None):
             for uid, settings in probesConfig.items():
                 if str(uid).lower() in probe.unique_id.lower():
-                    LOG.info("Using config settings for board %s" % (probe.unique_id))
-                    self._options.update(settings)
+                    LOG.info("Using config settings for probe %s" % (probe.unique_id))
+                    self._merge_options(settings)
+        
+        # Merge in lowest priority options.
+        self._merge_options(option_defaults)
         
         # Logging config.
         self._configure_logging()
@@ -144,6 +161,21 @@ class Session(object):
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board(self) \
                         or Board(self, self.option('target_override'))
+    
+    def _merge_options(self, new_options):
+        """! @brief Merge in a dictionary of user options.
+        
+        The *current* user option values take precedence over values in the provided dictionary. If
+        an item in `new_options` has a value of None, it is ignored. This ensures that if that
+        option is set by a lower-precedence option source, it will take effect.
+        """
+        if new_options is None:
+            return
+        for name, value in new_options.items():
+            if value is None:
+                continue
+            if name not in self._options:
+                self._options[name] = value
     
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
