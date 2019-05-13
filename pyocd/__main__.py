@@ -67,12 +67,12 @@ DEFAULT_CMD_LOG_LEVEL = {
     'pack':         logging.INFO,
     }
 
-## @brief map to convert erase mode to chip_erase option for gdbserver.
-ERASE_OPTIONS = {
-    'auto': None,
-    'chip': True,
-    'sector': False,
-    }
+## @brief Valid erase mode options.
+ERASE_OPTIONS = [
+    'auto',
+    'chip',
+    'sector',
+    ]
 
 def convert_frequency(value):
     """! @brief Applies scale suffix to frequency value string."""
@@ -197,7 +197,7 @@ class PyOCDTool(object):
         # Create *flash* subcommand parser.
         flashParser = subparsers.add_parser('flash', parents=[commonOptions, connectOptions],
             help="Program an image to device flash.")
-        flashParser.add_argument("-e", "--erase", choices=ERASE_OPTIONS.keys(), default='sector',
+        flashParser.add_argument("-e", "--erase", choices=ERASE_OPTIONS, default='sector',
             help="Choose flash erase method. Default is sector.")
         flashParser.add_argument("-a", "--base-address", metavar="ADDR", type=int_base_0,
             help="Base address used for the address where to flash a binary. Defaults to start of flash.")
@@ -222,7 +222,7 @@ class PyOCDTool(object):
             help="Keep GDB server running even after remote has detached.")
         gdbserverOptions.add_argument("--elf", metavar="PATH",
             help="Optionally specify ELF file being debugged.")
-        gdbserverOptions.add_argument("-e", "--erase", choices=ERASE_OPTIONS.keys(), default='sector',
+        gdbserverOptions.add_argument("-e", "--erase", choices=ERASE_OPTIONS, default='sector',
             help="Choose flash erase method. Default is sector.")
         gdbserverOptions.add_argument("--trust-crc", action="store_true",
             help="Use only the CRC of each page to determine if it already has the same data.")
@@ -455,7 +455,7 @@ class PyOCDTool(object):
             sys.exit(1)
         with session:
             programmer = loader.FileProgrammer(session,
-                                                chip_erase=ERASE_OPTIONS[self._args.erase],
+                                                chip_erase=self._args.erase,
                                                 trust_crc=self._args.trust_crc)
             programmer.program(self._args.file,
                                 base_address=self._args.base_address,
@@ -530,7 +530,7 @@ class PyOCDTool(object):
                 'telnet_port' : self._args.telnet_port,
                 'persist' : self._args.persist,
                 'step_into_interrupt' : self._args.step_into_interrupt,
-                'chip_erase': ERASE_OPTIONS[self._args.erase],
+                'chip_erase': self._args.erase,
                 'fast_program' : self._args.trust_crc,
                 'enable_semihosting' : self._args.enable_semihosting,
                 'serve_local_only' : self._args.serve_local_only,

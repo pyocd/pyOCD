@@ -204,11 +204,11 @@ def main():
 
             # Convert arguments for FileProgrammer.
             if args.chip_erase:
-                chip_erase = True
+                chip_erase = "chip"
             elif args.sector_erase:
-                chip_erase = False
+                chip_erase = "sector"
             else:
-                chip_erase = None
+                chip_erase = "auto"
             
             # Program the file into flash.
             programmer = FileProgrammer(session, chip_erase=chip_erase, trust_crc=args.fast_program)

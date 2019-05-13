@@ -359,8 +359,9 @@ class FlashBuilder(object):
         Data must have already been added with add_data().
         
         @param self
-        @param chip_erase A value of True forces chip erase, False forces sector erase, and a
-            value of None means that the estimated fastest method should be used.
+        @param chip_erase A value of "chip" forces chip erase, "sector" forces sector erase, and a
+            value of "auto" means that the estimated fastest method should be used. If not
+            specified, the default is auto.
         @param progress_cb A callable that accepts a single parameter of the percentage complete.
         @param smart_flash If True, FlashBuilder will scan target memory to attempt to avoid
             programming contents that are not changing with this program request. False forces
@@ -392,6 +393,16 @@ class FlashBuilder(object):
         if len(self.flash_operation_list) == 0:
             LOG.warning("No pages were programmed")
             return
+        
+        # Convert chip_erase.
+        if (chip_erase is None) or (chip_erase == "auto"):
+            chip_erase = None
+        elif chip_erase == "sector":
+            chip_erase = False
+        elif chip_erase == "chip":
+            chip_erase = True
+        else:
+            raise ValueError("invalid chip_erase value '{}'".format(chip_erase))
 
         # Convert the list of flash operations into flash sectors and pages
         self._build_sectors_and_pages(keep_unwritten)

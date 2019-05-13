@@ -71,8 +71,8 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `auto_unlock`: (bool) If the target is locked, it will by default be automatically mass erased in
     order to gain debug access. Set this option to False to disable auto unlock. Default is True.
 
-- `chip_erase`: (bool) Whether to perform a chip erase or sector erases when programming
-    flash. If not set, pyOCD will use the fastest erase method.
+- `chip_erase`: (str) Whether to perform a chip erase or sector erases when programming
+    flash. The value must be one of "auto", "sector", or "chip".
 
 - `config_file`: (str) Relative path to a YAML config file that lets you specify session options
     either globally or per probe. The format of the file is documented above. The default is a

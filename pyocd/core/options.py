@@ -24,8 +24,9 @@ OPTIONS_INFO = {
         "Prevents raising an error if no core were found after CoreSight discovery."),
     'auto_unlock': OptionInfo('auto_unlock', bool, True,
         "Whether to unlock secured target by erasing."),
-    'chip_erase': OptionInfo('chip_erase', bool, False,
-        "Whether to perform a chip erase or sector erases when programming flash."),
+    'chip_erase': OptionInfo('chip_erase', str, "sector",
+        "Whether to perform a chip erase or sector erases when programming flash. The value must be"
+        " one of \"auto\", \"sector\", or \"chip\"."),
     'config_file': OptionInfo('config_file', str, None,
         "Path to custom config file."),
     'debug.log_flm_info': OptionInfo('debug.log_flm_info', bool, False,

@@ -101,11 +101,11 @@ class GDBServerTool(object):
 
     def get_chip_erase(self, args):
         # Determine programming mode
-        chip_erase = None
+        chip_erase = "auto"
         if args.chip_erase:
-            chip_erase = True
+            chip_erase = "chip"
         elif args.sector_erase:
-            chip_erase = False
+            chip_erase = "sector"
         return chip_erase
 
     def get_vector_catch(self, args):

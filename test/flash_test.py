@@ -188,7 +188,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Basic Page Erase ------")
-            info = flash.flash_block(addr, data, False, False, progress_cb=print_progress())
+            info = flash.flash_block(addr, data, False, "sector", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
@@ -198,7 +198,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Basic Chip Erase ------")
-            info = flash.flash_block(addr, data, False, True, progress_cb=print_progress())
+            info = flash.flash_block(addr, data, False, "chip", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_CHIP_ERASE:
                 print("TEST PASSED")
@@ -208,7 +208,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Smart Page Erase ------")
-            info = flash.flash_block(addr, data, True, False, progress_cb=print_progress())
+            info = flash.flash_block(addr, data, True, "sector", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
@@ -218,7 +218,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Smart Chip Erase ------")
-            info = flash.flash_block(addr, data, True, True, progress_cb=print_progress())
+            info = flash.flash_block(addr, data, True, "chip", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_CHIP_ERASE:
                 print("TEST PASSED")
@@ -232,7 +232,7 @@ def flash_test(board_id):
             print("\n------ Test Basic Page Erase (Entire region) ------")
             new_data = list(data)
             new_data.extend(unused * [0x77])
-            info = flash.flash_block(addr, new_data, False, False, progress_cb=print_progress())
+            info = flash.flash_block(addr, new_data, False, "sector", progress_cb=print_progress())
             if info.program_type == FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
                 test_pass_count += 1
