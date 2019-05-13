@@ -328,7 +328,7 @@ class Session(object):
                     'FileProgrammer': pyocd.flash.loader.FileProgrammer,
                     'FlashEraser': pyocd.flash.loader.FlashEraser,
                     'FlashLoader': pyocd.flash.loader.FlashLoader,
-                    'LOG': logging.getLogger(os.path.basename('pyocd.user_script')),
+                    'LOG': logging.getLogger('pyocd.user_script'),
                     }
                 
                 # Executing the code will create definitions in the namespace for any
