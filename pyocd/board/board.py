@@ -52,18 +52,20 @@ class Board(GraphNode):
             self.target = TARGET[self._target_type](session)
         except KeyError as exc:
             six.raise_from(exceptions.TargetSupportError(
-                "Target '%s' not recognized. Use the 'pyocd list --targets' command to see "
-                "all available targets." % self._target_type), exc)
+                "Target type '%s' not recognized. Use 'pyocd list --targets' to see currently "
+                "available target types. "
+                "See <https://github.com/mbedmicro/pyOCD/blob/master/docs/target_support.md> "
+                "for how to install additional target support." % self._target_type), exc)
         
         # Tell the user what target type is selected.
         LOG.info("Target type is %s", self._target_type)
         
         # Log a helpful warning when using the generic cortex_m target.
         if self._target_type == 'cortex_m':
-            LOG.warning("Generic cortex_m target type is selected; is this intentional? "
+            LOG.warning("Generic 'cortex_m' target type is selected; is this intentional? "
                         "You will be able to debug but not program flash. To set the "
                         "target type use the '--target' argument or 'target_override' option. "
-                        "Use 'pyocd list --targets' to see available targets.")
+                        "Use 'pyocd list --targets' to see available targets types.")
         
         self.add_child(self.target)
 
