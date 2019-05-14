@@ -18,6 +18,7 @@ import pytest
 import os
 import sys
 import logging
+from pyocd.core.exceptions import TimeoutError
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.debug import semihost
@@ -64,9 +65,6 @@ def ramrgn(tgt):
         if rgn.is_ram:
             return rgn
     pytest.skip("No RAM available to load test")
-
-class TimeoutError(RuntimeError):
-    pass
 
 def run_til_halt(tgt, semihostagent):
     with ElapsedTimer('run_til_halt', logger=logging.getLogger('root'), loglevel=logging.INFO) as t:

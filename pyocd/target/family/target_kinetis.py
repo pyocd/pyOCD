@@ -151,7 +151,7 @@ class Kinetis(CoreSightTarget):
                     self.dp.assert_reset(False)
                     self.mdm_ap.write_reg(MDM_CTRL, 0)
                     LOG.error("%s: mass erase failed", self.part_number)
-                    raise RuntimeError("unable to unlock device")
+                    raise exceptions.TargetError("unable to unlock device")
                 
                 # Assert that halt on connect was forced above. Reset will stay asserted
                 # until halt on connect is executed.
@@ -173,7 +173,7 @@ class Kinetis(CoreSightTarget):
                     if self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) == (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                         break
                 else:
-                    raise RuntimeError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
+                    raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
 
             # We can now deassert reset.
             self.dp.assert_reset(False)
@@ -192,14 +192,14 @@ class Kinetis(CoreSightTarget):
                     LOG.debug("Waiting for mdm halt")
                     sleep(0.01)
                 else:
-                    raise RuntimeError("Timed out waiting for core to halt")
+                    raise exceptions.TimeoutError("Timed out waiting for core to halt")
 
             # release MDM halt once it has taken effect in the DHCSR
             self.mdm_ap.write_reg(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
             if self.get_state() == Target.TARGET_RUNNING:
-                raise RuntimeError("Target failed to stay halted during init sequence")
+                raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
     def is_locked(self):
         self._wait_for_flash_init()

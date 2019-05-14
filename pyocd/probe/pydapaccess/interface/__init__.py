@@ -16,6 +16,7 @@
 
 import os
 import logging
+from ..dap_access_api import DAPAccessIntf
 from .hidapi_backend import HidApiUSB
 from .pyusb_backend import PyUSB
 from .pyusb_v2_backend import PyUSBv2
@@ -47,7 +48,7 @@ if not USB_BACKEND:
         elif PyWinUSB.isAvailable:
             USB_BACKEND = "pywinusb"
         else:
-            raise Exception("No USB backend found")
+            raise DAPAccessIntf.DeviceError("No USB backend found")
     elif os.name == "posix":
         # Select hidapi for OS X and pyUSB for Linux.
         if os.uname()[0] == 'Darwin':
@@ -55,6 +56,6 @@ if not USB_BACKEND:
         else:
             USB_BACKEND = "pyusb"
     else:
-        raise Exception("No USB backend found")
+        raise DAPAccessIntf.DeviceError("No USB backend found")
 
 USB_BACKEND_V2 = "pyusb_v2"

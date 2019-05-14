@@ -181,9 +181,8 @@ class FlashBuilder(object):
             data must be contained within the flash memory region associated with this instance.
         @param data Data to be programmed. Should be a list of byte values.
         
-        @exception FlashFailure Address range of added data is outside the address range of the
-            flash region associated with the builder.
-        @exception ValueError Attempt to add overlapping data.
+        @exception ValueError Attempt to add overlapping data, or address range of added data is
+            outside the address range of the flash region associated with the builder.
         """
         # Ignore empty data.
         if len(data) == 0:
@@ -191,7 +190,7 @@ class FlashBuilder(object):
         
         # Sanity check
         if not self.flash.region.contains_range(start=addr, length=len(data)):
-            raise FlashFailure("Flash address range 0x%x-0x%x is not contained within region '%s'" %
+            raise ValueError("Flash address range 0x%x-0x%x is not contained within region '%s'" %
                 (addr, addr + len(data) - 1, self.flash.region.name))
 
         # Add operation to list

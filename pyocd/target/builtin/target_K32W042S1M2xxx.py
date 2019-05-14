@@ -16,6 +16,7 @@
 
 from ..family.target_kinetis import Kinetis
 from ...flash.flash import Flash
+from ...core import exceptions
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
@@ -193,7 +194,7 @@ class K32W042S(Kinetis):
                     if self.mdm_ap.read_reg(MDM_CTRL) & (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET) == (MDM_CTRL_DEBUG_REQUEST | MDM_CTRL_CORE_HOLD_RESET):
                         break
                 else:
-                    raise RuntimeError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
+                    raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
 
             # We can now deassert reset.
             self.dp.assert_reset(False)
@@ -212,14 +213,14 @@ class K32W042S(Kinetis):
                     LOG.debug("Waiting for mdm halt")
                     sleep(0.01)
                 else:
-                    raise RuntimeError("Timed out waiting for core to halt")
+                    raise exceptions.TimeoutError("Timed out waiting for core to halt")
 
             # release MDM halt once it has taken effect in the DHCSR
             self.mdm_ap.write_reg(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
             if self.get_state() == Target.TARGET_RUNNING:
-                raise RuntimeError("Target failed to stay halted during init sequence")
+                raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
     def disable_rom_remap(self):
         # Disable ROM vector table remapping.

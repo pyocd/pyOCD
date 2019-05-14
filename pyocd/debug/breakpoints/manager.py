@@ -251,7 +251,7 @@ class BreakpointManager(object):
                     provider = self._providers[type]
                     bp = provider.set_breakpoint(bp.addr)
                 except KeyError:
-                    raise RuntimeError("Unknown breakpoint type %d" % type)
+                    raise ValueError("Unknown breakpoint type %d" % type)
 
                 # Save the bp.
                 if bp is not None:

@@ -168,13 +168,13 @@ class AccessPort(object):
         @param ap_num The AP number (APSEL) to probe.
         @return An AccessPort subclass instance.
         
-        @exception RuntimeError Raised if there is not a valid AP for the ap_num.
+        @exception TargetError Raised if there is not a valid AP for the ap_num.
         """
         # Attempt to read the IDR for this APSEL. If we get a zero back then there is
         # no AP present, so we return None.
         idr = dp.read_ap((ap_num << APSEL_SHIFT) | AP_IDR)
         if idr == 0:
-            raise RuntimeError("Invalid APSEL=%d", ap_num)
+            raise exceptions.TargetError("Invalid APSEL=%d", ap_num)
         
         # Extract IDR fields used for lookup.
         designer = (idr & AP_IDR_JEP106_MASK) >> AP_IDR_JEP106_SHIFT
