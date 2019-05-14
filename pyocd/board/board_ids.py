@@ -124,6 +124,7 @@ BOARD_ID_TO_INFO = {
     "0810": BoardInfo(  "DISCO-F334C8",         "stm32f334c8",      None,                   ),
     "0812": BoardInfo(  "NUCLEO-F722ZE",        "stm32f722ze",      None,                   ),
     "0813": BoardInfo(  "NUCLEO-H743ZI",        "stm32h743zi",      None,                   ),
+    "0814": BoardInfo(  "DISCO-H747I",          "stm32h747xihx",    None,                   ),
     "0815": BoardInfo(  "DISCO-F746NG",         "stm32f746ng",      None,                   ),
     "0816": BoardInfo(  "NUCLEO-F746ZG",        "stm32f746zg",      None,                   ),
     "0817": BoardInfo(  "DISCO-F769NI",         "stm32f769ni",      None,                   ),
