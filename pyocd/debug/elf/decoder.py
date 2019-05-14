@@ -106,20 +106,19 @@ class DwarfAddressDecoder(object):
     def __init__(self, elf):
         assert isinstance(elf, ELFFile)
         self.elffile = elf
+        self.dwarfinfo = None
 
-        if not self.elffile.has_dwarf_info():
-            raise Exception("No DWARF debug info available")
+        self.subprograms = []
+        self.function_tree = IntervalTree()
+        self.line_tree = IntervalTree()
 
-        self.dwarfinfo = self.elffile.get_dwarf_info()
+        if self.elffile.has_dwarf_info():
+            self.dwarfinfo = self.elffile.get_dwarf_info()
 
-        self.subprograms = None
-        self.function_tree = None
-        self.line_tree = None
-
-        # Build indices.
-        self._get_subprograms()
-        self._build_function_search_tree()
-        self._build_line_search_tree()
+            # Build indices.
+            self._get_subprograms()
+            self._build_function_search_tree()
+            self._build_line_search_tree()
 
     def get_function_for_address(self, addr):
         try:
@@ -134,12 +133,10 @@ class DwarfAddressDecoder(object):
             return None
 
     def _get_subprograms(self):
-        self.subprograms = []
         for CU in self.dwarfinfo.iter_CUs():
             self.subprograms.extend([d for d in CU.iter_DIEs() if d.tag == 'DW_TAG_subprogram'])
 
     def _build_function_search_tree(self):
-        self.function_tree = IntervalTree()
         for prog in self.subprograms:
             try:
                 name = prog.attributes['DW_AT_name'].value
@@ -162,7 +159,6 @@ class DwarfAddressDecoder(object):
                 pass
 
     def _build_line_search_tree(self):
-        self.line_tree = IntervalTree()
         for cu in self.dwarfinfo.iter_CUs():
             lineprog = self.dwarfinfo.line_program_for_CU(cu)
             prevstate = None
