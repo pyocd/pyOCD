@@ -333,7 +333,7 @@ class PyOCDTool(object):
             return 0
         except KeyboardInterrupt:
             return 0
-        except exceptions.Error as e:
+        except (exceptions.Error, ValueError, IndexError) as e:
             LOG.critical(e, exc_info=Session.get_current().log_tracebacks)
             return 1
         except Exception as e:

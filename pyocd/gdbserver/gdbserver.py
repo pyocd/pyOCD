@@ -734,7 +734,7 @@ class GDBServer(threading.Thread):
                     self.log.debug("state halted; pc=0x%08x", pc)
                     val = self.get_t_response()
                     break
-            except Exception as e:
+            except exceptions.Error as e:
                 try:
                     self.target.halt()
                 except:

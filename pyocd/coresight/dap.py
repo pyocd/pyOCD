@@ -171,8 +171,8 @@ class DebugPort(object):
                 if not isValid:
                     break
                 apList.append(ap_num)
-            except Exception as e:
-                LOG.error("Exception while probing AP#%d: %s", ap_num, repr(e))
+            except exceptions.Error as e:
+                LOG.error("Exception while probing AP#%d: %s", ap_num, e)
                 break
             ap_num += 1
         
@@ -197,8 +197,8 @@ class DebugPort(object):
         try:
             ap = AccessPort.create(self, ap_num)
             self.aps[ap_num] = ap
-        except Exception as e:
-            LOG.error("Exception reading AP#%d IDR: %s", ap_num, repr(e))
+        except exceptions.Error as e:
+            LOG.error("Exception reading AP#%d IDR: %s", ap_num, e)
     
     def init_ap_roms(self):
         """! @brief Init task that generates a call sequence to init all AP ROMs."""
