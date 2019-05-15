@@ -26,8 +26,8 @@ allow automatically picking the first available probe.
 One of the most useful parameters for `session_with_chosen_probe()` is `unique_id`. Pass whole or
 part of a probe's unique ID (aka serial number) to programmatically select a specific probe.
 
-User session options may be passed to `session_with_chosen_probe()` in two ways. The `options`
-parameter accepts a dictionary of session options. Or, you may pass options as keyword parameters.
+User options may be passed to `session_with_chosen_probe()` in two ways. The `options`
+parameter accepts a dictionary of user options. Or, you may pass options as keyword parameters.
 The two methods may be combined.
 
 
@@ -128,7 +128,7 @@ dp.assert_reset(False)
 ## Notes
 
 NXP Kinetis targets will normally automatically perform a mass erase upon connect if flash security is
-enabled. This can be disabled by setting the `auto_unlock` session option to false.
+enabled. This can be disabled by setting the `auto_unlock` option to false.
 
 You are encouraged to look through the code to see what additional functionality is available. The
 most interesting places to look at are:

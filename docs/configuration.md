@@ -5,7 +5,7 @@ This guide documents how to configure pyOCD and the supported set of options.
 
 ## Introduction
 
-pyOCD allows you to control many aspects of its behaviour by setting session options. There are
+pyOCD allows you to control many aspects of its behaviour by setting user options. There are
 multiple ways to set these options.
 
 - Many of the most commonly used user options have dedicated command line arguments.
@@ -14,6 +14,15 @@ multiple ways to set these options.
 - If you are using the Python API, you may pass any option values directly
     to the `ConnectHelper` methods or `Session` constructor as keyword arguments. You can also
     pass a dictionary for the `options` parameter of these methods.
+
+The priorities of the different user option sources, from highest to lowest:
+
+1. Keyword arguments to the `Session` constructor. Applies to most command-line arguments.
+2. _options_ parameter to constructor. Applies to `-O` command-line arguments.
+3. Probe-specific options from a config file.
+4. General options from a config file.
+5. _option_defaults_ parameter to constructor. Used only in rare cases.
+
 
 ## Project directory
 
@@ -28,25 +37,25 @@ uses the filename as-is. Otherwise, it looks for the file in the project directo
 
 ## Config file
 
-pyOCD supports a YAML configuration file that lets you set session options that either apply to
+pyOCD supports a YAML configuration file that lets you set user options that either apply to
 all probes or to a single probe, based on the probe's unique ID.
 
 The easiest way to use a config file is to place a `pyocd.yaml` file in the project directory.
 An alternate `.yml` extension and
 optional dot prefix on the config file name are allowed. Alternatively, you can use the
 `--config` command line option, for instance `--config=myconfig.yaml`. Finally, you can set the
-`config_file` session option.
+`config_file` option.
 
 The top level of the YAML file is a dictionary. The keys in the top-level dictionary must be names
-of session options, or the key `probes`. Session options are set to the value corresponding to the
+of user options, or the key `probes`. User options are set to the value corresponding to the
 dictionary entry. Unrecognized option names are ignored.
 
 If there is a top-level `probes` key, its value must be a dictionary with keys that match a
 substring of debug probe unique IDs. Usually you would just use the complete unique ID shown by
 listing connected boards (i.e., `pyocd list`). The values for the unique ID entries are
-dictionaries containing session options, just like the top level of the YAML file. Of course, these
-session options are only applied when connecting with the given probe. If the probe unique ID
-substring listed in the config file matches more than one probe, the corresponding session options
+dictionaries containing user options, just like the top level of the YAML file. Of course, these
+options are only applied when connecting with the given probe. If the probe unique ID
+substring listed in the config file matches more than one probe, the corresponding options
 will be applied to all matching probes.
 
 Options set in the config file will override any options set via the command line.
@@ -64,7 +73,13 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 ````
 
 
-## Options list
+## User options list
+
+### General options
+
+Note that the `project_dir`, `no_config`, and `config` options must come from one of the first two
+sources list in the introduction (passed to the `Session` constructor) due to how early they are
+processed.
 
 - `allow_no_cores`: (bool) Prevents raising an error if no core were found after CoreSight discovery. Default is False.
 
@@ -74,7 +89,7 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `chip_erase`: (str) Whether to perform a chip erase or sector erases when programming
     flash. The value must be one of "auto", "sector", or "chip".
 
-- `config_file`: (str) Relative path to a YAML config file that lets you specify session options
+- `config_file`: (str) Relative path to a YAML config file that lets you specify user options
     either globally or per probe. The format of the file is documented above. The default is a
     `pyocd.yaml` or `pyocd.yml` file in the working directory.
 
@@ -130,9 +145,9 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 - `user_script`: (str) Path of the user script file.
 
 
-## GDB server options list
+### GDB server options
 
-These session options are currently only applied when running the GDB server.
+These user options are currently only applied when running the GDB server.
 
 - `enable_semihosting`: (bool) Set to True to handle semihosting requests. Also see the
     `semihost_console_type` option. Default is False.

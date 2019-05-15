@@ -115,7 +115,7 @@ class PyOCDTool(object):
         
         parser.add_argument('-V', '--version', action='version', version=__version__)
         parser.add_argument('--help-options', action='store_true',
-            help="Display available session options.")
+            help="Display available user options.")
         
         # Define logging related options.
         loggingOptions = argparse.ArgumentParser(description='logging', add_help=False)
@@ -380,7 +380,7 @@ class PyOCDTool(object):
             ConnectHelper.list_connected_probes()
         elif self._args.targets:
             # Create targets from provided CMSIS pack.
-            if ('pack' in session.options) and (session.options['pack'] is not None):
+            if session.options['pack'] is not None:
                 pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
             obj = ListGenerator.list_targets()
@@ -423,7 +423,7 @@ class PyOCDTool(object):
         
         if self._args.targets or self._args.boards:
             # Create targets from provided CMSIS pack.
-            if ('pack' in session.options) and (session.options['pack'] is not None):
+            if session.options['pack'] is not None:
                 pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
         if self._args.probes:
