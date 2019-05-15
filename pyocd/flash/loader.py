@@ -25,6 +25,7 @@ import errno
 
 from .flash_builder import (FlashBuilder, get_page_count, get_sector_count)
 from ..core.memory_map import MemoryType
+from ..core import exceptions
 from ..utility.progress import print_progress
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 from ..utility.compatibility import FileNotFoundError_
@@ -170,7 +171,10 @@ class FileProgrammer(object):
         # If no base address is specified use the start of the boot memory.
         address = kwargs.get('base_address', None)
         if address is None:
-            address = self._session.target.memory_map.get_boot_memory().start
+            boot_memory = self._session.target.memory_map.get_boot_memory()
+            if boot_memory is None:
+                raise exceptions.TargetSupportError("No boot memory is defined for this device")
+            address = boot_memory.start
         
         file_obj.seek(kwargs.get('skip', 0), os.SEEK_SET)
         data = list(bytearray(file_obj.read()))
@@ -318,7 +322,7 @@ class FlashEraser(object):
                 sector_info = flash.get_sector_info(sector_addr)
                 if not sector_info:
                     # Should not fail to get sector info within a flash region.
-                    raise RuntimeError("sector address 0x%08x within flash region '%s' is invalid" % (sector_addr, region.name))
+                    raise exceptions.InternalError("sector address 0x%08x within flash region '%s' is invalid" % (sector_addr, region.name))
                 
                 # Align first page address.
                 delta = sector_addr % sector_info.size
@@ -441,7 +445,7 @@ class FlashLoader(object):
             calls or a call to commit().
         
         @exception ValueError Raised when the address is not within a flash memory region.
-        @exception RuntimeError Raised if the flash memory region does not have a valid Flash
+        @exception TargetSupportError Raised if the flash memory region does not have a valid Flash
             instance associated with it, which indicates that the target connect sequence did
             not run successfully.
         """
@@ -458,7 +462,7 @@ class FlashLoader(object):
                 builder = self._builders[region]
             else:
                 if region.flash is None:
-                    raise RuntimeError("flash memory region at address 0x%08x has no flash instance" % address)
+                    raise exceptions.TargetSupportError("flash memory region at address 0x%08x has no flash instance" % address)
                 builder = region.flash.get_flash_builder()
                 builder.log_performance = False
                 self._builders[region] = builder

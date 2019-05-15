@@ -442,8 +442,8 @@ class SemihostAgent(object):
             except NotImplementedError:
                 LOG.warning("Semihost: unimplemented request pc=%x r0=%x r1=%x", pc, op, args)
                 result = -1
-            except Exception as e:
-                LOG.warning("Exception while handling semihost request: %s", e,
+            except (exceptions.Error, IOError) as e:
+                LOG.error("Exception while handling semihost request: %s", e,
                     exc_info=session.Session.get_current().log_tracebacks)
                 result = -1
         else:

@@ -395,7 +395,7 @@ class CortexM(Target, CoreSightComponent):
         
         # Associate this core with the AP.
         if ap.core is not None:
-            raise RuntimeError("AP#%d has multiple cores associated with it" % ap.ap_num)
+            raise exceptions.TargetError("AP#%d has multiple cores associated with it" % ap.ap_num)
         ap.core = core
         
         # Add the new core to the root target.
@@ -818,6 +818,7 @@ class CortexM(Target, CoreSightComponent):
 
     def _perform_reset(self, reset_type):
         """! @brief Perform a reset of the specified type."""
+        assert isinstance(reset_type, Target.ResetType)
         if reset_type is Target.ResetType.HW:
             self.session.probe.reset()
         elif reset_type is Target.ResetType.SW_EMULATED:
@@ -828,7 +829,7 @@ class CortexM(Target, CoreSightComponent):
             elif reset_type is Target.ResetType.SW_VECTRESET:
                 mask = CortexM.NVIC_AIRCR_VECTRESET
             else:
-                raise RuntimeError("internal error, unhandled reset type")
+                raise exceptions.InternalError("unhandled reset type")
         
             try:
                 self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)

@@ -18,6 +18,14 @@ class Error(RuntimeError):
     """! @brief Parent of all errors pyOCD can raise"""
     pass
 
+class InternalError(Error):
+    """! @brief Any sort of timeout"""
+    pass
+
+class TimeoutError(Error):
+    """! @brief Any sort of timeout"""
+    pass
+
 class TargetSupportError(Error):
     """! @brief Error related to target support"""
     pass

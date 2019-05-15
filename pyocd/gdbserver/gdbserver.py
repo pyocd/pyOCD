@@ -91,6 +91,10 @@ def escape(data):
             result += c
     return result
 
+class GDBError(exceptions.Error):
+    """! @brief Error communicating with GDB."""
+    pass
+
 class ConnectionClosedException(Exception):
     """! @brief Exception used to signal the GDB server connection closed."""
     pass
@@ -730,7 +734,7 @@ class GDBServer(threading.Thread):
                     self.log.debug("state halted; pc=0x%08x", pc)
                     val = self.get_t_response()
                     break
-            except Exception as e:
+            except exceptions.Error as e:
                 try:
                     self.target.halt()
                 except:
@@ -1085,13 +1089,13 @@ class GDBServer(threading.Thread):
         # Parse symbol value reply packet.
         packet = packet[1:-3]
         if not packet.startswith(b'qSymbol:'):
-            raise RuntimeError("Got unexpected response from gdb when asking for symbol value")
+            raise GDBError("Got unexpected response from gdb when asking for symbol value")
         packet = packet[8:]
         symValue, symName = packet.split(b':')
 
         symName = hex_decode(symName)
         if symName != name:
-            raise RuntimeError("Symbol value reply from gdb has unexpected symbol name")
+            raise GDBError("Symbol value reply from gdb has unexpected symbol name")
         if symValue:
             symValue = hex8_to_u32le(symValue)
         else:
@@ -1205,15 +1209,14 @@ class GDBServer(threading.Thread):
         elif query == b'threads':
             xml = self.get_threads_xml()
         else:
-            raise RuntimeError("Invalid XML query (%s)" % query)
+            raise GDBError("Invalid XML query (%s)" % query)
 
         size_xml = len(xml)
 
         prefix = b'm'
 
         if offset > size_xml:
-            self.log.error('GDB: xml offset > size for %s!', query)
-            return
+            raise GDBError('GDB: xml offset > size for %s!', query)
 
         if size > (self.packet_size - 4):
             size = self.packet_size - 4

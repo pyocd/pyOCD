@@ -333,7 +333,7 @@ class PyOCDTool(object):
             return 0
         except KeyboardInterrupt:
             return 0
-        except exceptions.Error as e:
+        except (exceptions.Error, ValueError, IndexError) as e:
             LOG.critical(e, exc_info=Session.get_current().log_tracebacks)
             return 1
         except Exception as e:
@@ -438,7 +438,7 @@ class PyOCDTool(object):
     
     def do_flash(self):
         """! @brief Handle 'flash' subcommand."""
-        self._increase_logging(["pyocd.tools.loader", "pyocd", "pyocd.flash", "pyocd.flash.flash", "pyocd.flash.flash_builder"])
+        self._increase_logging(["pyocd.flash.loader"])
         
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
@@ -464,7 +464,7 @@ class PyOCDTool(object):
     
     def do_erase(self):
         """! @brief Handle 'erase' subcommand."""
-        self._increase_logging(["pyocd.tools.loader", "pyocd"])
+        self._increase_logging(["pyocd.flash.loader"])
         
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
