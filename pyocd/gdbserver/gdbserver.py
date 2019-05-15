@@ -280,21 +280,21 @@ class GDBServer(threading.Thread):
         self.name = "gdb-server-core%d" % self.core
         self.log = LOG.getChild('gdbserver')
         self.abstract_socket = None
-        self.port = session.options.get('gdbserver_port', 3333)
+        self.port = session.options.get('gdbserver_port')
         if self.port != 0:
             self.port += self.core
-        self.telnet_port = session.options.get('telnet_port', 4444)
+        self.telnet_port = session.options.get('telnet_port')
         if self.telnet_port != 0:
             self.telnet_port += self.core
-        self.vector_catch = session.options.get('vector_catch', "h")
+        self.vector_catch = session.options.get('vector_catch')
         self.target.set_vector_catch(convert_vector_catch(self.vector_catch))
-        self.step_into_interrupt = session.options.get('step_into_interrupt', False)
-        self.persist = session.options.get('persist', False)
-        self.enable_semihosting = session.options.get('enable_semihosting', False)
-        self.semihost_console_type = session.options.get('semihost_console_type', 'telnet')
-        self.semihost_use_syscalls = session.options.get('semihost_use_syscalls', False)
-        self.serve_local_only = session.options.get('serve_local_only', True)
-        self.report_core = session.options.get('report_core_number', False)
+        self.step_into_interrupt = session.options.get('step_into_interrupt')
+        self.persist = session.options.get('persist')
+        self.enable_semihosting = session.options.get('enable_semihosting')
+        self.semihost_console_type = session.options.get('semihost_console_type')
+        self.semihost_use_syscalls = session.options.get('semihost_use_syscalls')
+        self.serve_local_only = session.options.get('serve_local_only')
+        self.report_core = session.options.get('report_core_number')
         self.server_listening_callback = server_listening_callback
         self.packet_size = 2048
         self.packet_io = None
@@ -343,7 +343,7 @@ class GDBServer(threading.Thread):
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
         
         self._swv_reader = None
-        if session.options.get("enable_swv", False):
+        if session.options.get("enable_swv"):
             if "swv_system_clock" not in session.options:
                 self.log.warning("Cannot enable SWV due to missing swv_system_clock option")
             else:

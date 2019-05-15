@@ -403,20 +403,20 @@ class FlashLoader(object):
 
         if progress is not None:
             self._progress = progress
-        elif session.options.get('hide_programming_progress', False):
+        elif session.options.get('hide_programming_progress'):
             self._progress = None
         else:
             self._progress = print_progress()
 
         # We have to use a special sentinel object for chip_erase because None is a valid value.
         self._chip_erase = chip_erase if (chip_erase is not None) \
-                            else self._session.options.get('chip_erase', "auto")
+                            else self._session.options.get('chip_erase')
         self._smart_flash = smart_flash if (smart_flash is not None) \
-                            else self._session.options.get('smart_flash', True)
+                            else self._session.options.get('smart_flash')
         self._trust_crc = trust_crc if (trust_crc is not None) \
-                            else self._session.options.get('fast_program', False)
+                            else self._session.options.get('fast_program')
         self._keep_unwritten = keep_unwritten if (keep_unwritten is not None) \
-                            else self._session.options.get('keep_unwritten', True)
+                            else self._session.options.get('keep_unwritten')
         
         self._reset_state()
     

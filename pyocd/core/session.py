@@ -27,7 +27,7 @@ try:
 except ImportError:
     from inspect import getargspec
 
-from .options import OPTIONS_INFO
+from .options_manager import OptionsManager
 from ..board.board import Board
 
 LOG = logging.getLogger(__name__)
@@ -122,33 +122,33 @@ class Session(object):
         self._inited = False
         self._user_script_proxy = None
         self._delegate = None
-        self._options = {}
+        self._options = OptionsManager(self)
         
         # Update options.
-        self._merge_options(kwargs)
-        self._merge_options(options)
+        self._options.add_front(kwargs)
+        self._options.add_back(options)
         
         # Init project directory.
-        if self.option('project_dir') is None:
+        if self.options.get('project_dir') is None:
             self._project_dir = os.getcwd()
         else:
-            self._project_dir = os.path.abspath(os.path.expanduser(self._options['project_dir']))
+            self._project_dir = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
             
         # Apply common configuration settings from the config file.
         config = self._get_config()
         probesConfig = config.pop('probes', None)
-        self._merge_options(config)
+        self._options.add_back(config)
 
         # Pick up any config file options for this board.
         if (probe is not None) and (probesConfig is not None):
             for uid, settings in probesConfig.items():
                 if str(uid).lower() in probe.unique_id.lower():
                     LOG.info("Using config settings for probe %s" % (probe.unique_id))
-                    self._merge_options(settings)
+                    self._options.add_back(settings)
         
         # Merge in lowest priority options.
-        self._merge_options(option_defaults)
+        self._options.add_back(option_defaults)
         
         # Logging config.
         self._configure_logging()
@@ -160,26 +160,11 @@ class Session(object):
             
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board(self) \
-                        or Board(self, self.option('target_override'))
-    
-    def _merge_options(self, new_options):
-        """! @brief Merge in a dictionary of user options.
-        
-        The *current* user option values take precedence over values in the provided dictionary. If
-        an item in `new_options` has a value of None, it is ignored. This ensures that if that
-        option is set by a lower-precedence option source, it will take effect.
-        """
-        if new_options is None:
-            return
-        for name, value in new_options.items():
-            if value is None:
-                continue
-            if name not in self._options:
-                self._options[name] = value
+                        or Board(self, self.options.get('target_override'))
     
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
-        if not self.option('no_config'):
+        if not self.options.get('no_config'):
             configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
             if isinstance(configPath, six.string_types):
@@ -195,7 +180,7 @@ class Session(object):
     def find_user_file(self, option_name, filename_list):
         """! @brief Search the project directory for a file."""
         if option_name is not None:
-            filePath = self.option(option_name)
+            filePath = self.options.get(option_name)
         else:
             filePath = None
         
@@ -218,7 +203,7 @@ class Session(object):
     def _configure_logging(self):
         """! @brief Load a logging config dict or file."""
         # Get logging config that could have been loaded from the config file.
-        config = self.option('logging')
+        config = self.options.get('logging')
         
         # Allow logging setting to refer to another file.
         if isinstance(config, six.string_types):
@@ -285,12 +270,7 @@ class Session(object):
     @property
     def log_tracebacks(self):
         """! @brief Quick access to debug.traceback option since it is widely used."""
-        return self.option('debug.traceback')
-    
-    def option(self, name):
-        if name not in OPTIONS_INFO:
-            raise KeyError("unknown option '{}'".format(name))
-        return self._options.get(name, OPTIONS_INFO[name].default)
+        return self.options.get('debug.traceback')
 
     def __enter__(self):
         assert self._probe is not None
@@ -367,7 +347,7 @@ class Session(object):
             self._load_user_script()
             
             self._probe.open()
-            self._probe.set_clock(self.option('frequency'))
+            self._probe.set_clock(self.options.get('frequency'))
             if init_board:
                 self._board.init()
                 self._inited = True

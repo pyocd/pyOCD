@@ -35,12 +35,12 @@ class Board(GraphNode):
             target = 'cortex_m'
         self._session = session
         self._target_type = target.lower()
-        self._test_binary = session.options.get('test_binary', None)
+        self._test_binary = session.options.get('test_binary')
         self._delegate = None
         self._inited = False
         
         # Create targets from provided CMSIS pack.
-        if ('pack' in session.options) and (session.options['pack'] is not None):
+        if session.options['pack'] is not None:
             pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
         # Create targets from the cmsis-pack-manager cache.
@@ -92,7 +92,7 @@ class Board(GraphNode):
         if self._inited:
             LOG.debug("uninit board %s", self)
             try:
-                resume = self.session.options.get('resume_on_disconnect', True)
+                resume = self.session.options.get('resume_on_disconnect')
                 self.target.disconnect(resume)
                 self._inited = False
             except:

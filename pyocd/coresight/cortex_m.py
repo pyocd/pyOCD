@@ -426,7 +426,7 @@ class CortexM(Target, CoreSightComponent):
         # Select default sw reset type based on whether multicore debug is enabled and which core
         # this is.
         self._default_software_reset_type = Target.ResetType.SW_SYSRESETREQ \
-                    if (not self.session.options.get('enable_multicore_debug', False)) or (self.core_number == 0) \
+                    if (not self.session.options.get('enable_multicore_debug')) or (self.core_number == 0) \
                     else Target.ResetType.SW_VECTRESET
 
         # Set up breakpoints manager.
@@ -790,12 +790,12 @@ class CortexM(Target, CoreSightComponent):
         # Default to reset_type session option if reset_type parameter is None. If the session
         # option isn't set, then use the core's default reset type.
         if reset_type is None:
-            if 'reset_type' not in self.session.options:
+            if self.session.options.get('reset_type') is None:
                 reset_type = self.default_reset_type
             else:
                 try:
                     # Convert session option value to enum.
-                    resetOption = self.session.options['reset_type']
+                    resetOption = self.session.options.get('reset_type')
                     reset_type = cmdline.convert_reset_type(resetOption)
                     
                     # The converted option will be None if the option value is 'default'.
