@@ -97,7 +97,7 @@ def flash_loader_test(board_id):
         data_length = len(data)
         
         print("\n------ Test Basic Load ------")
-        loader = FlashLoader(session, chip_erase=False)
+        loader = FlashLoader(session, chip_erase="sector")
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
@@ -116,7 +116,7 @@ def flash_loader_test(board_id):
         else:
             orig_data_length = data_length
         
-        loader = FlashLoader(session, chip_erase=False)
+        loader = FlashLoader(session, chip_erase="sector")
         loader.add_data(addr, test_data)
         loader.add_data(addr + boot_blocksize, test_data)
         loader.commit()
@@ -143,7 +143,7 @@ def flash_loader_test(board_id):
         test_count += 1
         
         print("\n------ Test Load Chip Erase ------")
-        loader = FlashLoader(session, chip_erase=True)
+        loader = FlashLoader(session, chip_erase="chip")
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)

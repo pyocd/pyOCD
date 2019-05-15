@@ -32,9 +32,6 @@ from ..utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
 
-## Sentinel object used to identify an unset chip_erase parameter.
-CHIP_ERASE_SENTINEL = object()
-
 def ranges(i):
     """!
     Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
@@ -60,7 +57,7 @@ class FileProgrammer(object):
     - Intel Hex (.hex)
     - ELF (.elf or .axf)
     """
-    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, smart_flash=None,
+    def __init__(self, session, progress=None, chip_erase=None, smart_flash=None,
         trust_crc=None, keep_unwritten=None):
         """! @brief Constructor.
         
@@ -70,8 +67,7 @@ class FileProgrammer(object):
             If not set or None, a default progress handler will be used unless the session option
             'hide_programming_progress' is set to True, in which case progress will be disabled.
         @param chip_erase Sets whether to use chip erase or sector erase. The value must be one of
-            None, True, or False. None means the fastest erase method should be used. True means
-            to force chip erase, while False means force sector erase.
+            "auto", "sector", or "chip". "auto" means the fastest erase method should be used.
         @param smart_flash If set to True, the programmer will attempt to not program pages whose
             contents are not going to change by scanning target flash memory. A value of False will
             force all pages to be erased and programmed.
@@ -380,7 +376,7 @@ class FlashLoader(object):
     
     Internally, FlashBuilder is used to optimise programming within each memory region.
     """
-    def __init__(self, session, progress=None, chip_erase=CHIP_ERASE_SENTINEL, smart_flash=None,
+    def __init__(self, session, progress=None, chip_erase=None, smart_flash=None,
         trust_crc=None, keep_unwritten=None):
         """! @brief Constructor.
         
@@ -390,8 +386,7 @@ class FlashLoader(object):
             If not set or None, a default progress handler will be used unless the session option
             'hide_programming_progress' is set to True, in which case progress will be disabled.
         @param chip_erase Sets whether to use chip erase or sector erase. The value must be one of
-            None, True, or False. None means the fastest erase method should be used. True means
-            to force chip erase, while False means force sector erase.
+            "auto", "sector", or "chip". "auto" means the fastest erase method should be used.
         @param smart_flash If set to True, the flash loader will attempt to not program pages whose
             contents are not going to change by scanning target flash memory. A value of False will
             force all pages to be erased and programmed.
@@ -408,20 +403,20 @@ class FlashLoader(object):
 
         if progress is not None:
             self._progress = progress
-        elif session.options.get('hide_programming_progress', False):
+        elif session.options.get('hide_programming_progress'):
             self._progress = None
         else:
             self._progress = print_progress()
 
         # We have to use a special sentinel object for chip_erase because None is a valid value.
-        self._chip_erase = chip_erase if (chip_erase is not CHIP_ERASE_SENTINEL) \
-                            else self._session.options.get('chip_erase', False)
+        self._chip_erase = chip_erase if (chip_erase is not None) \
+                            else self._session.options.get('chip_erase')
         self._smart_flash = smart_flash if (smart_flash is not None) \
-                            else self._session.options.get('smart_flash', True)
+                            else self._session.options.get('smart_flash')
         self._trust_crc = trust_crc if (trust_crc is not None) \
-                            else self._session.options.get('fast_program', False)
+                            else self._session.options.get('fast_program')
         self._keep_unwritten = keep_unwritten if (keep_unwritten is not None) \
-                            else self._session.options.get('keep_unwritten', True)
+                            else self._session.options.get('keep_unwritten')
         
         self._reset_state()
     
@@ -501,7 +496,7 @@ class FlashLoader(object):
             self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
             
             # Program the data.
-            chipErase = self._chip_erase if not didChipErase else False
+            chipErase = self._chip_erase if not didChipErase else "sector"
             perf = builder.program(chip_erase=chipErase,
                                     progress_cb=self._progress_cb,
                                     smart_flash=self._smart_flash,

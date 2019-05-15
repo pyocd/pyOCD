@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..board.board import Board
 import logging
 import logging.config
 import six
@@ -28,7 +27,8 @@ try:
 except ImportError:
     from inspect import getargspec
 
-DEFAULT_CLOCK_FREQ = 1000000 # 1 MHz
+from .options_manager import OptionsManager
+from ..board.board import Board
 
 LOG = logging.getLogger(__name__)
 
@@ -86,20 +86,33 @@ class Session(object):
         else:
             return Session(None)
 
-    def __init__(self, probe, options=None, **kwargs):
+    def __init__(self, probe, options=None, option_defaults=None, **kwargs):
         """! @brief Session constructor.
         
         Creates a new session using the provided debug probe. User options are merged from the
         _options_ parameter and any keyword arguments. Normally a board instance is created that can
         either be a generic board or a board associated with the debug probe.
         
+        Precedence for user options:
+        1. Keyword arguments to constructor.
+        2. _options_ parameter to constructor.
+        3. Probe-specific options from a config file.
+        4. General options from a config file.
+        5. _option_defaults_ parameter to constructor.
+        
+        Note that the 'project_dir' and 'config' options must be set in either keyword arguments or
+        the _options_ parameter.
+        
         Passing in a _probe_ that is None is allowed. This is useful to create a session that operates
         only as a container for user options. In this case, the board instance is not created, so the
         #board attribute will be None. Such a Session cannot be opened.
         
         @param self
-        @param probe The DebugProbe instance.
+        @param probe The DebugProbe instance. May be None.
         @param options Optional user options dictionary.
+        @param option_defaults Optional dictionary of user option values. This dictionary has the
+            lowest priority in determining final user option values, and is intended to set new
+            defaults for option if they are not set through any other method.
         @param kwargs User options passed as keyword arguments.
         """
         Session._current_session = weakref.ref(self)
@@ -109,29 +122,33 @@ class Session(object):
         self._inited = False
         self._user_script_proxy = None
         self._delegate = None
+        self._options = OptionsManager(self)
         
         # Update options.
-        self._options = options or {}
-        self._options.update(kwargs)
+        self._options.add_front(kwargs)
+        self._options.add_back(options)
         
         # Init project directory.
-        if self._options.get('project_dir', None) is None:
+        if self.options.get('project_dir') is None:
             self._project_dir = os.getcwd()
         else:
-            self._project_dir = os.path.abspath(os.path.expanduser(self._options['project_dir']))
+            self._project_dir = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
             
         # Apply common configuration settings from the config file.
         config = self._get_config()
         probesConfig = config.pop('probes', None)
-        self._options.update(config)
+        self._options.add_back(config)
 
         # Pick up any config file options for this board.
         if (probe is not None) and (probesConfig is not None):
             for uid, settings in probesConfig.items():
                 if str(uid).lower() in probe.unique_id.lower():
-                    LOG.info("Using config settings for board %s" % (probe.unique_id))
-                    self._options.update(settings)
+                    LOG.info("Using config settings for probe %s" % (probe.unique_id))
+                    self._options.add_back(settings)
+        
+        # Merge in lowest priority options.
+        self._options.add_back(option_defaults)
         
         # Logging config.
         self._configure_logging()
@@ -143,11 +160,11 @@ class Session(object):
             
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board(self) \
-                        or Board(self, self._options.get('target_override', None))
+                        or Board(self, self.options.get('target_override'))
     
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
-        if not self._options.get('no_config', False):
+        if not self.options.get('no_config'):
             configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
             if isinstance(configPath, six.string_types):
@@ -163,7 +180,7 @@ class Session(object):
     def find_user_file(self, option_name, filename_list):
         """! @brief Search the project directory for a file."""
         if option_name is not None:
-            filePath = self._options.get(option_name, None)
+            filePath = self.options.get(option_name)
         else:
             filePath = None
         
@@ -185,25 +202,21 @@ class Session(object):
     
     def _configure_logging(self):
         """! @brief Load a logging config dict or file."""
-        config = None
+        # Get logging config that could have been loaded from the config file.
+        config = self.options.get('logging')
         
-        if 'logging' in self._options:
-            # Get logging config that could have been loaded from the config file.
-            configValue = self._options['logging']
+        # Allow logging setting to refer to another file.
+        if isinstance(config, six.string_types):
+            loggingConfigPath = self.find_user_file(None, [config])
             
-            # Allow logging setting to refer to another file.
-            if isinstance(configValue, six.string_types):
-                loggingConfigPath = self.find_user_file(None, [configValue])
-                
-                if loggingConfigPath is not None:
-                    try:
-                        with open(loggingConfigPath, 'r') as configFile:
-                            config = yaml.safe_load(configFile)
-                            LOG.debug("Using logging configuration from: %s", configValue)
-                    except IOError as err:
-                        LOG.warning("Error attempting to load logging config file '%s': %s", configValue, err)
-            else:
-                config = configValue
+            if loggingConfigPath is not None:
+                try:
+                    with open(loggingConfigPath, 'r') as configFile:
+                        config = yaml.safe_load(configFile)
+                        LOG.debug("Using logging configuration from: %s", config)
+                except IOError as err:
+                    LOG.warning("Error attempting to load logging config file '%s': %s", config, err)
+                    return
 
         if config is not None:
             # Stuff a version key if it's missing, to make it easier to use.
@@ -257,7 +270,7 @@ class Session(object):
     @property
     def log_tracebacks(self):
         """! @brief Quick access to debug.traceback option since it is widely used."""
-        return self._options.get('debug.traceback', True)
+        return self.options.get('debug.traceback')
 
     def __enter__(self):
         assert self._probe is not None
@@ -295,7 +308,7 @@ class Session(object):
                     'FileProgrammer': pyocd.flash.loader.FileProgrammer,
                     'FlashEraser': pyocd.flash.loader.FlashEraser,
                     'FlashLoader': pyocd.flash.loader.FlashLoader,
-                    'LOG': logging.getLogger(os.path.basename('pyocd.user_script')),
+                    'LOG': logging.getLogger('pyocd.user_script'),
                     }
                 
                 # Executing the code will create definitions in the namespace for any
@@ -334,7 +347,7 @@ class Session(object):
             self._load_user_script()
             
             self._probe.open()
-            self._probe.set_clock(self._options.get('frequency', DEFAULT_CLOCK_FREQ))
+            self._probe.set_clock(self.options.get('frequency'))
             if init_board:
                 self._board.init()
                 self._inited = True

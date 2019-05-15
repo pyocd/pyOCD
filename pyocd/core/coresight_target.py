@@ -168,7 +168,7 @@ class CoreSightTarget(Target, GraphNode):
                 if flmPath is not None:
                     LOG.info("creating flash algo from: %s", flmPath)
                     packAlgo = PackFlashAlgo(flmPath)
-                    if self.session.options.get("debug.log_flm_info", False):
+                    if self.session.options.get("debug.log_flm_info"):
                         LOG.debug("Flash algo info: %s", packAlgo.flash_info)
                     page_size = packAlgo.page_size
                     if page_size <= 32:
@@ -228,7 +228,7 @@ class CoreSightTarget(Target, GraphNode):
         """! @brief Init task: verify that at least one core was discovered."""
         if not len(self.cores):
             # Allow the user to override the exception to enable uses like chip bringup.
-            if self.session.options.get('allow_no_cores', False):
+            if self.session.options.get('allow_no_cores'):
                 LOG.error("No cores were discovered!")
             else:
                 raise exceptions.DebugError("No cores were discovered!")

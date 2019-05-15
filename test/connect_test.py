@@ -135,7 +135,7 @@ def connect_test(board):
     live_board.target.reset()
     test_count += 1
     print("Verifying target is running")
-    if live_board.target.is_running():
+    if live_board.target.is_running() or live_board.target.get_state() == Target.TARGET_SLEEPING:
         test_pass_count += 1
         print("TEST PASSED")
     else:

@@ -52,8 +52,6 @@ LEVELS = {
 board = None
 
 supported_formats = ['bin', 'hex', 'elf']
-supported_targets = list(target.TARGET.keys())
-supported_targets.remove('cortex_m')  # No generic programming
 
 DEBUG_LEVELS = list(LEVELS.keys())
 
@@ -76,7 +74,7 @@ parser.add_argument('--version', action='version', version=__version__)
 # reserved: "-p", "--port"
 # reserved: "-c", "--cmd-port"
 parser.add_argument('--config', metavar="PATH", default=None, help="Use a YAML config file.")
-parser.add_argument("--no-config", action="store_true", help="Do not use a configuration file.")
+parser.add_argument("--no-config", action="store_true", default=None, help="Do not use a configuration file.")
 parser.add_argument("--pack", metavar="PATH", help="Path to a CMSIS Device Family Pack")
 parser.add_argument("-b", "--board", dest="board_id", default=None,
                     help="Connect to board by board ID. Use -l to list all connected boards. Only a unique part of the board ID needs to be provided.")
@@ -85,13 +83,13 @@ parser.add_argument("-l", "--list", action="store_true", dest="list_all", defaul
 parser.add_argument("-d", "--debug", dest="debug_level", choices=DEBUG_LEVELS, default='info',
                     help="Set the level of system logging output. Supported choices are: " + ", ".join(DEBUG_LEVELS),
                     metavar="LEVEL")
-parser.add_argument("-t", "--target", dest="target_override", choices=supported_targets, default=None,
-                    help="Override target to debug.  Supported targets are: " + ", ".join(supported_targets),
+parser.add_argument("-t", "--target", dest="target_override", default=None,
+                    help="Override target to debug.",
                     metavar="TARGET")
 # reserved: "-n", "--nobreak"
 # reserved: "-r", "--reset-break"
 # reserved: "-s", "--step-int"
-parser.add_argument("-f", "--frequency", dest="frequency", default=1000000, type=int,
+parser.add_argument("-f", "--frequency", dest="frequency", default=None, type=int,
                     help="Set the SWD clock frequency in Hz.")
 # reserved: "-o", "--persist"
 # reserved: "-k", "--soft-bkpt-as-hard"
@@ -105,8 +103,8 @@ parser.add_argument("-n", "--count", default=1, type=int_base_0,
                     help="Number of sectors to erase. Only applies to sector erase. Default is 1.")
 parser.add_argument("-s", "--skip", default=0, type=int_base_0,
                     help="Skip programming the first N bytes.  This can only be used with binary files")
-parser.add_argument("-hp", "--hide_progress", action="store_true", help="Don't display programming progress.")
-parser.add_argument("-fp", "--fast_program", action="store_true",
+parser.add_argument("-hp", "--hide_progress", action="store_true", default=None, help="Don't display programming progress.")
+parser.add_argument("-fp", "--fast_program", action="store_true", default=None,
                     help="Use only the CRC of each page to determine if it already has the same data.")
 parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
 parser.add_argument("--mass-erase", action="store_true", help="Mass erase the target device.")
@@ -206,11 +204,11 @@ def main():
 
             # Convert arguments for FileProgrammer.
             if args.chip_erase:
-                chip_erase = True
+                chip_erase = "chip"
             elif args.sector_erase:
-                chip_erase = False
+                chip_erase = "sector"
             else:
-                chip_erase = None
+                chip_erase = "auto"
             
             # Program the file into flash.
             programmer = FileProgrammer(session, chip_erase=chip_erase, trust_crc=args.fast_program)

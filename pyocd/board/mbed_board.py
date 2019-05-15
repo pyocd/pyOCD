@@ -34,7 +34,7 @@ class MbedBoard(Board):
         This constructor attempts to use the board ID from the serial number to determine
         the target type. See #BOARD_ID_TO_INFO.
         """
-        target = session.options.get('target_override', target)
+        target = session.options.get('target_override')
         unique_id = session.probe.unique_id
         if board_id is None:
             board_id = unique_id[0:4]

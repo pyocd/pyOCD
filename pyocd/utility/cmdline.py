@@ -14,8 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from ..core.target import Target
+from ..core.options import OPTIONS_INFO
 from ..utility.compatibility import to_str_safe
+
+LOG = logging.getLogger(__name__)
 
 def split_command_line(cmd_line):
     """! @brief Split command line by whitespace, supporting quoted strings."""
@@ -91,16 +95,40 @@ def convert_session_options(option_list):
     if option_list is not None:
         for o in option_list:
             if '=' in o:
-                name, value = o.split('=')
+                name, value = o.split('=', maxsplit=1)
                 name = name.strip().lower()
                 value = value.strip()
             else:
                 name = o.strip().lower()
-                if name.startswith('no-'):
-                    name = name[3:]
-                    value = False
+                value = None
+            
+            # Look for this option.
+            try:
+                info = OPTIONS_INFO[name]
+            except KeyError:
+                LOG.warning("ignoring unknown session option '%s'", name)
+                continue
+
+            # Handle bool options without a value specially.
+            if value is None:
+                if info.type is bool:
+                    if name.startswith('no-'):
+                        name = name[3:]
+                        value = False
+                    else:
+                        value = True
                 else:
-                    value = True
+                    LOG.warning("non-boolean option '%s' requires a value", name)
+                    continue
+            # Convert string value to option type.
+            elif info.type is bool:
+                value = value in ("true", "1", "yes", "on")
+            elif info.type is int:
+                try:
+                    value = int(value, base=0)
+                except ValueError:
+                    LOG.warning("invalid value for option '%s'", name)
+            
             options[name] = value
     return options
 
