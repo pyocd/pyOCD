@@ -387,7 +387,7 @@ class CmsisPackDevice(object):
             
             # Log details of this flash algo if the debug option is enabled.
             current_session = core.session.Session.get_current()
-            if current_session and current_session.options.get("debug.log_flm_info", False):
+            if current_session and current_session.options.get("debug.log_flm_info"):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
             
             # Choose the page size. The check for <=32 is to handle some flash algos with incorrect
