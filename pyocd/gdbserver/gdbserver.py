@@ -348,7 +348,7 @@ class GDBServer(threading.Thread):
                 self.log.warning("Cannot enable SWV due to missing swv_system_clock option")
             else:
                 sys_clock = int(session.options.get("swv_system_clock"))
-                swo_clock = int(session.options.get("swv_clock", 1000000))
+                swo_clock = int(session.options.get("swv_clock"))
                 self._swv_reader = SWVReader(session, self.core)
                 self._swv_reader.init(sys_clock, swo_clock, console_file)
 
