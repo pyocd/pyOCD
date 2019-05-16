@@ -23,4 +23,7 @@ def mockcore():
     return MockCore()
 
 # Ignore semihosting test that currently crashes on Travis
-collect_ignore = ["test_semihosting.py"]
+collect_ignore = [
+    "test_semihosting.py",
+    "test_pack.py"
+    ]
