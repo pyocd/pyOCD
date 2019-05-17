@@ -266,7 +266,13 @@ class PyOCDTool(object):
         group.add_argument('-b', '--boards', action='store_true',
             help="List all known boards.")
         listParser.add_argument('-n', '--name',
-            help="Restrict listing to items matching the given name.")
+            help="Restrict listing to items matching the given name. Applies to targets and boards.")
+        listParser.add_argument('-r', '--vendor',
+            help="Restrict listing to items whose vendor matches the given name. Applies to targets.")
+        listParser.add_argument('-s', '--source', choices=('builtin', 'pack'),
+            help="Restrict listing to targets from the specified source. Applies to targets.")
+        listParser.add_argument('-H', '--no-header', action='store_true',
+            help="Don't print a table header.")
 
         # Create *pack* subcommand parser.
         packParser = subparsers.add_parser('pack', parents=[loggingOptions],
@@ -285,6 +291,8 @@ class PyOCDTool(object):
                 "The pattern is suffixed with '*'. Can be specified multiple times.")
         packParser.add_argument("-n", "--no-download", action='store_true',
             help="Just list the pack(s) that would be downloaded, don't actually download anything.")
+        packParser.add_argument('-H', '--no-header', action='store_true',
+            help="Don't print a table header.")
         
         self._parser = parser
         return parser
@@ -357,8 +365,10 @@ class PyOCDTool(object):
         """! @brief Returns a PrettyTable object with formatting options set."""
         pt = prettytable.PrettyTable(fields)
         pt.align = 'l'
-        pt.border = False
-        pt.header_style = "upper"
+        pt.header = not self._args.no_header
+        pt.border = True
+        pt.hrules = prettytable.HEADER
+        pt.vrules = prettytable.NONE
         return pt
     
     def do_list(self):
@@ -383,7 +393,9 @@ class PyOCDTool(object):
             if session.options['pack'] is not None:
                 pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
-            obj = ListGenerator.list_targets()
+            obj = ListGenerator.list_targets(name_filter=self._args.name,
+                                            vendor_filter=self._args.vendor,
+                                            source_filter=self._args.source)
             pt = self._get_pretty_table(["Name", "Vendor", "Part Number", "Families", "Source"])
             for info in sorted(obj['targets'], key=lambda i: i['name']):
                 pt.add_row([
@@ -395,7 +407,7 @@ class PyOCDTool(object):
                             ])
             print(pt)
         elif self._args.boards:
-            obj = ListGenerator.list_boards()
+            obj = ListGenerator.list_boards(name_filter=self._args.name)
             pt = self._get_pretty_table(["ID", "Name", "Target", "Test Binary"])
             for info in sorted(obj['boards'], key=lambda i: i['id']):
                 pt.add_row([
