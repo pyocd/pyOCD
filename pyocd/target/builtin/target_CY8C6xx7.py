@@ -233,7 +233,7 @@ class CY8C6xx7(CoreSightTarget):
 
 class CortexM_CY8C6xx7(CortexM):
     def reset(self, reset_type=None):
-        self.notify(Notification(event=Target.EVENT_PRE_RESET, source=self))
+        self.notify(Target.EVENT_PRE_RESET, self)
 
         self._run_token += 1
 
@@ -269,7 +269,7 @@ class CortexM_CY8C6xx7(CortexM):
                     self._ap.dp.power_up_debug()
                     sleep(0.01)
 
-        self.notify(Notification(event=Target.EVENT_POST_RESET, source=self))
+        self.notify(Target.EVENT_POST_RESET, self)
 
     def wait_halted(self):
         with Timeout(5.0) as t_o:

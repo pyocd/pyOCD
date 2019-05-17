@@ -350,8 +350,8 @@ class ArgonThreadProvider(ThreadProvider):
 
         self._all_threads = self.g_ar_objects + ALL_OBJECTS_THREADS_OFFSET
 
-        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
-        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
+        self._target.root_target.subscribe(self.event_handler, Target.EVENT_POST_FLASH_PROGRAM)
+        self._target.subscribe(self.event_handler, Target.EVENT_POST_RESET)
 
         return True
 

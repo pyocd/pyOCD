@@ -369,8 +369,8 @@ class FreeRTOSThreadProvider(ThreadProvider):
             return False
         LOG.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
 
-        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
-        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
+        self._target.root_target.subscribe(self.event_handler, Target.EVENT_POST_FLASH_PROGRAM)
+        self._target.subscribe(self.event_handler, Target.EVENT_POST_RESET)
 
         return True
 
