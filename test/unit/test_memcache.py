@@ -24,7 +24,7 @@ import logging
 
 @pytest.fixture(scope='function')
 def memcache(mockcore):
-    return MemoryCache(DebugContext(mockcore))
+    return MemoryCache(DebugContext(mockcore), mockcore)
 
 class TestMemoryCache:
     def test_1(self, mockcore, memcache):

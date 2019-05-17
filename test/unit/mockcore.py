@@ -16,6 +16,7 @@
 
 from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
+from pyocd.coresight.component import CoreSightCoreComponent
 from pyocd.coresight.cortex_m import (
     CORE_REGISTER,
     register_name_to_index,
@@ -29,7 +30,7 @@ from pyocd.utility import mask
 import pytest
 import logging
 
-class MockCore(object):
+class MockCore(CoreSightCoreComponent):
     def __init__(self):
         self.run_token = 1
         self.flash_region = memory_map.FlashRegion(start=0, length=1*1024, blocksize=1024, name='flash')

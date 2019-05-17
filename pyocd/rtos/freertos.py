@@ -152,11 +152,10 @@ class FreeRTOSThreadContext(DebugContext):
             }
     FPU_EXTENDED_REGISTER_OFFSETS.update(COMMON_REGISTER_OFFSETS)
 
-    def __init__(self, parentContext, thread):
-        super(FreeRTOSThreadContext, self).__init__(parentContext.core)
-        self._parent = parentContext
+    def __init__(self, parent, thread):
+        super(FreeRTOSThreadContext, self).__init__(parent)
         self._thread = thread
-        self._has_fpu = parentContext.core.has_fpu
+        self._has_fpu = self.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
@@ -185,7 +184,7 @@ class FreeRTOSThreadContext(DebugContext):
         table = self.NOFPU_REGISTER_OFFSETS
         if self._has_fpu:
             try:
-                if inException and self._parent.core.is_vector_catch():
+                if inException and self.core.is_vector_catch():
                     # Vector catch has just occurred, take live LR
                     exceptionLR = self._parent.read_core_register('lr')
                 else:
@@ -231,9 +230,6 @@ class FreeRTOSThreadContext(DebugContext):
                 reg_vals.append(0)
 
         return reg_vals
-
-    def write_core_registers_raw(self, reg_list, data_list):
-        self._parent.write_core_registers_raw(reg_list, data_list)
 
 class FreeRTOSThread(TargetThread):
     """! @brief A FreeRTOS task."""
