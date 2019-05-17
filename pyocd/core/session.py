@@ -55,15 +55,18 @@ class Session(object):
     Another important function of this class is that it contains a dictionary of session-scope
     user options. These would normally be passed in from the command line, or perhaps a config file.
     
-    See the ConnectHelper class for several methods that make it easy to create new
-    sessions, with or without user interaction in the case of multiple available debug probes.
+    See the @ref pyocd.core.helpers.ConnectHelper "ConnectHelper" class for several methods that
+    make it easy to create new sessions, with or without user interaction in the case of multiple
+    available debug probes. A common pattern is to combine @ref 
+    pyocd.core.helpers.ConnectHelper.session_with_chosen_probe()
+    "ConnectHelper.session_with_chosen_probe()" and a **with** block.
     
-    A Session instance can be used as a context manager. The session will *not* be automatically
-    opened. However, it will be closed when the `with` block is exited (which is harmless if the
-    session was never opened). A common pattern is to combine ConnectHelper.session_with_chosen_probe()
-    and a `with` block. Unless the `open_session` parameter to ConnectHelper.session_with_chosen_probe()
-    is changed from the default of True, the newly created Session will be opened for you prior to
-    entering the with block.
+    A Session instance can be used as a context manager. The session will, by default, be
+    automatically opened when the context is entered. And, of course, it will be closed when the
+    **with** block is exited (which is harmless if the session was never opened). If you wish to
+    disable automatic opening, set the `auto_open` parameter to the constructor to False. If an
+    exception is raised while opening a session inside a **with** statement, the session will be
+    closed for you to undo any partial initialisation.
     """
     
     ## @brief Weak reference to the most recently created session.
@@ -86,7 +89,7 @@ class Session(object):
         else:
             return Session(None)
 
-    def __init__(self, probe, options=None, option_defaults=None, **kwargs):
+    def __init__(self, probe, auto_open=True, options=None, option_defaults=None, **kwargs):
         """! @brief Session constructor.
         
         Creates a new session using the provided debug probe. User options are merged from the
@@ -109,6 +112,7 @@ class Session(object):
         
         @param self
         @param probe The DebugProbe instance. May be None.
+        @param auto_open Whether to automatically open the session when used as a context manager.
         @param options Optional user options dictionary.
         @param option_defaults Optional dictionary of user option values. This dictionary has the
             lowest priority in determining final user option values, and is intended to set new
@@ -122,6 +126,7 @@ class Session(object):
         self._inited = False
         self._user_script_proxy = None
         self._delegate = None
+        self._auto_open = auto_open
         self._options = OptionsManager(self)
         
         # Update options.
@@ -274,6 +279,12 @@ class Session(object):
 
     def __enter__(self):
         assert self._probe is not None
+        if self._auto_open:
+            try:
+                self.open()
+            except Exception:
+                self.close()
+                raise
         return self
 
     def __exit__(self, type, value, traceback):
@@ -347,11 +358,11 @@ class Session(object):
             self._load_user_script()
             
             self._probe.open()
+            self._closed = False
             self._probe.set_clock(self.options.get('frequency'))
             if init_board:
                 self._board.init()
                 self._inited = True
-            self._closed = False
 
     def close(self):
         """! @brief Close the session.

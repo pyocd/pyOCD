@@ -198,13 +198,7 @@ class ConnectHelper(object):
             open_session = init_board
         
         assert len(allProbes) == 1
-        session = Session(allProbes[0], options=options, **kwargs)
-        if open_session:
-            try:
-                session.open()
-            except:
-                session.close()
-                raise
+        session = Session(allProbes[0], auto_open=open_session, options=options, **kwargs)
         return session
 
     @staticmethod
