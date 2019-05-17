@@ -29,6 +29,7 @@ except ImportError:
 
 from .options_manager import OptionsManager
 from ..board.board import Board
+from ..utility.notification import Notifier
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ _USER_SCRIPT_NAMES = [
         ".pyocd_user.py",
     ]
 
-class Session(object):
+class Session(Notifier):
     """! @brief Top-level object for a debug session.
     
     This class represents a debug session with a single debug probe. It is the root of the object
@@ -119,6 +120,8 @@ class Session(object):
             defaults for option if they are not set through any other method.
         @param kwargs User options passed as keyword arguments.
         """
+        super(Session, self).__init__()
+        
         Session._current_session = weakref.ref(self)
         
         self._probe = probe

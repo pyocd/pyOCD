@@ -322,7 +322,7 @@ class GDBServer(threading.Thread):
         # Read back bound port in case auto-assigned (port 0)
         self.port = self.abstract_socket.port
 
-        self.target.subscribe(self.event_handler, Target.EVENT_POST_RESET)
+        self.session.subscribe(self.event_handler, Target.EVENT_POST_RESET)
 
         # Init semihosting and telnet console.
         if self.semihost_use_syscalls:

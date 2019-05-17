@@ -637,10 +637,10 @@ class CortexM(Target, CoreSightCoreComponent):
     def halt(self):
         """! @brief Halt the core
         """
-        self.notify(Target.EVENT_PRE_HALT, self, Target.HALT_REASON_USER)
+        self.session.notify(Target.EVENT_PRE_HALT, self, Target.HALT_REASON_USER)
         self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.flush()
-        self.notify(Target.EVENT_POST_HALT, self, Target.HALT_REASON_USER)
+        self.session.notify(Target.EVENT_POST_HALT, self, Target.HALT_REASON_USER)
 
     def step(self, disable_interrupts=True, start=0, end=0):
         """! @brief Perform an instruction level step.
@@ -654,7 +654,7 @@ class CortexM(Target, CoreSightCoreComponent):
             LOG.error('cannot step: target not halted')
             return
 
-        self.notify(Target.EVENT_PRE_RUN, self, Target.RUN_TYPE_STEP)
+        self.session.notify(Target.EVENT_PRE_RUN, self, Target.RUN_TYPE_STEP)
 
         self.clear_debug_cause_bits()
 
@@ -698,7 +698,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
         self._run_token += 1
 
-        self.notify(Target.EVENT_POST_RUN, self, Target.RUN_TYPE_STEP)
+        self.session.notify(Target.EVENT_POST_RUN, self, Target.RUN_TYPE_STEP)
 
     def clear_debug_cause_bits(self):
         self.write_memory(CortexM.DFSR, CortexM.DFSR_VCATCH | CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
@@ -853,7 +853,7 @@ class CortexM(Target, CoreSightCoreComponent):
         
         After a call to this function, the core is running.
         """
-        self.notify(Target.EVENT_PRE_RESET, self)
+        self.session.notify(Target.EVENT_PRE_RESET, self)
 
         reset_type = self._get_actual_reset_type(reset_type)
 
@@ -878,7 +878,7 @@ class CortexM(Target, CoreSightCoreComponent):
                     self.flush()
                     sleep(0.01)
 
-        self.notify(Target.EVENT_POST_RESET, self)
+        self.session.notify(Target.EVENT_POST_RESET, self)
 
     def reset_and_halt(self, reset_type=None):
         """! @brief Perform a reset and stop the core on the reset handler.
@@ -952,12 +952,12 @@ class CortexM(Target, CoreSightCoreComponent):
         if self.get_state() != Target.TARGET_HALTED:
             LOG.debug('cannot resume: target not halted')
             return
-        self.notify(Target.EVENT_PRE_RUN, self, Target.RUN_TYPE_RESUME)
+        self.session.notify(Target.EVENT_PRE_RUN, self, Target.RUN_TYPE_RESUME)
         self._run_token += 1
         self.clear_debug_cause_bits()
         self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
         self.flush()
-        self.notify(Target.EVENT_POST_RUN, self, Target.RUN_TYPE_RESUME)
+        self.session.notify(Target.EVENT_POST_RUN, self, Target.RUN_TYPE_RESUME)
 
     def find_breakpoint(self, addr):
         return self.bp_manager.find_breakpoint(addr)
