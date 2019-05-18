@@ -148,7 +148,7 @@ def main():
                             config_file=args.config,
                             no_config=args.no_config,
                             pack=args.pack,
-                            board_id=args.board_id,
+                            unique_id=args.board_id,
                             target_override=args.target_override,
                             frequency=args.frequency,
                             blocking=False,

@@ -87,7 +87,7 @@ def search_and_lock(board_id):
         device = DAPAccess.get_device(board_id)
         device.open()
         device.close()
-        with ConnectHelper.session_with_chosen_probe(board_id=board_id):
+        with ConnectHelper.session_with_chosen_probe(unique_id=board_id):
             pass
 
 
