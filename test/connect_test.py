@@ -184,7 +184,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    session = ConnectHelper.session_with_chosen_probe(open_session=False, **get_session_options())
+    session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = ConnectTest()
     result = [test.run(session.board)]
     test.print_perf_info(result)

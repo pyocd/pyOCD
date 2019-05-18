@@ -406,7 +406,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=level)
     DAPAccess.set_args(args.daparg)
     # Set to debug to print some of the decisions made while flashing
-    session = ConnectHelper.session_with_chosen_probe(open_session=False, **get_session_options())
+    session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = FlashTest()
     result = [test.run(session.board)]
     test.print_perf_info(result)
