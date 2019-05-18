@@ -80,7 +80,8 @@ def connect_test(board):
     result = ConnectTestResult()
 
     # Install binary.
-    live_session = ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options())
+    live_session = ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options())
+    live_session.open()
     live_board = live_session.board
     memory_map = board.target.get_memory_map()
     rom_region = memory_map.get_boot_memory()
@@ -89,7 +90,7 @@ def connect_test(board):
     def test_connect(halt_on_connect, expected_state, resume):
         print("Connecting with halt_on_connect=%s" % halt_on_connect)
         live_session = ConnectHelper.session_with_chosen_probe(
-                        board_id=board_id,
+                        unique_id=board_id,
                         init_board=False,
                         halt_on_connect=halt_on_connect,
                         resume_on_disconnect=resume,
@@ -184,7 +185,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    session = ConnectHelper.session_with_chosen_probe(open_session=False, **get_session_options())
+    session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = ConnectTest()
     result = [test.run(session.board)]
     test.print_perf_info(result)

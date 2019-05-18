@@ -35,6 +35,7 @@ def tgt(request):
     if session is None:
         pytest.skip("No probe present")
         return
+    session.open()
     board = session.board
     session.options['resume_on_disconnect'] = False
     board.target.reset_and_halt()

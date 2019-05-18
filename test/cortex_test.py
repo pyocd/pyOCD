@@ -97,7 +97,7 @@ def test_function(session, function):
     return (stop - start) / float(TEST_COUNT)
 
 def cortex_test(board_id):
-    with ConnectHelper.session_with_chosen_probe(board_id=board_id, **get_session_options()) as session:
+    with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
         target_type = board.target_type
 

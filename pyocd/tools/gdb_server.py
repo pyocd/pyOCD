@@ -277,7 +277,7 @@ class GDBServerTool(object):
                     config_file=self.args.config,
                     no_config=self.args.no_config,
                     pack=self.args.pack,
-                    board_id=self.args.board_id,
+                    unique_id=self.args.board_id,
                     target_override=self.args.target_override,
                     frequency=self.args.frequency,
                     **sessionOptions)
