@@ -391,7 +391,7 @@ class CortexM(Target, CoreSightCoreComponent):
     def factory(cls, ap, cmpid, address):
         # Create a new core instance.
         root = ap.dp.target
-        core = cls(root, ap, root.memory_map, root._new_core_num, cmpid, address)
+        core = cls(root.session, ap, root.memory_map, root._new_core_num, cmpid, address) 
         
         # Associate this core with the AP.
         if ap.core is not None:
@@ -405,11 +405,10 @@ class CortexM(Target, CoreSightCoreComponent):
         
         return core
 
-    def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
-        Target.__init__(self, rootTarget.session, memoryMap)
+    def __init__(self, session, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
+        Target.__init__(self, session, memoryMap)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
-        self.root_target = rootTarget
         self.arch = 0
         self.core_type = 0
         self.has_fpu = False
@@ -1296,8 +1295,8 @@ class CortexM(Target, CoreSightCoreComponent):
         else:
             irq_num = exc_num - len(self.CORE_EXCEPTION)
             name = None
-            if self.root_target.irq_table:
-                name = self.root_target.irq_table.get(irq_num)
+            if self.session.target.irq_table:
+                name = self.session.target.irq_table.get(irq_num)
             if name is not None:
                 return "Interrupt[%s]" % name
             else:

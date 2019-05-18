@@ -91,7 +91,6 @@ class Target(MemoryInterface):
     def __init__(self, session, memoryMap=None):
         self._session = session
         self._delegate = None
-        self.root_target = None
         self.vendor = self.VENDOR
         self.part_families = []
         self.part_number = ""

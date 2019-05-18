@@ -54,7 +54,6 @@ class CoreSightTarget(Target, GraphNode):
     def __init__(self, session, memoryMap=None):
         Target.__init__(self, session, memoryMap)
         GraphNode.__init__(self)
-        self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
         self.dp = dap.DebugPort(session.probe, self)
