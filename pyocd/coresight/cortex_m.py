@@ -18,7 +18,7 @@ from ..core.target import Target
 from ..core import exceptions
 from ..utility import (cmdline, conversion, timeout)
 from ..utility.notification import Notification
-from .component import CoreSightComponent
+from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
 from ..debug.breakpoints.manager import BreakpointManager
@@ -193,7 +193,7 @@ def sysm_to_psr_mask(sysm):
         mask |= CortexM.APSR_MASK
     return mask
 
-class CortexM(Target, CoreSightComponent):
+class CortexM(Target, CoreSightCoreComponent):
     """! @brief CoreSight component for a v6-M or v7-M Cortex-M core.
     
     This class has basic functions to access a Cortex-M core:
@@ -407,7 +407,7 @@ class CortexM(Target, CoreSightComponent):
 
     def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
         Target.__init__(self, rootTarget.session, memoryMap)
-        CoreSightComponent.__init__(self, ap, cmpid, address)
+        CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
         self.root_target = rootTarget
         self.arch = 0

@@ -121,7 +121,7 @@ class CoreSightTarget(Target, GraphNode):
     def add_core(self, core):
         core.halt_on_connect = self.halt_on_connect
         core.delegate = self.delegate
-        core.set_target_context(CachingDebugContext(DebugContext(core)))
+        core.set_target_context(CachingDebugContext(core))
         self.cores[core.core_number] = core
         self.add_child(core)
         self._root_contexts[core.core_number] = None

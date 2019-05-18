@@ -147,11 +147,10 @@ class ArgonThreadContext(DebugContext):
                  # (reserved word: 196)
             }
 
-    def __init__(self, parentContext, thread):
-        super(ArgonThreadContext, self).__init__(parentContext.core)
-        self._parent = parentContext
+    def __init__(self, parent, thread):
+        super(ArgonThreadContext, self).__init__(parent)
         self._thread = thread
-        self._has_fpu = parentContext.core.has_fpu
+        self._has_fpu = self.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
@@ -179,7 +178,7 @@ class ArgonThreadContext(DebugContext):
         swStacked = 0x20
         table = self.CORE_REGISTER_OFFSETS
         if self._has_fpu:
-            if inException and self._parent.core.is_vector_catch():
+            if inException and self.core.is_vector_catch():
                 # Vector catch has just occurred, take live LR
                 exceptionLR = self._parent.read_core_register('lr')
 
@@ -223,9 +222,6 @@ class ArgonThreadContext(DebugContext):
                 reg_vals.append(0)
 
         return reg_vals
-
-    def write_core_registers_raw(self, reg_list, data_list):
-        self._parent.write_core_registers_raw(reg_list, data_list)
 
 class ArgonThread(TargetThread):
     """! @brief Base class representing a thread on the target."""

@@ -31,7 +31,7 @@ import logging
 
 @pytest.fixture(scope='function')
 def regcache(mockcore):
-    return RegisterCache(DebugContext(mockcore))
+    return RegisterCache(DebugContext(mockcore), mockcore)
 
 # Copy of the register list without composite registers.
 CORE_REGS_NO_COMPOSITES = CORE_REGISTER.copy()

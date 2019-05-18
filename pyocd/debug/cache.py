@@ -89,8 +89,9 @@ class RegisterCache(object):
                     CORE_REGISTER['iepsr'],
                     ]
 
-    def __init__(self, parentContext):
-        self._context = parentContext
+    def __init__(self, context, core):
+        self._context = context
+        self._core = core
         self._run_token = -1
         self._log = LOG.getChild('regcache')
         self._reset_cache()
@@ -106,14 +107,14 @@ class RegisterCache(object):
             self._log.debug("no accesses")
 
     def _check_cache(self):
-        if self._context.core.is_running():
+        if self._core.is_running():
             self._log.debug("core is running; invalidating cache")
             self._reset_cache()
-        elif self._run_token != self._context.core.run_token:
+        elif self._run_token != self._core.run_token:
             self._dump_metrics()
             self._log.debug("out of date run token; invalidating cache")
             self._reset_cache()
-            self._run_token = self._context.core.run_token
+            self._run_token = self._core.run_token
 
     def _convert_and_check_registers(self, reg_list):
         # convert to index only
@@ -123,7 +124,7 @@ class RegisterCache(object):
         for reg in reg_list:
             if reg not in CORE_REGISTER.values():
                 raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self._context.core.has_fpu):
+            elif is_fpu_register(reg) and (not self._core.has_fpu):
                 raise ValueError("attempt to read FPU register without FPU")
 
         return reg_list
@@ -229,8 +230,9 @@ class MemoryCache(object):
     region's cacheability flag is honoured.
     """
     
-    def __init__(self, context):
+    def __init__(self, context, core):
         self._context = context
+        self._core = core
         self._run_token = -1
         self._log = LOG.getChild('memcache')
         self._reset_cache()
@@ -241,14 +243,14 @@ class MemoryCache(object):
 
     def _check_cache(self):
         """! @brief Invalidates the cache if appropriate."""
-        if self._context.core.is_running():
+        if self._core.is_running():
             self._log.debug("core is running; invalidating cache")
             self._reset_cache()
-        elif self._run_token != self._context.core.run_token:
+        elif self._run_token != self._core.run_token:
             self._dump_metrics()
             self._log.debug("out of date run token; invalidating cache")
             self._reset_cache()
-            self._run_token = self._context.core.run_token
+            self._run_token = self._core.run_token
 
     def _get_ranges(self, addr, count):
         """! @brief Splits a memory address range into cached and uncached subranges.
@@ -401,7 +403,7 @@ class MemoryCache(object):
               one known memory region, and that region is cacheable.
         @exception MemoryAccessError Raised if the access is not entirely contained within a single region.
         """
-        regions = self._context.core.memory_map.get_intersecting_regions(addr, length=count)
+        regions = self._core.memory_map.get_intersecting_regions(addr, length=count)
 
         # If no regions matched, then allow an uncached operation.
         if len(regions) == 0:
@@ -502,10 +504,10 @@ class MemoryCache(object):
 class CachingDebugContext(DebugContext):
     """! @brief Debug context combining register and memory caches."""
 
-    def __init__(self, parentContext):
-        super(CachingDebugContext, self).__init__(parentContext.core)
-        self._regcache = RegisterCache(parentContext)
-        self._memcache = MemoryCache(parentContext)
+    def __init__(self, parent):
+        super(CachingDebugContext, self).__init__(parent)
+        self._regcache = RegisterCache(parent, self.core)
+        self._memcache = MemoryCache(parent, self.core)
 
     def write_memory(self, addr, value, transfer_size=32):
         return self._memcache.write_memory(addr, value, transfer_size)

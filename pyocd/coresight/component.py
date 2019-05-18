@@ -53,4 +53,10 @@ class CoreSightComponent(GraphNode):
     @address.setter
     def address(self, newAddr):
         self._address = newAddr
+
+class CoreSightCoreComponent(CoreSightComponent):
+    """! @brief CoreSight component for a CPU core.
     
+    This class serves only as a superclass for identifying core-type components.
+    """
+    pass

@@ -70,11 +70,10 @@ class ZephyrThreadContext(DebugContext):
                  13: 0, # r13/sp
             }
 
-    def __init__(self, parentContext, thread):
-        super(ZephyrThreadContext, self).__init__(parentContext.core)
-        self._parent = parentContext
+    def __init__(self, parent, thread):
+        super(ZephyrThreadContext, self).__init__(parent)
         self._thread = thread
-        self._has_fpu = parentContext.core.has_fpu
+        self._has_fpu = self.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [register_name_to_index(reg) for reg in reg_list]
@@ -139,9 +138,6 @@ class ZephyrThreadContext(DebugContext):
             continue
 
         return reg_vals
-
-    def write_core_registers_raw(self, reg_list, data_list):
-        self._parent.write_core_registers_raw(reg_list, data_list)
 
 class ZephyrThread(TargetThread):
     """! @brief A Zephyr task."""
