@@ -40,7 +40,7 @@ class MemoryInterface(object):
         raise NotImplementedError()
   
     def write32(self, addr, value):
-        ## @brief Shorthand to write a 32-bit word.
+        """! @brief Shorthand to write a 32-bit word."""
         self.write_memory(addr, value, 32)
 
     def write16(self, addr, value):
