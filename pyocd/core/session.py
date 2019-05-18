@@ -130,7 +130,7 @@ class Session(Notifier):
         self._user_script_proxy = None
         self._delegate = None
         self._auto_open = auto_open
-        self._options = OptionsManager(self)
+        self._options = OptionsManager()
         
         # Update options.
         self._options.add_front(kwargs)
