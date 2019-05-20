@@ -149,22 +149,23 @@ def print_board_header(outputFile, board, n, includeDividers=True, includeLeadin
     if includeDividers:
         print(divider + "\n", file=outputFile)
 
-## @brief Run all tests on a given board.
-#
-# When multiple test jobs are being used, this function is the entry point executed in
-# child processes.
-#
-# Always writes both stdout and log messages of tests to a board-specific log file, and saves
-# the output for each test to a string that is stored in the TestResult object. Depending on
-# the logToConsole and commonLogFile parameters, output may also be copied to the console
-# (sys.stdout) and/or a common log file for all boards.
-#
-# @param board_id Unique ID of the board to test.
-# @param n Unique index of the test run.
-# @param loglevel Log level passed to logger instance. Usually INFO or DEBUG.
-# @param logToConsole Boolean indicating whether output should be copied to sys.stdout.
-# @param commonLogFile If not None, an open file object to which output should be copied.
 def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
+    """! @brief Run all tests on a given board.
+    
+    When multiple test jobs are being used, this function is the entry point executed in
+    child processes.
+    
+    Always writes both stdout and log messages of tests to a board-specific log file, and saves
+    the output for each test to a string that is stored in the TestResult object. Depending on
+    the logToConsole and commonLogFile parameters, output may also be copied to the console
+    (sys.stdout) and/or a common log file for all boards.
+    
+    @param board_id Unique ID of the board to test.
+    @param n Unique index of the test run.
+    @param loglevel Log level passed to logger instance. Usually INFO or DEBUG.
+    @param logToConsole Boolean indicating whether output should be copied to sys.stdout.
+    @param commonLogFile If not None, an open file object to which output should be copied.
+    """
     probe = DebugProbeAggregator.get_probe_with_id(board_id)
     assert probe is not None
     session = Session(probe, **get_session_options())

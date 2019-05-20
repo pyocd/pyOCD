@@ -278,8 +278,8 @@ class ZephyrThreadProvider(ThreadProvider):
             return False
 
         self._update()
-        self._target.root_target.subscribe(Target.EVENT_POST_FLASH_PROGRAM, self.event_handler)
-        self._target.subscribe(Target.EVENT_POST_RESET, self.event_handler)
+        self._target.session.subscribe(self.event_handler, Target.EVENT_POST_FLASH_PROGRAM)
+        self._target.session.subscribe(self.event_handler, Target.EVENT_POST_RESET)
 
         return True
 

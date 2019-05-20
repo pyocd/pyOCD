@@ -54,7 +54,6 @@ class CoreSightTarget(Target, GraphNode):
     def __init__(self, session, memoryMap=None):
         Target.__init__(self, session, memoryMap)
         GraphNode.__init__(self)
-        self.root_target = self
         self.part_number = self.__class__.__name__
         self.cores = {}
         self.dp = dap.DebugPort(session.probe, self)
@@ -138,7 +137,7 @@ class CoreSightTarget(Target, GraphNode):
             ('create_cores',        self.create_cores),
             ('create_components',   self.create_components),
             ('check_for_cores',     self.check_for_cores),
-            ('notify',              lambda : self.notify(Notification(event=Target.EVENT_POST_CONNECT, source=self)))
+            ('notify',              lambda : self.session.notify(Target.EVENT_POST_CONNECT, self))
             )
         
         return seq
@@ -234,7 +233,7 @@ class CoreSightTarget(Target, GraphNode):
                 raise exceptions.DebugError("No cores were discovered!")
 
     def disconnect(self, resume=True):
-        self.notify(Notification(event=Target.EVENT_PRE_DISCONNECT, source=self))
+        self.session.notify(Target.EVENT_PRE_DISCONNECT, self)
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)

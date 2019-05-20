@@ -81,7 +81,7 @@ class SWVReader(threading.Thread):
         self._shutdown_event = threading.Event()
         self._swo_clock = 0
         
-        self._session.target.cores[core_number].subscribe(Target.EVENT_POST_RESET, self._reset_handler)
+        self._session.subscribe(self._reset_handler, Target.EVENT_POST_RESET, self._session.target.cores[core_number])
         
     def init(self, sys_clock, swo_clock, console):
         """! @brief Configures trace graph and starts thread.

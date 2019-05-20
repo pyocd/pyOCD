@@ -54,8 +54,8 @@ class BreakpointManager(object):
         self._ignore_notifications = False
 
         # Subscribe to some notifications.
-        self._core.subscribe(Target.EVENT_PRE_RUN, self._pre_run_handler)
-        self._core.subscribe(Target.EVENT_PRE_DISCONNECT, self._pre_disconnect_handler)
+        self._session.subscribe(self._pre_run_handler, Target.EVENT_PRE_RUN)
+        self._session.subscribe(self._pre_disconnect_handler, Target.EVENT_PRE_DISCONNECT)
 
     def add_provider(self, provider):
         self._providers[provider.bp_type] = provider

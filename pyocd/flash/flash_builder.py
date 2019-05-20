@@ -378,7 +378,7 @@ class FlashBuilder(object):
         """
 
         # Send notification that we're about to program flash.
-        self.flash.target.notify(Notification(event=Target.EVENT_PRE_FLASH_PROGRAM, source=self))
+        self.flash.target.session.notify(Target.EVENT_PRE_FLASH_PROGRAM, self)
 
         # Examples
         # - lpc4330     -Non 0 base address
@@ -506,7 +506,7 @@ class FlashBuilder(object):
                     ((self.program_byte_count/1024) / self.perf.program_time))
 
         # Send notification that we're done programming flash.
-        self.flash.target.notify(Notification(event=Target.EVENT_POST_FLASH_PROGRAM, source=self))
+        self.flash.target.session.notify(Target.EVENT_POST_FLASH_PROGRAM, self)
 
         return self.perf
 
