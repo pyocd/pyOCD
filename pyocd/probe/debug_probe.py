@@ -74,11 +74,12 @@ class DebugProbe(object):
     def create_associated_board(self, session):
         """! @brief Create a board instance representing the board of which the probe is a component.
         
-        If the probe is part of a board, then this property will be a Board instance that represents
-        the associated board. Usually, for an on-board debug probe, this would be the Board that
-        the probe physically is part of. If the probe does not have an associated board, then this
-        method returns None.
+        If the probe is part of a board, then this method will create a Board instance that
+        represents the associated board. Usually, for an on-board debug probe, this would be the
+        Board that the probe physically is part of, and will also set the target type. If the probe
+        does not have an associated board, then this method returns None.
         
+        @param self
         @param session Session to pass to the board upon construction.
         """
         return None
@@ -93,7 +94,7 @@ class DebugProbe(object):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """! @brief Initailize DAP IO pins for JTAG or SWD"""
+        """! @brief Initialize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
     def disconnect(self):
