@@ -411,6 +411,15 @@ class CmsisPackDevice(object):
                 length = nextStart - start
                 start += region.start
                 
+                # Limit page size.
+                if page_size > sector_size:
+                    region_page_size = sector_size
+                    LOG.warning("Page size (%d) is larger than sector size (%d) for flash region %s; "
+                                "reducing page size to %d", page_size, sector_size, region.name,
+                                region_page_size)
+                else:
+                    region_page_size = page_size
+                
                 # If we don't have a boot memory yet, pick the first flash.
                 if not self._saw_startup:
                     isBoot = True
@@ -424,7 +433,7 @@ class CmsisPackDevice(object):
                                 start=start,
                                 length=length,
                                 sector_size=sector_size,
-                                page_size=page_size,
+                                page_size=region_page_size,
                                 flm=packAlgo,
                                 algo=algo,
                                 erased_byte_value=packAlgo.flash_info.value_empty,
