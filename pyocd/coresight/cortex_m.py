@@ -1181,7 +1181,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
     @property
     def available_breakpoint_count(self):
-        return self.fpb.available_breakpoints()
+        return self.fpb.available_breakpoints
 
     def find_watchpoint(self, addr, size, type):
         return self.dwt.find_watchpoint(addr, size, type)
