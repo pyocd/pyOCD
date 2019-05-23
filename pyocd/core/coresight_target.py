@@ -57,7 +57,7 @@ class CoreSightTarget(Target, GraphNode):
         self.part_number = self.__class__.__name__
         self.cores = {}
         self.dp = dap.DebugPort(session.probe, self)
-        self._selected_core = 0
+        self._selected_core = None
         self._svd_load_thread = None
         self._root_contexts = {}
         self._new_core_num = 0
@@ -66,6 +66,8 @@ class CoreSightTarget(Target, GraphNode):
 
     @property
     def selected_core(self):
+        if self._selected_core is None:
+            return None
         return self.cores[self._selected_core]
     
     @selected_core.setter
@@ -124,6 +126,9 @@ class CoreSightTarget(Target, GraphNode):
         self.cores[core.core_number] = core
         self.add_child(core)
         self._root_contexts[core.core_number] = None
+        
+        if self._selected_core is None:
+            self._selected_core = core.core_number
 
     def create_init_sequence(self):
         seq = CallSequence(
@@ -314,6 +319,10 @@ class CoreSightTarget(Target, GraphNode):
         return self.selected_core.remove_watchpoint(addr, size, type)
 
     def reset(self, reset_type=None):
+        # Perform a hardware reset if there is not a core.
+        if self.selected_core is None:
+            self.session.probe.reset()
+            return
         self.selected_core.reset(reset_type)
 
     def reset_and_halt(self, reset_type=None):
