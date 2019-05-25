@@ -124,7 +124,6 @@ class CoreSightTarget(Target, GraphNode):
             self._svd_load_thread.load()
 
     def add_core(self, core):
-        core.halt_on_connect = self.halt_on_connect
         core.delegate = self.delegate
         core.set_target_context(CachingDebugContext(core))
         self.cores[core.core_number] = core
@@ -138,6 +137,7 @@ class CoreSightTarget(Target, GraphNode):
         seq = CallSequence(
             ('load_svd',            self.load_svd),
             ('create_flash',        self.create_flash),
+            ('pre_connect',         self.pre_connect),
             ('dp_init',             self.dp.init),
             ('power_up',            self.dp.power_up_debug),
             ('find_aps',            self.dp.find_aps),
@@ -146,6 +146,8 @@ class CoreSightTarget(Target, GraphNode):
             ('create_cores',        self.create_cores),
             ('create_components',   self.create_components),
             ('check_for_cores',     self.check_for_cores),
+            ('halt_on_connect',     self.perform_halt_on_connect),
+            ('post_connect',        self.post_connect),
             ('notify',              lambda : self.session.notify(Target.EVENT_POST_CONNECT, self))
             )
         
@@ -161,6 +163,44 @@ class CoreSightTarget(Target, GraphNode):
         self.call_delegate('will_init_target', target=self, init_sequence=seq)
         seq.invoke()
         self.call_delegate('did_init_target', target=self)
+    
+    def pre_connect(self):
+        """! @brief Handle some of the connect modes.
+        
+        This init task performs a connect pre-reset or asserts reset if the connect mode is
+        under-reset.
+        """
+        mode = self.session.options.get('connect_mode')
+        if mode == 'pre-reset':
+            LOG.info("Performing connect pre-reset")
+            self.session.probe.reset()
+        elif mode == 'under-reset':
+            LOG.info("Asserting reset prior to connect")
+            self.session.probe.assert_reset(True)
+    
+    def perform_halt_on_connect(self):
+        """! @brief Halt cores.
+        
+        This init task performs a connect pre-reset or asserts reset if the connect mode is
+        under-reset.
+        """
+        if self.session.options.get('connect_mode') != 'attach':
+            for core in self.cores.values():
+                try:
+                    core.halt()
+                except exceptions.Error as err:
+                    LOG.warning("Could not halt core #%d: %s", core.core_number, err,
+                        exc_info=self.session.log_tracebacks)
+    
+    def post_connect(self):
+        """! @brief Handle cleaning up some of the connect modes.
+        
+        This init task de-asserts reset if the connect mode is under-reset.
+        """
+        mode = self.session.options.get('connect_mode')
+        if mode == 'under-reset':
+            LOG.info("Deasserting reset post connect")
+            self.session.probe.assert_reset(False)
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.

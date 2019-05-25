@@ -29,6 +29,8 @@ OPTIONS_INFO = {
         " one of \"auto\", \"sector\", or \"chip\"."),
     'config_file': OptionInfo('config_file', str, None,
         "Path to custom config file."),
+    'connect_mode': OptionInfo('connect_mode', str, "halt",
+        "One of 'halt', 'pre-reset', 'under-reset', 'attach'."),
     'debug.log_flm_info': OptionInfo('debug.log_flm_info', bool, False,
         "Log details of loaded .FLM flash algos."),
     'debug.traceback': OptionInfo('debug.traceback', bool, True,

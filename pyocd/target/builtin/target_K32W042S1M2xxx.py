@@ -186,7 +186,7 @@ class K32W042S(Kinetis):
         return seq
 
     def perform_halt_on_connect(self):
-        if self.halt_on_connect:
+        if self.session.options.get('connect_mode') != 'attach' or self._force_halt_on_connect:
             # Prevent the target from resetting if it has invalid code
             with Timeout(HALT_TIMEOUT) as to:
                 while to.check():

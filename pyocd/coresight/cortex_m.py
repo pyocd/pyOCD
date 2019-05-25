@@ -491,8 +491,6 @@ class CortexM(Target, CoreSightCoreComponent):
         The bus must be accessible when this method is called.
         """
         if not self.call_delegate('will_start_debug_core', core=self):
-            if self.halt_on_connect:
-                self.halt()
             self._read_core_type()
             self._check_for_fpu()
             self.build_target_xml()
