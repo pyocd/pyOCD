@@ -231,7 +231,10 @@ class ConnectHelper(object):
                     return_first=return_first,
                     unique_id=unique_id,
                     )
-        return Session(probe, auto_open=auto_open, options=options, **kwargs)
+        if probe is None:
+            return None
+        else:
+            return Session(probe, auto_open=auto_open, options=options, **kwargs)
 
     @staticmethod
     def _print_probe_list(probes):
