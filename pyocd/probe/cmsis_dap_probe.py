@@ -163,7 +163,6 @@ class CMSISDAPProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """! @brief Initialize DAP IO pins for JTAG or SWD"""
         # Convert protocol to port enum.
         if protocol is not None:
             port = self.PORT_MAP[protocol]
@@ -183,14 +182,12 @@ class CMSISDAPProbe(DebugProbe):
 
     # TODO remove
     def swj_sequence(self):
-        """! @brief Send sequence to activate JTAG or SWD on the target"""
         try:
             self._link.swj_sequence()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def disconnect(self):
-        """! @brief Deinitialize the DAP I/O pins"""
         try:
             self._link.disconnect()
             self._protocol = None
@@ -199,17 +196,12 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def set_clock(self, frequency):
-        """! @brief Set the frequency for JTAG and SWD in Hz
-
-        This function is safe to call before connect is called.
-        """
         try:
             self._link.set_clock(frequency)
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def reset(self):
-        """! @brief Reset the target"""
         try:
             self._invalidate_cached_registers()
             self._link.reset()
@@ -217,7 +209,6 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def assert_reset(self, asserted):
-        """! @brief Assert or de-assert target reset line"""
         try:
             self._invalidate_cached_registers()
             self._link.assert_reset(asserted)
@@ -225,14 +216,12 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
     
     def is_reset_asserted(self):
-        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
         try:
             return self._link.is_reset_asserted()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def flush(self):
-        """! @brief Write out all unsent commands"""
         try:
             self._link.flush()
         except DAPAccess.Error as exc:
@@ -243,14 +232,6 @@ class CMSISDAPProbe(DebugProbe):
     # ------------------------------------------- #
 
     def read_dp(self, addr, now=True):
-        """! @brief Read a DP register.
-        
-        @param self
-        @param addr Integer register address being one of (0x0, 0x4, 0x8, 0xC).
-        @param now
-        
-        @todo Handle auto DPBANKSEL.
-        """
         reg_id = self.REG_ADDR_TO_ID_MAP[self.DP, addr]
         
         try:
@@ -365,14 +346,12 @@ class CMSISDAPProbe(DebugProbe):
     # ------------------------------------------- #
 
     def has_swo(self):
-        """! @brief Returns bool indicating whether the link supports SWO."""
         try:
             return self._link.has_swo()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def swo_start(self, baudrate):
-        """! @brief Start receiving SWO data at the given baudrate."""
         try:
             self._link.swo_configure(True, baudrate)
             self._link.swo_control(True)
@@ -380,17 +359,12 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def swo_stop(self):
-        """! @brief Stop receiving SWO data."""
         try:
             self._link.swo_configure(False, 0)
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def swo_read(self):
-        """! @brief Read buffered SWO data from the target.
-        
-        @eturn Bytearray of the received data.
-        """
         try:
             return self._link.swo_read()
         except DAPAccess.Error as exc:
