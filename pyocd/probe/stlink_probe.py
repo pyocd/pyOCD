@@ -77,7 +77,6 @@ class StlinkProbe(DebugProbe):
 
     @property
     def supported_wire_protocols(self):
-        """! @brief Only valid after opening."""
         return [DebugProbe.Protocol.DEFAULT, DebugProbe.Protocol.SWD, DebugProbe.Protocol.JTAG]
 
     @property
@@ -110,17 +109,14 @@ class StlinkProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """! @brief Initialize DAP IO pins for JTAG or SWD"""
         self._link.enter_debug(STLink.Protocol.SWD)
         self._is_connected = True
 
     # TODO remove
     def swj_sequence(self):
-        """! @brief Send sequence to activate JTAG or SWD on the target"""
         pass
 
     def disconnect(self):
-        """! @brief Deinitialize the DAP I/O pins"""
         # TODO Close the APs. When this is attempted, we get an undocumented 0x1d error. Doesn't
         #      seem to be necessary, anyway.
         self._memory_interfaces = {}
@@ -129,27 +125,19 @@ class StlinkProbe(DebugProbe):
         self._is_connected = False
 
     def set_clock(self, frequency):
-        """! @brief Set the frequency for JTAG and SWD in Hz
-
-        This function is safe to call before connect is called.
-        """
         self._link.set_swd_frequency(frequency)
 
     def reset(self):
-        """! @brief Reset the target"""
         self._link.target_reset()
 
     def assert_reset(self, asserted):
-        """! @brief Assert or de-assert target reset line"""
         self._link.drive_nreset(asserted)
         self._nreset_state = asserted
     
     def is_reset_asserted(self):
-        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
         return self._nreset_state
 
     def flush(self):
-        """! @brief Write out all unsent commands"""
         pass
 
     # ------------------------------------------- #
@@ -200,22 +188,15 @@ class StlinkProbe(DebugProbe):
         return self._memory_interfaces[apsel]
 
     def has_swo(self):
-        """! @brief Returns bool indicating whether the link supports SWO."""
         return True
 
     def swo_start(self, baudrate):
-        """! @brief Start receiving SWO data at the given baudrate."""
         self._link.swo_start(baudrate)
 
     def swo_stop(self):
-        """! @brief Stop receiving SWO data."""
         self._link.swo_stop()
 
     def swo_read(self):
-        """! @brief Read as much buffered SWO data from the target as possible.
-        
-        @eturn Bytearray of the received data.
-        """
         return self._link.swo_read()
 
 class STLinkMemoryInterface(MemoryInterface):

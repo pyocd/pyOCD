@@ -27,26 +27,38 @@ class DebugProbe(object):
     
     @classmethod
     def get_all_connected_probes(cls):
+        """! @brief Returns a list of DebugProbe instances."""
         raise NotImplementedError()
     
     @classmethod
     def get_probe_with_id(cls, unique_id):
+        """! @brief Returns a DebugProbe instance for a probe with the given unique ID.
+        
+        If no probe is connected with a matching unique ID, then None will be returned.
+        """
         raise NotImplementedError()
     
     @property
     def description(self):
+        """! @brief Combined description of the debug probe and/or associated board."""
         return self.vendor_name + " " + self.product_name
     
     @property
     def vendor_name(self):
+        """! @brief Name of the debug probe's manufacturer."""
         raise NotImplementedError()
     
     @property
     def product_name(self):
+        """! @brief Name of the debug probe."""
         raise NotImplementedError()
     
     @property
     def supported_wire_protocols(self):
+        """! @brief List of DebugProbe.Protocol supported by the probe.
+        
+        Only one of the values returned from this property may be passed to connect().
+        """
         raise NotImplementedError()
 
     @property
@@ -62,13 +74,17 @@ class DebugProbe(object):
     def wire_protocol(self):
         """! @brief Currently selected wire protocol.
         
-        If the probe is not connected, i.e., connect() has not been called, then this
-        property will be None.
+        If the probe is not open and connected, i.e., open() and connect() have not been called,
+        then this property will be None.
         """
         raise NotImplementedError()
     
     @property
     def is_open(self):
+        """! @brief Whether the probe is currently open.
+        
+        To open the probe, call the open() method.
+        """
         raise NotImplementedError()
 
     def create_associated_board(self, session):
@@ -85,14 +101,16 @@ class DebugProbe(object):
         return None
 
     def open(self):
+        """! @brief Open the USB interface to the probe for sending commands."""
         raise NotImplementedError()
     
     def close(self):
+        """! @brief Close the probe's USB interface."""
         raise NotImplementedError()
 
-    # ------------------------------------------- #
-    #          Target control functions
-    # ------------------------------------------- #
+    ## @name Target control
+    ##@{
+
     def connect(self, protocol=None):
         """! @brief Initialize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
@@ -102,55 +120,107 @@ class DebugProbe(object):
         raise NotImplementedError()
 
     def set_clock(self, frequency):
-        """! @brief Set the frequency for JTAG and SWD in Hz
+        """! @brief Set the frequency for JTAG and SWD in Hz.
 
         This function is safe to call before connect is called.
         """
         raise NotImplementedError()
 
     def reset(self):
-        """! @brief Reset the target"""
+        """! @brief Perform a hardware reset of the target."""
         raise NotImplementedError()
 
     def assert_reset(self, asserted):
-        """! @brief Assert or de-assert target reset line"""
+        """! @brief Assert or de-assert target's nRESET signal.
+        
+        Because nRESET is negative logic and usually open drain, passing True will drive it low, and
+        pasing False will stop driving so nRESET will be pulled up.
+        """
         raise NotImplementedError()
     
     def is_reset_asserted(self):
-        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
+        """! @brief Returns True if nRESET is asserted or False if de-asserted.
+        
+        If the debug probe cannot actively read the reset signal, the value returned will be the
+        last value passed to assert_reset().
+        """
         raise NotImplementedError()
 
     def flush(self):
-        """! @brief Write out all unsent commands"""
+        """! @brief Write out all unsent commands.
+        
+        This API may be a no-op for certain debug probe types.
+        """
         raise NotImplementedError()
 
+    ##@}
+
+    ## @name DAP access
+    ##@{
+
     def read_dp(self, addr, now=True):
+        """! @brief Read a DP register.
+        
+        @param self
+        @param addr Integer register address being one of (0x0, 0x4, 0x8, 0xC).
+        @param now Boolean specifying whether the read is synchronous (True) or asynchronous.
+        @return If _now_ is True, the register's 32-bit value is returned as an integer. When _now_
+            is False, a callable is returned that when invoked will return the register's value.
+        """
         raise NotImplementedError()
 
     def write_dp(self, addr, data):
+        """! @brief Write a DP register.
+        
+        @param self
+        @param addr Integer register address being one of (0x0, 0x4, 0x8, 0xC).
+        @param data Integer register value.
+        """
         raise NotImplementedError()
 
     def read_ap(self, addr, now=True):
+        """! @brief Read an AP register."""
         raise NotImplementedError()
 
     def write_ap(self, addr, data):
+        """! @brief Write an AP register."""
         raise NotImplementedError()
 
     def read_ap_multiple(self, addr, count=1, now=True):
+        """! @brief Read one AP register multiple times."""
         raise NotImplementedError()
 
     def write_ap_multiple(self, addr, values):
+        """! @brief Write one AP register multiple times."""
         raise NotImplementedError()
     
     def get_memory_interface_for_ap(self, apsel):
+        """! @brief Returns a @ref pyocd.core.memory_interface.MemoryInterface "MemoryInterface" for
+            the specified AP.
+        
+        Some debug probe types have accelerated memory read and write commands. This method is used
+        to get a concrete @ref pyocd.core.memory_interface.MemoryInterface "MemoryInterface"
+        instance that is specific to the AP identified by the _apsel_ parameter. If the probe does
+        not provide an accelerated memory interface, None will be returned.
+        """
         return None
     
+    ##@}
+
+    ## @name SWO
+    ##@{
+
     def has_swo(self):
-        """! @brief Returns bool indicating whether the link supports SWO."""
+        """! @brief Returns bool indicating whether the probe supports SWO."""
         raise NotImplementedError()
 
     def swo_start(self, baudrate):
-        """! @brief Start receiving SWO data at the given baudrate."""
+        """! @brief Start receiving SWO data at the given baudrate.
+        
+        Once SWO reception has started, the swo_read() method must be called at regular intervals
+        to receive SWO data. If this is not done, the probe's internal SWO data buffer may overflow
+        and data will be lost.
+        """
         raise NotImplementedError()
 
     def swo_stop(self):
@@ -160,9 +230,12 @@ class DebugProbe(object):
     def swo_read(self):
         """! @brief Read buffered SWO data from the target.
         
-        @eturn Bytearray of the received data.
+        @eturn Bytearray of the received data. May be 0 bytes in length if no SWO data is buffered
+            at the probe.
         """
         raise NotImplementedError()
+
+    ##@}
     
     def __repr__(self):
         return "<{}@{:x} {}>".format(self.__class__.__name__, id(self), self.description)

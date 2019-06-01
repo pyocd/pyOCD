@@ -20,6 +20,7 @@ from ..probe.aggregator import DebugProbeAggregator
 from time import sleep
 import colorama
 import six
+import prettytable
 
 # Init colorama here since this is currently the only module that uses it.
 colorama.init()
@@ -87,7 +88,11 @@ class ConnectHelper(object):
                 break
             else:
                 if print_wait_message and not printedMessage:
-                    print(colorama.Fore.YELLOW + "Waiting for a debug probe to be connected..." + colorama.Style.RESET_ALL)
+                    if unique_id is None:
+                        msg = "Waiting for a debug probe to be connected..."
+                    else:
+                        msg = "Waiting for a debug probe matching unique ID '%s' to be connected..." % unique_id
+                    print(colorama.Fore.YELLOW + msg + colorama.Style.RESET_ALL)
                     printedMessage = True
                 sleep(0.01)
             assert len(sortedProbes) == 0
@@ -146,9 +151,10 @@ class ConnectHelper(object):
         # Return if no boards are connected.
         if allProbes is None or len(allProbes) == 0:
             if unique_id is None:
-                print("No connected debug probes")
+                print(colorama.Fore.RED + "No connected debug probes" + colorama.Style.RESET_ALL)
             else:
-                print("A debug probe matching unique ID '%s' is not connected, or no connected probe matches" % unique_id)
+                print(colorama.Fore.RED + "No connected debug probe matches unique ID '%s'" %
+                    unique_id + colorama.Style.RESET_ALL)
             return None # No boards to close so it is safe to return
 
         # Select first board
@@ -158,10 +164,9 @@ class ConnectHelper(object):
         # Ask user to select boards if there is more than 1 left
         if len(allProbes) > 1:
             ConnectHelper._print_probe_list(allProbes)
-            print(colorama.Fore.RED + " q => Quit")
             while True:
                 print(colorama.Style.RESET_ALL)
-                print("Enter the number of the debug probe to connect:")
+                print("Enter the number of the debug probe or 'q' to quit", end='')
                 line = six.moves.input("> ")
                 valid = False
                 if line.strip().lower() == 'q':
@@ -174,7 +179,6 @@ class ConnectHelper(object):
                 if not valid:
                     print(colorama.Fore.YELLOW + "Invalid choice: %s\n" % line)
                     Session._print_probe_list(allProbes)
-                    print(colorama.Fore.RED + " q => Exit" + colorama.Style.RESET_ALL)
                 else:
                     break
             allProbes = allProbes[ch:ch + 1]
@@ -231,13 +235,25 @@ class ConnectHelper(object):
                     return_first=return_first,
                     unique_id=unique_id,
                     )
-        return Session(probe, auto_open=auto_open, options=options, **kwargs)
+        if probe is None:
+            return None
+        else:
+            return Session(probe, auto_open=auto_open, options=options, **kwargs)
 
     @staticmethod
     def _print_probe_list(probes):
-        print(colorama.Fore.BLUE + "## => Board Name | Unique ID")
-        print("-- -- ----------------------")
+        pt = prettytable.PrettyTable(["#", "Probe", "Unique ID"])
+        pt.align = 'l'
+        pt.header = True
+        pt.border = True
+        pt.hrules = prettytable.HEADER
+        pt.vrules = prettytable.NONE
+
         for index, probe in enumerate(probes):
-            print(colorama.Fore.GREEN + "%2d => %s | " % (index, probe.description) +
-                colorama.Fore.CYAN + probe.unique_id + colorama.Style.RESET_ALL)
+            pt.add_row([
+                colorama.Fore.YELLOW + str(index),
+                colorama.Fore.GREEN + probe.description,
+                colorama.Fore.CYAN + probe.unique_id,
+                ])
+        print(pt)
         print(colorama.Style.RESET_ALL, end='')
