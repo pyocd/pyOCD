@@ -218,9 +218,9 @@ class CY8C6xx7(CoreSightTarget):
         return seq
 
     def create_cy8c6xx7_core(self):
-        core0 = CortexM_CY8C6xx7(self, self.aps[1], self.memory_map, 0)
+        core0 = CortexM_CY8C6xx7(self.session, self.aps[1], self.memory_map, 0)
         core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        core1 = CortexM_CY8C6xx7(self, self.aps[2], self.memory_map, 1)
+        core1 = CortexM_CY8C6xx7(self.session, self.aps[2], self.memory_map, 1)
         core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
 
         self.aps[1].core = core0
