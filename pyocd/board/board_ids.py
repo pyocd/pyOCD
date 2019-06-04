@@ -170,6 +170,7 @@ BOARD_ID_TO_INFO = {
     "1234": BoardInfo(  "u-blox-C027",          "lpc1768",          "l1_lpc1768.bin",       ),
     "1236": BoardInfo(  "u-blox EVK-ODIN-W2",   "stm32f439xi",      "ublox_evk_odin_w2.bin",),
     "1237": BoardInfo(  "u-blox-EVK-NINA-B1",   "nrf52",            "l1_nrf52-dk.bin",      ),
+    "12A0": BoardInfo(  "Calliope-mini",        "nrf51",            None,                   ),
     "1549": BoardInfo(  "LPC1549",              "lpc1549jbd100",    None,                   ),
     "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
     "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
