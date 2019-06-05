@@ -50,7 +50,7 @@ BOARD_ID_TO_INFO = {
     "0228": BoardInfo(  "Rapid-IoT-K64F",       "k64f",             None,                   ),
     "0230": BoardInfo(  "FRDM-K20D50M",         "k20d50m",          "l1_k20d50m.bin",       ),
     "0231": BoardInfo(  "FRDM-K22F",            "k22f",             "l1_k22f.bin",          ),
-    "0232": BoardInfo(  "MIMXRT1064-EVK",       "mimxrt0164cvl5a",  None,                   ),
+    "0232": BoardInfo(  "MIMXRT1064-EVK",       "mimxrt1064cvl5a",  None,                   ),
     "0233": BoardInfo(  "FRDM-KE16Z",           "mke16z64vlf4",     None,                   ),
     "0234": BoardInfo(  "Rapid-IoT-KW41Z",      "kw41z4",           "l1_kw41z4.bin",        ),
     "0235": BoardInfo(  "LPC54018IoTModule",    "lpc54018jet180",   None,                   ),
