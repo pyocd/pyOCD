@@ -108,15 +108,26 @@ FLASH_ALGO = {
     )
 }
 
-FPB_CTRL               = 0xE0002000
-FPB_COMP0              = 0xE0002008
-DWT_COMP0              = 0xE0001020
-DWT_FUNCTION0          = 0xE0001028
-DWT_FUNCTION_MATCH     = 0x4 << 0
-DWT_FUNCTION_ACTION    = 0x1 << 4
-DWT_FUNCTION_DATAVSIZE = 0x2 << 10
+FPB_CTRL                = 0xE0002000
+FPB_COMP0               = 0xE0002008
+DWT_COMP0               = 0xE0001020
+DWT_FUNCTION0           = 0xE0001028
+DWT_FUNCTION_MATCH      = 0x4 << 0   # Instruction address.
+DWT_FUNCTION_ACTION     = 0x1 << 4   # Generate debug event.
+DWT_FUNCTION_DATAVSIZE  = 0x2 << 10  # 4 bytes.
 
-BOOTROM_MAGIC_ADDR = 0x50000040
+PERIPHERAL_BASE_NS = 0x40000000
+PERIPHERAL_BASE_S  = 0x50000000
+
+FLASH_CMD               = 0x00034000
+FLASH_STARTA            = 0x00034010
+FLASH_STOPA             = 0x00034014
+FLASH_DATAW0            = 0x00034080
+FLASH_INT_STATUS        = 0x00034FE0
+FLASH_INT_CLR_STATUS    = 0x00034FE8
+FLASH_CMD_READ_SINGLE_WORD = 0x3
+
+BOOTROM_MAGIC_ADDR      = 0x50000040
 
 class LPC55S69JBD100(CoreSightTarget):
 
@@ -217,23 +228,33 @@ class CortexM_LPC55S69(CortexM_v8M):
             # Clear reset vector catch.
             self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
             
+            # If the processor is in Secure state, we have to access the flash controller
+            # through the secure alias.
+            if self.get_security_state() == Target.SecurityState.SECURE:
+                print("Secure")
+                base = PERIPHERAL_BASE_S
+            else:
+                print("Non-Secure")
+                base = PERIPHERAL_BASE_NS
+            
             # Use the flash programming model to check if the first flash page is readable, since
-            # attempted accesses to erased pages result in bus faults.
-            self.write32(0x40034010, 0x00000000) # Program Flash Word Start Address to 0x0 to read reset vector (STARTA)
-            self.write32(0x40034014, 0x00000000) # Program Flash Word Stop Address to 0x0 to read reset vector (STOPA)
-            self.write_memory_block32(0x40034080, [0x00000000] * 8) # DATAW{0-7}: Prepare for read
-            self.write32(0x40034FE8, 0x0000000F) # Clear FLASH Controller Status (INT_CLR_STATUS)
-            self.write32(0x40034000, 0x00000003) # Read single Flash Word (CMD_READ_SINGLE_WORD)
+            # attempted accesses to erased pages result in bus faults. The start and stop address
+            # are both set to 0x0 to probe the sector containing the reset vector.
+            self.write32(base + FLASH_STARTA, 0x00000000) # Program flash word start address to 0x0
+            self.write32(base + FLASH_STOPA, 0x00000000) # Program flash word stop address to 0x0
+            self.write_memory_block32(base + FLASH_DATAW0, [0x00000000] * 8) # Prepare for read
+            self.write32(base + FLASH_INT_CLR_STATUS, 0x0000000F) # Clear Flash controller status
+            self.write32(base + FLASH_CMD, FLASH_CMD_READ_SINGLE_WORD) # Read single flash word
 
             # Wait for flash word read to finish.
             with timeout.Timeout(5.0) as t_o:
                 while t_o.check():
-                    if (self.read32(0x40034FE0) & 0x00000004) != 0:
+                    if (self.read32(base + FLASH_INT_STATUS) & 0x00000004) != 0:
                         break
                     sleep(0.01)
             
             # Check for error reading flash word.
-            if (self.read32(0x40034FE0) & 0xB) == 0:
+            if (self.read32(base + FLASH_INT_STATUS) & 0xB) == 0:
                  # Read the reset vector address.
                 reset_vector = self.read32(0x00000004)
 
