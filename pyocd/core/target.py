@@ -25,6 +25,13 @@ class Target(MemoryInterface):
     TARGET_RESET = 3     # Core is being held in reset.
     TARGET_SLEEPING = 4  # Core is sleeping due to a wfi or wfe instruction.
     TARGET_LOCKUP = 5    # Core is locked up.
+    
+    class SecurityState(Enum):
+        """! @brief Security states for a processor with the Security extension."""
+        ## PE is in the Non-secure state.
+        NONSECURE = 0
+        ## PE is in the Secure state.
+        SECURE = 1
 
     class ResetType(Enum):
         """! @brief Available reset methods."""
@@ -125,6 +132,10 @@ class Target(MemoryInterface):
     @property
     def svd_device(self):
         return self._svd_device
+    
+    @property
+    def supported_security_states(self):
+        raise NotImplementedError()
 
     def is_locked(self):
         return False
@@ -196,6 +207,9 @@ class Target(MemoryInterface):
         raise NotImplementedError()
 
     def get_state(self):
+        raise NotImplementedError()
+        
+    def get_security_state(self):
         raise NotImplementedError()
 
     @property

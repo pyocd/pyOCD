@@ -97,6 +97,10 @@ class CoreSightTarget(Target, GraphNode):
     @property
     def aps(self):
         return self.dp.aps
+    
+    @property
+    def supported_security_states(self):
+        return self.selected_core.supported_security_states
 
     @property
     def svd_device(self):
@@ -330,6 +334,9 @@ class CoreSightTarget(Target, GraphNode):
 
     def get_state(self):
         return self.selected_core.get_state()
+        
+    def get_security_state(self):
+        return self.selected_core.get_security_state()
 
     def set_vector_catch(self, enableMask):
         return self.selected_core.set_vector_catch(enableMask)
