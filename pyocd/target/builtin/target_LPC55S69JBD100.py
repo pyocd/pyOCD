@@ -14,9 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from time import sleep
+
+from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
+from ...coresight.cortex_m import CortexM
+from ...coresight.cortex_m_v8m import CortexM_v8M
 from ...debug.svd.loader import SVDFile
+from ...utility import timeout
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
@@ -102,15 +108,43 @@ FLASH_ALGO = {
     )
 }
 
+FPB_CTRL                = 0xE0002000
+FPB_COMP0               = 0xE0002008
+DWT_COMP0               = 0xE0001020
+DWT_FUNCTION0           = 0xE0001028
+DWT_FUNCTION_MATCH      = 0x4 << 0   # Instruction address.
+DWT_FUNCTION_ACTION     = 0x1 << 4   # Generate debug event.
+DWT_FUNCTION_DATAVSIZE  = 0x2 << 10  # 4 bytes.
+
+PERIPHERAL_BASE_NS = 0x40000000
+PERIPHERAL_BASE_S  = 0x50000000
+
+FLASH_CMD               = 0x00034000
+FLASH_STARTA            = 0x00034010
+FLASH_STOPA             = 0x00034014
+FLASH_DATAW0            = 0x00034080
+FLASH_INT_STATUS        = 0x00034FE0
+FLASH_INT_CLR_STATUS    = 0x00034FE8
+FLASH_CMD_READ_SINGLE_WORD = 0x3
+
+BOOTROM_MAGIC_ADDR      = 0x50000040
+
 class LPC55S69JBD100(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(name='nsflash',     start=0x00000000, length=0x00098000, access='rx',
-            blocksize=0x200, is_boot_memory=True, algo=FLASH_ALGO),
+            blocksize=0x200,
+            is_boot_memory=True,
+            are_erased_sectors_readable=False,
+            algo=FLASH_ALGO),
         RomRegion(  name='nsrom',       start=0x03000000, length=0x00020000, access='rx'),
         RamRegion(  name='nscoderam',   start=0x04000000, length=0x00008000, access='rwx'),
         FlashRegion(name='sflash',      start=0x10000000, length=0x00098000, access='rx',
-            blocksize=0x200, is_boot_memory=True, algo=FLASH_ALGO, alias='nsflash'),
+            blocksize=0x200,
+            is_boot_memory=True,
+            are_erased_sectors_readable=False,
+            algo=FLASH_ALGO,
+            alias='nsflash'),
         RomRegion(  name='srom',        start=0x13000000, length=0x00020000, access='srx',
             alias='nsrom'),
         RamRegion(  name='scoderam',    start=0x14000000, length=0x00008000, access='srwx',
@@ -128,6 +162,7 @@ class LPC55S69JBD100(CoreSightTarget):
         seq = super(LPC55S69JBD100, self).create_init_sequence()
         
         seq.wrap_task('init_ap_roms', self._modify_ap1)
+        seq.replace_task('create_cores', self.create_lpc55s69_cores)
         seq.insert_before('create_components',
             ('enable_traceclk',        self._enable_traceclk),
             )
@@ -143,6 +178,20 @@ class LPC55S69JBD100(CoreSightTarget):
 
     def _set_ap1_nonsec(self):
         self.aps[1].hnonsec = 1
+
+    def create_lpc55s69_cores(self):
+        # Create core 0 with a custom class.
+        core0 = CortexM_LPC55S69(self.session, self.aps[0], self.memory_map, 0)
+        core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        self.aps[0].core = core0
+        core0.init()
+        self.add_core(core0)
+        
+        core1 = CortexM_v8M(self.session, self.aps[1], self.memory_map, 1)
+        core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        self.aps[1].core = core1
+        core1.init()
+        self.add_core(core1)
     
     def _enable_traceclk(self):
         SYSCON_NS_Base_Addr = 0x40000000
@@ -166,3 +215,95 @@ class LPC55S69JBD100(CoreSightTarget):
         
         self.call_delegate('trace_start', target=self, mode=0)
 
+class CortexM_LPC55S69(CortexM_v8M):
+
+    def reset_and_halt(self, reset_type=None):
+        """! @brief Perform a reset and stop the core on the reset handler. """
+        
+        catch_mode = 0
+        
+        delegateResult = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
+        
+        # Save CortexM.DEMCR
+        demcr = self.read_memory(CortexM.DEMCR)
+
+        # enable the vector catch
+        if not delegateResult:
+            # This sequence is copied from the NXP LPC55S69_DFP debug sequence.
+            reset_vector = 0xFFFFFFFF
+            
+            # Clear reset vector catch.
+            self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
+            
+            # If the processor is in Secure state, we have to access the flash controller
+            # through the secure alias.
+            if self.get_security_state() == Target.SecurityState.SECURE:
+                print("Secure")
+                base = PERIPHERAL_BASE_S
+            else:
+                print("Non-Secure")
+                base = PERIPHERAL_BASE_NS
+            
+            # Use the flash programming model to check if the first flash page is readable, since
+            # attempted accesses to erased pages result in bus faults. The start and stop address
+            # are both set to 0x0 to probe the sector containing the reset vector.
+            self.write32(base + FLASH_STARTA, 0x00000000) # Program flash word start address to 0x0
+            self.write32(base + FLASH_STOPA, 0x00000000) # Program flash word stop address to 0x0
+            self.write_memory_block32(base + FLASH_DATAW0, [0x00000000] * 8) # Prepare for read
+            self.write32(base + FLASH_INT_CLR_STATUS, 0x0000000F) # Clear Flash controller status
+            self.write32(base + FLASH_CMD, FLASH_CMD_READ_SINGLE_WORD) # Read single flash word
+
+            # Wait for flash word read to finish.
+            with timeout.Timeout(5.0) as t_o:
+                while t_o.check():
+                    if (self.read32(base + FLASH_INT_STATUS) & 0x00000004) != 0:
+                        break
+                    sleep(0.01)
+            
+            # Check for error reading flash word.
+            if (self.read32(base + FLASH_INT_STATUS) & 0xB) == 0:
+                 # Read the reset vector address.
+                reset_vector = self.read32(0x00000004)
+
+            # Break on user application reset vector if we have a valid breakpoint address.
+            if reset_vector != 0xFFFFFFFF:
+                catch_mode = 1
+                self.write32(FPB_COMP0, reset_vector|1) # Program FPB Comparator 0 with reset handler address
+                self.write32(FPB_CTRL, 0x00000003)    # Enable FPB
+            # No valid user application so use watchpoint to break at end of boot ROM. The ROM
+            # writes a special address to signal when it's done.
+            else:
+                catch_mode = 2
+                self.write32(DWT_FUNCTION0, 0)
+                self.write32(DWT_COMP0, BOOTROM_MAGIC_ADDR)
+                self.write32(DWT_FUNCTION0, (DWT_FUNCTION_MATCH | DWT_FUNCTION_ACTION | DWT_FUNCTION_DATAVSIZE))
+
+            # Read DHCSR to clear potentially set DHCSR.S_RESET_ST bit
+            self.read32(CortexM.DHCSR)
+
+        self.reset(reset_type)
+
+        # wait until the unit resets
+        with timeout.Timeout(2.0) as t_o:
+            while t_o.check():
+                if self.get_state() not in (Target.TARGET_RESET, Target.TARGET_RUNNING):
+                    break
+                sleep(0.01)
+
+        # Make sure the thumb bit is set in XPSR in case the reset handler
+        # points to an invalid address.
+        xpsr = self.read_core_register('xpsr')
+        if xpsr & self.XPSR_THUMB == 0:
+            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+
+        self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
+
+        # Clear breakpoint or watchpoint.
+        if catch_mode == 1:
+            self.write32(0xE0002008, 0)
+        elif catch_mode == 2:
+            self.write32(DWT_COMP0, 0)
+            self.write32(DWT_FUNCTION0, 0)
+
+        # restore vector catch setting
+        self.write_memory(CortexM.DEMCR, demcr)

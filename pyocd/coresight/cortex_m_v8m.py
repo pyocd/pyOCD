@@ -16,6 +16,7 @@
 
 from .cortex_m import CortexM
 from ..core import exceptions
+from ..core.target import Target
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -42,6 +43,12 @@ class CortexM_v8M(CortexM):
     ARMv8M_BASE = 0xC
     ARMv8M_MAIN = 0xF
     
+    DSCSR = 0xE000EE08
+    DSCSR_CDSKEY = 0x00020000
+    DSCSR_CDS = 0x00010000
+    DSCSR_SBRSEL = 0x00000002
+    DSCSR_SBRSELEN = 0x00000001
+    
     # Processor Feature Register 1
     PFR1 = 0xE000ED44
     PFR1_SECURITY_MASK = 0x000000f0
@@ -52,6 +59,18 @@ class CortexM_v8M(CortexM):
 
         # Only v7-M supports VECTRESET.
         self._supports_vectreset = False
+    
+    @property
+    def supported_security_states(self):
+        """! @brief Tuple of security states supported by the processor.
+        
+        @return Tuple of @ref pyocd.core.target.Target.SecurityState "Target.SecurityState". The
+            result depends on whether the Security extension is enabled.
+        """
+        if self.has_security_extension:
+            return (Target.SecurityState.NONSECURE, Target.SecurityState.SECURE)
+        else:
+            return (Target.SecurityState.NONSECURE)
 
     def _read_core_type(self):
         """! @brief Read the CPUID register and determine core type and architecture."""
@@ -78,4 +97,15 @@ class CortexM_v8M(CortexM):
                 LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
         else:
             LOG.warning("CPU core #%d type is unrecognized", self.core_number)
-
+    
+    def get_security_state(self):
+        """! @brief Returns the current security state of the processor.
+        
+        @return @ref pyocd.core.target.Target.SecurityState "Target.SecurityState" enumerator.
+        """
+        dscsr = self.read32(self.DSCSR)
+        if (dscsr & self.DSCSR_CDS) != 0:
+            return Target.SecurityState.SECURE
+        else:
+            return Target.SecurityState.NONSECURE
+        

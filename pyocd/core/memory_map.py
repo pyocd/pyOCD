@@ -277,6 +277,8 @@ class FlashRegion(MemoryRegion):
     - `flash_class`: The class that manages individual flash algorithm operations. Must be either
         @ref pyocd.flash.flash.Flash "Flash", which is the default, or a subclass.
     - `flash`: After connection, this attribute holds the instance of `flash_class` for this region.
+    - `are_erased_sectors_readable`: Specifies whether the flash controller allows reads of erased
+        sectors, or will fault such reads. Default is True.
     
     `sector_size` and `blocksize` are aliases of each other. If one is set via the constructor, the
     other will have the same value.
@@ -294,6 +296,7 @@ class FlashRegion(MemoryRegion):
         'program_page_weight': DefaultFlashWeights.PROGRAM_PAGE_WEIGHT,
         'erased_byte_value': 0xff,
         'access': 'rx', # By default flash is not writable.
+        'are_erased_sectors_readable': True,
         })
 
     def __init__(self, start=0, end=0, length=None, **attrs):

@@ -475,6 +475,15 @@ class CortexM(Target, CoreSightCoreComponent):
         assert reset_type in (Target.ResetType.SW_SYSRESETREQ, Target.ResetType.SW_VECTRESET,
                                 Target.ResetType.SW_EMULATED)
         self._default_software_reset_type = reset_type
+    
+    @property
+    def supported_security_states(self):
+        """! @brief Tuple of security states supported by the processor.
+        
+        @return Tuple of @ref pyocd.core.target.Target.SecurityState "Target.SecurityState". For
+            v6-M and v7-M cores, the return value only contains SecurityState.NONSECURE.
+        """
+        return (Target.SecurityState.NONSECURE,)
 
     def init(self):
         """! @brief Cortex M initialization.
@@ -934,6 +943,14 @@ class CortexM(Target, CoreSightCoreComponent):
             return Target.TARGET_HALTED
         else:
             return Target.TARGET_RUNNING
+    
+    def get_security_state(self):
+        """! @brief Returns the current security state of the processor.
+        
+        @return @ref pyocd.core.target.Target.SecurityState "Target.SecurityState" enumerator. For
+            v6-M and v7-M cores, SecurityState.NONSECURE is always returned.
+        """
+        return Target.SecurityState.NONSECURE
 
     @property
     def run_token(self):

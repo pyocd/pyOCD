@@ -358,6 +358,9 @@ class FlashBuilder(object):
 
         Data must have already been added with add_data().
         
+        If the flash region's 'are_erased_sectors_readable' attribute is false, then the
+        smart_flash, fast_verify, and keep_unwritten options are forced disabled.
+        
         @param self
         @param chip_erase A value of "chip" forces chip erase, "sector" forces sector erase, and a
             value of "auto" means that the estimated fastest method should be used. If not
@@ -379,6 +382,12 @@ class FlashBuilder(object):
 
         # Send notification that we're about to program flash.
         self.flash.target.session.notify(Target.EVENT_PRE_FLASH_PROGRAM, self)
+        
+        # Disable options if attempting to read erased sectors will fault.
+        if not self.flash.region.are_erased_sectors_readable:
+            smart_flash = False
+            fast_verify = False
+            keep_unwritten = False
 
         # Examples
         # - lpc4330     -Non 0 base address
