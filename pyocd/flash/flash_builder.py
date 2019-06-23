@@ -617,18 +617,19 @@ class FlashBuilder(object):
         """
         analyze_start = time()
         
-        # Analyze pages using either CRC32 analyzer or partial reads.
-        if self.flash.get_flash_info().crc_supported:
-            self._analyze_pages_with_crc32(fast_verify)
-            self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_CRC32
-        elif self.flash.region.is_readable:
-            self._analyze_pages_with_partial_read()
-            self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_PARTIAL_PAGE_READ
-        else:
-            # The CRC analyzer isn't supported and flash isn't directly readable, so
-            # just mark all pages as needing programming. This will also prevent
-            # _scan_pages_for_same() from trying to read flash.
-            self._mark_all_pages_for_programming()
+        # Analyze unknown pages using either CRC32 analyzer or partial reads.
+        if any(page.same is None for page in self.page_list):
+            if self.flash.get_flash_info().crc_supported:
+                self._analyze_pages_with_crc32(fast_verify)
+                self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_CRC32
+            elif self.flash.region.is_readable:
+                self._analyze_pages_with_partial_read()
+                self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_PARTIAL_PAGE_READ
+            else:
+                # The CRC analyzer isn't supported and flash isn't directly readable, so
+                # just mark all pages as needing programming. This will also prevent
+                # _scan_pages_for_same() from trying to read flash.
+                self._mark_all_pages_for_programming()
 
         # Put together page and time estimate.
         sector_erase_count = 0
