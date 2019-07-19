@@ -256,6 +256,7 @@ class CortexM_CY8C64xx(CortexM):
         if not is_flashing:
             LOG.info("Clearing TEST_MODE bit...")
             self.write32(0x40260100, 0x00000000)
+            self.flush()
 
 
 class cy8c64xx_cm0(cy8c64xx):
