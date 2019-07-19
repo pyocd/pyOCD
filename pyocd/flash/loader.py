@@ -27,7 +27,7 @@ from .flash_builder import (FlashBuilder, get_page_count, get_sector_count)
 from ..core.memory_map import MemoryType
 from ..core import exceptions
 from ..utility.progress import print_progress
-from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
+from elftools.elf.elffile import ELFFile
 from ..utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
@@ -197,17 +197,21 @@ class FileProgrammer(object):
                 LOG.warning("Failed to add data chunk: %s", e)
 
     def _program_elf(self, file_obj, **kwargs):
-        """! ELF format loader"""
-        elf = ELFBinaryFile(file_obj, self._session.target.memory_map)
-        for section in elf.sections:
-            if ((section.type == 'SHT_PROGBITS')
-                    and ((section.flags & (SH_FLAGS.SHF_ALLOC | SH_FLAGS.SHF_WRITE)) == SH_FLAGS.SHF_ALLOC)
-                    and (section.length > 0)
-                    and (section.region.is_flash)):
-                LOG.debug("Writing section %s", repr(section))
-                self._loader.add_data(section.start, section.data)
+        elf = ELFFile(file_obj)
+        for segment in elf.iter_segments():
+            if segment.header.p_type == 'PT_LOAD' and segment.header.p_filesz != 0:
+                addr = segment['p_paddr']
+                data = bytearray(segment.data())
+                LOG.debug("Writing segment LMA:0x%08x, VMA:0x%08x, size %d", addr, 
+                          segment['p_vaddr'], segment.header.p_filesz)
+                try:
+                    self._loader.add_data(addr, data)
+                except ValueError as e:
+                    LOG.warning("Failed to add data chunk: %s", e)
             else:
-                LOG.debug("Skipping section %s", repr(section))
+                LOG.debug("Skipping segment LMA:0x%08x, VMA:0x%08x, size %d", addr,
+                          segment['p_vaddr'], segment.header.p_filesz)
+                        
 
 class FlashEraser(object):
     """! @brief Class that manages high level flash erasing.
