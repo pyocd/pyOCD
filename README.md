@@ -112,6 +112,9 @@ You have a few options here:
 3. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
    local to a specific project working set.
 
+For notes about installing and using on non-x86 systems such as Raspberry Pi, see the
+[relevant documentation](docs/installing_on_non_x86.md).
+
 ### libusb installation
 
 [pyusb](https://github.com/pyusb/pyusb) and its backend library [libusb](https://libusb.info/) are

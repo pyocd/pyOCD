@@ -26,7 +26,6 @@ import os
 import fnmatch
 import re
 import prettytable
-import cmsis_pack_manager
 
 from . import __version__
 from .core.session import Session
@@ -47,6 +46,12 @@ from .tools.pyocd import PyOCDCommander
 from .flash import loader
 from .core import options
 from .utility.cmdline import split_command_line
+
+try:
+    import cmsis_pack_manager
+    CPM_AVAILABLE = True
+except ImportError:
+    CPM_AVAILABLE = False
 
 ## @brief Default log format for all subcommands.
 LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
@@ -595,6 +600,10 @@ class PyOCDTool(object):
     
     def do_pack(self):
         """! @brief Handle 'pack' subcommand."""
+        if not CPM_AVAILABLE:
+            LOG.error("'pack' command is not available because cmsis-pack-manager is not installed")
+            return
+        
         verbosity = self._args.verbose - self._args.quiet
         cache = cmsis_pack_manager.Cache(verbosity < 0, False)
         

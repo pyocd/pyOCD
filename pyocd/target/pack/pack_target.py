@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from __future__ import print_function
-import cmsis_pack_manager
 import logging
 import six
 import os
@@ -26,6 +25,12 @@ from .. import TARGET
 from ...core.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
 from ...utility.compatibility import FileNotFoundError_
+
+try:
+    import cmsis_pack_manager
+    CPM_AVAILABLE = True
+except ImportError:
+    CPM_AVAILABLE = False
 
 LOG = logging.getLogger(__name__)
 
@@ -40,6 +45,8 @@ class ManagedPacks(object):
     @staticmethod
     def get_installed_packs(cache=None):
         """! @brief Return a list containing CmsisPackRef objects for all installed packs."""
+        if not CPM_AVAILABLE:
+            return []
         cache = cache or cmsis_pack_manager.Cache(True, True)
         results = []
         # packs_for_devices() returns only unique packs.
@@ -55,6 +62,8 @@ class ManagedPacks(object):
     @staticmethod
     def get_installed_targets():
         """! @brief Return a list of CmsisPackDevice objects for installed pack targets."""
+        if not CPM_AVAILABLE:
+            return []
         cache = cmsis_pack_manager.Cache(True, True)
         results = []
         for pack in ManagedPacks.get_installed_packs(cache=cache):
