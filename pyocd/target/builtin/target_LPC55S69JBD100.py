@@ -238,10 +238,8 @@ class CortexM_LPC55S69(CortexM_v8M):
             # If the processor is in Secure state, we have to access the flash controller
             # through the secure alias.
             if self.get_security_state() == Target.SecurityState.SECURE:
-                print("Secure")
                 base = PERIPHERAL_BASE_S
             else:
-                print("Non-Secure")
                 base = PERIPHERAL_BASE_NS
             
             # Use the flash programming model to check if the first flash page is readable, since
