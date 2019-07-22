@@ -55,7 +55,13 @@ class StlinkProbe(DebugProbe):
         for info in detector.list_mbeds():
             if info['target_id_usb_id'] == self._link.serial_number:
                 self._mbed_info = info
-                self._board_id = info['target_id_mbed_htm'][0:4]
+                
+                # Some STLink probes provide an MSD volume, but not the mbed.htm file.
+                # We can live without the board ID, so just ignore any error.
+                try:
+                    self._board_id = info['target_id_mbed_htm'][0:4]
+                except KeyError:
+                    pass
                 break
         
     @property
@@ -92,7 +98,7 @@ class StlinkProbe(DebugProbe):
         return self._is_open
 
     def create_associated_board(self, session):
-        if self._mbed_info:
+        if self._board_id is not None:
             return MbedBoard(session, board_id=self._board_id)
         else:
             return None
