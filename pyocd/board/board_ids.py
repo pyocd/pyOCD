@@ -142,7 +142,7 @@ BOARD_ID_TO_INFO = {
     "0833": BoardInfo(  "DISCO-L072CZ-LRWAN1",  "stm32l072cz",      None,                   ),
     "0835": BoardInfo(  "NUCLEO-F207ZG",        "stm32f207zg",      None,                   ),
     "0836": BoardInfo(  "NUCLEO-H743ZI2",       "stm32h743zitx",    None,                   ),
-    "0839": BoardInfo(  "NUCLEO-WB55RG",        "stm32wb55rg",      None,                   ),
+    "0839": BoardInfo(  "NUCLEO-WB55RG",        "stm32wb55rgvx",    None,                   ),
     "0840": BoardInfo(  "B96B-F446VE",          "stm32f446ve",      None,                   ),
     "0854": BoardInfo(  "NUCLEO-L552ZE-Q",      "stm32l552ze",      None,                   ),
     "0855": BoardInfo(  "DISCO-L562QE",         "stm32l562qe",      None,                   ),
