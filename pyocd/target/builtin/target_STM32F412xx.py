@@ -54,7 +54,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
     'static_base' : 0x20000000 + 0x00000020 + 0x0000014c,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20002000,
+    'begin_data' : 0x20003000,
     'page_buffers' : [0x20003000, 0x20004000],
     'min_program_length' : 2,
     'analyzer_supported' : True,
