@@ -46,7 +46,7 @@ class PyWinUSB(Interface):
     def __init__(self):
         super(PyWinUSB, self).__init__()
         # Vendor page and usage_id = 2
-        self.report = []
+        self.report = None
         # deque used here instead of synchronized Queue
         # since read speeds are ~10-30% faster and are
         # comprable to a based list implmentation.
@@ -55,7 +55,7 @@ class PyWinUSB(Interface):
 
     # handler called when a report is received
     def rx_handler(self, data):
-        #logging.debug("rcv: %s", data[1:])
+#         LOG.debug("rcv<(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
         self.rcv_data.append(data[1:])
 
     def open(self):
@@ -91,7 +91,6 @@ class PyWinUSB(Interface):
                 # not happen.
                 assert False
 
-
     @staticmethod
     def get_all_connected_interfaces():
         """! @brief Returns all the connected CMSIS-DAP devices
@@ -120,6 +119,7 @@ class PyWinUSB(Interface):
                     continue
                 new_board = PyWinUSB()
                 new_board.report = report[0]
+                new_board.packet_size = len(new_board.report.get_raw_data()) - 1
                 new_board.vendor_name = dev.vendor_name
                 new_board.product_name = dev.product_name
                 new_board.serial_number = dev.serial_number
@@ -138,20 +138,19 @@ class PyWinUSB(Interface):
     def write(self, data):
         """! @brief Write data on the OUT endpoint associated to the HID interface
         """
-        for _ in range(self.packet_size - len(data)):
-            data.append(0)
-        #logging.debug("send: %s", data)
+        data.extend([0] * (self.packet_size - len(data)))
+#         LOG.debug("snd>(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
         self.report.send([0] + data)
-        return
-
 
     def read(self, timeout=20.0):
         """! @brief Read data on the IN endpoint associated to the HID interface
         """
-        start = time()
-        while len(self.rcv_data) == 0:
-            sleep(0)
-            if time() - start > timeout:
+        with Timeout(timeout) as t_o:
+            while t_o.check():
+                if len(self.rcv_data):
+                    break
+                sleep(0)
+            else:
                 # Read operations should typically take ~1-2ms.
                 # If this exception occurs, then it could indicate
                 # a problem in one of the following areas:
