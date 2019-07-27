@@ -91,7 +91,7 @@ class SVDElement(object):
         # if there is a derivedFrom, check there first
         elif derived_from is not None:
             derived_value = getattr(derived_from, "_{}".format(attr), NOT_PRESENT)
-            if derived_value is not NOT_PRESENT:
+            if (derived_value is not NOT_PRESENT) and (derived_value is not None):
                 return derived_value
 
         # for some attributes, try to grab from parent
