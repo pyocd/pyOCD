@@ -16,6 +16,7 @@
 
 from enum import Enum
 import six
+import copy
 from functools import total_ordering
 
 class MemoryType(Enum):
@@ -229,11 +230,20 @@ class MemoryRegion(MemoryRangeBase):
             return aliasValue
         
     def __getattr__(self, name):
-        v = self._attributes[name]
-        if callable(v):
-            v = v(self)
-        return v
-
+        try:
+            v = self._attributes[name]
+        except KeyError:
+            # Transform the KeyError from a missing attribute to the expected AttributeError.
+            raise AttributeError(name)
+        else:
+            if callable(v):
+                v = v(self)
+            return v
+    
+    def __deepcopy__(self, memo):
+        # Custom deep copy is required due to our __getattr__() method.
+        return self.__class__(**(copy.deepcopy(self._attributes)))
+ 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access)
 

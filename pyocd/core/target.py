@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Enum
+import copy
+
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
-from enum import Enum
 
 class Target(MemoryInterface):
 
@@ -101,7 +103,9 @@ class Target(MemoryInterface):
         self.vendor = self.VENDOR
         self.part_families = []
         self.part_number = ""
-        self.memory_map = memoryMap or MemoryMap()
+        # Make a target-specific copy of the memory map. This is safe to do without locking
+        # because the memory map may not be mutated until target initialization.
+        self.memory_map = (copy.deepcopy(memoryMap)) if memoryMap else MemoryMap()
         self._svd_location = None
         self._svd_device = None
 
