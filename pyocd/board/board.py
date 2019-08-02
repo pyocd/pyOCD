@@ -29,7 +29,7 @@ class Board(GraphNode):
     """
     def __init__(self, session, target=None):
         super(Board, self).__init__()
-        
+
         # As a last resort, default the target to 'cortex_m'.
         if target is None:
             target = 'cortex_m'
@@ -38,7 +38,7 @@ class Board(GraphNode):
         self._test_binary = session.options.get('test_binary')
         self._delegate = None
         self._inited = False
-        
+
         # Create targets from provided CMSIS pack.
         if session.options['pack'] is not None:
             pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
@@ -46,6 +46,13 @@ class Board(GraphNode):
         # Create targets from the cmsis-pack-manager cache.
         if self._target_type not in TARGET:
             pack_target.ManagedPacks.populate_target(target)
+
+        # Automatically select target type for CMSIS pack
+        if pack_target.PackTargets.supported_targets and self._target_type == 'cortex_m':
+            self._target_type = pack_target.PackTargets.supported_targets[0]
+            LOG.warning("Automatically select target '%s', "\
+                "other available target types in packs: %s",
+                self._target_type, str(pack_target.PackTargets.supported_targets))
 
         # Create Target instance.
         try:
@@ -56,17 +63,18 @@ class Board(GraphNode):
                 "available target types. "
                 "See <https://github.com/mbedmicro/pyOCD/blob/master/docs/target_support.md> "
                 "for how to install additional target support." % self._target_type), exc)
-        
+
         # Tell the user what target type is selected.
         LOG.info("Target type is %s", self._target_type)
-        
+
+
         # Log a helpful warning when using the generic cortex_m target.
         if self._target_type == 'cortex_m':
             LOG.warning("Generic 'cortex_m' target type is selected; is this intentional? "
                         "You will be able to debug but not program flash. To set the "
                         "target type use the '--target' argument or 'target_override' option. "
                         "Use 'pyocd list --targets' to see available targets types.")
-        
+
         self.add_child(self.target)
 
     def init(self):
@@ -74,15 +82,15 @@ class Board(GraphNode):
         # If we don't have a delegate set yet, see if there is a session delegate.
         if (self.delegate is None) and (self.session.delegate is not None):
             self.delegate = self.session.delegate
-        
+
         # Delegate pre-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'will_connect'):
             self.delegate.will_connect(board=self)
-        
+
         # Init the target.
         self.target.init()
         self._inited = True
-        
+
         # Delegate post-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
             self.delegate.did_connect(board=self)
@@ -101,31 +109,31 @@ class Board(GraphNode):
     @property
     def session(self):
         return self._session
-    
+
     @property
     def delegate(self):
         return self._delegate
-    
+
     @delegate.setter
     def delegate(self, the_delegate):
         self._delegate = the_delegate
-        
+
     @property
     def unique_id(self):
         return self.session.probe.unique_id
-    
+
     @property
     def target_type(self):
         return self._target_type
-    
+
     @property
     def test_binary(self):
         return self._test_binary
-    
+
     @property
     def name(self):
         return "generic"
-    
+
     @property
     def description(self):
         return "Generic board via " + self.session.probe.vendor_name + " " \
