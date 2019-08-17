@@ -128,7 +128,10 @@ How to install libusb depends on your OS:
 - Linux: should already be installed.
 - Windows: download libusb from [libusb.info](https://libusb.info/) and place the DLL in your Python
   installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
-  your Python installation.
+  your Python installation. *Note: due to a
+  [known issue](https://github.com/mbedmicro/pyOCD/issues/684), the current recommendation is to use
+  [libusb version 1.0.21](https://github.com/libusb/libusb/releases/tag/v1.0.21) on Windows instead
+  of the most recent version.*
 
 ### udev rules on Linux
 
