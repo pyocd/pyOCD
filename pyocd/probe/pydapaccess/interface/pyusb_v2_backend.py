@@ -343,7 +343,7 @@ class HasCmsisDapv2Interface(object):
                 else:
                     LOG.debug(msg)
             return False
-        except (IndexError, NotImplementedError, ValueError) as error:
+        except (IndexError, NotImplementedError, ValueError, UnicodeDecodeError) as error:
             return False
 
         if cmsis_dap_interface is None:
