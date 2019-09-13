@@ -65,21 +65,16 @@ AP_IDR_TYPE_MASK = 0x0000000f
 AP_JEP106_ARM = 0x23b
 
 # AP classes
-AP_CLASS_NONE   = 0x00000 # No class defined
-AP_CLASS_MEM_AP = 0x8 # MEM-AP
+AP_CLASS_JTAG_AP = 0x0
+AP_CLASS_COM_AP = 0x1 # SDC-600 (Chaucer)
+AP_CLASS_MEM_AP = 0x8 # AHB-AP, APB-AP, AXI-AP
 
 # MEM-AP type constants
 AP_TYPE_AHB = 0x1
 AP_TYPE_APB = 0x2
 AP_TYPE_AXI = 0x4
 AP_TYPE_AHB5 = 0x5
-
-AP_TYPE_NAME = {
-        AP_TYPE_AHB: "AHB-AP",
-        AP_TYPE_APB: "APB-AP",
-        AP_TYPE_AXI: "AXI-AP",
-        AP_TYPE_AHB5: "AHB5-AP",
-    }
+AP_TYPE_APB4 = 0x6
 
 # AP Control and Status Word definitions
 CSW_SIZE     =  0x00000007
@@ -184,18 +179,18 @@ class AccessPort(object):
 
         # Get the AccessPort class to instantiate.
         key = (designer, apClass, variant, apType)
-        klass = AP_TYPE_MAP.get(key, AccessPort)
+        name, klass = AP_TYPE_MAP.get(key, (None, AccessPort))
         
-        ap = klass(dp, ap_num, idr)
+        ap = klass(dp, ap_num, idr, name)
         ap.init()
         return ap
     
-    def __init__(self, dp, ap_num, idr=None):
+    def __init__(self, dp, ap_num, idr=None, name=""):
         self.dp = dp
         self.ap_num = ap_num
         self.link = dp.link
         self.idr = idr
-        self.type_name = None
+        self.type_name = name
         self.rom_addr = 0
         self.has_rom_table = False
         self.rom_table = None
@@ -212,20 +207,20 @@ class AccessPort(object):
         self.revision = (self.idr & AP_IDR_REVISION_MASK) >> AP_IDR_REVISION_SHIFT
         
         # Get the type name for this AP.
+        self.ap_class = (self.idr & AP_IDR_CLASS_MASK) >> AP_IDR_CLASS_SHIFT
         self.ap_type = self.idr & AP_IDR_TYPE_MASK
-        if self.ap_type in AP_TYPE_NAME:
-            self.type_name = AP_TYPE_NAME[self.ap_type]
+        if self.type_name is not None:
             desc = "{} var{} rev{}".format(self.type_name, self.variant, self.revision)
         else:
-            self.type_name = "proprietary"
-            desc = self.type_name
+            desc = "proprietary"
 
         # Init ROM table
         self.rom_addr = self.read_reg(AP_BASE)
         self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
         self.rom_addr &= 0xfffffffc # clear format and present bits
 
-        LOG.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
+        LOG.info("AP#%d IDR = 0x%08x (%s)%s", self.ap_num, self.idr, desc,
+            ("" if self.has_rom_table else " [No ROM table]"))
  
     @_locked
     def init_rom_table(self):
@@ -287,8 +282,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     HPROT[6] = 1 shareable, 0 non shareable<br/>
     """
 
-    def __init__(self, dp, ap_num, idr=None):
-        super(MEM_AP, self).__init__(dp, ap_num, idr)
+    def __init__(self, dp, ap_num, idr=None, name=""):
+        super(MEM_AP, self).__init__(dp, ap_num, idr, name)
         
         self._impl_hprot = 0
         self._impl_hnonsec = 0
@@ -711,15 +706,15 @@ class AHB_AP_4k_Wrap(AHB_AP):
     The only known AHB-AP with a 4k wrap is the one documented in the CM3 and CM4 TRMs.
     It has an IDR of 0x24770011, which decodes to AHB-AP, variant 1, version 2.
     """
-    def __init__(self, dp, ap_num, idr=None):
-        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num, idr)
+    def __init__(self, dp, ap_num, idr=None, name=""):
+        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num, idr, name)
 
         # Set a 4 kB auto increment wrap size.
         self.auto_increment_page_size = 0x1000
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
-# The dict key is a 4-tuple of (JEP106 code, AP class, variant, type).
+# The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class).
 #
 # Known AP IDRs:
 # 0x24770011 AHB-AP with 0x1000 wrap
@@ -737,15 +732,17 @@ class AHB_AP_4k_Wrap(AHB_AP):
 # 0x04770025 AHB5-AP Used on M23.
 # 0x54770002 APB-AP used on M33.
 AP_TYPE_MAP = {
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB) : AHB_AP_4k_Wrap,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 3, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 4, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB) : MEM_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AXI) : MEM_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB5) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB5) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB5) : AHB_AP,
+    (AP_JEP106_ARM, AP_CLASS_JTAG_AP, 0, 0):            ("JTAG-AP", AccessPort),
+    (AP_JEP106_ARM, AP_CLASS_COM_AP, 0, 0):             ("SDC-600", AccessPort),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP_4k_Wrap),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 3, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 4, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB):   ("APB-AP",  MEM_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AXI):   ("AXI-AP",  MEM_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB4):  ("APB4-AP", MEM_AP),
     }
-
