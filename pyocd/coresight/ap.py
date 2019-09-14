@@ -513,6 +513,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
         TRACE.debug("write_mem:%06d }", num)
 
+    @_locked
     def _read_memory(self, addr, transfer_size=32, now=True):
         """! @brief Read a memory location.
         
