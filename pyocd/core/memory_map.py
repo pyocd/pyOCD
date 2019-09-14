@@ -384,7 +384,7 @@ class FlashRegion(MemoryRegion):
     def flash(self, flashInstance):
         self._flash = flashInstance
         
-    def is_erased(self, d):
+    def is_data_erased(self, d):
         """! @brief Helper method to check if a block of data is erased.
         @param self
         @param d List of data or bytearray.

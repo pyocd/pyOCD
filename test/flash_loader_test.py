@@ -138,7 +138,7 @@ def flash_loader_test(board_id):
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
-        if target.memory_map.get_region_for_address(addr).is_erased(verify_data):
+        if target.memory_map.get_region_for_address(addr).is_data_erased(verify_data):
             print("TEST PASSED")
             test_pass_count += 1
         else:

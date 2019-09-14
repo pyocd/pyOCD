@@ -539,7 +539,7 @@ class FlashBuilder(object):
         chip_erase_weight += self.flash.get_flash_info().erase_weight
         for page in self.page_list:
             if page.erased is None:
-                page.erased = self.flash.region.is_erased(page.data)
+                page.erased = self.flash.region.is_data_erased(page.data)
             if not page.erased:
                 chip_erase_count += 1
                 chip_erase_weight += page.get_program_weight()

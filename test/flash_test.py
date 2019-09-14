@@ -177,7 +177,7 @@ def flash_test(board_id):
             
             print("\n------ Test Erased Value Check ------")
             d = [flash.region.erased_byte_value] * 128
-            if flash.region.is_erased(d):
+            if flash.region.is_data_erased(d):
                 print("TEST PASSED")
                 test_pass_count += 1
             else:
@@ -185,7 +185,7 @@ def flash_test(board_id):
             test_count += 1
 
             d = [unerasedValue] + [flash.region.erased_byte_value] * 127
-            if not flash.region.is_erased(d):
+            if not flash.region.is_data_erased(d):
                 print("TEST PASSED")
                 test_pass_count += 1
             else:
