@@ -439,17 +439,52 @@ MEMORY_TYPE_CLASS_MAP = {
     }
 
 class MemoryMap(object):
-    """! @brief Memory map consisting of memory regions."""
-    def __init__(self, *moreRegions):
+    """! @brief Memory map consisting of memory regions.
+    
+    The normal way to create a memory map is to instantiate regions directly in the call to the
+    constructor.
+    
+    @code
+    map = MemoryMap(
+                FlashRegion(    start=0,
+                                length=0x4000,
+                                blocksize=0x400,
+                                is_boot_memory=True,
+                                algo=FLASH_ALGO),
+            
+                RamRegion(      start=0x10000000,
+                                length=0x1000)
+                )
+    @endcode
+    
+    The memory map can also be modified by adding and removing regions at runtime. Regardless of
+    the order regions are added, the list of regions contained in the memory map is always
+    maintained sorted by start address.
+    """
+    
+    def __init__(self, *more_regions):
+        """! @brief Constructor.
+        
+        All parameters passed to the constructor are assumed to be MemoryRegion instances, and
+        are passed to add_regions(). The resulting memory map is sorted by region start address.
+        
+        @param self
+        @param more_regions Zero or more MemoryRegion objects passed as separate parameters.
+        """
         self._regions = []
-        self.add_regions(*moreRegions)
+        self.add_regions(*more_regions)
 
     @property
     def regions(self):
+        """! @brief List of all memory regions.
+        
+        Regions in the returned list are sorted by start address.
+        """
         return self._regions
 
     @property
     def region_count(self):
+        """! @brief Number of memory regions in the map."""
         return len(self._regions)
 
     def clone(self):
@@ -461,19 +496,38 @@ class MemoryMap(object):
         """
         return MemoryMap(*[copy.copy(r) for r in self.regions])
 
-    def add_regions(self, *moreRegions):
-        if len(moreRegions):
-            if isinstance(moreRegions[0], (list, tuple)):
-                regionsToAdd = moreRegions[0]
+    def add_regions(self, *more_regions):
+        """! @brief Add multiple regions to the memory map.
+        
+        There are two options for passing the list of regions to be added. The first is to pass
+        each region as a separate parameter, similar to how the constructor is intended to be used.
+        The second option is to pass either a list or tuple of regions.
+        
+        The region list is kept sorted. If no regions are provided, the call is a no-op.
+        
+        @param self
+        @param more_regions Either a single tuple or list, or one or more MemoryRegion objects
+            passed as separate parameters.
+        """
+        if len(more_regions):
+            if isinstance(more_regions[0], (list, tuple)):
+                regionsToAdd = more_regions[0]
             else:
-                regionsToAdd = moreRegions
+                regionsToAdd = more_regions
             
             for newRegion in regionsToAdd:
                 self.add_region(newRegion)
 
-    def add_region(self, newRegion):
-        newRegion.map = self
-        self._regions.append(newRegion)
+    def add_region(self, new_region):
+        """! @brief Add one new region to the map.
+        
+        The region list is resorted after adding the provided region.
+        
+        @param self
+        @param new_region An instance of MemoryRegion to add.
+        """
+        new_region.map = self
+        self._regions.append(new_region)
         self._regions.sort()
     
     def remove_region(self, region):
@@ -487,40 +541,96 @@ class MemoryMap(object):
                 del self._regions[i]
 
     def get_boot_memory(self):
+        """! @brief Returns the first region marked as boot memory.
+        
+        @param self
+        @return MemoryRegion or None.
+        """
         for r in self._regions:
             if r.is_boot_memory:
                 return r
         return None
 
     def get_region_for_address(self, address):
+        """! @brief Returns the first region containing the given address.
+        
+        @param self
+        @param address An integer target address.
+        @return MemoryRegion or None.
+        """
         for r in self._regions:
             if r.contains_address(address):
                 return r
         return None
 
     def get_region_by_name(self, name):
+        """! @brief Returns the first region matching the given name.
+        
+        @param self
+        @param name String with the name to match.
+        @return MemoryRegion or None.
+        """
         for r in self._regions:
             if r.name == name:
                 return r
         return None
 
     def is_valid_address(self, address):
+        """! @brief Determines whether an address is contained by any region.
+        
+        @param self
+        @param address An integer target address.
+        @return Boolean indicating whether the address was contained by a region.
+        """
         return self.get_region_for_address(address) is not None
 
     def get_contained_regions(self, start, end=None, length=None, range=None):
+        """! @brief Get all regions fully contained by an address range.
+        
+        @param self
+        @param start The start address or a MemoryRange object.
+        @param end Optional end address.
+        @param length Optional length in bytes.
+        @param range Optional MemoryRange object.
+        @return List of all regions in the memory map that are fully enclosed by the specified
+            address range.
+        """
         start, end = check_range(start, end, length, range)
         return [r for r in self._regions if r.contained_by_range(start, end)]
 
     def get_intersecting_regions(self, start, end=None, length=None, range=None):
+        """! @brief Get all regions intersected by an address range.
+        
+        @param self
+        @param start The start address or a MemoryRange object.
+        @param end Optional end address.
+        @param length Optional length in bytes.
+        @param range Optional MemoryRange object.
+        @return List of all regions in the memory map that intersect with the specified address
+            range.
+        """
         start, end = check_range(start, end, length, range)
         return [r for r in self._regions if r.intersects_range(start, end)]
     
     def get_regions_of_type(self, type):
-        for r in self._regions:
-            if r.type == type:
-                yield r
+        """! @brief Get all regions matching a memory type.
+        
+        @param self
+        @param type One of the MemoryType enums.
+        @return List of all regions in the memory map with the specified memory type.
+        """
+        return [r for r in self._regions if r.type == type]
     
     def get_first_region_of_type(self, type):
+        """! @brief Get the first region matching a given memory type.
+        
+        The region of given type with the lowest start address is returned. If there are no regions
+        with that type, None is returned instead.
+        
+        @param self
+        @param type One of the MemoryType enums.
+        @return A MemoryRegion object or None.
+        """
         for r in self.get_regions_of_type(type):
             return r
         return None
