@@ -66,7 +66,7 @@ class TestPack(object):
         map = k64dev.memory_map
         raml = map.get_region_for_address(0x1fff0000)
         ramu = map.get_region_for_address(0x20000000)
-        flash = map.get_first_region_of_type(memory_map.MemoryType.FLASH)
+        flash = map.get_default_region_of_type(memory_map.MemoryType.FLASH)
         assert raml.start == 0x1fff0000 and raml.length == 0x10000
         assert ramu.start == 0x20000000 and ramu.length == 0x30000
         assert flash.start == 0 and flash.length == 0x100000

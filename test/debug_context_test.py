@@ -77,7 +77,7 @@ def debug_context_test(board_id):
 
         memory_map = target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
         gdb_test_binary_file = os.path.join(parentdir, GDB_TEST_BIN)
         gdb_test_elf_file = os.path.join(parentdir, GDB_TEST_ELF)

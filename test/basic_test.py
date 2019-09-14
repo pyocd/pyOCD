@@ -58,7 +58,7 @@ def basic_test(board_id, file):
         print("binary file: %s" % binary_file)
 
         memory_map = board.target.get_memory_map()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start

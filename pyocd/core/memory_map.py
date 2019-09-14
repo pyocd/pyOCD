@@ -221,7 +221,7 @@ class MemoryRegion(MemoryRangeBase):
         # Resolve alias reference.
         aliasValue = self._attributes['alias']
         if isinstance(aliasValue, six.string_types):
-            referent = self._map.get_region_by_name(aliasValue)
+            referent = self._map.get_first_matching_region(name=aliasValue)
             if referent is None:
                 raise ValueError("unable to resolve memory region alias reference '%s'" % aliasValue)
             self._attributes['alias'] = referent
@@ -563,18 +563,6 @@ class MemoryMap(object):
                 return r
         return None
 
-    def get_region_by_name(self, name):
-        """! @brief Returns the first region matching the given name.
-        
-        @param self
-        @param name String with the name to match.
-        @return MemoryRegion or None.
-        """
-        for r in self._regions:
-            if r.name == name:
-                return r
-        return None
-
     def is_valid_address(self, address):
         """! @brief Determines whether an address is contained by any region.
         
@@ -612,16 +600,31 @@ class MemoryMap(object):
         start, end = check_range(start, end, length, range)
         return [r for r in self._regions if r.intersects_range(start, end)]
     
-    def get_regions_of_type(self, type):
-        """! @brief Get all regions matching a memory type.
+    def iter_matching_regions(self, **kwargs):
+        """! @brief Iterate over regions matching given criteria.
+        
+        Useful attributes to match on include 'type', 'name', 'is_default', and others.
         
         @param self
-        @param type One of the MemoryType enums.
-        @return List of all regions in the memory map with the specified memory type.
+        @param kwargs Values for region attributes that must match.
         """
-        return [r for r in self._regions if r.type == type]
+        for r in self._regions:
+            # Check attributes.
+            mismatch = False
+            for k, v in kwargs.items():
+                try:
+                    if getattr(r, k) != v:
+                        mismatch = True
+                        break
+                except AttributeError:
+                    # Don't match regions without the specified attribute.
+                    mismatch = True
+            if mismatch:
+                continue
+            
+            yield r
     
-    def get_first_region_of_type(self, type):
+    def get_first_matching_region(self, **kwargs):
         """! @brief Get the first region matching a given memory type.
         
         The region of given type with the lowest start address is returned. If there are no regions
@@ -631,10 +634,23 @@ class MemoryMap(object):
         @param type One of the MemoryType enums.
         @return A MemoryRegion object or None.
         """
-        for r in self.get_regions_of_type(type):
+        for r in self.iter_matching_regions(**kwargs):
             return r
         return None
     
+    def get_default_region_of_type(self, type):
+        """! @brief Get the default region of a given memory type.
+        
+        If there are multiple regions of the specified type marked as default, then the one with
+        the lowest start address will be returned. None is returned if there are no default regions
+        of the type.
+        
+        @param self
+        @param type One of the MemoryType enums.
+        @return A MemoryRegion object or None.
+        """
+        return self.get_first_matching_region(type=type, is_default=True)
+
     def __eq__(self, other):
         return isinstance(other, MemoryMap) and (self._regions == other._regions)
 
@@ -645,7 +661,7 @@ class MemoryMap(object):
     def __getitem__(self, key):
         """! @brief Return a region indexed by name or number."""
         if isinstance(key, six.string_types):
-            return self.get_region_by_name(key)
+            return self.get_first_matching_region(name=key)
         else:
             return self._regions[key]
 

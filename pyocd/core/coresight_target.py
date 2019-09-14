@@ -225,7 +225,7 @@ class CoreSightTarget(Target, GraphNode):
         instance. It uses the flash_algo and flash_class properties of the region to know how
         to construct the flash object.
         """
-        for region in self.memory_map.get_regions_of_type(MemoryType.FLASH):
+        for region in self.memory_map.iter_matching_regions(type=MemoryType.FLASH):
             # If a path to an FLM file was set on the region, examine it first.
             if region.flm is not None:
                 flmPath = self.session.find_user_file(None, [region.flm])
@@ -239,7 +239,7 @@ class CoreSightTarget(Target, GraphNode):
                         page_size = min(s[1] for s in packAlgo.sector_sizes)
                     algo = packAlgo.get_pyocd_flash_algo(
                             page_size,
-                            self.memory_map.get_first_region_of_type(MemoryType.RAM))
+                            self.memory_map.get_default_region_of_type(MemoryType.RAM))
                 
                     # If we got a valid algo from the FLM, set it on the region. This will then
                     # be used below.

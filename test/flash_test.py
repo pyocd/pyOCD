@@ -130,7 +130,7 @@ def flash_test(board_id):
         target_type = board.target_type
 
         memory_map = board.target.get_memory_map()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
 
         ram_start = ram_region.start
         ram_size = ram_region.length
@@ -145,9 +145,7 @@ def flash_test(board_id):
         result = FlashTestResult()
         
         # Test each flash region separately.
-        for rom_region in memory_map.get_regions_of_type(MemoryType.FLASH):
-            if not rom_region.is_testable:
-                continue
+        for rom_region in memory_map.iter_matching_regions(type=MemoryType.FLASH, is_testable=True):
             rom_start = rom_region.start
             rom_size = rom_region.length
 
