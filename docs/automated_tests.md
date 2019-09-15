@@ -11,7 +11,7 @@ at least one probe to be connected.
 
 ## Unit tests
 
-The unit tests are located in the `pyocd/tests/` directory of the repo. They must be executed using
+The unit tests are located in the `tests/unit` directory of the repo. They must be executed using
 pytest, as they rely on the advanced capabilities of this tool.
 
 To run the unit tests, simply invoke `pytest` in the root directory of the repo. Read the pytest
@@ -21,7 +21,7 @@ To get code coverage results, do the following:
 
 ```
 $ pytest --cov-report=html --cov=pyocd
-$ firefox htmlcov/index.html
+$ open htmlcov/index.html
 ```
 
 ## Functional tests
@@ -49,3 +49,13 @@ Functional tests:
 - `speed_test.py`: performance test for memory reads and writes.
 
 
+## Testing with tox
+
+pyOCD includes a configuration file for tox that enables easy testing of both Python 2.7 and 3.7.
+The tox tool is included in `dev-requirements.txt`, so it will already be present in a standard
+pyOCD developer virtual environment.
+
+To run the functional tests for both Python versions, just execute `tox` from the root of the pyOCD
+repo. It will create new virtual environments for each Python version and run `automated_test.py`.
+
+Currently only the functions tests are included in the tox configuration.

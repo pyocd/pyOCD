@@ -65,10 +65,10 @@ name of the board plus the target type in brackets.
 
 Example probe listing:
 
-    ## => Board Name | Unique ID
-    -- -- ----------------------
-     0 => ARM DAPLink CMSIS-DAP | 000000004420312043574641313035203730303897969903
-     1 => DISCO-L475VG-IOT01A [stm32l475xg] | 066EFF555051897267233656
+      #   Probe                               Unique ID
+    --------------------------------------------------------------------------------------------
+      0   DISCO-L475VG-IOT01A [stm32l475xg]   066EFF555051897267233656
+      1   FRDM-K64F [k64f]                    0240000041114e450054300cc40300475ab1000097969900
 
 This example shows two probes. The first does not support auto-detection, while the second does. You
 can see how the second probe's description shows the name of the board and the target type
@@ -143,11 +143,12 @@ As another example, to find which pack(s) support the NXP MK26F family, you coul
 
 This will print a table similar to:
 
-     PART            VENDOR  PACK         VERSION
-     MK26FN2M0CAC18  NXP     MK26F18_DFP  11.0.0
-     MK26FN2M0VLQ18  NXP     MK26F18_DFP  11.0.0
-     MK26FN2M0VMD18  NXP     MK26F18_DFP  11.0.0
-     MK26FN2M0VMI18  NXP     MK26F18_DFP  11.0.0
+      Part             Vendor   Pack          Version
+    ---------------------------------------------------
+      MK26FN2M0CAC18   NXP      MK26F18_DFP   11.0.1
+      MK26FN2M0VLQ18   NXP      MK26F18_DFP   11.0.1
+      MK26FN2M0VMD18   NXP      MK26F18_DFP   11.0.1
+      MK26FN2M0VMI18   NXP      MK26F18_DFP   11.0.1
 
 Once a DFP is installed, the `pyocd list --targets` command will show the new targets in its output,
 and you can immediately begin using the target support with the other `pyocd` subcommands.
