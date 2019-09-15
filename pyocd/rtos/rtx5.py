@@ -334,8 +334,8 @@ class RTX5ThreadProvider(ThreadProvider):
         self._threads = {}
         self._current = None
         self._current_id = None
-        self._target.session.subscribe(self.event_handler, Target.EVENT_POST_FLASH_PROGRAM)
-        self._target.session.subscribe(self.event_handler, Target.EVENT_POST_RESET)
+        self._target.session.subscribe(self.event_handler, Target.Event.POST_FLASH_PROGRAM)
+        self._target.session.subscribe(self.event_handler, Target.Event.POST_RESET)
         return True
 
     def get_threads(self):

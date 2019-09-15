@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 class SoftwareBreakpoint(Breakpoint):
     def __init__(self, provider):
         super(SoftwareBreakpoint, self).__init__(provider)
-        self.type = Target.BREAKPOINT_SW
+        self.type = Target.BreakpointType.SW
 
 class SoftwareBreakpointProvider(BreakpointProvider):
     ## BKPT #0 instruction.
@@ -40,7 +40,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
 
     @property
     def bp_type(self):
-        return Target.BREAKPOINT_SW
+        return Target.BreakpointType.SW
 
     @property
     def do_filter_memory(self):

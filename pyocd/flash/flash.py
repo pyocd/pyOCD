@@ -497,7 +497,7 @@ class Flash(object):
         if self.flash_algo_debug:
             # Save vector catch state for use in wait_for_completion()
             self._saved_vector_catch = self.target.get_vector_catch()
-            self.target.set_vector_catch(Target.CATCH_ALL)
+            self.target.set_vector_catch(Target.VectorCatch.ALL)
 
         reg_list.append('pc')
         data_list.append(pc)
@@ -530,7 +530,7 @@ class Flash(object):
         """!
         @brief Wait until the breakpoint is hit.
         """
-        while self.target.get_state() == Target.TARGET_RUNNING:
+        while self.target.get_state() == Target.State.RUNNING:
             pass
 
         if self.flash_algo_debug:

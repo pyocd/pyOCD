@@ -77,7 +77,7 @@ def run_til_halt(tgt, semihostagent):
             while True:
                 if t.elapsed >= 2.0:
                     raise TimeoutError()
-                if tgt.get_state() == Target.TARGET_HALTED:
+                if tgt.get_state() == Target.State.HALTED:
                     logging.info("Target halted")
                     didHandle = semihostagent.check_and_handle_semihost_request()
                     if didHandle:
@@ -89,7 +89,7 @@ def run_til_halt(tgt, semihostagent):
             tgt.halt()
             return False
         finally:
-            assert tgt.get_state() == Target.TARGET_HALTED
+            assert tgt.get_state() == Target.State.HALTED
 
 NOP = 0x46c0
 BKPT_00 = 0xbe00
@@ -151,7 +151,7 @@ class SemihostRequestBuilder:
         self.semihostagent = agent
 
     def setup_semihost_request(self, rqnum):
-        assert self.tgt.get_state() == Target.TARGET_HALTED
+        assert self.tgt.get_state() == Target.State.HALTED
 
         self.ctx.write16(self.ramrgn.start, NOP)
         self.ctx.write16(self.ramrgn.start + 2, BKPT_AB)

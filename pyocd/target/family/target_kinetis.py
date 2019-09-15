@@ -201,7 +201,7 @@ class Kinetis(CoreSightTarget):
             self.mdm_ap.write_reg(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
-            if self.get_state() == Target.TARGET_RUNNING:
+            if self.get_state() == Target.State.RUNNING:
                 raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
     def is_locked(self):

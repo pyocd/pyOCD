@@ -381,7 +381,7 @@ class FlashBuilder(object):
         """
 
         # Send notification that we're about to program flash.
-        self.flash.target.session.notify(Target.EVENT_PRE_FLASH_PROGRAM, self)
+        self.flash.target.session.notify(Target.Event.PRE_FLASH_PROGRAM, self)
         
         # Disable options if attempting to read erased sectors will fault.
         if not self.flash.region.are_erased_sectors_readable:
@@ -515,7 +515,7 @@ class FlashBuilder(object):
                     ((self.program_byte_count/1024) / self.perf.program_time))
 
         # Send notification that we're done programming flash.
-        self.flash.target.session.notify(Target.EVENT_POST_FLASH_PROGRAM, self)
+        self.flash.target.session.notify(Target.Event.POST_FLASH_PROGRAM, self)
 
         return self.perf
 

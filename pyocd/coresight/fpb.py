@@ -25,7 +25,7 @@ class HardwareBreakpoint(Breakpoint):
     def __init__(self, comp_register_addr, provider):
         super(HardwareBreakpoint, self).__init__(provider)
         self.comp_register_addr = comp_register_addr
-        self.type = Target.BREAKPOINT_HW
+        self.type = Target.BreakpointType.HW
 
 class FPB(BreakpointProvider, CoreSightComponent):
     """! @brief Flash Patch and Breakpoint unit"""
@@ -77,7 +77,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
 
     @property
     def bp_type(self):
-        return Target.BREAKPOINT_HW
+        return Target.BreakpointType.HW
 
     def enable(self):
         self.ap.write_memory(self.address + FPB.FP_CTRL, FPB.FP_CTRL_KEY | 1)

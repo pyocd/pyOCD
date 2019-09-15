@@ -301,7 +301,7 @@ class GDBServer(threading.Thread):
         self.gdb_features = []
         self.non_stop = False
         self._is_extended_remote = False
-        self.is_target_running = (self.target.get_state() == Target.TARGET_RUNNING)
+        self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
         self.flash_loader = None
         self.shutdown_event = threading.Event()
         self.detach_event = threading.Event()
@@ -322,7 +322,7 @@ class GDBServer(threading.Thread):
         # Read back bound port in case auto-assigned (port 0)
         self.port = self.abstract_socket.port
 
-        self.session.subscribe(self.event_handler, Target.EVENT_POST_RESET)
+        self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
 
         # Init semihosting and telnet console.
         if self.semihost_use_syscalls:
@@ -487,7 +487,7 @@ class GDBServer(threading.Thread):
 
                 if self.non_stop and self.is_target_running:
                     try:
-                        if self.target.get_state() == Target.TARGET_HALTED:
+                        if self.target.get_state() == Target.State.HALTED:
                             self.log.debug("state halted")
                             self.is_target_running = False
                             self.send_stop_notification()
@@ -567,7 +567,7 @@ class GDBServer(threading.Thread):
         self.log.debug("GDB kill")
         # Keep target halted and leave vector catches if in persistent mode.
         if not self.persist:
-            self.board.target.set_vector_catch(Target.CATCH_NONE)
+            self.board.target.set_vector_catch(Target.VectorCatch.NONE)
             self.board.target.resume()
         return self.create_rsp_packet(b"")
     
@@ -584,7 +584,7 @@ class GDBServer(threading.Thread):
         # handle software breakpoint Z0/z0
         if data[1:2] == b'0':
             if data[0:1] == b'Z':
-                if not self.target.set_breakpoint(addr, Target.BREAKPOINT_SW):
+                if not self.target.set_breakpoint(addr, Target.BreakpointType.SW):
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
                 self.target.remove_breakpoint(addr)
@@ -593,7 +593,7 @@ class GDBServer(threading.Thread):
         # handle hardware breakpoint Z1/z1
         if data[1:2] == b'1':
             if data[0:1] == b'Z':
-                if self.target.set_breakpoint(addr, Target.BREAKPOINT_HW) is False:
+                if self.target.set_breakpoint(addr, Target.BreakpointType.HW) is False:
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
                 self.target.remove_breakpoint(addr)
@@ -602,13 +602,13 @@ class GDBServer(threading.Thread):
         # handle hardware watchpoint Z2/z2/Z3/z3/Z4/z4
         if data[1:2] == b'2':
             # Write-only watch
-            watchpoint_type = Target.WATCHPOINT_WRITE
+            watchpoint_type = Target.WatchpointType.WRITE
         elif data[1:2] == b'3':
             # Read-only watch
-            watchpoint_type = Target.WATCHPOINT_READ
+            watchpoint_type = Target.WatchpointType.READ
         elif data[1:2] == b'4':
             # Read-Write watch
-            watchpoint_type = Target.WATCHPOINT_READ_WRITE
+            watchpoint_type = Target.WatchpointType.READ_WRITE
         else:
             return self.create_rsp_packet(b'E01') #EPERM
 
@@ -721,7 +721,7 @@ class GDBServer(threading.Thread):
                 break
 
             try:
-                if self.target.get_state() == Target.TARGET_HALTED:
+                if self.target.get_state() == Target.State.HALTED:
                     # Handle semihosting
                     if self.enable_semihosting:
                         was_semihost = self.semihost.check_and_handle_semihost_request()
@@ -1321,7 +1321,7 @@ class GDBServer(threading.Thread):
             and (self.thread_provider.current_thread is not None)
 
     def is_target_in_reset(self):
-        return self.target.get_state() == Target.TARGET_RESET
+        return self.target.get_state() == Target.State.RESET
 
     def exception_name(self):
         try:
@@ -1331,9 +1331,9 @@ class GDBServer(threading.Thread):
             return None
 
     def event_handler(self, notification):
-        if notification.event == Target.EVENT_POST_RESET:
+        if notification.event == Target.Event.POST_RESET:
             # Invalidate threads list if flash is reprogrammed.
-            self.log.debug("Received EVENT_POST_RESET event")
+            self.log.debug("Received POST_RESET event")
             self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = False

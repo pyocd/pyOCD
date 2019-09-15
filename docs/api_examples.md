@@ -66,7 +66,7 @@ and setting a breakpoint. Then the target is reset and run until the breakpoint 
     target.reset()
 
     # Wait until breakpoint is hit.
-    while target.get_state() != Target.TARGET_HALTED:
+    while target.get_state() != Target.State.HALTED:
         pass
 
     # Print PC.

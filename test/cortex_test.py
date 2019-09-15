@@ -516,7 +516,7 @@ def cortex_test(board_id):
             return test_passed
 
         print("Installed software breakpoint at 0x%08x" % addr)
-        target.set_breakpoint(addr, Target.BREAKPOINT_SW)
+        target.set_breakpoint(addr, Target.BreakpointType.SW)
         test_passed = test_filters() and test_passed
 
         print("Removed software breakpoint")

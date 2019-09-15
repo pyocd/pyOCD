@@ -54,12 +54,12 @@ class BreakpointManager(object):
         self._ignore_notifications = False
 
         # Subscribe to some notifications.
-        self._session.subscribe(self._pre_run_handler, Target.EVENT_PRE_RUN)
-        self._session.subscribe(self._pre_disconnect_handler, Target.EVENT_PRE_DISCONNECT)
+        self._session.subscribe(self._pre_run_handler, Target.Event.PRE_RUN)
+        self._session.subscribe(self._pre_disconnect_handler, Target.Event.PRE_DISCONNECT)
 
     def add_provider(self, provider):
         self._providers[provider.bp_type] = provider
-        if provider.bp_type == Target.BREAKPOINT_HW:
+        if provider.bp_type == Target.BreakpointType.HW:
             self._fpb = provider
 
     def get_breakpoints(self):
@@ -69,7 +69,7 @@ class BreakpointManager(object):
     def find_breakpoint(self, addr):
         return self._updated_breakpoints.get(addr, None)
 
-    def set_breakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
+    def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         """! @brief Set a hardware or software breakpoint at a specific location in memory.
         
         @retval True Breakpoint was set.
@@ -116,18 +116,18 @@ class BreakpointManager(object):
             return region is not None and region.is_writable
         
         likely_bp_type = self._select_breakpoint_type(bp, False)
-        if likely_bp_type == Target.BREAKPOINT_SW:
+        if likely_bp_type == Target.BreakpointType.SW:
             return True
         
         # Count updated hw breakpoints.
         free_hw_bp_count = self._fpb.available_breakpoints
         added, removed = self._get_updated_breakpoints()
         for bp in removed:
-            if bp.type == Target.BREAKPOINT_HW:
+            if bp.type == Target.BreakpointType.HW:
                 free_hw_bp_count += 1
         for bp in added:
             likely_bp_type = self._select_breakpoint_type(bp, False)
-            if bp.type == Target.BREAKPOINT_HW:
+            if bp.type == Target.BreakpointType.HW:
                 free_hw_bp_count -= 1
         
         return free_hw_bp_count > self.MIN_HW_BREAKPOINTS
@@ -174,7 +174,7 @@ class BreakpointManager(object):
             is_writable = region.is_writable
         else:
             # No memory region - fallback to hardware breakpoints.
-            type = Target.BREAKPOINT_HW
+            type = Target.BreakpointType.HW
             is_writable = False
 
         in_hw_bkpt_range = (self._fpb is not None) and (self._fpb.can_support_address(bp.addr))
@@ -183,7 +183,7 @@ class BreakpointManager(object):
                     or (allow_all_hw_bps and self._fpb.available_breakpoints > 0))
 
         # Determine best type to use if auto.
-        if type == Target.BREAKPOINT_AUTO:
+        if type == Target.BreakpointType.AUTO:
             # Use sw breaks for:
             #  1. Addresses outside the supported FPBv1 range of 0-0x1fffffff
             #  2. RAM regions by default.
@@ -192,20 +192,20 @@ class BreakpointManager(object):
             # Otherwise use hw.
             if not in_hw_bkpt_range or (not have_hw_bp):
                 if is_writable:
-                    type = Target.BREAKPOINT_SW
+                    type = Target.BreakpointType.SW
                 else:
                     LOG.debug("unable to set bp because no hw bp available")
                     return None
             else:
-                type = Target.BREAKPOINT_HW
+                type = Target.BreakpointType.HW
 
             LOG.debug("using type %d for auto bp", type)
 
         # Revert to sw bp if out of hardware breakpoint range.
-        if (type == Target.BREAKPOINT_HW) and not in_hw_bkpt_range:
+        if (type == Target.BreakpointType.HW) and not in_hw_bkpt_range:
             if is_writable:
                 LOG.debug("using sw bp instead because of unsupported addr")
-                type = Target.BREAKPOINT_SW
+                type = Target.BreakpointType.SW
             else:
                 LOG.debug("could not fallback to software breakpoint")
                 return None
@@ -214,7 +214,7 @@ class BreakpointManager(object):
         if not is_writable:
             if in_hw_bkpt_range and have_hw_bp:
                 LOG.debug("using hw bp instead because addr is flash")
-                type = Target.BREAKPOINT_HW
+                type = Target.BreakpointType.HW
             else:
                 LOG.debug("could not fallback to hardware breakpoint")
                 return None
@@ -301,7 +301,7 @@ class BreakpointManager(object):
 
     def _pre_run_handler(self, notification):
         if not self._ignore_notifications:
-            is_step = notification.data == Target.RUN_TYPE_STEP
+            is_step = notification.data == Target.RunType.STEP
             self.flush(is_step)
 
     def _pre_disconnect_handler(self, notification):

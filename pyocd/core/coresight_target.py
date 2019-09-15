@@ -148,7 +148,7 @@ class CoreSightTarget(Target, GraphNode):
             ('check_for_cores',     self.check_for_cores),
             ('halt_on_connect',     self.perform_halt_on_connect),
             ('post_connect',        self.post_connect),
-            ('notify',              lambda : self.session.notify(Target.EVENT_POST_CONNECT, self))
+            ('notify',              lambda : self.session.notify(Target.Event.POST_CONNECT, self))
             )
         
         return seq
@@ -298,7 +298,7 @@ class CoreSightTarget(Target, GraphNode):
                 raise exceptions.DebugError("No cores were discovered!")
 
     def disconnect(self, resume=True):
-        self.session.notify(Target.EVENT_PRE_DISCONNECT, self)
+        self.session.notify(Target.Event.PRE_DISCONNECT, self)
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
@@ -363,7 +363,7 @@ class CoreSightTarget(Target, GraphNode):
     def find_breakpoint(self, addr):
         return self.selected_core.find_breakpoint(addr)
 
-    def set_breakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
+    def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         return self.selected_core.set_breakpoint(addr, type)
 
     def get_breakpoint_type(self, addr):
