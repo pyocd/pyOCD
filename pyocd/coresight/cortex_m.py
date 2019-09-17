@@ -418,6 +418,8 @@ class CortexM(Target, CoreSightCoreComponent):
         self._elf = None
         self.target_xml = None
         self._supports_vectreset = False
+        self._reset_catch_delegate_result = False
+        self._reset_catch_saved_demcr = 0
         
         # Default to software reset using the default software reset method.
         self._default_reset_type = Target.ResetType.SW
@@ -886,23 +888,36 @@ class CortexM(Target, CoreSightCoreComponent):
 
         self.session.notify(Target.EVENT_POST_RESET, self)
 
-    def reset_and_halt(self, reset_type=None):
-        """! @brief Perform a reset and stop the core on the reset handler.
-        """
+    def set_reset_catch(self, reset_type=None):
+        """! @brief Prepare to halt core on reset."""
+        self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
         
-        delegateResult = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
-        
-        # halt the target
-        if not delegateResult:
+        # Default behaviour if the delegate didn't handle it.
+        if not self._reset_catch_delegate_result:
+            # Halt the target.
             self.halt()
 
-        # Save CortexM.DEMCR
-        demcr = self.read_memory(CortexM.DEMCR)
+            # Save CortexM.DEMCR.
+            self._reset_catch_saved_demcr = self.read_memory(CortexM.DEMCR)
 
-        # enable the vector catch
-        if not delegateResult:
-            self.write_memory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
+            # Enable reset vector catch if needed.
+            if (self._reset_catch_saved_demcr & CortexM.DEMCR_VC_CORERESET) == 0:
+                self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr | CortexM.DEMCR_VC_CORERESET)
+    
+    def clear_reset_catch(self, reset_type=None):
+        """! @brief Disable halt on reset."""
+        self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
+        if self._reset_catch_delegate_result:
+            # restore vector catch setting
+            self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr)
+
+    def reset_and_halt(self, reset_type=None):
+        """! @brief Perform a reset and stop the core on the reset handler."""
+        # Set up reset catch.
+        self.set_reset_catch(reset_type)
+
+        # Perform the reset.
         self.reset(reset_type)
 
         # wait until the unit resets
@@ -918,10 +933,8 @@ class CortexM(Target, CoreSightCoreComponent):
         if xpsr & self.XPSR_THUMB == 0:
             self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
 
-        self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
-
-        # restore vector catch setting
-        self.write_memory(CortexM.DEMCR, demcr)
+        # Restore to original state.
+        self.clear_reset_catch(reset_type)
 
     def get_state(self):
         dhcsr = self.read_memory(CortexM.DHCSR)

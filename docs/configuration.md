@@ -93,6 +93,8 @@ processed.
     either globally or per probe. The format of the file is documented above. The default is a
     `pyocd.yaml` or `pyocd.yml` file in the working directory.
 
+- `connect_mode`: (str) One of 'halt', 'pre-reset', 'under-reset', 'attach'.
+
 - `debug.log_flm_info`: (bool) Log details of loaded .FLM flash algos.
 
 - `debug.traceback`: (bool) Print tracebacks for exceptions.

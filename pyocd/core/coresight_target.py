@@ -184,10 +184,16 @@ class CoreSightTarget(Target, GraphNode):
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
         """
-        if self.session.options.get('connect_mode') != 'attach':
+        mode = self.session.options.get('connect_mode')
+        if mode != 'attach':
+            if mode == 'under-reset':
+                LOG.debug("Setting reset catch")
             for core in self.cores.values():
                 try:
-                    core.halt()
+                    if mode == 'under-reset':
+                        core.set_reset_catch()
+                    else:
+                        core.halt()
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
@@ -201,6 +207,15 @@ class CoreSightTarget(Target, GraphNode):
         if mode == 'under-reset':
             LOG.info("Deasserting reset post connect")
             self.session.probe.assert_reset(False)
+
+            LOG.debug("Clearing reset catch")
+            for core in self.cores.values():
+                try:
+                    if mode == 'under-reset':
+                        core.clear_reset_catch()
+                except exceptions.Error as err:
+                    LOG.warning("Could not halt core #%d: %s", core.core_number, err,
+                        exc_info=self.session.log_tracebacks)
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.
