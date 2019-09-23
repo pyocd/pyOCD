@@ -76,7 +76,9 @@ from . import target_CC3220SF
 from . import target_CC3220SF
 from . import target_CY8C6xxA
 from . import target_CY8C6xx7
+from . import target_CY8C6xx5
 from . import target_CY8C64xx
+from . import target_CY8C64xA
 from . import target_musca_a1
 from . import target_musca_b1
 from . import target_LPC55S69JBD100
@@ -151,11 +153,16 @@ BUILTIN_TARGETS = {
           'cc3220sf': target_CC3220SF.CC3220SF,
           'cy8c6xxa': target_CY8C6xxA.CY8C6xxA,
           'cy8c6xx7': target_CY8C6xx7.CY8C6xx7,
+          'cy8c6xx5': target_CY8C6xx5.CY8C6xx5,
           'cy8c64xx_cm0': target_CY8C64xx.cy8c64xx_cm0,
           'cy8c64xx_cm4': target_CY8C64xx.cy8c64xx_cm4,
+          'cy8c64xa_cm0': target_CY8C64xA.cy8c64xA_cm0,
+          'cy8c64xa_cm4': target_CY8C64xA.cy8c64xA_cm4,
           'musca_a1' : target_musca_a1.MuscaA1,
           'musca_b1' : target_musca_b1.MuscaB1,
           'lpc55s69' : target_LPC55S69JBD100.LPC55S69JBD100,
           'cy8c64xx_cm4_full' : target_CY8C64xx.cy8c64xx_cm4_full,
           'cy8c64xx_cm4_full_flash' : target_CY8C64xx.cy8c64xx_cm4_full_flash,
+          'cy8c64xa_cm4_full' : target_CY8C64xA.cy8c64xA_cm4_full,
+          'cy8c64xa_cm4_full_flash' : target_CY8C64xA.cy8c64xA_cm4_full_flash,
          }
