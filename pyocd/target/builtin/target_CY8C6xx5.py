@@ -16,10 +16,11 @@
 import logging
 from time import sleep
 
-from .flash_algo_CY8C6xxA import flash_algo as flash_algo_main
+from .flash_algo_CY8C6xx5 import flash_algo as flash_algo_main
 from .flash_algo_CY8C6xxA_WFLASH import flash_algo as flash_algo_work
 from .flash_algo_CY8C6xxA_SFLASH import flash_algo as flash_algo_sflash
 from .flash_algo_CY8C6xxA_SMIF_S25FL512S import flash_algo as flash_algo_smif
+from .target_CY8C6xxA import CY8C6xxA
 from ...core import exceptions
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
@@ -33,12 +34,12 @@ ERASE_ALL_WEIGHT = 0.5 # Time it takes to perform a chip erase
 ERASE_SECTOR_WEIGHT = 0.05 # Time it takes to erase a page
 PROGRAM_PAGE_WEIGHT = 0.07 # Time it takes to program a page (Not including data transfer time)
 
-class CY8C6xxA(CoreSightTarget):
+class CY8C6xx5(CY8C6xxA):
     VENDOR = "Cypress"
     
     memoryMap = MemoryMap(
         RomRegion(start=0x00000000, length=0x20000),
-        FlashRegion(start=0x10000000, length=0x200000,  blocksize=0x200,
+        FlashRegion(start=0x10000000, length=0x80000,   blocksize=0x200,
                                                         is_boot_memory=True,
                                                         erased_byte_value=0,
                                                         algo=flash_algo_main,
@@ -72,108 +73,5 @@ class CY8C6xxA(CoreSightTarget):
         RamRegion(start=0x08000000, length=0x10000)
     )
 
-    def __init__(self, link, memmap = memoryMap):
-        super(CY8C6xxA, self).__init__(link, memmap)
-
-    def create_init_sequence(self):
-        seq = super(CY8C6xxA, self).create_init_sequence()
-        seq.replace_task('create_cores', self.create_cy8c6xx7_core)
-        return seq
-
-    def create_cy8c6xx7_core(self):
-        core0 = CortexM_CY8C6xxA(self.session, self.aps[1], self.memory_map, 0)
-        core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        core1 = CortexM_CY8C6xxA(self.session, self.aps[2], self.memory_map, 1)
-        core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
-
-        self.aps[1].core = core0
-        self.aps[2].core = core1
-        core0.init()
-        core1.init()
-        self.add_core(core0)
-        self.add_core(core1)
-
-
-class CortexM_CY8C6xxA(CortexM):
-    def reset(self, reset_type=None):
-        self.session.notify(Target.EVENT_PRE_RESET, self)
-
-        self._run_token += 1
-
-        if reset_type is Target.ResetType.HW:
-            self.session.probe.reset()
-            sleep(0.5)
-            self._ap.dp.init()
-            self._ap.dp.power_up_debug()
-            self.fpb.enable()
-
-        else:
-            if reset_type is Target.ResetType.SW_VECTRESET:
-                mask = CortexM.NVIC_AIRCR_VECTRESET
-            else:
-                mask = CortexM.NVIC_AIRCR_SYSRESETREQ
-
-            try:
-                self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
-                self.flush()
-            except exceptions.TransferError:
-                self.flush()
-
-        with Timeout(5.0) as t_o:
-            while t_o.check():
-                try:
-                    dhcsr_reg = self.read32(CortexM.DHCSR)
-                    if (dhcsr_reg & CortexM.S_RESET_ST) == 0:
-                        break
-                except exceptions.TransferError:
-                    self.flush()
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
-                    sleep(0.01)
-
-        self.session.notify(Target.EVENT_POST_RESET, self)
-
-    def wait_halted(self):
-        with Timeout(5.0) as t_o:
-            while t_o.check():
-                try:
-                    if not self.is_running():
-                        break
-                except exceptions.TransferError:
-                    self.flush()
-                    sleep(0.01)
-            else:
-                raise exceptions.TimeoutError("Timeout waiting for target halt")
-
-    def reset_and_halt(self, reset_type=None):
-        self.halt()
-        self.reset(reset_type)
-        sleep(0.5)
-        self.halt()
-
-        self.wait_halted()
-
-        if self.core_number == 0:
-            vtbase = self.read_memory(0x40201120)  # VTBASE_CM0
-        elif self.core_number == 1:
-            vtbase = self.read_memory(0x40200200)  # VTBASE_CM4
-        else:
-            raise exceptions.TargetError("Invalid CORE ID")
-
-        vtbase &= 0xFFFFFF00
-        if vtbase < 0x10000000 or vtbase > 0x18000000:
-            LOG.info("Vector Table address invalid (0x%08X), will not halt at main()", vtbase)
-            return
-
-        entry = self.read_memory(vtbase + 4)
-        if entry < 0x10000000 or entry > 0x18000000:
-            LOG.info("Entry Point address invalid (0x%08X), will not halt at main()", entry)
-            return
-
-        self.set_breakpoint(entry)
-        self.bp_manager.flush()
-        self.reset(self.ResetType.SW_SYSRESETREQ)
-        sleep(0.2)
-        self.wait_halted()
-        self.remove_breakpoint(entry)
-        self.bp_manager.flush()
+    def __init__(self, link):
+        super(CY8C6xx5, self).__init__(link, self.memoryMap)
