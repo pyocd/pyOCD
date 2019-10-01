@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,12 +95,19 @@ def convert_session_options(option_list):
     if option_list is not None:
         for o in option_list:
             if '=' in o:
-                name, value = o.split('=', maxsplit=1)
+                name, value = o.split('=', 1)
                 name = name.strip().lower()
                 value = value.strip()
             else:
                 name = o.strip().lower()
                 value = None
+            
+            # Check for and strip "no-" prefix before we validate the option name.
+            if (value is None) and (name.startswith('no-')):
+                name = name[3:]
+                had_no_prefix = True
+            else:
+                had_no_prefix = False
             
             # Look for this option.
             try:
@@ -112,11 +119,7 @@ def convert_session_options(option_list):
             # Handle bool options without a value specially.
             if value is None:
                 if info.type is bool:
-                    if name.startswith('no-'):
-                        name = name[3:]
-                        value = False
-                    else:
-                        value = True
+                    value = not had_no_prefix
                 else:
                     LOG.warning("non-boolean option '%s' requires a value", name)
                     continue
@@ -128,6 +131,7 @@ def convert_session_options(option_list):
                     value = int(value, base=0)
                 except ValueError:
                     LOG.warning("invalid value for option '%s'", name)
+                    continue
             
             options[name] = value
     return options

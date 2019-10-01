@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015,2018 Arm Limited
+# Copyright (c) 2015,2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,8 @@
 from pyocd.utility.cmdline import (
     split_command_line,
     convert_vector_catch,
-    VECTOR_CATCH_CHAR_MAP
+    VECTOR_CATCH_CHAR_MAP,
+    convert_session_options,
     )
 from pyocd.core.target import Target
 import pytest
@@ -67,3 +68,47 @@ class TestConvertVectorCatch(object):
     def test_vc_b(self, vc, msk):
         assert convert_vector_catch(vc) == msk
         
+class TestConvertSessionOptions(object):
+    def test_empty(self):
+        assert convert_session_options([]) == {}
+    
+    def test_unknown_option(self):
+        assert convert_session_options(['dumkopf']) == {}
+    
+    def test_bool(self):
+        assert convert_session_options(['auto_unlock']) == {'auto_unlock': True}
+        assert convert_session_options(['no-auto_unlock']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=1']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=true']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=yes']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=on']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=0']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=false']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=anything-goes-here']) == {'auto_unlock': False}
+    
+    def test_noncasesense(self):
+        # Test separate paths for with and without a value.
+        assert convert_session_options(['AUTO_Unlock']) == {'auto_unlock': True}
+        assert convert_session_options(['AUTO_Unlock=0']) == {'auto_unlock': False}
+    
+    def test_int(self):
+        # Non-bool with no value is ignored (and logged).
+        assert convert_session_options(['frequency']) == {}
+        # Invalid int value is ignored and logged
+        assert convert_session_options(['frequency=abc']) == {}
+        # Ignore with no- prefix
+        assert convert_session_options(['no-frequency']) == {}
+        # Valid int
+        assert convert_session_options(['frequency=1000']) == {'frequency': 1000}
+        # Valid hex int
+        assert convert_session_options(['frequency=0x40']) == {'frequency': 64}
+    
+    def test_str(self):
+        # Ignore with no value
+        assert convert_session_options(['test_binary']) == {}
+        # Ignore with no- prefix
+        assert convert_session_options(['no-test_binary']) == {}
+        # Valid
+        assert convert_session_options(['test_binary=abc']) == {'test_binary': 'abc'}
+        
+
