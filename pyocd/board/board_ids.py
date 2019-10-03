@@ -204,6 +204,7 @@ BOARD_ID_TO_INFO = {
     "190D": BoardInfo(  "AUGUST_CYW43012",      "cy8c64xx_cm4",     "l1_cy8c6xx7.bin",      ),
     "190E": BoardInfo(  "CY8CPROTO-062S3-4343W","cy8c6xx5",         "l1_cy8c6xxa.bin",      ),
     "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
+    "2600": BoardInfo(  "ep_agora",             "nrf52840",         None,                   ),
     "3300": BoardInfo(  "CC3220SF_LaunchXL",    "cc3220sf",         "l1_cc3220sf.bin",      ),
     "4337": BoardInfo(  "LPC4337",              "lpc4337",          None,                   ),
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
