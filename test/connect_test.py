@@ -92,7 +92,7 @@ def connect_test(board):
         live_session = ConnectHelper.session_with_chosen_probe(
                         unique_id=board_id,
                         init_board=False,
-                        halt_on_connect=halt_on_connect,
+                        connect_mode=('halt' if halt_on_connect else 'attach'),
                         resume_on_disconnect=resume,
                         **get_session_options())
         live_session.open()

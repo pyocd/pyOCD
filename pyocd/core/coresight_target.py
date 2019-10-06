@@ -188,6 +188,7 @@ class CoreSightTarget(Target, GraphNode):
         if mode != 'attach':
             if mode == 'under-reset':
                 LOG.debug("Setting reset catch")
+            # Apply to all cores.
             for core in self.cores.values():
                 try:
                     if mode == 'under-reset':
@@ -209,10 +210,10 @@ class CoreSightTarget(Target, GraphNode):
             self.session.probe.assert_reset(False)
 
             LOG.debug("Clearing reset catch")
+            # Apply to all cores.
             for core in self.cores.values():
                 try:
-                    if mode == 'under-reset':
-                        core.clear_reset_catch()
+                    core.clear_reset_catch()
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)

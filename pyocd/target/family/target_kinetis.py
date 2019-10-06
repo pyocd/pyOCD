@@ -139,7 +139,7 @@ class Kinetis(CoreSightTarget):
         
         # Only do a mass erase if the device is actually locked.
         if isLocked:
-            if self.auto_unlock:
+            if self.session.options.get('auto_unlock'):
                 LOG.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
                 
                 # Do the mass erase.
@@ -161,7 +161,8 @@ class Kinetis(CoreSightTarget):
 
     def perform_halt_on_connect(self):
         """! This init task runs *after* cores are created."""
-        if self.session.options.get('connect_mode') != 'attach' or self._force_halt_on_connect:
+        if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
+            LOG.info("Configuring MDM-AP to halt when coming out of reset")
             # Prevent the target from resetting if it has invalid code
             with Timeout(HALT_TIMEOUT) as to:
                 while to.check():
@@ -171,11 +172,17 @@ class Kinetis(CoreSightTarget):
                 else:
                     raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
 
-            # We can now deassert reset.
-            self.dp.assert_reset(False)
-
             # Enable debug
             self.aps[0].write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+
+        else:
+            super(Kinetis, self).perform_halt_on_connect()
+
+    def post_connect(self):
+        if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
+            # We can now deassert reset.
+            LOG.info("Deasserting reset post connect")
+            self.dp.assert_reset(False)
 
             # Disable holding the core in reset, leave MDM halt on
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)

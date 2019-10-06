@@ -102,8 +102,6 @@ class Target(MemoryInterface):
         self.part_families = []
         self.part_number = ""
         self.memory_map = memoryMap or MemoryMap()
-        self.halt_on_connect = session.options.get('halt_on_connect')
-        self.auto_unlock = session.options.get('auto_unlock')
         self._svd_location = None
         self._svd_device = None
 
