@@ -93,6 +93,9 @@ processed.
     either globally or per probe. The format of the file is documented above. The default is a
     `pyocd.yaml` or `pyocd.yml` file in the working directory.
 
+- `connect_mode`: (str) Controls how pyOCD connects to the target. One of 'halt', 'pre-reset',
+    'under-reset', 'attach'. Default is 'halt'.
+
 - `debug.log_flm_info`: (bool) Log details of loaded .FLM flash algos.
 
 - `debug.traceback`: (bool) Print tracebacks for exceptions.
@@ -105,8 +108,6 @@ processed.
     contents to determine whether pages need to be programmed. Default is False.
 
 - `frequency`: (int) SWD/JTAG frequency in Hertz. Default is 1 MHz.
-
-- `halt_on_connect`: (bool) Whether to halt the target immediately upon connecting. Default is True.
 
 - `hide_programming_progress`: (bool) Disables flash programming progress bar when True. Default is
     False.

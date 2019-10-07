@@ -679,6 +679,17 @@ class PyOCDCommander(object):
         if (self.args.frequency is not None) and (self.args.frequency != DEFAULT_CLOCK_FREQ_HZ):
             print("Setting SWD clock to %d kHz" % (self.args.frequency // 1000))
 
+        options = convert_session_options(self.args.options)
+        
+        # Set connect mode. If --halt is set then the connect mode is halt. If connect_mode is
+        # set through -O then use that. Otherwise default to attach.
+        if self.args.halt:
+            connect_mode = 'halt'
+        elif 'connect_mode' in options:
+            connect_mode = None
+        else:
+            connect_mode = 'attach'
+        
         # Connect to board.
         self.session = ConnectHelper.session_with_chosen_probe(
                         blocking=(not self.args.no_wait),
@@ -689,9 +700,9 @@ class PyOCDCommander(object):
                         pack=self.args.pack,
                         unique_id=self.args.unique_id,
                         target_override=self.args.target_override,
-                        halt_on_connect=self.args.halt,
+                        connect_mode=connect_mode,
                         frequency=self.args.frequency,
-                        options=convert_session_options(self.args.options),
+                        options=options,
                         option_defaults=dict(
                             auto_unlock=False,
                             resume_on_disconnect=False,

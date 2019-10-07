@@ -58,6 +58,7 @@ class Kinetis(CoreSightTarget):
     def __init__(self, link, memoryMap=None):
         super(Kinetis, self).__init__(link, memoryMap)
         self.mdm_ap = None
+        self._force_halt_on_connect = False
 
     def create_init_sequence(self):
         seq = super(Kinetis, self).create_init_sequence()
@@ -67,11 +68,6 @@ class Kinetis(CoreSightTarget):
         seq.insert_before('init_ap_roms',
             ('check_mdm_ap_idr',        self.check_mdm_ap_idr),
             ('check_flash_security',    self.check_flash_security),
-            )
-        
-        # Perform the halt sequence after cores are created. (This needs work.)
-        seq.insert_after('create_cores',
-            ('halt_on_connect',         self.perform_halt_on_connect)
             )
         
         return seq
@@ -137,13 +133,13 @@ class Kinetis(CoreSightTarget):
             isLocked = self.is_locked()
             
             # If the device isn't really locked, we have no choice but to halt on connect.
-            if not isLocked and not self.halt_on_connect:
+            if not isLocked and self.session.options.get('connect_mode') == 'attach':
                 LOG.warning("Forcing halt on connect in order to gain control of device")
-                self.halt_on_connect = True
+                self._force_halt_on_connect = True
         
         # Only do a mass erase if the device is actually locked.
         if isLocked:
-            if self.auto_unlock:
+            if self.session.options.get('auto_unlock'):
                 LOG.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
                 
                 # Do the mass erase.
@@ -155,7 +151,7 @@ class Kinetis(CoreSightTarget):
                 
                 # Assert that halt on connect was forced above. Reset will stay asserted
                 # until halt on connect is executed.
-                assert self.halt_on_connect
+#                 assert self._force_halt_on_connect
 
                 isLocked = False
             else:
@@ -165,7 +161,8 @@ class Kinetis(CoreSightTarget):
 
     def perform_halt_on_connect(self):
         """! This init task runs *after* cores are created."""
-        if self.halt_on_connect:
+        if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
+            LOG.info("Configuring MDM-AP to halt when coming out of reset")
             # Prevent the target from resetting if it has invalid code
             with Timeout(HALT_TIMEOUT) as to:
                 while to.check():
@@ -175,11 +172,17 @@ class Kinetis(CoreSightTarget):
                 else:
                     raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
 
-            # We can now deassert reset.
-            self.dp.assert_reset(False)
-
             # Enable debug
             self.aps[0].write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
+
+        else:
+            super(Kinetis, self).perform_halt_on_connect()
+
+    def post_connect(self):
+        if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
+            # We can now deassert reset.
+            LOG.info("Deasserting reset post connect")
+            self.dp.assert_reset(False)
 
             # Disable holding the core in reset, leave MDM halt on
             self.mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
