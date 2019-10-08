@@ -41,11 +41,12 @@ from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
-from ..flash.loader import (FlashEraser, FlashLoader)
+from ..flash.loader import (FlashEraser, FlashLoader, FileProgrammer)
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import mask
 from ..utility.cmdline import convert_session_options
 from ..utility.hex import (format_hex_width, dump_hex_data)
+from ..utility.progress import print_progress
 
 # Make disasm optional.
 try:
@@ -142,6 +143,11 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "ADDR FILENAME",
             "help" : "Load a binary file to an address in memory (RAM or flash)"
+            },
+        'load' : {
+            'aliases' : [],
+            'args' : "FILENAME [ADDR]",
+            "help" : "Load a binary, hex, or elf file with optional base address"
             },
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
@@ -514,6 +520,7 @@ class PyOCDCommander(object):
                 'reset' :   self.handle_reset,
                 'savemem' : self.handle_savemem,
                 'loadmem' : self.handle_loadmem,
+                'load' :    self.handle_load,
                 'read' :    self.handle_read8,
                 'read8' :   self.handle_read8,
                 'read16' :  self.handle_read16,
@@ -957,6 +964,19 @@ class PyOCDCommander(object):
             else:
                 self.target.aps[self.selected_ap].write_memory_block8(addr, data)
             print("Loaded %d bytes to 0x%08x" % (len(data), addr))
+
+    def handle_load(self, args):
+        if len(args) < 1:
+            print("Error: missing argument")
+            return 1
+        filename = args[0]
+        if len(args) > 1:
+            addr = self.convert_value(args[1])
+        else:
+            addr = None
+
+        programmer = FileProgrammer(self.session, progress=print_progress())
+        programmer.program(filename, base_address=addr)
 
     def do_read(self, args, width):
         if len(args) == 0:
