@@ -174,7 +174,7 @@ COMMAND_INFO = {
             'help' : "Write 32-bit words to memory (RAM or flash)"
             },
         'go' : {
-            'aliases' : ['g'],
+            'aliases' : ['g', 'continue', 'c'],
             'args' : "",
             'help' : "Resume execution of the target"
             },
@@ -536,6 +536,8 @@ class PyOCDCommander(object):
                 'ww' :      self.handle_write32,
                 'go' :      self.handle_go,
                 'g' :       self.handle_go,
+                'continue': self.handle_go,
+                'c' :       self.handle_go,
                 'step' :    self.handle_step,
                 's' :       self.handle_step,
                 'halt' :    self.handle_halt,
@@ -1051,10 +1053,16 @@ class PyOCDCommander(object):
     def handle_go(self, args):
         self.target.resume()
         status = self.target.get_state()
-        if status == Target.TARGET_RUNNING:
+        if status in (Target.TARGET_RUNNING, Target.TARGET_SLEEPING):
             print("Successfully resumed device")
+        elif status in Target.TARGET_LOCKUP:
+            print("Device entered lockup")
+        elif status in Target.TARGET_RESET:
+            print("Device is being held in reset")
+        elif status in Target.TARGET_RESET:
+            print("Failed to resume device; device remains halted")
         else:
-            print("Failed to resume device")
+            print("Unknown target status: %s" % status)
 
     def handle_step(self, args):
         self.target.step(disable_interrupts=not self.step_into_interrupt)
@@ -1071,7 +1079,7 @@ class PyOCDCommander(object):
 
         status = self.target.get_state()
         if status != Target.TARGET_HALTED:
-            print("Failed to halt device")
+            print("Failed to halt device; target state is %s" % CORE_STATUS_DESC[status])
             return 1
         else:
             print("Successfully halted device")
