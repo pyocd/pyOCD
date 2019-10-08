@@ -43,7 +43,7 @@ from ..coresight.ap import MEM_AP
 from ..core.target import Target
 from ..flash.loader import (FlashEraser, FlashLoader, FileProgrammer)
 from ..gdbserver.gdbserver import GDBServer
-from ..utility import mask
+from ..utility import (mask, conversion)
 from ..utility.cmdline import convert_session_options
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
@@ -179,6 +179,14 @@ COMMAND_INFO = {
             'args' : "ADDR DATA...",
             'help' : "Write 32-bit words to memory (RAM or flash)"
             },
+        'fill' : {
+            'aliases' : [],
+            'args' : "[SIZE] ADDR LEN PATTERN",
+            'help' : "Fill a range of memory with a pattern",
+            'extra_help' : "The optional SIZE parameter must be one of 8, 16, or 32. If not "
+                           "provided, the size is determined by the pattern value's most "
+                           "significant set bit."
+            },
         'go' : {
             'aliases' : ['g', 'continue', 'c'],
             'args' : "",
@@ -218,7 +226,8 @@ COMMAND_INFO = {
             'aliases' : ['d'],
             'args' : "[-c/--center] ADDR [LEN]",
             'help' : "Disassemble instructions at an address",
-            'extra_help' : "Only available if the capstone library is installed."
+            'extra_help' : "Only available if the capstone library is installed. To install "
+                           "capstone, run 'pip install capstone'."
             },
         'exit' : {
             'aliases' : ['quit'],
@@ -575,6 +584,7 @@ class PyOCDCommander(object):
                 'makeap' :  self.handle_makeap,
                 'symbol' :  self.handle_symbol,
                 'gdbserver':self.handle_gdbserver,
+                'fill' :    self.handle_fill,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -977,6 +987,71 @@ class PyOCDCommander(object):
 
         programmer = FileProgrammer(self.session, progress=print_progress())
         programmer.program(filename, base_address=addr)
+    
+    # fill [SIZE] ADDR LEN PATTERN
+    def handle_fill(self, args):
+        if len(args) == 3:
+            size = None
+            addr = self.convert_value(args[0])
+            length = self.convert_value(args[1])
+            pattern = self.convert_value(args[2])
+        elif len(args) == 4:
+            size = int(args[0])
+            if size not in (8, 16, 32):
+                raise ToolError("invalid size argument")
+            addr = self.convert_value(args[1])
+            length = self.convert_value(args[2])
+            pattern = self.convert_value(args[3])
+        else:
+            print("Error: missing argument")
+            return 1
+        
+        # Determine size by the highest set bit in the pattern.
+        if size is None:
+            highest = mask.msb(pattern)
+            if highest < 8:
+                size = 8
+            elif highest < 16:
+                size = 16
+            elif highest < 32:
+                size = 32
+            else:
+                raise ToolError("invalid pattern size (MSB is %d)" % highest)
+        
+        # Create word-sized byte lists.
+        if size == 8:
+            pattern_str = "0x%02x" % (pattern & 0xff)
+            pattern = [pattern]
+        elif size == 16:
+            pattern_str = "0x%04x" % (pattern & 0xffff)
+            pattern = conversion.u16le_list_to_byte_list([pattern])
+        elif size == 32:
+            pattern_str = "0x%08x" % (pattern & 0xffffffff)
+            pattern = conversion.u32le_list_to_byte_list([pattern])
+        
+        # Divide into 32 kB chunks.
+        CHUNK_SIZE = 32 * 1024
+        chunk_count = (length + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        end_addr = addr + length
+        print("Filling 0x%08x-0x%08x with pattern %s" % (addr, end_addr - 1, pattern_str))
+        
+        for chunk in range(chunk_count):
+            # Get this chunk's size.
+            chunk_size = min(end_addr - addr, CHUNK_SIZE)
+            print("Wrote %d bytes @ 0x%08x" % (chunk_size, addr))
+            
+            # Construct data for the chunk.
+            if size == 8:
+                data = pattern * chunk_size
+            elif size == 16:
+                data = (pattern * ((chunk_size + 1) // 2))[:chunk_size]
+            elif size == 32:
+                data = (pattern * ((chunk_size + 3) // 4))[:chunk_size]
+            
+            # Write to target.
+            self.target.aps[self.selected_ap].write_memory_block8(addr, data)
+            addr += chunk_size
 
     def do_read(self, args, width):
         if len(args) == 0:
