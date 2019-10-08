@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2015-2018 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -478,7 +478,7 @@ class PyOCDConsole(object):
             if session.Session.get_current().log_tracebacks:
                 traceback.print_exc()
         except exceptions.TransferError as e:
-            print("Error:", e)
+            print("Transfer failed:", e)
             if session.Session.get_current().log_tracebacks:
                 traceback.print_exc()
         except ToolError as e:
@@ -486,7 +486,7 @@ class PyOCDConsole(object):
         except ToolExitException:
             raise
         except Exception as e:
-            print("Unexpected exception:", e)
+            print("Error:", e)
             if session.Session.get_current().log_tracebacks:
                 traceback.print_exc()
 
@@ -1466,10 +1466,10 @@ class PyOCDCommander(object):
         if len(args) < 1:
             raise ToolError("missing user option name argument")
         for name in args:
-            if name in self.session.options:
+            try:
                 value = self.session.options[name]
                 print("Option '%s' = %s" % (name, value))
-            else:
+            except KeyError:
                 print("No option with name '%s'" % name)
 
     def handle_show_ap(self, args):
