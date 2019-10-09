@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,10 +24,16 @@ from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
 from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2)
-from .cmsis_dap_core import (Command, Pin, Capabilities, DAP_TRANSFER_OK,
-                             DAP_TRANSFER_FAULT, DAP_TRANSFER_WAIT,
-                             DAPSWOTransport, DAPSWOMode, DAPSWOControl,
-                             DAPSWOStatus)
+from .cmsis_dap_core import (
+    Command,
+    Pin,
+    Capabilities,
+    DAPSWOTransport,
+    DAPSWOMode,
+    DAPSWOControl,
+    DAPSWOStatus,
+    DAPTransferResponse,
+    )
 from ...core import session
 
 # CMSIS-DAP values
@@ -316,12 +322,17 @@ class _Command(object):
         if data[0] != Command.DAP_TRANSFER:
             raise ValueError('DAP_TRANSFER response error')
 
-        if data[2] != DAP_TRANSFER_OK:
-            if data[2] == DAP_TRANSFER_FAULT:
+        ack = data[2] & DAPTransferResponse.ACK_MASK
+        if ack != DAPTransferResponse.ACK_OK:
+            if ack == DAPTransferResponse.ACK_FAULT:
                 raise DAPAccessIntf.TransferFaultError()
-            elif data[2] == DAP_TRANSFER_WAIT:
+            elif ack == DAPTransferResponse.ACK_WAIT:
                 raise DAPAccessIntf.TransferTimeoutError()
+            elif ack == DAPTransferResponse.ACK_NO_ACK:
+                raise DAPAccessIntf.TransferError("No ACK received")
             raise DAPAccessIntf.TransferError()
+        elif (data[2] & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
+            raise DAPAccessIntf.TransferError("SWD protocol error")
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
         # This allows TransferFaultError or TransferTimeoutError to get
@@ -380,12 +391,17 @@ class _Command(object):
         if data[0] != Command.DAP_TRANSFER_BLOCK:
             raise ValueError('DAP_TRANSFER_BLOCK response error')
 
-        if data[3] != DAP_TRANSFER_OK:
-            if data[3] == DAP_TRANSFER_FAULT:
+        ack = data[3] & DAPTransferResponse.ACK_MASK
+        if ack != DAPTransferResponse.ACK_OK:
+            if ack == DAPTransferResponse.ACK_FAULT:
                 raise DAPAccessIntf.TransferFaultError()
-            elif data[3] == DAP_TRANSFER_WAIT:
+            elif ack == DAPTransferResponse.ACK_WAIT:
                 raise DAPAccessIntf.TransferTimeoutError()
+            elif ack == DAPTransferResponse.ACK_NO_ACK:
+                raise DAPAccessIntf.TransferError("No ACK received")
             raise DAPAccessIntf.TransferError()
+        elif (data[3] & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
+            raise DAPAccessIntf.TransferError("SWD protocol error")
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
         # This allows TransferFaultError or TransferTimeoutError to get

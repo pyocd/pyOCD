@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,23 +72,7 @@ class DAPAccessIntf(object):
 
     class TransferFaultError(TransferError):
         """! @brief A SWD Fault occurred"""
-        def __init__(self, faultAddress=None):
-            super(DAPAccessIntf.TransferFaultError, self).__init__(faultAddress)
-            self._address = faultAddress
-
-        @property
-        def fault_address(self):
-            return self._address
-
-        @fault_address.setter
-        def fault_address(self, addr):
-            self._address = addr
-
-        def __str__(self):
-            desc = "SWD/JTAG Transfer Fault"
-            if self._address is not None:
-                desc += " @ 0x%08x" % self._address
-            return desc
+        pass
 
     class TransferProtocolError(TransferError):
         """! @brief A SWD protocol error occurred"""
