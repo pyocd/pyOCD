@@ -377,15 +377,15 @@ class CMSISDAPProbe(DebugProbe):
     @staticmethod
     def _convert_exception(exc):
         if isinstance(exc, DAPAccess.TransferFaultError):
-            return exceptions.TransferFaultError()
+            return exceptions.TransferFaultError(*exc.args)
         elif isinstance(exc, DAPAccess.TransferTimeoutError):
-            return exceptions.TransferTimeoutError()
+            return exceptions.TransferTimeoutError(*exc.args)
         elif isinstance(exc, DAPAccess.TransferError):
-            return exceptions.TransferError()
+            return exceptions.TransferError(*exc.args)
         elif isinstance(exc, (DAPAccess.DeviceError, DAPAccess.CommandError)):
-            return exceptions.ProbeError(str(exc))
+            return exceptions.ProbeError(*exc.args)
         elif isinstance(exc, DAPAccess.Error):
-            return exceptions.Error(str(exc))
+            return exceptions.Error(*exc.args)
         else:
             return exc
 

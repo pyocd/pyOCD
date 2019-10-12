@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -105,11 +105,17 @@ class DAPSWOStatus:
 DAP_OK = 0
 DAP_ERROR = 0xff
 
-# Responses to DAP_Transfer and DAP_TransferBlock
-DAP_TRANSFER_OK = 1
-DAP_TRANSFER_WAIT = 2
-DAP_TRANSFER_FAULT = 4
-DAP_TRANSFER_NO_ACK = 7
+class DAPTransferResponse:
+    """! Responses to DAP_Transfer and DAP_TransferBlock"""
+    ACK_MASK = 0x07 # Bits [2:0]
+    PROTOCOL_ERROR_MASK = 0x08 # Bit [3]
+    VALUE_MISMATCH_MASK = 0x08 # Bit [4]
+    
+    # Values for ACK bitfield.
+    ACK_OK = 1
+    ACK_WAIT = 2
+    ACK_FAULT = 4
+    ACK_NO_ACK = 7
 
 class CMSISDAPProtocol(object):
     """! @brief This class implements the CMSIS-DAP wire protocol."""
