@@ -761,7 +761,7 @@ class PyOCDCommander(object):
 
         # Set elf file if provided.
         if self.args.elf:
-            self.target.elf = self.args.elf
+            self.target.elf = os.path.expanduser(self.args.elf)
             self.elf = self.target.elf
         else:
             self.elf = None
