@@ -104,12 +104,12 @@ class ELFBinaryFile(object):
     """
     
     def __init__(self, elf, memory_map=None):
+        self._owns_file = False
         if isinstance(elf, six.string_types):
             self._file = open(elf, 'rb')
             self._owns_file = True
         else:
             self._file = elf
-            self._owns_file = False
         self._elf = ELFFile(self._file)
         self._memory_map = memory_map or MemoryMap()
 
