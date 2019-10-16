@@ -571,7 +571,7 @@ class PyOCDTool(object):
             with session:
                 # Set ELF if provided.
                 if self._args.elf:
-                    session.board.target.elf = self._args.elf
+                    session.board.target.elf = os.path.expanduser(self._args.elf)
                 for core_number, core in session.board.target.cores.items():
                     gdb = GDBServer(session,
                         core=core_number,
