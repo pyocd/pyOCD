@@ -41,8 +41,12 @@ APSEL = 0xff000000
 APBANKSEL = 0x000000f0
 APREG_MASK = 0x000000fc
 
-AP_ROM_TABLE_FORMAT_MASK = 0x2
-AP_ROM_TABLE_ENTRY_PRESENT_MASK = 0x1
+# AP BASE register masks
+AP_BASE_FORMAT_MASK = 0x2
+AP_BASE_ENTRY_PRESENT_MASK = 0x1
+AP_BASE_BASEADDR_MASK = 0xfffffffc
+AP_BASE_LEGACY_NOTPRESENT = 0xffffffff # Legacy not present value
+AP_BASE_LEGACY_BASEADDR_MASK = 0xfffff000
 
 # AP IDR bitfields:
 # [31:28] Revision
@@ -215,9 +219,21 @@ class AccessPort(object):
             desc = "proprietary"
 
         # Init ROM table
-        self.rom_addr = self.read_reg(AP_BASE)
-        self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
-        self.rom_addr &= 0xfffffffc # clear format and present bits
+        base = self.read_reg(AP_BASE)
+        
+        is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
+        is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
+        if (base == AP_BASE_LEGACY_NOTPRESENT) or (is_adiv5_base and not is_base_present):
+            self.has_rom_table = False
+            self.rom_addr = 0
+        elif is_adiv5_base and is_base_present:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
+        elif not is_adiv5_base:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
+        else:
+            assert False, "Unhandled AP BASE value 0x%08x" % base
 
         LOG.info("AP#%d IDR = 0x%08x (%s)%s", self.ap_num, self.idr, desc,
             ("" if self.has_rom_table else " [No ROM table]"))
