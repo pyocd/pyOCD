@@ -327,12 +327,12 @@ class DebugPort(object):
         except exceptions.Error as e:
             LOG.error("Exception reading AP#%d IDR: %s", ap_num, e)
     
-    def init_ap_roms(self):
-        """! @brief Init task that generates a call sequence to init all AP ROMs."""
+    def find_components(self):
+        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
         seq = CallSequence()
         for ap in [x for x in self.aps.values() if x.has_rom_table]:
             seq.append(
-                ('init_ap.{}'.format(ap.ap_num), ap.init_rom_table)
+                ('init_ap.{}'.format(ap.ap_num), ap.find_components)
                 )
         return seq
 

@@ -218,34 +218,11 @@ class AccessPort(object):
         else:
             desc = "proprietary"
 
-        # Init ROM table
-        base = self.read_reg(AP_BASE)
-        
-        is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
-        is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
-        if (base == AP_BASE_LEGACY_NOTPRESENT) or (is_adiv5_base and not is_base_present):
-            self.has_rom_table = False
-            self.rom_addr = 0
-        elif is_adiv5_base and is_base_present:
-            self.has_rom_table = True
-            self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
-        elif not is_adiv5_base:
-            self.has_rom_table = True
-            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
-        else:
-            assert False, "Unhandled AP BASE value 0x%08x" % base
-
-        LOG.info("AP#%d IDR = 0x%08x (%s)%s", self.ap_num, self.idr, desc,
-            ("" if self.has_rom_table else " [No ROM table]"))
+        LOG.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
  
-    @_locked
-    def init_rom_table(self):
-        try:
-            if self.has_rom_table:
-                self.rom_table = ROMTable(self)
-                self.rom_table.init()
-        except exceptions.TransferError as error:
-            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
+    def find_components(self):
+        """! @brief Find CoreSight components attached to this AP."""
+        pass
 
     @_locked
     def read_reg(self, addr, now=True):
@@ -364,6 +341,32 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
  
         # Restore unmodified value of CSW.
         AccessPort.write_reg(self, MEM_AP_CSW, original_csw)
+
+        # Read ROM table base address.
+        base = self.read_reg(AP_BASE)
+        
+        is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
+        is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
+        if (base == AP_BASE_LEGACY_NOTPRESENT) or (is_adiv5_base and not is_base_present):
+            self.has_rom_table = False
+            self.rom_addr = 0
+        elif is_adiv5_base and is_base_present:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
+        elif not is_adiv5_base:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
+        else:
+            assert False, "Unhandled AP BASE value 0x%08x" % base
+ 
+    @_locked
+    def find_components(self):
+        try:
+            if self.has_rom_table:
+                self.rom_table = ROMTable(self)
+                self.rom_table.init()
+        except exceptions.TransferError as error:
+            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
 
     @property
     def implemented_hprot_mask(self):
@@ -703,7 +706,7 @@ class AHB_AP(MEM_AP):
         if impl_master_type != 0:
             self._csw |= CSW_MSTRDBG
 
-    def init_rom_table(self):
+    def find_components(self):
         # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries will
         # come back as garbage if TRCENA is not set.
         try:
@@ -715,7 +718,7 @@ class AHB_AP(MEM_AP):
             pass
 
         # Invoke superclass.
-        super(AHB_AP, self).init_rom_table()
+        super(AHB_AP, self).find_components()
 
 class AHB_AP_4k_Wrap(AHB_AP):
     """! @brief AHB-AP with a 4k auto increment wrap size.
