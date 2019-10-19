@@ -908,7 +908,7 @@ class CortexM(Target, CoreSightCoreComponent):
         """! @brief Disable halt on reset."""
         self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
-        if self._reset_catch_delegate_result:
+        if not self._reset_catch_delegate_result:
             # restore vector catch setting
             self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr)
 
