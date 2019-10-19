@@ -41,9 +41,9 @@ RUNNING = Target.TARGET_RUNNING
 HALTED = Target.TARGET_HALTED
 
 class ConnectTestCase(object):
-    def __init__(self, prev_exit_state, halt_on_connect, expected_state, disconnect_resume, exit_state):
+    def __init__(self, prev_exit_state, connect_mode, expected_state, disconnect_resume, exit_state):
         self.prev_exit_state = prev_exit_state
-        self.halt_on_connect = halt_on_connect
+        self.connect_mode = connect_mode
         self.expected_state = expected_state
         self.disconnect_resume = disconnect_resume
         self.exit_state = exit_state
@@ -87,12 +87,12 @@ def connect_test(board):
     rom_region = memory_map.get_boot_memory()
     rom_start = rom_region.start
 
-    def test_connect(halt_on_connect, expected_state, resume):
-        print("Connecting with halt_on_connect=%s" % halt_on_connect)
+    def test_connect(connect_mode, expected_state, resume):
+        print("Connecting with connect_mode=%s" % connect_mode)
         live_session = ConnectHelper.session_with_chosen_probe(
                         unique_id=board_id,
                         init_board=False,
-                        connect_mode=('halt' if halt_on_connect else 'attach'),
+                        connect_mode=connect_mode,
                         resume_on_disconnect=resume,
                         **get_session_options())
         live_session.open()
@@ -117,17 +117,17 @@ def connect_test(board):
 
     # TEST CASE COMBINATIONS
     test_cases = [
-    #                <prev_exit> <halt_on_connect> <expected_state> <disconnect_resume> <exit_state>
-    ConnectTestCase( RUNNING,    False,            RUNNING,         False,              RUNNING  ),
-    ConnectTestCase( RUNNING,    True,             HALTED,          False,              HALTED   ),
-    ConnectTestCase( HALTED,     True,             HALTED,          True,               RUNNING  ),
-    ConnectTestCase( RUNNING,    True,             HALTED,          True,               RUNNING  ),
-    ConnectTestCase( RUNNING,    False,            RUNNING,         True,               RUNNING  ),
-    ConnectTestCase( RUNNING,    True,             HALTED,          False,              HALTED   ),
-    ConnectTestCase( HALTED,     False,            HALTED,          False,              HALTED   ),
-    ConnectTestCase( HALTED,     True,             HALTED,          False,              HALTED   ),
-    ConnectTestCase( HALTED,     False,            HALTED,          True,               RUNNING  ),
-    ConnectTestCase( RUNNING,    False,            RUNNING,         False,              RUNNING  ),
+    #                <prev_exit> <connect_mode>    <expected_state> <disconnect_resume> <exit_state>
+    ConnectTestCase( RUNNING,    'attach',         RUNNING,         False,              RUNNING  ),
+    ConnectTestCase( RUNNING,    'halt',           HALTED,          False,              HALTED   ),
+    ConnectTestCase( HALTED,     'halt',           HALTED,          True,               RUNNING  ),
+    ConnectTestCase( RUNNING,    'halt',           HALTED,          True,               RUNNING  ),
+    ConnectTestCase( RUNNING,    'attach',         RUNNING,         True,               RUNNING  ),
+    ConnectTestCase( RUNNING,    'halt',           HALTED,          False,              HALTED   ),
+    ConnectTestCase( HALTED,     'attach',         HALTED,          False,              HALTED   ),
+    ConnectTestCase( HALTED,     'halt',           HALTED,          False,              HALTED   ),
+    ConnectTestCase( HALTED,     'attach',         HALTED,          True,               RUNNING  ),
+    ConnectTestCase( RUNNING,    'attach',         RUNNING,         False,              RUNNING  ),
     ]
 
     print("\n\n----- TESTING CONNECT/DISCONNECT -----")
@@ -151,7 +151,7 @@ def connect_test(board):
     for case in test_cases:
         test_count += 1
         did_pass = test_connect(
-            halt_on_connect=case.halt_on_connect,
+            connect_mode=case.connect_mode,
             expected_state=case.expected_state,
             resume=case.disconnect_resume
             )
@@ -160,12 +160,12 @@ def connect_test(board):
 
     print("\n\nTest Summary:")
     print("\n{:<4}{:<12}{:<19}{:<12}{:<21}{:<11}{:<10}".format(
-        "#", "Prev Exit", "Halt on Connect", "Expected", "Disconnect Resume", "Exit", "Passed"))
+        "#", "Prev Exit", "Connect Mode", "Expected", "Disconnect Resume", "Exit", "Passed"))
     for i, case in enumerate(test_cases):
         print("{:<4}{:<12}{:<19}{:<12}{:<21}{:<11}{:<10}".format(
             i,
             STATE_NAMES[case.prev_exit_state],
-            repr(case.halt_on_connect),
+            case.connect_mode,
             STATE_NAMES[case.expected_state],
             repr(case.disconnect_resume),
             STATE_NAMES[case.exit_state],
