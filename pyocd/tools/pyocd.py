@@ -1148,14 +1148,16 @@ class PyOCDCommander(object):
     def handle_go(self, args):
         self.target.resume()
         status = self.target.get_state()
-        if status in (Target.TARGET_RUNNING, Target.TARGET_SLEEPING):
+        if status == Target.TARGET_RUNNING:
             print("Successfully resumed device")
-        elif status in Target.TARGET_LOCKUP:
+        elif status == Target.TARGET_SLEEPING:
+            print("Device entered sleep")
+        elif status == Target.TARGET_LOCKUP:
             print("Device entered lockup")
-        elif status in Target.TARGET_RESET:
+        elif status == Target.TARGET_RESET:
             print("Device is being held in reset")
-        elif status in Target.TARGET_RESET:
-            print("Failed to resume device; device remains halted")
+        elif status == Target.TARGET_HALTED:
+            print("Device is halted; a debug event may have occurred")
         else:
             print("Unknown target status: %s" % status)
 
