@@ -420,6 +420,8 @@ class CortexM(Target, CoreSightCoreComponent):
         self._supports_vectreset = False
         self._reset_catch_delegate_result = False
         self._reset_catch_saved_demcr = 0
+        self.fpb = None
+        self.dwt = None
         
         # Default to software reset using the default software reset method.
         self._default_reset_type = Target.ResetType.SW
@@ -504,7 +506,8 @@ class CortexM(Target, CoreSightCoreComponent):
         if not self.call_delegate('will_stop_debug_core', core=self):
             # Remove breakpoints and watchpoints.
             self.bp_manager.remove_all_breakpoints()
-            self.dwt.remove_all_watchpoints()
+            if self.dwt is not None:
+                self.dwt.remove_all_watchpoints()
 
             # Disable other debug blocks.
             self.write32(CortexM.DEMCR, 0)
@@ -1212,17 +1215,20 @@ class CortexM(Target, CoreSightCoreComponent):
         return self.fpb.available_breakpoints
 
     def find_watchpoint(self, addr, size, type):
-        return self.dwt.find_watchpoint(addr, size, type)
+        if self.dwt is not None:
+            return self.dwt.find_watchpoint(addr, size, type)
 
     def set_watchpoint(self, addr, size, type):
         """! @brief Set a hardware watchpoint.
         """
-        return self.dwt.set_watchpoint(addr, size, type)
+        if self.dwt is not None:
+            return self.dwt.set_watchpoint(addr, size, type)
 
     def remove_watchpoint(self, addr, size, type):
         """! @brief Remove a hardware watchpoint.
         """
-        return self.dwt.remove_watchpoint(addr, size, type)
+        if self.dwt is not None:
+            return self.dwt.remove_watchpoint(addr, size, type)
 
     @staticmethod
     def _map_to_vector_catch_mask(mask):
