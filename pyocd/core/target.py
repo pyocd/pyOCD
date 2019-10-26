@@ -153,12 +153,23 @@ class Target(MemoryInterface):
     class HaltReason(Enum):
         """! Halt type for halt notifications.
         
-        An enum of this type is set as the data attribute on PRE_HALT and POST_HALT notifications.
+        An value of this type is returned from Target.get_halt_reason(). It is also used as the data
+        attribute on PRE_HALT and POST_HALT notifications.
         """
         ## Target halted due to user action.
         USER = 1
-        ## Target halted because of a debug trap.
+        ## Target halted because of a halt or step event.
         DEBUG = 2
+        ## Breakpoint event.
+        BREAKPOINT = 3
+        ## DWT watchpoint event.
+        WATCHPOINT = 4
+        ## Vector catch event.
+        VECTOR_CATCH = 5
+        ## External debug request.
+        EXTERNAL = 6
+        ## PMU event. v8.1-M only.
+        PMU = 7
 
     VENDOR = "Generic"
 
@@ -277,6 +288,9 @@ class Target(MemoryInterface):
         raise NotImplementedError()
         
     def get_security_state(self):
+        raise NotImplementedError()
+
+    def get_halt_reason(self):
         raise NotImplementedError()
 
     @property

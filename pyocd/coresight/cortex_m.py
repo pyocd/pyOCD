@@ -198,6 +198,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
     # Debug Fault Status Register
     DFSR = 0xE000ED30
+    DFSR_PMU = (1 << 5)
     DFSR_EXTERNAL = (1 << 4)
     DFSR_VCATCH = (1 << 3)
     DFSR_DWTTRAP = (1 << 2)
@@ -1311,8 +1312,25 @@ class CortexM(Target, CoreSightCoreComponent):
         return debugEvents != 0
 
     def is_vector_catch(self):
-        debugEvents = self.read_memory(CortexM.DFSR) & CortexM.DFSR_VCATCH
-        return debugEvents != 0
+        return self.get_halt_reason() == Target.HaltReason.VECTOR_CATCH
+    
+    def get_halt_reason(self):
+        dfsr = self.read32(CortexM.DFSR)
+        if dfsr & CortexM.DFSR_HALTED:
+            reason = Target.HaltReason.DEBUG
+        elif dfsr & CortexM.DFSR_BKPT:
+            reason = Target.HaltReason.BREAKPOINT
+        elif dfsr & CortexM.DFSR_DWTTRAP:
+            reason = Target.HaltReason.WATCHPOINT
+        elif dfsr & CortexM.DFSR_VCATCH:
+            reason = Target.HaltReason.VECTOR_CATCH
+        elif dfsr & CortexM.DFSR_EXTERNAL:
+            reason = Target.HaltReason.EXTERNAL
+        elif dfsr & CortexM.DFSR_PMU:
+            reason = Target.HaltReason.PMU
+        else:
+            reason = None
+        return reason
 
     def get_target_context(self, core=None):
         return self._target_context
