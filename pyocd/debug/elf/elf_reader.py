@@ -21,11 +21,11 @@ from intervaltree import (Interval, IntervalTree)
 
 LOG = logging.getLogger(__name__)
 
-class FlashReaderContext(DebugContext):
+class ElfReaderContext(DebugContext):
     """! @brief Reads flash memory regions from an ELF file instead of the target."""
 
     def __init__(self, parent, elf):
-        super(FlashReaderContext, self).__init__(parent)
+        super(ElfReaderContext, self).__init__(parent)
         self._elf = elf
 
         self._build_regions()

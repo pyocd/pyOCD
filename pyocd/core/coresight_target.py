@@ -23,7 +23,7 @@ from ..debug.svd.loader import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
 from ..debug.elf.elf import ELFBinaryFile
-from ..debug.elf.flash_reader import FlashReaderContext
+from ..debug.elf.elf_reader import ElfReaderContext
 from ..utility.graph import GraphNode
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
@@ -87,7 +87,7 @@ class CoreSightTarget(Target, GraphNode):
         else:
             self._elf = ELFBinaryFile(filename, self.memory_map)
             self.cores[0].elf = self._elf
-            self.cores[0].set_target_context(FlashReaderContext(self.cores[0].get_target_context(), self._elf))
+            self.cores[0].set_target_context(ElfReaderContext(self.cores[0].get_target_context(), self._elf))
 
     def select_core(self, num):
         """! @note Deprecated."""
