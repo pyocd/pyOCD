@@ -669,6 +669,8 @@ class CortexM(Target, CoreSightCoreComponent):
     def halt(self):
         """! @brief Halt the core
         """
+        LOG.debug("halting core %d", self.core_number)
+
         self.session.notify(Target.Event.PRE_HALT, self, Target.HaltReason.USER)
         self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.flush()
@@ -685,6 +687,8 @@ class CortexM(Target, CoreSightCoreComponent):
         if not (dhcsr & (CortexM.C_STEP | CortexM.C_HALT)):
             LOG.error('cannot step: target not halted')
             return
+
+        LOG.debug("step core %d", self.core_number)
 
         self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.STEP)
 
@@ -889,6 +893,8 @@ class CortexM(Target, CoreSightCoreComponent):
 
         reset_type = self._get_actual_reset_type(reset_type)
 
+        LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
+
         self._run_token += 1
 
         # Give the delegate a chance to overide reset. If the delegate returns True, then it
@@ -914,6 +920,8 @@ class CortexM(Target, CoreSightCoreComponent):
 
     def set_reset_catch(self, reset_type=None):
         """! @brief Prepare to halt core on reset."""
+        LOG.debug("set reset catch, core %d", self.core_number)
+
         self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
         
         # Default behaviour if the delegate didn't handle it.
@@ -930,6 +938,8 @@ class CortexM(Target, CoreSightCoreComponent):
     
     def clear_reset_catch(self, reset_type=None):
         """! @brief Disable halt on reset."""
+        LOG.debug("clear reset catch, core %d", self.core_number)
+
         self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
         if not self._reset_catch_delegate_result:
@@ -1003,6 +1013,7 @@ class CortexM(Target, CoreSightCoreComponent):
         if self.get_state() != Target.State.HALTED:
             LOG.debug('cannot resume: target not halted')
             return
+        LOG.debug("resuming core %d", self.core_number)
         self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.RESUME)
         self._run_token += 1
         self.clear_debug_cause_bits()
@@ -1297,6 +1308,7 @@ class CortexM(Target, CoreSightCoreComponent):
         demcr = self.read_memory(CortexM.DEMCR)
         demcr |= CortexM._map_to_vector_catch_mask(enableMask)
         demcr &= ~CortexM._map_to_vector_catch_mask(~enableMask)
+        LOG.debug("Setting vector catch to 0x%08x", enableMask)
         self.write_memory(CortexM.DEMCR, demcr)
 
     def get_vector_catch(self):
