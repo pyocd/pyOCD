@@ -192,7 +192,6 @@ class AccessPort(object):
     def __init__(self, dp, ap_num, idr=None, name=""):
         self.dp = dp
         self.ap_num = ap_num
-        self.link = dp.link
         self.idr = idr
         self.type_name = name
         self.rom_addr = 0
@@ -302,7 +301,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
         # memory interface based on AP register accesses.
-        memoryInterface = self.dp.link.get_memory_interface_for_ap(self.ap_num)
+        memoryInterface = self.dp.probe.get_memory_interface_for_ap(self.ap_num)
         if memoryInterface is not None:
             LOG.debug("Using accelerated memory access interface")
             self.write_memory = memoryInterface.write_memory
@@ -594,7 +593,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            self.link.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
+            self.dp.probe.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -619,7 +618,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            resp = self.link.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
+            resp = self.dp.probe.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
