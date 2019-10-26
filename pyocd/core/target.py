@@ -304,9 +304,3 @@ class Target(MemoryInterface):
 
     def get_target_context(self, core=None):
         raise NotImplementedError()
-
-    def get_root_context(self, core=None):
-        raise NotImplementedError()
-
-    def set_root_context(self, context, core=None):
-        raise NotImplementedError()

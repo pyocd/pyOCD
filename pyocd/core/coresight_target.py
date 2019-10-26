@@ -59,7 +59,6 @@ class CoreSightTarget(Target, GraphNode):
         self.dp = dap.DebugPort(session.probe, self)
         self._selected_core = None
         self._svd_load_thread = None
-        self._root_contexts = {}
         self._new_core_num = 0
         self._elf = None
         self._irq_table = None
@@ -128,7 +127,6 @@ class CoreSightTarget(Target, GraphNode):
         core.set_target_context(CachingDebugContext(core))
         self.cores[core.core_number] = core
         self.add_child(core)
-        self._root_contexts[core.core_number] = None
         
         if self._selected_core is None:
             self._selected_core = core.core_number
@@ -408,19 +406,6 @@ class CoreSightTarget(Target, GraphNode):
         if core is None:
             core = self._selected_core
         return self.cores[core].get_target_context()
-
-    def get_root_context(self, core=None):
-        if core is None:
-            core = self._selected_core
-        if self._root_contexts[core] is None:
-            return self.get_target_context()
-        else:
-            return self._root_contexts[core]
-
-    def set_root_context(self, context, core=None):
-        if core is None:
-            core = self._selected_core
-        self._root_contexts[core] = context
 
     @property
     def irq_table(self):
