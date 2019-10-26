@@ -162,6 +162,13 @@ Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(
 list of available targets.
 </td></tr>
 
+<tr><td>probeserver.port</td>
+<td>int</td>
+<td>5555</td>
+<td>
+TCP port for the debug probe server.
+</td></tr>
+
 <tr><td>project_dir</td>
 <td>str</td>
 <td><i>See description.</i></td>

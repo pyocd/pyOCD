@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,3 +76,68 @@ class ListenerSocket(object):
 
     def set_timeout(self, timeout):
         self.conn.settimeout(timeout)
+
+class ClientSocket(object):
+    """! @brief Simple client-side TCP socket.
+    
+    Provides a file-like interface to a TCP socket. Blocking and timeout are configurable.
+    """
+    
+    DEFAULT_TIMEOUT = 10.0
+    
+    def __init__(self, host, port, packet_size=4096, timeout=None):
+        self._address = (host, port)
+        self._packet_size = packet_size
+        self._timeout = timeout or self.DEFAULT_TIMEOUT
+        self._socket = None
+        self._buffer = bytearray()
+    
+    def connect(self):
+        self._socket = socket.create_connection(self._address, self._timeout)
+    
+    def close(self):
+        if self._socket is not None:
+            # Close both ends of the connection, then close the socket itself.
+            self._socket.shutdown(socket.SHUT_RDWR)
+            self._socket.close()
+            self._socket = None
+
+    def set_blocking(self, blocking):
+        self._socket.setblocking(blocking)
+
+    def set_timeout(self, timeout):
+        """! @brief Change the socket to blocking with timeout mode."""
+        self._socket.settimeout(timeout)
+
+    def read(self, packet_size=None):
+        if packet_size is None:
+            packet_size = self._packet_size
+        # Pull from the buffer first.
+#         if len(self._buffer):
+#             length = min(len(self._buffer), packet_size)
+#             data =  self._buffer[:length]
+#             self._buffer = self._buffer[length:]
+#             return data
+        return self._socket.recv(packet_size)
+
+    def write(self, data):
+        return self._socket.sendall(data)
+    
+    def readline(self):
+        while True:
+            # Try to extract a line from the buffer.
+            offset = self._buffer.find(b'\n')
+            if offset != -1:
+                offset += 1 # include lf
+                data =  self._buffer[:offset]
+                del self._buffer[:offset]
+                return data
+            # Read a chunk and put in the buffer, then try again.
+            while True:
+                try:
+                    data = self.read()
+                except socket.timeout:
+                    pass
+                else:
+                    break
+            self._buffer += data

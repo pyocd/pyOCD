@@ -63,6 +63,8 @@ BUILTIN_OPTIONS = [
     OptionInfo('pack', (str, list), None,
         "Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are "
         "added to the list of available targets."),
+    OptionInfo('probeserver.port', int, 5555,
+        "TCP port for the debug probe server."),
     OptionInfo('project_dir', str, None,
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),

@@ -27,6 +27,7 @@ import os
 import fnmatch
 import re
 import prettytable
+from time import sleep
 
 from . import __version__
 from .core.session import Session
@@ -45,6 +46,7 @@ from .utility.cmdline import (
     convert_frequency,
     )
 from .probe.pydapaccess import DAPAccess
+from .probe.tcp_probe_server import DebugProbeServer
 from .tools.lists import ListGenerator
 from .tools.pyocd import PyOCDCommander
 from .flash.eraser import FlashEraser
@@ -76,6 +78,7 @@ DEFAULT_CMD_LOG_LEVEL = {
     'commander':    logging.WARNING,
     'cmd':          logging.WARNING,
     'pack':         logging.INFO,
+    'server':       logging.INFO,
     }
 
 ## @brief Valid erase mode options.
@@ -326,6 +329,21 @@ class PyOCDTool(object):
             help="Don't print a table header.")
         subparsers.add_parser('pack', parents=[loggingOptions, packParser],
             help="Manage CMSIS-Packs for target support.")
+
+        # Create *server* subcommand parser.
+        serverParser = subparsers.add_parser('server', parents=[loggingOptions],
+            help="Run debug probe server.")
+        serverParser.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
+            help="Set named option.")
+        serverParser.add_argument("-da", "--daparg", dest="daparg", nargs='+',
+            help="Send setting to DAPAccess layer.")
+        serverParser.add_argument("-p", "--port", dest="port_number", type=int, default=None,
+            help="Set the server's port number (default 5555).")
+        serverParser.add_argument("--local-only", dest="serve_local_only", default=False, action="store_true",
+            help="Allow remote TCP/IP connections (default is yes).")
+        serverParser.add_argument("-u", "--uid", dest="unique_id",
+            help="Serve only the specified probe. Can be used multiple times.")
+        serverParser.set_defaults(verbose=0, quiet=0)
         
         self._parser = parser
         return parser
@@ -821,6 +839,37 @@ class PyOCDTool(object):
                 if not self._args.no_download:
                     cache.download_pack_list(packs)
 
+    def do_server(self):
+        """! @brief Handle 'server' subcommand."""
+        # Create a session to load config, particularly logging config. Even though we do have a
+        # probe, we don't set it in the session because we don't want the board, target, etc objects
+        # to be created.
+        session_options = convert_session_options(self._args.options)
+        session = Session(probe=None, options=session_options)
+        
+        # The ultimate intent is to serve all available probes by default. For now we just serve
+        # a single probe.
+        probe = ConnectHelper.choose_probe(unique_id=self._args.unique_id)
+        if probe is None:
+            return
+        
+        # Assign the session to the probe.
+        probe.session = session
+        
+        # Create the server instance.
+        server = DebugProbeServer(session, probe, self._args.port_number, self._args.serve_local_only)
+        LOG.debug("Starting debug probe server")
+        server.start()
+        
+        # Loop as long as the probe is running. The server thread is a daemon, so the main thread
+        # must continue to exist.
+        try:
+            while server.is_running:
+                sleep(0.1)
+        except (KeyboardInterrupt, Exception):
+            server.stop()
+            raise
+
     ## @brief Table of handler methods for subcommands.
     _COMMANDS = {
         'list':         do_list,
@@ -833,6 +882,7 @@ class PyOCDTool(object):
         'commander':    do_commander,
         'cmd':          do_commander,
         'pack':         do_pack,
+        'server':       do_server,
         }
 
 def main():
