@@ -67,19 +67,3 @@ class MAX32600(CoreSightTarget):
 
     def __init__(self, link):
         super(MAX32600, self).__init__(link, self.memoryMap)
-
-    def dsb(self):
-        LOG.info("Triggering Destructive Security Bypass...")
-
-        self.link.vendor(1)
-
-        # Reconnect debugger
-        self.link.init()
-
-    def fge(self):
-        LOG.info("Triggering Factory Global Erase...")
-
-        self.link.vendor(2)
-
-        # Reconnect debugger
-        self.link.init()
