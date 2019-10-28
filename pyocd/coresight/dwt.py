@@ -90,6 +90,10 @@ class DWT(CoreSightComponent):
         self.watchpoints = []
         self.watchpoint_used = 0
         self.dwt_configured = False
+    
+    @property
+    def watchpoint_count(self):
+        return len(self.watchpoints)
 
     def init(self):
         """! @brief Inits the DWT.
@@ -172,6 +176,9 @@ class DWT(CoreSightComponent):
         for watch in self.watchpoints:
             if watch.func != 0:
                 self.remove_watchpoint(watch.addr, watch.size, self.WATCH_TYPE_TO_FUNCT[watch.func])
+    
+    def get_watchpoints(self):
+        return [watch for watch in self.watchpoints if watch.func != 0]
     
     @property
     def cycle_count(self):
