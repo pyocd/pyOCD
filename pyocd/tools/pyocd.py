@@ -94,6 +94,15 @@ HPROT_BIT_DESC = {
         6: ("non-shareable", "shareable"),
         }
 
+WATCHPOINT_FUNCTION_NAME_MAP = {
+                        Target.WATCHPOINT_READ: 'r',
+                        Target.WATCHPOINT_WRITE: 'w',
+                        Target.WATCHPOINT_READ_WRITE: 'rw',
+                        'r': Target.WATCHPOINT_READ,
+                        'w': Target.WATCHPOINT_WRITE,
+                        'rw': Target.WATCHPOINT_READ_WRITE,
+                        }
+
 ## Default SWD clock in Hz.
 DEFAULT_CLOCK_FREQ_HZ = 1000000
 
@@ -216,6 +225,21 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "",
             'help' : "List breakpoints"
+            },
+        'watch' : {
+            'aliases' : [],
+            'args' : "ADDR [r|w|rw] [1|2|4]",
+            'help' : "Set a watchpoint address, and optional access type (default rw) and size (4)."
+            },
+        'rmwatch' : {
+            'aliases' : [],
+            'args' : "ADDR",
+            'help' : "Remove a watchpoint"
+            },
+        'lswatch' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "List watchpoints"
             },
         'help' : {
             'aliases' : ['?'],
@@ -561,6 +585,9 @@ class PyOCDCommander(object):
                 'break' :   self.handle_breakpoint,
                 'rmbreak' : self.handle_remove_breakpoint,
                 'lsbreak' : self.handle_list_breakpoints,
+                'watch' :   self.handle_watchpoint,
+                'rmwatch' : self.handle_remove_watchpoint,
+                'lswatch' : self.handle_list_watchpoints,
                 'disasm' :  self.handle_disasm,
                 'd' :       self.handle_disasm,
                 'exit' :    self.handle_exit,
@@ -1204,6 +1231,9 @@ class PyOCDCommander(object):
             print("Failed to remove breakpoint at 0x%08x" % addr)
 
     def handle_list_breakpoints(self, args):
+        if self.target.selected_core.dwt is None:
+            print("DWT not present")
+            return
         availableBpCount = self.target.selected_core.available_breakpoint_count
         print("%d hardware breakpoints available" % availableBpCount)
         bps = self.target.selected_core.bp_manager.get_breakpoints()
@@ -1212,6 +1242,61 @@ class PyOCDCommander(object):
         else:
             for i, addr in enumerate(bps):
                 print("%d: 0x%08x" % (i, addr))
+
+    def handle_watchpoint(self, args):
+        if self.target.selected_core.dwt is None:
+            print("DWT not present")
+            return
+        if len(args) < 1:
+            raise ToolError("no watchpoint address provided")
+        addr = self.convert_value(args[0])
+        if len(args) > 1:
+            try:
+                wptype = WATCHPOINT_FUNCTION_NAME_MAP[args[1]]
+            except KeyError:
+                raise ToolError("unsupported watchpoint type '%s'", args[1])
+        else:
+            wptype = Target.WATCHPOINT_READ_WRITE
+        if len(args) > 2:
+            sz = self.convert_value(args[2])
+            if sz not in (1, 2, 4):
+                raise ToolError("unsupported watchpoint size (%d)", sz)
+        else:
+            sz = 4
+        if self.target.set_watchpoint(addr, sz, wptype):
+            print("Set watchpoint at 0x%08x" % addr)
+        else:
+            print("Failed to set watchpoint at 0x%08x" % addr)
+
+    def handle_remove_watchpoint(self, args):
+        if self.target.selected_core.dwt is None:
+            print("DWT not present")
+            return
+        if len(args) < 1:
+            raise ToolError("no watchpoint address provided")
+        addr = self.convert_value(args[0])
+        try:
+            type = self.target.get_breakpoint_type(addr)
+            self.target.remove_watchpoint(addr)
+            print("Removed watchpoint at 0x%08x" % addr)
+        except:
+            print("Failed to remove watchpoint at 0x%08x" % addr)
+
+    def handle_list_watchpoints(self, args):
+        if self.target.selected_core.dwt is None:
+            print("DWT not present")
+            return
+        availableWpCount = self.target.selected_core.dwt.watchpoint_count
+        print("%d hardware watchpoints available" % availableWpCount)
+        wps = self.target.selected_core.dwt.get_watchpoints()
+        if not len(wps):
+            print("No watchpoints installed")
+        else:
+            for i, wp in enumerate(wps):
+                # TODO fix requirement to access WATCH_TYPE_TO_FUNCT
+                print("%d: 0x%08x, %d bytes, %s" % (
+                    i, wp.addr, wp.size, 
+                    WATCHPOINT_FUNCTION_NAME_MAP[self.target.selected_core.dwt.WATCH_TYPE_TO_FUNCT[wp.func]]))
 
     def handle_set_log(self, args):
         if len(args) < 1:
