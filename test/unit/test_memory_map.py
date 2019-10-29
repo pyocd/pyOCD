@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +28,7 @@ from pyocd.core.memory_map import (
     )
 import pytest
 import logging
+import copy
 
 @pytest.fixture(scope='function')
 def flash():
@@ -217,7 +218,7 @@ class TestMemoryRegion:
         assert rom.start == 0x1c000000
         assert rom.end == 0x1c003fff
         assert rom.length == 0x4000
-        with pytest.raises(KeyError):
+        with pytest.raises(AttributeError):
             rom.blocksize
         assert rom.name == 'rom'
         assert not rom.is_flash
@@ -235,7 +236,7 @@ class TestMemoryRegion:
         assert ram1.start == 0x20000000
         assert ram1.end == 0x200003ff
         assert ram1.length == 0x400
-        with pytest.raises(KeyError):
+        with pytest.raises(AttributeError):
             ram1.blocksize
         assert ram1.name == 'ram'
         assert not ram1.is_flash
@@ -253,7 +254,7 @@ class TestMemoryRegion:
         assert ram2.start == 0x20000400
         assert ram2.end == 0x200007ff
         assert ram2.length == 0x400
-        with pytest.raises(KeyError):
+        with pytest.raises(AttributeError):
             ram2.blocksize
         assert ram2.name == 'ram2'
         assert not ram2.is_flash
@@ -287,6 +288,27 @@ class TestMemoryRegion:
         assert ram1.intersects_range(0x20000020, length=0x10)
         assert ram1.intersects_range(0x1fff0000, end=0x20001000)
         assert ram1.intersects_range(0x1ffff000, length=0x40000)
+    
+    def test_copy_ram(self, ram1):
+        ramcpy = copy.copy(ram1)
+        assert ramcpy.type == ram1.type
+        assert ramcpy.start == ram1.start
+        assert ramcpy.end == ram1.end
+        assert ramcpy.length == ram1.length
+        assert ramcpy.name == ram1.name
+        assert ramcpy == ram1
+    
+    def test_deepcopy_ram(self, ram1):
+        ramcpy = copy.deepcopy(ram1)
+        assert ramcpy == ram1
+    
+    def test_copy_flash(self, flash):
+        flashcpy = copy.copy(flash)
+        assert flashcpy == flash
+    
+    def test_deepcopy_flash(self, flash):
+        flashcpy = copy.deepcopy(flash)
+        assert flashcpy == flash
 
 
 # MemoryMap test cases.
@@ -375,5 +397,20 @@ class TestMemoryMap:
     
     def test_alias(self, memmap2, ram2, ram_alias):
         assert ram_alias.alias is ram2
+    
+    def test_copy(self, memmap):
+        mapcpy = copy.copy(memmap)
+        assert id(mapcpy) != id(memmap)
+        assert id(mapcpy.get_first_region_of_type(MemoryType.RAM)) == \
+            id(memmap.get_first_region_of_type(MemoryType.RAM))
+        assert mapcpy == memmap
+    
+    def test_deep_copy(test, memmap):
+        mapcpy = copy.deepcopy(memmap)
+        assert id(mapcpy) != id(memmap)
+        assert id(mapcpy.get_first_region_of_type(MemoryType.RAM)) != \
+            id(memmap.get_first_region_of_type(MemoryType.RAM))
+        assert mapcpy == memmap
+        
 
 
