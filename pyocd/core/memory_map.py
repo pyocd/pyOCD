@@ -16,6 +16,7 @@
 
 from enum import Enum
 import six
+import copy
 from functools import total_ordering
 
 class MemoryType(Enum):
@@ -229,10 +230,33 @@ class MemoryRegion(MemoryRangeBase):
             return aliasValue
         
     def __getattr__(self, name):
-        v = self._attributes[name]
-        if callable(v):
-            v = v(self)
-        return v
+        try:
+            v = self._attributes[name]
+        except KeyError:
+            # Transform the KeyError from a missing attribute to the expected AttributeError.
+            raise AttributeError(name)
+        else:
+            if callable(v):
+                v = v(self)
+            return v
+
+    def __copy__(self):
+        # Custom copy is required due to our __getattr__() method.
+        return self.__class__(
+                # type=self.type,
+                start=self.start,
+                length=self.length,
+                **self._attributes
+                )
+ 
+    def __deepcopy__(self, memo):
+        # Same as __copy__ but with a deep copy of attributes.
+        return self.__class__(
+                # type=self.type,
+                start=self.start,
+                length=self.length,
+                **copy.deepcopy(self._attributes, memo)
+                )
 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access)
@@ -240,7 +264,8 @@ class MemoryRegion(MemoryRangeBase):
 class RamRegion(MemoryRegion):
     """! @brief Contiguous region of RAM."""
     def __init__(self, start=0, end=0, length=None, **attrs):
-        super(RamRegion, self).__init__(type=MemoryType.RAM, start=start, end=end, length=length, **attrs)
+        attrs['type'] = MemoryType.RAM
+        super(RamRegion, self).__init__(start=start, end=end, length=length, **attrs)
 
 class RomRegion(MemoryRegion):
     """! @brief Contiguous region of ROM."""
@@ -252,7 +277,8 @@ class RomRegion(MemoryRegion):
         })
 
     def __init__(self, start=0, end=0, length=None, **attrs):
-        super(RomRegion, self).__init__(type=MemoryType.ROM, start=start, end=end, length=length, **attrs)
+        attrs['type'] = MemoryType.ROM
+        super(RomRegion, self).__init__(start=start, end=end, length=length, **attrs)
 
 class DefaultFlashWeights:
     """! @brief Default weights for flash programming operations."""
@@ -304,7 +330,8 @@ class FlashRegion(MemoryRegion):
         from ..flash.flash import Flash
 
         assert ('blocksize' in attrs) or ('sector_size' in attrs)
-        super(FlashRegion, self).__init__(type=MemoryType.FLASH, start=start, end=end, length=length, **attrs)
+        attrs['type'] = MemoryType.FLASH
+        super(FlashRegion, self).__init__(start=start, end=end, length=length, **attrs)
         self._algo = attrs.get('algo', None)
         self._flm = None
         self._flash = None
@@ -314,6 +341,16 @@ class FlashRegion(MemoryRegion):
             assert issubclass(self._flash_class, Flash)
         else:
             self._flash_class = Flash
+        
+        # Remove writable region attributes from attributes dict so there is only one copy.
+        try:
+            del self._attributes['algo']
+        except KeyError:
+            pass
+        try:
+            del self._attributes['flash_class']
+        except KeyError:
+            pass
     
     @property
     def algo(self):
@@ -359,6 +396,34 @@ class FlashRegion(MemoryRegion):
             if b != erasedByte:
                 return False
         return True
+    
+    def __copy__(self):
+        # Include the writable attributes in the copy.
+        clone = self.__class__(
+                # type=self.type,
+                start=self.start,
+                length=self.length,
+                algo=self._algo,
+                flash_class=self._flash_class,
+                **self._attributes
+                )
+        # Copy the FLM.
+        clone._flm = self._flm
+        return clone
+
+    def __deepcopy__(self, memo):
+        # Include deep copies of the writable attributes in the copy.
+        clone = self.__class__(
+                # type=self.type,
+                start=self.start,
+                length=self.length,
+                algo=copy.deepcopy(self._algo, memo),
+                flash_class=self._flash_class,
+                **copy.deepcopy(self._attributes, memo)
+                )
+        # Deep copy the FLM.
+        clone._flm = copy.deepcopy(self._flm, memo)
+        return clone
 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access, self.blocksize)
@@ -375,7 +440,8 @@ class DeviceRegion(MemoryRegion):
         })
 
     def __init__(self, start=0, end=0, length=None, **attrs):
-        super(DeviceRegion, self).__init__(type=MemoryType.DEVICE, start=start, end=end, length=length, **attrs)
+        attrs['type'] = MemoryType.DEVICE
+        super(DeviceRegion, self).__init__(start=start, end=end, length=length, **attrs)
 
 ## @brief Map from memory type to class.         
 MEMORY_TYPE_CLASS_MAP = {
@@ -463,6 +529,9 @@ class MemoryMap(object):
         for r in self.get_regions_of_type(type):
             return r
         return None
+    
+    def __eq__(self, other):
+        return isinstance(other, MemoryMap) and (self._regions == other._regions)
 
     def __iter__(self):
         """! @brief Enable iteration over the memory map."""
