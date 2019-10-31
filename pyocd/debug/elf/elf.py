@@ -121,7 +121,7 @@ class ELFBinaryFile(object):
 
     def __del__(self):
         """! @brief Close the ELF file if it is owned by this instance."""
-        if self._owns_file:
+        if hasattr(self, '_owns_file') and self._owns_file:
             self.close()
 
     def _extract_sections(self):

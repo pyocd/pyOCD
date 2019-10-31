@@ -248,15 +248,15 @@ class MemoryRegion(MemoryRangeBase):
                 length=self.length,
                 **self._attributes
                 )
- 
-    def __deepcopy__(self, memo):
-        # Same as __copy__ but with a deep copy of attributes.
-        return self.__class__(
-                # type=self.type,
-                start=self.start,
-                length=self.length,
-                **copy.deepcopy(self._attributes, memo)
-                )
+
+    def __hash__(self):
+        # Need to redefine __hash__ since we redefine __eq__.
+        return super(MemoryRegion, self).__hash__()
+    
+    def __eq__(self, other):
+        # Include type and attributes in equality comparison.
+        return self.start == other.start and self.length == other.length \
+            and self.type == other.type and self.attributes == other.attributes
 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access)
@@ -407,22 +407,8 @@ class FlashRegion(MemoryRegion):
                 flash_class=self._flash_class,
                 **self._attributes
                 )
-        # Copy the FLM.
+        # Reference the shared FLM.
         clone._flm = self._flm
-        return clone
-
-    def __deepcopy__(self, memo):
-        # Include deep copies of the writable attributes in the copy.
-        clone = self.__class__(
-                # type=self.type,
-                start=self.start,
-                length=self.length,
-                algo=copy.deepcopy(self._algo, memo),
-                flash_class=self._flash_class,
-                **copy.deepcopy(self._attributes, memo)
-                )
-        # Deep copy the FLM.
-        clone._flm = copy.deepcopy(self._flm, memo)
         return clone
 
     def __repr__(self):
@@ -465,6 +451,15 @@ class MemoryMap(object):
     @property
     def region_count(self):
         return len(self._regions)
+
+    def clone(self):
+        """! @brief Create a duplicate of the memory map.
+        
+        The duplicate memory map contains shallow copies of each of the regions. This is intended
+        to be used so that `Target` objects in different but simultaneously live sessions have
+        independant copies of the target's memory map.
+        """
+        return MemoryMap(*[copy.copy(r) for r in self.regions])
 
     def add_regions(self, *moreRegions):
         if len(moreRegions):
@@ -536,6 +531,13 @@ class MemoryMap(object):
     def __iter__(self):
         """! @brief Enable iteration over the memory map."""
         return iter(self._regions)
+    
+    def __getitem__(self, key):
+        """! @brief Return a region indexed by name or number."""
+        if isinstance(key, six.string_types):
+            return self.get_region_by_name(key)
+        else:
+            return self._regions[key]
 
     def __repr__(self):
         return "<MemoryMap@0x%08x regions=%s>" % (id(self), repr(self._regions))

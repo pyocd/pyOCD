@@ -298,17 +298,16 @@ class TestMemoryRegion:
         assert ramcpy.name == ram1.name
         assert ramcpy == ram1
     
-    def test_deepcopy_ram(self, ram1):
-        ramcpy = copy.deepcopy(ram1)
-        assert ramcpy == ram1
-    
     def test_copy_flash(self, flash):
         flashcpy = copy.copy(flash)
         assert flashcpy == flash
     
-    def test_deepcopy_flash(self, flash):
-        flashcpy = copy.deepcopy(flash)
-        assert flashcpy == flash
+    def test_eq(self, flash, ram1):
+        assert flash != ram1
+        
+        a = RamRegion(name='a', start=0x1000, length=0x2000)
+        b = RamRegion(name='a', start=0x1000, length=0x2000)
+        assert a == b
 
 
 # MemoryMap test cases.
@@ -398,15 +397,16 @@ class TestMemoryMap:
     def test_alias(self, memmap2, ram2, ram_alias):
         assert ram_alias.alias is ram2
     
-    def test_copy(self, memmap):
-        mapcpy = copy.copy(memmap)
-        assert id(mapcpy) != id(memmap)
-        assert id(mapcpy.get_first_region_of_type(MemoryType.RAM)) == \
-            id(memmap.get_first_region_of_type(MemoryType.RAM))
-        assert mapcpy == memmap
+    def test_index_by_num(self, memmap, flash, ram2):
+        assert memmap[0] == flash
+        assert memmap[3] == ram2
+
+    def test_index_by_name(self, memmap, rom, ram2):
+        assert memmap['rom'] == rom
+        assert memmap['ram2'] == ram2
     
-    def test_deep_copy(test, memmap):
-        mapcpy = copy.deepcopy(memmap)
+    def test_clone(self, memmap):
+        mapcpy = memmap.clone()
         assert id(mapcpy) != id(memmap)
         assert id(mapcpy.get_first_region_of_type(MemoryType.RAM)) != \
             id(memmap.get_first_region_of_type(MemoryType.RAM))
