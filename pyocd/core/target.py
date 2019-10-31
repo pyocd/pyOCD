@@ -105,7 +105,7 @@ class Target(MemoryInterface):
         self.part_number = ""
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
-        self.memory_map = (copy.deepcopy(memoryMap)) if memoryMap else MemoryMap()
+        self.memory_map = memoryMap.clone() if memoryMap else MemoryMap()
         self._svd_location = None
         self._svd_device = None
 
