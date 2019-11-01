@@ -64,6 +64,9 @@ CDBGPWRUPREQ = 0x10000000
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
 
+## APSEL is 8-bit, thus there are a maximum of 256 APs.
+MAX_APSEL = 255
+
 class DebugPort(object):
     """! @brief Represents the DebugPort (DP)."
     """
@@ -281,8 +284,9 @@ class DebugPort(object):
     def find_aps(self):
         """! @brief Find valid APs.
         
-        Scans for valid APs starting at APSEL=0 and stopping the first time a 0 is returned
-        when reading the AP's IDR.
+        Scans for valid APs starting at APSEL=0. The default behaviour is to stop the first time a
+        0 is returned when reading the AP's IDR. If the `probe_all_aps` user option is set to True,
+        then the scan will instead probe every APSEL from 0-255.
         
         Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
         modify the init call sequence to substitute a fixed list of valid APs. In fact, that
@@ -292,12 +296,13 @@ class DebugPort(object):
             return
         apList = []
         ap_num = 0
-        while True:
+        while ap_num < MAX_APSEL:
             try:
                 isValid = AccessPort.probe(self, ap_num)
-                if not isValid:
+                if isValid:
+                    apList.append(ap_num)
+                elif not self.target.session.options.get('probe_all_aps'):
                     break
-                apList.append(ap_num)
             except exceptions.Error as e:
                 LOG.error("Exception while probing AP#%d: %s", ap_num, e)
                 break
