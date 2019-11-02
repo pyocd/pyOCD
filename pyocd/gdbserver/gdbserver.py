@@ -26,7 +26,7 @@ from ..trace.swv import SWVReader
 from ..utility.sockets import ListenerSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
-from ..debug.cache import MemoryAccessError
+from ..cache.memory import MemoryAccessError
 from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS

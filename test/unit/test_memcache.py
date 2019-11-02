@@ -17,7 +17,7 @@
 import pytest
 import logging
 
-from pyocd.debug.cache import MemoryCache
+from pyocd.cache.memory import MemoryCache
 from pyocd.debug.context import DebugContext
 from pyocd.core import memory_map
 from pyocd.utility import conversion
