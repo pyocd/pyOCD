@@ -115,8 +115,8 @@ COMMAND_INFO = {
             },
         'erase' : {
             'aliases' : [],
-            'args' : "ADDR [COUNT]",
-            'help' : "Erase internal flash sectors"
+            'args' : "[ADDR] [COUNT]",
+            'help' : "Erase internal flash sectors (performs mass erase if no arguments given)"
             },
         'unlock' :  {
             'aliases' : [],
@@ -1141,31 +1141,33 @@ class PyOCDCommander(object):
             self.target.flush()
 
     def handle_erase(self, args):
-        if len(args) < 1:
-            raise ToolError("invalid arguments")
-        addr = self.convert_value(args[0])
-        if len(args) < 2:
-            count = 1
+        if len(args) == 0:
+            eraser = FlashEraser(self.session, FlashEraser.Mode.MASS)
+            eraser.erase()
         else:
-            count = self.convert_value(args[1])
-        
-        eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
-        while count:
-            # Look up the flash region so we can get the page size.
-            region = self.session.target.memory_map.get_region_for_address(addr)
-            if not region:
-                print("address 0x%08x is not within a memory region" % addr)
-                break
-            if not region.is_flash:
-                print("address 0x%08x is not in flash" % addr)
-                break
-            
-            # Erase this page.
-            eraser.erase([addr])
-            
-            # Next page.
-            count -= 1
-            addr += region.blocksize
+            addr = self.convert_value(args[0])
+            if len(args) < 2:
+                count = 1
+            else:
+                count = self.convert_value(args[1])
+
+            eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
+            while count:
+                # Look up the flash region so we can get the page size.
+                region = self.session.target.memory_map.get_region_for_address(addr)
+                if not region:
+                    print("address 0x%08x is not within a memory region" % addr)
+                    break
+                if not region.is_flash:
+                    print("address 0x%08x is not in flash" % addr)
+                    break
+
+                # Erase this page.
+                eraser.erase([addr])
+
+                # Next page.
+                count -= 1
+                addr += region.blocksize
 
     def handle_unlock(self, args):
         # Currently the same as erase.
