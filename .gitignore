@@ -82,7 +82,7 @@ test_results.txt
 .cache
 .pytest_cache
 .eggs/
-pyOCD/_version.py
+pyocd/_version.py
 
 # pyocd config files
 pyocd.yaml
