@@ -18,6 +18,9 @@ import sys
 import os
 from setuptools import setup, find_packages
 
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+os.chdir(SCRIPT_DIR)
+
 open_args = { 'mode': 'r' }
 if sys.version_info[0] > 2:
     # Python 3.x version requires explicitly setting the encoding.
