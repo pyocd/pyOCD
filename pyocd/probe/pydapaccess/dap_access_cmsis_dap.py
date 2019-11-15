@@ -312,6 +312,36 @@ class _Command(object):
                     write_pos += 1
         return buf
 
+    def _check_response(self, response):
+        """! @brief Check the response status byte from CMSIS-DAP transfer commands.
+
+        The ACK bits [2:0] and the protocol error bit are checked. If any error is indicated,
+        the appropriate exception is raised. An exception is also raised for unrecognised ACK
+        values.
+        
+        @param self
+        @param response The "Transfer Response" byte from a DAP_Transfer or DAP_TransferBlock
+            command.
+        
+        @exception DAPAccessIntf.TransferFaultError Raised for the ACK_FAULT response.
+        @exception DAPAccessIntf.TransferTimeoutError Raised for ACK_WAIT response.
+        @exception DAPAccessIntf.TransferError Raised for other, less common errors, including No
+            ACK, SWD protocol error, and an unknown ACK value. A descriptive error message is used
+            to indicate which of these errors was the cause.
+        """
+        ack = response & DAPTransferResponse.ACK_MASK
+        if ack != DAPTransferResponse.ACK_OK:
+            if ack == DAPTransferResponse.ACK_FAULT:
+                raise DAPAccessIntf.TransferFaultError()
+            elif ack == DAPTransferResponse.ACK_WAIT:
+                raise DAPAccessIntf.TransferTimeoutError()
+            elif ack == DAPTransferResponse.ACK_NO_ACK:
+                raise DAPAccessIntf.TransferError("No ACK received")
+            else:
+                raise DAPAccessIntf.TransferError("Unexpected ACK value (%d) returned by probe" % ack)
+        elif (response & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
+            raise DAPAccessIntf.TransferError("SWD protocol error")
+    
     def _decode_transfer_data(self, data):
         """! @brief Take a byte array and extract the data from it
 
@@ -322,17 +352,8 @@ class _Command(object):
         if data[0] != Command.DAP_TRANSFER:
             raise ValueError('DAP_TRANSFER response error')
 
-        ack = data[2] & DAPTransferResponse.ACK_MASK
-        if ack != DAPTransferResponse.ACK_OK:
-            if ack == DAPTransferResponse.ACK_FAULT:
-                raise DAPAccessIntf.TransferFaultError()
-            elif ack == DAPTransferResponse.ACK_WAIT:
-                raise DAPAccessIntf.TransferTimeoutError()
-            elif ack == DAPTransferResponse.ACK_NO_ACK:
-                raise DAPAccessIntf.TransferError("No ACK received")
-            raise DAPAccessIntf.TransferError()
-        elif (data[2] & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
-            raise DAPAccessIntf.TransferError("SWD protocol error")
+        # Check response and raise an exception on errors.
+        self._check_response(data[2])
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
         # This allows TransferFaultError or TransferTimeoutError to get
@@ -391,17 +412,8 @@ class _Command(object):
         if data[0] != Command.DAP_TRANSFER_BLOCK:
             raise ValueError('DAP_TRANSFER_BLOCK response error')
 
-        ack = data[3] & DAPTransferResponse.ACK_MASK
-        if ack != DAPTransferResponse.ACK_OK:
-            if ack == DAPTransferResponse.ACK_FAULT:
-                raise DAPAccessIntf.TransferFaultError()
-            elif ack == DAPTransferResponse.ACK_WAIT:
-                raise DAPAccessIntf.TransferTimeoutError()
-            elif ack == DAPTransferResponse.ACK_NO_ACK:
-                raise DAPAccessIntf.TransferError("No ACK received")
-            raise DAPAccessIntf.TransferError()
-        elif (data[3] & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
-            raise DAPAccessIntf.TransferError("SWD protocol error")
+        # Check response and raise an exception on errors.
+        self._check_response(data[3])
 
         # Check for count mismatch after checking for DAP_TRANSFER_FAULT
         # This allows TransferFaultError or TransferTimeoutError to get
