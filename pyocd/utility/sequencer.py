@@ -14,8 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import (OrderedDict, Callable)
 import logging
+from collections import OrderedDict
+
+# Collection ABCs accessible directly from collections are deprecated and will be removed in
+# Python 3.9.
+try:
+    from collections.abc import Callable
+except ImportError:
+    from collections import Callable
 
 LOG = logging.getLogger(__name__)
 

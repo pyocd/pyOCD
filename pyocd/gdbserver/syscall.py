@@ -102,7 +102,7 @@ class GDBSyscallIOHandler(SemihostIOHandler):
     def seek(self, fd, pos):
         fd -= FD_OFFSET
         result, self._errno = self._server.syscall('lseek,%x,%x,0' % (fd, pos))
-        return 0 if result is not -1 else -1
+        return 0 if result != -1 else -1
 
     def flen(self, fd):
         fd -= FD_OFFSET
