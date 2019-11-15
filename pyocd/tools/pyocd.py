@@ -196,6 +196,13 @@ COMMAND_INFO = {
                            "provided, the size is determined by the pattern value's most "
                            "significant set bit."
             },
+        'find' : {
+            'aliases' : [],
+            'args' : "ADDR LEN BYTE...",
+            'help' : "Search for a value in memory within the given address range.",
+            'extra_help' : "A pattern of any number of bytes can be searched for. Each BYTE "
+                           "parameter must be an 8-bit value." 
+            },
         'go' : {
             'aliases' : ['g', 'continue', 'c'],
             'args' : "",
@@ -612,6 +619,7 @@ class PyOCDCommander(object):
                 'symbol' :  self.handle_symbol,
                 'gdbserver':self.handle_gdbserver,
                 'fill' :    self.handle_fill,
+                'find' :    self.handle_find,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -1079,6 +1087,44 @@ class PyOCDCommander(object):
             # Write to target.
             self.target.aps[self.selected_ap].write_memory_block8(addr, data)
             addr += chunk_size
+
+    # find ADDR LEN BYTE...
+    def handle_find(self, args):
+        if len(args) < 3:
+            print("Error: missing argument")
+            return 1
+        addr = self.convert_value(args[0])
+        length = self.convert_value(args[1])
+        pattern = bytearray()
+        for p in args[2:]:
+            pattern += bytearray([self.convert_value(p)])
+        pattern_str = " ".join("%02x" % p for p in pattern)
+        
+        # Divide into 32 kB chunks.
+        CHUNK_SIZE = 32 * 1024
+        chunk_count = (length + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        end_addr = addr + length
+        print("Searching 0x%08x-0x%08x for pattern [%s]" % (addr, end_addr - 1, pattern_str))
+        
+        match = False
+        for chunk in range(chunk_count):
+            # Get this chunk's size.
+            chunk_size = min(end_addr - addr, CHUNK_SIZE)
+            print("Read %d bytes @ 0x%08x" % (chunk_size, addr))
+            
+            data = bytearray(self.target.aps[self.selected_ap].read_memory_block8(addr, chunk_size))
+            
+            offset = data.find(pattern)
+            if offset != -1:
+                match = True
+                print("Found pattern at address 0x%08x" % (addr + offset))
+                break
+            
+            addr += chunk_size - len(pattern)
+        
+        if not match:
+            print("Failed to find pattern in range 0x%08x-0x%08x" % (addr, end_addr - 1))
 
     def do_read(self, args, width):
         if len(args) == 0:
