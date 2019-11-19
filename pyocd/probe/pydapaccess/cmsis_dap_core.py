@@ -320,12 +320,14 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def swj_sequence(self, data):
+    def swj_sequence(self, length, bits):
+        assert 0 <= length <= 256
         cmd = []
         cmd.append(Command.DAP_SWJ_SEQUENCE)
-        cmd.append(len(data) * 8)
-        for i in range(len(data)):
-            cmd.append(data[i])
+        cmd.append(0 if (length == 256) else length)
+        for i in range((length + 7) // 8):
+            cmd.append(bits & 0xff)
+            bits >>= 8
         self.interface.write(cmd)
 
         resp = self.interface.read()

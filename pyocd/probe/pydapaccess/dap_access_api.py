@@ -154,8 +154,13 @@ class DAPAccessIntf(object):
         """
         raise NotImplementedError()
 
-    def swj_sequence(self):
-        """! @brief Send seqeunce to activate JTAG or SWD on the target"""
+    def swj_sequence(self, length, bits):
+        """! @brief Send sequence to activate JTAG or SWD on the target.
+        
+        @param self
+        @param length Number of bits to transfer on TCK/TMS.
+        @param bits Integer with the bit values, sent LSB first.
+        """
         raise NotImplementedError()
 
     def disconnect(self):

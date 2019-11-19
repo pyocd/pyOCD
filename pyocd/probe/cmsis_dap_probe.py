@@ -130,6 +130,10 @@ class CMSISDAPProbe(DebugProbe):
     @property
     def is_open(self):
         return self._is_open
+    
+    @property
+    def supports_swj_sequence(self):
+        return True
 
     def create_associated_board(self):
         assert self.session is not None
@@ -186,10 +190,9 @@ class CMSISDAPProbe(DebugProbe):
         
         self._invalidate_cached_registers()
 
-    # TODO remove
-    def swj_sequence(self):
+    def swj_sequence(self, length, bits):
         try:
-            self._link.swj_sequence()
+            self._link.swj_sequence(length, bits)
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 

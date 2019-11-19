@@ -684,26 +684,21 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._protocol.set_swj_clock(self._frequency)
         # configure transfer
         self._protocol.transfer_configure()
-
-    def swj_sequence(self):
+        
+        # configure the selected protocol with defaults.
         if self._dap_port == DAPAccessIntf.PORT.SWD:
-            # configure swd protocol
-            self._protocol.swd_configure()
-            # switch from jtag to swd
-            self._jtag_to_swd()
+            self.configure_swd()
         elif self._dap_port == DAPAccessIntf.PORT.JTAG:
-            # configure jtag protocol
-            self._protocol.jtag_configue(4)
-            # Test logic reset, run test idle
-            self._protocol.swj_sequence([0x1F])
-        else:
-            assert False
+            self.configure_jtag()
 
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
         self._protocol.swd_configure(turnaround, always_send_data_phase)
     
     def configure_jtag(self, devices_irlen=None):
         self._protocol.jtag_configure(devices_irlen)
+
+    def swj_sequence(self, length, bits):
+        self._protocol.swj_sequence(length, bits)
 
     def disconnect(self):
         self.flush()
@@ -998,21 +993,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self.flush()
 
         return transfer
-
-    def _jtag_to_swd(self):
-        """! @brief Send the command to switch from SWD to jtag
-        """
-        data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-        self._protocol.swj_sequence(data)
-
-        data = [0x9e, 0xe7]
-        self._protocol.swj_sequence(data)
-
-        data = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-        self._protocol.swj_sequence(data)
-
-        data = [0x00]
-        self._protocol.swj_sequence(data)
 
     def _abort_all_transfers(self, exception):
         """! @brief Abort any ongoing transfers and clear all buffers

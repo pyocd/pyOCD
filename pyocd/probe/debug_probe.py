@@ -99,6 +99,15 @@ class DebugProbe(object):
         To open the probe, call the open() method.
         """
         raise NotImplementedError()
+    
+    @property
+    def supports_swj_sequence(self):
+        """! @brief Whether the probe supports the swj_sequence() API.
+        
+        If this property is True, then the swj_sequence() method is used to move between protocols.
+        If False, it is assumed the probe firmware automatically manages the protocol switch.
+        """
+        raise NotImplementedError()
 
     def create_associated_board(self):
         """! @brief Create a board instance representing the board of which the probe is a component.
@@ -131,6 +140,15 @@ class DebugProbe(object):
     def disconnect(self):
         """! @brief Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
+
+    def swj_sequence(self, length, bits):
+        """! @brief Transfer some number of bits on SWDIO/TMS.
+        
+        @param self
+        @param length Number of bits to transfer. Must be less than or equal to 256.
+        @param bits Integer of the bit values to send on SWDIO/TMS. The LSB is transmitted first.
+        """
+        pass
 
     def set_clock(self, frequency):
         """! @brief Set the frequency for JTAG and SWD in Hz.

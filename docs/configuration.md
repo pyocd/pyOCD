@@ -96,6 +96,16 @@ processed.
 - `connect_mode`: (str) Controls how pyOCD connects to the target. One of 'halt', 'pre-reset',
     'under-reset', 'attach'. Default is 'halt'.
 
+- `dap_protocol`: (str) Wire protocol, either 'swd', 'jtag', or 'default' (the default, naturally).
+
+- `dap_enable_swj`: (bool) Send SWJ transition sequence to switch between SWD and JTAG.
+
+- `dap_use_deprecated_swj`: (bool) Use the SWJ sequence deprecated in ADIv5.2 to transition between
+    SWD and JTAG rather than the new sequence that goes through dormant mode. Requires a SWJ-DPv2.
+    Note that if the connection attempt fails using the deprecated sequence, then pyOCD will
+    automatically attempt to use the new sequence. This option simply skips the deprecated sequence
+    in case it causes problems. The default is to use the deprecated sequence.
+
 - `debug.log_flm_info`: (bool) Log details of loaded .FLM flash algos.
 
 - `debug.traceback`: (bool) Print tracebacks for exceptions.

@@ -97,6 +97,10 @@ class StlinkProbe(DebugProbe):
     @property
     def is_open(self):
         return self._is_open
+    
+    @property
+    def supports_swj_sequence(self):
+        return False
 
     def create_associated_board(self):
         assert self.session is not None
@@ -119,10 +123,6 @@ class StlinkProbe(DebugProbe):
     def connect(self, protocol=None):
         self._link.enter_debug(STLink.Protocol.SWD)
         self._is_connected = True
-
-    # TODO remove
-    def swj_sequence(self):
-        pass
 
     def disconnect(self):
         # TODO Close the APs. When this is attempted, we get an undocumented 0x1d error. Doesn't

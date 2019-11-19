@@ -68,6 +68,13 @@ class DebugPort(object):
     """! @brief Represents the DebugPort (DP)."
     """
     
+    ## Map from wire protocol setting name to debug probe constant.
+    PROTOCOL_NAME_MAP = {
+            'swd': DebugProbe.Protocol.SWD,
+            'jtag': DebugProbe.Protocol.JTAG,
+            'default': DebugProbe.Protocol.DEFAULT,
+        }
+    
     def __init__(self, link, target):
         self.link = link
         self.target = target
@@ -80,20 +87,140 @@ class DebugPort(object):
         self._access_number += 1
         return self._access_number
 
-    def init(self):
-        """! @brief Connect to the target."""
-        self.link.connect()
-        self.link.swj_sequence()
-        try:
-            self.read_id_code()
-            LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr, self.dp_version,
-                " MINDP" if self.is_mindp else "", self.dp_revision)
-        except exceptions.TransferError:
-            # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
-            # in a state where it thought the SWJ sequence was an invalid transfer.
-            self.link.swj_sequence()
-            self.read_id_code()
+    def init(self, protocol=None):
+        """! @brief Connect to the target.
+        
+        This method causes the debug probe to connect using the wire protocol
+        
+        @param self
+        @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
+            "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
+        """
+        protocol_name = self.target.session.options.get('dap_protocol').strip().lower()
+        send_swj = self.target.session.options.get('dap_enable_swj') and self.link.supports_swj_sequence
+        use_deprecated = self.target.session.options.get('dap_use_deprecated_swj')
+
+        # Convert protocol from setting if not passed as parameter.
+        if protocol is None:
+            protocol = self.PROTOCOL_NAME_MAP[protocol_name]
+            if protocol not in self.link.supported_wire_protocols:
+                raise exceptions.DebugError("requested wire protocol '%s' not supported by the debug probe")
+        if protocol != DebugProbe.Protocol.DEFAULT:
+            LOG.debug("Using %s wire protocol", protocol.name)
+            
+        # Connect using the selected protocol.
+        self.link.connect(protocol)
+
+        # Log the actual protocol if selected was default.
+        if protocol == DebugProbe.Protocol.DEFAULT:
+            LOG.debug("Default wire protocol selected; using %s", self.link.wire_protocol.name)
+        
+        # Multiple attempts to select protocol and read DP IDCODE.
+        for attempt in range(4):
+            try:
+                if send_swj:
+                    # Start off with not using dormant.
+                    self._swj_sequence(use_deprecated)
+                
+                # Attempt to read the DP IDCODE register.
+                self.read_id_code()
+                
+                LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr, self.dp_version,
+                    " MINDP" if self.is_mindp else "", self.dp_revision)
+                
+                break
+            except exceptions.TransferError:
+                # If not sending the SWJ sequence, just reraise; there's nothing more to do.
+                if not send_swj:
+                    raise
+                
+                # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
+                # in a state where it thought the SWJ sequence was an invalid transfer. We also
+                # try 
+                LOG.debug("DP IDCODE read failed; resending SWJ sequence (use deprecated=%s)", use_deprecated)
+                
+                if attempt == 1:
+                    # If already using dormant mode, just raise, we don't need to retry the same mode.
+                    if not use_deprecated:
+                        raise
+                    
+                    # After the second attempt, switch to enabling dormant mode.
+                    use_deprecated = False
+                elif attempt == 3:
+                    # After 4 attempts, we let the exception propagate.
+                    raise
         self.clear_sticky_err()
+
+    def _swj_sequence(self, use_deprecated):
+        """! @brief Send SWJ sequence to select chosen wire protocol."""
+        # Not all probes support sending SWJ sequences.
+        if self.link.wire_protocol == DebugProbe.Protocol.SWD:
+            self._switch_to_swd(use_deprecated)
+        elif self.link.wire_protocol == DebugProbe.Protocol.JTAG:
+            self._switch_to_jtag(use_deprecated)
+        else:
+            assert False
+
+    def _switch_to_swd(self, use_deprecated):
+        """! @brief Send SWJ sequence to select SWD."""
+        if not use_deprecated:
+            LOG.debug("Sending SWJ sequence to select SWD; using dormant state")
+            
+            # Ensure current debug interface is in reset state
+            self.link.swj_sequence(51, 0xffffffffffffff)
+            
+            # Send all this in one transfer:
+            # Select Dormant State (from JTAG), 0xb3bbbbbaff
+            # 8 cycles SWDIO/TMS HIGH, 0xff
+            # Alert Sequence, 0x19bc0ea2e3ddafe986852d956209f392
+            # 4 cycles SWDIO/TMS LOW + 8-Bit SWD Activation Code (0x1A), 0x01a0
+            self.link.swj_sequence(188, 0x01a019bc0ea2e3ddafe986852d956209f392ffb3bbbbbaff)
+           
+            # Enter SWD Line Reset State
+            self.link.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
+            self.link.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+        else:
+            LOG.debug("Sending deprecated SWJ sequence to select SWD")
+            
+            # Ensure current debug interface is in reset state
+            self.link.swj_sequence(51, 0xffffffffffffff)
+            
+            # Execute SWJ-DP Switch Sequence JTAG to SWD (0xE79E)
+            # Change if SWJ-DP uses deprecated switch code (0xEDB6)
+            self.link.swj_sequence(16, 0xe79e)
+            
+            # Enter SWD Line Reset State
+            self.link.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
+            self.link.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+    
+    def _switch_to_jtag(self, use_deprecated):
+        """! @brief Send SWJ sequence to select JTAG."""
+        if not use_deprecated:
+            LOG.debug("Sending SWJ sequence to select JTAG ; using dormant state")
+            
+            # Ensure current debug interface is in reset state
+            self.link.swj_sequence(51, 0xffffffffffffff)
+            
+            # Select Dormant State (from SWD)
+            # At least 8 cycles SWDIO/TMS HIGH, 0xE3BC
+            # Alert Sequence, 0x19bc0ea2e3ddafe986852d956209f392
+            # 4 cycles SWDIO/TMS LOW + 8-Bit JTAG Activation Code (0x0A), 0x00a0
+            self.link.swj_sequence(188, 0x00a019bc0ea2e3ddafe986852d956209f392ffe3bc)
+           
+            # Ensure JTAG interface is reset
+            self.link.swj_sequence(6, 0x3f)
+        else:
+            LOG.debug("Sending deprecated SWJ sequence to select JTAG")
+            
+            # Ensure current debug interface is in reset state
+            self.link.swj_sequence(51, 0xffffffffffffff)
+            
+            # Execute SWJ-DP Switch Sequence SWD to JTAG (0xE73C)
+            # Change if SWJ-DP uses deprecated switch code (0xAEAE)
+            self.link.swj_sequence(16, 0xe73c)
+            
+            # Ensure JTAG interface is reset
+            self.link.swj_sequence(6, 0x3f)
 
     def read_id_code(self):
         """! @brief Read ID register and get DP version"""
