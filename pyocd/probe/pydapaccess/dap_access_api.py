@@ -125,7 +125,7 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     def identify(self, item):
-        """Return the requested information for this device"""
+        """! @brief Return the requested information for this device"""
         raise NotImplementedError()
 
     # ------------------------------------------- #
@@ -133,6 +133,25 @@ class DAPAccessIntf(object):
     # ------------------------------------------- #
     def connect(self, port=None):
         """! @brief Initailize DAP IO pins for JTAG or SWD"""
+        raise NotImplementedError()
+
+    def configure_swd(self, turnaround=1, always_send_data_phase=False):
+        """! @brief Modify SWD configuration.
+        
+        @param self
+        @param turnaround Number of turnaround phase clocks, from 1-4.
+        @param always_send_data_phase Whether the data phase should always be transmitted on writes,
+            even on a FAULT response. This is required for sticky overrun support.
+        """
+        raise NotImplementedError()
+    
+    def configure_jtag(self, devices_irlen=None):
+        """! @brief Modify JTAG configuration.
+        
+        @param self
+        @param devices_irlen Sequence of IR lengths for each device, thus also specifying the
+            number of devices. If not passed, this will default to a single device with IRLen=4.
+        """
         raise NotImplementedError()
 
     def swj_sequence(self):

@@ -699,6 +699,12 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         else:
             assert False
 
+    def configure_swd(self, turnaround=1, always_send_data_phase=False):
+        self._protocol.swd_configure(turnaround, always_send_data_phase)
+    
+    def configure_jtag(self, devices_irlen=None):
+        self._protocol.jtag_configure(devices_irlen)
+
     def disconnect(self):
         self.flush()
         self._protocol.disconnect()
