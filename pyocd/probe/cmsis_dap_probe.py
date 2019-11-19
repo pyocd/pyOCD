@@ -22,7 +22,10 @@ from ..board.board_ids import BOARD_ID_TO_INFO
 import six
 
 class CMSISDAPProbe(DebugProbe):
-    """! @brief Wraps a pydapaccess link as a DebugProbe."""
+    """! @brief Wraps a pydapaccess link as a DebugProbe.
+    
+    Supports CMSIS-DAP v1 and v2.
+    """
 
     # Masks for CMSIS-DAP capabilities.
     SWD_CAPABILITY_MASK = 1
@@ -86,12 +89,13 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(cls._convert_exception(exc), exc)
 
     def __init__(self, device):
+        super(CMSISDAPProbe, self).__init__()
         self._link = device
         self._supported_protocols = None
         self._protocol = None
         self._is_open = False
         self._dp_select = -1
-        
+    
     @property
     def description(self):
         try:
@@ -127,12 +131,14 @@ class CMSISDAPProbe(DebugProbe):
     def is_open(self):
         return self._is_open
 
-    def create_associated_board(self, session):
+    def create_associated_board(self):
+        assert self.session is not None
+        
         # Only support associated Mbed boards for DAPLink firmware. We can't assume other
         # CMSIS-DAP firmware is using the same serial number format, so we cannot reliably
         # extract the board ID.
         if self._link.vidpid == self.DAPLINK_VIDPID:
-            return MbedBoard(session, board_id=self.unique_id[0:4])
+            return MbedBoard(self.session, board_id=self.unique_id[0:4])
         else:
             return None
     

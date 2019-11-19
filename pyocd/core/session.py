@@ -132,6 +132,10 @@ class Session(Notifier):
         self._auto_open = auto_open
         self._options = OptionsManager()
         
+        # Set this session on the probe, if we were given a probe.
+        if probe is not None:
+            probe.session = self
+        
         # Update options.
         self._options.add_front(kwargs)
         self._options.add_back(options)
@@ -167,7 +171,7 @@ class Session(Notifier):
             return
             
         # Ask the probe if it has an associated board, and if not then we create a generic one.
-        self._board = probe.create_associated_board(self) \
+        self._board = probe.create_associated_board() \
                         or Board(self, self.options.get('target_override'))
     
     def _get_config(self):

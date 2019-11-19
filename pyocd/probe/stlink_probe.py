@@ -42,6 +42,7 @@ class StlinkProbe(DebugProbe):
             return None
 
     def __init__(self, device):
+        super(StlinkProbe, self).__init__()
         self._link = STLink(device)
         self._is_open = False
         self._is_connected = False
@@ -97,9 +98,10 @@ class StlinkProbe(DebugProbe):
     def is_open(self):
         return self._is_open
 
-    def create_associated_board(self, session):
+    def create_associated_board(self):
+        assert self.session is not None
         if self._board_id is not None:
-            return MbedBoard(session, board_id=self._board_id)
+            return MbedBoard(self.session, board_id=self._board_id)
         else:
             return None
     

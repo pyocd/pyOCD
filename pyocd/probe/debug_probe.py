@@ -37,6 +37,19 @@ class DebugProbe(object):
         If no probe is connected with a matching unique ID, then None will be returned.
         """
         raise NotImplementedError()
+
+    def __init__(self):
+        """! @brief Constructor."""
+        self._session = None
+
+    @property
+    def session(self):
+        """! @brief Session associated with this probe."""
+        return self._session
+    
+    @session.setter
+    def session(self, the_session):
+        self._session = the_session
     
     @property
     def description(self):
@@ -87,7 +100,7 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def create_associated_board(self, session):
+    def create_associated_board(self):
         """! @brief Create a board instance representing the board of which the probe is a component.
         
         If the probe is part of a board, then this method will create a Board instance that
