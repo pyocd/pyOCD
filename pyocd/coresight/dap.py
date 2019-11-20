@@ -104,7 +104,7 @@ class DebugPort(object):
         if protocol is None:
             protocol = self.PROTOCOL_NAME_MAP[protocol_name]
             if protocol not in self.link.supported_wire_protocols:
-                raise exceptions.DebugError("requested wire protocol '%s' not supported by the debug probe")
+                raise exceptions.DebugError("requested wire protocol %s not supported by the debug probe" % protocol.name)
         if protocol != DebugProbe.Protocol.DEFAULT:
             LOG.debug("Using %s wire protocol", protocol.name)
             
