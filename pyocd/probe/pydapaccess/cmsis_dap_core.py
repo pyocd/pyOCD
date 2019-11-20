@@ -341,12 +341,19 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def jtag_sequence(self, info, tdi):
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        assert 0 <= cycles <= 64
+        info = (((0 if (cycles == 64) else cycles) & 0x3f)
+                | ((tms & 1) << 6)
+                | (int(read_tdo) << 7))
+        
         cmd = []
         cmd.append(Command.DAP_JTAG_SEQUENCE)
         cmd.append(1)
         cmd.append(info)
-        cmd.append(tdi)
+        for i in range((cycles + 7) // 8):
+            cmd.append(tdi & 0xff)
+            tdi >>= 8
         self.interface.write(cmd)
 
         resp = self.interface.read()

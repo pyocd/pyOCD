@@ -163,6 +163,20 @@ class DAPAccessIntf(object):
         """
         raise NotImplementedError()
 
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        """! @brief Send JTAG sequence.
+        
+        @param self
+        @param cycles Number of TCK cycles, from 1-64.
+        @param tms Fixed TMS value. Either 0 or 1.
+        @param read_tdo Boolean indicating whether TDO should be read.
+        @param tdi Integer with the TDI bit values to be transferred each TCK cycle. The LSB is
+            sent first.
+        
+        @return Either an integer with TDI bit values, or None, if _read_tdo_ was false.
+        """
+        raise NotImplementedError()
+
     def disconnect(self):
         """! @brief Deinitialize the DAP I/O pins"""
         raise NotImplementedError()

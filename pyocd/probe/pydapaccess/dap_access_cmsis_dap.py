@@ -700,6 +700,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def swj_sequence(self, length, bits):
         self._protocol.swj_sequence(length, bits)
 
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        return self._protocol.jtag_sequence(cycles, length, read_tdo, tdi)
+
     def disconnect(self):
         self.flush()
         self._protocol.disconnect()
