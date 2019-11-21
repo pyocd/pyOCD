@@ -42,7 +42,8 @@ class Command:
     DAP_SWO_CONTROL = 0x1A
     DAP_SWO_STATUS = 0x1B
     DAP_SWO_DATA = 0x1C
-    DAP_SWD_SEQUENCE = 0x21
+    DAP_SWD_SEQUENCE = 0x1D
+    DAP_SWO_EXTENDED_STATUS = 0x1E
     DAP_QUEUE_COMMANDS = 0x7E
     DAP_EXECUTE_COMMANDS = 0x7F
     DAP_VENDOR0 = 0x80 # Start of vendor-specific command IDs.
@@ -299,7 +300,10 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def swd_configure(self, conf=0):
+    def swd_configure(self, turnaround=1, always_send_data_phase=False):
+        assert 1 <= turnaround <= 4
+        conf = (turnaround - 1) | (int(always_send_data_phase) << 2)
+    
         cmd = []
         cmd.append(Command.DAP_SWD_CONFIGURE)
         cmd.append(conf)
@@ -316,12 +320,14 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def swj_sequence(self, data):
+    def swj_sequence(self, length, bits):
+        assert 0 <= length <= 256
         cmd = []
         cmd.append(Command.DAP_SWJ_SEQUENCE)
-        cmd.append(len(data) * 8)
-        for i in range(len(data)):
-            cmd.append(data[i])
+        cmd.append(0 if (length == 256) else length)
+        for i in range((length + 7) // 8):
+            cmd.append(bits & 0xff)
+            bits >>= 8
         self.interface.write(cmd)
 
         resp = self.interface.read()
@@ -335,12 +341,19 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def jtag_sequence(self, info, tdi):
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        assert 0 <= cycles <= 64
+        info = (((0 if (cycles == 64) else cycles) & 0x3f)
+                | ((tms & 1) << 6)
+                | (int(read_tdo) << 7))
+        
         cmd = []
         cmd.append(Command.DAP_JTAG_SEQUENCE)
         cmd.append(1)
         cmd.append(info)
-        cmd.append(tdi)
+        for i in range((cycles + 7) // 8):
+            cmd.append(tdi & 0xff)
+            tdi >>= 8
         self.interface.write(cmd)
 
         resp = self.interface.read()
@@ -354,11 +367,16 @@ class CMSISDAPProtocol(object):
 
         return resp[2]
 
-    def jtag_configue(self, irlen, dev_num=1):
+    def jtag_configure(self, devices_irlen=None):
+        # Default to a single device with an IRLEN of 4.
+        if devices_irlen is None:
+            devices_irlen = [4]
+        
         cmd = []
         cmd.append(Command.DAP_JTAG_CONFIGURE)
-        cmd.append(dev_num)
-        cmd.append(irlen)
+        cmd.append(len(devices_irlen))
+        for irlen in devices_irlen:
+            cmd.append(irlen)
         self.interface.write(cmd)
 
         resp = self.interface.read()

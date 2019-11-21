@@ -125,7 +125,7 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     def identify(self, item):
-        """Return the requested information for this device"""
+        """! @brief Return the requested information for this device"""
         raise NotImplementedError()
 
     # ------------------------------------------- #
@@ -135,8 +135,46 @@ class DAPAccessIntf(object):
         """! @brief Initailize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
-    def swj_sequence(self):
-        """! @brief Send seqeunce to activate JTAG or SWD on the target"""
+    def configure_swd(self, turnaround=1, always_send_data_phase=False):
+        """! @brief Modify SWD configuration.
+        
+        @param self
+        @param turnaround Number of turnaround phase clocks, from 1-4.
+        @param always_send_data_phase Whether the data phase should always be transmitted on writes,
+            even on a FAULT response. This is required for sticky overrun support.
+        """
+        raise NotImplementedError()
+    
+    def configure_jtag(self, devices_irlen=None):
+        """! @brief Modify JTAG configuration.
+        
+        @param self
+        @param devices_irlen Sequence of IR lengths for each device, thus also specifying the
+            number of devices. If not passed, this will default to a single device with IRLen=4.
+        """
+        raise NotImplementedError()
+
+    def swj_sequence(self, length, bits):
+        """! @brief Send sequence to activate JTAG or SWD on the target.
+        
+        @param self
+        @param length Number of bits to transfer on TCK/TMS.
+        @param bits Integer with the bit values, sent LSB first.
+        """
+        raise NotImplementedError()
+
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        """! @brief Send JTAG sequence.
+        
+        @param self
+        @param cycles Number of TCK cycles, from 1-64.
+        @param tms Fixed TMS value. Either 0 or 1.
+        @param read_tdo Boolean indicating whether TDO should be read.
+        @param tdi Integer with the TDI bit values to be transferred each TCK cycle. The LSB is
+            sent first.
+        
+        @return Either an integer with TDI bit values, or None, if _read_tdo_ was false.
+        """
         raise NotImplementedError()
 
     def disconnect(self):
