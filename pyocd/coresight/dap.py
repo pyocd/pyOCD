@@ -29,12 +29,22 @@ LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
-# DP register addresses.
-DP_IDCODE = 0x0 # read-only
-DP_ABORT = 0x0 # write-only
-DP_CTRL_STAT = 0x4 # read-write
+# DP register addresses. The DPBANKSEL value is encoded in bits [7:4].
+DP_IDR = 0x00 # read-only
+DP_ABORT = 0x00 # write-only
+DP_CTRL_STAT = 0x04 # read-write
+DP_DLCR = 0x14 # read-write
+DP_TARGETID = 0x24 # read-only
+DP_DLPIDR = 0x34 # read-only
+DP_EVENTSTAT = 0x44 # read-only
 DP_SELECT = 0x8 # write-only
 DP_RDBUFF = 0xC # read-only
+
+# Mask and shift for extracting DPBANKSEL from our DP register address constants. These are not
+# related to the SELECT.DPBANKSEL bitfield.
+DPADDR_MASK = 0x0f
+DPBANKSEL_MASK = 0xf0
+DPBANKSEL_SHIFT = 4
 
 ABORT_DAPABORT = 0x00000001
 ABORT_STKCMPCLR = 0x00000002
@@ -50,11 +60,15 @@ CTRLSTAT_STICKYERR = 0x00000020
 CTRLSTAT_READOK = 0x00000040
 CTRLSTAT_WDATAERR = 0x00000080
 
-DPIDR_MIN_MASK = 0x10000
-DPIDR_VERSION_MASK = 0xf000
-DPIDR_VERSION_SHIFT = 12
+SELECT_DPBANKSEL_MASK = 0x0000000f
+
 DPIDR_REVISION_MASK = 0xf0000000
 DPIDR_REVISION_SHIFT = 28
+DPIDR_PARTNO_MASK = 0x0ff00000
+DPIDR_PARTNO_SHIFT = 20
+DPIDR_MIN_MASK = 0x00010000
+DPIDR_VERSION_MASK = 0x0000f000
+DPIDR_VERSION_SHIFT = 12
 
 CSYSPWRUPACK = 0x80000000
 CDBGPWRUPACK = 0x20000000
@@ -84,6 +98,7 @@ class DebugPort(object):
         self.valid_aps = None
         self.aps = {}
         self._access_number = 0
+        self._cached_dpbanksel = None
 
     @property
     def probe(self):
@@ -231,7 +246,7 @@ class DebugPort(object):
 
     def read_id_code(self):
         """! @brief Read ID register and get DP version"""
-        self.dpidr = self.read_reg(DP_IDCODE)
+        self.dpidr = self.read_reg(DP_IDR)
         self.dp_version = (self.dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
         self.dp_revision = (self.dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
         self.is_mindp = (self.dpidr & DPIDR_MIN_MASK) != 0
@@ -269,11 +284,13 @@ class DebugPort(object):
         self.write_reg(DP_CTRL_STAT, 0)
 
     def reset(self):
+        self._cached_dpbanksel = None
         for ap in self.aps.values():
             ap.reset_did_occur()
         self.probe.reset()
 
     def assert_reset(self, asserted):
+        self._cached_dpbanksel = None
         if asserted:
             for ap in self.aps.values():
                 ap.reset_did_occur()
@@ -349,11 +366,24 @@ class DebugPort(object):
                 )
         return seq
 
+    def _set_dpbanksel(self, addr):
+        # SELECT and RDBUFF ignore DPBANKSEL.
+        if (addr & DPADDR_MASK) not in (DP_SELECT, DP_RDBUFF):
+            # Make sure the correct DP bank is selected.
+            dpbanksel = addr & DPBANKSEL_MASK
+            if dpbanksel != self._cached_dpbanksel:
+                # Blow away any selected AP.
+                select = dpbanksel >> DPBANKSEL_SHIFT
+                self.write_dp(DP_SELECT, select)
+                self._cached_dpbanksel = dpbanksel
+
     def read_dp(self, addr, now=True):
         num = self.next_access_number
+        
+        self._set_dpbanksel(addr)
 
         try:
-            result_cb = self.probe.read_dp(addr, now=False)
+            result_cb = self.probe.read_dp(addr & DPADDR_MASK, now=False)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -376,11 +406,15 @@ class DebugPort(object):
 
     def write_dp(self, addr, data):
         num = self.next_access_number
+        
+        # Writing to ABORT ignores DPBANKSEL.
+        if (addr & DPADDR_MASK) != DP_ABORT:
+            self._set_dpbanksel(addr)
 
         # Write the DP register.
         try:
             TRACE.debug("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
-            self.probe.write_dp(addr, data)
+            self.probe.write_dp(addr & DPADDR_MASK, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -436,6 +470,7 @@ class DebugPort(object):
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
+        self._cached_dpbanksel = None
         mode = self.probe.wire_protocol
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
