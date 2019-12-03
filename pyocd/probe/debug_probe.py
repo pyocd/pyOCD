@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +24,13 @@ class DebugProbe(object):
         DEFAULT = 0
         SWD = 1
         JTAG = 2
+    
+    ## Map from wire protocol setting name to debug probe constant.
+    PROTOCOL_NAME_MAP = {
+            'swd': Protocol.SWD,
+            'jtag': Protocol.JTAG,
+            'default': Protocol.DEFAULT,
+        }
     
     @classmethod
     def get_all_connected_probes(cls):

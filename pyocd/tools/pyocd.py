@@ -1637,7 +1637,7 @@ class PyOCDCommander(object):
 
     def handle_show_target(self, args):
         print("Target:       %s" % self.target.part_number)
-        print("DAP IDCODE:   0x%08x" % self.target.dp.dpidr)
+        print("DAP IDCODE:   0x%08x" % self.target.dp.dpidr.idr)
 
     def handle_show_cores(self, args):
         if self.target.is_locked():
