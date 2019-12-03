@@ -135,7 +135,7 @@ DEMCR = 0xE000EDFC
 DEMCR_TRCENA = (1 << 24)
 
 def _locked(func):
-    """! Decorator to automatically lock an AccessPort method."""
+    """! @brief Decorator to automatically lock an AccessPort method."""
     def _locking(self, *args, **kwargs):
         try:
             self.lock()
@@ -145,13 +145,18 @@ def _locked(func):
     return _locking
 
 class AccessPort(object):
-    """! @brief Determine if an AP exists with the given AP number.
-    @param dp DebugPort instance.
-    @param ap_num The AP number (APSEL) to probe.
-    @return Boolean indicating if a valid AP exists with APSEL=ap_num.
-    """
+    """! @brief Base class for a CoreSight Access Port (AP) instance."""
+
     @staticmethod
     def probe(dp, ap_num):
+        """! @brief Determine if an AP exists with the given AP number.
+        
+        Only applicable for ADIv5.
+        
+        @param dp DebugPort instance.
+        @param ap_num The AP number (APSEL) to probe.
+        @return Boolean indicating if a valid AP exists with APSEL=ap_num.
+        """
         idr = dp.read_ap((ap_num << APSEL_SHIFT) | AP_IDR)
         return idr != 0
     
