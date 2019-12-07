@@ -199,8 +199,8 @@ class FileProgrammer(object):
     def _program_elf(self, file_obj, **kwargs):
         elf = ELFFile(file_obj)
         for segment in elf.iter_segments():
+            addr = segment['p_paddr']
             if segment.header.p_type == 'PT_LOAD' and segment.header.p_filesz != 0:
-                addr = segment['p_paddr']
                 data = bytearray(segment.data())
                 LOG.debug("Writing segment LMA:0x%08x, VMA:0x%08x, size %d", addr, 
                           segment['p_vaddr'], segment.header.p_filesz)
