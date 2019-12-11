@@ -1568,7 +1568,7 @@ class PyOCDCommander(object):
             print("Cores:        %d" % len(self.target.cores))
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d type:  %s" % (i, coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
+                print("Core %d type:  %s" % (i, coresight.core_ids.CORE_TYPE_NAME[core.core_type]))
 
     def handle_show_map(self, args):
         pt = prettytable.PrettyTable(["Region", "Start", "End", "Size", "Access", "Sector", "Page"])
