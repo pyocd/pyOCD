@@ -14,6 +14,7 @@
 - [Introduction to the pyOCD Python API](python_api.md)
 - [Python API examples](api_examples.md)
 - [Installing on non-x86 platforms](installing_on_non_x86.md)
+- [Target Security Features](security.md)
 
 ### Developer documentation
 

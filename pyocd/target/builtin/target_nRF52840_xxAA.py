@@ -18,6 +18,7 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
+from ..family.target_nRF52 import NRF52
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -42,10 +43,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x20004000  # Analyzer 0x20004000..0x20004600
               }
 
-class NRF52840(CoreSightTarget):
+class NRF52840(NRF52):
 
-    VENDOR = "Nordic Semiconductor"
-    
     memoryMap = MemoryMap(
         FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO),
@@ -57,7 +56,6 @@ class NRF52840(CoreSightTarget):
 
     def __init__(self, link):
         super(NRF52840, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile.from_builtin("nrf52840.svd")
 
     def resetn(self):
         """
