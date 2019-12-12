@@ -65,7 +65,7 @@ class Kinetis(CoreSightTarget):
         
         # Must check whether security is enabled, and potentially auto-unlock, before
         # any init tasks that require system bus access.
-        seq.insert_before('init_ap_roms',
+        seq.insert_before('find_components',
             ('check_mdm_ap_idr',        self.check_mdm_ap_idr),
             ('check_flash_security',    self.check_flash_security),
             )

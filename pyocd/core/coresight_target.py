@@ -142,7 +142,7 @@ class CoreSightTarget(Target, GraphNode):
             ('power_up',            self.dp.power_up_debug),
             ('find_aps',            self.dp.find_aps),
             ('create_aps',          self.dp.create_aps),
-            ('init_ap_roms',        self.dp.init_ap_roms),
+            ('find_components',     self.dp.find_components),
             ('create_cores',        self.create_cores),
             ('create_components',   self.create_components),
             ('check_for_cores',     self.check_for_cores),

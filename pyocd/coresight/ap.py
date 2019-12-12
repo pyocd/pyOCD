@@ -41,8 +41,12 @@ APSEL = 0xff000000
 APBANKSEL = 0x000000f0
 APREG_MASK = 0x000000fc
 
-AP_ROM_TABLE_FORMAT_MASK = 0x2
-AP_ROM_TABLE_ENTRY_PRESENT_MASK = 0x1
+# AP BASE register masks
+AP_BASE_FORMAT_MASK = 0x2
+AP_BASE_ENTRY_PRESENT_MASK = 0x1
+AP_BASE_BASEADDR_MASK = 0xfffffffc
+AP_BASE_LEGACY_NOTPRESENT = 0xffffffff # Legacy not present value
+AP_BASE_LEGACY_BASEADDR_MASK = 0xfffff000
 
 # AP IDR bitfields:
 # [31:28] Revision
@@ -65,21 +69,16 @@ AP_IDR_TYPE_MASK = 0x0000000f
 AP_JEP106_ARM = 0x23b
 
 # AP classes
-AP_CLASS_NONE   = 0x00000 # No class defined
-AP_CLASS_MEM_AP = 0x8 # MEM-AP
+AP_CLASS_JTAG_AP = 0x0
+AP_CLASS_COM_AP = 0x1 # SDC-600 (Chaucer)
+AP_CLASS_MEM_AP = 0x8 # AHB-AP, APB-AP, AXI-AP
 
 # MEM-AP type constants
 AP_TYPE_AHB = 0x1
 AP_TYPE_APB = 0x2
 AP_TYPE_AXI = 0x4
 AP_TYPE_AHB5 = 0x5
-
-AP_TYPE_NAME = {
-        AP_TYPE_AHB: "AHB-AP",
-        AP_TYPE_APB: "APB-AP",
-        AP_TYPE_AXI: "AXI-AP",
-        AP_TYPE_AHB5: "AHB5-AP",
-    }
+AP_TYPE_APB4 = 0x6
 
 # AP Control and Status Word definitions
 CSW_SIZE     =  0x00000007
@@ -136,7 +135,7 @@ DEMCR = 0xE000EDFC
 DEMCR_TRCENA = (1 << 24)
 
 def _locked(func):
-    """! Decorator to automatically lock an AccessPort method."""
+    """! @brief Decorator to automatically lock an AccessPort method."""
     def _locking(self, *args, **kwargs):
         try:
             self.lock()
@@ -146,13 +145,18 @@ def _locked(func):
     return _locking
 
 class AccessPort(object):
-    """! @brief Determine if an AP exists with the given AP number.
-    @param dp DebugPort instance.
-    @param ap_num The AP number (APSEL) to probe.
-    @return Boolean indicating if a valid AP exists with APSEL=ap_num.
-    """
+    """! @brief Base class for a CoreSight Access Port (AP) instance."""
+
     @staticmethod
     def probe(dp, ap_num):
+        """! @brief Determine if an AP exists with the given AP number.
+        
+        Only applicable for ADIv5.
+        
+        @param dp DebugPort instance.
+        @param ap_num The AP number (APSEL) to probe.
+        @return Boolean indicating if a valid AP exists with APSEL=ap_num.
+        """
         idr = dp.read_ap((ap_num << APSEL_SHIFT) | AP_IDR)
         return idr != 0
     
@@ -184,18 +188,17 @@ class AccessPort(object):
 
         # Get the AccessPort class to instantiate.
         key = (designer, apClass, variant, apType)
-        klass = AP_TYPE_MAP.get(key, AccessPort)
+        name, klass = AP_TYPE_MAP.get(key, (None, AccessPort))
         
-        ap = klass(dp, ap_num, idr)
+        ap = klass(dp, ap_num, idr, name)
         ap.init()
         return ap
     
-    def __init__(self, dp, ap_num, idr=None):
+    def __init__(self, dp, ap_num, idr=None, name=""):
         self.dp = dp
         self.ap_num = ap_num
-        self.link = dp.link
         self.idr = idr
-        self.type_name = None
+        self.type_name = name
         self.rom_addr = 0
         self.has_rom_table = False
         self.rom_table = None
@@ -212,29 +215,18 @@ class AccessPort(object):
         self.revision = (self.idr & AP_IDR_REVISION_MASK) >> AP_IDR_REVISION_SHIFT
         
         # Get the type name for this AP.
+        self.ap_class = (self.idr & AP_IDR_CLASS_MASK) >> AP_IDR_CLASS_SHIFT
         self.ap_type = self.idr & AP_IDR_TYPE_MASK
-        if self.ap_type in AP_TYPE_NAME:
-            self.type_name = AP_TYPE_NAME[self.ap_type]
+        if self.type_name is not None:
             desc = "{} var{} rev{}".format(self.type_name, self.variant, self.revision)
         else:
-            self.type_name = "proprietary"
-            desc = self.type_name
-
-        # Init ROM table
-        self.rom_addr = self.read_reg(AP_BASE)
-        self.has_rom_table = (self.rom_addr != 0xffffffff) and ((self.rom_addr & AP_ROM_TABLE_ENTRY_PRESENT_MASK) != 0)
-        self.rom_addr &= 0xfffffffc # clear format and present bits
+            desc = "proprietary"
 
         LOG.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
  
-    @_locked
-    def init_rom_table(self):
-        try:
-            if self.has_rom_table:
-                self.rom_table = ROMTable(self)
-                self.rom_table.init()
-        except exceptions.TransferError as error:
-            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
+    def find_components(self):
+        """! @brief Find CoreSight components attached to this AP."""
+        pass
 
     @_locked
     def read_reg(self, addr, now=True):
@@ -287,8 +279,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     HPROT[6] = 1 shareable, 0 non shareable<br/>
     """
 
-    def __init__(self, dp, ap_num, idr=None):
-        super(MEM_AP, self).__init__(dp, ap_num, idr)
+    def __init__(self, dp, ap_num, idr=None, name=""):
+        super(MEM_AP, self).__init__(dp, ap_num, idr, name)
         
         self._impl_hprot = 0
         self._impl_hnonsec = 0
@@ -314,7 +306,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
         # memory interface based on AP register accesses.
-        memoryInterface = self.dp.link.get_memory_interface_for_ap(self.ap_num)
+        memoryInterface = self.dp.probe.get_memory_interface_for_ap(self.ap_num)
         if memoryInterface is not None:
             LOG.debug("Using accelerated memory access interface")
             self.write_memory = memoryInterface.write_memory
@@ -353,6 +345,32 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
  
         # Restore unmodified value of CSW.
         AccessPort.write_reg(self, MEM_AP_CSW, original_csw)
+
+        # Read ROM table base address.
+        base = self.read_reg(AP_BASE)
+        
+        is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
+        is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
+        if (base == AP_BASE_LEGACY_NOTPRESENT) or (is_adiv5_base and not is_base_present):
+            self.has_rom_table = False
+            self.rom_addr = 0
+        elif is_adiv5_base and is_base_present:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
+        elif not is_adiv5_base:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
+        else:
+            assert False, "Unhandled AP BASE value 0x%08x" % base
+ 
+    @_locked
+    def find_components(self):
+        try:
+            if self.has_rom_table:
+                self.rom_table = ROMTable(self)
+                self.rom_table.init()
+        except exceptions.TransferError as error:
+            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
 
     @property
     def implemented_hprot_mask(self):
@@ -518,6 +536,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
         TRACE.debug("write_mem:%06d }", num)
 
+    @_locked
     def _read_memory(self, addr, transfer_size=32, now=True):
         """! @brief Read a memory location.
         
@@ -579,7 +598,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            self.link.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
+            self.dp.probe.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -604,7 +623,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            resp = self.link.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
+            resp = self.dp.probe.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -691,7 +710,7 @@ class AHB_AP(MEM_AP):
         if impl_master_type != 0:
             self._csw |= CSW_MSTRDBG
 
-    def init_rom_table(self):
+    def find_components(self):
         # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries will
         # come back as garbage if TRCENA is not set.
         try:
@@ -703,7 +722,7 @@ class AHB_AP(MEM_AP):
             pass
 
         # Invoke superclass.
-        super(AHB_AP, self).init_rom_table()
+        super(AHB_AP, self).find_components()
 
 class AHB_AP_4k_Wrap(AHB_AP):
     """! @brief AHB-AP with a 4k auto increment wrap size.
@@ -711,15 +730,15 @@ class AHB_AP_4k_Wrap(AHB_AP):
     The only known AHB-AP with a 4k wrap is the one documented in the CM3 and CM4 TRMs.
     It has an IDR of 0x24770011, which decodes to AHB-AP, variant 1, version 2.
     """
-    def __init__(self, dp, ap_num, idr=None):
-        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num, idr)
+    def __init__(self, dp, ap_num, idr=None, name=""):
+        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num, idr, name)
 
         # Set a 4 kB auto increment wrap size.
         self.auto_increment_page_size = 0x1000
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
-# The dict key is a 4-tuple of (JEP106 code, AP class, variant, type).
+# The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class).
 #
 # Known AP IDRs:
 # 0x24770011 AHB-AP with 0x1000 wrap
@@ -737,15 +756,17 @@ class AHB_AP_4k_Wrap(AHB_AP):
 # 0x04770025 AHB5-AP Used on M23.
 # 0x54770002 APB-AP used on M33.
 AP_TYPE_MAP = {
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB) : AHB_AP_4k_Wrap,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 3, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 4, AP_TYPE_AHB) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB) : MEM_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AXI) : MEM_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB5) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB5) : AHB_AP,
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB5) : AHB_AP,
+    (AP_JEP106_ARM, AP_CLASS_JTAG_AP, 0, 0):            ("JTAG-AP", AccessPort),
+    (AP_JEP106_ARM, AP_CLASS_COM_AP, 0, 0):             ("SDC-600", AccessPort),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP_4k_Wrap),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 3, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 4, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB):   ("APB-AP",  MEM_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AXI):   ("AXI-AP",  MEM_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB4):  ("APB4-AP", MEM_AP),
     }
-

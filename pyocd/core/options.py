@@ -60,6 +60,8 @@ OPTIONS_INFO = {
     'pack': OptionInfo('pack', (str, list), None,
         "Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are "
         "added to the list of available targets."),
+    'probe_all_aps': OptionInfo('scan_all_aps', bool, False,
+        "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
     'project_dir': OptionInfo('project_dir', str, None,
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),

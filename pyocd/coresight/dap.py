@@ -64,6 +64,9 @@ CDBGPWRUPREQ = 0x10000000
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
 
+## APSEL is 8-bit, thus there are a maximum of 256 APs.
+MAX_APSEL = 255
+
 class DebugPort(object):
     """! @brief Represents the DebugPort (DP)."
     """
@@ -75,12 +78,16 @@ class DebugPort(object):
             'default': DebugProbe.Protocol.DEFAULT,
         }
     
-    def __init__(self, link, target):
-        self.link = link
+    def __init__(self, probe, target):
+        self._probe = probe
         self.target = target
         self.valid_aps = None
         self.aps = {}
         self._access_number = 0
+
+    @property
+    def probe(self):
+        return self._probe
 
     @property
     def next_access_number(self):
@@ -97,23 +104,23 @@ class DebugPort(object):
             "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
         """
         protocol_name = self.target.session.options.get('dap_protocol').strip().lower()
-        send_swj = self.target.session.options.get('dap_enable_swj') and self.link.supports_swj_sequence
+        send_swj = self.target.session.options.get('dap_enable_swj') and self.probe.supports_swj_sequence
         use_deprecated = self.target.session.options.get('dap_use_deprecated_swj')
 
         # Convert protocol from setting if not passed as parameter.
         if protocol is None:
             protocol = self.PROTOCOL_NAME_MAP[protocol_name]
-            if protocol not in self.link.supported_wire_protocols:
+            if protocol not in self.probe.supported_wire_protocols:
                 raise exceptions.DebugError("requested wire protocol %s not supported by the debug probe" % protocol.name)
         if protocol != DebugProbe.Protocol.DEFAULT:
             LOG.debug("Using %s wire protocol", protocol.name)
             
         # Connect using the selected protocol.
-        self.link.connect(protocol)
+        self.probe.connect(protocol)
 
         # Log the actual protocol if selected was default.
         if protocol == DebugProbe.Protocol.DEFAULT:
-            LOG.debug("Default wire protocol selected; using %s", self.link.wire_protocol.name)
+            LOG.debug("Default wire protocol selected; using %s", self.probe.wire_protocol.name)
         
         # Multiple attempts to select protocol and read DP IDCODE.
         for attempt in range(4):
@@ -154,9 +161,9 @@ class DebugPort(object):
     def _swj_sequence(self, use_deprecated):
         """! @brief Send SWJ sequence to select chosen wire protocol."""
         # Not all probes support sending SWJ sequences.
-        if self.link.wire_protocol == DebugProbe.Protocol.SWD:
+        if self.probe.wire_protocol == DebugProbe.Protocol.SWD:
             self._switch_to_swd(use_deprecated)
-        elif self.link.wire_protocol == DebugProbe.Protocol.JTAG:
+        elif self.probe.wire_protocol == DebugProbe.Protocol.JTAG:
             self._switch_to_jtag(use_deprecated)
         else:
             assert False
@@ -167,31 +174,31 @@ class DebugPort(object):
             LOG.debug("Sending SWJ sequence to select SWD; using dormant state")
             
             # Ensure current debug interface is in reset state
-            self.link.swj_sequence(51, 0xffffffffffffff)
+            self.probe.swj_sequence(51, 0xffffffffffffff)
             
             # Send all this in one transfer:
             # Select Dormant State (from JTAG), 0xb3bbbbbaff
             # 8 cycles SWDIO/TMS HIGH, 0xff
             # Alert Sequence, 0x19bc0ea2e3ddafe986852d956209f392
             # 4 cycles SWDIO/TMS LOW + 8-Bit SWD Activation Code (0x1A), 0x01a0
-            self.link.swj_sequence(188, 0x01a019bc0ea2e3ddafe986852d956209f392ffb3bbbbbaff)
+            self.probe.swj_sequence(188, 0x01a019bc0ea2e3ddafe986852d956209f392ffb3bbbbbaff)
            
             # Enter SWD Line Reset State
-            self.link.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
-            self.link.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+            self.probe.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
+            self.probe.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
         else:
             LOG.debug("Sending deprecated SWJ sequence to select SWD")
             
             # Ensure current debug interface is in reset state
-            self.link.swj_sequence(51, 0xffffffffffffff)
+            self.probe.swj_sequence(51, 0xffffffffffffff)
             
             # Execute SWJ-DP Switch Sequence JTAG to SWD (0xE79E)
             # Change if SWJ-DP uses deprecated switch code (0xEDB6)
-            self.link.swj_sequence(16, 0xe79e)
+            self.probe.swj_sequence(16, 0xe79e)
             
             # Enter SWD Line Reset State
-            self.link.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
-            self.link.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+            self.probe.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
+            self.probe.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
     
     def _switch_to_jtag(self, use_deprecated):
         """! @brief Send SWJ sequence to select JTAG."""
@@ -199,28 +206,28 @@ class DebugPort(object):
             LOG.debug("Sending SWJ sequence to select JTAG ; using dormant state")
             
             # Ensure current debug interface is in reset state
-            self.link.swj_sequence(51, 0xffffffffffffff)
+            self.probe.swj_sequence(51, 0xffffffffffffff)
             
             # Select Dormant State (from SWD)
             # At least 8 cycles SWDIO/TMS HIGH, 0xE3BC
             # Alert Sequence, 0x19bc0ea2e3ddafe986852d956209f392
             # 4 cycles SWDIO/TMS LOW + 8-Bit JTAG Activation Code (0x0A), 0x00a0
-            self.link.swj_sequence(188, 0x00a019bc0ea2e3ddafe986852d956209f392ffe3bc)
+            self.probe.swj_sequence(188, 0x00a019bc0ea2e3ddafe986852d956209f392ffe3bc)
            
             # Ensure JTAG interface is reset
-            self.link.swj_sequence(6, 0x3f)
+            self.probe.swj_sequence(6, 0x3f)
         else:
             LOG.debug("Sending deprecated SWJ sequence to select JTAG")
             
             # Ensure current debug interface is in reset state
-            self.link.swj_sequence(51, 0xffffffffffffff)
+            self.probe.swj_sequence(51, 0xffffffffffffff)
             
             # Execute SWJ-DP Switch Sequence SWD to JTAG (0xE73C)
             # Change if SWJ-DP uses deprecated switch code (0xAEAE)
-            self.link.swj_sequence(16, 0xe73c)
+            self.probe.swj_sequence(16, 0xe73c)
             
             # Ensure JTAG interface is reset
-            self.link.swj_sequence(6, 0x3f)
+            self.probe.swj_sequence(6, 0x3f)
 
     def read_id_code(self):
         """! @brief Read ID register and get DP version"""
@@ -232,7 +239,7 @@ class DebugPort(object):
 
     def flush(self):
         try:
-            self.link.flush()
+            self.probe.flush()
         except exceptions.ProbeError as error:
             self._handle_error(error, self.next_access_number)
             raise
@@ -264,25 +271,26 @@ class DebugPort(object):
     def reset(self):
         for ap in self.aps.values():
             ap.reset_did_occur()
-        self.link.reset()
+        self.probe.reset()
 
     def assert_reset(self, asserted):
         if asserted:
             for ap in self.aps.values():
                 ap.reset_did_occur()
-        self.link.assert_reset(asserted)
+        self.probe.assert_reset(asserted)
 
     def is_reset_asserted(self):
-        return self.link.is_reset_asserted()
+        return self.probe.is_reset_asserted()
 
     def set_clock(self, frequency):
-        self.link.set_clock(frequency)
+        self.probe.set_clock(frequency)
         
     def find_aps(self):
         """! @brief Find valid APs.
         
-        Scans for valid APs starting at APSEL=0 and stopping the first time a 0 is returned
-        when reading the AP's IDR.
+        Scans for valid APs starting at APSEL=0. The default behaviour is to stop the first time a
+        0 is returned when reading the AP's IDR. If the `probe_all_aps` user option is set to True,
+        then the scan will instead probe every APSEL from 0-255.
         
         Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
         modify the init call sequence to substitute a fixed list of valid APs. In fact, that
@@ -292,12 +300,13 @@ class DebugPort(object):
             return
         apList = []
         ap_num = 0
-        while True:
+        while ap_num < MAX_APSEL:
             try:
                 isValid = AccessPort.probe(self, ap_num)
-                if not isValid:
+                if isValid:
+                    apList.append(ap_num)
+                elif not self.target.session.options.get('probe_all_aps'):
                     break
-                apList.append(ap_num)
             except exceptions.Error as e:
                 LOG.error("Exception while probing AP#%d: %s", ap_num, e)
                 break
@@ -327,12 +336,12 @@ class DebugPort(object):
         except exceptions.Error as e:
             LOG.error("Exception reading AP#%d IDR: %s", ap_num, e)
     
-    def init_ap_roms(self):
-        """! @brief Init task that generates a call sequence to init all AP ROMs."""
+    def find_components(self):
+        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
         seq = CallSequence()
         for ap in [x for x in self.aps.values() if x.has_rom_table]:
             seq.append(
-                ('init_ap.{}'.format(ap.ap_num), ap.init_rom_table)
+                ('init_ap.{}'.format(ap.ap_num), ap.find_components)
                 )
         return seq
 
@@ -340,7 +349,7 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
-            result_cb = self.link.read_dp(addr, now=False)
+            result_cb = self.probe.read_dp(addr, now=False)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -367,7 +376,7 @@ class DebugPort(object):
         # Write the DP register.
         try:
             TRACE.debug("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
-            self.link.write_dp(addr, data)
+            self.probe.write_dp(addr, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -380,7 +389,7 @@ class DebugPort(object):
 
         try:
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
-            self.link.write_ap(addr, data)
+            self.probe.write_ap(addr, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -392,7 +401,7 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
-            result_cb = self.link.read_ap(addr, now=False)
+            result_cb = self.probe.read_ap(addr, now=False)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -423,7 +432,7 @@ class DebugPort(object):
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
-        mode = self.link.wire_protocol
+        mode = self.probe.wire_protocol
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
         elif mode == DebugProbe.Protocol.JTAG:

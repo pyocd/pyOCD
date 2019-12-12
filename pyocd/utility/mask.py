@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import operator
+from functools import reduce
+
 def bitmask(*args):
     """! @brief Returns a mask with specified bit ranges set.
     
@@ -41,13 +44,12 @@ def bitmask(*args):
     mask = 0
 
     for a in args:
-        if type(a) is tuple:
-            for b in range(a[1], a[0]+1):
-                mask |= 1 << b
-        elif type(a) is list:
-            for b in a:
-                mask |= 1 << b
-        elif type(a) is int:
+        if isinstance(a, tuple):
+            hi, lo = a
+            mask |= ((1 << (hi - lo + 1)) - 1) << lo
+        elif isinstance(a, (list, set)):
+            mask |= reduce(operator.or_, ((1 << b) for b in a))
+        elif isinstance(a, int):
             mask |= 1 << a
 
     return mask

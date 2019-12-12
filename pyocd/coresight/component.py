@@ -32,7 +32,7 @@ class CoreSightComponent(GraphNode):
         super(CoreSightComponent, self).__init__()
         self._ap = ap
         self._cmpid = cmpid
-        self._address = addr or (cmpid.address if cmpid else None)
+        self._address = addr if (addr is not None) else (cmpid.address if cmpid else None)
     
     @property
     def ap(self):
