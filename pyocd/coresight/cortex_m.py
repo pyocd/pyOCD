@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from time import (time, sleep)
+from xml.etree.ElementTree import (Element, SubElement, tostring)
+
 from ..core.target import Target
 from ..core import exceptions
 from ..utility import (cmdline, conversion, timeout)
@@ -21,35 +25,11 @@ from ..utility.notification import Notification
 from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
+from .core_ids import CORE_TYPE_NAME
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
-import logging
-from time import (time, sleep)
-from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 LOG = logging.getLogger(__name__)
-
-# pylint: disable=invalid_name
-
-# CPUID PARTNO values
-ARM_CortexM0 = 0xC20
-ARM_CortexM1 = 0xC21
-ARM_CortexM3 = 0xC23
-ARM_CortexM4 = 0xC24
-ARM_CortexM7 = 0xC27
-ARM_CortexM0p = 0xC60
-
-# pylint: enable=invalid_name
-
-## @brief User-friendly names for core types.
-CORE_TYPE_NAME = {
-                 ARM_CortexM0 : "Cortex-M0",
-                 ARM_CortexM1 : "Cortex-M1",
-                 ARM_CortexM3 : "Cortex-M3",
-                 ARM_CortexM4 : "Cortex-M4",
-                 ARM_CortexM7 : "Cortex-M7",
-                 ARM_CortexM0p : "Cortex-M0+",
-               }
 
 ## @brief Map from register name to DCRSR register index.
 #

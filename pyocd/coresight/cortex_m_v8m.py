@@ -14,28 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .cortex_m import CortexM
-from ..core import exceptions
-from ..core.target import Target
 import logging
 
+from .cortex_m import CortexM
+from .core_ids import CORE_TYPE_NAME
+from ..core import exceptions
+from ..core.target import Target
+
 LOG = logging.getLogger(__name__)
-
-# pylint: disable=invalid_name
-
-# CPUID PARTNO values
-ARM_CortexM23 = 0xD20
-ARM_CortexM33 = 0xD21
-ARM_CortexM35P = 0xD22
-
-# pylint: enable=invalid_name
-
-# User-friendly names for core types.
-CORE_TYPE_NAME = {
-                 ARM_CortexM23 : "Cortex-M23",
-                 ARM_CortexM33 : "Cortex-M33",
-                 ARM_CortexM35P : "Cortex-M35P",
-               }
 
 class CortexM_v8M(CortexM):
     """! @brief Component class for a v8-M architecture Cortex-M core."""
