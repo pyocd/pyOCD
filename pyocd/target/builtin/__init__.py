@@ -74,11 +74,12 @@ from . import target_lpc4088dm
 from . import target_RTL8195AM
 from . import target_CC3220SF
 from . import target_CC3220SF
-from . import target_CY8C6xxA
-from . import target_CY8C6xx7
-from . import target_CY8C6xx5
-from . import target_CY8C64xx
-from . import target_CY8C64xA
+from .cypress import target_CY8C6xxA
+from .cypress import target_CY8C6xx7
+from .cypress import target_CY8C6xx5
+from .cypress import target_CY8C64xx
+from .cypress import target_CY8C64xA
+from .cypress import target_CY8C64x5
 from . import target_musca_a1
 from . import target_musca_b1
 from . import target_LPC55S69JBD100
@@ -156,18 +157,22 @@ BUILTIN_TARGETS = {
           'cc3220sf': target_CC3220SF.CC3220SF,
           'cy8c6xxa': target_CY8C6xxA.CY8C6xxA,
           'cy8c6xx7': target_CY8C6xx7.CY8C6xx7,
+          'cy8c6xx7_nosmif': target_CY8C6xx7.CY8C6xx7_nosmif,
           'cy8c6xx5': target_CY8C6xx5.CY8C6xx5,
           'cy8c64xx_cm0': target_CY8C64xx.cy8c64xx_cm0,
           'cy8c64xx_cm4': target_CY8C64xx.cy8c64xx_cm4,
+          'cy8c64xx_cm0_nosmif': target_CY8C64xx.cy8c64xx_cm0_nosmif,
+          'cy8c64xx_cm4_nosmif': target_CY8C64xx.cy8c64xx_cm4_nosmif,
           'cy8c64xa_cm0': target_CY8C64xA.cy8c64xA_cm0,
           'cy8c64xa_cm4': target_CY8C64xA.cy8c64xA_cm4,
+          'cy8c64x5_cm0': target_CY8C64x5.cy8c64x5_cm0,
+          'cy8c64x5_cm4': target_CY8C64x5.cy8c64x5_cm4,
           'musca_a1' : target_musca_a1.MuscaA1,
           'musca_b1' : target_musca_b1.MuscaB1,
           'lpc55s69' : target_LPC55S69JBD100.LPC55S69JBD100,
-          'cy8c64xx_cm4_full' : target_CY8C64xx.cy8c64xx_cm4_full,
           'cy8c64xx_cm4_full_flash' : target_CY8C64xx.cy8c64xx_cm4_full_flash,
-          'cy8c64xa_cm4_full' : target_CY8C64xA.cy8c64xA_cm4_full,
           'cy8c64xa_cm4_full_flash' : target_CY8C64xA.cy8c64xA_cm4_full_flash,
+          'cy8c64x5_cm4_full_flash' : target_CY8C64x5.cy8c64x5_cm4_full_flash,
           'm252kg6ae' : target_M252KG6AE.M252KG6AE,
           'hc32f46x' : target_HC32F46x.HC32F46x,
           'hc32f120x6' : target_HC32x120.HC32F120x6TA,
