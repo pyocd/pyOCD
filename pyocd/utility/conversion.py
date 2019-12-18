@@ -16,7 +16,9 @@
 
 import struct
 import binascii
+from itertools import tee
 import six
+from six.moves import zip
 
 def byte_list_to_u32le_list(data, pad=0x00):
     """! @brief Convert a list of bytes to a list of 32-bit integers (little endian)
@@ -133,3 +135,14 @@ def hex_decode(cmd):
 def hex_encode(string):
     """! @brief Return the hexadecimal representation of the binary data."""
     return binascii.hexlify(string)
+
+def pairwise(iterable):
+    """! s -> (s0,s1), (s2,s3), (s3, s4), ..."""
+    r = []
+    for x in iterable:
+        r.append(x)
+        if len(r) == 2:
+            yield tuple(r)
+            r = []
+    if len(r) > 0:
+        yield (r[0], r[1])

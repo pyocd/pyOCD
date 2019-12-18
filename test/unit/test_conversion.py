@@ -35,8 +35,12 @@ from pyocd.utility.conversion import (
     hex_to_byte_list,
     hex_decode,
     hex_encode,
+    pairwise,
 )
-from pyocd.utility.mask import align_up
+from pyocd.utility.mask import (
+    align_up,
+    align_down,
+)
 from pyocd.gdbserver.gdbserver import (
     escape,
     unescape,
@@ -143,9 +147,26 @@ class TestConversionUtilities(object):
             ((1, 1024), 1024),
             ((0, 3), 0),
             ((100, 3), 102),
+            ((8, 4), 8),
+            ((9, 4), 12),
+            ((13, 16), 16),
+            ((13, 8), 16),
         ])
     def test_align_up(self, args, result):
         assert result == align_up(*args)
+
+    @pytest.mark.parametrize(("args", "result"), [
+            ((0, 1024), 0),
+            ((1, 1024), 0),
+            ((0, 3), 0),
+            ((100, 3), 99),
+            ((8, 4), 8),
+            ((9, 4), 8),
+            ((13, 16), 0),
+            ((13, 8), 8),
+        ])
+    def test_align_down(self, args, result):
+        assert result == align_down(*args)
 
 # Characters that must be escaped.
 ESCAPEES = (0x23, 0x24, 0x2a, 0x7d) # == ('#', '$', '}', '*')
@@ -188,3 +209,13 @@ class TestGdbEscape(object):
     def test_unescape_2(self):
         assert unescape(b'1234}\x0309}\x0axyz') == \
             [0x31, 0x32, 0x33, 0x34, 0x23, 0x30, 0x39, 0x2a, 0x78, 0x79, 0x7a]
+
+class TestPairwise(object):
+    def test_empty(self):
+        assert list(pairwise([])) == []
+    
+    def test_str(self):
+        assert list(pairwise('abcdef')) == [('a','b'), ('c','d'), ('e','f')]
+    
+    def test_int(self):
+        assert list(pairwise([1, 2, 3, 4, 5, 6])) == [(1, 2), (3, 4), (5, 6)]
