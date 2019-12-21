@@ -130,7 +130,7 @@ BUILTIN_TARGETS = {
           'mimxrt1050_hyperflash': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_hyperflash,
           'mimxrt1050': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_hyperflash, # Alias for default external flash.
           'nrf51': target_nRF51822_xxAA.NRF51,
-          'nrf52' : target_nRF52832_xxAA.NRF52,
+          'nrf52': target_nRF52832_xxAA.NRF52832,
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
