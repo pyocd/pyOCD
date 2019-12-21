@@ -19,6 +19,9 @@ from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
+RESET_MASK = 0x50021104
+RESET_MASK_SYSRESETREQ0_EN = 1 << 4
+
 FLASH_ALGO_QSPI = {
     'load_address' : 0x20000000,
     'instructions': [
@@ -284,3 +287,19 @@ class MuscaB1(CoreSightTarget):
     def __init__(self, link):
         super(MuscaB1, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("Musca_B1.svd")
+
+    def create_init_sequence(self):
+        seq = super(MuscaB1, self).create_init_sequence()
+        
+        seq.insert_before('halt_on_connect',  
+            ('enable_sysresetreq',        self._enable_sysresetreq),
+            )
+        
+        return seq
+    
+    def _enable_sysresetreq(self):
+        reset_mask = self.read32(RESET_MASK)
+        reset_mask |= RESET_MASK_SYSRESETREQ0_EN
+        self.write32(RESET_MASK, reset_mask)
+    
+    
