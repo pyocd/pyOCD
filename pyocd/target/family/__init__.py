@@ -18,7 +18,9 @@ import re
 from collections import namedtuple
 
 from . import target_kinetis
+from . import target_nRF52
 
+## @brief Container for family matching information.
 FamilyInfo = namedtuple("FamilyInfo", "vendor matches klass")
 
 ## @brief Lookup table to convert from CMSIS-Pack family names to a family class.
@@ -27,7 +29,9 @@ FamilyInfo = namedtuple("FamilyInfo", "vendor matches klass")
 # element.
 #
 # At least one of the regexes must match the entirety of either the CMSIS-Pack 'Dfamily' or
-# 'DsubFamily' (if present) attributes.
+# 'DsubFamily' (if present) attributes, or the 'Dname' part number. The comparisons are performed in
+# order from specific to general, starting with the part number.
 FAMILIES = [
-    FamilyInfo("NXP",   [re.compile(r'MK[LEVWS]?.*')],              target_kinetis.Kinetis),
+    FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),    target_kinetis.Kinetis  ),
+    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),   target_nRF52.NRF52      ),
     ]

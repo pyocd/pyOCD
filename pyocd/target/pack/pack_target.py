@@ -125,13 +125,12 @@ class PackTargets(object):
             if dev.vendor != familyInfo.vendor:
                 continue
 
-            # Scan each level of families
-            for familyName in dev.families:
-                for regex in familyInfo.matches:
-                    # Require the regex to match the entire family name.
-                    match = regex.match(familyName)
-                    if match and match.span() == (0, len(familyName)):
-                        return familyInfo.klass
+            # Scan each level of family plus part number, from specific to generic.
+            for compare_name in reversed(dev.families + [dev.part_number]):
+                # Require the regex to match the entire family name.
+                match = familyInfo.matches.match(compare_name)
+                if match and match.span() == (0, len(compare_name)):
+                    return familyInfo.klass
         else:
             # Default target superclass.
             return CoreSightTarget
