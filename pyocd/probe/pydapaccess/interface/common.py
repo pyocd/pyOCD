@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import usb.util
+
 # USB class codes.
 USB_CLASS_COMPOSITE = 0x00
 USB_CLASS_COMMUNICATIONS = 0x02
+USB_CLASS_HID = 0x03
 USB_CLASS_MISCELLANEOUS = 0xef
 USB_CLASS_VENDOR_SPECIFIC = 0xff
 
@@ -75,3 +78,8 @@ def filter_device_by_usage_page(vid, pid, usage_page):
     return ((vid, pid) == NXP_LPCLINK2_ID) \
         and (usage_page != CMSIS_DAP_HID_USAGE_PAGE)
 
+def check_ep(interface, ep_index, ep_dir, ep_type):
+    """! @brief Tests an endpoint type and direction."""
+    ep = interface[ep_index]
+    return (usb.util.endpoint_direction(ep.bEndpointAddress) == ep_dir) \
+        and (usb.util.endpoint_type(ep.bmAttributes) == ep_type)
