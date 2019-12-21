@@ -14,9 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
 from ...debug.svd.loader import SVDFile
+
+LOG = logging.getLogger(__name__)
 
 LARGE_PAGE_START_ADDR = 0x10000
 SMALL_PAGE_SIZE = 0x1000
@@ -83,17 +87,39 @@ class LPC1768(CoreSightTarget):
     def __init__(self, link):
         super(LPC1768, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("LPC176x5x_v0.2.svd")
+        self._saved_vc = False
+        self._reset_handler = 0
+        self._had_reset_handler_bp = False
 
-    def reset(self, reset_type=None):
-        super(LPC1768, self).reset(self.ResetType.HW)
+    def add_core(self, core):
+        super(LPC1768, self).add_core(core)
+        core.delegate = self
+    
+    def map_flash(self):
+        self.write32(0x400FC040, 1)
 
-    def reset_and_halt(self, reset_type=None, map_to_user=True):
-        super(LPC1768, self).reset_and_halt()
+    def set_reset_catch(self, core, reset_type=None):
+        LOG.debug("LPC1768 set reset catch")
 
-        # Remap to use flash and set SP and SP accordingly
-        if map_to_user:
-            self.write_memory(0x400FC040, 1)
-            sp = self.read_memory(0x0)
-            pc = self.read_memory(0x4)
-            self.write_core_register('sp', sp)
-            self.write_core_register('pc', pc)
+        # Clear reset vector catch and remember whether it was set.
+        self._saved_vc = self.get_vector_catch()
+        self.set_vector_catch(self._saved_vc & ~Target.CATCH_CORE_RESET)
+        
+        # Map flash to 0.
+        self.map_flash()
+        
+        # Set breakpoint on user reset handler.
+        self._reset_handler = self.read32(0x4)
+        if self._reset_handler < 0x80000:
+            self._had_reset_handler_bp = (self.get_breakpoint_type(self._reset_handler) is not None)
+            self.set_breakpoint(self._reset_handler)
+
+    def clear_reset_catch(self, core, reset_type=None):
+        LOG.debug("LPC1768 clear reset catch")
+
+        # Clear breakpoint if it wasn't previously set.
+        if not self._had_reset_handler_bp:
+            self.remove_breakpoint(self._reset_handler)
+        
+        # Restore vector catch.
+        self.set_vector_catch(self._saved_vc)
