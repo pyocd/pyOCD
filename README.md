@@ -44,7 +44,7 @@ Configuration and customization is supported through [config files](docs/configu
 Requirements
 ------------
 
-- Python 2.7.9 or later, or Python 3.6.0 or later
+- Python 3.6.0 or later (preferred), or Python 2.7.9 or later
 - macOS, Linux, or Windows 7 or newer
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
@@ -56,7 +56,7 @@ Requirements
     such as:
     - Cypress KitProg3
     - Keil ULINKplus
-  - STLinkV2, either on-board or the standalone version.
+  - STLinkV2 or STLinkV3, either on-board or the standalone versions.
 
 
 Status
@@ -225,4 +225,4 @@ License
 PyOCD is licensed with the permissive Apache 2.0 license. See the [LICENSE](LICENSE) file for the
 full text of the license.
 
-Copyright © 2006-2019 Arm Ltd
+Copyright © 2006-2019 Arm Ltd and others (see individual source files)

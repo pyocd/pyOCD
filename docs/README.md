@@ -5,16 +5,25 @@
 
 ### User documentation
 
+#### Introduction
+
 - [Terminology](terminology.md)
 - [Target support](target_support.md)
 - [Configuration](configuration.md)
 - [User scripts](user_scripts.md)
+
+#### Advanced
+
 - [Configuring logging](configuring_logging.md)
 - [Debugging multicore devices](multicore_debug.md)
+- [Target security features](security.md)
+
+#### Python API
 - [Introduction to the pyOCD Python API](python_api.md)
 - [Python API examples](api_examples.md)
+
+#### Miscellaneous
 - [Installing on non-x86 platforms](installing_on_non_x86.md)
-- [Target Security Features](security.md)
 
 ### Developer documentation
 
