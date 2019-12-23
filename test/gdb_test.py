@@ -41,7 +41,8 @@ from test_util import (
     TestResult,
     get_session_options,
     get_target_test_params,
-    binary_to_elf_file
+    binary_to_elf_file,
+    get_env_file_name
     )
 
 # TODO, c1728p9 - run script several times with
@@ -128,13 +129,13 @@ def test_gdb(board_id=None, n=0):
         "ignore_hw_bkpt_result" : ignore_hw_bkpt_result,
         "test_elf" : temp_test_elf_name,
         }
-    test_param_filename = "test_params%d.txt" % n
+    test_param_filename = "gdb_test_params%s_%d.txt" % (get_env_file_name(), n)
     with open(test_param_filename, "w") as f:
         f.write(json.dumps(test_params))
 
     # Run the test
-    gdb = [PYTHON_GDB, "-ex", "set $testn=%d" % n, "--command=gdb_script.py"]
-    output_filename = "output_%s_%d.txt" % (board.target_type, n)
+    gdb = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=gdb_script.py"]
+    output_filename = "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n)
     with open(output_filename, "w") as f:
         program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
         args = ['gdbserver',
@@ -148,7 +149,7 @@ def test_gdb(board_id=None, n=0):
         program.wait()
 
     # Read back the result
-    test_result_filename = "test_results%d.txt" % n
+    test_result_filename = "gdb_test_results%s_%d.txt" % (get_env_file_name(), n)
     with open(test_result_filename, "r") as f:
         test_result = json.loads(f.read())
 
