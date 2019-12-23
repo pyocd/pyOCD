@@ -113,4 +113,7 @@ OPTIONS_INFO = {
         "Base TCP port number for the semihosting telnet server."),
     'vector_catch': OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
+    'xpsr_control_fields': OptionInfo('xpsr_control_fields', bool, False,
+        "When set to True, XPSR and CONTROL registers will have their respective bitfields defined "
+        "for presentation in gdb."),
     }
