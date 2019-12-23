@@ -10,6 +10,7 @@
 - [Terminology](terminology.md)
 - [Target support](target_support.md)
 - [Configuration](configuration.md)
+- [Available options](options.md)
 - [User scripts](user_scripts.md)
 
 #### Advanced
