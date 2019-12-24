@@ -68,10 +68,10 @@ Example probe listing:
       #   Probe                               Unique ID
     --------------------------------------------------------------------------------------------
       0   DISCO-L475VG-IOT01A [stm32l475xg]   066EFF555051897267233656
-      1   FRDM-K64F [k64f]                    0240000041114e450054300cc40300475ab1000097969900
+      1   KEIL - Tools By ARM Keil ULINKplus  L02932983A
 
-This example shows two probes. The first does not support auto-detection, while the second does. You
-can see how the second probe's description shows the name of the board and the target type
+This example shows two probes. The first does support auto-detection, while the second does not.
+Note how the first probe's description shows the name of the board and the target type
 "stm32l475xg" in brackets.
 
 If the target type is *not* auto-detected, it will default to "cortex_m" unless specified as
@@ -109,8 +109,8 @@ Alternatively, you can manually download packs and tell pyOCD which pack files t
 information about a device. Sometimes memory regions will be missing, attributes of a memory region
 or flash algorithm might be wrong, or the flash algorithm itself might be buggy. If you encounter an
 issue with a pack, you can report the issue on the [pyOCD GitHub
-site](https://www.github.com/mbedmicro/pyOCD/issues). You should also report the issue to the pack
-vendor.
+site](https://www.github.com/mbedmicro/pyOCD/issues) to let other users know about the problem. You
+should also report the issue to the pack vendor so it can be fixed.
 
 
 #### Managed packs
