@@ -85,7 +85,7 @@ class Flash(object):
     (@ref pyocd.core.memory_map.FlashRegion "FlashRegion") and support
     programming only within that region's address range. To program images that cross flash
     memory region boundaries, use the @ref pyocd.flash.loader.FlashLoader "FlashLoader" or
-    @ref pyocd.flash.loader.FileProgrammer "FileProgrammer" classes.
+    @ref pyocd.flash.file_programmer.FileProgrammer "FileProgrammer" classes.
     
     Terminology:
     - sector: The size of an erasable block.

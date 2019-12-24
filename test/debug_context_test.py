@@ -27,7 +27,7 @@ import argparse
 import logging
 
 from pyocd.core.helpers import ConnectHelper
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
