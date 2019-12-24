@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

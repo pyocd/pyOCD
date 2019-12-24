@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +15,11 @@
 # limitations under the License.
 from __future__ import print_function
 
-from pyocd.core.helpers import ConnectHelper
-from pyocd.probe.pydapaccess import DAPAccess
 import threading
 import multiprocessing
 
+from pyocd.core.helpers import ConnectHelper
+from pyocd.probe.pydapaccess import DAPAccess
 
 def run_in_parallel(function, args_list):
     """Create and run a thread in parallel for each element in args_list

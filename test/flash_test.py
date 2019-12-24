@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,16 +15,15 @@
 # limitations under the License.
 from __future__ import print_function
 
-import argparse, os, sys
-from time import sleep, time
+import argparse
+import os
+import sys
+from time import (sleep, time)
 from random import randrange
 import math
 import struct
 import traceback
 import argparse
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
@@ -34,7 +33,15 @@ from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
 from pyocd.flash.flash_builder import FlashBuilder
 from pyocd.utility.progress import print_progress
-from test_util import (Test, TestResult, get_session_options, get_target_test_params)
+
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    get_target_test_params,
+    )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 addr = 0
 size = 0

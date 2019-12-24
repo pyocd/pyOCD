@@ -26,7 +26,12 @@ from __future__ import print_function
 import os
 import json
 import sys
-from subprocess import Popen, STDOUT, PIPE, check_output
+from subprocess import (
+    Popen,
+    STDOUT,
+    PIPE,
+    check_output,
+    )
 import argparse
 import logging
 import traceback
@@ -36,6 +41,7 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
+
 from test_util import (
     Test,
     TestResult,

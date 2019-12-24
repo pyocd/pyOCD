@@ -15,17 +15,16 @@
 # limitations under the License.
 from __future__ import print_function
 
-import argparse, os, sys
-from time import sleep, time
+import argparse
+import os
+import sys
+from time import (sleep, time)
 from random import randrange
 import math
 import argparse
 import traceback
 import logging
 from random import randrange
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
 
 from pyocd.core.target import Target
 from pyocd.coresight.cortex_m import CortexM
@@ -36,7 +35,15 @@ from pyocd.utility.mask import same
 from pyocd.core import exceptions
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
-from test_util import (Test, TestResult, get_session_options, get_target_test_params)
+
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    get_target_test_params,
+    )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 TEST_COUNT = 20
 

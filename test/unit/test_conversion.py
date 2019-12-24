@@ -1,6 +1,7 @@
-# mbed CMSIS-DAP debugger
+# pyOCD debugger
 # Copyright (c) 2015 Paul Osborne <osbpau@gmail.com>
-# Copyright (c) 2018-2019 Arm Ltd
+# Copyright (c) 2018-2019 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +14,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import pytest
+import six
 
 from pyocd.utility.conversion import (
     byte_list_to_u32le_list,
@@ -37,8 +41,6 @@ from pyocd.gdbserver.gdbserver import (
     escape,
     unescape,
 )
-import pytest
-import six
 
 # pylint: disable=invalid-name
 class TestConversionUtilities(object):

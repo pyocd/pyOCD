@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2015-2018 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,22 +16,28 @@
 # limitations under the License.
 from __future__ import print_function
 
-import os, sys
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
+import os
+import sys
+import logging
+from time import time
+import argparse
+from xml.etree import ElementTree
+import multiprocessing as mp
+import io
 
 from pyocd.core.session import Session
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.probe.aggregator import DebugProbeAggregator
-import logging
-from time import time
-from test_util import (get_env_file_name, TestResult, Test, IOTee, RecordingLogHandler, get_session_options)
-import argparse
-from xml.etree import ElementTree
-import multiprocessing as mp
-import io
+
+from test_util import (
+    get_env_file_name,
+    TestResult,
+    Test,
+    IOTee,
+    RecordingLogHandler,
+    get_session_options,
+    )
 
 from basic_test import BasicTest
 from speed_test import SpeedTest

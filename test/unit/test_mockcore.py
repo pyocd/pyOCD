@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+import logging
+
+from .mockcore import MockCore
+
 from pyocd.core import memory_map
 from pyocd.coresight.cortex_m import CORE_REGISTER
 from pyocd.utility import conversion
 from pyocd.utility import mask
-import pytest
-import logging
-from .mockcore import MockCore
 
 # @pytest.fixture(scope='function')
 # def mockcore():
