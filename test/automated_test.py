@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2015-2018 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,22 +16,28 @@
 # limitations under the License.
 from __future__ import print_function
 
-import os, sys
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
+import os
+import sys
+import logging
+from time import time
+import argparse
+from xml.etree import ElementTree
+import multiprocessing as mp
+import io
 
 from pyocd.core.session import Session
 from pyocd.core.helpers import ConnectHelper
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.probe.aggregator import DebugProbeAggregator
-import logging
-from time import time
-from test_util import (TestResult, Test, IOTee, RecordingLogHandler, get_session_options)
-import argparse
-from xml.etree import ElementTree
-import multiprocessing as mp
-import io
+
+from test_util import (
+    get_env_file_name,
+    TestResult,
+    Test,
+    IOTee,
+    RecordingLogHandler,
+    get_session_options,
+    )
 
 from basic_test import BasicTest
 from speed_test import SpeedTest
@@ -63,10 +69,6 @@ test_list = [
              DebugContextTest(),
              GdbTest(),
              ]
-
-def get_env_file_name(template):
-    env_name = os.environ.get('TOX_ENV_NAME', '')
-    return template.format(("_" + env_name) if env_name else '')
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -133,7 +135,7 @@ def generate_xml_results(result_list):
     root.set('failures', str(total_failures))
     root.set('time', "%.3f" % total_time)
     
-    xml_results = get_env_file_name(XML_RESULTS_TEMPLATE)
+    xml_results = XML_RESULTS_TEMPLATE.format(get_env_file_name())
     ElementTree.ElementTree(root).write(xml_results, encoding="UTF-8", xml_declaration=True)
 
 def print_board_header(outputFile, board, n, includeDividers=True, includeLeadingNewline=False):
@@ -270,7 +272,7 @@ def main():
     # Setup logging based on concurrency and quiet option.
     level = logging.DEBUG if args.debug else logging.INFO
     if args.jobs == 1 and not args.quiet:
-        log_file = get_env_file_name(LOG_FILE_TEMPLATE)
+        log_file = LOG_FILE_TEMPLATE.format(get_env_file_name())
         # Create common log file.
         if os.path.exists(log_file):
             os.remove(log_file)
@@ -315,7 +317,7 @@ def main():
     test_time = (stop - start)
 
     print_summary(test_list, result_list, test_time)
-    summary_file = get_env_file_name(SUMMARY_FILE_TEMPLATE)
+    summary_file = SUMMARY_FILE_TEMPLATE.format(get_env_file_name())
     with open(summary_file, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
     generate_xml_results(result_list)

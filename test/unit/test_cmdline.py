@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+import six
+
 from pyocd.utility.cmdline import (
     split_command_line,
     convert_vector_catch,
@@ -21,8 +24,6 @@ from pyocd.utility.cmdline import (
     convert_session_options,
     )
 from pyocd.core.target import Target
-import pytest
-import six
 
 class TestSplitCommandLine(object):
     def test_split(self):

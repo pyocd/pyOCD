@@ -29,6 +29,13 @@ isPy2 = (sys.version_info[0] == 2)
 
 OBJCOPY = "arm-none-eabi-objcopy"
 
+def get_env_name():
+    return os.environ.get('TOX_ENV_NAME', '')
+
+def get_env_file_name():
+    env_name = get_env_name()
+    return ("_" + env_name) if env_name else ''
+
 # Returns common option values passed in when creating test sessions.
 def get_session_options():
     return {

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,6 +53,7 @@ from itertools import product
 import traceback
 import json
 import sys
+import os
 
 # We expect arm-none-eabi-gdb-py to only run Python 2.x. If it moves
 # to Python 3, we need to know about it, so print a warning.
@@ -99,6 +100,8 @@ TO_GDB_ACCESS = {
     "read_write": gdb.WP_ACCESS,
 }
 
+env_name = os.environ.get('TOX_ENV_NAME', '')
+env_file_name = ("_" + env_name) if env_name else ''
 
 def gdb_execute(cmd):
     print("Executing command:", cmd)
@@ -177,7 +180,7 @@ def valid_watchpoint(bkpt_size, bkpt_access, bkpt_addr):
 # Initial setup
 testn = int(gdb.parse_and_eval("$testn"))
 
-test_param_filename = "test_params%d.txt" % testn
+test_param_filename = "gdb_test_params%s_%d.txt" % (env_file_name, testn)
 with open(test_param_filename, "rb") as f:
     test_params = json.loads(f.read())
 
@@ -208,7 +211,7 @@ def run_test():
         gdb_execute("set mem inaccessible-by-default off")
 
         # Set raw logging
-        gdb_execute("set remotelogfile gdb_test_raw%d.txt" % testn)
+        gdb_execute("set remotelogfile gdb_test_raw%s_%d.txt" % (env_file_name, testn))
 
         # Connect to server
         gdb_execute("target remote localhost:%d" % test_port)
@@ -466,7 +469,7 @@ def run_test():
         fail_count += 1
     finally:
         test_result["fail_count"] = fail_count
-        test_result_filename = "test_results%d.txt" % testn
+        test_result_filename = "gdb_test_results%s_%d.txt" % (env_file_name, testn)
         with open(test_result_filename, "wb") as f:
             f.write(json.dumps(test_result))
         gdb_execute("detach")

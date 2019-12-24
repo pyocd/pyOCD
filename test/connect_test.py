@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2018 Arm Limited
+# Copyright (c) 2017-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,19 +15,24 @@
 # limitations under the License.
 from __future__ import print_function
 
-import os, sys
+import os
+import sys
 import traceback
 import argparse
 from collections import namedtuple
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.flash.loader import FileProgrammer
-from test_util import (Test, TestResult, get_session_options)
+
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STATE_NAMES = {
     Target.TARGET_RUNNING : "running",

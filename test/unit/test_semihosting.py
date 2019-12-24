@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2015 Arm Limited
+# Copyright (c) 2006-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +18,13 @@ import pytest
 import os
 import sys
 import logging
+from elapsedtimer import ElapsedTimer
+import telnetlib
+
 from pyocd.core.exceptions import TimeoutError
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.debug import semihost
-from elapsedtimer import ElapsedTimer
-import telnetlib
 
 @pytest.fixture(scope='module')
 def tgt(request):

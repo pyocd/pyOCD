@@ -14,17 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
-import argparse, os, sys
-from time import sleep, time
+
+import argparse
+import os
+import sys
+from time import (sleep, time)
 from random import randrange
 import math
 import struct
 import traceback
 import argparse
 import logging
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
@@ -33,6 +33,7 @@ from pyocd.utility.mask import same
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
+
 from test_util import (
     Test,
     TestResult,
@@ -40,6 +41,8 @@ from test_util import (
     get_target_test_params,
     binary_to_hex_file
     )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 addr = 0
 size = 0

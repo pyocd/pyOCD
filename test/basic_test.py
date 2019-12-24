@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2015,2018 Arm Limited
+# Copyright (c) 2006-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,20 +15,25 @@
 # limitations under the License.
 from __future__ import print_function
 
-import argparse, os, sys
+import argparse
+import os
+import sys
 from time import sleep
 from random import randrange
 import math
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.loader import FileProgrammer
 from pyocd.utility.conversion import float32_to_u32
-from test_util import (Test, get_session_options)
+
+from test_util import (
+    Test,
+    get_session_options,
+    )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class BasicTest(Test):
     def __init__(self):

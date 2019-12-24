@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -25,9 +26,6 @@ import traceback
 import argparse
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
 from pyocd.flash.loader import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
@@ -35,12 +33,15 @@ from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
+
 from test_util import (
     Test,
     TestResult,
     get_session_options,
     get_target_test_params,
     )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GDB_TEST_BIN = "src/gdb_test_program/gdb_test.bin"
 GDB_TEST_ELF = "src/gdb_test_program/gdb_test.elf"

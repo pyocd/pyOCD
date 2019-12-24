@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+import logging
+import copy
+
 from pyocd.core.memory_map import (
     MemoryType,
     check_range,
@@ -26,9 +30,6 @@ from pyocd.core.memory_map import (
     DeviceRegion,
     DefaultFlashWeights
     )
-import pytest
-import logging
-import copy
 
 @pytest.fixture(scope='function')
 def flash():

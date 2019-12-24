@@ -17,6 +17,7 @@
 import pytest
 import six
 from enum import Enum
+
 from pyocd.utility.notification import (Notification, Notifier)
 
 # Test both int and string events.

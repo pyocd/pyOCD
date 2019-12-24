@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pyocd.utility.graph import GraphNode
 import pytest
+
+from pyocd.utility.graph import GraphNode
 
 class BaseNode(GraphNode):
     def __init__(self, value):
