@@ -34,7 +34,7 @@ from pyocd.utility.conversion import float32_to_u32, u32_to_float32
 from pyocd.utility.mask import same
 from pyocd.core import exceptions
 from pyocd.core.memory_map import MemoryType
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 
 from test_util import (
     Test,
@@ -116,7 +116,7 @@ def cortex_test(board_id):
         expect_invalid_access_to_fail = test_params['error_on_invalid_access']
 
         memory_map = board.target.get_memory_map()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         addr = ram_region.start
@@ -516,7 +516,7 @@ def cortex_test(board_id):
             return test_passed
 
         print("Installed software breakpoint at 0x%08x" % addr)
-        target.set_breakpoint(addr, Target.BREAKPOINT_SW)
+        target.set_breakpoint(addr, Target.BreakpointType.SW)
         test_passed = test_filters() and test_passed
 
         print("Removed software breakpoint")

@@ -31,7 +31,7 @@ class CortexM_PSoC6(CortexM):
     VTBASE_CM4 = None
 
     def reset(self, reset_type=None):
-        self.session.notify(Target.EVENT_PRE_RESET, self)
+        self.session.notify(Target.Event.PRE_RESET, self)
         self._run_token += 1
         if reset_type is Target.ResetType.HW:
             self.session.probe.reset()
@@ -67,7 +67,7 @@ class CortexM_PSoC6(CortexM):
 
                     sleep(0.01)
 
-        self.session.notify(Target.EVENT_POST_RESET, self)
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def wait_halted(self):
         with Timeout(5.0) as t_o:
@@ -173,7 +173,7 @@ class CortexM_PSoC64(CortexM):
         self._acquire_timeout = value
 
     def reset(self, reset_type=None):
-        self.session.notify(Target.EVENT_PRE_RESET, self)
+        self.session.notify(Target.Event.PRE_RESET, self)
 
         self._run_token += 1
 
@@ -206,7 +206,7 @@ class CortexM_PSoC64(CortexM):
                 except exceptions.TransferError:
                     sleep(0.01)
 
-        self.session.notify(Target.EVENT_POST_RESET, self)
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def wait_halted(self):
         with Timeout(5.0) as t_o:

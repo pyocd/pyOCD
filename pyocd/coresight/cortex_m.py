@@ -198,6 +198,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
     # Debug Fault Status Register
     DFSR = 0xE000ED30
+    DFSR_PMU = (1 << 5)
     DFSR_EXTERNAL = (1 << 4)
     DFSR_VCATCH = (1 << 3)
     DFSR_DWTTRAP = (1 << 2)
@@ -668,10 +669,12 @@ class CortexM(Target, CoreSightCoreComponent):
     def halt(self):
         """! @brief Halt the core
         """
-        self.session.notify(Target.EVENT_PRE_HALT, self, Target.HALT_REASON_USER)
+        LOG.debug("halting core %d", self.core_number)
+
+        self.session.notify(Target.Event.PRE_HALT, self, Target.HaltReason.USER)
         self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.flush()
-        self.session.notify(Target.EVENT_POST_HALT, self, Target.HALT_REASON_USER)
+        self.session.notify(Target.Event.POST_HALT, self, Target.HaltReason.USER)
 
     def step(self, disable_interrupts=True, start=0, end=0):
         """! @brief Perform an instruction level step.
@@ -685,7 +688,9 @@ class CortexM(Target, CoreSightCoreComponent):
             LOG.error('cannot step: target not halted')
             return
 
-        self.session.notify(Target.EVENT_PRE_RUN, self, Target.RUN_TYPE_STEP)
+        LOG.debug("step core %d", self.core_number)
+
+        self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.STEP)
 
         self.clear_debug_cause_bits()
 
@@ -729,7 +734,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
         self._run_token += 1
 
-        self.session.notify(Target.EVENT_POST_RUN, self, Target.RUN_TYPE_STEP)
+        self.session.notify(Target.Event.POST_RUN, self, Target.RunType.STEP)
 
     def clear_debug_cause_bits(self):
         self.write_memory(CortexM.DFSR, CortexM.DFSR_VCATCH | CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
@@ -884,9 +889,11 @@ class CortexM(Target, CoreSightCoreComponent):
         
         After a call to this function, the core is running.
         """
-        self.session.notify(Target.EVENT_PRE_RESET, self)
+        self.session.notify(Target.Event.PRE_RESET, self)
 
         reset_type = self._get_actual_reset_type(reset_type)
+
+        LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
 
         self._run_token += 1
 
@@ -909,10 +916,12 @@ class CortexM(Target, CoreSightCoreComponent):
                     self.flush()
                     sleep(0.01)
 
-        self.session.notify(Target.EVENT_POST_RESET, self)
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def set_reset_catch(self, reset_type=None):
         """! @brief Prepare to halt core on reset."""
+        LOG.debug("set reset catch, core %d", self.core_number)
+
         self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
         
         # Default behaviour if the delegate didn't handle it.
@@ -929,6 +938,8 @@ class CortexM(Target, CoreSightCoreComponent):
     
     def clear_reset_catch(self, reset_type=None):
         """! @brief Disable halt on reset."""
+        LOG.debug("clear reset catch, core %d", self.core_number)
+
         self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
         if not self._reset_catch_delegate_result:
@@ -946,7 +957,7 @@ class CortexM(Target, CoreSightCoreComponent):
         # wait until the unit resets
         with timeout.Timeout(2.0) as t_o:
             while t_o.check():
-                if self.get_state() not in (Target.TARGET_RESET, Target.TARGET_RUNNING):
+                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
                     break
                 sleep(0.01)
 
@@ -968,15 +979,15 @@ class CortexM(Target, CoreSightCoreComponent):
             # were executed by checking S_RETIRE_ST.
             newDhcsr = self.read_memory(CortexM.DHCSR)
             if (newDhcsr & CortexM.S_RESET_ST) and not (newDhcsr & CortexM.S_RETIRE_ST):
-                return Target.TARGET_RESET
+                return Target.State.RESET
         if dhcsr & CortexM.S_LOCKUP:
-            return Target.TARGET_LOCKUP
+            return Target.State.LOCKUP
         elif dhcsr & CortexM.S_SLEEP:
-            return Target.TARGET_SLEEPING
+            return Target.State.SLEEPING
         elif dhcsr & CortexM.S_HALT:
-            return Target.TARGET_HALTED
+            return Target.State.HALTED
         else:
-            return Target.TARGET_RUNNING
+            return Target.State.RUNNING
     
     def get_security_state(self):
         """! @brief Returns the current security state of the processor.
@@ -991,23 +1002,24 @@ class CortexM(Target, CoreSightCoreComponent):
         return self._run_token
 
     def is_running(self):
-        return self.get_state() == Target.TARGET_RUNNING
+        return self.get_state() == Target.State.RUNNING
 
     def is_halted(self):
-        return self.get_state() == Target.TARGET_HALTED
+        return self.get_state() == Target.State.HALTED
 
     def resume(self):
         """! @brief Resume execution of the core.
         """
-        if self.get_state() != Target.TARGET_HALTED:
+        if self.get_state() != Target.State.HALTED:
             LOG.debug('cannot resume: target not halted')
             return
-        self.session.notify(Target.EVENT_PRE_RUN, self, Target.RUN_TYPE_RESUME)
+        LOG.debug("resuming core %d", self.core_number)
+        self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.RESUME)
         self._run_token += 1
         self.clear_debug_cause_bits()
         self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
         self.flush()
-        self.session.notify(Target.EVENT_POST_RUN, self, Target.RUN_TYPE_RESUME)
+        self.session.notify(Target.Event.POST_RUN, self, Target.RunType.RESUME)
 
     def find_breakpoint(self, addr):
         return self.bp_manager.find_breakpoint(addr)
@@ -1215,7 +1227,7 @@ class CortexM(Target, CoreSightCoreComponent):
             dhcsr_val = dhcsr_cb()
             assert dhcsr_val & CortexM.S_REGRDY
 
-    def set_breakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
+    def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         """! @brief Set a hardware or software breakpoint at a specific location in memory.
         
         @retval True Breakpoint was set.
@@ -1253,21 +1265,21 @@ class CortexM(Target, CoreSightCoreComponent):
     @staticmethod
     def _map_to_vector_catch_mask(mask):
         result = 0
-        if mask & Target.CATCH_HARD_FAULT:
+        if mask & Target.VectorCatch.HARD_FAULT:
             result |= CortexM.DEMCR_VC_HARDERR
-        if mask & Target.CATCH_BUS_FAULT:
+        if mask & Target.VectorCatch.BUS_FAULT:
             result |= CortexM.DEMCR_VC_BUSERR
-        if mask & Target.CATCH_MEM_FAULT:
+        if mask & Target.VectorCatch.MEM_FAULT:
             result |= CortexM.DEMCR_VC_MMERR
-        if mask & Target.CATCH_INTERRUPT_ERR:
+        if mask & Target.VectorCatch.INTERRUPT_ERR:
             result |= CortexM.DEMCR_VC_INTERR
-        if mask & Target.CATCH_STATE_ERR:
+        if mask & Target.VectorCatch.STATE_ERR:
             result |= CortexM.DEMCR_VC_STATERR
-        if mask & Target.CATCH_CHECK_ERR:
+        if mask & Target.VectorCatch.CHECK_ERR:
             result |= CortexM.DEMCR_VC_CHKERR
-        if mask & Target.CATCH_COPROCESSOR_ERR:
+        if mask & Target.VectorCatch.COPROCESSOR_ERR:
             result |= CortexM.DEMCR_VC_NOCPERR
-        if mask & Target.CATCH_CORE_RESET:
+        if mask & Target.VectorCatch.CORE_RESET:
             result |= CortexM.DEMCR_VC_CORERESET
         return result
 
@@ -1275,27 +1287,28 @@ class CortexM(Target, CoreSightCoreComponent):
     def _map_from_vector_catch_mask(mask):
         result = 0
         if mask & CortexM.DEMCR_VC_HARDERR:
-            result |= Target.CATCH_HARD_FAULT
+            result |= Target.VectorCatch.HARD_FAULT
         if mask & CortexM.DEMCR_VC_BUSERR:
-            result |= Target.CATCH_BUS_FAULT
+            result |= Target.VectorCatch.BUS_FAULT
         if mask & CortexM.DEMCR_VC_MMERR:
-            result |= Target.CATCH_MEM_FAULT
+            result |= TargetVectorCatch.MEM_FAULT
         if mask & CortexM.DEMCR_VC_INTERR:
-            result |= Target.CATCH_INTERRUPT_ERR
+            result |= Target.VectorCatch.INTERRUPT_ERR
         if mask & CortexM.DEMCR_VC_STATERR:
-            result |= Target.CATCH_STATE_ERR
+            result |= Target.VectorCatch.STATE_ERR
         if mask & CortexM.DEMCR_VC_CHKERR:
-            result |= Target.CATCH_CHECK_ERR
+            result |= Target.VectorCatch.CHECK_ERR
         if mask & CortexM.DEMCR_VC_NOCPERR:
-            result |= Target.CATCH_COPROCESSOR_ERR
+            result |= Target.VectorCatch.COPROCESSOR_ERR
         if mask & CortexM.DEMCR_VC_CORERESET:
-            result |= Target.CATCH_CORE_RESET
+            result |= Target.VectorCatch.CORE_RESET
         return result
 
     def set_vector_catch(self, enableMask):
         demcr = self.read_memory(CortexM.DEMCR)
         demcr |= CortexM._map_to_vector_catch_mask(enableMask)
         demcr &= ~CortexM._map_to_vector_catch_mask(~enableMask)
+        LOG.debug("Setting vector catch to 0x%08x", enableMask)
         self.write_memory(CortexM.DEMCR, demcr)
 
     def get_vector_catch(self):
@@ -1311,8 +1324,25 @@ class CortexM(Target, CoreSightCoreComponent):
         return debugEvents != 0
 
     def is_vector_catch(self):
-        debugEvents = self.read_memory(CortexM.DFSR) & CortexM.DFSR_VCATCH
-        return debugEvents != 0
+        return self.get_halt_reason() == Target.HaltReason.VECTOR_CATCH
+    
+    def get_halt_reason(self):
+        dfsr = self.read32(CortexM.DFSR)
+        if dfsr & CortexM.DFSR_HALTED:
+            reason = Target.HaltReason.DEBUG
+        elif dfsr & CortexM.DFSR_BKPT:
+            reason = Target.HaltReason.BREAKPOINT
+        elif dfsr & CortexM.DFSR_DWTTRAP:
+            reason = Target.HaltReason.WATCHPOINT
+        elif dfsr & CortexM.DFSR_VCATCH:
+            reason = Target.HaltReason.VECTOR_CATCH
+        elif dfsr & CortexM.DFSR_EXTERNAL:
+            reason = Target.HaltReason.EXTERNAL
+        elif dfsr & CortexM.DFSR_PMU:
+            reason = Target.HaltReason.PMU
+        else:
+            reason = None
+        return reason
 
     def get_target_context(self, core=None):
         return self._target_context

@@ -85,13 +85,12 @@ for all of pyOCD.
 
 ### Full control
 
-The full schema for the logging configuration dictionary is documented in the [logging.config
-module
-documentation](https://docs.python.org/2.7/library/logging.config.html#logging-config-dictschema).
-The logging module's [advanced
-tutorial](https://docs.python.org/2.7/howto/logging.html#logging-advanced-tutorial) has a good
-introduction to the features and log output flow, so you can better understand the configuration
-schema.
+The full schema for the logging configuration dictionary is documented in the
+[logging.config module documentation](https://docs.python.org/2.7/library/logging.config.html#logging-config-dictschema).
+The logging module's
+[advanced tutorial](https://docs.python.org/2.7/howto/logging.html#logging-advanced-tutorial)
+has a good introduction to the features and log output flow, so you can better understand the
+configuration schema.
 
 The `version` key described in the schema is optional in pyOCD's logging configuration. If not
 present, pyOCD will set the schema version to 1 (currently the only version). In addition, pyOCD

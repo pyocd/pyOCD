@@ -284,7 +284,7 @@ class CortexM_LPC55S69(CortexM_v8M):
         # wait until the unit resets
         with timeout.Timeout(2.0) as t_o:
             while t_o.check():
-                if self.get_state() not in (Target.TARGET_RESET, Target.TARGET_RUNNING):
+                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
                     break
                 sleep(0.01)
 

@@ -73,12 +73,12 @@ class DWT(CoreSightComponent):
     DWT_CTRL_CYCCNTENA_MASK = (1 << 0)
 
     WATCH_TYPE_TO_FUNCT = {
-                            Target.WATCHPOINT_READ: 5,
-                            Target.WATCHPOINT_WRITE: 6,
-                            Target.WATCHPOINT_READ_WRITE: 7,
-                            5: Target.WATCHPOINT_READ,
-                            6: Target.WATCHPOINT_WRITE,
-                            7: Target.WATCHPOINT_READ_WRITE,
+                            Target.WatchpointType.READ: 5,
+                            Target.WatchpointType.WRITE: 6,
+                            Target.WatchpointType.READ_WRITE: 7,
+                            5: Target.WatchpointType.READ,
+                            6: Target.WatchpointType.WRITE,
+                            7: Target.WatchpointType.READ_WRITE,
                             }
 
     # Only sizes that are powers of 2 are supported
@@ -201,12 +201,12 @@ class DWTv2(DWT):
     
     ## Map from watchpoint type to FUNCTIONn.MATCH field value.
     WATCH_TYPE_TO_FUNCT = {
-                            Target.WATCHPOINT_READ: 0b0110,
-                            Target.WATCHPOINT_WRITE: 0b0101,
-                            Target.WATCHPOINT_READ_WRITE: 0b0100,
-                            0b0110: Target.WATCHPOINT_READ,
-                            0b0101: Target.WATCHPOINT_WRITE,
-                            0b0100: Target.WATCHPOINT_READ_WRITE,
+                            Target.WatchpointType.READ: 0b0110,
+                            Target.WatchpointType.WRITE: 0b0101,
+                            Target.WatchpointType.READ_WRITE: 0b0100,
+                            0b0110: Target.WatchpointType.READ,
+                            0b0101: Target.WatchpointType.WRITE,
+                            0b0100: Target.WatchpointType.READ_WRITE,
                             }
     
     ## Map from data access size to pre-shifted DATAVSIZE field value.

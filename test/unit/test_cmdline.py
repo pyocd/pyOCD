@@ -51,13 +51,13 @@ class TestConvertVectorCatch(object):
         assert convert_vector_catch('none') == 0
 
     def test_all_str(self):
-        assert convert_vector_catch('all') == Target.CATCH_ALL
+        assert convert_vector_catch('all') == Target.VectorCatch.ALL
 
     def test_none_b(self):
         assert convert_vector_catch(b'none') == 0
 
     def test_all_b(self):
-        assert convert_vector_catch(b'all') == Target.CATCH_ALL
+        assert convert_vector_catch(b'all') == Target.VectorCatch.ALL
 
     @pytest.mark.parametrize(("vc", "msk"),
         list(VECTOR_CATCH_CHAR_MAP.items()))

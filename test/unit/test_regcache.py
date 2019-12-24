@@ -17,7 +17,7 @@
 import pytest
 import logging
 
-from pyocd.debug.cache import RegisterCache
+from pyocd.cache.register import RegisterCache
 from pyocd.debug.context import DebugContext
 from pyocd.coresight.cortex_m import (
     CortexM,

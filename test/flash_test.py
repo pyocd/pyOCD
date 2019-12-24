@@ -31,7 +31,7 @@ from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import (invert32, same)
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.flash import Flash
-from pyocd.flash.flash_builder import FlashBuilder
+from pyocd.flash.builder import FlashBuilder
 from pyocd.utility.progress import print_progress
 
 from test_util import (
@@ -130,7 +130,7 @@ def flash_test(board_id):
         target_type = board.target_type
 
         memory_map = board.target.get_memory_map()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
 
         ram_start = ram_region.start
         ram_size = ram_region.length
@@ -145,9 +145,7 @@ def flash_test(board_id):
         result = FlashTestResult()
         
         # Test each flash region separately.
-        for rom_region in memory_map.get_regions_of_type(MemoryType.FLASH):
-            if not rom_region.is_testable:
-                continue
+        for rom_region in memory_map.iter_matching_regions(type=MemoryType.FLASH, is_testable=True):
             rom_start = rom_region.start
             rom_size = rom_region.length
 
@@ -179,7 +177,7 @@ def flash_test(board_id):
             
             print("\n------ Test Erased Value Check ------")
             d = [flash.region.erased_byte_value] * 128
-            if flash.region.is_erased(d):
+            if flash.region.is_data_erased(d):
                 print("TEST PASSED")
                 test_pass_count += 1
             else:
@@ -187,7 +185,7 @@ def flash_test(board_id):
             test_count += 1
 
             d = [unerasedValue] + [flash.region.erased_byte_value] * 127
-            if not flash.region.is_erased(d):
+            if not flash.region.is_data_erased(d):
                 print("TEST PASSED")
                 test_pass_count += 1
             else:

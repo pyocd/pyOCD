@@ -41,7 +41,7 @@ def rom():
 
 @pytest.fixture(scope='function')
 def ram1():
-    return RamRegion(start=0x20000000, length=1*1024, name='ram')
+    return RamRegion(start=0x20000000, length=1*1024, name='ram', is_default=False)
 
 @pytest.fixture(scope='function')
 def ram2():
@@ -391,13 +391,25 @@ class TestMemoryMap:
         assert len(rgns) > 0
     
     def test_get_type_iter(self, memmap, flash, rom, ram1, ram2):
-        assert list(memmap.get_regions_of_type(MemoryType.FLASH)) == [flash]
-        assert list(memmap.get_regions_of_type(MemoryType.ROM)) == [rom]
-        assert list(memmap.get_regions_of_type(MemoryType.RAM)) == [ram1, ram2]
+        assert list(memmap.iter_matching_regions(type=MemoryType.FLASH)) == [flash]
+        assert list(memmap.iter_matching_regions(type=MemoryType.ROM)) == [rom]
+        assert list(memmap.iter_matching_regions(type=MemoryType.RAM)) == [ram1, ram2]
+    
+    def test_match_iter(self, memmap, flash, ram1, ram2, ram_alias):
+        assert list(memmap.iter_matching_regions(blocksize=0x100)) == [flash]
+        assert list(memmap.iter_matching_regions(start=0x20000000)) == [ram1]
+    
+    def test_first_match(self, memmap, flash, ram2):
+        assert memmap.get_first_matching_region(blocksize=0x100) == flash
+        assert memmap.get_first_matching_region(length=1024, is_cacheable=False) == ram2
     
     def test_alias(self, memmap2, ram2, ram_alias):
         assert ram_alias.alias is ram2
     
+    def test_get_default(self, memmap, flash, ram2):
+        assert memmap.get_default_region_of_type(MemoryType.FLASH) == flash
+        assert memmap.get_default_region_of_type(MemoryType.RAM) == ram2
+
     def test_index_by_num(self, memmap, flash, ram2):
         assert memmap[0] == flash
         assert memmap[3] == ram2
@@ -409,8 +421,8 @@ class TestMemoryMap:
     def test_clone(self, memmap):
         mapcpy = memmap.clone()
         assert id(mapcpy) != id(memmap)
-        assert id(mapcpy.get_first_region_of_type(MemoryType.RAM)) != \
-            id(memmap.get_first_region_of_type(MemoryType.RAM))
+        assert id(mapcpy.get_first_matching_region(type=MemoryType.RAM)) != \
+            id(memmap.get_first_matching_region(type=MemoryType.RAM))
         assert mapcpy == memmap
         
 

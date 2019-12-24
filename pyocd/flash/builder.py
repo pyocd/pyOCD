@@ -381,7 +381,7 @@ class FlashBuilder(object):
         """
 
         # Send notification that we're about to program flash.
-        self.flash.target.session.notify(Target.EVENT_PRE_FLASH_PROGRAM, self)
+        self.flash.target.session.notify(Target.Event.PRE_FLASH_PROGRAM, self)
         
         # Disable options if attempting to read erased sectors will fault.
         if not self.flash.region.are_erased_sectors_readable:
@@ -515,7 +515,7 @@ class FlashBuilder(object):
                     ((self.program_byte_count/1024) / self.perf.program_time))
 
         # Send notification that we're done programming flash.
-        self.flash.target.session.notify(Target.EVENT_POST_FLASH_PROGRAM, self)
+        self.flash.target.session.notify(Target.Event.POST_FLASH_PROGRAM, self)
 
         return self.perf
 
@@ -539,7 +539,7 @@ class FlashBuilder(object):
         chip_erase_weight += self.flash.get_flash_info().erase_weight
         for page in self.page_list:
             if page.erased is None:
-                page.erased = self.flash.region.is_erased(page.data)
+                page.erased = self.flash.region.is_data_erased(page.data)
             if not page.erased:
                 chip_erase_count += 1
                 chip_erase_weight += page.get_program_weight()

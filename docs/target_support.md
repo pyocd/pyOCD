@@ -65,13 +65,13 @@ name of the board plus the target type in brackets.
 
 Example probe listing:
 
-    ## => Board Name | Unique ID
-    -- -- ----------------------
-     0 => ARM DAPLink CMSIS-DAP | 000000004420312043574641313035203730303897969903
-     1 => DISCO-L475VG-IOT01A [stm32l475xg] | 066EFF555051897267233656
+      #   Probe                               Unique ID
+    --------------------------------------------------------------------------------------------
+      0   DISCO-L475VG-IOT01A [stm32l475xg]   066EFF555051897267233656
+      1   KEIL - Tools By ARM Keil ULINKplus  L02932983A
 
-This example shows two probes. The first does not support auto-detection, while the second does. You
-can see how the second probe's description shows the name of the board and the target type
+This example shows two probes. The first does support auto-detection, while the second does not.
+Note how the first probe's description shows the name of the board and the target type
 "stm32l475xg" in brackets.
 
 If the target type is *not* auto-detected, it will default to "cortex_m" unless specified as
@@ -109,8 +109,8 @@ Alternatively, you can manually download packs and tell pyOCD which pack files t
 information about a device. Sometimes memory regions will be missing, attributes of a memory region
 or flash algorithm might be wrong, or the flash algorithm itself might be buggy. If you encounter an
 issue with a pack, you can report the issue on the [pyOCD GitHub
-site](https://www.github.com/mbedmicro/pyOCD/issues). You should also report the issue to the pack
-vendor.
+site](https://www.github.com/mbedmicro/pyOCD/issues) to let other users know about the problem. You
+should also report the issue to the pack vendor so it can be fixed.
 
 
 #### Managed packs
@@ -143,11 +143,12 @@ As another example, to find which pack(s) support the NXP MK26F family, you coul
 
 This will print a table similar to:
 
-     PART            VENDOR  PACK         VERSION
-     MK26FN2M0CAC18  NXP     MK26F18_DFP  11.0.0
-     MK26FN2M0VLQ18  NXP     MK26F18_DFP  11.0.0
-     MK26FN2M0VMD18  NXP     MK26F18_DFP  11.0.0
-     MK26FN2M0VMI18  NXP     MK26F18_DFP  11.0.0
+      Part             Vendor   Pack          Version
+    ---------------------------------------------------
+      MK26FN2M0CAC18   NXP      MK26F18_DFP   11.0.1
+      MK26FN2M0VLQ18   NXP      MK26F18_DFP   11.0.1
+      MK26FN2M0VMD18   NXP      MK26F18_DFP   11.0.1
+      MK26FN2M0VMI18   NXP      MK26F18_DFP   11.0.1
 
 Once a DFP is installed, the `pyocd list --targets` command will show the new targets in its output,
 and you can immediately begin using the target support with the other `pyocd` subcommands.

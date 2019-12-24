@@ -8,7 +8,7 @@ This example shows basic connection, loading a firmware binary, and some simple 
 
 ```python
 from pyocd.core.helpers import ConnectHelper
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +66,7 @@ and setting a breakpoint. Then the target is reset and run until the breakpoint 
     target.reset()
 
     # Wait until breakpoint is hit.
-    while target.get_state() != Target.TARGET_HALTED:
+    while target.get_state() != Target.State.HALTED:
         pass
 
     # Print PC.

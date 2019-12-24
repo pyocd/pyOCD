@@ -278,8 +278,8 @@ class ZephyrThreadProvider(ThreadProvider):
             return False
 
         self._update()
-        self._target.session.subscribe(self.event_handler, Target.EVENT_POST_FLASH_PROGRAM)
-        self._target.session.subscribe(self.event_handler, Target.EVENT_POST_RESET)
+        self._target.session.subscribe(self.event_handler, Target.Event.POST_FLASH_PROGRAM)
+        self._target.session.subscribe(self.event_handler, Target.Event.POST_RESET)
 
         return True
 
@@ -317,11 +317,11 @@ class ZephyrThreadProvider(ThreadProvider):
         self._threads = {}
 
     def event_handler(self, notification):
-        if notification.event == Target.EVENT_POST_RESET:
+        if notification.event == Target.Event.POST_RESET:
             LOG.debug("Invalidating threads list: %s" % (repr(notification)))
             self.invalidate();
 
-        elif notification.event == Target.EVENT_POST_FLASH_PROGRAM:
+        elif notification.event == Target.Event.POST_FLASH_PROGRAM:
             self._update()
 
     def _build_thread_list(self):

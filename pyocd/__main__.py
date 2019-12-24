@@ -43,7 +43,8 @@ from .utility.cmdline import (
 from .probe.pydapaccess import DAPAccess
 from .tools.lists import ListGenerator
 from .tools.pyocd import PyOCDCommander
-from .flash import loader
+from .flash.eraser import FlashEraser
+from .flash.file_programmer import FileProgrammer
 from .core import options
 from .utility.cmdline import split_command_line
 
@@ -190,11 +191,11 @@ class PyOCDTool(object):
             "Examples: 0x1000 (erase single sector starting at 0x1000) "
             "0x800-0x2000 (erase sectors starting at 0x800 up to but not including 0x2000) "
             "0+8192 (erase 8 kB starting at address 0)")
-        eraseParser.add_argument("-c", "--chip", dest="erase_mode", action="store_const", const=loader.FlashEraser.Mode.CHIP,
+        eraseParser.add_argument("-c", "--chip", dest="erase_mode", action="store_const", const=FlashEraser.Mode.CHIP,
             help="Perform a chip erase.")
-        eraseParser.add_argument("-s", "--sector", dest="erase_mode", action="store_const", const=loader.FlashEraser.Mode.SECTOR,
+        eraseParser.add_argument("-s", "--sector", dest="erase_mode", action="store_const", const=FlashEraser.Mode.SECTOR,
             help="Erase the sectors listed as positional arguments.")
-        eraseParser.add_argument("--mass-erase", dest="erase_mode", action="store_const", const=loader.FlashEraser.Mode.MASS,
+        eraseParser.add_argument("--mass-erase", dest="erase_mode", action="store_const", const=FlashEraser.Mode.MASS,
             help="Perform a mass erase. On some devices this is different than a chip erase.")
         eraseParser.add_argument("addresses", metavar="<sector-address>", action='append', nargs='*',
             help="List of sector addresses or ranges to erase.")
@@ -471,17 +472,17 @@ class PyOCDTool(object):
         if session is None:
             sys.exit(1)
         with session:
-            programmer = loader.FileProgrammer(session,
-                                                chip_erase=self._args.erase,
-                                                trust_crc=self._args.trust_crc)
+            programmer = FileProgrammer(session,
+                            chip_erase=self._args.erase,
+                            trust_crc=self._args.trust_crc)
             programmer.program(self._args.file,
-                                base_address=self._args.base_address,
-                                skip=self._args.skip,
-                                file_format=self._args.format)
+                            base_address=self._args.base_address,
+                            skip=self._args.skip,
+                            file_format=self._args.format)
     
     def do_erase(self):
         """! @brief Handle 'erase' subcommand."""
-        self._increase_logging(["pyocd.flash.loader"])
+        self._increase_logging(["pyocd.flash.eraser"])
         
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
@@ -497,8 +498,8 @@ class PyOCDTool(object):
         if session is None:
             sys.exit(1)
         with session:
-            mode = self._args.erase_mode or loader.FlashEraser.Mode.SECTOR
-            eraser = loader.FlashEraser(session, mode)
+            mode = self._args.erase_mode or FlashEraser.Mode.SECTOR
+            eraser = FlashEraser(session, mode)
             
             addresses = flatten_args(self._args.addresses)
             eraser.erase(addresses)

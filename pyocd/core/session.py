@@ -323,8 +323,8 @@ class Session(Notifier):
                     'Target': pyocd.core.target.Target,
                     'ResetType': pyocd.core.target.Target.ResetType,
                     'MemoryType': pyocd.core.memory_map.MemoryType,
-                    'FileProgrammer': pyocd.flash.loader.FileProgrammer,
-                    'FlashEraser': pyocd.flash.loader.FlashEraser,
+                    'FileProgrammer': pyocd.flash.file_programmer.FileProgrammer,
+                    'FlashEraser': pyocd.flash.eraser.FlashEraser,
                     'FlashLoader': pyocd.flash.loader.FlashLoader,
                     'LOG': logging.getLogger('pyocd.user_script'),
                     }

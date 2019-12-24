@@ -36,7 +36,8 @@ from ..probe.pydapaccess import DAPAccess
 from ..utility.progress import print_progress
 from ..utility.cmdline import convert_session_options
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
-from ..flash.loader import (FileProgrammer, FlashEraser)
+from ..flash.file_programmer import FileProgrammer
+from ..flash.eraser import FlashEraser
 
 LOG = logging.getLogger(__name__)
 

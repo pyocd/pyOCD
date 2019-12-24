@@ -21,7 +21,7 @@ import logging
 from struct import unpack
 from time import time
 from enum import Enum
-from .flash_builder import FlashBuilder
+from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class Flash(object):
     (@ref pyocd.core.memory_map.FlashRegion "FlashRegion") and support
     programming only within that region's address range. To program images that cross flash
     memory region boundaries, use the @ref pyocd.flash.loader.FlashLoader "FlashLoader" or
-    @ref pyocd.flash.loader.FileProgrammer "FileProgrammer" classes.
+    @ref pyocd.flash.file_programmer.FileProgrammer "FileProgrammer" classes.
     
     Terminology:
     - sector: The size of an erasable block.
@@ -497,7 +497,7 @@ class Flash(object):
         if self.flash_algo_debug:
             # Save vector catch state for use in wait_for_completion()
             self._saved_vector_catch = self.target.get_vector_catch()
-            self.target.set_vector_catch(Target.CATCH_ALL)
+            self.target.set_vector_catch(Target.VectorCatch.ALL)
 
         reg_list.append('pc')
         data_list.append(pc)
@@ -530,7 +530,7 @@ class Flash(object):
         """!
         @brief Wait until the breakpoint is hit.
         """
-        while self.target.get_state() == Target.TARGET_RUNNING:
+        while self.target.get_state() == Target.State.RUNNING:
             pass
 
         if self.flash_algo_debug:

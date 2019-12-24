@@ -56,16 +56,16 @@ def split_command_line(cmd_line):
 
 ## Map of vector char characters to masks.
 VECTOR_CATCH_CHAR_MAP = {
-        'h': Target.CATCH_HARD_FAULT,
-        'b': Target.CATCH_BUS_FAULT,
-        'm': Target.CATCH_MEM_FAULT,
-        'i': Target.CATCH_INTERRUPT_ERR,
-        's': Target.CATCH_STATE_ERR,
-        'c': Target.CATCH_CHECK_ERR,
-        'p': Target.CATCH_COPROCESSOR_ERR,
-        'r': Target.CATCH_CORE_RESET,
-        'a': Target.CATCH_ALL,
-        'n': Target.CATCH_NONE,
+        'h': Target.VectorCatch.HARD_FAULT,
+        'b': Target.VectorCatch.BUS_FAULT,
+        'm': Target.VectorCatch.MEM_FAULT,
+        'i': Target.VectorCatch.INTERRUPT_ERR,
+        's': Target.VectorCatch.STATE_ERR,
+        'c': Target.VectorCatch.CHECK_ERR,
+        'p': Target.VectorCatch.COPROCESSOR_ERR,
+        'r': Target.VectorCatch.CORE_RESET,
+        'a': Target.VectorCatch.ALL,
+        'n': Target.VectorCatch.NONE,
     }
 
 def convert_vector_catch(value):
@@ -78,9 +78,9 @@ def convert_vector_catch(value):
 
     # Handle special vector catch options.
     if value == 'all':
-        return Target.CATCH_ALL
+        return Target.VectorCatch.ALL
     elif value == 'none':
-        return Target.CATCH_NONE
+        return Target.VectorCatch.NONE
 
     # Convert options string to mask.
     try:

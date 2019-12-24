@@ -17,13 +17,13 @@
 from .target import Target
 from .memory_map import MemoryType
 from . import exceptions
-from ..flash.loader import FlashEraser
+from ..flash.eraser import FlashEraser
 from ..coresight import (dap, cortex_m, cortex_m_v8m, rom_table)
 from ..debug.svd.loader import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
 from ..debug.elf.elf import ELFBinaryFile
-from ..debug.elf.flash_reader import FlashReaderContext
+from ..debug.elf.elf_reader import ElfReaderContext
 from ..utility.graph import GraphNode
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
@@ -59,7 +59,6 @@ class CoreSightTarget(Target, GraphNode):
         self.dp = dap.DebugPort(session.probe, self)
         self._selected_core = None
         self._svd_load_thread = None
-        self._root_contexts = {}
         self._new_core_num = 0
         self._elf = None
         self._irq_table = None
@@ -88,7 +87,7 @@ class CoreSightTarget(Target, GraphNode):
         else:
             self._elf = ELFBinaryFile(filename, self.memory_map)
             self.cores[0].elf = self._elf
-            self.cores[0].set_target_context(FlashReaderContext(self.cores[0].get_target_context(), self._elf))
+            self.cores[0].set_target_context(ElfReaderContext(self.cores[0].get_target_context(), self._elf))
 
     def select_core(self, num):
         """! @note Deprecated."""
@@ -128,7 +127,6 @@ class CoreSightTarget(Target, GraphNode):
         core.set_target_context(CachingDebugContext(core))
         self.cores[core.core_number] = core
         self.add_child(core)
-        self._root_contexts[core.core_number] = None
         
         if self._selected_core is None:
             self._selected_core = core.core_number
@@ -148,7 +146,7 @@ class CoreSightTarget(Target, GraphNode):
             ('check_for_cores',     self.check_for_cores),
             ('halt_on_connect',     self.perform_halt_on_connect),
             ('post_connect',        self.post_connect),
-            ('notify',              lambda : self.session.notify(Target.EVENT_POST_CONNECT, self))
+            ('notify',              lambda : self.session.notify(Target.Event.POST_CONNECT, self))
             )
         
         return seq
@@ -225,7 +223,7 @@ class CoreSightTarget(Target, GraphNode):
         instance. It uses the flash_algo and flash_class properties of the region to know how
         to construct the flash object.
         """
-        for region in self.memory_map.get_regions_of_type(MemoryType.FLASH):
+        for region in self.memory_map.iter_matching_regions(type=MemoryType.FLASH):
             # If a path to an FLM file was set on the region, examine it first.
             if region.flm is not None:
                 flmPath = self.session.find_user_file(None, [region.flm])
@@ -239,7 +237,7 @@ class CoreSightTarget(Target, GraphNode):
                         page_size = min(s[1] for s in packAlgo.sector_sizes)
                     algo = packAlgo.get_pyocd_flash_algo(
                             page_size,
-                            self.memory_map.get_first_region_of_type(MemoryType.RAM))
+                            self.memory_map.get_default_region_of_type(MemoryType.RAM))
                 
                     # If we got a valid algo from the FLM, set it on the region. This will then
                     # be used below.
@@ -298,7 +296,7 @@ class CoreSightTarget(Target, GraphNode):
                 raise exceptions.DebugError("No cores were discovered!")
 
     def disconnect(self, resume=True):
-        self.session.notify(Target.EVENT_PRE_DISCONNECT, self)
+        self.session.notify(Target.Event.PRE_DISCONNECT, self)
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
@@ -363,7 +361,7 @@ class CoreSightTarget(Target, GraphNode):
     def find_breakpoint(self, addr):
         return self.selected_core.find_breakpoint(addr)
 
-    def set_breakpoint(self, addr, type=Target.BREAKPOINT_AUTO):
+    def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         return self.selected_core.set_breakpoint(addr, type)
 
     def get_breakpoint_type(self, addr):
@@ -394,6 +392,9 @@ class CoreSightTarget(Target, GraphNode):
     def get_security_state(self):
         return self.selected_core.get_security_state()
 
+    def get_halt_reason(self):
+        return self.selected_core.get_halt_reason()
+
     def set_vector_catch(self, enableMask):
         return self.selected_core.set_vector_catch(enableMask)
 
@@ -408,19 +409,6 @@ class CoreSightTarget(Target, GraphNode):
         if core is None:
             core = self._selected_core
         return self.cores[core].get_target_context()
-
-    def get_root_context(self, core=None):
-        if core is None:
-            core = self._selected_core
-        if self._root_contexts[core] is None:
-            return self.get_target_context()
-        else:
-            return self._root_contexts[core]
-
-    def set_root_context(self, context, core=None):
-        if core is None:
-            core = self._selected_core
-        self._root_contexts[core] = context
 
     @property
     def irq_table(self):

@@ -18,7 +18,7 @@ from ...core.target import Target
 
 class Breakpoint(object):
     def __init__(self, provider):
-        self.type = Target.BREAKPOINT_HW
+        self.type = Target.BreakpointType.HW
         self.enabled = False
         self.addr = 0
         self.original_instr = 0
