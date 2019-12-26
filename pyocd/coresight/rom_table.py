@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2018 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,63 +24,6 @@ from ..utility.conversion import pairwise
 from ..utility.mask import (bit_invert, align_down)
 from ..utility.timeout import Timeout
 
-# CoreSight identification register offsets.
-DEVARCH = 0xfbc
-DEVID = 0xfc8
-DEVTYPE = 0xfcc
-PIDR4 = 0xfd0
-PIDR0 = 0xfe0
-CIDR0 = 0xff0
-IDR_END = 0x1000
-
-# Range of identification registers to read at once and offsets in results.
-#
-# To improve component identification performance, we read all of a components
-# CoreSight ID registers in a single read. Reading starts at the DEVARCH register.
-IDR_READ_START = DEVARCH
-IDR_READ_COUNT = (IDR_END - IDR_READ_START) // 4
-DEVARCH_OFFSET = (DEVARCH - IDR_READ_START) // 4
-DEVTYPE_OFFSET = (DEVTYPE - IDR_READ_START) // 4
-PIDR4_OFFSET = (PIDR4 - IDR_READ_START) // 4
-PIDR0_OFFSET = (PIDR0 - IDR_READ_START) // 4
-CIDR0_OFFSET = (CIDR0 - IDR_READ_START) // 4
-
-# Component ID register fields.
-CIDR_PREAMBLE_MASK = 0xffff0fff
-CIDR_PREAMBLE_VALUE = 0xb105000d
-
-CIDR_COMPONENT_CLASS_MASK = 0x0000f000
-CIDR_COMPONENT_CLASS_SHIFT = 12
-
-# Component classes.
-ROM_TABLE_CLASS = 0x1
-CORESIGHT_CLASS = 0x9
-GENERIC_CLASS = 0xe
-SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no standard register layout.
-
-# Peripheral ID register fields.
-PIDR_PART_MASK = 0x00000fff
-PIDR_DESIGNER_MASK = 0x0007f000 # JEP106 ID
-PIDR_DESIGNER_SHIFT = 12
-PIDR_REVISION_MASK = 0x00f00000
-PIDR_REVISION_SHIFT = 20
-PIDR_DESIGNER2_MASK = 0x0f00000000 # JEP106 continuation
-PIDR_DESIGNER2_SHIFT = 32
-
-# JEP106 codes
-#  [11:8] continuation
-#  [6:0]  ID
-ARM_ID = 0x43b
-FSL_ID = 0x00e
-
-# DEVARCH register fields.
-DEVARCH_ARCHITECT_MASK = 0x7ff
-DEVARCH_ARCHITECT_SHIFT = 21
-DEVARCH_PRESENT_MASK = (1<<20)
-DEVARCH_REVISION_MASK = 0x000f0000
-DEVARCH_REVISION_SHIFT = 16
-DEVARCH_ARCHID_MASK = 0xffff
-
 LOG = logging.getLogger(__name__)
 
 class CoreSightComponentID(object):
@@ -90,6 +33,55 @@ class CoreSightComponentID(object):
     in the memory map of all CoreSight components. The various fields from these
     registers are made available as attributes.
     """
+
+    # CoreSight identification register offsets.
+    DEVARCH = 0xfbc
+    DEVID = 0xfc8
+    DEVTYPE = 0xfcc
+    PIDR4 = 0xfd0
+    PIDR0 = 0xfe0
+    CIDR0 = 0xff0
+    IDR_END = 0x1000
+
+    # Range of identification registers to read at once and offsets in results.
+    #
+    # To improve component identification performance, we read all of a components
+    # CoreSight ID registers in a single read. Reading starts at the DEVARCH register.
+    IDR_READ_START = DEVARCH
+    IDR_READ_COUNT = (IDR_END - IDR_READ_START) // 4
+    DEVARCH_OFFSET = (DEVARCH - IDR_READ_START) // 4
+    DEVTYPE_OFFSET = (DEVTYPE - IDR_READ_START) // 4
+    PIDR4_OFFSET = (PIDR4 - IDR_READ_START) // 4
+    PIDR0_OFFSET = (PIDR0 - IDR_READ_START) // 4
+    CIDR0_OFFSET = (CIDR0 - IDR_READ_START) // 4
+
+    # Component ID register fields.
+    CIDR_PREAMBLE_MASK = 0xffff0fff
+    CIDR_PREAMBLE_VALUE = 0xb105000d
+
+    CIDR_COMPONENT_CLASS_MASK = 0x0000f000
+    CIDR_COMPONENT_CLASS_SHIFT = 12
+
+    # Component classes.
+    ROM_TABLE_CLASS = 0x1
+    CORESIGHT_CLASS = 0x9
+
+    # Peripheral ID register fields.
+    PIDR_PART_MASK = 0x00000fff
+    PIDR_DESIGNER_MASK = 0x0007f000 # JEP106 ID
+    PIDR_DESIGNER_SHIFT = 12
+    PIDR_REVISION_MASK = 0x00f00000
+    PIDR_REVISION_SHIFT = 20
+    PIDR_DESIGNER2_MASK = 0x0f00000000 # JEP106 continuation
+    PIDR_DESIGNER2_SHIFT = 32
+
+    # DEVARCH register fields.
+    DEVARCH_ARCHITECT_MASK = 0x7ff
+    DEVARCH_ARCHITECT_SHIFT = 21
+    DEVARCH_PRESENT_MASK = (1<<20)
+    DEVARCH_REVISION_MASK = 0x000f0000
+    DEVARCH_REVISION_SHIFT = 16
+    DEVARCH_ARCHID_MASK = 0xffff
     
     def __init__(self, parent_rom_table, ap, top_addr, power_id=None):
         self.parent_rom_table = parent_rom_table
@@ -114,40 +106,41 @@ class CoreSightComponentID(object):
     def read_id_registers(self):
         """! @brief Read Component ID, Peripheral ID, and DEVID/DEVARCH registers."""
         # Read registers as a single block read for performance reasons.
-        regs = self.ap.read_memory_block32(self.top_address + IDR_READ_START, IDR_READ_COUNT)
-        self.cidr = self._extract_id_register_value(regs, CIDR0_OFFSET)
-        self.pidr = (self._extract_id_register_value(regs, PIDR4_OFFSET) << 32) | self._extract_id_register_value(regs, PIDR0_OFFSET)
+        regs = self.ap.read_memory_block32(self.top_address + self.IDR_READ_START, self.IDR_READ_COUNT)
+        self.cidr = self._extract_id_register_value(regs, self.CIDR0_OFFSET)
+        self.pidr = (self._extract_id_register_value(regs, self.PIDR4_OFFSET) << 32) \
+                    | self._extract_id_register_value(regs, self.PIDR0_OFFSET)
 
         # Check if the component has a valid CIDR value
-        if (self.cidr & CIDR_PREAMBLE_MASK) != CIDR_PREAMBLE_VALUE:
+        if (self.cidr & self.CIDR_PREAMBLE_MASK) != self.CIDR_PREAMBLE_VALUE:
             LOG.warning("Invalid coresight component, cidr=0x%x", self.cidr)
             return
 
         # Extract class and determine if this is a ROM table.
-        component_class = (self.cidr & CIDR_COMPONENT_CLASS_MASK) >> CIDR_COMPONENT_CLASS_SHIFT
-        is_rom_table = (component_class == ROM_TABLE_CLASS)
+        self.component_class = (self.cidr & self.CIDR_COMPONENT_CLASS_MASK) >> self.CIDR_COMPONENT_CLASS_SHIFT
+        self.is_rom_table = (self.component_class == self.ROM_TABLE_CLASS)
         
         # Extract JEP106 designer ID.
-        self.designer = ((self.pidr & PIDR_DESIGNER_MASK) >> PIDR_DESIGNER_SHIFT) \
-                        | ((self.pidr & PIDR_DESIGNER2_MASK) >> (PIDR_DESIGNER2_SHIFT - 8))
-        self.part = self.pidr & PIDR_PART_MASK
+        self.designer = ((self.pidr & self.PIDR_DESIGNER_MASK) >> self.PIDR_DESIGNER_SHIFT) \
+                        | ((self.pidr & self.PIDR_DESIGNER2_MASK) >> (self.PIDR_DESIGNER2_SHIFT - 8))
+        self.part = self.pidr & self.PIDR_PART_MASK
         
         # For CoreSight-class components, extract additional fields.
-        if component_class == CORESIGHT_CLASS:
-             self.devarch = regs[DEVARCH_OFFSET]
+        if self.component_class == self.CORESIGHT_CLASS:
+             self.devarch = regs[self.DEVARCH_OFFSET]
              self.devid = regs[1:4]
              self.devid.reverse()
-             self.devtype = regs[DEVTYPE_OFFSET]
+             self.devtype = regs[self.DEVTYPE_OFFSET]
              
-             if self.devarch & DEVARCH_PRESENT_MASK:
-                 self.archid = self.devarch & DEVARCH_ARCHID_MASK
+             if self.devarch & self.DEVARCH_PRESENT_MASK:
+                 self.archid = self.devarch & self.DEVARCH_ARCHID_MASK
         
         # Determine component name.
-        if is_rom_table:
+        if self.is_rom_table:
             self.name = 'ROM'
             self.factory = ROMTable.create
         else:
-            key = (self.designer, component_class, self.part, self.devtype, self.archid)
+            key = (self.designer, self.component_class, self.part, self.devtype, self.archid)
             info = COMPONENT_MAP.get(key, None)
             if info is not None:
                 self.name = info.name
@@ -155,8 +148,6 @@ class CoreSightComponentID(object):
             else:
                 self.name = '???'
 
-        self.component_class = component_class
-        self.is_rom_table = is_rom_table
         self.valid = True
 
     def _extract_id_register_value(self, regs, offset):
@@ -173,7 +164,7 @@ class CoreSightComponentID(object):
             pwrid = " pwrid=%d" % self.power_id
         else:
             pwrid = ""
-        if self.component_class == CORESIGHT_CLASS:
+        if self.component_class == self.CORESIGHT_CLASS:
             return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x%s>" % (
                 self.address, self.name, self.component_class, self.designer, self.part,
                 self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2], pwrid)
@@ -217,7 +208,7 @@ class ROMTable(CoreSightComponent):
         assert cmpid is not None
         
         # Create appropriate ROM table class.
-        if cmpid.component_class == ROM_TABLE_CLASS:
+        if cmpid.component_class == CoreSightComponentID.ROM_TABLE_CLASS:
             return Class1ROMTable(memif, cmpid, addr, parent_table)
         else:
             raise exceptions.DebugError("unexpected ROM table device class (%s)" % cmpid)
