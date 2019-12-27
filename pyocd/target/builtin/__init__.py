@@ -86,6 +86,10 @@ from . import target_LPC55S69JBD100
 from . import target_M252KG6AE
 from . import target_HC32F46x
 from . import target_HC32x120
+from . import target_HC32L110
+from . import target_HC32L13x
+from . import target_HC32L19x
+from . import target_HC32L07x
 
 ## @brief Dictionary of all builtin targets.
 BUILTIN_TARGETS = {
@@ -178,4 +182,17 @@ BUILTIN_TARGETS = {
           'hc32f120x6' : target_HC32x120.HC32F120x6TA,
           'hc32f120x8' : target_HC32x120.HC32F120x8TA,
           'hc32m120' : target_HC32x120.HC32M120,
+          'hc32l110' : target_HC32L110.HC32L110,
+          'hc32f003' : target_HC32L110.HC32F003,
+          'hc32f005' : target_HC32L110.HC32F005,
+          'hc32l136' : target_HC32L13x.HC32L136,
+          'hc32l130' : target_HC32L13x.HC32L130,
+          'hc32f030' : target_HC32L13x.HC32F030,
+          'hc32l196' : target_HC32L19x.HC32L196,
+          'hc32l190' : target_HC32L19x.HC32L190,
+          'hc32f196' : target_HC32L19x.HC32F196,
+          'hc32f190' : target_HC32L19x.HC32F190,
+          'hc32l072' : target_HC32L07x.HC32L072,
+          'hc32l073' : target_HC32L07x.HC32L073,
+          'hc32f072' : target_HC32L07x.HC32F072,
          }
