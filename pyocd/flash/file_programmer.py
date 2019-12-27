@@ -17,6 +17,7 @@
 import os
 import logging
 import itertools
+from elftools.elf.elffile import ELFFile
 from intelhex import IntelHex
 import six
 import errno
