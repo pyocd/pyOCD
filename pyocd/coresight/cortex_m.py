@@ -198,7 +198,6 @@ class CortexM(Target, CoreSightCoreComponent):
 
     # Debug Fault Status Register
     DFSR = 0xE000ED30
-    DFSR_PMU = (1 << 5)
     DFSR_EXTERNAL = (1 << 4)
     DFSR_VCATCH = (1 << 3)
     DFSR_DWTTRAP = (1 << 2)
