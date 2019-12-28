@@ -18,6 +18,7 @@ import logging
 
 from .component import CoreSightCoreComponent
 from ..core.target import Target
+from ..core.core_registers import CoreRegistersIndex
 
 LOG = logging.getLogger(__name__)
 
@@ -44,11 +45,15 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
         self.core_number = core_num
         self.core_type = DEAD_VALUE
+        self._core_registers = CoreRegistersIndex()
         self._target_context = None
-        self.register_list = []
 
     def add_child(self, cmp):
         pass
+
+    @property
+    def core_registers(self):
+        return self._core_registers
 
     @property
     def supported_security_states(self):

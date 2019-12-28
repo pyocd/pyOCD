@@ -20,6 +20,7 @@ from .cortex_m import CortexM
 from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
 from ..core import exceptions
 from ..core.target import Target
+from .cortex_m_core_registers import CoreRegisterGroups
 
 LOG = logging.getLogger(__name__)
 
@@ -97,6 +98,13 @@ class CortexM_v8M(CortexM):
                 LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
         else:
             LOG.warning("CPU core #%d type is unrecognized", self.core_number)
+
+    def _build_registers(self):
+        super(CortexM_v8M, self)._build_registers()
+
+        if self.architecture == CoreArchitecture.ARMv8M_MAIN:
+            self._core_registers.add_group(CoreRegisterGroups.V7M_v8M_ML_ONLY)
+        
     
     def get_security_state(self):
         """! @brief Returns the current security state of the processor.

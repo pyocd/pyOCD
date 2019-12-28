@@ -217,6 +217,10 @@ class Target(MemoryInterface):
     @property
     def supported_security_states(self):
         raise NotImplementedError()
+    
+    @property
+    def core_registers(self):
+        raise NotImplementedError()
 
     def is_locked(self):
         return False

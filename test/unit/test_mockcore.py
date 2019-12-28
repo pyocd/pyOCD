@@ -20,7 +20,7 @@ import logging
 from .mockcore import MockCore
 
 from pyocd.core import memory_map
-from pyocd.coresight.cortex_m import CORE_REGISTER
+from pyocd.coresight.cortex_m_core_registers import index_for_reg
 from pyocd.utility import conversion
 from pyocd.utility import mask
 
@@ -67,22 +67,26 @@ class TestMockCoreReg:
             assert mockcore.read_core_registers_raw([r]) == [1+r]
     
     def test_rw_cfbp(self, mockcore):
-        mockcore.write_core_registers_raw([CORE_REGISTER['cfbp']], [0x01020304])
-        assert mockcore.read_core_registers_raw([CORE_REGISTER['control'], CORE_REGISTER['faultmask'], CORE_REGISTER['basepri'], CORE_REGISTER['primask']]) == [0x01, 0x02, 0x03, 0x04]
+        mockcore.write_core_registers_raw([index_for_reg('cfbp')], [0x01020304])
+        assert mockcore.read_core_registers_raw([
+                index_for_reg('control'),
+                index_for_reg('faultmask'),
+                index_for_reg('basepri'),
+                index_for_reg('primask')]) == [0x01, 0x02, 0x03, 0x04]
 
     def test_w_control(self, mockcore):
-        mockcore.write_core_registers_raw([CORE_REGISTER['control']], [0xaa])
-        assert mockcore.read_core_registers_raw([CORE_REGISTER['cfbp']]) == [0xaa000000]
+        mockcore.write_core_registers_raw([index_for_reg('control')], [0xaa])
+        assert mockcore.read_core_registers_raw([index_for_reg('cfbp')]) == [0xaa000000]
 
     def test_w_faultmask(self, mockcore):
-        mockcore.write_core_registers_raw([CORE_REGISTER['faultmask']], [0xaa])
-        mockcore.read_core_registers_raw([CORE_REGISTER['cfbp']]) == [0x00aa0000]
+        mockcore.write_core_registers_raw([index_for_reg('faultmask')], [0xaa])
+        mockcore.read_core_registers_raw([index_for_reg('cfbp')]) == [0x00aa0000]
 
     def test_w_basepri(self, mockcore):
-        mockcore.write_core_registers_raw([CORE_REGISTER['basepri']], [0xaa])
-        mockcore.read_core_registers_raw([CORE_REGISTER['cfbp']]) == [0x0000aa00]
+        mockcore.write_core_registers_raw([index_for_reg('basepri')], [0xaa])
+        mockcore.read_core_registers_raw([index_for_reg('cfbp')]) == [0x0000aa00]
 
     def test_w_primask(self, mockcore):
-        mockcore.write_core_registers_raw([CORE_REGISTER['primask']], [0xaa])
-        mockcore.read_core_registers_raw([CORE_REGISTER['cfbp']]) == [0x000000aa]
+        mockcore.write_core_registers_raw([index_for_reg('primask')], [0xaa])
+        mockcore.read_core_registers_raw([index_for_reg('cfbp')]) == [0x000000aa]
 

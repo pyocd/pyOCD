@@ -20,7 +20,7 @@ from ..core import exceptions
 from ..core.target import Target
 from ..core.plugin import Plugin
 from ..debug.context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
+from ..coresight.cortex_m_core_registers import index_for_reg
 import logging
 
 FREERTOS_MAX_PRIORITIES	= 63
@@ -159,7 +159,7 @@ class FreeRTOSThreadContext(DebugContext):
         self._has_fpu = self.core.has_fpu
 
     def read_core_registers_raw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [index_for_reg(reg) for reg in reg_list]
         reg_vals = []
 
         isCurrent = self._thread.is_current

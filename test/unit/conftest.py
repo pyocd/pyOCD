@@ -29,6 +29,10 @@ from .mockcore import MockCore
 def mockcore():
     return MockCore()
 
+@pytest.fixture(scope='function')
+def mockcore_no_fpu():
+    return MockCore(has_fpu=False)
+
 # Ignore semihosting test that currently crashes on Travis
 collect_ignore = [
     "test_semihosting.py",

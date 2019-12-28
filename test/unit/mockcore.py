@@ -20,19 +20,21 @@ import logging
 from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
 from pyocd.coresight.component import CoreSightCoreComponent
-from pyocd.coresight.cortex_m import (
-    CORE_REGISTER,
-    register_name_to_index,
-    is_cfbp_subregister,
-    is_psr_subregister,
-    sysm_to_psr_mask
+from pyocd.core.core_registers import CoreRegistersIndex
+from pyocd.coresight.cortex_m_core_registers import (
+    CortexMCoreRegisterInfo,
+    CoreRegisterGroups,
+    index_for_reg,
 )
 from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
 
+CFBP_INDEX = index_for_reg('cfbp')
+XPSR_INDEX = index_for_reg('xpsr')
+
 class MockCore(CoreSightCoreComponent):
-    def __init__(self):
+    def __init__(self, has_fpu=True):
         self.run_token = 1
         self.flash_region = memory_map.FlashRegion(start=0, length=1*1024, blocksize=1024, name='flash')
         self.ram_region = memory_map.RamRegion(start=0x20000000, length=1*1024, name='ram')
@@ -48,26 +50,32 @@ class MockCore(CoreSightCoreComponent):
         self.regions = [(self.flash_region, self.flash),
                         (self.ram_region, self.ram),
                         (self.ram2_region, self.ram2)]
-        self.has_fpu = True
+        self.has_fpu = has_fpu
+        self.core_registers = CoreRegistersIndex()
+        self.core_registers.add_group(CoreRegisterGroups.M_PROFILE_COMMON
+                + CoreRegisterGroups.V7M_v8M_ML_ONLY
+                + CoreRegisterGroups.V8M_SEC_ONLY)
+        if has_fpu:
+            self.core_registers.add_group(CoreRegisterGroups.VFP_V5)
         self.clear_all_regs()
     
     def clear_all_regs(self):
-        self.regs = {i:0 for i in range(0, 19)} # r0-15, xpsr, msp, psp
-        self.regs[CORE_REGISTER['cfbp']] = 0
+        self.regs = {i:0 for i in self.core_registers.by_index.keys()} # r0-15, xpsr, msp, psp
+        self.regs[CFBP_INDEX] = 0
 
     def is_running(self):
         return False
 
     def read_core_registers_raw(self, reg_list):
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [CortexMCoreRegisterInfo.register_name_to_index(reg) for reg in reg_list]
         results = []
         for r in reg_list:
-            if is_cfbp_subregister(r):
-                v = self.regs[CORE_REGISTER['cfbp']]
+            if CortexMCoreRegisterInfo.get(r).is_cfbp_subregister:
+                v = self.regs[CFBP_INDEX]
                 v = (v >> ((-r - 1) * 8)) & 0xff
-            elif is_psr_subregister(r):
-                v = self.regs[CORE_REGISTER['xpsr']]
-                v &= sysm_to_psr_mask(r)
+            elif CortexMCoreRegisterInfo.get(r).is_psr_subregister:
+                v = self.regs[XPSR_INDEX]
+                v &= CortexMCoreRegisterInfo.get(r).psr_mask
             else:
                 if r not in self.regs:
                     self.regs[r] = 0
@@ -77,20 +85,32 @@ class MockCore(CoreSightCoreComponent):
         return results
 
     def write_core_registers_raw(self, reg, data):
-        reg = [register_name_to_index(r) for r in reg]
+        reg = [CortexMCoreRegisterInfo.register_name_to_index(r) for r in reg]
 #         logging.info("mockcore[%x]:write(%s, %s)", id(self), reg, data)
         for r, v in zip(reg, data):
-            if is_cfbp_subregister(r):
+            if CortexMCoreRegisterInfo.get(r).is_cfbp_subregister:
                 shift = (-r - 1) * 8
                 mask = 0xffffffff ^ (0xff << shift)
-                data = (self.regs[CORE_REGISTER['cfbp']] & mask) | ((v & 0xff) << shift)
-                self.regs[CORE_REGISTER['cfbp']] = data
-            elif is_psr_subregister(r):
-                mask = sysm_to_psr_mask(r)
-                data = (self.regs[CORE_REGISTER['xpsr']] & (0xffffffff ^ mask)) | (v & mask)
-                self.regs[CORE_REGISTER['xpsr']] = data
+                data = (self.regs[CFBP_INDEX] & mask) | ((v & 0xff) << shift)
+                self.regs[CFBP_INDEX] = data
+            elif CortexMCoreRegisterInfo.get(r).is_psr_subregister:
+                mask = CortexMCoreRegisterInfo.get(r).psr_mask
+                data = (self.regs[XPSR_INDEX] & (0xffffffff ^ mask)) | (v & mask)
+                self.regs[XPSR_INDEX] = data
             else:
                 self.regs[r] = v
+
+    def check_reg_list(self, reg_list):
+        # Copied from CortexM.
+        for reg in reg_list:
+            if reg not in self.core_registers.by_index:
+                # Invalid register, try to give useful error. An invalid name will already
+                # have raised a KeyError above.
+                info = CortexMCoreRegisterInfo.get(reg)
+                if info.is_fpu_register and (not self.has_fpu):
+                    raise KeyError("attempt to read FPU register %s without FPU", info.name)
+                else:
+                    raise KeyError("register %s not available in this CPU", info.name)
 
     def read_memory(self, addr, transfer_size=32, now=True):
         if transfer_size == 8:

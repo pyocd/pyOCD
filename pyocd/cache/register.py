@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,8 @@
 
 import logging
 
-from ..coresight.cortex_m import (
-    CORE_REGISTER,
-    register_name_to_index,
-    is_fpu_register,
-    is_cfbp_subregister,
-    is_psr_subregister,
-    sysm_to_psr_mask
-)
+from ..core import exceptions
+from ..coresight.cortex_m_core_registers import (CortexMCoreRegisterInfo, index_for_reg)
 from .metrics import CacheMetrics
 
 LOG = logging.getLogger(__name__)
@@ -41,21 +35,26 @@ class RegisterCache(object):
     Same logic applies for XPSR submasks.
     """
 
-    CFBP_REGS = [   CORE_REGISTER['cfbp'],
-                    CORE_REGISTER['control'],
-                    CORE_REGISTER['faultmask'],
-                    CORE_REGISTER['basepri'],
-                    CORE_REGISTER['primask'],
-                    ]
+    CFBP_INDEX = index_for_reg('cfbp')
+    XPSR_INDEX = index_for_reg('xpsr')
+    
+    CFBP_REGS = [index_for_reg(name) for name in [
+                'cfbp',
+                'control',
+                'faultmask',
+                'basepri',
+                'primask',
+                ]]
 
-    XPSR_REGS = [   CORE_REGISTER['xpsr'],
-                    CORE_REGISTER['apsr'],
-                    CORE_REGISTER['iapsr'],
-                    CORE_REGISTER['eapsr'],
-                    CORE_REGISTER['ipsr'],
-                    CORE_REGISTER['epsr'],
-                    CORE_REGISTER['iepsr'],
-                    ]
+    XPSR_REGS = [index_for_reg(name) for name in [
+                    'xpsr',
+                    'apsr',
+                    'iapsr',
+                    'eapsr',
+                    'ipsr',
+                    'epsr',
+                    'iepsr',
+                    ]]
 
     def __init__(self, context, core):
         self._context = context
@@ -85,15 +84,8 @@ class RegisterCache(object):
 
     def _convert_and_check_registers(self, reg_list):
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
-
-        # Sanity check register values
-        for reg in reg_list:
-            if reg not in CORE_REGISTER.values():
-                raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self._core.has_fpu):
-                raise ValueError("attempt to read FPU register without FPU")
-
+        reg_list = [index_for_reg(reg) for reg in reg_list]
+        self._core.check_reg_list(reg_list)
         return reg_list
 
     def read_core_registers_raw(self, reg_list):
@@ -111,33 +103,43 @@ class RegisterCache(object):
         reading_cfbp = any(r for r in read_list if r in self.CFBP_REGS)
         reading_xpsr = any(r for r in read_list if r in self.XPSR_REGS)
         if reading_cfbp:
-            if not CORE_REGISTER['cfbp'] in read_list:
-                read_list.append(CORE_REGISTER['cfbp'])
-            cfbp_index = read_list.index(CORE_REGISTER['cfbp'])
+            if not self.CFBP_INDEX in read_list:
+                read_list.append(self.CFBP_INDEX)
+            cfbp_index = read_list.index(self.CFBP_INDEX)
         if reading_xpsr:
-            if not CORE_REGISTER['xpsr'] in read_list:
-                read_list.append(CORE_REGISTER['xpsr'])
-            xpsr_index = read_list.index(CORE_REGISTER['xpsr'])
+            if not self.XPSR_INDEX in read_list:
+                read_list.append(self.XPSR_INDEX)
+            xpsr_index = read_list.index(self.XPSR_INDEX)
         self._metrics.misses += len(read_list)
-        values = self._context.read_core_registers_raw(read_list)
+        
+        # Read registers not in the cache from the target.
+        if read_list:
+            try:
+                values = self._context.read_core_registers_raw(read_list)
+            except exceptions.CoreRegisterAccessError:
+                # Invalidate cache on register read error just to be safe.
+                self._reset_cache()
+                raise
+        else:
+            values = []
 
         # Update all CFBP based registers.
         if reading_cfbp:
             v = values[cfbp_index]
-            self._cache[CORE_REGISTER['cfbp']] = v
+            self._cache[self.CFBP_INDEX] = v
             for r in self.CFBP_REGS:
-                if r == CORE_REGISTER['cfbp']:
+                if r == self.CFBP_INDEX:
                     continue
                 self._cache[r] = (v >> ((-r - 1) * 8)) & 0xff
 
         # Update all XPSR based registers.
         if reading_xpsr:
             v = values[xpsr_index]
-            self._cache[CORE_REGISTER['xpsr']] = v
+            self._cache[self.XPSR_INDEX] = v
             for r in self.XPSR_REGS:
-                if r == CORE_REGISTER['xpsr']:
+                if r == self.XPSR_INDEX:
                     continue
-                self._cache[r] = v & sysm_to_psr_mask(r)
+                self._cache[r] = v & CortexMCoreRegisterInfo.get(r).psr_mask
 
         # Build the results list in the same order as requested registers.
         results = []
@@ -177,7 +179,12 @@ class RegisterCache(object):
                 self._cache.pop(r, None)
 
         # Write new register values to target.
-        self._context.write_core_registers_raw(reg_list, data_list)
+        try:
+            self._context.write_core_registers_raw(reg_list, data_list)
+        except exceptions.CoreRegisterAccessError:
+            # Invalidate cache on register write error just to be safe.
+            self._reset_cache()
+            raise
 
     def invalidate(self):
         self._reset_cache()

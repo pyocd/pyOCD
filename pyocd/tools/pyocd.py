@@ -566,7 +566,7 @@ class PyOCDConsole(object):
             args = args[1:]
 
             # Handle register name as command.
-            if cmd in coresight.cortex_m.CORE_REGISTER:
+            if cmd in self.tool.target.selected_core.core_registers.by_name:
                 self.tool.handle_reg([cmd])
                 return
 
@@ -923,7 +923,7 @@ class PyOCDCommander(object):
         reg = args[0].lower()
         if reg == "all":
             self.dump_registers(True)
-        elif reg in coresight.cortex_m.CORE_REGISTER:
+        elif reg in self.target.selected_core.core_registers.by_name:
             if not self.target.is_halted():
                 print("Core is not halted; cannot read core registers")
                 return
@@ -965,7 +965,7 @@ class PyOCDCommander(object):
             do_readback = False
 
         reg = args[0].lower()
-        if reg in coresight.cortex_m.CORE_REGISTER:
+        if reg in self.target.selected_core.core_registers.by_name:
             if not self.target.is_halted():
                 print("Core is not halted; cannot write core registers")
                 return
@@ -2060,7 +2060,7 @@ Prefix line with ! to execute a shell command.""")
                 offset = int(offset.strip(), base=0)
 
         value = None
-        if arg.lower() in coresight.cortex_m.CORE_REGISTER:
+        if arg.lower() in self.target.selected_core.core_registers.by_name:
             value = self.target.read_core_register(arg.lower())
             print("%s = 0x%08x" % (arg.lower(), value))
         else:
