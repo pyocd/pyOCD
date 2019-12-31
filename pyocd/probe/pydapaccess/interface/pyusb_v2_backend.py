@@ -149,7 +149,7 @@ class PyUSBv2(Interface):
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, 10 * 1000))
+                    self.rcv_data.append(self.ep_in.read(self.packet_size, 10 * 1000))
         finally:
             # Set last element of rcv_data to None on exit
             self.rcv_data.append(None)
@@ -191,12 +191,9 @@ class PyUSBv2(Interface):
     def write(self, data):
         """! @brief Write data on the OUT endpoint."""
 
-        report_size = self.packet_size
         if self.ep_out:
-            report_size = self.ep_out.wMaxPacketSize
-
-        for _ in range(report_size - len(data)):
-            data.append(0)
+            if (len(data) > 0) and (len(data) < self.packet_size) and (len(data) % self.ep_out.wMaxPacketSize == 0):
+                data.append(0)
 
         self.read_sem.release()
 
