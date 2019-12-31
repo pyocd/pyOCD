@@ -17,7 +17,9 @@
 import sys
 import os
 from setuptools import setup, find_packages
+import zipfile
 
+# Read the readme file using UTF-8 encoding.
 open_args = { 'mode': 'r' }
 if sys.version_info[0] > 2:
     # Python 3.x version requires explicitly setting the encoding.
@@ -26,6 +28,21 @@ if sys.version_info[0] > 2:
 
 with open('README.md', **open_args) as f:
     readme = f.read()
+
+# Build zip of SVD files.
+#
+# The SVD files are stored individually in the data/ directory only in the repo. For both sdist and
+# wheel, the svd_data.zip file is used rather than including the data directory. Thus, this setup
+# script needs to skip building svd_data.zip if the data/ directory is not present.
+svd_dir_path = os.path.join(os.path.dirname(__file__), "pyocd", "debug", "svd")
+svd_data_dir_path = os.path.join(svd_dir_path, "data")
+svd_zip_path = os.path.join(svd_dir_path, "svd_data.zip")
+if os.path.exists(svd_data_dir_path):
+    with zipfile.ZipFile(svd_zip_path, 'w', zipfile.ZIP_DEFLATED) as svd_zip:
+        for name in sorted(os.listdir(svd_data_dir_path)):
+            svd_zip.write(os.path.join(svd_data_dir_path, name), name)
+elif not os.path.exists(svd_zip_path):
+    raise RuntimeError("neither the source SVD data directory nor built svd_data.zip exist")
 
 setup(
     name="pyocd",
