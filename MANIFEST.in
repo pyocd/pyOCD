@@ -1,8 +1,9 @@
 include dev-requirements.txt
-include pyocd/debug/svd/*.zip
+include pyocd/debug/svd/svd_data.zip
 recursive-include docs *
 recursive-include udev *
 recursive-include binaries *
 recursive-include src *.ld *.txt *.c *.bat *.py
 recursive-include test *.py *.sh
+recursive-exclude pyocd/debug/svd/data *
 global-exclude .DS_Store
