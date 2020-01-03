@@ -27,20 +27,22 @@ LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
-# Common AP register addresses
-AP_BASE = 0xF8
+## Offset of IDR register in an APv1.
 AP_IDR = 0xFC
-
-# MEM-AP register addresses
-MEM_AP_CSW = 0x00
-MEM_AP_TAR = 0x04
-MEM_AP_DRW = 0x0C
+## Offset of IDR register in an APv2.
+APv2_IDR = 0xDFC
 
 A32 = 0x0c
 APSEL_SHIFT = 24
 APSEL = 0xff000000
 APBANKSEL = 0x000000f0
-APREG_MASK = 0x000000fc
+
+## @brief Mask for register address within the AP address space.
+#
+# v1 APs have a 256 byte register space. v2 APs have a 4 kB register space. This mask is
+# larger than the APv1 register space, but this is not problematic because v1 APs only have
+# the 8-bit APSEL in bits 31:24 of the address, thus no possibility of conflict.
+APREG_MASK = 0x00000ffc
 
 # AP BASE register masks
 AP_BASE_FORMAT_MASK = 0x2
@@ -83,6 +85,31 @@ AP_TYPE_APB4 = 0x6
 AP_TYPE_AXI5 = 0x7
 AP_TYPE_AHB5_HPROT = 0x8
 
+## The control registers for a v2 MEM-AP start at an offset.
+MEM_APv2_CONTROL_REG_OFFSET = 0xD00
+
+# MEM-AP register addresses
+MEM_AP_CSW = 0x00
+MEM_AP_TAR = 0x04
+MEM_AP_DRW = 0x0C
+MEM_AP_TRR = 0x24 # Only APv2 with ERRv1
+MEM_AP_BASE_HI = 0xF0
+MEM_AP_CFG = 0xF4
+MEM_AP_BASE = 0xF8
+
+MEM_AP_CFG_TARINC_MASK = 0x000f0000
+MEM_AP_CFG_TARINC_SHIFT = 16
+MEM_AP_CFG_ERR_MASK = 0x00000f00
+MEM_AP_CFG_ERR_SHIFT = 8
+MEM_AP_CFG_DARSIZE_MASK = 0x000000f0
+MEM_AP_CFG_DARSIZE_SHIFT = 4
+MEM_AP_CFG_LD_MASK = 0x00000004
+MEM_AP_CFG_LA_MASK = 0x00000002
+
+MEM_AP_CFG_ERR_V1 = 1
+
+MEM_AP_TRR_ERR_MASK = 0x00000001
+
 # AP Control and Status Word definitions
 CSW_SIZE     =  0x00000007
 CSW_SIZE8    =  0x00000000
@@ -94,6 +121,8 @@ CSW_SADDRINC =  0x00000010 # Single increment by SIZE field
 CSW_PADDRINC =  0x00000020 # Packed increment, supported only on M3/M3 AP
 CSW_DEVICEEN =  0x00000040
 CSW_TINPROG  =  0x00000080 # Not implemented on M33 AHB5-AP
+CSW_ERRNPASS =  0x00010000 # MEM-APv2 only
+CSW_ERRSTOP  =  0x00020000 # MEM-APv2 only
 CSW_SDEVICEEN = 0x00800000 # Also called SPIDEN in ADIv5
 CSW_HPROT    =  0x0f000000
 CSW_MSTRTYPE =  0x20000000 # Only present in M3/M3 AHB-AP, RES0 in others
@@ -190,6 +219,11 @@ class APAddressBase(object):
         registers can be added to this value to create register addresses."""
         raise NotImplemented()
     
+    @property
+    def idr_address(self):
+        """! @brief Address of the IDR register."""
+        raise NotImplemented()
+    
     def __hash__(self):
         return hash(self.nominal_address)
     
@@ -225,6 +259,11 @@ class APv1Address(APAddressBase):
     def address(self):
         return self.apsel << APSEL_SHIFT
     
+    @property
+    def idr_address(self):
+        """! @brief Address of the IDR register."""
+        return AP_IDR
+    
     def __str__(self):
         return "#%d" % self.apsel
 
@@ -245,6 +284,11 @@ class APv2Address(APAddressBase):
     @property
     def address(self):
         return self._nominal_address
+    
+    @property
+    def idr_address(self):
+        """! @brief Address of the IDR register."""
+        return APv2_IDR
     
     def __str__(self):
         return "@0x%x" % self.address
@@ -291,7 +335,8 @@ class AccessPort(object):
         """
         # Attempt to read the IDR for this APSEL. If we get a zero back then there is
         # no AP present, so we return None.
-        idr = dp.read_ap(ap_address.address + AP_IDR)
+        # Check AP version and set the offset to the control and status registers.
+        idr = dp.read_ap(ap_address.address + ap_address.idr_address)
         if idr == 0:
             raise exceptions.TargetError("Invalid AP address (%s)" % ap_address)
         
@@ -312,6 +357,7 @@ class AccessPort(object):
     def __init__(self, dp, ap_address, idr=None, name=""):
         self.dp = dp
         self.address = ap_address
+        self._ap_version = ap_address.ap_version
         self.idr = idr
         self.type_name = name or "AP"
         self.rom_addr = 0
@@ -323,6 +369,14 @@ class AccessPort(object):
     @property
     def short_description(self):
         return self.type_name + str(self.address)
+    
+    @property
+    def ap_version(self):
+        """! @brief The AP's major version determined by ADI version.
+        @retval APVersion.APv1
+        @retval APVersion.APv2
+        """
+        return self._ap_version
 
     @_locked
     def init(self):
@@ -401,6 +455,14 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def __init__(self, dp, ap_address, idr=None, name=""):
         super(MEM_AP, self).__init__(dp, ap_address, idr, name)
         
+        # Check AP version and set the offset to the control and status registers.
+        if self.ap_version == APVersion.APv1:
+            self._reg_offset = 0
+        elif self.ap_version == APVersion.APv2:
+            self._reg_offset = MEM_APv2_CONTROL_REG_OFFSET
+        else:
+            assert False, "Unrecognized AP version %s" % self.ap_version
+        
         self._impl_hprot = 0
         self._impl_hnonsec = 0
         
@@ -422,6 +484,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # read/write errors.
         self.auto_increment_page_size = 0x400
         
+        ## Number of DAR registers.
+        self._dar_count = 0
+        
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
         # memory interface based on AP register accesses.
@@ -441,9 +506,23 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     @_locked
     def init(self):
         super(MEM_AP, self).init()
+        
+        self._init_hprot()
+        self._init_rom_table_base()
+        
+        # For v1 MEM-APs, read the CFG register.
+        if self.ap_version == APVersion.APv2:
+            self._init_cfg()
 
-        # Read initial values of HPROT and HNONSEC.
-        csw = AccessPort.read_reg(self, MEM_AP_CSW)
+    def _init_hprot(self):
+        """! @brief Init HPROT HNONSEC.
+        
+        Determines the implemented bits of HPROT and HNONSEC in this MEM-AP. The defaults for these
+        fields of the CSW are based on the implemented bits.
+        """
+        # Read initial values of HPROT and HNONSEC. Superclass register access methods are used to
+        # avoid the CSW cache.
+        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
         original_csw = csw
         
         default_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
@@ -451,8 +530,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         LOG.debug("%s default HPROT=%x HNONSEC=%x", self.short_description, default_hprot, default_hnonsec)
         
         # Now attempt to see which HPROT and HNONSEC bits are implemented.
-        AccessPort.write_reg(self, MEM_AP_CSW, csw | CSW_HNONSEC_MASK | CSW_HPROT_MASK)
-        csw = AccessPort.read_reg(self, MEM_AP_CSW)
+        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, csw | CSW_HNONSEC_MASK | CSW_HPROT_MASK)
+        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
         
         self._impl_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
         self._impl_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
@@ -463,10 +542,11 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.hnonsec = self._hnonsec & self._impl_hnonsec
  
         # Restore unmodified value of CSW.
-        AccessPort.write_reg(self, MEM_AP_CSW, original_csw)
+        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
 
-        # Read ROM table base address.
-        base = self.read_reg(AP_BASE)
+    def _init_rom_table_base(self):
+        """! @brief Read ROM table base address."""
+        base = self.read_reg(self._reg_offset + MEM_AP_BASE)
         
         is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
         is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
@@ -481,6 +561,30 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
         else:
             assert False, "Unhandled AP BASE value 0x%08x" % base
+    
+    def _init_cfg(self):
+        """! @brief Read MEM-APv2 CFG register."""
+        cfg = self.read_reg(self._reg_offset + MEM_AP_CFG)
+        
+        # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
+        # default of 1 kB in the ctor.
+        tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
+        if tarinc != 0:
+            self.auto_increment_page_size = 1 << (9 + tarinc)
+        
+        # Determine supported err mode.
+        err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
+        if err == MEM_AP_CFG_ERR_V1:
+            # Configure the error mode such that errors are passed upstream, but they don't
+            # prevent future transactions.
+            self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
+            
+            # Clear TRR in case we attach to a device with a sticky error already set.
+            self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
+        
+        # Init size of DAR register window.
+        darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
+        self._dar_count = (1 << darsize) // 4
  
     @_locked
     def find_components(self):
@@ -606,7 +710,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     @_locked
     def read_reg(self, addr, now=True):
         ap_regaddr = addr & APREG_MASK
-        if ap_regaddr == MEM_AP_CSW and self._cached_csw != -1 and now:
+        if ap_regaddr == self._reg_offset + MEM_AP_CSW and self._cached_csw != -1 and now:
             return self._cached_csw
         return super(MEM_AP, self).read_reg(addr, now)
 
@@ -615,7 +719,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ap_regaddr = addr & APREG_MASK
 
         # Don't need to write CSW if it's not changing value.
-        if ap_regaddr == MEM_AP_CSW:
+        if ap_regaddr == self._reg_offset + MEM_AP_CSW:
             if data == self._cached_csw:
                 if TRACE.isEnabledFor(logging.INFO):
                     num = self.dp.next_access_number
@@ -627,7 +731,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             super(MEM_AP, self).write_reg(addr, data)
         except exceptions.ProbeError:
             # Invalidate cached CSW on exception.
-            if ap_regaddr == MEM_AP_CSW:
+            if ap_regaddr == self._reg_offset + MEM_AP_CSW:
                 self._cached_csw = -1
             raise
     
@@ -645,15 +749,15 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         assert (addr & (transfer_size // 8 - 1)) == 0
         num = self.dp.next_access_number
         TRACE.debug("write_mem:%06d (addr=0x%08x, size=%d) = 0x%08x {", num, addr, transfer_size, data)
-        self.write_reg(MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
+        self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
         if transfer_size == 8:
             data = data << ((addr & 0x03) << 3)
         elif transfer_size == 16:
             data = data << ((addr & 0x02) << 3)
 
         try:
-            self.write_reg(MEM_AP_TAR, addr)
-            self.write_reg(MEM_AP_DRW, data)
+            self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
+            self.write_reg(self._reg_offset + MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -676,9 +780,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         TRACE.debug("read_mem:%06d (addr=0x%08x, size=%d) {", num, addr, transfer_size)
         res = None
         try:
-            self.write_reg(MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
-            self.write_reg(MEM_AP_TAR, addr)
-            result_cb = self.read_reg(MEM_AP_DRW, now=False)
+            self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
+            self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
+            result_cb = self.read_reg(self._reg_offset + MEM_AP_DRW, now=False)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -724,10 +828,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         num = self.dp.next_access_number
         TRACE.debug("_write_block32:%06d (addr=0x%08x, size=%d) {", num, addr, len(data))
         # put address in TAR
-        self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
-        self.write_reg(MEM_AP_TAR, addr)
+        self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | CSW_SIZE32)
+        self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
         try:
-            self.dp.probe.write_ap_multiple(self.address.address + MEM_AP_DRW, data)
+            self.dp.probe.write_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -749,10 +853,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         num = self.dp.next_access_number
         TRACE.debug("_read_block32:%06d (addr=0x%08x, size=%d) {", num, addr, size)
         # put address in TAR
-        self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
-        self.write_reg(MEM_AP_TAR, addr)
+        self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | CSW_SIZE32)
+        self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
         try:
-            resp = self.dp.probe.read_ap_multiple(self.address.address + MEM_AP_DRW, size)
+            resp = self.dp.probe.read_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, size)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -816,9 +920,18 @@ class AHB_AP(MEM_AP):
     def init(self):
         super(AHB_AP, self).init()
 
+        if self.ap_version == APVersion.APv1:
+            self._init_mstrtype()
+        
+    def _init_mstrtype(self):
+        """! @brief Detect and set master type control in CSW.
+        
+        Only the v1 AHB-AP from Cortex-M3 and Cortex-M4 implements the MSTRTYPE flag to control
+        whether transactions appear as debugger or internal accesses.
+        """
         # Read initial CSW value to check if the MSTRTYPE bit is implemented. It is most
         # likely already set.
-        original_csw = AccessPort.read_reg(self, MEM_AP_CSW)
+        original_csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
         impl_master_type = original_csw & CSW_MSTRTYPE
         
         # If MSTRTYPE is not set, attempt to write it.
@@ -826,12 +939,12 @@ class AHB_AP(MEM_AP):
             # Verify no transfer is in progress.
             
             # Set MSTRTYPE and read back to see if it sticks.
-            AccessPort.write_reg(self, MEM_AP_CSW, original_csw | CSW_MSTRTYPE)
-            csw = AccessPort.read_reg(self, MEM_AP_CSW)
+            AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw | CSW_MSTRTYPE)
+            csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
 
             # Restore unmodified value of CSW.
             if csw != original_csw:
-                AccessPort.write_reg(self, MEM_AP_CSW, original_csw)
+                AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
 
             impl_master_type = csw & CSW_MSTRTYPE
         
