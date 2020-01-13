@@ -183,7 +183,7 @@ class Session(Notifier):
         if not self.options.get('no_config'):
             configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
-            if isinstance(configPath, six.string_types):
+            if configPath is not None:
                 try:
                     with open(configPath, 'r') as configFile:
                         LOG.debug("Loading config from: %s", configPath)
@@ -194,7 +194,11 @@ class Session(Notifier):
         return {}
             
     def find_user_file(self, option_name, filename_list):
-        """! @brief Search the project directory for a file."""
+        """! @brief Search the project directory for a file.
+        
+        @retval None No matching file was found.
+        @retval string An absolute path to the requested file.
+        """
         if option_name is not None:
             filePath = self.options.get(option_name)
         else:
@@ -360,7 +364,7 @@ class Session(Notifier):
     def _load_user_script(self):
         scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
 
-        if isinstance(scriptPath, six.string_types):
+        if scriptPath is not None:
             try:
                 # Read the script source.
                 with open(scriptPath, 'r') as scriptFile:
