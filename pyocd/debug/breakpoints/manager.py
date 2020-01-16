@@ -75,7 +75,7 @@ class BreakpointManager(object):
         @retval True Breakpoint was set.
         @retval False Breakpoint could not be set.
         """
-        LOG.debug("set bkpt type %d at 0x%x", type, addr)
+        LOG.debug("set bkpt type %s at 0x%x", type.name, addr)
 
         # Clear Thumb bit in case it is set.
         addr = addr & ~1
@@ -199,7 +199,7 @@ class BreakpointManager(object):
             else:
                 type = Target.BreakpointType.HW
 
-            LOG.debug("using type %d for auto bp", type)
+            LOG.debug("using type %s for auto bp", type.name)
 
         # Revert to sw bp if out of hardware breakpoint range.
         if (type == Target.BreakpointType.HW) and not in_hw_bkpt_range:
@@ -219,7 +219,7 @@ class BreakpointManager(object):
                 LOG.debug("could not fallback to hardware breakpoint")
                 return None
 
-        LOG.debug("selected bkpt type %d for addr 0x%x", type, bp.addr)
+        LOG.debug("selected bkpt type %s for addr 0x%x", type.name, bp.addr)
         return type
 
     def flush(self, is_step=False):
@@ -251,7 +251,7 @@ class BreakpointManager(object):
                     provider = self._providers[type]
                     bp = provider.set_breakpoint(bp.addr)
                 except KeyError:
-                    raise ValueError("Unknown breakpoint type %d" % type)
+                    raise ValueError("Unknown breakpoint type %s" % type.name)
 
                 # Save the bp.
                 if bp is not None:
