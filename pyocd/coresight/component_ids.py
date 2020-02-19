@@ -120,6 +120,13 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS-M33',   CortexM_v8M.factory ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM-M33',   None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x11, 0)      : CmpInfo('TPIU-M33',  TPIU.factory    ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x43, 0x1a01) : CmpInfo('ITM-M55',   ITM.factory     ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x00, 0x1a02) : CmpInfo('DWT-M55',   DWTv2.factory   ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x00, 0x1a03) : CmpInfo('BPU-M55',   FPB.factory     ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x00, 0x2a04) : CmpInfo('SCS-M55',   CortexM_v8M.factory ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x11, 0)      : CmpInfo('TPIU-M55',  TPIU.factory    ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x13, 0x4a13) : CmpInfo('ETM-M55',   None            ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x16, 0x0a06) : CmpInfo('PMU-M55',   None            ), # M55
     (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x31, 0x0a31) : CmpInfo('MTB-M35P',  None            ), # M35P
     (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x43, 0x1a01) : CmpInfo('ITM-M35P',  ITM.factory     ), # M35P
     (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x00, 0x1a02) : CmpInfo('DWT-M35P',  DWTv2.factory   ), # M35P

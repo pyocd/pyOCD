@@ -30,6 +30,7 @@ ARM_CortexM0p = 0xC60
 ARM_CortexM23 = 0xD20
 ARM_CortexM33 = 0xD21
 ARM_CortexM35P = 0xD31
+ARM_CortexM55 = 0xD22
 
 # pylint: enable=invalid_name
 
@@ -46,6 +47,7 @@ CORE_TYPE_NAME = {
                  ARM_CortexM23 : "Cortex-M23",
                  ARM_CortexM33 : "Cortex-M33",
                  ARM_CortexM35P : "Cortex-M35P",
+                 ARM_CortexM55 : "Cortex-M55",
                }
 
 class CoreArchitecture(Enum):
