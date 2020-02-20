@@ -272,16 +272,22 @@ class CortexM_PSoC64(CortexM):
         if not t_o.check():
             LOG.warning("Failed to acquire the target (listen window not implemented?)")
 
-        try:
-            if self.ap.ap_num == 2 and self.read32(self.CM4_PWR_CTL_ADDR) & 3 != 3:
-                LOG.debug("CM4 is sleeping, trying to wake it up...")
-                self.write32(self.CM4_PWR_CTL_ADDR, self.CM4_PWR_CTL_VALUE)
-        except exceptions.TransferError:
-            pass
-
-        self.halt()
-        self.wait_halted()
-        self.write_core_register('xpsr', CortexM.XPSR_THUMB)
+        with Timeout(self.acquire_timeout) as t_o:
+            while t_o.check():
+                try:                        
+                    self._ap.dp.init()
+                    self._ap.dp.power_up_debug()
+                    
+                    if self.ap.ap_num == 2 and self.read32(self.CM4_PWR_CTL_ADDR) & 3 != 3:
+                        LOG.debug("CM4 is sleeping, trying to wake it up...")
+                        self.write32(self.CM4_PWR_CTL_ADDR, self.CM4_PWR_CTL_VALUE)
+                        
+                    self.halt()
+                    self.wait_halted()
+                    self.write_core_register('xpsr', CortexM.XPSR_THUMB)
+                    break
+                except exceptions.TransferError:
+                    pass
 
     def resume(self):
         from .flash_psoc6 import Flash_PSoC64
