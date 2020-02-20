@@ -94,9 +94,13 @@ from . import target_HC32L110
 from . import target_HC32L13x
 from . import target_HC32L19x
 from . import target_HC32L07x
+from . import target_MPS3_AN522
+from . import target_MPS3_AN540
 
 ## @brief Dictionary of all builtin targets.
 BUILTIN_TARGETS = {
+          'mps3_an522': target_MPS3_AN522.AN522,
+          'mps3_an540': target_MPS3_AN540.AN540,
           'cortex_m': CoreSightTarget,
           'kinetis': target_kinetis.Kinetis,
           'ke15z7': target_MKE15Z256xxx7.KE15Z7,
