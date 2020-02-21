@@ -288,8 +288,8 @@ class DebugPort(object):
     def find_aps(self):
         """! @brief Find valid APs.
         
-        Scans for valid APs starting at APSEL=0. The default behaviour is to stop the first time a
-        0 is returned when reading the AP's IDR. If the `probe_all_aps` user option is set to True,
+        Scans for valid APs starting at APSEL=0. The default behaviour is to stop after reading
+        0 for the AP's IDR twice in succession. If the `probe_all_aps` user option is set to True,
         then the scan will instead probe every APSEL from 0-255.
         
         Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
@@ -300,13 +300,17 @@ class DebugPort(object):
             return
         apList = []
         ap_num = 0
+        invalid_count = 0
         while ap_num < MAX_APSEL:
             try:
                 isValid = AccessPort.probe(self, ap_num)
                 if isValid:
+                    invalid_count = 0
                     apList.append(ap_num)
                 elif not self.target.session.options.get('probe_all_aps'):
-                    break
+                    invalid_count += 1
+                    if invalid_count == 2:
+                        break
             except exceptions.Error as e:
                 LOG.error("Exception while probing AP#%d: %s", ap_num, e)
                 break
