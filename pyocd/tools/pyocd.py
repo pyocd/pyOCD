@@ -670,7 +670,7 @@ class PyOCDCommander(object):
                         else:
                             try:
                                 status = CORE_STATUS_DESC[self.target.get_state()]
-                            except KeyError:
+                            except (AttributeError, KeyError):
                                 status = "<no core>"
 
                         # Say what we're connected to.
@@ -789,8 +789,13 @@ class PyOCDCommander(object):
         # Select the first core's MEM-AP by default.
         if not self.args.no_init:
             try:
-                self.selected_ap = self.target.selected_core.ap.ap_num
+                if self.target.selected_core is not None:
+                    self.selected_ap = self.target.selected_core.ap.ap_num
             except IndexError:
+                pass
+            
+            # Fall back to the first MEM-AP.
+            if self.selected_ap is None:
                 for ap_num in sorted(self.target.aps.keys()):
                     if isinstance(self.target.aps[ap_num], MEM_AP):
                         self.selected_ap = ap_num

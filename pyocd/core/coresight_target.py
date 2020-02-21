@@ -283,7 +283,7 @@ class CoreSightTarget(Target, GraphNode):
     
     def _apply_to_all_components(self, action, filter=None):
         # Iterate over every top-level ROM table.
-        for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
+        for ap in [x for x in self.dp.aps.values() if (x.has_rom_table and x.rom_table is not None)]:
             ap.rom_table.for_each(action, filter)
 
     def check_for_cores(self):
