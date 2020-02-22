@@ -17,9 +17,10 @@
 import threading
 import logging
 import pkg_resources
-from zipfile import ZipFile
+import zipfile
 
 from .parser import SVDParser
+from ...utility.compatibility import FileNotFoundError_
 
 LOG = logging.getLogger(__name__)
 
@@ -29,9 +30,14 @@ BUILTIN_SVD_DATA_PATH = "debug/svd/svd_data.zip"
 class SVDFile(object):
     @classmethod
     def from_builtin(cls, svd_name):
-        zip_stream = pkg_resources.resource_stream("pyocd", BUILTIN_SVD_DATA_PATH)
-        zip = ZipFile(zip_stream, 'r')
-        return SVDFile(zip.open(svd_name))
+        try:
+            zip_stream = pkg_resources.resource_stream("pyocd", BUILTIN_SVD_DATA_PATH)
+            zip = zipfile.ZipFile(zip_stream, 'r')
+            return SVDFile(zip.open(svd_name))
+        except (FileNotFoundError_, zipfile.BadZipFile) as err:
+            from ...core.session import Session
+            LOG.warning("unable to open builtin SVD file: %s", err, exc_info=Session.get_current().log_tracebacks)
+            return None
     
     def __init__(self, filename=None):
         self.filename = filename
