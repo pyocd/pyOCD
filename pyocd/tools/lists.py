@@ -20,6 +20,7 @@ import six
 from .. import __version__
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
+from ..core import options
 from ..target import TARGET
 from ..target.builtin import BUILTIN_TARGETS
 from ..board.board_ids import BOARD_ID_TO_INFO
@@ -179,4 +180,41 @@ class ListGenerator(object):
                 except KeyError:
                     pass
 
+        return obj
+        
+    @staticmethod
+    def list_features():
+        """! @brief Generate dictionary with info about supported features and options.
+        
+        Output version history:
+        - 1.0, initial version
+        """
+        # Features list is empty right now. It will be populated as new features are added that
+        # external hosts might depend on.
+        options_list = []
+        obj = {
+            'pyocd_version' : __version__,
+            'version' : { 'major' : 1, 'minor' : 0 },
+            'status' : 0,
+            'features' : [],
+            'options' : options_list,
+            }
+        
+        # Add options
+        for option_name in options.OPTIONS_INFO.keys():
+            info = options.OPTIONS_INFO[option_name]
+            option_dict = {
+                        'name' : option_name,
+                        'default' : info.default,
+                        'description' : info.help,
+                        }
+            try:
+                types_list = []
+                for t in info.type:
+                    types_list.append(t.__name__)
+            except TypeError:
+                types_list = [info.type.__name__]
+            option_dict['type'] = types_list
+            options_list.append(option_dict)
+        
         return obj
