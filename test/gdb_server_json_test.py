@@ -185,7 +185,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
 
     result = GdbServerJsonTestResult()
 
-    print("\n\n----- TESTING BOARDS LIST -----")
+    print("\n\n----- TESTING PROBES LIST -----")
     out = subprocess.check_output(['pyocd', 'json', '--probes'])
     data = json.loads(out)
     test_count += 2
@@ -201,6 +201,22 @@ def gdb_server_json_test(board_id, testing_standalone=False):
     if validate_basic_keys(data, minor_version=2):
         test_pass_count += 1
     if validate_targets(data):
+        test_pass_count += 1
+
+    # Doesn't actually verify returned probes, simply makes sure it doesn't crash.
+    print("\n\n----- TESTING BOARDS LIST -----")
+    out = subprocess.check_output(['pyocd', 'json', '--boards'])
+    data = json.loads(out)
+    test_count += 1
+    if validate_basic_keys(data, minor_version=1):
+        test_pass_count += 1
+
+    # Doesn't actually verify returned features and options, simply makes sure it doesn't crash.
+    print("\n\n----- TESTING FEATURES LIST -----")
+    out = subprocess.check_output(['pyocd', 'json', '--features'])
+    data = json.loads(out)
+    test_count += 1
+    if validate_basic_keys(data, minor_version=0):
         test_pass_count += 1
 
     result.passed = test_count == test_pass_count
