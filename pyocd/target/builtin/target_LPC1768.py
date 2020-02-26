@@ -103,7 +103,7 @@ class LPC1768(CoreSightTarget):
 
         # Clear reset vector catch and remember whether it was set.
         self._saved_vc = self.get_vector_catch()
-        self.set_vector_catch(self._saved_vc & ~Target.CATCH_CORE_RESET)
+        self.set_vector_catch(self._saved_vc & ~Target.VectorCatch.CORE_RESET)
         
         # Map flash to 0.
         self.map_flash()
