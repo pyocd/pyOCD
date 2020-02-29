@@ -16,6 +16,8 @@
 
 from ...core.coresight_target import CoreSightTarget
 from ..family import target_kinetis
+from . import target_MIMXRT1011xxxxx
+from . import target_MIMXRT1015xxxxx
 from . import target_MIMXRT1021xxxxx
 from . import target_MIMXRT1052xxxxB
 from . import target_MKE15Z256xxx7
@@ -132,6 +134,8 @@ BUILTIN_TARGETS = {
           'max32620': target_MAX32620.MAX32620,
           'max32625': target_MAX32625.MAX32625,
           'max32630': target_MAX32630.MAX32630,
+          'mimxrt1010': target_MIMXRT1011xxxxx.MIMXRT1011xxxxx,
+          'mimxrt1015': target_MIMXRT1015xxxxx.MIMXRT1015xxxxx,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
           'mimxrt1050_quadspi': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_quadspi,
           'mimxrt1050_hyperflash': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_hyperflash,

@@ -45,6 +45,8 @@ BOARD_ID_TO_INFO = {
     "0223": BoardInfo(  "FRDM-KE02Z",           "mke02z64vlh4",     None,                   ),
     "0224": BoardInfo(  "FRDM-K28F",            "k28f15",           "l1_k28f.bin",          ),
     "0225": BoardInfo(  "FRDM-K32W042",         "k32w042s",         "l1_k32w042s.bin",      ),
+    "0242": BoardInfo(  "MIMXRT1010-EVK",       "mimxrt1010",       "l1_mimxrt1010-evk.bin",),
+    "0243": BoardInfo(  "MIMXRT1015-EVK",       "mimxrt1015",       "l1_mimxrt1015-evk.bin",),
     "0226": BoardInfo(  "MIMXRT1020-EVK",       "mimxrt1020",       "l1_mimxrt1020-evk.bin",),
     "0227": BoardInfo(  "MIMXRT1050-EVKB",      "mimxrt1050_hyperflash", "l1_mimxrt1050-evkb_hyperflash.bin",),
     "0228": BoardInfo(  "Rapid-IoT-K64F",       "k64f",             None,                   ),
