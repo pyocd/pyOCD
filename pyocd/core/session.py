@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -127,6 +127,7 @@ class Session(Notifier):
         self._probe = probe
         self._closed = True
         self._inited = False
+        self._user_script_namespace = None
         self._user_script_proxy = None
         self._delegate = None
         self._auto_open = auto_open
@@ -169,7 +170,10 @@ class Session(Notifier):
         if probe is None:
             self._board = None
             return
-            
+        
+        # Load the user script.
+        self._load_user_script()
+        
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board() \
                         or Board(self, self.options.get('target_override'))
@@ -179,7 +183,7 @@ class Session(Notifier):
         if not self.options.get('no_config'):
             configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
                     
-            if isinstance(configPath, six.string_types):
+            if configPath is not None:
                 try:
                     with open(configPath, 'r') as configFile:
                         LOG.debug("Loading config from: %s", configPath)
@@ -190,7 +194,11 @@ class Session(Notifier):
         return {}
             
     def find_user_file(self, option_name, filename_list):
-        """! @brief Search the project directory for a file."""
+        """! @brief Search the project directory for a file.
+        
+        @retval None No matching file was found.
+        @retval string An absolute path to the requested file.
+        """
         if option_name is not None:
             filePath = self.options.get(option_name)
         else:
@@ -298,46 +306,82 @@ class Session(Notifier):
         self.close()
         return False
     
+    def _init_user_script_namespace(self, user_script_path):
+        """! @brief Create the namespace dict used for user scripts.
+        
+        This initial namespace has only those objects that are available very early in the
+        session init process. For instance, the Target instance isn't available yet. The
+        _update_user_script_namespace() method is used to add such objects to the namespace
+        later on.
+        """
+        import pyocd
+        self._user_script_namespace = {
+            # Modules and classes
+            'pyocd': pyocd,
+            'exceptions': pyocd.core.exceptions,
+            'Error': pyocd.core.exceptions.Error,
+            'TransferError': pyocd.core.exceptions.TransferError,
+            'TransferFaultError': pyocd.core.exceptions.TransferFaultError,
+            'Target': pyocd.core.target.Target,
+            'State': pyocd.core.target.Target.State,
+            'SecurityState': pyocd.core.target.Target.SecurityState,
+            'BreakpointType': pyocd.core.target.Target.BreakpointType,
+            'WatchpointType': pyocd.core.target.Target.WatchpointType,
+            'VectorCatch': pyocd.core.target.Target.VectorCatch,
+            'Event': pyocd.core.target.Target.Event,
+            'RunType': pyocd.core.target.Target.RunType,
+            'HaltReason': pyocd.core.target.Target.HaltReason,
+            'ResetType': pyocd.core.target.Target.ResetType,
+            'MemoryType': pyocd.core.memory_map.MemoryType,
+            'MemoryMap': pyocd.core.memory_map.MemoryMap,
+            'RamRegion': pyocd.core.memory_map.RamRegion,
+            'RomRegion': pyocd.core.memory_map.RomRegion,
+            'FlashRegion': pyocd.core.memory_map.FlashRegion,
+            'DeviceRegion': pyocd.core.memory_map.DeviceRegion,
+            'FileProgrammer': pyocd.flash.file_programmer.FileProgrammer,
+            'FlashEraser': pyocd.flash.eraser.FlashEraser,
+            'FlashLoader': pyocd.flash.loader.FlashLoader,
+            # User script info
+            '__name__': os.path.splitext(os.path.basename(user_script_path))[0],
+            '__file__': user_script_path,
+            # Objects
+            'session': self,
+            'options': self.options,
+            'LOG': logging.getLogger('pyocd.user_script'),
+            }
+    
+    def _update_user_script_namespace(self):
+        """! @brief Add objects available only after init to the user script namespace."""
+        if self._user_script_namespace is not None:
+            self._user_script_namespace.update({
+                'probe': self.probe,
+                'board': self.board,
+                'target': self.target,
+                'dp': self.target.dp,
+                'aps': self.target.aps,
+                })
+    
     def _load_user_script(self):
         scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
 
-        if isinstance(scriptPath, six.string_types):
+        if scriptPath is not None:
             try:
                 # Read the script source.
                 with open(scriptPath, 'r') as scriptFile:
                     LOG.debug("Loading user script: %s", scriptPath)
                     scriptCode = scriptFile.read()
                 
-                # Construct the user script namespace. The namespace will have convenient access to
-                # most of the pyOCD object graph.
-                import pyocd
-                namespace = {
-                    'pyocd': pyocd,
-                    'session': self,
-                    'options': self.options,
-                    'probe': self.probe,
-                    'board': self.board,
-                    'target': self.target,
-                    'dp': self.target.dp,
-                    'aps': self.target.aps,
-                    'Target': pyocd.core.target.Target,
-                    'ResetType': pyocd.core.target.Target.ResetType,
-                    'MemoryType': pyocd.core.memory_map.MemoryType,
-                    'FileProgrammer': pyocd.flash.file_programmer.FileProgrammer,
-                    'FlashEraser': pyocd.flash.eraser.FlashEraser,
-                    'FlashLoader': pyocd.flash.loader.FlashLoader,
-                    'LOG': logging.getLogger('pyocd.user_script'),
-                    }
+                self._init_user_script_namespace(scriptPath)
                 
                 # Executing the code will create definitions in the namespace for any
                 # functions or classes. A single namespace is shared for both globals and
                 # locals so that script-level definitions are available within the
                 # script functions.
-                six.exec_(scriptCode, namespace, namespace)
+                six.exec_(scriptCode, self._user_script_namespace, self._user_script_namespace)
                 
                 # Create the proxy for the user script. It becomes the delegate unless
                 # another delegate was already set.
-                self._user_script_proxy = UserScriptDelegateProxy(namespace)
+                self._user_script_proxy = UserScriptDelegateProxy(self._user_script_namespace)
                 if self._delegate is None:
                     self._delegate = self._user_script_proxy
             except IOError as err:
@@ -361,8 +405,8 @@ class Session(Notifier):
             assert self._probe is not None, "Cannot open a session without a probe."
             assert self._board is not None, "Must have a board to open a session."
             
-            # Load the user script just before we init everything.
-            self._load_user_script()
+            # Add in the full set of objects for the user script.
+            self._update_user_script_namespace()
             
             self._probe.open()
             self._closed = False

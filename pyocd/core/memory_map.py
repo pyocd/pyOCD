@@ -329,11 +329,11 @@ class FlashRegion(MemoryRegion):
         # Import locally to prevent import loops.
         from ..flash.flash import Flash
 
-        assert ('blocksize' in attrs) or ('sector_size' in attrs)
+        assert ('blocksize' in attrs) or ('sector_size' in attrs) or ('flm' in attrs)
         attrs['type'] = MemoryType.FLASH
         super(FlashRegion, self).__init__(start=start, end=end, length=length, **attrs)
         self._algo = attrs.get('algo', None)
-        self._flm = None
+        self._flm = attrs.get('flm', None)
         self._flash = None
         
         if 'flash_class' in attrs:
