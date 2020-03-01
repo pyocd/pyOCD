@@ -488,6 +488,14 @@ class PyOCDTool(object):
         """! @brief Handle 'erase' subcommand."""
         self._increase_logging(["pyocd.flash.eraser"])
         
+        # Display a nice, helpful error describing why nothing was done and how to correct it.
+        if (self._args.erase_mode is None) or not self._args.addresses:
+            LOG.error("No erase operation specified. Please specify one of '--chip', '--sector', "
+                        "or '--mass' to indicate the desired erase mode. For sector erases, a list "
+                        "of sector addresses to erase must be provided. "
+                        "See 'pyocd erase --help' for more.")
+            return
+        
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
