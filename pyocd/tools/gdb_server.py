@@ -289,6 +289,8 @@ class GDBServerTool(object):
                     if self.args.elf:
                         session.board.target.elf = self.args.elf
                     for core_number, core in session.board.target.cores.items():
+                        if self.args.elf:
+                            session.board.target.cores[core_number].elf = session.board.target.elf
                         gdb = GDBServer(session,
                             core=core_number,
                             server_listening_callback=self.server_listening)
