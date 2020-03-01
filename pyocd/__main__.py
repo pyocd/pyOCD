@@ -395,9 +395,17 @@ class PyOCDTool(object):
     
     def do_list(self):
         """! @brief Handle 'list' subcommand."""
+        all_outputs = (self._args.probes, self._args.targets, self._args.boards)
+        
         # Default to listing probes.
-        if not any((self._args.probes, self._args.targets, self._args.boards)):
+        if not any(all_outputs):
             self._args.probes = True
+        
+        # Check for more than one output option being selected.
+        if sum(int(x) for x in all_outputs) > 1:
+            LOG.error("Only one of the output options '--probes', '--targets', or '--boards' "
+                      "may be selected at a time.")
+            return
         
         # Create a session with no device so we load any config.
         session = Session(None,
@@ -442,9 +450,25 @@ class PyOCDTool(object):
     
     def do_json(self):
         """! @brief Handle 'json' subcommand."""
+        all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.features)
+        
         # Default to listing probes.
-        if not any((self._args.probes, self._args.targets, self._args.boards, self._args.features)):
+        if not any(all_outputs):
             self._args.probes = True
+        
+        # Check for more than one output option being selected.
+        if sum(int(x) for x in all_outputs) > 1:
+            # Because we're outputting JSON we can't just log the error, but must report the error
+            # via the JSON format.
+            obj = {
+                'pyocd_version' : __version__,
+                'version' : { 'major' : 1, 'minor' : 0 },
+                'status' : 1,
+                'error' : "More than one output data selected.",
+                }
+
+            print(json.dumps(obj, indent=4))
+            return
         
         # Create a session with no device so we load any config.
         session = Session(None,
