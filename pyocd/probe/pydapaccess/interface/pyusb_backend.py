@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,8 +68,12 @@ class PyUSB(Interface):
         # get active config
         config = dev.get_active_configuration()
 
+        # Get count of HID interfaces and create the matcher object
+        hid_interface_count = len(list(usb.util.find_descriptor(config, find_all=True, bInterfaceClass=USB_CLASS_HID)))
+        matcher = MatchCmsisDapv1Interface(hid_interface_count)
+
         # Get CMSIS-DAPv1 interface
-        interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_v1_interface)
+        interface = usb.util.find_descriptor(config, custom_match=matcher)
         if interface is None:
             raise DAPAccessIntf.DeviceError("Device %s has no CMSIS-DAPv1 interface" %
                                             self.serial_number)
@@ -225,53 +229,62 @@ class PyUSB(Interface):
         self.kernel_driver_was_attached = False
         self.thread = None
 
-def _match_cmsis_dap_v1_interface(interface):
-    """! @brief Returns true for a CMSIS-DAPv1 interface.
+class MatchCmsisDapv1Interface(object):
+    """! @brief Match class for finding CMSIS-DAPv1 interface.
     
-    This match function performs several tests on the provided USB interface descriptor, to
+    This match class performs several tests on the provided USB interface descriptor, to
     determine whether it is a CMSIS-DAPv1 interface. These requirements must be met by the
     interface:
     
-    1. Have an interface name string containing "CMSIS-DAP".
+    1. If there is more than one HID interface on the device, the interface must have an interface
+        name string containing "CMSIS-DAP".
     2. bInterfaceClass must be 0x03 (HID).
     3. bInterfaceSubClass must be 0.
     4. Must have interrupt in endpoint, with an optional interrupt out endpoint, in that order.
     """
-    try:
-        interface_name = usb.util.get_string(interface.device, interface.iInterface)
+    
+    def __init__(self, hid_interface_count):
+        """! @brief Constructor."""
+        self._hid_count = hid_interface_count
         
-        # This tells us whether the interface is CMSIS-DAP, but not whether it's v1 or v2.
-        if (interface_name is None) or ("CMSIS-DAP" not in interface_name):
-            return False
+    def __call__(self, interface):
+        """! @brief Return True if this is a CMSIS-DAPv1 interface."""
+        try:
+            if self._hid_count > 1:
+                interface_name = usb.util.get_string(interface.device, interface.iInterface)
+        
+                # This tells us whether the interface is CMSIS-DAP, but not whether it's v1 or v2.
+                if (interface_name is None) or ("CMSIS-DAP" not in interface_name):
+                    return False
 
-        # Now check the interface class to distinguish v1 from v2.
-        if (interface.bInterfaceClass != USB_CLASS_HID) \
-            or (interface.bInterfaceSubClass != 0):
-            return False
+            # Now check the interface class to distinguish v1 from v2.
+            if (interface.bInterfaceClass != USB_CLASS_HID) \
+                or (interface.bInterfaceSubClass != 0):
+                return False
 
-        # Must have either 1 or 2 endpoints.
-        if interface.bNumEndpoints not in (1, 2):
-            return False
+            # Must have either 1 or 2 endpoints.
+            if interface.bNumEndpoints not in (1, 2):
+                return False
         
-        # Endpoint 0 must be interrupt in.
-        if not check_ep(interface, 0, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR):
-            return False
+            # Endpoint 0 must be interrupt in.
+            if not check_ep(interface, 0, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR):
+                return False
         
-        # Endpoint 1 is optional. If present it must be interrupt out.
-        if (interface.bNumEndpoints == 2) \
-            and not check_ep(interface, 1, usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_INTR):
-            return False
+            # Endpoint 1 is optional. If present it must be interrupt out.
+            if (interface.bNumEndpoints == 2) \
+                and not check_ep(interface, 1, usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_INTR):
+                return False
         
-        # All checks passed, this is a CMSIS-DAPv2 interface!
-        return True
+            # All checks passed, this is a CMSIS-DAPv2 interface!
+            return True
 
-    except (UnicodeDecodeError, IndexError):
-        # UnicodeDecodeError exception can be raised if the device has a corrupted interface name.
-        # Certain versions of STLinkV2 are known to have this problem. If we can't read the
-        # interface name, there's no way to tell if it's a CMSIS-DAPv2 interface.
-        #
-        # IndexError can be raised if an endpoint is missing.
-        return False
+        except (UnicodeDecodeError, IndexError):
+            # UnicodeDecodeError exception can be raised if the device has a corrupted interface name.
+            # Certain versions of STLinkV2 are known to have this problem. If we can't read the
+            # interface name, there's no way to tell if it's a CMSIS-DAPv2 interface.
+            #
+            # IndexError can be raised if an endpoint is missing.
+            return False
 
 class FindDap(object):
     """! @brief CMSIS-DAP match class to be used with usb.core.find"""
@@ -296,7 +309,12 @@ class FindDap(object):
             if (device_string is None) or ("CMSIS-DAP" not in device_string):
                 return False
             
-            cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_v1_interface)
+            # Get count of HID interfaces.
+            hid_interface_count = len(list(usb.util.find_descriptor(config, find_all=True, bInterfaceClass=USB_CLASS_HID)))
+            
+            # Find the CMSIS-DAPv1 interface.
+            matcher = MatchCmsisDapv1Interface(hid_interface_count)
+            cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=matcher)
         except usb.core.USBError as error:
             if error.errno == errno.EACCES and platform.system() == "Linux":
                 msg = ("%s while trying to interrogate a USB device "
