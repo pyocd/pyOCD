@@ -509,7 +509,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
             return False
         return self._target_context.read32(self._symbols['xSchedulerRunning']) != 0
 
-    def _get_elf_symbol_size(self, name, addr, default):
+    def _get_elf_symbol_size(self, name, addr, defValue):
         if (self._target.elf is not None):
             symInfo = None
             try:
@@ -523,10 +523,10 @@ class FreeRTOSThreadProvider(ThreadProvider):
                 # If address does not match, chances are gdb and us are not looking at the same executable
                 LOG.debug("FreeRTOS symbol '%s' address mismatch elf=0x%08x, gdb=0x%08x", name, symInfo.address, addr)
             else:
-                if (default != symInfo.size):
+                if (defValue != symInfo.size):
                     LOG.info("FreeRTOS symbol '%s' size from elf (%ld) != calculated size (%ld). Using elf value.",
-                        name, symInfo.size, default)
+                        name, symInfo.size, defValue)
                 else:
-                    LOG.debug("FreeRTOS symbol '%s' size (%ld) from elf file matches calculated value", name, default)
+                    LOG.debug("FreeRTOS symbol '%s' size (%ld) from elf file matches calculated value", name, defValue)
                 return symInfo.size
-        return default
+        return defValue
