@@ -349,23 +349,27 @@ class FreeRTOSThreadProvider(ThreadProvider):
         vPortEnableVFP = self._lookup_symbols(["vPortEnableVFP"], symbolProvider)
         self._fpu_port = vPortEnableVFP is not None
 
+        elfOptHelp = " Try using the --elf option." if self._target.elf is None else ""
+
         # Check for the expected list size. These two symbols are each a single list and xDelayedTaskList2
         # immediately follows xDelayedTaskList1, so we can just subtract their addresses to get the
         # size of a single list.
         delta = self._symbols['xDelayedTaskList2'] - self._symbols['xDelayedTaskList1']
+        delta = self._get_elf_symbol_size('xDelayedTaskList1', self._symbols['xDelayedTaskList1'], delta)
         if delta != LIST_SIZE:
-            LOG.warning("FreeRTOS: list size is unexpected, maybe an unsupported configuration of FreeRTOS")
+            LOG.warning("FreeRTOS: list size is unexpected, maybe an unsupported configuration of FreeRTOS." + elfOptHelp)
             return False
 
         # xDelayedTaskList1 immediately follows pxReadyTasksLists, so subtracting their addresses gives
-        # us the total size of the pxReadyTaskLists array.
+        # us the total size of the pxReadyTaskLists array. But not trustworthy. Compiler can rearrange things
         delta = self._symbols['xDelayedTaskList1'] - self._symbols['pxReadyTasksLists']
+        delta = self._get_elf_symbol_size('pxReadyTasksLists', self._symbols['pxReadyTasksLists'], delta);
         if delta % LIST_SIZE:
-            LOG.warning("FreeRTOS: pxReadyTasksLists size is unexpected, maybe an unsupported version of FreeRTOS")
+            LOG.warning("FreeRTOS: pxReadyTasksLists size is unexpected, maybe an unsupported version of FreeRTOS." + elfOptHelp)
             return False
         self._total_priorities = delta // LIST_SIZE
         if self._total_priorities > FREERTOS_MAX_PRIORITIES:
-            LOG.warning("FreeRTOS: number of priorities is too large (%d)", self._total_priorities)
+            LOG.warning("FreeRTOS: number of priorities is too large (%d)." + elfOptHelp, self._total_priorities)
             return False
         LOG.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
 
@@ -404,8 +408,8 @@ class FreeRTOSThreadProvider(ThreadProvider):
         # caused by the configUSE_PORT_OPTIMISED_TASK_SELECTION option being enabled, which treats
         # uxTopReadyPriority as a bitmap instead of integer. This is ok because uxTopReadyPriority
         # in optimised mode will always be >= the actual top priority.
-        if topPriority > self._total_priorities:
-            topPriority = self._total_priorities
+        if topPriority >= self._total_priorities:
+            topPriority = self._total_priorities - 1
 
         # Build up list of all the thread lists we need to scan.
         listsToRead = []
@@ -505,4 +509,24 @@ class FreeRTOSThreadProvider(ThreadProvider):
             return False
         return self._target_context.read32(self._symbols['xSchedulerRunning']) != 0
 
-
+    def _get_elf_symbol_size(self, name, addr, default):
+        if (self._target.elf is not None):
+            symInfo = None
+            try:
+                symInfo = self._target.elf.symbol_decoder.get_symbol_for_name(name)
+            except:
+                LOG.debug("FreeRTOS Ooops, elf symbol query failed with an exception")
+            # TODO: remove most/all the debug stuff when we are comfortable. Not for performance but for code cleanup
+            if symInfo is None:
+                LOG.debug("FreeRTOS symbol '%s' not found in elf file", name)
+            elif symInfo.address != addr:
+                # If address does not match, chances are gdb and us are not looking at the same executable
+                LOG.debug("FreeRTOS symbol '%s' address mismatch elf=0x%08x, gdb=0x%08x", name, symInfo.address, addr)
+            else:
+                if (default != symInfo.size):
+                    LOG.info("FreeRTOS symbol '%s' size from elf (%ld) != calculated size (%ld). Using elf value.",
+                        name, symInfo.size, default)
+                else:
+                    LOG.debug("FreeRTOS symbol '%s' size (%ld) from elf file matches calculated value", name, default)
+                return symInfo.size
+        return default
