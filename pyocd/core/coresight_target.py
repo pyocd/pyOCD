@@ -86,8 +86,9 @@ class CoreSightTarget(Target, GraphNode):
             self._elf = None
         else:
             self._elf = ELFBinaryFile(filename, self.memory_map)
-            self.cores[0].elf = self._elf
-            self.cores[0].set_target_context(ElfReaderContext(self.cores[0].get_target_context(), self._elf))
+        for core_number, core in self.cores.items():
+            self.cores[core_number].elf = self._elf
+            self.cores[core_number].set_target_context(ElfReaderContext(self.cores[core_number].get_target_context(), self._elf))
 
     def select_core(self, num):
         """! @note Deprecated."""
