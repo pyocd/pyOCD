@@ -510,20 +510,21 @@ class FreeRTOSThreadProvider(ThreadProvider):
         return self._target_context.read32(self._symbols['xSchedulerRunning']) != 0
 
     def _get_elf_symbol_size(self, name, addr, defValue):
-        if (self._target.elf is not None):
+        if self._target.elf is not None:
             symInfo = None
             try:
                 symInfo = self._target.elf.symbol_decoder.get_symbol_for_name(name)
             except:
-                LOG.debug("FreeRTOS Ooops, elf symbol query failed with an exception")
-            # TODO: remove most/all the debug stuff when we are comfortable. Not for performance but for code cleanup
+                LOG.error("FreeRTOS elf symbol query failed for (%s) with an exception.",
+                    name, exc_info=self._target.session.log_tracebacks)
+
+            # Simple checks to make sure gdb is looking at the same executable we are
             if symInfo is None:
                 LOG.debug("FreeRTOS symbol '%s' not found in elf file", name)
             elif symInfo.address != addr:
-                # If address does not match, chances are gdb and us are not looking at the same executable
                 LOG.debug("FreeRTOS symbol '%s' address mismatch elf=0x%08x, gdb=0x%08x", name, symInfo.address, addr)
             else:
-                if (defValue != symInfo.size):
+                if defValue != symInfo.size:
                     LOG.info("FreeRTOS symbol '%s' size from elf (%ld) != calculated size (%ld). Using elf value.",
                         name, symInfo.size, defValue)
                 else:
