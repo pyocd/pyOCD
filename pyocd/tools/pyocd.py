@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -153,12 +153,19 @@ COMMAND_INFO = {
         'loadmem' : {
             'aliases' : [],
             'args' : "ADDR FILENAME",
-            "help" : "Load a binary file to an address in memory (RAM or flash)"
+            "help" : "Load a binary file to an address in memory (RAM or flash)",
+            "extra_help" : "This command is deprecated in favour of the more flexible 'load'."
             },
         'load' : {
             'aliases' : [],
             'args' : "FILENAME [ADDR]",
             "help" : "Load a binary, hex, or elf file with optional base address"
+            },
+        'compare' : {
+            'aliases' : ['cmp'],
+            'args' : "ADDR [LEN] FILENAME",
+            "help" : "Compare a memory range against a binary file.",
+            "extra_help" : "If the length is not provided, then the length of the file is used."
             },
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
@@ -563,6 +570,8 @@ class PyOCDCommander(object):
                 'savemem' : self.handle_savemem,
                 'loadmem' : self.handle_loadmem,
                 'load' :    self.handle_load,
+                'compare' : self.handle_compare,
+                'cmp' :     self.handle_compare,
                 'read' :    self.handle_read8,
                 'read8' :   self.handle_read8,
                 'read16' :  self.handle_read16,
@@ -1029,6 +1038,66 @@ class PyOCDCommander(object):
 
         programmer = FileProgrammer(self.session, progress=print_progress())
         programmer.program(filename, base_address=addr)
+
+    def handle_compare(self, args):
+        if len(args) < 2:
+            print("Error: missing argument")
+            return 1
+        addr = self.convert_value(args[0])
+        if len(args) < 3:
+            filename = args[1]
+            length = None
+        else:
+            filename = args[2]
+            length = self.convert_value(args[1])
+
+        region = self.session.target.memory_map.get_region_for_address(addr)
+        flash_init_required =  region is not None and region.is_flash and not region.is_powered_on_boot and region.flash is not None
+        if flash_init_required:
+            region.flash.init(region.flash.Operation.VERIFY)
+
+        with open(filename, 'rb') as f:
+            file_data = f.read(length)
+        
+        if length is None:
+            length = len(file_data)
+        elif len(file_data) < length:
+            print("File is %d bytes long; reducing comparison length to match." % len(file_data))
+            length = len(file_data)
+        
+        # Divide into 32 kB chunks.
+        CHUNK_SIZE = 32 * 1024
+        chunk_count = (length + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        end_addr = addr + length
+        offset = 0
+        mismatch = False
+        
+        for chunk in range(chunk_count):
+            # Get this chunk's size.
+            chunk_size = min(end_addr - addr, CHUNK_SIZE)
+            print("Comparing %d bytes @ 0x%08x" % (chunk_size, addr))
+            
+            data = bytearray(self.target.aps[self.selected_ap].read_memory_block8(addr, chunk_size))
+            
+            for i in range(chunk_size):
+                if data[i] != file_data[offset+i]:
+                    mismatch = True
+                    print("Mismatched byte at 0x%08x (offset 0x%x): 0x%02x (memory) != 0x%02x (file)" %
+                        (addr + i, offset + i, data[i], file_data[offset+i]))
+                    break
+        
+            if mismatch:
+                break
+        
+            offset += chunk_size
+            addr += chunk_size
+        
+        if not mismatch:
+            print("All %d bytes match." % length)
+
+        if flash_init_required:
+            region.flash.cleanup()
     
     # fill [SIZE] ADDR LEN PATTERN
     def handle_fill(self, args):
