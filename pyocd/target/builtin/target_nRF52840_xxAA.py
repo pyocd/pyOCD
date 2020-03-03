@@ -49,7 +49,7 @@ class NRF52840(NRF52):
         FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO),
         # User Information Configation Registers (UICR) as a flash region
-        FlashRegion(    start=0x10001000,  length=0x100,        blocksize=0x100, is_testable=False,
+        FlashRegion(    start=0x10001000,  length=0x400,        blocksize=0x400, is_testable=False,
             algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x40000)
         )
