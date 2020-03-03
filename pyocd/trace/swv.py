@@ -52,11 +52,11 @@ class SWVEventSink(TraceEventSink):
             return
         
         # Extract bytes.
-        if event.width == 8:
+        if event.width == 1:
             data = chr(event.data)
-        elif event.width == 16:
+        elif event.width == 2:
             data = chr(event.data & 0xff) + chr((event.data >> 8) & 0xff)
-        elif event.width == 32:
+        elif event.width == 4:
             data = (chr(event.data & 0xff)
                     + chr((event.data >> 8) & 0xff)
                     + chr((event.data >> 16) & 0xff)
