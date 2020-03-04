@@ -222,8 +222,8 @@ class ZephyrThread(TargetThread):
         return self._name
 
     @property
-    def description(self):
-        return "%s; Priority %d" % (self.STATE_NAMES[self.state], self.priority)
+    def description(self):  
+        return "%s; Priority %d" % (self.STATE_NAMES.get(self.state, "UNKNOWN"), self.priority)
 
     @property
     def is_current(self):
