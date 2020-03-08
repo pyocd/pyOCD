@@ -40,7 +40,8 @@ from test_util import (
     TestResult,
     get_session_options,
     get_target_test_params,
-    binary_to_hex_file
+    binary_to_hex_file,
+    binary_to_elf_file,
     )
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -91,6 +92,9 @@ def flash_loader_test(board_id):
 
         # Generate an Intel hex file from the binary test file.
         temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)
+        
+        # Generate ELF file from the binary test file.
+        temp_test_elf_name = binary_to_elf_file(binary_file, boot_region.start)
 
         test_pass_count = 0
         test_count = 0
@@ -172,6 +176,17 @@ def flash_loader_test(board_id):
         print("\n------ Test Intel Hex File Load ------")
         programmer = FileProgrammer(session)
         programmer.program(temp_test_hex_name, file_format='hex')
+        verify_data = target.read_memory_block8(boot_start_addr, data_length)
+        if same(verify_data, data):
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        print("\n------ Test ELF File Load ------")
+        programmer = FileProgrammer(session)
+        programmer.program(temp_test_elf_name, file_format='elf')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
             print("TEST PASSED")

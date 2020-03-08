@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,5 +25,4 @@ def mockcore():
 # Ignore semihosting test that currently crashes on Travis
 collect_ignore = [
     "test_semihosting.py",
-    "test_pack.py"
     ]
