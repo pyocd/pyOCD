@@ -75,21 +75,40 @@ both target related objects, as well as parts of the pyOCD Python API.
 
 | Symbol | Description |
 |--------|-------------|
+| `__file__` | Path to the user script. |
+| `__name__` | Module name of the user script. |
 | `aps` | Dictionary of CoreSight Access Port (AP) objects. The keys are the APSEL value. |
 | `board` | The `Board` object. |
+| `BreakpointType` | Enumeration of breakpoint types. |
+| `DeviceRegion` | Device-type memory region class. |
 | `dp` | The CoreSight Debug Port (DP) object. |
+| `Error` | The base class for all pyOCD exceptions. |
+| `Event` | Enumeration of notification event types. |
+| `exceptions` | Module containing the exception classes. |
 | `FileProgrammer` | Utility class to program files to target flash. |
 | `FlashEraser` | Utility class to erase target flash. |
 | `FlashLoader` | Utility class to program raw binary data to target flash. |
+| `FlashRegion` | Flash memory region. |
+| `HaltReason` | Enumeration of halt reasons. |
 | `LOG` | `Logger` object for the user script. |
+| `MemoryMap` | Class representing the device's memory map. |
 | `MemoryType` | Memory region type enumeration. |
 | `options` | The user options dictionary. |
 | `probe` | The connected debug probe object. |
 | `pyocd` | The root pyOCD package. |
+| `RamRegion` | RAM memory region. |
 | `ResetType` | Reset type enumeration. |
+| `RomRegion` | ROM memory region. |
+| `RunType` | Enumeration of types of run operations (step or run). |
+| `SecurityState` | Enumeration of core security states. |
 | `session` | The session object, which is the root of the connection object graph. |
+| `State` | Enumeration of target state. |
 | `Target` | Base class, mostly useful for numerous constants that are defined within the class. |
 | `target` | The `CoreSightTarget` or subclass instance representing the MCU. |
+| `TransferError` | Exception class for all transfer errors. |
+| `TransferFaultError` | Exception subclass of `TransferError` for bus faults. |
+| `VectorCatch` | Namespace class containing bit mask constants for vector catch options. |
+| `WatchpointType` | Enumeration of watchpoint types. |
 
 
 ## Script functions
