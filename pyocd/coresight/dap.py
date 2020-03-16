@@ -192,6 +192,7 @@ class DebugPort(object):
         self.aps = {}
         self._access_number = 0
         self._cached_dpbanksel = None
+        self._protocol = None
 
     @property
     def probe(self):
@@ -207,20 +208,40 @@ class DebugPort(object):
         
         This method causes the debug probe to connect using the selected wire protocol.
         
+        Unlike init_sequence(), this method is intended to be used when manually constructing a
+        DebugPort instance. It simply calls init_sequence() and invokes the returned call sequence.
+        
         @param self
         @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
             "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
         """
+        self._protocol = protocol
+        self.init_sequence().invoke()
+
+    def init_sequence(self):
+        """! @brief Init task to connect to the target.
+        
+        Returns a @ref pyocd.utility.sequence.CallSequence CallSequence that will connect to the
+        DP, power up debug and the system, check the DP version to identify whether the target uses
+        ADI v5 or v6, then clears sticky errors.
+        
+        @param self
+        """
+        return CallSequence(
+            ('connect',             self._connect),
+            ('clear_sticky_err',    self.clear_sticky_err),
+            ('power_up_debug',      self.power_up_debug),
+            )
+
+    def _connect(self):
         # Attempt to connect.
         connector = DPConnector(self.probe)
-        connector.connect(protocol)
+        connector.connect(self._protocol)
 
         # Report on DP version.
         self.dpidr = connector.idr
         LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
             " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
-            
-        self.clear_sticky_err()
 
     def flush(self):
         try:
