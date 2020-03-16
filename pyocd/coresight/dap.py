@@ -17,6 +17,7 @@
 import logging
 import six
 from collections import namedtuple
+from enum import Enum
 
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
@@ -79,14 +80,15 @@ CDBGPWRUPREQ = 0x10000000
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
 
-## APSEL is 8-bit, thus there are a maximum of 256 APs.
-MAX_APSEL = 255
-
 ## Arbitrary 5 second timeout for DP power up/down requests.
 DP_POWER_REQUEST_TIMEOUT = 5.0
 
 ## @brief Class to hold fields from DP IDR register.
 DPIDR = namedtuple('DPIDR', 'idr partno version revision mindp')
+
+class ADIVersion(Enum):
+    """! @brief Supported versions of the Arm Debug Interface."""
+    ADIv5 = 5
 
 class DPConnector(object):
     """! @brief Establishes a connection to the DP for a given wire protocol.
@@ -197,6 +199,10 @@ class DebugPort(object):
     @property
     def probe(self):
         return self._probe
+    
+    @property
+    def adi_version(self):
+        return ADIVersion.ADIv5
 
     @property
     def next_access_number(self):
@@ -331,70 +337,6 @@ class DebugPort(object):
 
     def set_clock(self, frequency):
         self.probe.set_clock(frequency)
-        
-    def find_aps(self):
-        """! @brief Find valid APs.
-        
-        Scans for valid APs starting at APSEL=0. The default behaviour is to stop after reading
-        0 for the AP's IDR twice in succession. If the `probe_all_aps` user option is set to True,
-        then the scan will instead probe every APSEL from 0-255.
-        
-        Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
-        modify the init call sequence to substitute a fixed list of valid APs. In fact, that
-        is a major reason this method is separated from create_aps().
-        """
-        if self.valid_aps is not None:
-            return
-        apList = []
-        ap_num = 0
-        invalid_count = 0
-        while ap_num < MAX_APSEL:
-            try:
-                isValid = AccessPort.probe(self, ap_num)
-                if isValid:
-                    invalid_count = 0
-                    apList.append(ap_num)
-                elif not self.target.session.options.get('probe_all_aps'):
-                    invalid_count += 1
-                    if invalid_count == 2:
-                        break
-            except exceptions.Error as e:
-                LOG.error("Exception while probing AP#%d: %s", ap_num, e)
-                break
-            ap_num += 1
-        
-        # Update the AP list once we know it's complete.
-        self.valid_aps = apList
-
-    def create_aps(self):
-        """! @brief Init task that returns a call sequence to create APs.
-        
-        For each AP in the #valid_aps list, an AccessPort object is created. The new objects
-        are added to the #aps dict, keyed by their AP number.
-        """
-        seq = CallSequence()
-        for ap_num in self.valid_aps:
-            seq.append(
-                ('create_ap.{}'.format(ap_num), lambda ap_num=ap_num: self.create_1_ap(ap_num))
-                )
-        return seq
-    
-    def create_1_ap(self, ap_num):
-        """! @brief Init task to create a single AP object."""
-        try:
-            ap = AccessPort.create(self, ap_num)
-            self.aps[ap_num] = ap
-        except exceptions.Error as e:
-            LOG.error("Exception reading AP#%d IDR: %s", ap_num, e)
-    
-    def find_components(self):
-        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
-        seq = CallSequence()
-        for ap in [x for x in self.aps.values() if x.has_rom_table]:
-            seq.append(
-                ('init_ap.{}'.format(ap.ap_num), ap.find_components)
-                )
-        return seq
 
     def _set_dpbanksel(self, addr):
         # SELECT and RDBUFF ignore DPBANKSEL.

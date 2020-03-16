@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..core import (exceptions, memory_interface)
-from .rom_table import ROMTable
-from ..utility import conversion
 import logging
 import threading
 from contextlib import contextmanager
+
+from ..core import (exceptions, memory_interface)
 
 LOG = logging.getLogger(__name__)
 
@@ -368,8 +367,17 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def find_components(self):
         try:
             if self.has_rom_table:
-                self.rom_table = ROMTable(self)
-                self.rom_table.init()
+                # Import locally to work around circular import.
+                from .rom_table import (CoreSightComponentID, ROMTable)
+                
+                # Read the ROM table component IDs.
+                cmpid = CoreSightComponentID(None, self, self.rom_addr)
+                cmpid.read_id_registers()
+
+                # Instantiate the ROM table and parse it.
+                if cmpid.is_rom_table:
+                    self.rom_table = ROMTable.create(self, cmpid, self.rom_addr)
+                    self.rom_table.init()
         except exceptions.TransferError as error:
             LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
 
