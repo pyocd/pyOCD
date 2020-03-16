@@ -568,7 +568,7 @@ class PyOCDCommander(object):
         self.board = None
         self.target = None
         self.probe = None
-        self.selected_ap = 0
+        self.selected_ap = None
         self.did_erase = False
         self.exit_code = 0
         self.step_into_interrupt = False
@@ -821,7 +821,7 @@ class PyOCDCommander(object):
         if not self.args.no_init:
             try:
                 if self.target.selected_core is not None:
-                    self.selected_ap = self.target.selected_core.ap.ap_num
+                    self.selected_ap = self.target.selected_core.ap.address
             except IndexError:
                 pass
             
@@ -1586,15 +1586,16 @@ class PyOCDCommander(object):
             print("Missing APSEL")
             return
         apsel = self.convert_value(args[0])
-        if apsel in self.target.aps:
+        ap_addr = coresight.ap.APv1Address(apsel)
+        if ap_addr in self.target.aps:
             print("AP with APSEL=%d already exists" % apsel)
             return
         exists = coresight.ap.AccessPort.probe(self.target.dp, apsel)
         if not exists:
             print("Error: no AP with APSEL={} exists".format(apsel))
             return
-        ap = coresight.ap.AccessPort.create(self.target.dp, apsel)
-        self.target.dp.aps[apsel] = ap # Same mutable list is target.aps
+        ap = coresight.ap.AccessPort.create(self.target.dp, ap_addr)
+        self.target.dp.aps[ap_addr] = ap # Same mutable list is target.aps
         print("AP#{:d} IDR = {:#010x}".format(apsel, ap.idr))
 
     def handle_where(self, args):
@@ -1796,7 +1797,7 @@ class PyOCDCommander(object):
                 print("No option with name '%s'" % name)
 
     def handle_show_ap(self, args):
-        print("MEM-AP #{} is selected".format(self.selected_ap))
+        print("{} is selected".format(self.target.aps[self.selected_ap].short_description))
 
     def handle_show_hnonsec(self, args):
         print("MEM-AP #{} HNONSEC = {} ({})".format(
@@ -1871,14 +1872,18 @@ class PyOCDCommander(object):
             return
             
         ap_num = int(args[0], base=0)
-        if ap_num not in self.target.aps:
-            print("Invalid AP number {}".format(ap_num))
+        if self.target.dp.adi_version == coresight.dap.ADIVersion.ADIv5:
+            ap_addr = coresight.ap.APv1Address(ap_num)
+        elif self.target.dp.adi_version == coresight.dap.ADIVersion.ADIv6:
+            ap_addr = coresight.ap.APv2Address(ap_num)
+        if ap_addr not in self.target.aps:
+            print("Invalid AP number {:#x}".format(ap_num))
             return
-        ap = self.target.aps[ap_num]
+        ap = self.target.aps[ap_addr]
         if not isinstance(ap, MEM_AP):
-            print("AP #{} is not a MEM-AP".format(ap_num))
+            print("{} is not a MEM-AP".format(ap.short_description))
             return
-        self.selected_ap = ap_num
+        self.selected_ap = ap_addr
 
     def handle_set_hnonsec(self, args):
         if len(args) == 0:

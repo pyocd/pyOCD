@@ -17,7 +17,7 @@
 import logging
 
 from ..core import exceptions
-from .ap import AccessPort
+from .ap import (APv1Address, APv2Address, AccessPort)
 from .dap import ADIVersion
 from .rom_table import (CoreSightComponentID, ROMTable)
 from . import (cortex_m, cortex_m_v8m)
@@ -154,8 +154,9 @@ class ADIv5Discovery(CoreSightDiscovery):
     def _create_1_ap(self, apsel):
         """! @brief Init task to create a single AP object."""
         try:
-            ap = AccessPort.create(self.dp, apsel)
-            self.dp.aps[apsel] = ap
+            ap_address = APv1Address(apsel)
+            ap = AccessPort.create(self.dp, ap_address)
+            self.dp.aps[ap_address] = ap
         except exceptions.Error as e:
             LOG.error("Exception reading AP#%d IDR: %s", apsel, e,
                 exc_info=self.session.log_tracebacks)
@@ -165,7 +166,7 @@ class ADIv5Discovery(CoreSightDiscovery):
         seq = CallSequence()
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
             seq.append(
-                ('init_ap.{}'.format(ap.ap_num), ap.find_components)
+                ('init_ap.{}'.format(ap.address.apsel), ap.find_components)
                 )
         return seq
 

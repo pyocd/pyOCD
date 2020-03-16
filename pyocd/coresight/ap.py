@@ -17,6 +17,8 @@
 import logging
 import threading
 from contextlib import contextmanager
+from functools import total_ordering
+from enum import Enum
 
 from ..core import (exceptions, memory_interface)
 
@@ -136,6 +138,117 @@ DEMCR = 0xE000EDFC
 # DWTENA in armv6 architecture reference manual
 DEMCR_TRCENA = (1 << 24)
 
+class APVersion(Enum):
+    """! @brief Supported versions of APs."""
+    ## APv1 from ADIv5.x.
+    APv1 = 1
+    ## APv2 from ADIv6.
+    APv2 = 2
+
+@total_ordering
+class APAddressBase(object):
+    """! @brief Base class for AP addresses.
+    
+    An instance of this class has a "nominal address", which is an integer address in terms of how
+    it is typically referenced. For instance, for an APv1, the nominal address is the unshifted
+    APSEL, e.g. 0, 1, 2, and so on. This value is accessible by the _nominal_address_ property. It
+    is also used for hashing and ordering. One intentional side effect of this is that APAddress
+    instances match against the integer value of their nominal address, which is particularly useful
+    when they are keys in a dictionary.
+    
+    In addition to the nominal address, there is an abstract _address_ property implemented by the
+    version-specific subclasses. This is the value used by the DP hardware and passed to the
+    DebugPort's read_ap() and write_ap() methods.
+    
+    The class also indicates which version of AP is targeted: either APv1 or APv2. The _ap_version_
+    property reports this version number, though it is also encoded by the subclass. The AP version
+    is coupled with the address because the two are intrinsically connected; the version defines the
+    address format.
+    """
+    
+    def __init__(self, address):
+        """! @brief Constructor accepting the nominal address."""
+        self._nominal_address = address
+    
+    @property
+    def ap_version(self):
+        """! @brief Version of the AP, as an APVersion enum."""
+        raise NotImplemented()
+    
+    @property
+    def nominal_address(self):
+        """! @brief Integer AP address in the form in which one speaks about it.
+        
+        This value is used for comparisons and hashing."""
+        return self._nominal_address
+    
+    @property
+    def address(self):
+        """! @brief Integer AP address used as a base for register accesses.
+        
+        This value can be passed to the DebugPort's read_ap() or write_ap() methods. Offsets of
+        registers can be added to this value to create register addresses."""
+        raise NotImplemented()
+    
+    def __hash__(self):
+        return hash(self.nominal_address)
+    
+    def __eq__(self, other):
+        return (self.nominal_address == other.nominal_address) \
+                if isinstance(other, APAddressBase) else (self.nominal_address == other)
+    
+    def __lt__(self, other):
+        return (self.nominal_address < other.nominal_address) \
+                if isinstance(other, APAddressBase) else (self.nominal_address < other)
+    
+    def __repr__(self):
+        return "<{}@{:#x} {}>".format(self.__class__.__name__, id(self), str(self))
+
+class APv1Address(APAddressBase):
+    """! @brief Represents the address for an APv1.
+    
+    The nominal address is the 8-bit APSEL value. This is written into the top byte of
+    the DP SELECT register to select the AP to communicate with.
+    """
+    
+    @property
+    def ap_version(self):
+        """! @brief APVersion.APv1."""
+        return APVersion.APv1
+    
+    @property
+    def apsel(self):
+        """! @brief Alias for the _nominal_address_ property."""
+        return self._nominal_address
+    
+    @property
+    def address(self):
+        return self.apsel << APSEL_SHIFT
+    
+    def __str__(self):
+        return "#%d" % self.apsel
+
+class APv2Address(APAddressBase):
+    """! @brief Represents the address for an APv2.
+    
+    ADIv6 uses an APB bus to communicate with APv2 instances. The nominal address is simply the base
+    address of the APB slave. The APB bus address width is variable from 12-52 bits in 8-bit steps.
+    This address is written the DP SELECT and possibly SELECT1 (for greater than 32 bit addresses)
+    registers to choose the AP to communicate with.
+    """
+    
+    @property
+    def ap_version(self):
+        """! @brief Returns APVersion.APv2."""
+        return APVersion.APv2
+    
+    @property
+    def address(self):
+        return self._nominal_address
+    
+    def __str__(self):
+        return "@0x%x" % self.address
+
 def _locked(func):
     """! @brief Decorator to automatically lock an AccessPort method."""
     def _locking(self, *args, **kwargs):
@@ -163,7 +276,7 @@ class AccessPort(object):
         return idr != 0
     
     @staticmethod
-    def create(dp, ap_num):
+    def create(dp, ap_address):
         """! @brief Create a new AP object.
         
         Determines the type of the AP by examining the IDR value and creates a new
@@ -171,16 +284,16 @@ class AccessPort(object):
         fields to class.
         
         @param dp DebugPort instance.
-        @param ap_num The AP number (APSEL) to probe.
+        @param ap_address An instance of either APv1Address or APv2Address.
         @return An AccessPort subclass instance.
         
         @exception TargetError Raised if there is not a valid AP for the ap_num.
         """
         # Attempt to read the IDR for this APSEL. If we get a zero back then there is
         # no AP present, so we return None.
-        idr = dp.read_ap((ap_num << APSEL_SHIFT) | AP_IDR)
+        idr = dp.read_ap(ap_address.address + AP_IDR)
         if idr == 0:
-            raise exceptions.TargetError("Invalid APSEL=%d" % ap_num)
+            raise exceptions.TargetError("Invalid AP address (%s)" % ap_address)
         
         # Extract IDR fields used for lookup.
         designer = (idr & AP_IDR_JEP106_MASK) >> AP_IDR_JEP106_SHIFT
@@ -192,15 +305,15 @@ class AccessPort(object):
         key = (designer, apClass, variant, apType)
         name, klass = AP_TYPE_MAP.get(key, (None, AccessPort))
         
-        ap = klass(dp, ap_num, idr, name)
+        ap = klass(dp, ap_address, idr, name)
         ap.init()
         return ap
     
-    def __init__(self, dp, ap_num, idr=None, name=""):
+    def __init__(self, dp, ap_address, idr=None, name=""):
         self.dp = dp
-        self.ap_num = ap_num
+        self.address = ap_address
         self.idr = idr
-        self.type_name = name
+        self.type_name = name or "AP"
         self.rom_addr = 0
         self.has_rom_table = False
         self.rom_table = None
@@ -209,7 +322,7 @@ class AccessPort(object):
     
     @property
     def short_description(self):
-        return "AP#%d" % self.ap_num
+        return self.type_name + str(self.address)
 
     @_locked
     def init(self):
@@ -228,7 +341,7 @@ class AccessPort(object):
         else:
             desc = "proprietary"
 
-        LOG.info("AP#%d IDR = 0x%08x (%s)", self.ap_num, self.idr, desc)
+        LOG.info("%s IDR = 0x%08x (%s)", self.short_description, self.idr, desc)
  
     def find_components(self):
         """! @brief Find CoreSight components attached to this AP."""
@@ -236,11 +349,11 @@ class AccessPort(object):
 
     @_locked
     def read_reg(self, addr, now=True):
-        return self.dp.read_ap((self.ap_num << APSEL_SHIFT) | addr, now)
+        return self.dp.read_ap(self.address.address + addr, now)
 
     @_locked
     def write_reg(self, addr, data):
-        self.dp.write_ap((self.ap_num << APSEL_SHIFT) | addr, data)
+        self.dp.write_ap(self.address.address + addr, data)
     
     def reset_did_occur(self):
         """! @brief Invoked by the DebugPort to inform APs that a reset was performed."""
@@ -285,8 +398,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     HPROT[6] = 1 shareable, 0 non shareable<br/>
     """
 
-    def __init__(self, dp, ap_num, idr=None, name=""):
-        super(MEM_AP, self).__init__(dp, ap_num, idr, name)
+    def __init__(self, dp, ap_address, idr=None, name=""):
+        super(MEM_AP, self).__init__(dp, ap_address, idr, name)
         
         self._impl_hprot = 0
         self._impl_hnonsec = 0
@@ -312,7 +425,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
         # memory interface based on AP register accesses.
-        memoryInterface = self.dp.probe.get_memory_interface_for_ap(self.ap_num)
+        memoryInterface = self.dp.probe.get_memory_interface_for_ap(self.address)
         if memoryInterface is not None:
             LOG.debug("Using accelerated memory access interface")
             self.write_memory = memoryInterface.write_memory
@@ -335,7 +448,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         default_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
         default_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
-        LOG.debug("AP#%d default HPROT=%x HNONSEC=%x", self.ap_num, default_hprot, default_hnonsec)
+        LOG.debug("%s default HPROT=%x HNONSEC=%x", self.short_description, default_hprot, default_hnonsec)
         
         # Now attempt to see which HPROT and HNONSEC bits are implemented.
         AccessPort.write_reg(self, MEM_AP_CSW, csw | CSW_HNONSEC_MASK | CSW_HPROT_MASK)
@@ -343,7 +456,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         self._impl_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
         self._impl_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
-        LOG.debug("AP#%d implemented HPROT=%x HNONSEC=%x", self.ap_num, self._impl_hprot, self._impl_hnonsec)
+        LOG.debug("%s implemented HPROT=%x HNONSEC=%x", self.short_description, self._impl_hprot, self._impl_hnonsec)
         
         # Update current HPROT and HNONSEC, and the current base CSW value.
         self.hprot = self._hprot & self._impl_hprot
@@ -614,7 +727,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            self.dp.probe.write_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, data)
+            self.dp.probe.write_ap_multiple(self.address.address + MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -639,7 +752,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(MEM_AP_TAR, addr)
         try:
-            resp = self.dp.probe.read_ap_multiple((self.ap_num << APSEL_SHIFT) | MEM_AP_DRW, size)
+            resp = self.dp.probe.read_ap_multiple(self.address.address + MEM_AP_DRW, size)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -746,8 +859,8 @@ class AHB_AP_4k_Wrap(AHB_AP):
     The only known AHB-AP with a 4k wrap is the one documented in the CM3 and CM4 TRMs.
     It has an IDR of 0x24770011, which decodes to AHB-AP, variant 1, version 2.
     """
-    def __init__(self, dp, ap_num, idr=None, name=""):
-        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_num, idr, name)
+    def __init__(self, dp, ap_address, idr=None, name=""):
+        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_address, idr, name)
 
         # Set a 4 kB auto increment wrap size.
         self.auto_increment_page_size = 0x1000
