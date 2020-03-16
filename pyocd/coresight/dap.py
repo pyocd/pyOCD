@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+import six
+
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APREG_MASK, AccessPort)
 from ..utility.sequencer import CallSequence
-import logging
-import logging.handlers
-import os
-import os.path
-import six
+from ..utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 
@@ -80,6 +79,9 @@ MASKLANE = 0x00000f00
 
 ## APSEL is 8-bit, thus there are a maximum of 256 APs.
 MAX_APSEL = 255
+
+## Arbitrary 5 second timeout for DP power up/down requests.
+DP_POWER_REQUEST_TIMEOUT = 5.0
 
 class DebugPort(object):
     """! @brief Represents the DebugPort (DP)."
@@ -266,22 +268,61 @@ class DebugPort(object):
         self.write_dp(addr, data)
 
     def power_up_debug(self):
-        # select bank 0 (to access DRW and TAR)
-        self.write_reg(DP_SELECT, 0)
+        """! @brief Assert DP power requests.
+        
+        Request both debug and system power be enabled, and wait until the request is acked.
+        There is a timeout for the request.
+        
+        @return Boolean indicating whether the power up request succeeded.
+        """
+        # Send power up request for system and debug.
         self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ)
 
-        while True:
-            r = self.read_reg(DP_CTRL_STAT)
-            if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
-                break
+        with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
+            while time_out.check():
+                r = self.read_reg(DP_CTRL_STAT)
+                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
+                    break
+            else:
+                return False
 
         self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
-        self.write_reg(DP_SELECT, 0)
+        
+        return True
 
     def power_down_debug(self):
-        # select bank 0 (to access DRW and TAR)
-        self.write_reg(DP_SELECT, 0)
+        """! @brief Deassert DP power requests.
+        
+        ADIv6 says that we must not clear CSYSPWRUPREQ and CDBGPWRUPREQ at the same time.
+        ADIv5 says CSYSPWRUPREQ must not be set to 1 while CDBGPWRUPREQ is set to 0. So we
+        start with deasserting system power, then debug power. Each deassertion has its own
+        timeout.
+        
+        @return Boolean indicating whether the power down request succeeded.
+        """
+        # Power down system first.
+        self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ)
+        
+        with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
+            while time_out.check():
+                r = self.read_reg(DP_CTRL_STAT)
+                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == CDBGPWRUPACK:
+                    break
+            else:
+                return False
+
+        # Now power down debug.
         self.write_reg(DP_CTRL_STAT, 0)
+        
+        with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
+            while time_out.check():
+                r = self.read_reg(DP_CTRL_STAT)
+                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == 0:
+                    break
+            else:
+                return False
+        
+        return True
 
     def reset(self):
         self._cached_dpbanksel = None
