@@ -130,7 +130,8 @@ class ADIv5Discovery(CoreSightDiscovery):
                     if invalid_count == 2:
                         break
             except exceptions.Error as e:
-                LOG.error("Exception while probing AP#%d: %s", apsel, e)
+                LOG.error("Exception while probing AP#%d: %s", apsel, e,
+                    exc_info=self.session.log_tracebacks)
                 break
             apsel += 1
         
@@ -156,7 +157,8 @@ class ADIv5Discovery(CoreSightDiscovery):
             ap = AccessPort.create(self.dp, apsel)
             self.dp.aps[apsel] = ap
         except exceptions.Error as e:
-            LOG.error("Exception reading AP#%d IDR: %s", apsel, e)
+            LOG.error("Exception reading AP#%d IDR: %s", apsel, e,
+                exc_info=self.session.log_tracebacks)
     
     def _find_components(self):
         """! @brief Init task that generates a call sequence to ask each AP to find its components."""

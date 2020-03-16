@@ -204,6 +204,10 @@ class AccessPort(object):
         self.rom_table = None
         self.core = None
         self._lock = threading.RLock()
+    
+    @property
+    def short_description(self):
+        return "AP#%d" % self.ap_num
 
     @_locked
     def init(self):
@@ -261,8 +265,8 @@ class AccessPort(object):
         self.unlock()
     
     def __repr__(self):
-        return "<{}@{:x} type={} apsel={} idr={:08x} rom={:08x}>".format(
-            self.__class__.__name__, id(self), self.type_name, self.ap_num, self.idr, self.rom_addr)
+        return "<{}@{:x} {} idr={:08x} rom={:08x}>".format(
+            self.__class__.__name__, id(self), self.short_description, self.idr, self.rom_addr)
 
 class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     """! @brief MEM-AP component.
@@ -379,7 +383,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                     self.rom_table = ROMTable.create(self, cmpid, self.rom_addr)
                     self.rom_table.init()
         except exceptions.TransferError as error:
-            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
+            LOG.error("Transfer error while reading %s ROM table: %s", self.short_description, error,
+                exc_info=self.dp.target.session.log_tracebacks)
 
     @property
     def implemented_hprot_mask(self):

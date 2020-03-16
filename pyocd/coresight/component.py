@@ -53,6 +53,10 @@ class CoreSightComponent(GraphNode):
     @address.setter
     def address(self, newAddr):
         self._address = newAddr
+    
+    @property
+    def session(self):
+        return self.ap.dp.target.session
 
 class CoreSightCoreComponent(CoreSightComponent):
     """! @brief CoreSight component for a CPU core.
