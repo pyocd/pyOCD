@@ -1378,13 +1378,13 @@ class PyOCDCommander(object):
             try:
                 wptype = WATCHPOINT_FUNCTION_NAME_MAP[args[1]]
             except KeyError:
-                raise ToolError("unsupported watchpoint type '%s'", args[1])
+                raise ToolError("unsupported watchpoint type '%s'" % args[1])
         else:
             wptype = Target.Watchpoint.READ_WRITE
         if len(args) > 2:
             sz = self.convert_value(args[2])
             if sz not in (1, 2, 4):
-                raise ToolError("unsupported watchpoint size (%d)", sz)
+                raise ToolError("unsupported watchpoint size (%d)" % sz)
         else:
             sz = 4
         if self.target.set_watchpoint(addr, sz, wptype):
