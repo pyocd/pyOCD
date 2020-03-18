@@ -18,7 +18,7 @@ import logging
 
 from ..core import exceptions
 from .ap import (APv1Address, APv2Address, AccessPort)
-from .dap import ADIVersion
+from .dap import (ADIVersion, APAccessMemoryInterface)
 from .rom_table import (CoreSightComponentID, ROMTable)
 from . import (cortex_m, cortex_m_v8m)
 from ..utility.sequencer import CallSequence
@@ -170,7 +170,107 @@ class ADIv5Discovery(CoreSightDiscovery):
                 )
         return seq
 
+class ADIv6Discovery(CoreSightDiscovery):
+    """! @brief Component discovery process for ADIv6.
+    
+    The process for discovering components in ADIv6 proceeds as follows. Each of the steps is
+    labeled with the name of the init task for that step.
+    
+    1. `find_root_components`: Examine the component pointed to by the DP BASEPTR register(s). If
+        it's a ROM table, read it and examine components pointed to by the entries. This creates the
+        AP instances.
+    2. `find_components`: For each AP, read the associated ROM table(s) and identify CoreSight
+        components.
+    3. `create_cores`: Create any discovered core (CPU) components. The cores are created first to
+        ensure that other components have a core to which they may be connected.
+    4. `create_components`: Create remaining discovered components.
+    
+    Note that nested APs are not supported.
+    """
+
+    def __init__(self, target):
+        """! @brief Constructor."""
+        super(ADIv6Discovery, self).__init__(target)
+        self._top_rom_table = None
+
+    def discover(self):
+        return CallSequence(
+            ('find_root_components',    self._find_root_components),
+            ('find_components',         self._find_components_on_aps),
+            ('create_cores',            self._create_cores),
+            ('create_components',       self._create_components),
+            )
+
+    def _find_root_components(self):
+        """! @brief Read top-level ROM table pointed to by the DP."""
+        # There's not much we can do if we don't have a base address.
+        if self.dp.base_address is None:
+            return
+        
+        # Create a temporary memory interface.
+        mem_interface = self.dp.apacc_memory_interface
+        
+        # Examine the base component.
+        cmpid = CoreSightComponentID(None, mem_interface, self.dp.base_address)
+        cmpid.read_id_registers()
+        LOG.debug("Base component: %s", cmpid)
+        
+        if cmpid.is_rom_table:
+            self._top_rom_table = ROMTable.create(mem_interface, cmpid)
+            self._top_rom_table.init()
+            
+            # Create components defined in the DP ROM table.
+            self._top_rom_table.for_each(self._create_1_ap,
+                    filter=lambda c: c.factory == AccessPort.create)
+            
+            # Create non-AP components in the DP ROM table.
+            self._top_rom_table.for_each(self._create_root_component,
+                    filter=lambda c: (c.factory is not None) and (c.factory != AccessPort.create))
+        elif cmpid.factory == AccessPort.create:
+            self._create_1_ap(cmpid)
+        else:
+            self._create_root_component(cmpid)
+    
+    def _create_1_ap(self, cmpid):
+        """! @brief Init task to create a single AP object."""
+        try:
+            ap_address = APv2Address(cmpid.address)
+            ap = AccessPort.create(self.dp, ap_address)
+            self.dp.aps[ap_address] = ap
+        except exceptions.Error as e:
+            LOG.error("Exception reading AP@0x%08x IDR: %s", cmpid.address, e,
+                    exc_info=self.session.log_tracebacks)
+    
+    def _create_root_component(self, cmpid):
+        """! @brief Init task to create a component attached directly to the DP.
+        
+        The newly created component is attached directly to the target instance (i.e.,
+        CoreSightTarget or subclass) in the object graph.
+        """
+        try:
+            # Create a memory interface for this component.
+            ap_address = APv2Address(cmpid.address)
+            memif = APAccessMemoryInterface(self.dp, ap_address)
+            
+            # Instantiate the component and attach to the target.
+            component = cmpid.factory(memif, cmpid, cmpid.address)
+            self.target.add_child(component)
+            component.init()
+        except exceptions.Error as e:
+            LOG.error("Exception creating root component: %s", cmpid.address, e,
+                    exc_info=self.session.log_tracebacks)
+    
+    def _find_components_on_aps(self):
+        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
+        seq = CallSequence()
+        for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
+            seq.append(
+                ('init_ap.{}'.format(str(ap.address)), ap.find_components)
+                )
+        return seq
+
 ## Map from ADI version to the discovery class.
 ADI_DISCOVERY_CLASS_MAP = {
         ADIVersion.ADIv5: ADIv5Discovery,
+        ADIVersion.ADIv6: ADIv6Discovery,
     }
