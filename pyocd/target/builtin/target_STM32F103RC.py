@@ -63,16 +63,7 @@ class STM32F103RC(CoreSightTarget):
         super(STM32F103RC, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("STM32F103xx.svd")
 
-    def create_init_sequence(self):
-        seq = super(STM32F103RC, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write_memory(DBGMCU_CR, DBGMCU_VAL)
 
 

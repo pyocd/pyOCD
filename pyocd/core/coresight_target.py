@@ -141,6 +141,7 @@ class CoreSightTarget(Target, GraphNode):
             ('check_for_cores',     self.check_for_cores),
             ('halt_on_connect',     self.perform_halt_on_connect),
             ('post_connect',        self.post_connect),
+            ('post_connect_hook',   self.post_connect_hook),
             ('notify',              lambda : self.session.notify(Target.Event.POST_CONNECT, self))
             )
         
@@ -218,6 +219,13 @@ class CoreSightTarget(Target, GraphNode):
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
+    
+    def post_connect_hook(self):
+        """! @brief Hook function called after post_connect init task.
+        
+        This hook lets the target subclass configure the target as necessary.
+        """
+        pass
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.

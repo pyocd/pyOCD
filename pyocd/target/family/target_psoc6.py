@@ -134,7 +134,9 @@ class PSoC6(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(PSoC6, self).create_init_sequence()
-        seq.replace_task('create_cores', self.create_psoc_cores)
+        seq.wrap_task('discovery',
+            lambda seq: seq.replace_task('create_cores', self.create_psoc_cores)
+            )
         return seq
 
     def create_psoc_cores(self):
@@ -324,8 +326,11 @@ class PSoC64(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(PSoC64, self).create_init_sequence()
-        seq.replace_task('find_aps', self.find_aps)
-        seq.replace_task('create_cores', self.create_psoc_core)
+        seq.wrap_task('discovery',
+            lambda seq: seq
+                        .replace_task('find_aps', self.find_aps)
+                        .replace_task('create_cores', self.create_psoc_core)
+            )
         return seq
 
     def find_aps(self):

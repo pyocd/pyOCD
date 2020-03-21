@@ -104,8 +104,11 @@ class _PackTargetMethods(object):
     def _pack_target_create_init_sequence(self):
         """! @brief Creates an init task to set the default reset type."""
         seq = super(self.__class__, self).create_init_sequence()
-        seq.insert_after('create_cores',
-            ('set_default_reset_type', self.set_default_reset_type))
+        seq.wrap_task('discovery',
+            lambda seq: seq.insert_after('create_cores',
+                            ('set_default_reset_type', self.set_default_reset_type)
+                            )
+            )
         return seq
 
     @staticmethod

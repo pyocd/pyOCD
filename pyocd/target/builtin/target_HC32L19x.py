@@ -83,16 +83,7 @@ class HC32L196(CoreSightTarget):
         super(HC32L196, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32L19x.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32L196, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DEBUG_ACTIVE, DEBUG_ACTIVE_VAL)
 
 
@@ -111,16 +102,7 @@ class HC32L190(CoreSightTarget):
         super(HC32L190, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32L19x.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32L190, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DEBUG_ACTIVE, DEBUG_ACTIVE_VAL)
 
 
@@ -139,16 +121,7 @@ class HC32F190(CoreSightTarget):
         super(HC32F190, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32L19x.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32F190, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DEBUG_ACTIVE, DEBUG_ACTIVE_VAL)
 
 
@@ -167,14 +140,5 @@ class HC32F196(CoreSightTarget):
         super(HC32F196, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32L19x.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32F196, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DEBUG_ACTIVE, DEBUG_ACTIVE_VAL)

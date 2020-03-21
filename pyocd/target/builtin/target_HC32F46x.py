@@ -172,15 +172,6 @@ class HC32F46x(CoreSightTarget):
         super(HC32F46x, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32F46x.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32F46x, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
