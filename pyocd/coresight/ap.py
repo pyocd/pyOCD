@@ -69,22 +69,6 @@ AP_IDR_VARIANT_MASK = 0x000000f0
 AP_IDR_VARIANT_SHIFT = 4
 AP_IDR_TYPE_MASK = 0x0000000f
 
-AP_JEP106_ARM = 0x23b
-
-# AP classes
-AP_CLASS_JTAG_AP = 0x0
-AP_CLASS_COM_AP = 0x1 # SDC-600 (Chaucer)
-AP_CLASS_MEM_AP = 0x8 # AHB-AP, APB-AP, AXI-AP
-
-# MEM-AP type constants
-AP_TYPE_AHB = 0x1
-AP_TYPE_APB = 0x2
-AP_TYPE_AXI = 0x4
-AP_TYPE_AHB5 = 0x5
-AP_TYPE_APB4 = 0x6
-AP_TYPE_AXI5 = 0x7
-AP_TYPE_AHB5_HPROT = 0x8
-
 ## The control registers for a v2 MEM-AP start at an offset.
 MEM_APv2_CONTROL_REG_OFFSET = 0xD00
 
@@ -348,13 +332,32 @@ class AccessPort(object):
 
         # Get the AccessPort class to instantiate.
         key = (designer, apClass, variant, apType)
-        name, klass = AP_TYPE_MAP.get(key, (None, AccessPort))
+        try:
+            name, klass, flags = AP_TYPE_MAP[key]
+        except KeyError:
+            # The AP ID doesn't match, but we can recognize unknown MEM-APs.
+            if apClass == AP_CLASS_MEM_AP:
+                name = "MEM-AP"
+                klass = MEM_AP
+            else:
+                name = None
+                klass = AccessPort
+            flags = 0
         
-        ap = klass(dp, ap_address, idr, name)
+        ap = klass(dp, ap_address, idr, name, flags)
         ap.init()
         return ap
     
-    def __init__(self, dp, ap_address, idr=None, name=""):
+    def __init__(self, dp, ap_address, idr=None, name="", flags=0):
+        """! @brief AP constructor.
+        @param self
+        @param dp The DebugPort object.
+        @param ap_address APAddress object with address of this AP.
+        @param idr This AP's IDR register value. If not provided, the IDR will be read by init().
+        @param name Name for the AP type, such as "AHB5-AP". If not provided, the type name will be
+            set to "AP".
+        @param flags Bit mask with extra information about this AP.
+        """
         self.dp = dp
         self.address = ap_address
         self._ap_version = ap_address.ap_version
@@ -365,6 +368,7 @@ class AccessPort(object):
         self.rom_table = None
         self.core = None
         self._lock = threading.RLock()
+        self._flags = flags
     
     @property
     def short_description(self):
@@ -440,6 +444,8 @@ class AccessPort(object):
 class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     """! @brief MEM-AP component.
     
+    This class supports MEM-AP v1 and v2.
+    
     The bits of HPROT have the following meaning. Not all bits are implemented in all
     MEM-APs. AHB-Lite only implements HPROT[3:0].
     
@@ -450,10 +456,15 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     HPROT[4] = 1 lookupincache, 0 no cache<br/>
     HPROT[5] = 1 allocate in cache, 0 no allocate in cache<br/>
     HPROT[6] = 1 shareable, 0 non shareable<br/>
+    
+    Extensions not supported:
+    - Large Data Extension
+    - Large Physical Address Extension
+    - Barrier Operation Extension
     """
 
-    def __init__(self, dp, ap_address, idr=None, name=""):
-        super(MEM_AP, self).__init__(dp, ap_address, idr, name)
+    def __init__(self, dp, ap_address, idr=None, name="", flags=0):
+        super(MEM_AP, self).__init__(dp, ap_address, idr, name, flags)
         
         # Check AP version and set the offset to the control and status registers.
         if self.ap_version == APVersion.APv1:
@@ -477,12 +488,16 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         ## Cached current CSW value.
         self._cached_csw = -1
+        
+        ## Supported transfer sizes.
+        self._transfer_sizes = (32)
 
-        # Default to the smallest size supported by all targets.
-        # A size smaller than the supported size will decrease performance
-        # due to the extra address writes, but will not create any
-        # read/write errors.
-        self.auto_increment_page_size = 0x400
+        ## Auto-increment wrap modulus.
+        #
+        # The AP_4K_WRAP flag indicates a 4 kB wrap size. Otherwise it defaults to the smallest
+        # size supported by all targets. A size smaller than the supported size will decrease
+        # performance due to the extra address writes, but will not create any read/write errors.
+        self.auto_increment_page_size = 0x1000 if (self._flags & AP_4K_WRAP) else 0x400
         
         ## Number of DAR registers.
         self._dar_count = 0
@@ -503,16 +518,52 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.write_memory_block32 = self._write_memory_block32
             self.read_memory_block32 = self._read_memory_block32
 
+    @property
+    def supported_transfer_sizes(self):
+        """! @brief Tuple of transfer sizes supported by this AP."""
+        return self._transfer_sizes
+
     @_locked
     def init(self):
         super(MEM_AP, self).init()
         
+        self._init_transfer_sizes()
         self._init_hprot()
         self._init_rom_table_base()
         
-        # For v1 MEM-APs, read the CFG register.
+        # For v2 MEM-APs, read the CFG register.
         if self.ap_version == APVersion.APv2:
             self._init_cfg()
+
+    def _init_transfer_sizes(self):
+        """! @brief Determine supported transfer sizes.
+        
+        If the AP_ALL_TX_SZ flag is set, then we know a priori that this AP implementation
+        supports all transfer sizes.
+        
+        Otherwise an attempt to modify CSW_SIZE to a non-32-bit transfer size is made. If CSW_SIZE
+        is successfully changed, then the AP supports both 8- and 16-bit transfers in addition to
+        the required 32-bit.
+        """
+        # If AP_ALL_TX_SZ is set, we can skip the test.
+        if (self._flags & AP_ALL_TX_SZ) == 0:
+            self._transfer_sizes = (8, 16, 32)
+            return
+
+        # Read initial CSW.
+        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
+        original_csw = csw
+        
+        # Write CSW_SIZE to select 16-bit transfer.
+        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, csw & ~CSW_SIZE | CSW_SIZE16)
+        
+        # Read back CSW and see if SIZE changed.
+        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
+        if (csw & CSW_SIZE) == CSW_SIZE16:
+            self._transfer_sizes = (8, 16, 32)
+ 
+        # Restore unmodified value of CSW.
+        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
 
     def _init_hprot(self):
         """! @brief Init HPROT HNONSEC.
@@ -745,8 +796,13 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """! @brief Write a single memory location.
         
         By default the transfer size is a word
+        
+        @exception TransferError Raised if the requested transfer size is not supported by the AP.
         """
         assert (addr & (transfer_size // 8 - 1)) == 0
+        if transfer_size not in self._transfer_sizes:
+            raise exceptions.TransferError("%d-bit transfers are not supported by %s"
+                % (transfer_size, self.short_description))
         num = self.dp.next_access_number
         TRACE.debug("write_mem:%06d (addr=0x%08x, size=%d) = 0x%08x {", num, addr, transfer_size, data)
         self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
@@ -774,8 +830,13 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """! @brief Read a memory location.
         
         By default, a word will be read.
+        
+        @exception TransferError Raised if the requested transfer size is not supported by the AP.
         """
         assert (addr & (transfer_size // 8 - 1)) == 0
+        if transfer_size not in self._transfer_sizes:
+            raise exceptions.TransferError("%d-bit transfers are not supported by %s"
+                % (transfer_size, self.short_description))
         num = self.dp.next_access_number
         TRACE.debug("read_mem:%06d (addr=0x%08x, size=%d) {", num, addr, transfer_size)
         res = None
@@ -966,21 +1027,33 @@ class AHB_AP(MEM_AP):
         # Invoke superclass.
         super(AHB_AP, self).find_components()
 
-class AHB_AP_4k_Wrap(AHB_AP):
-    """! @brief AHB-AP with a 4k auto increment wrap size.
-    
-    The only known AHB-AP with a 4k wrap is the one documented in the CM3 and CM4 TRMs.
-    It has an IDR of 0x24770011, which decodes to AHB-AP, variant 1, version 2.
-    """
-    def __init__(self, dp, ap_address, idr=None, name=""):
-        super(AHB_AP_4k_Wrap, self).__init__(dp, ap_address, idr, name)
+## @brief Arm JEP106 code
+#
+# - [6:0] = 0x3B, Arm's JEP106 identification code
+# - [12:7] = 4, the number of JEP106 continuation codes for Arm
+AP_JEP106_ARM = 0x23b
 
-        # Set a 4 kB auto increment wrap size.
-        self.auto_increment_page_size = 0x1000
+# AP classes
+AP_CLASS_JTAG_AP = 0x0
+AP_CLASS_COM_AP = 0x1 # SDC-600 (Chaucer)
+AP_CLASS_MEM_AP = 0x8 # AHB-AP, APB-AP, AXI-AP
+
+# MEM-AP type constants
+AP_TYPE_AHB = 0x1
+AP_TYPE_APB = 0x2
+AP_TYPE_AXI = 0x4
+AP_TYPE_AHB5 = 0x5
+AP_TYPE_APB4 = 0x6
+AP_TYPE_AXI5 = 0x7
+AP_TYPE_AHB5_HPROT = 0x8
+
+# AP flags.
+AP_4K_WRAP = 0x1 # The AP has a 4 kB auto-increment modulus.
+AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers.
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
-# The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class).
+# The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class, flags).
 #
 # Known AP IDRs:
 # 0x24770011 AHB-AP with 0x1000 wrap
@@ -998,19 +1071,20 @@ class AHB_AP_4k_Wrap(AHB_AP):
 # 0x04770025 AHB5-AP Used on M23.
 # 0x54770002 APB-AP used on M33.
 AP_TYPE_MAP = {
-    (AP_JEP106_ARM, AP_CLASS_JTAG_AP, 0, 0):            ("JTAG-AP", AccessPort),
-    (AP_JEP106_ARM, AP_CLASS_COM_AP, 0, 0):             ("SDC-600", AccessPort),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP_4k_Wrap),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 3, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 4, AP_TYPE_AHB):   ("AHB-AP",  AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB):   ("APB-AP",  MEM_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AXI):   ("AXI-AP",  MEM_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 1, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 2, AP_TYPE_AHB5):  ("AHB5-AP", AHB_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_APB4):  ("APB4-AP", MEM_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AXI5):  ("AXI5-AP", MEM_AP),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP, 0, AP_TYPE_AHB5_HPROT):  ("AHB5-AP", MEM_AP),
+#   |JEP106        |Class              |Var|Type                    |Name      |Class
+    (AP_JEP106_ARM, AP_CLASS_JTAG_AP,   0,  0):                     ("JTAG-AP", AccessPort, 0   ),
+    (AP_JEP106_ARM, AP_CLASS_COM_AP,    0,  0):                     ("SDC-600", AccessPort, 0   ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_4K_WRAP ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    3,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    4,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB):           ("APB-AP",  MEM_AP,     0   ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI):           ("AXI-AP",  MEM_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB4):          ("APB4-AP", MEM_AP,     0   ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     }
