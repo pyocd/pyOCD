@@ -54,9 +54,17 @@ def bitmask(*args):
 
     return mask
 
-def invert32(value):
-    """! @brief Return the 32-bit inverted value of the argument."""
-    return 0xffffffff & ~value
+def bit_invert(value, width=32):
+    """! @brief Return the bitwise inverted value of the argument given a specified width.
+    
+    @param value Integer value to be inverted.
+    @param width Bit width of both the input and output. If not supplied, this defaults to 32.
+    @return Integer of the bitwise inversion of @a value.
+    """
+    return ((1 << width) - 1) & (~value)
+
+invert32 = bit_invert
+"""! @brief Return the 32-bit inverted value of the argument."""
 
 def bfx(value, msb, lsb):
     """! @brief Extract a value from a bitfield."""
@@ -91,6 +99,10 @@ def same(d1, d2):
         if d1[i] != d2[i]:
             return False
     return True
+
+def align_down(value, multiple):
+    """! @brief Return value aligned down to multiple."""
+    return value // multiple * multiple
 
 def align_up(value, multiple):
     """! @brief Return value aligned up to multiple."""

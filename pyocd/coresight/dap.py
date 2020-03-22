@@ -14,27 +14,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+import six
+from collections import namedtuple
+from enum import Enum
+
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
+from ..probe.swj import SWJSequenceSender
 from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APREG_MASK, AccessPort)
 from ..utility.sequencer import CallSequence
-import logging
-import logging.handlers
-import os
-import os.path
-import six
+from ..utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 
 TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
-# DP register addresses.
-DP_IDCODE = 0x0 # read-only
-DP_ABORT = 0x0 # write-only
-DP_CTRL_STAT = 0x4 # read-write
+# DP register addresses. The DPBANKSEL value is encoded in bits [7:4].
+DP_IDR = 0x00 # read-only
+DP_ABORT = 0x00 # write-only
+DP_CTRL_STAT = 0x04 # read-write
+DP_DLCR = 0x14 # read-write
+DP_TARGETID = 0x24 # read-only
+DP_DLPIDR = 0x34 # read-only
+DP_EVENTSTAT = 0x44 # read-only
 DP_SELECT = 0x8 # write-only
 DP_RDBUFF = 0xC # read-only
+
+# Mask and shift for extracting DPBANKSEL from our DP register address constants. These are not
+# related to the SELECT.DPBANKSEL bitfield.
+DPADDR_MASK = 0x0f
+DPBANKSEL_MASK = 0xf0
+DPBANKSEL_SHIFT = 4
 
 ABORT_DAPABORT = 0x00000001
 ABORT_STKCMPCLR = 0x00000002
@@ -50,11 +62,15 @@ CTRLSTAT_STICKYERR = 0x00000020
 CTRLSTAT_READOK = 0x00000040
 CTRLSTAT_WDATAERR = 0x00000080
 
-DPIDR_MIN_MASK = 0x10000
-DPIDR_VERSION_MASK = 0xf000
-DPIDR_VERSION_SHIFT = 12
+SELECT_DPBANKSEL_MASK = 0x0000000f
+
 DPIDR_REVISION_MASK = 0xf0000000
 DPIDR_REVISION_SHIFT = 28
+DPIDR_PARTNO_MASK = 0x0ff00000
+DPIDR_PARTNO_SHIFT = 20
+DPIDR_MIN_MASK = 0x00010000
+DPIDR_VERSION_MASK = 0x0000f000
+DPIDR_VERSION_SHIFT = 12
 
 CSYSPWRUPACK = 0x80000000
 CDBGPWRUPACK = 0x20000000
@@ -64,77 +80,78 @@ CDBGPWRUPREQ = 0x10000000
 TRNNORMAL = 0x00000000
 MASKLANE = 0x00000f00
 
-## APSEL is 8-bit, thus there are a maximum of 256 APs.
-MAX_APSEL = 255
+## Arbitrary 5 second timeout for DP power up/down requests.
+DP_POWER_REQUEST_TIMEOUT = 5.0
 
-class DebugPort(object):
-    """! @brief Represents the DebugPort (DP)."
+## @brief Class to hold fields from DP IDR register.
+DPIDR = namedtuple('DPIDR', 'idr partno version revision mindp')
+
+class ADIVersion(Enum):
+    """! @brief Supported versions of the Arm Debug Interface."""
+    ADIv5 = 5
+
+class DPConnector(object):
+    """! @brief Establishes a connection to the DP for a given wire protocol.
+    
+    This class will ask the probe to connect using a given wire protocol. Then it makes multiple
+    attempts at sending the SWJ sequence to select the wire protocol and read the DP IDR register.
     """
     
-    ## Map from wire protocol setting name to debug probe constant.
-    PROTOCOL_NAME_MAP = {
-            'swd': DebugProbe.Protocol.SWD,
-            'jtag': DebugProbe.Protocol.JTAG,
-            'default': DebugProbe.Protocol.DEFAULT,
-        }
-    
-    def __init__(self, probe, target):
+    def __init__(self, probe):
         self._probe = probe
-        self.target = target
-        self.valid_aps = None
-        self.aps = {}
-        self._access_number = 0
-
+        self._session = probe.session
+        self._idr = None
+    
     @property
-    def probe(self):
-        return self._probe
-
-    @property
-    def next_access_number(self):
-        self._access_number += 1
-        return self._access_number
-
-    def init(self, protocol=None):
-        """! @brief Connect to the target.
+    def idr(self):
+        """! @brief DPIDR instance containing values read from the DP IDR register."""
+        return self._idr
+    
+    def connect(self, protocol=None):
+        """! @brief Establish a connection to the DP.
         
-        This method causes the debug probe to connect using the wire protocol
+        This method causes the debug probe to connect using the wire protocol.
         
         @param self
         @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
-            "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
+            "DebugProbe.Protocol" enums. If not provided, will default to the `dap_protocol` setting.
+        
+        @exception DebugError
+        @exception TransferError
         """
-        protocol_name = self.target.session.options.get('dap_protocol').strip().lower()
-        send_swj = self.target.session.options.get('dap_enable_swj') and self.probe.supports_swj_sequence
-        use_deprecated = self.target.session.options.get('dap_use_deprecated_swj')
+        protocol_name = self._session.options.get('dap_protocol').strip().lower()
+        send_swj = self._session.options.get('dap_enable_swj') and self._probe.supports_swj_sequence
+        use_deprecated = self._session.options.get('dap_use_deprecated_swj')
 
         # Convert protocol from setting if not passed as parameter.
         if protocol is None:
-            protocol = self.PROTOCOL_NAME_MAP[protocol_name]
-            if protocol not in self.probe.supported_wire_protocols:
+            protocol = DebugProbe.PROTOCOL_NAME_MAP[protocol_name]
+            if protocol not in self._probe.supported_wire_protocols:
                 raise exceptions.DebugError("requested wire protocol %s not supported by the debug probe" % protocol.name)
         if protocol != DebugProbe.Protocol.DEFAULT:
             LOG.debug("Using %s wire protocol", protocol.name)
             
         # Connect using the selected protocol.
-        self.probe.connect(protocol)
+        self._probe.connect(protocol)
 
         # Log the actual protocol if selected was default.
         if protocol == DebugProbe.Protocol.DEFAULT:
-            LOG.debug("Default wire protocol selected; using %s", self.probe.wire_protocol.name)
+            protocol = self._probe.wire_protocol
+            LOG.debug("Default wire protocol selected; using %s", protocol.name)
         
-        # Multiple attempts to select protocol and read DP IDCODE.
+        # Create object to send SWJ sequences.
+        swj = SWJSequenceSender(self._probe, use_deprecated)
+        
+        # Multiple attempts to select protocol and read DP IDR.
         for attempt in range(4):
             try:
                 if send_swj:
-                    # Start off with not using dormant.
-                    self._swj_sequence(use_deprecated)
+                    swj.select_protocol(protocol)
                 
-                # Attempt to read the DP IDCODE register.
-                self.read_id_code()
+                # Attempt to read the DP IDR register.
+                self._idr = self.read_idr()
                 
-                LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr, self.dp_version,
-                    " MINDP" if self.is_mindp else "", self.dp_revision)
-                
+                # Successful connection so exit the loop.
                 break
             except exceptions.TransferError:
                 # If not sending the SWJ sequence, just reraise; there's nothing more to do.
@@ -152,90 +169,85 @@ class DebugPort(object):
                         raise
                     
                     # After the second attempt, switch to enabling dormant mode.
-                    use_deprecated = False
+                    swj.use_deprecated = False
                 elif attempt == 3:
                     # After 4 attempts, we let the exception propagate.
                     raise
-        self.clear_sticky_err()
 
-    def _swj_sequence(self, use_deprecated):
-        """! @brief Send SWJ sequence to select chosen wire protocol."""
-        # Not all probes support sending SWJ sequences.
-        if self.probe.wire_protocol == DebugProbe.Protocol.SWD:
-            self._switch_to_swd(use_deprecated)
-        elif self.probe.wire_protocol == DebugProbe.Protocol.JTAG:
-            self._switch_to_jtag(use_deprecated)
-        else:
-            assert False
+    def read_idr(self):
+        """! @brief Read IDR register and get DP version"""
+        dpidr = self._probe.read_dp(DP_IDR, now=True)
+        dp_partno = (dpidr & DPIDR_PARTNO_MASK) >> DPIDR_PARTNO_SHIFT
+        dp_version = (dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
+        dp_revision = (dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
+        is_mindp = (dpidr & DPIDR_MIN_MASK) != 0
+        return DPIDR(dpidr, dp_partno, dp_version, dp_revision, is_mindp)
 
-    def _switch_to_swd(self, use_deprecated):
-        """! @brief Send SWJ sequence to select SWD."""
-        if not use_deprecated:
-            LOG.debug("Sending SWJ sequence to select SWD; using dormant state")
-            
-            # Ensure current debug interface is in reset state
-            self.probe.swj_sequence(51, 0xffffffffffffff)
-            
-            # Send all this in one transfer:
-            # Select Dormant State (from JTAG), 0xb3bbbbbaff
-            # 8 cycles SWDIO/TMS HIGH, 0xff
-            # Alert Sequence, 0x19bc0ea2e3ddafe986852d956209f392
-            # 4 cycles SWDIO/TMS LOW + 8-Bit SWD Activation Code (0x1A), 0x01a0
-            self.probe.swj_sequence(188, 0x01a019bc0ea2e3ddafe986852d956209f392ffb3bbbbbaff)
-           
-            # Enter SWD Line Reset State
-            self.probe.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
-            self.probe.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
-        else:
-            LOG.debug("Sending deprecated SWJ sequence to select SWD")
-            
-            # Ensure current debug interface is in reset state
-            self.probe.swj_sequence(51, 0xffffffffffffff)
-            
-            # Execute SWJ-DP Switch Sequence JTAG to SWD (0xE79E)
-            # Change if SWJ-DP uses deprecated switch code (0xEDB6)
-            self.probe.swj_sequence(16, 0xe79e)
-            
-            # Enter SWD Line Reset State
-            self.probe.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
-            self.probe.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+class DebugPort(object):
+    """! @brief Represents the Arm Debug Interface (ADI) Debug Port (DP)."""
     
-    def _switch_to_jtag(self, use_deprecated):
-        """! @brief Send SWJ sequence to select JTAG."""
-        if not use_deprecated:
-            LOG.debug("Sending SWJ sequence to select JTAG ; using dormant state")
-            
-            # Ensure current debug interface is in reset state
-            self.probe.swj_sequence(51, 0xffffffffffffff)
-            
-            # Select Dormant State (from SWD)
-            # At least 8 cycles SWDIO/TMS HIGH, 0xE3BC
-            # Alert Sequence, 0x19bc0ea2e3ddafe986852d956209f392
-            # 4 cycles SWDIO/TMS LOW + 8-Bit JTAG Activation Code (0x0A), 0x00a0
-            self.probe.swj_sequence(188, 0x00a019bc0ea2e3ddafe986852d956209f392ffe3bc)
-           
-            # Ensure JTAG interface is reset
-            self.probe.swj_sequence(6, 0x3f)
-        else:
-            LOG.debug("Sending deprecated SWJ sequence to select JTAG")
-            
-            # Ensure current debug interface is in reset state
-            self.probe.swj_sequence(51, 0xffffffffffffff)
-            
-            # Execute SWJ-DP Switch Sequence SWD to JTAG (0xE73C)
-            # Change if SWJ-DP uses deprecated switch code (0xAEAE)
-            self.probe.swj_sequence(16, 0xe73c)
-            
-            # Ensure JTAG interface is reset
-            self.probe.swj_sequence(6, 0x3f)
+    def __init__(self, probe, target):
+        self._probe = probe
+        self.target = target
+        self.valid_aps = None
+        self.dpidr = None
+        self.aps = {}
+        self._access_number = 0
+        self._cached_dpbanksel = None
+        self._protocol = None
 
-    def read_id_code(self):
-        """! @brief Read ID register and get DP version"""
-        self.dpidr = self.read_reg(DP_IDCODE)
-        self.dp_version = (self.dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
-        self.dp_revision = (self.dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
-        self.is_mindp = (self.dpidr & DPIDR_MIN_MASK) != 0
-        return self.dpidr
+    @property
+    def probe(self):
+        return self._probe
+    
+    @property
+    def adi_version(self):
+        return ADIVersion.ADIv5
+
+    @property
+    def next_access_number(self):
+        self._access_number += 1
+        return self._access_number
+
+    def init(self, protocol=None):
+        """! @brief Connect to the target.
+        
+        This method causes the debug probe to connect using the selected wire protocol.
+        
+        Unlike init_sequence(), this method is intended to be used when manually constructing a
+        DebugPort instance. It simply calls init_sequence() and invokes the returned call sequence.
+        
+        @param self
+        @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
+            "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
+        """
+        self._protocol = protocol
+        self.init_sequence().invoke()
+
+    def init_sequence(self):
+        """! @brief Init task to connect to the target.
+        
+        Returns a @ref pyocd.utility.sequence.CallSequence CallSequence that will connect to the
+        DP, power up debug and the system, check the DP version to identify whether the target uses
+        ADI v5 or v6, then clears sticky errors.
+        
+        @param self
+        """
+        return CallSequence(
+            ('connect',             self._connect),
+            ('clear_sticky_err',    self.clear_sticky_err),
+            ('power_up_debug',      self.power_up_debug),
+            )
+
+    def _connect(self):
+        # Attempt to connect.
+        connector = DPConnector(self.probe)
+        connector.connect(self._protocol)
+
+        # Report on DP version.
+        self.dpidr = connector.idr
+        LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
+            " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
 
     def flush(self):
         try:
@@ -251,29 +263,70 @@ class DebugPort(object):
         self.write_dp(addr, data)
 
     def power_up_debug(self):
-        # select bank 0 (to access DRW and TAR)
-        self.write_reg(DP_SELECT, 0)
+        """! @brief Assert DP power requests.
+        
+        Request both debug and system power be enabled, and wait until the request is acked.
+        There is a timeout for the request.
+        
+        @return Boolean indicating whether the power up request succeeded.
+        """
+        # Send power up request for system and debug.
         self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ)
 
-        while True:
-            r = self.read_reg(DP_CTRL_STAT)
-            if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
-                break
+        with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
+            while time_out.check():
+                r = self.read_reg(DP_CTRL_STAT)
+                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == (CDBGPWRUPACK | CSYSPWRUPACK):
+                    break
+            else:
+                return False
 
         self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
-        self.write_reg(DP_SELECT, 0)
+        
+        return True
 
     def power_down_debug(self):
-        # select bank 0 (to access DRW and TAR)
-        self.write_reg(DP_SELECT, 0)
+        """! @brief Deassert DP power requests.
+        
+        ADIv6 says that we must not clear CSYSPWRUPREQ and CDBGPWRUPREQ at the same time.
+        ADIv5 says CSYSPWRUPREQ must not be set to 1 while CDBGPWRUPREQ is set to 0. So we
+        start with deasserting system power, then debug power. Each deassertion has its own
+        timeout.
+        
+        @return Boolean indicating whether the power down request succeeded.
+        """
+        # Power down system first.
+        self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ)
+        
+        with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
+            while time_out.check():
+                r = self.read_reg(DP_CTRL_STAT)
+                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == CDBGPWRUPACK:
+                    break
+            else:
+                return False
+
+        # Now power down debug.
         self.write_reg(DP_CTRL_STAT, 0)
+        
+        with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
+            while time_out.check():
+                r = self.read_reg(DP_CTRL_STAT)
+                if (r & (CDBGPWRUPACK | CSYSPWRUPACK)) == 0:
+                    break
+            else:
+                return False
+        
+        return True
 
     def reset(self):
+        self._cached_dpbanksel = None
         for ap in self.aps.values():
             ap.reset_did_occur()
         self.probe.reset()
 
     def assert_reset(self, asserted):
+        self._cached_dpbanksel = None
         if asserted:
             for ap in self.aps.values():
                 ap.reset_did_occur()
@@ -284,76 +337,25 @@ class DebugPort(object):
 
     def set_clock(self, frequency):
         self.probe.set_clock(frequency)
-        
-    def find_aps(self):
-        """! @brief Find valid APs.
-        
-        Scans for valid APs starting at APSEL=0. The default behaviour is to stop after reading
-        0 for the AP's IDR twice in succession. If the `probe_all_aps` user option is set to True,
-        then the scan will instead probe every APSEL from 0-255.
-        
-        Note that a few MCUs will lock up when accessing invalid APs. Those MCUs will have to
-        modify the init call sequence to substitute a fixed list of valid APs. In fact, that
-        is a major reason this method is separated from create_aps().
-        """
-        if self.valid_aps is not None:
-            return
-        apList = []
-        ap_num = 0
-        invalid_count = 0
-        while ap_num < MAX_APSEL:
-            try:
-                isValid = AccessPort.probe(self, ap_num)
-                if isValid:
-                    invalid_count = 0
-                    apList.append(ap_num)
-                elif not self.target.session.options.get('probe_all_aps'):
-                    invalid_count += 1
-                    if invalid_count == 2:
-                        break
-            except exceptions.Error as e:
-                LOG.error("Exception while probing AP#%d: %s", ap_num, e)
-                break
-            ap_num += 1
-        
-        # Update the AP list once we know it's complete.
-        self.valid_aps = apList
 
-    def create_aps(self):
-        """! @brief Init task that returns a call sequence to create APs.
-        
-        For each AP in the #valid_aps list, an AccessPort object is created. The new objects
-        are added to the #aps dict, keyed by their AP number.
-        """
-        seq = CallSequence()
-        for ap_num in self.valid_aps:
-            seq.append(
-                ('create_ap.{}'.format(ap_num), lambda ap_num=ap_num: self.create_1_ap(ap_num))
-                )
-        return seq
-    
-    def create_1_ap(self, ap_num):
-        """! @brief Init task to create a single AP object."""
-        try:
-            ap = AccessPort.create(self, ap_num)
-            self.aps[ap_num] = ap
-        except exceptions.Error as e:
-            LOG.error("Exception reading AP#%d IDR: %s", ap_num, e)
-    
-    def find_components(self):
-        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
-        seq = CallSequence()
-        for ap in [x for x in self.aps.values() if x.has_rom_table]:
-            seq.append(
-                ('init_ap.{}'.format(ap.ap_num), ap.find_components)
-                )
-        return seq
+    def _set_dpbanksel(self, addr):
+        # SELECT and RDBUFF ignore DPBANKSEL.
+        if (addr & DPADDR_MASK) not in (DP_SELECT, DP_RDBUFF):
+            # Make sure the correct DP bank is selected.
+            dpbanksel = addr & DPBANKSEL_MASK
+            if dpbanksel != self._cached_dpbanksel:
+                # Blow away any selected AP.
+                select = dpbanksel >> DPBANKSEL_SHIFT
+                self.write_dp(DP_SELECT, select)
+                self._cached_dpbanksel = dpbanksel
 
     def read_dp(self, addr, now=True):
         num = self.next_access_number
+        
+        self._set_dpbanksel(addr)
 
         try:
-            result_cb = self.probe.read_dp(addr, now=False)
+            result_cb = self.probe.read_dp(addr & DPADDR_MASK, now=False)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -376,11 +378,15 @@ class DebugPort(object):
 
     def write_dp(self, addr, data):
         num = self.next_access_number
+        
+        # Writing to ABORT ignores DPBANKSEL.
+        if (addr & DPADDR_MASK) != DP_ABORT:
+            self._set_dpbanksel(addr)
 
         # Write the DP register.
         try:
             TRACE.debug("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
-            self.probe.write_dp(addr, data)
+            self.probe.write_dp(addr & DPADDR_MASK, data)
         except exceptions.ProbeError as error:
             self._handle_error(error, num)
             raise
@@ -436,6 +442,7 @@ class DebugPort(object):
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
+        self._cached_dpbanksel = None
         mode = self.probe.wire_protocol
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)

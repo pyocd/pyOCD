@@ -68,17 +68,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 class STM32L475xx(CoreSightTarget):
         
     VENDOR = "STMicroelectronics"
-    
-    def create_init_sequence(self):
-        seq = super(STM32L475xx, self).create_init_sequence()
 
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
         self.write32(DBGMCU.APB1FZR1, DBGMCU.APB1FZR1_VALUE)
         self.write32(DBGMCU.APB1FZR2, DBGMCU.APB1FZR2_VALUE)

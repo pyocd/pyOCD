@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..core import (exceptions, memory_interface)
-from .rom_table import ROMTable
-from ..utility import conversion
 import logging
 import threading
 from contextlib import contextmanager
+
+from ..core import (exceptions, memory_interface)
 
 LOG = logging.getLogger(__name__)
 
@@ -89,14 +88,15 @@ CSW_ADDRINC  =  0x00000030
 CSW_NADDRINC =  0x00000000 # No increment
 CSW_SADDRINC =  0x00000010 # Single increment by SIZE field
 CSW_PADDRINC =  0x00000020 # Packed increment, supported only on M3/M3 AP
-CSW_DBGSTAT  =  0x00000040
+CSW_DEVICEEN =  0x00000040
 CSW_TINPROG  =  0x00000080 # Not implemented on M33 AHB5-AP
+CSW_SDEVICEEN = 0x00800000 # Also called SPIDEN in ADIv5
 CSW_HPROT    =  0x0f000000
 CSW_MSTRTYPE =  0x20000000 # Only present in M3/M3 AHB-AP, RES0 in others
 CSW_MSTRCORE =  0x00000000
 CSW_MSTRDBG  =  0x20000000
 
-DEFAULT_CSW_VALUE = (CSW_DBGSTAT | CSW_SADDRINC)
+DEFAULT_CSW_VALUE = CSW_SADDRINC
 
 TRANSFER_SIZE = {8: CSW_SIZE8,
                  16: CSW_SIZE16,
@@ -204,6 +204,10 @@ class AccessPort(object):
         self.rom_table = None
         self.core = None
         self._lock = threading.RLock()
+    
+    @property
+    def short_description(self):
+        return "AP#%d" % self.ap_num
 
     @_locked
     def init(self):
@@ -261,8 +265,8 @@ class AccessPort(object):
         self.unlock()
     
     def __repr__(self):
-        return "<{}@{:x} type={} apsel={} idr={:08x} rom={:08x}>".format(
-            self.__class__.__name__, id(self), self.type_name, self.ap_num, self.idr, self.rom_addr)
+        return "<{}@{:x} {} idr={:08x} rom={:08x}>".format(
+            self.__class__.__name__, id(self), self.short_description, self.idr, self.rom_addr)
 
 class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     """! @brief MEM-AP component.
@@ -367,10 +371,20 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def find_components(self):
         try:
             if self.has_rom_table:
-                self.rom_table = ROMTable(self)
-                self.rom_table.init()
+                # Import locally to work around circular import.
+                from .rom_table import (CoreSightComponentID, ROMTable)
+                
+                # Read the ROM table component IDs.
+                cmpid = CoreSightComponentID(None, self, self.rom_addr)
+                cmpid.read_id_registers()
+
+                # Instantiate the ROM table and parse it.
+                if cmpid.is_rom_table:
+                    self.rom_table = ROMTable.create(self, cmpid, self.rom_addr)
+                    self.rom_table.init()
         except exceptions.TransferError as error:
-            LOG.error("Transfer error while reading AP#%d ROM table: %s", self.ap_num, error)
+            LOG.error("Transfer error while reading %s ROM table: %s", self.short_description, error,
+                exc_info=self.dp.target.session.log_tracebacks)
 
     @property
     def implemented_hprot_mask(self):

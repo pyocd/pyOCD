@@ -47,6 +47,8 @@ class CMSISDAPProbe(DebugProbe):
     
     # Bitmasks for AP register address fields.
     A32 = 0x0000000c
+    DPBANKSEL = 0x0000000f
+    APADDR = 0xfffffff0
     APBANKSEL = 0x000000f0
     APSEL = 0xff000000
     APSEL_APBANKSEL = APSEL | APBANKSEL
@@ -276,13 +278,24 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(error), error)
 
         return True
+    
+    def _select_ap(self, addr):
+        """! @brief Write DP_SELECT to choose the given AP."""
+        # Attempt to preserve the current DPBANKSEL value.
+        if self._dp_select != -1:
+            select = self._dp_select
+        else:
+            select = 0
+        select = (select & self.DPBANKSEL) | (addr & self.APADDR)
+        self.write_dp(self.DP_SELECT, select)
 
     def read_ap(self, addr, now=True):
         assert type(addr) in (six.integer_types)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
 
         try:
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
+            self._select_ap(addr)
+            
             result = self._link.read_reg(ap_reg, now=now)
         except DAPAccess.Error as error:
             self._invalidate_cached_registers()
@@ -302,11 +315,11 @@ class CMSISDAPProbe(DebugProbe):
         assert type(addr) in (six.integer_types)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
 
-        # Select the AP and bank.
-        self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
-
-        # Perform the AP register write.
         try:
+            # Select the AP and bank.
+            self._select_ap(addr)
+
+            # Perform the AP register write.
             self._link.write_reg(ap_reg, data)
         except DAPAccess.Error as error:
             self._invalidate_cached_registers()
@@ -320,7 +333,7 @@ class CMSISDAPProbe(DebugProbe):
         
         try:
             # Select the AP and bank.
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
+            self._select_ap(addr)
             
             result = self._link.reg_read_repeat(count, ap_reg, dap_index=0, now=now)
         except DAPAccess.Error as exc:
@@ -343,7 +356,7 @@ class CMSISDAPProbe(DebugProbe):
         
         try:
             # Select the AP and bank.
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
+            self._select_ap(addr)
             
             return self._link.reg_write_repeat(len(values), ap_reg, values, dap_index=0)
         except DAPAccess.Error as exc:

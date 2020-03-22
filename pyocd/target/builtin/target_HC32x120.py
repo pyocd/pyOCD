@@ -90,16 +90,7 @@ class HC32F120x6TA(CoreSightTarget):
         super(HC32F120x6TA, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32F120.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32F120x6TA, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
 
 
@@ -118,16 +109,7 @@ class HC32F120x8TA(CoreSightTarget):
         super(HC32F120x8TA, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32F120.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32F120x8TA, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
 
 
@@ -146,14 +128,5 @@ class HC32M120(CoreSightTarget):
         super(HC32M120, self).__init__(transport, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("HC32M120.svd")
 
-    def create_init_sequence(self):
-        seq = super(HC32M120, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('setup_dbgmcu', self.setup_dbgmcu)
-            )
-
-        return seq
-
-    def setup_dbgmcu(self):
+    def post_connect_hook(self):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)

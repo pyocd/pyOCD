@@ -125,11 +125,6 @@ class CC3220SF(CoreSightTarget):
     def __init__(self, link):
         super(CC3220SF, self).__init__(link, self.memoryMap)
 
-    def create_init_sequence(self):
-        seq = super(CC3220SF,self).create_init_sequence()
-        seq.wrap_task('create_cores', self.setup_CC3220SF_core)
-        return seq
-
-    def setup_CC3220SF_core(self, arg):
+    def post_connect_hook(self):
         self.cores[0].default_reset_type = self.ResetType.SW_VECTRESET
         

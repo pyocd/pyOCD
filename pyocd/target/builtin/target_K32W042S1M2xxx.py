@@ -176,15 +176,6 @@ class K32W042S(Kinetis):
         super(K32W042S, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("K32W042S1M2_M4.xml")
 
-    def create_init_sequence(self):
-        seq = super(K32W042S, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('disable_rom_remap', self.disable_rom_remap)
-            )
-
-        return seq
-
     def perform_halt_on_connect(self):
         if self.session.options.get('connect_mode') != 'attach' or self._force_halt_on_connect:
             # Prevent the target from resetting if it has invalid code
@@ -222,7 +213,7 @@ class K32W042S(Kinetis):
             if self.get_state() == Target.State.RUNNING:
                 raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
-    def disable_rom_remap(self):
+    def post_connect_hook(self):
         # Disable ROM vector table remapping.
         self.aps[0].write32(SMC0_MR, SMC_MR_BOOTCFG_MASK)
         self.aps[0].write32(SMC1_MR, SMC_MR_BOOTCFG_MASK)

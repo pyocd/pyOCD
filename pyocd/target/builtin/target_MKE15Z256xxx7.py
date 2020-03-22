@@ -96,16 +96,7 @@ class KE15Z7(Kinetis):
         super(KE15Z7, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("MKE15Z7.svd")
 
-    def create_init_sequence(self):
-        seq = super(KE15Z7, self).create_init_sequence()
-
-        seq.insert_after('create_cores',
-            ('disable_rom_remap', self.disable_rom_remap)
-            )
-
-        return seq
-
-    def disable_rom_remap(self):
+    def post_connect_hook(self):
         # Disable ROM vector table remapping.
         self.write32(RCM_MR, RCM_MR_BOOTROM_MASK)
 

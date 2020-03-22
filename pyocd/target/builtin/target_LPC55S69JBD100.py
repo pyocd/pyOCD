@@ -161,10 +161,13 @@ class LPC55S69JBD100(CoreSightTarget):
     def create_init_sequence(self):
         seq = super(LPC55S69JBD100, self).create_init_sequence()
         
-        seq.wrap_task('find_components', self._modify_ap1)
-        seq.replace_task('create_cores', self.create_lpc55s69_cores)
-        seq.insert_before('create_components',
-            ('enable_traceclk',        self._enable_traceclk),
+        seq.wrap_task('discovery',
+            lambda seq: seq
+                    .wrap_task('find_components', self._modify_ap1) \
+                    .replace_task('create_cores', self.create_lpc55s69_cores) \
+                    .insert_before('create_components',
+                        ('enable_traceclk', self._enable_traceclk),
+                        )
             )
         
         return seq

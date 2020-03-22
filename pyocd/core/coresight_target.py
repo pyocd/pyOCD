@@ -18,7 +18,7 @@ from .target import Target
 from .memory_map import MemoryType
 from . import exceptions
 from ..flash.eraser import FlashEraser
-from ..coresight import (dap, cortex_m, cortex_m_v8m, rom_table)
+from ..coresight import (dap, discovery, cortex_m, cortex_m_v8m, rom_table)
 from ..debug.svd.loader import (SVDFile, SVDLoader)
 from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
@@ -62,6 +62,7 @@ class CoreSightTarget(Target, GraphNode):
         self._new_core_num = 0
         self._elf = None
         self._irq_table = None
+        self._discoverer = None
 
     @property
     def selected_core(self):
@@ -112,13 +113,10 @@ class CoreSightTarget(Target, GraphNode):
 
     def load_svd(self):
         def svd_load_completed_cb(svdDevice):
-#             LOG.debug("Completed loading SVD")
             self._svd_device = svdDevice
             self._svd_load_thread = None
 
         if not self._svd_device and self._svd_location:
-#             LOG.debug("Started loading SVD")
-
             # Spawn thread to load SVD in background.
             self._svd_load_thread = SVDLoader(self._svd_location, svd_load_completed_cb)
             self._svd_load_thread.load()
@@ -137,16 +135,13 @@ class CoreSightTarget(Target, GraphNode):
             ('load_svd',            self.load_svd),
             ('create_flash',        self.create_flash),
             ('pre_connect',         self.pre_connect),
-            ('dp_init',             self.dp.init),
-            ('power_up',            self.dp.power_up_debug),
-            ('find_aps',            self.dp.find_aps),
-            ('create_aps',          self.dp.create_aps),
-            ('find_components',     self.dp.find_components),
-            ('create_cores',        self.create_cores),
-            ('create_components',   self.create_components),
+            ('dp_init',             self.dp.init_sequence),
+            ('create_discoverer',   self.create_discoverer),
+            ('discovery',           lambda : self._discoverer.discover()),
             ('check_for_cores',     self.check_for_cores),
             ('halt_on_connect',     self.perform_halt_on_connect),
             ('post_connect',        self.post_connect),
+            ('post_connect_hook',   self.post_connect_hook),
             ('notify',              lambda : self.session.notify(Target.Event.POST_CONNECT, self))
             )
         
@@ -162,7 +157,15 @@ class CoreSightTarget(Target, GraphNode):
         self.call_delegate('will_init_target', target=self, init_sequence=seq)
         seq.invoke()
         self.call_delegate('did_init_target', target=self)
-    
+            
+    def create_discoverer(self):
+        """! @brief Init task to create the discovery object.
+        
+        Instantiates the appropriate @ref pyocd.coresight.discovery.CoreSightDiscovery
+        CoreSightDiscovery subclass for the target's ADI version.
+        """
+        self._discoverer = discovery.ADI_DISCOVERY_CLASS_MAP[self.dp.adi_version](self)
+
     def pre_connect(self):
         """! @brief Handle some of the connect modes.
         
@@ -216,6 +219,13 @@ class CoreSightTarget(Target, GraphNode):
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
+    
+    def post_connect_hook(self):
+        """! @brief Hook function called after post_connect init task.
+        
+        This hook lets the target subclass configure the target as necessary.
+        """
+        pass
     
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.
@@ -276,26 +286,6 @@ class CoreSightTarget(Target, GraphNode):
             
             # Store the flash object back into the memory region.
             region.flash = obj
-    
-    def _create_component(self, cmpid):
-        LOG.debug("Creating %s component", cmpid.name)
-        cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
-        cmp.init()
-
-    def create_cores(self):
-        self._new_core_num = 0
-        self._apply_to_all_components(self._create_component,
-            filter=lambda c: c.factory in (cortex_m.CortexM.factory, cortex_m_v8m.CortexM_v8M.factory))
-
-    def create_components(self):
-        self._apply_to_all_components(self._create_component,
-            filter=lambda c: c.factory is not None
-                and c.factory not in (cortex_m.CortexM.factory, cortex_m_v8m.CortexM_v8M.factory))
-    
-    def _apply_to_all_components(self, action, filter=None):
-        # Iterate over every top-level ROM table.
-        for ap in [x for x in self.dp.aps.values() if (x.has_rom_table and x.rom_table is not None)]:
-            ap.rom_table.for_each(action, filter)
 
     def check_for_cores(self):
         """! @brief Init task: verify that at least one core was discovered."""
