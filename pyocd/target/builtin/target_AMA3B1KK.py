@@ -118,8 +118,8 @@ flash_algo = {
     'min_program_length' : 0x2000,
 
     # Flash information
-    'flash_start': 0x0,
-    'flash_size': 0x100000,
+    'flash_start': 0xc000,
+    'flash_size': 0xF4000,
     'sector_sizes': (
         (0x0, 0x2000),
     )
@@ -202,7 +202,7 @@ class AMA3B1KK(CoreSightTarget):
     CortexM_Core = Apollo3
 
     memoryMap = MemoryMap(
-        FlashRegion(start=0x00000000, length=0x10000000, sector_size=0x2000,
+        FlashRegion(start=0x0000c000, length=0x10000000, sector_size=0x2000,
                         page_size=0x200,
                         is_boot_memory=True,
                         algo=flash_algo),
@@ -214,7 +214,7 @@ class AMA3B1KK(CoreSightTarget):
         print("HELLO __init___ THEJERJEIDKDFJ")
         #CortexM_Core = CortexM_Core
         super(AMA3B1KK, self).__init__(link, self.memoryMap)
-        self._svd_location = SVDFile.from_builtin("ama3b1kk.svd")
+        #self._svd_location = SVDFile.from_builtin("ama3b1kk.svd")
         #seq.wrap_task('create_cores', self.setup_CC3220SF_core)
 
     def create_init_sequence(self):
