@@ -17,10 +17,11 @@
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...coresight.cortex_m import CortexM
 from ...debug.svd.loader import SVDFile
 
 flash_algo = {
-    'load_address' : 0x20000000,
+    'load_address' : 0x10000000,
 
     # Flash algorithm as a hex string
     'instructions': [
@@ -101,19 +102,19 @@ flash_algo = {
     ],
 
     # Relative function addresses
-    'pc_init': 0x20000021,
-    'pc_unInit': 0x20000033,
-    'pc_program_page': 0x20000083,
-    'pc_erase_sector': 0x20000065,
-    'pc_eraseAll': 0x20000037,
+    'pc_init': 0x10000021,
+    'pc_unInit': 0x10000033,
+    'pc_program_page': 0x10000083,
+    'pc_erase_sector': 0x10000065,
+    'pc_eraseAll': 0x10000037,
 
-    'static_base' : 0x20000000 + 0x00000020 + 0x000000f4,
-    'begin_stack' : 0x20000400,
-    'begin_data' : 0x20000000 + 0x1000,
+    'static_base' : 0x10000000 + 0x00000020 + 0x000000f4,
+    'begin_stack' : 0x10000400,
+    'begin_data' : 0x10000000 + 0x1000,
     'page_size' : 0x2000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [0x20001000, 0x20003000],   # Enable double buffering
+    'page_buffers' : [0x10001000, 0x10003000],   # Enable double buffering
     'min_program_length' : 0x2000,
 
     # Flash information
@@ -124,9 +125,81 @@ flash_algo = {
     )
 }
 
-class AMA3B1KK(CoreSightTarget):
+class Apollo3(CortexM):
+    def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
+        self._acquire_timeout = acquire_timeout
+        super(Apollo3, self).__init__(session, ap, memoryMap, core_num)
+    # def reset_and_halt(self, reset_type=None):
+    #     #ignore reset type
+    #     #write_memory(self, addr, data, transfer_size=32):
+    #     #read_memory(self, addr, transfer_size=32, now=True)
+    #     print("ENTERING CUSTOM RESET SEQUENCE")
 
+    #     v = self.read_memory(0xE000EDF0)
+    #     print("0xE000EDF0 = " + str(v))
+    #     v &= 0x3F
+    #     v |= 0xA05F0003
+    #     self.write_memory(0xE000EDF0, v)
+    #     print("Wrote "+ str(v) + " to 0xE000EDF0")
+
+    #     jdecpid = self.read_memory(0xF0000FE0)
+    #     print("JDEC PID " + str(jdecpid))
+
+    #     if((jdecpid & 0xf0) == 0xc0):
+    #         print("Ambiq Apollo3")
+    #         bootldr = self.read_memory(0x400401A0)
+    #         if ((bootldr & 0x0C000000) == 0x04000000):
+    #             print("Secure Part.")
+    #             secure = True
+        
+    #     if(secure):
+    #         scratch0 = self.read_memory(0x400401B0)
+    #         print("scratch0 = "+ str(scratch0))
+    #         self.write_memory(0x400401B0, (scratch0 | 0x1))
+    #         print("wrote " + str(scratch0 | 0x1) + " to scratch0")
+    #     else:
+    #         print("I havent wrtten non secure yet")
+        
+    #     #mask = CortexM.NVIC_AIRCR_SYSRESETREQ        
+    #     #self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
+    #     self.write_memory(0xe000ed0c, 0x05fa0004)
+    #     print("reset")
+    #     # Without a flush a transfer error can occur
+    #     self.flush()
+    #     print("flush")
+
+    def set_reset_catch(self, reset_type=None):
+        """! @brief Prepare to halt core on reset."""
+        #LOG.debug("set reset catch, core %d", self.core_number)
+
+        self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
+        
+        # Default behaviour if the delegate didn't handle it.
+        if not self._reset_catch_delegate_result:
+            # Halt the target.
+            self.halt()
+
+        jdecpid = self.read_memory(0xF0000FE0)
+        print("JDEC PID " + str(jdecpid))
+
+        if((jdecpid & 0xf0) == 0xc0):
+            print("Ambiq Apollo3")
+            bootldr = self.read_memory(0x400401A0)
+            if ((bootldr & 0x0C000000) == 0x04000000):
+                print("Secure Part.")
+                secure = True
+        
+        if(secure):
+            scratch0 = self.read_memory(0x400401B0)
+            print("scratch0 = "+ str(scratch0))
+            self.write_memory(0x400401B0, (scratch0 | 0x1))
+            print("wrote " + str(scratch0 | 0x1) + " to scratch0")
+        else:
+            print("I havent wrtten non secure yet")
+class AMA3B1KK(CoreSightTarget):
+    
     VENDOR = "Ambiq Micro"
+    CortexM_Core = Apollo3
 
     memoryMap = MemoryMap(
         FlashRegion(start=0x00000000, length=0x10000000, sector_size=0x2000,
@@ -137,13 +210,41 @@ class AMA3B1KK(CoreSightTarget):
         )
 
     def __init__(self, link):
+        self.DEFAULT_ACQUIRE_TIMEOUT = 25.0
+        print("HELLO __init___ THEJERJEIDKDFJ")
+        #CortexM_Core = CortexM_Core
         super(AMA3B1KK, self).__init__(link, self.memoryMap)
-        # self._svd_location = SVDFile.from_builtin("ama3b1kk.svd")
+        self._svd_location = SVDFile.from_builtin("ama3b1kk.svd")
+        #seq.wrap_task('create_cores', self.setup_CC3220SF_core)
+
+    def create_init_sequence(self):
+        seq = super(AMA3B1KK, self).create_init_sequence()
+        seq.replace_task('create_cores', self.create_ap3_core)
+        return seq
+
+    def create_ap3_core(self):
+        print(self.aps)
+        core = self.CortexM_Core(self.session, self.aps[0], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
+        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        self.aps[0].core = core
+        core.init()
+        self.add_core(core)
+
+    # def create_psoc_core(self):
+    #     core = self.CoretxM_Core(self.session, self.aps[self.AP_NUM], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
+    #     core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+    #     self.aps[self.AP_NUM].core = core
+    #     core.init()
+    #     self.add_core(core)
 
     def resetn(self):
         """
         reset a core. After a call to this function, the core
         is running
         """
+        print("HELLO reset sequence")
         self.reset()
+
+    #def will_reset(self, core, reset_type):
+
 
