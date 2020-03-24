@@ -303,11 +303,9 @@ class PyOCDTool(object):
         packOperations.add_argument("-s", "--show", action='store_true',
             help="Show the list of installed packs.")
         packOperations.add_argument("-f", "--find", dest="find_devices", metavar="GLOB", action='append',
-            help="Look up a device part number in the index using a glob pattern. The pattern is "
-                "suffixed with '*'. Can be specified multiple times.")
+            help="Report pack(s) in the index containing matching device part numbers.")
         packOperations.add_argument("-i", "--install", dest="install_devices", metavar="GLOB", action='append',
-            help="Download and install pack(s) to support targets matching the glob pattern. "
-                "The pattern is suffixed with '*'. Can be specified multiple times.")
+            help="Download and install pack(s) containing matching device part numbers.")
         packOptions = packParser.add_argument_group('pack options')
         packOptions.add_argument("-n", "--no-download", action='store_true',
             help="Just list the pack(s) that would be downloaded, don't actually download anything.")
@@ -667,7 +665,7 @@ class PyOCDTool(object):
             cache.cache_descriptors()
         
         if self._args.show:
-            packs = pack_target.ManagedPacks.get_installed_packs()
+            packs = pack_target.ManagedPacks.get_installed_packs(cache)
             pt = self._get_pretty_table(["Vendor", "Pack", "Version"])
             for ref in packs:
                 pt.add_row([
@@ -688,8 +686,8 @@ class PyOCDTool(object):
             matches = set()
             for pattern in patterns:
                 # Using fnmatch.fnmatch() was failing to match correctly.
-                pat = re.compile(fnmatch.translate(pattern + "*"), re.IGNORECASE)
-                results = {name for name in cache.index.keys() if pat.match(name)}
+                pat = re.compile(fnmatch.translate(pattern).rsplit('\\Z')[0], re.IGNORECASE)
+                results = {name for name in cache.index.keys() if pat.search(name)}
                 matches.update(results)
             
             if not matches:
@@ -697,7 +695,11 @@ class PyOCDTool(object):
                 return
             
             if self._args.find_devices:
-                pt = self._get_pretty_table(["Part", "Vendor", "Pack", "Version"])
+                # Get the list of installed pack targets.
+                installed_targets = pack_target.ManagedPacks.get_installed_targets(cache=cache)
+                installed_target_names = [target.part_number.lower() for target in installed_targets]
+                
+                pt = self._get_pretty_table(["Part", "Vendor", "Pack", "Version", "Installed"])
                 for name in sorted(matches):
                     info = cache.index[name]
                     ref, = cache.packs_for_devices([info])
@@ -706,6 +708,7 @@ class PyOCDTool(object):
                                 ref.vendor,
                                 ref.pack,
                                 ref.version,
+                                info['name'].lower() in installed_target_names,
                                 ])
                 print(pt)
             elif self._args.install_devices:

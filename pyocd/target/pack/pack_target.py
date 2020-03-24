@@ -47,7 +47,8 @@ class ManagedPacks(object):
         """! @brief Return a list containing CmsisPackRef objects for all installed packs."""
         if not CPM_AVAILABLE:
             return []
-        cache = cache or cmsis_pack_manager.Cache(True, True)
+        if cache is None:
+            cache = cmsis_pack_manager.Cache(True, True)
         results = []
         # packs_for_devices() returns only unique packs.
         for pack in cache.packs_for_devices(cache.index.values()):
@@ -60,11 +61,12 @@ class ManagedPacks(object):
         return results
 
     @staticmethod
-    def get_installed_targets():
+    def get_installed_targets(cache=None):
         """! @brief Return a list of CmsisPackDevice objects for installed pack targets."""
         if not CPM_AVAILABLE:
             return []
-        cache = cmsis_pack_manager.Cache(True, True)
+        if cache is None:
+            cache = cmsis_pack_manager.Cache(True, True)
         results = []
         for pack in ManagedPacks.get_installed_packs(cache=cache):
             pack_path = os.path.join(cache.data_path, pack.get_pack_name())
