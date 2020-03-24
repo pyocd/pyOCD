@@ -164,7 +164,7 @@ class JLinkProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """Initialize DAP IO pins for JTAG or SWD"""
+        """! @brief Connect to the target via JTAG or SWD."""
         # Handle default protocol.
         if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
             protocol = self._default_protocol
@@ -181,8 +181,9 @@ class JLinkProbe(DebugProbe):
         
         try:
             self._link.set_tif(iface)
+            if self.session.options.get('jlink.power'):
+                self._link.power_on()
             self._link.connect('Cortex-M4')
-            self._link.power_on()
             self._link.coresight_configure()
             self._protocol = protocol
         except JLinkException as exc:
@@ -204,22 +205,23 @@ class JLinkProbe(DebugProbe):
         self._link.swd_sync()
 
     def disconnect(self):
-        """Deinitialize the DAP I/O pins"""
+        """! @brief Disconnect from the target."""
+        try:
+            if self.session.options.get('jlink.power'):
+                self._link.power_off()
+        except JLinkException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
         self._protocol = None
         self._invalidate_cached_registers()
 
     def set_clock(self, frequency):
-        """Set the frequency for JTAG and SWD in Hz
-
-        This function is safe to call before connect is called.
-        """
         try:
             self._link.set_speed(frequency // 1000)
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def reset(self):
-        """Reset the target"""
         try:
             self._link.reset(halt=False)
 
@@ -228,7 +230,6 @@ class JLinkProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def assert_reset(self, asserted):
-        """Assert or de-assert target reset line"""
         try:
             if asserted:
                 self._link.set_reset_pin_low()
@@ -239,7 +240,6 @@ class JLinkProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
     
     def is_reset_asserted(self):
-        """Returns True if the target reset line is asserted or False if de-asserted"""
         try:
             status = self._link.hardware_status()
             return status.tres == 0
