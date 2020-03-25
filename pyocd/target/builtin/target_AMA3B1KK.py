@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
+from time import (time, sleep)
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...coresight.cortex_m import CortexM
@@ -163,13 +164,18 @@ class Apollo3(CortexM):
         else:
             super(Apollo3, self).set_reset_catch(reset_type)
             #print("I havent wrtten non secure yet")
+
+    def reset(self, reset_type=None):
+        super(Apollo3, self).reset(reset_type)
+        sleep(0.1)
+
 class AMA3B1KK(CoreSightTarget):
     
     VENDOR = "Ambiq Micro"
     CortexM_Core = Apollo3
 
     memoryMap = MemoryMap(
-        FlashRegion(start=0x0000c000, length=0x10000000, sector_size=0x2000,
+        FlashRegion(start=0x0000c000, length=0x000F4000, sector_size=0x2000,
                         page_size=0x200,
                         is_boot_memory=True,
                         algo=flash_algo),
@@ -178,11 +184,8 @@ class AMA3B1KK(CoreSightTarget):
 
     def __init__(self, link):
         self.DEFAULT_ACQUIRE_TIMEOUT = 25.0
-        print("HELLO __init___ THEJERJEIDKDFJ")
-        #CortexM_Core = CortexM_Core
         super(AMA3B1KK, self).__init__(link, self.memoryMap)
-        #self._svd_location = SVDFile.from_builtin("ama3b1kk.svd")
-        #seq.wrap_task('create_cores', self.setup_CC3220SF_core)
+        self._svd_location = SVDFile.from_builtin("apollo3.svd")
 
     def create_init_sequence(self):
         seq = super(AMA3B1KK, self).create_init_sequence()
@@ -190,19 +193,12 @@ class AMA3B1KK(CoreSightTarget):
         return seq
 
     def create_ap3_core(self):
-        print(self.aps)
+        #print(self.aps)
         core = self.CortexM_Core(self.session, self.aps[0], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
         core.default_reset_type = self.ResetType.SW_SYSRESETREQ
         self.aps[0].core = core
         core.init()
         self.add_core(core)
-
-    # def create_psoc_core(self):
-    #     core = self.CoretxM_Core(self.session, self.aps[self.AP_NUM], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
-    #     core.default_reset_type = self.ResetType.SW_SYSRESETREQ
-    #     self.aps[self.AP_NUM].core = core
-    #     core.init()
-    #     self.add_core(core)
 
     def resetn(self):
         """
@@ -211,7 +207,5 @@ class AMA3B1KK(CoreSightTarget):
         """
         print("HELLO reset sequence")
         self.reset()
-
-    #def will_reset(self, core, reset_type):
 
 
