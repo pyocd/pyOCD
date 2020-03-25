@@ -126,47 +126,13 @@ flash_algo = {
 }
 
 class Apollo3(CortexM):
+    MCUCTRL_SCRATCH0 = 0x400401B0
+    MCUCTRL_BOOTLDR = 0x400401A0
+    JDEC_PID = 0xF0000FE0
+
     def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
         self._acquire_timeout = acquire_timeout
         super(Apollo3, self).__init__(session, ap, memoryMap, core_num)
-    # def reset_and_halt(self, reset_type=None):
-    #     #ignore reset type
-    #     #write_memory(self, addr, data, transfer_size=32):
-    #     #read_memory(self, addr, transfer_size=32, now=True)
-    #     print("ENTERING CUSTOM RESET SEQUENCE")
-
-    #     v = self.read_memory(0xE000EDF0)
-    #     print("0xE000EDF0 = " + str(v))
-    #     v &= 0x3F
-    #     v |= 0xA05F0003
-    #     self.write_memory(0xE000EDF0, v)
-    #     print("Wrote "+ str(v) + " to 0xE000EDF0")
-
-    #     jdecpid = self.read_memory(0xF0000FE0)
-    #     print("JDEC PID " + str(jdecpid))
-
-    #     if((jdecpid & 0xf0) == 0xc0):
-    #         print("Ambiq Apollo3")
-    #         bootldr = self.read_memory(0x400401A0)
-    #         if ((bootldr & 0x0C000000) == 0x04000000):
-    #             print("Secure Part.")
-    #             secure = True
-        
-    #     if(secure):
-    #         scratch0 = self.read_memory(0x400401B0)
-    #         print("scratch0 = "+ str(scratch0))
-    #         self.write_memory(0x400401B0, (scratch0 | 0x1))
-    #         print("wrote " + str(scratch0 | 0x1) + " to scratch0")
-    #     else:
-    #         print("I havent wrtten non secure yet")
-        
-    #     #mask = CortexM.NVIC_AIRCR_SYSRESETREQ        
-    #     #self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
-    #     self.write_memory(0xe000ed0c, 0x05fa0004)
-    #     print("reset")
-    #     # Without a flush a transfer error can occur
-    #     self.flush()
-    #     print("flush")
 
     def set_reset_catch(self, reset_type=None):
         """! @brief Prepare to halt core on reset."""
@@ -179,23 +145,24 @@ class Apollo3(CortexM):
             # Halt the target.
             self.halt()
 
-        jdecpid = self.read_memory(0xF0000FE0)
-        print("JDEC PID " + str(jdecpid))
+        jdecpid = self.read_memory(self.JDEC_PID)
+        #print("JDEC PID " + str(jdecpid))
 
         if((jdecpid & 0xf0) == 0xc0):
-            print("Ambiq Apollo3")
-            bootldr = self.read_memory(0x400401A0)
+            #print("Ambiq Apollo3")
+            bootldr = self.read_memory(self.MCUCTRL_BOOTLDR)
             if ((bootldr & 0x0C000000) == 0x04000000):
-                print("Secure Part.")
+                #print("Secure Part.")
                 secure = True
         
         if(secure):
-            scratch0 = self.read_memory(0x400401B0)
-            print("scratch0 = "+ str(scratch0))
-            self.write_memory(0x400401B0, (scratch0 | 0x1))
-            print("wrote " + str(scratch0 | 0x1) + " to scratch0")
+            scratch0 = self.read_memory(self.MCUCTRL_SCRATCH0)
+            #print("scratch0 = "+ str(scratch0))
+            self.write_memory(self.MCUCTRL_SCRATCH0, (scratch0 | 0x1))
+            #print("wrote " + str(scratch0 | 0x1) + " to scratch0")
         else:
-            print("I havent wrtten non secure yet")
+            super(Apollo3, self).set_reset_catch(reset_type)
+            #print("I havent wrtten non secure yet")
 class AMA3B1KK(CoreSightTarget):
     
     VENDOR = "Ambiq Micro"
