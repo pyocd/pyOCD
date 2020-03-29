@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,7 +48,8 @@ from test_util import (
     get_session_options,
     get_target_test_params,
     binary_to_elf_file,
-    get_env_file_name
+    get_env_file_name,
+    get_test_binary_path,
     )
 
 # TODO, c1728p9 - run script several times with
@@ -120,8 +121,7 @@ def test_gdb(board_id=None, n=0):
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
         target_type = board.target_type
-        binary_file = os.path.join(parentdir, 'binaries',
-                                   board.test_binary)
+        binary_file = get_test_binary_path(board.test_binary)
         if board_id is None:
             board_id = board.unique_id
         target_test_params = get_target_test_params(session)

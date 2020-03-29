@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,9 +30,8 @@ from test_util import (
     Test,
     TestResult,
     get_session_options,
+    get_test_binary_path,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STATE_NAMES = {
     Target.State.RUNNING : "running",
@@ -77,7 +76,7 @@ class ConnectTest(Test):
 
 def connect_test(board):
     board_id = board.unique_id
-    binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+    binary_file = get_test_binary_path(board.test_binary)
     print("binary file: %s" % binary_file)
 
     test_pass_count = 0

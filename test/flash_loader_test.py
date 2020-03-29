@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,9 +42,8 @@ from test_util import (
     get_target_test_params,
     binary_to_hex_file,
     binary_to_elf_file,
+    get_test_binary_path,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 addr = 0
 size = 0
@@ -88,7 +87,7 @@ def flash_loader_test(board_id):
         boot_end_addr = boot_region.end
         boot_blocksize = boot_region.blocksize
         num_test_sectors = min(2, boot_region.length // boot_blocksize)
-        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+        binary_file = get_test_binary_path(board.test_binary)
 
         # Generate an Intel hex file from the binary test file.
         temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)

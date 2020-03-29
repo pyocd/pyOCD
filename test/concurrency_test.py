@@ -43,8 +43,6 @@ from test_util import (
     run_in_parallel,
     )
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 # Test configuration values.        
 TEST_MAX_LENGTH = 1 * 1024 * 1024
 TEST_THREAD_COUNT = 8
@@ -85,7 +83,6 @@ def concurrency_test(board_id):
         memory_map = target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
-        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
 
         test_pass_count = 0
         test_count = 0

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,9 +39,8 @@ from test_util import (
     TestResult,
     get_session_options,
     get_target_test_params,
+    get_test_binary_path,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 addr = 0
 size = 0
@@ -158,7 +157,7 @@ def flash_test(board_id):
 
             print("\n\n===== Testing flash region '%s' from 0x%08x to 0x%08x ====" % (rom_region.name, rom_region.start, rom_region.end))
 
-            binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+            binary_file = get_test_binary_path(board.test_binary)
             with open(binary_file, "rb") as f:
                 data = f.read()
             data = struct.unpack("%iB" % len(data), data)

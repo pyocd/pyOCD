@@ -30,6 +30,13 @@ isPy2 = (sys.version_info[0] == 2)
 
 OBJCOPY = "arm-none-eabi-objcopy"
 
+TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+PYOCD_DIR = os.path.dirname(TEST_DIR)
+TEST_DATA_DIR = os.path.join(TEST_DIR, "data")
+
+def get_test_binary_path(binary_name):
+    return os.path.join(TEST_DATA_DIR, "binaries", binary_name)
+
 def get_env_name():
     return os.environ.get('TOX_ENV_NAME', '')
 
