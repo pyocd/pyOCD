@@ -32,7 +32,7 @@ class StreamServer(threading.Thread):
     server and its thread, call the stop() method.
     """
     
-    def __init__(self, port, serve_local_only=True, name=None, is_read_only=True):
+    def __init__(self, port, serve_local_only=True, name=None, is_read_only=True, extra_info=None):
         """! @brief Constructor.
         
         Starts the server immediately.
@@ -46,10 +46,12 @@ class StreamServer(threading.Thread):
         @param is_read_only If the server is read-only, from the perspective of the client,
             then any incoming data sent by the client is discarded. Otherwise it is buffered so
             it can be read with the read() methods.
+        @param extra_info Optional string with extra information about the server, e.g. "core 0".
         """
         super(StreamServer, self).__init__()
         self.name = name
         self._name = name
+        self._extra_info = extra_info
         self._formatted_name = (name + " ") if (name is not None) else ""
         self._is_read_only = is_read_only
         self._abstract_socket = None
@@ -74,7 +76,8 @@ class StreamServer(threading.Thread):
         self.join()
 
     def run(self):
-        LOG.info("%sserver started on port %d", self._formatted_name, self._port)
+        LOG.info("%sserver started on port %d%s", self._formatted_name, self._port,
+            (" (%s)" % self._extra_info) if self._extra_info else "")
         self.connected = None
         try:
             while not self._shutdown_event.is_set():
