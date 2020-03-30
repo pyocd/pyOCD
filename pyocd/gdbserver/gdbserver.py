@@ -981,6 +981,8 @@ class GDBServer(threading.Thread):
                 resp = hex_encode(b"Erase successful\n")
             except exceptions.Error as e:
                 resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
+        elif cmdList[0] == b'sync':
+            self.send_stop_notification()
         else:
             resultMask = 0x00
             if cmdList[0] == b'help':
