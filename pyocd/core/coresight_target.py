@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import logging
+import six
 
 from .target import Target
 from .memory_map import MemoryType
@@ -28,7 +31,6 @@ from ..utility.graph import GraphNode
 from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
 from ..target.pack.flash_algo import PackFlashAlgo
-import logging
 
 # inspect.getargspec is deprecated in Python 3.
 try:
