@@ -25,6 +25,7 @@ from optparse import make_option
 import six
 import prettytable
 import traceback
+import pprint
 
 # Attempt to import readline.
 try:
@@ -49,6 +50,7 @@ from ..utility import (mask, conversion)
 from ..utility.cmdline import convert_session_options
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
+from ..utility.compatibility import get_terminal_size
 
 # Make disasm optional.
 try:
@@ -1480,7 +1482,8 @@ class PyOCDCommander(object):
                 if isinstance(result, six.integer_types):
                     print("0x%08x (%d)" % (result, result))
                 else:
-                    print(result)
+                    w, h = get_terminal_size()
+                    pprint.pprint(result, indent=2, width=w, depth=10)
         except Exception as e:
             print("Exception while executing expression:", e)
             if session.Session.get_current().log_tracebacks:
