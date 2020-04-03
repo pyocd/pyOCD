@@ -402,6 +402,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Display the current HPROT value used by the selected MEM-AP."
             },
+        'graph' : {
+            'aliases' : [],
+            'help' : "Print the target object graph."
+            },
         }
 
 OPTION_HELP = {
@@ -650,6 +654,7 @@ class PyOCDCommander(object):
                 'mem-ap' :              self.handle_show_ap,
                 'hnonsec' :             self.handle_show_hnonsec,
                 'hprot' :               self.handle_show_hprot,
+                'graph' :               self.handle_show_graph,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -1783,6 +1788,9 @@ class PyOCDCommander(object):
                 bitvalue,
                 HPROT_BIT_DESC[bitnum][bitvalue])
         print(desc, end='')
+
+    def handle_show_graph(self, args):
+        self.board.dump()
 
     def handle_set(self, args):
         if len(args) < 1:
