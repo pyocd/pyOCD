@@ -24,6 +24,7 @@ from .dwt import (DWT, DWTv2)
 from .itm import ITM
 from .tpiu import TPIU
 from .gpr import GPR
+from .sdc600 import SDC600
 
 # Component classes.
 ROM_TABLE_CLASS = 0x1
@@ -96,7 +97,7 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0x9ec, 0x22, 0)      : CmpInfo('CS-600 ATB Replicator',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9ed, 0x14, 0x1a14) : CmpInfo('CS-600 CTI',              None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9ee, 0x00, 0)      : CmpInfo('CS-600 CATU',             None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x9ef, 0x00, 0x0a57) : CmpInfo('CS-600 SDC-600',          None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9ef, 0x00, 0x0a57) : CmpInfo('CS-600 SDC-600',          SDC600.factory      ),
     (ARM_ID, CORESIGHT_CLASS, 0xc05, 0x15, 0)      : CmpInfo('CPU-A5',    None            ),
     (ARM_ID, CORESIGHT_CLASS, 0xc07, 0x15, 0)      : CmpInfo('CPU-A7',    None            ),
     (ARM_ID, CORESIGHT_CLASS, 0xc08, 0x15, 0)      : CmpInfo('CPU-A8',    None            ),
