@@ -19,7 +19,7 @@ import six
 from collections import namedtuple
 from enum import Enum
 
-from ..core import exceptions
+from ..core import (exceptions, memory_interface)
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
 from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APREG_MASK, AccessPort)
@@ -214,6 +214,7 @@ class DebugPort(object):
         self._addr_mask = None
         self._errmode = None
         self._base_addr = None
+        self._apacc_mem_interface = None
 
     @property
     def probe(self):
@@ -227,6 +228,13 @@ class DebugPort(object):
     def base_address(self):
         """! @brief Base address of the first component for an ADIv6 system."""
         return self._base_addr
+    
+    @property
+    def apacc_memory_interface(self):
+        """! @brief Memory interface for performing APACC transactions."""
+        if self._apacc_mem_interface is None:
+            self._apacc_mem_interface = APAccessMemoryInterface(self)
+        return self._apacc_mem_interface
     
     @property
     def next_access_number(self):
@@ -503,5 +511,74 @@ class DebugPort(object):
         else:
             assert False
 
+class APAccessMemoryInterface(memory_interface.MemoryInterface):
+    """! @brief Memory interface for performing simple APACC transactions.
+    
+    This class allows the caller to generate Debug APB transactions from a DPv3. It simply
+    adapts the MemoryInterface to APACC transactions.
+    
+    By default, it passes memory transaction addresses unmodified to the DP. But an instance can be
+    constructed by passing an APAddress object to the constructor that offsets transaction addresses
+    so they are relative to the APAddress base.
+    
+    Only 32-bit transfers are supported.
+    """
+    
+    def __init__(self, dp, ap_address=None):
+        """! @brief Constructor.
+        
+        @param self
+        @param dp The DebugPort object.
+        @param ap_address Optional instance of APAddress. If provided, all memory transaction
+            addresses are offset by the base address of the APAddress.
+        """
+        self._dp = dp
+        self._ap_address = ap_address
+        if ap_address is not None:
+            self._offset = ap_address.address
+        else:
+            self._offset = 0
+    
+    @property
+    def dp(self):
+        return self._dp
+    
+    @property
+    def short_description(self):
+        if self._ap_address is None:
+            return "Root Component"
+        else:
+            return "Root Component ({})".format(self._ap_address)
 
+    def write_memory(self, addr, data, transfer_size=32):
+        """! @brief Write a single memory location.
+        
+        By default the transfer size is a word."""
+        if transfer_size != 32:
+            raise exceptions.DebugError("unsupported transfer size")
+        
+        return self._dp.write_ap(self._offset + addr, data)
+        
+    def read_memory(self, addr, transfer_size=32, now=True):
+        """! @brief Read a memory location.
+        
+        By default, a word will be read."""
+        if transfer_size != 32:
+            raise exceptions.DebugError("unsupported transfer size")
+        
+        return self._dp.read_ap(self._offset + addr, now)
+
+    def write_memory_block32(self, addr, data):
+        """! @brief Write an aligned block of 32-bit words."""
+        addr += self._offset
+        for word in data:
+            self._dp.write_ap(addr, data)
+            addr += 4
+
+    def read_memory_block32(self, addr, size):
+        """! @brief Read an aligned block of 32-bit words."""
+        addr += self._offset
+        result_cbs = [self._dp.read_ap(addr + i * 4, now=False) for i in range(size)]
+        result = [cb() for cb in result_cbs]
+        return result
 
