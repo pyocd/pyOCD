@@ -162,7 +162,8 @@ class GDBServer(threading.Thread):
             semihost_io_handler = semihost.InternalSemihostIOHandler()
 
         if self.semihost_console_type == 'telnet':
-            self.telnet_server = StreamServer(self.telnet_port, self.serve_local_only, "Semihost", False)
+            self.telnet_server = StreamServer(self.telnet_port, self.serve_local_only, "Semihost",
+                False, extra_info=("core %d" % self.core))
             console_file = self.telnet_server
             semihost_console = semihost.ConsoleIOHandler(self.telnet_server)
         else:
@@ -265,7 +266,7 @@ class GDBServer(threading.Thread):
         self.current_thread_id = 0
 
     def run(self):
-        LOG.info('GDB server started on port %d', self.port)
+        LOG.info('GDB server started on port %d (core %d)', self.port, self.core)
 
         while True:
             try:
@@ -980,6 +981,8 @@ class GDBServer(threading.Thread):
                 resp = hex_encode(b"Erase successful\n")
             except exceptions.Error as e:
                 resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
+        elif cmdList[0] == b'sync':
+            self.send_stop_notification()
         else:
             resultMask = 0x00
             if cmdList[0] == b'help':
