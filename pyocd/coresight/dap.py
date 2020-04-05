@@ -33,12 +33,16 @@ TRACE.setLevel(logging.CRITICAL)
 
 # DP register addresses. The DPBANKSEL value is encoded in bits [7:4].
 DP_IDR = 0x00 # read-only
+DP_IDR1 = 0x10 # read-only
+DP_BASEPTR0 = 0x20 # read-only
+DP_BASEPTR1 = 0x30 # read-only
 DP_ABORT = 0x00 # write-only
 DP_CTRL_STAT = 0x04 # read-write
 DP_DLCR = 0x14 # read-write
 DP_TARGETID = 0x24 # read-only
 DP_DLPIDR = 0x34 # read-only
 DP_EVENTSTAT = 0x44 # read-only
+DP_SELECT1 = 0x54 # write-only
 DP_SELECT = 0x8 # write-only
 DP_RDBUFF = 0xC # read-only
 
@@ -47,6 +51,13 @@ DP_RDBUFF = 0xC # read-only
 DPADDR_MASK = 0x0f
 DPBANKSEL_MASK = 0xf0
 DPBANKSEL_SHIFT = 4
+
+DPIDR1_ASIZE_MASK = 0x00000007f
+DPIDR1_ERRMODE_MASK = 0x00000080
+
+BASEPTR0_VALID_MASK = 0x00000001
+BASEPTR0_PTR_MASK = 0xfffff000
+BASEPTR0_PTR_SHIFT = 12
 
 ABORT_DAPABORT = 0x00000001
 ABORT_STKCMPCLR = 0x00000002
@@ -89,6 +100,7 @@ DPIDR = namedtuple('DPIDR', 'idr partno version revision mindp')
 class ADIVersion(Enum):
     """! @brief Supported versions of the Arm Debug Interface."""
     ADIv5 = 5
+    ADIv6 = 6
 
 class DPConnector(object):
     """! @brief Establishes a connection to the DP for a given wire protocol.
@@ -195,6 +207,13 @@ class DebugPort(object):
         self._access_number = 0
         self._cached_dpbanksel = None
         self._protocol = None
+        
+        # DPv3 attributes
+        self._is_dpv3 = False
+        self._addr_size = None
+        self._addr_mask = None
+        self._errmode = None
+        self._base_addr = None
 
     @property
     def probe(self):
@@ -202,8 +221,13 @@ class DebugPort(object):
     
     @property
     def adi_version(self):
-        return ADIVersion.ADIv5
-
+        return ADIVersion.ADIv6 if self._is_dpv3 else ADIVersion.ADIv5
+    
+    @property
+    def base_address(self):
+        """! @brief Base address of the first component for an ADIv6 system."""
+        return self._base_addr
+    
     @property
     def next_access_number(self):
         self._access_number += 1
@@ -237,6 +261,7 @@ class DebugPort(object):
             ('connect',             self._connect),
             ('clear_sticky_err',    self.clear_sticky_err),
             ('power_up_debug',      self.power_up_debug),
+            ('check_version',       self._check_version),
             )
 
     def _connect(self):
@@ -248,6 +273,33 @@ class DebugPort(object):
         self.dpidr = connector.idr
         LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
             " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
+        
+    def _check_version(self):
+        self._is_dpv3 = (self.dpidr.version == 3)
+        if self._is_dpv3:
+            idr1 = self.read_reg(DP_IDR1)
+            
+            self._addr_size = idr1 & DPIDR1_ASIZE_MASK
+            self._addr_mask = (1 << self._addr_size) - 1
+            self._errmode_supported = (idr1 & DPIDR1_ERRMODE_MASK) != 0
+            
+            LOG.debug("DP IDR1 = 0x%08x (addr size=%d, errmode=%d)", idr1, self._addr_size, self._errmode_supported)
+            
+            # Read base system address.
+            baseptr0 = self.read_reg(DP_BASEPTR0)
+            valid = (baseptr0 & BASEPTR0_VALID_MASK) != 0
+            if valid:
+                base = (baseptr0 & BASEPTR0_PTR_MASK) >> BASEPTR0_PTR_SHIFT
+                if self._addr_size > 32:
+                    baseptr1 = self.read_reg(DP_BASEPTR1)
+                    base |= baseptr1 << 32
+
+                base &= self._addr_mask
+                self._base_addr = base
+                
+                LOG.debug("DP BASEPTR = 0x%08x", self._base_addr)
+            else:
+                LOG.warning("DPv3 has no valid base address")
 
     def flush(self):
         try:
