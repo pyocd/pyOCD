@@ -315,6 +315,7 @@ class Session(Notifier):
         later on.
         """
         import pyocd
+        import pyocd.flash.file_programmer
         self._user_script_namespace = {
             # Modules and classes
             'pyocd': pyocd,
