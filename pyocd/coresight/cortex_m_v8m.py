@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 import logging
 
 from .cortex_m import CortexM
-from .core_ids import CORE_TYPE_NAME
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture)
 from ..core import exceptions
 from ..core.target import Target
 
@@ -75,6 +75,11 @@ class CortexM_v8M(CortexM):
         
         pfr1 = self.read32(self.PFR1)
         self.has_security_extension = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT) == 1
+        
+        if self.arch == self.ARMv8M_BASE:
+            self._architecture = CoreArchitecture.ARMv8M_BASE
+        else:
+            self._architecture = CoreArchitecture.ARMv8M_MAIN
         
         if self.core_type in CORE_TYPE_NAME:
             if self.has_security_extension:

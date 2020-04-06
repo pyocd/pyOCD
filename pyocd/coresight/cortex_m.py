@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ from ..utility.notification import Notification
 from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
-from .core_ids import CORE_TYPE_NAME
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture)
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
 
@@ -234,8 +234,8 @@ class CortexM(Target, CoreSightCoreComponent):
     CPUID_REVISION_POS = 0
 
     CPUID_IMPLEMENTER_ARM = 0x41
-    ARMv6M = 0xC # also ARMv8-M without Main Extension
-    ARMv7M = 0xF # also ARMv8-M with Main Extension
+    ARMv6M = 0xC
+    ARMv7M = 0xF
 
     # Debug Core Register Selector Register
     DCRSR = 0xE000EDF4
@@ -399,6 +399,7 @@ class CortexM(Target, CoreSightCoreComponent):
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
         self.arch = 0
+        self._architecture = None
         self.core_type = 0
         self.has_fpu = False
         self.core_number = core_num
@@ -435,6 +436,11 @@ class CortexM(Target, CoreSightCoreComponent):
             self.bp_manager.add_provider(cmp)
         elif isinstance(cmp, DWT):
             self.dwt = cmp
+
+    @property
+    def architecture(self):
+        """! @brief @ref pyocd.coresight.core_ids.CoreArchitecture "CoreArchitecture" for this core."""
+        return self._architecture
 
     @property
     def elf(self):
@@ -581,7 +587,10 @@ class CortexM(Target, CoreSightCoreComponent):
         
         # Only v7-M supports VECTRESET.
         if self.arch == CortexM.ARMv7M:
+            self._architecture = CoreArchitecture.ARMv7M
             self._supports_vectreset = True
+        else:
+            self._architecture = CoreArchitecture.ARMv6M
         
         if self.core_type in CORE_TYPE_NAME:
             LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
