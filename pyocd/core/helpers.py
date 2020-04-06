@@ -111,6 +111,7 @@ class ConnectHelper(object):
             ConnectHelper._print_probe_list(allProbes)
         else:
             print(colorama.Fore.RED + "No available debug probes are connected" + colorama.Style.RESET_ALL)
+        print(colorama.Style.RESET_ALL, end='')
 
     @staticmethod
     def choose_probe(blocking=True, return_first=False, unique_id=None):
