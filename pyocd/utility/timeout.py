@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2018 Arm Limited
+# Copyright (c) 2017-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from time import time
+from time import (time, sleep)
 
 class Timeout(object):
     """! @brief Timeout helper context manager.
@@ -24,12 +24,11 @@ class Timeout(object):
     to exit in the successful case.
     
     @code
-    with Timeout(5) as t_o:
+    with Timeout(5, sleeptime=0.1) as t_o:
         while t_o.check(): # or "while not t_o.did_time_out"
             # Perform some operation, check, etc.
             if foobar:
                 break
-            sleep(0.1)
         else:
             print("Timed out!")
     @endcode
@@ -49,12 +48,24 @@ class Timeout(object):
     
     You may also combine the call to check() in the while loop with other boolean expressions
     related to the operation being performed.
+    
+    If you pass a non-zero value for _sleeptime_ to the constructor, the check() method will
+    automatically sleep by default starting with the second call. You can disable auto-sleep
+    by passing `autosleep=False` to check().
     """
 
-    def __init__(self, timeout):
+    def __init__(self, timeout, sleeptime=0):
+        """! @brief Constructor.
+        @param self
+        @param timeout The timeout in seconds.
+        @param sleeptime Time in seconds to sleep during calls to check(). Defaults to 0, thus
+            check() will not sleep unless you pass a different value.
+        """
+        self._sleeptime = sleeptime
         self._timeout = timeout
         self._timed_out = False
         self._start = -1
+        self._is_first_check = True
 
     def __enter__(self):
         self._start = time()
@@ -63,13 +74,31 @@ class Timeout(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def check(self):
+    def check(self, autosleep=True):
+        """! @brief Check for timeout and possibly sleep.
+        
+        Starting with the second call to this method, it will automatically sleep before returning
+        if:
+            - The timeout has not yet occurred.
+            - A non-zero _sleeptime_ was passed to the constructor.
+            - The _autosleep_ parameter is True.
+        
+        @param self
+        @param autosleep Whether to sleep if not timed out yet. The sleeptime passed to the
+            constructor must have been non-zero.
+        """
+        # Check for a timeout.
         if (time() - self._start) > self._timeout:
             self._timed_out = True
+        # Sleep if appropriate.
+        elif (not self._is_first_check) and autosleep and self._sleeptime:
+            sleep(self._sleeptime)
+        self._is_first_check = False
         return not self._timed_out
 
     @property
     def did_time_out(self):
-        self.check()
+        """! @brief Whether the timeout has occurred as of the time when this property is accessed."""
+        self.check(autosleep=False)
         return self._timed_out
 
