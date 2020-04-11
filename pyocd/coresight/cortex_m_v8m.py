@@ -67,7 +67,7 @@ class CortexM_v8M(CortexM):
         if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
             LOG.warning("CPU implementer is not ARM!")
 
-        self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
+        arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
@@ -76,7 +76,7 @@ class CortexM_v8M(CortexM):
         pfr1 = self.read32(self.PFR1)
         self.has_security_extension = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT) == 1
         
-        if self.arch == self.ARMv8M_BASE:
+        if arch == self.ARMv8M_BASE:
             self._architecture = CoreArchitecture.ARMv8M_BASE
         else:
             self._architecture = CoreArchitecture.ARMv8M_MAIN

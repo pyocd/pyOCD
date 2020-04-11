@@ -398,7 +398,6 @@ class CortexM(Target, CoreSightCoreComponent):
         Target.__init__(self, session, memoryMap)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
-        self.arch = 0
         self._architecture = None
         self.core_type = 0
         self.has_fpu = False
@@ -559,7 +558,7 @@ class CortexM(Target, CoreSightCoreComponent):
             append_regs(self.regs_xpsr_control_plain, xml_regs_general)
         
         # Check if target has ARMv7 registers
-        if self.arch == CortexM.ARMv7M:
+        if self.architecture == CoreArchitecture.ARMv7M:
             append_regs(self.regs_system_armv7_only, xml_regs_general)
         # Check if target has FPU registers
         if self.has_fpu:
@@ -579,14 +578,14 @@ class CortexM(Target, CoreSightCoreComponent):
         if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
             LOG.warning("CPU implementer is not ARM!")
 
-        self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
+        arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
         
         # Only v7-M supports VECTRESET.
-        if self.arch == CortexM.ARMv7M:
+        if arch == CortexM.ARMv7M:
             self._architecture = CoreArchitecture.ARMv7M
             self._supports_vectreset = True
         else:
@@ -602,7 +601,8 @@ class CortexM(Target, CoreSightCoreComponent):
         
         The core architecture must have been identified prior to calling this function.
         """
-        if self.arch != CortexM.ARMv7M:
+        # FPU is not supported in these architectures.
+        if self.architecture in (CoreArchitecture.ARMv6M, CoreArchitecture.ARMv8M_BASE):
             self.has_fpu = False
             return
 
