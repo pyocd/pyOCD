@@ -80,6 +80,11 @@ OPTIONS_INFO = {
         "Name of test firmware binary."),
     'user_script': OptionInfo('user_script', str, None,
         "Path of the user script file."),
+    
+    # JLink options
+    'jlink.power': OptionInfo('jlink.power', bool, True,
+        "Enable target power when connecting via a JLink probe, and disable power when "
+        "disconnecting. Default is True."),
 
     # GDBServer options
     'enable_semihosting': OptionInfo('enable_semihosting', bool, False,

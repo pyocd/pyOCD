@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +15,12 @@
 # limitations under the License.
 
 from .cmsis_dap_probe import CMSISDAPProbe
+from .jlink_probe import JLinkProbe
 from .stlink_probe import StlinkProbe
 
 PROBE_CLASSES = [
     CMSISDAPProbe,
+    JLinkProbe,
     StlinkProbe,
     ]
 
