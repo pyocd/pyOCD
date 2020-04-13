@@ -54,8 +54,10 @@ Requirements
     - NXP LPC-LinkII
   - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v2 (WinUSB),
     such as:
+    - [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware version 0254 or newer.
     - Cypress KitProg3
     - Keil ULINKplus
+  - SEGGER J-Link (experimental)
   - STLinkV2 or STLinkV3, either on-board or the standalone versions.
 
 
