@@ -27,6 +27,7 @@ import prettytable
 import traceback
 import pprint
 import textwrap
+import colorama
 
 # Attempt to import readline.
 try:
@@ -502,7 +503,7 @@ def cmdoptions(opts):
     return process_opts
 
 class PyOCDConsole(object):
-    PROMPT = '>>> '
+    PROMPT = colorama.Fore.BLUE + 'pyocd> ' + colorama.Style.RESET_ALL
 
     def __init__(self, tool):
         self.tool = tool
