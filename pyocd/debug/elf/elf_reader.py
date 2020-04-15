@@ -35,6 +35,9 @@ class ElfReaderContext(DebugContext):
         for sect in [s for s in self._elf.sections if (s.region and s.region.is_flash)]:
             start = sect.start
             length = sect.length
+            # Skip empty sections.
+            if length == 0:
+                continue
             sect.data # Go ahead and read the data from the file.
             self._tree.addi(start, start + length, sect)
             LOG.debug("created flash section [%x:%x] for section %s", start, start + length, sect.name)

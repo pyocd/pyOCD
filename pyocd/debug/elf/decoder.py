@@ -146,6 +146,9 @@ class DwarfAddressDecoder(object):
                 # Skip subprograms excluded from the link.
                 if low_pc == 0:
                     continue
+                # Skip empty subprograms (no null intervals are allowed).
+                if low_pc == high_pc:
+                    continue
 
                 # If high_pc is not explicitly an address, then it's an offset from the
                 # low_pc value.
@@ -194,6 +197,7 @@ class DwarfAddressDecoder(object):
                     toAddr = entry.state.address
                     try:
                         if fromAddr != 0 and toAddr != 0:
+                            # Ensure we don't insert null intervals.
                             if fromAddr == toAddr:
                                 toAddr += 1
                             self.line_tree.addi(fromAddr, toAddr, info)
