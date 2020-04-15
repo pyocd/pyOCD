@@ -21,9 +21,19 @@ import sys
 import traceback
 import logging
 
+# unittest.mock is available from Python 3.3.
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
 from pyocd.core.helpers import ConnectHelper
+from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
+from pyocd.utility import conversion
+from pyocd.utility.mask import same
 from pyocd.core.memory_map import MemoryType
+from pyocd.debug.elf.elf_reader import ElfReaderContext
 
 from test_util import (
     Test,
@@ -32,6 +42,7 @@ from test_util import (
     get_target_test_params,
     get_test_binary_path,
     PYOCD_DIR,
+    binary_to_elf_file,
     )
 
 GDB_TEST_BIN = "src/gdb_test_program/gdb_test.bin"
@@ -77,6 +88,14 @@ def debug_context_test(board_id):
         with open(gdb_test_binary_file, "rb") as f:
             gdb_test_binary_data = list(bytearray(f.read()))
 
+        # Read the test binary file.
+        with open(binary_file, "rb") as f:
+            test_binary_data = bytearray(f.read())
+        test_binary_data_length = len(test_binary_data)
+        
+        # Generate ELF file from the binary test file.
+        temp_test_elf_name = binary_to_elf_file(binary_file, boot_region.start)
+
         test_pass_count = 0
         test_count = 0
         result = DebugContextTestResult()
@@ -114,6 +133,53 @@ def debug_context_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
+        
+        # Force a memory cache clear.
+        target.step()
+        
+        # ELF reader test goals:
+        # 1. Verify correct data is read without accessing the target memory.
+        # 2. Test null interval failure.
+        #
+        print("\n------ Test 2: ELF reader ------")
+        
+        # Set the elf on the target, which will add a context to read from the elf.
+        target.elf = temp_test_elf_name
+        ctx = target.get_target_context()
+        
+        print("Check that ElfReaderContext was created")
+        if isinstance(ctx, ElfReaderContext):
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        # Program the test binary.
+        print("Programming test binary to boot memory")
+        FileProgrammer(session).program(binary_file, base_address=boot_region.start)
+
+        with mock.patch.object(target.selected_core, 'read_memory_block32') as read_block32_mock:
+            test_len = min(4096, test_binary_data_length)
+            print("Reading %d bytes of test binary from context." % test_len)
+            data = ctx.read_memory_block32(boot_region.start, test_len // 4)
+            data = conversion.u32le_list_to_byte_list(data)
+            if same(data, test_binary_data[:test_len]):
+                print("PASSED: expected data returned")
+                test_pass_count += 1
+            else:
+                print("FAILED: unexpected data")
+            test_count += 1
+
+            # Verify the target memory wasn't accessed.
+            try:
+                read_block32_mock.assert_not_called()
+            except AsssertionError:
+                print("FAILED: target memory was accessed")
+            else:
+                print("PASSED: target memory was not accessed")
+                test_pass_count += 1
+            test_count += 1
 
         print("\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))
