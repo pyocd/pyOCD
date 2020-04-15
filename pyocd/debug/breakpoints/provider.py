@@ -25,7 +25,7 @@ class Breakpoint(object):
         self.provider = provider
 
     def __repr__(self):
-        return "<%s@0x%08x type=%d addr=0x%08x>" % (self.__class__.__name__, id(self), self.type, self.addr)
+        return "<%s@0x%08x type=%s addr=0x%08x>" % (self.__class__.__name__, id(self), self.type.name, self.addr)
 
 class BreakpointProvider(object):
     """! @brief Abstract base class for breakpoint providers."""
