@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +30,7 @@ import prettytable
 from . import __version__
 from .core.session import Session
 from .core.helpers import ConnectHelper
+from .core.target import Target
 from .core import exceptions
 from .target import TARGET
 from .target.pack import pack_target
@@ -38,7 +39,8 @@ from .utility.cmdline import (
     split_command_line,
     VECTOR_CATCH_CHAR_MAP,
     convert_vector_catch,
-    convert_session_options
+    convert_session_options,
+    convert_reset_type,
     )
 from .probe.pydapaccess import DAPAccess
 from .tools.lists import ListGenerator
@@ -46,7 +48,6 @@ from .tools.pyocd import PyOCDCommander
 from .flash.eraser import FlashEraser
 from .flash.file_programmer import FileProgrammer
 from .core import options
-from .utility.cmdline import split_command_line
 
 try:
     import cmsis_pack_manager
@@ -65,6 +66,7 @@ DEFAULT_CMD_LOG_LEVEL = {
     'list':         logging.INFO,
     'json':         logging.FATAL + 1,
     'flash':        logging.WARNING,
+    'reset':        logging.WARNING,
     'erase':        logging.WARNING,
     'gdbserver':    logging.INFO,
     'gdb':          logging.INFO,
@@ -222,6 +224,14 @@ class PyOCDTool(object):
             help="File to program into flash.")
         subparsers.add_parser('flash', parents=[commonOptions, connectParser, flashParser],
             help="Program an image to device flash.")
+
+        # Create *reset* subcommand parser.
+        resetParser = argparse.ArgumentParser(description='reset', add_help=False)
+        resetOptions = resetParser.add_argument_group("reset options")
+        resetOptions.add_argument("-m", "--method", default='hw', dest='reset_type', metavar="METHOD",
+            help="Reset method to use ('hw', 'sw', and others). Default is 'hw'.")
+        subparsers.add_parser('reset', parents=[commonOptions, connectParser, resetParser],
+            help="Reset a device.")
         
         # Create *gdbserver* subcommand parser.
         gdbserverParser = argparse.ArgumentParser(description='gdbserver', add_help=False)
@@ -551,6 +561,47 @@ class PyOCDTool(object):
             
             addresses = flatten_args(self._args.addresses)
             eraser.erase(addresses)
+    
+    def do_reset(self):
+        """! @brief Handle 'reset' subcommand."""
+        self._increase_logging(["pyocd.flash.loader"])
+        
+        # Verify selected reset type.
+        try:
+            the_reset_type = convert_reset_type(self._args.reset_type)
+        except ValueError:
+            LOG.error("Invalid reset method: %s", self._args.reset_type)
+            return
+        
+        session = ConnectHelper.session_with_chosen_probe(
+                            project_dir=self._args.project_dir,
+                            config_file=self._args.config,
+                            user_script=self._args.script,
+                            no_config=self._args.no_config,
+                            pack=self._args.pack,
+                            unique_id=self._args.unique_id,
+                            target_override=self._args.target_override,
+                            frequency=self._args.frequency,
+                            blocking=False,
+                            options=convert_session_options(self._args.options))
+        if session is None:
+            sys.exit(1)
+        try:
+            # Handle hw reset specially using the probe, so we don't need a valid connection
+            # and can skip discovery.
+            is_hw_reset = the_reset_type == Target.ResetType.HW
+            
+            # Only init the board if performing a sw reset.
+            session.open(init_board=(not is_hw_reset))
+            
+            LOG.info("Performing '%s' reset...", self._args.reset_type)
+            if is_hw_reset:
+                session.probe.reset()
+            else:
+                session.target.reset(reset_type=the_reset_type)
+            LOG.info("Done.")
+        finally:
+            session.close()
 
     def _process_commands(self, commands):
         """! @brief Handle OpenOCD commands for compatibility."""
@@ -729,6 +780,7 @@ class PyOCDTool(object):
         'json':         do_json,
         'flash':        do_flash,
         'erase':        do_erase,
+        'reset':        do_reset,
         'gdbserver':    do_gdbserver,
         'gdb':          do_gdbserver,
         'commander':    do_commander,
