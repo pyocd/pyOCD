@@ -1291,7 +1291,7 @@ class CortexM(Target, CoreSightCoreComponent):
         if mask & CortexM.DEMCR_VC_BUSERR:
             result |= Target.VectorCatch.BUS_FAULT
         if mask & CortexM.DEMCR_VC_MMERR:
-            result |= Target.TargetVectorCatch.MEM_FAULT
+            result |= Target.VectorCatch.MEM_FAULT
         if mask & CortexM.DEMCR_VC_INTERR:
             result |= Target.VectorCatch.INTERRUPT_ERR
         if mask & CortexM.DEMCR_VC_STATERR:
