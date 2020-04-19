@@ -517,9 +517,10 @@ class PyOCDTool(object):
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
-                            blocking=False,
+                            blocking=(not self._args.no_wait),
                             options=convert_session_options(self._args.options))
         if session is None:
+            LOG.error("No device available to flash")
             sys.exit(1)
         with session:
             programmer = FileProgrammer(session,
@@ -551,9 +552,10 @@ class PyOCDTool(object):
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
-                            blocking=False,
+                            blocking=(not self._args.no_wait),
                             options=convert_session_options(self._args.options))
         if session is None:
+            LOG.error("No device available to erase")
             sys.exit(1)
         with session:
             mode = self._args.erase_mode or FlashEraser.Mode.SECTOR
@@ -582,9 +584,10 @@ class PyOCDTool(object):
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
-                            blocking=False,
+                            blocking=(not self._args.no_wait),
                             options=convert_session_options(self._args.options))
         if session is None:
+            LOG.error("No device available to reset")
             sys.exit(1)
         try:
             # Handle hw reset specially using the probe, so we don't need a valid connection
