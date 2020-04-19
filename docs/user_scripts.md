@@ -48,7 +48,7 @@ This example shows how to override the flash algorithm for an external flash mem
 # Unlike the previous example, the board argument is excluded here.
 def will_connect():
     # Look up the external flash memory region.
-    extFlash = target.memory_map.get_region_by_name("flexspi")
+    extFlash = target.memory_map.get_first_matching_region(name="flexspi")
 
     # Set the path to an .FLM flash algorithm.
     extFlash.flm = "MIMXRT105x_QuadSPI_4KB_SEC.FLM"
