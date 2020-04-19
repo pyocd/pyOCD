@@ -68,6 +68,10 @@ OPTIONS_INFO = {
     'reset_type': OptionInfo('reset_type', str, 'default',
         "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_sysresetreq', "
         "'sw_vectreset', 'sw_emulated'). The default is 'sw'."),
+    'reset.hold_time': OptionInfo('reset.hold_time', float, 0.1,
+        "Number of seconds to hold hardware reset asserted. Default is 0.1 s (100 ms)."),
+    'reset.post_delay': OptionInfo('reset.post_delay', float, 0.1,
+        "Number of seconds to delay after a reset is issued. Default is 0.1 s (100 ms)."),
     'resume_on_disconnect': OptionInfo('resume_on_disconnect', bool, True,
         "Whether to run target on disconnect."),
     'smart_flash': OptionInfo('smart_flash', bool, True,
