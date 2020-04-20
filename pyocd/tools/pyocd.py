@@ -1520,6 +1520,7 @@ class PyOCDCommander(object):
         addr = self.convert_value(args[0])
         data = self.convert_value(args[1])
         self.target.dp.write_reg(addr, data)
+        self.target.flush()
 
     def handle_readap(self, args):
         if len(args) < 1:
@@ -1547,6 +1548,7 @@ class PyOCDCommander(object):
             data_arg = 2
         data = self.convert_value(args[data_arg])
         self.target.dp.write_ap(addr, data)
+        self.target.flush()
 
     def handle_initdp(self, args):
         self.target.dp.init()
