@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import six
+from time import sleep
+
 from .debug_probe import DebugProbe
 from ..core import exceptions
 from .pydapaccess import DAPAccess
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
-import six
 
 class CMSISDAPProbe(DebugProbe):
     """! @brief Wraps a pydapaccess link as a DebugProbe.
@@ -215,7 +217,10 @@ class CMSISDAPProbe(DebugProbe):
     def reset(self):
         try:
             self._invalidate_cached_registers()
-            self._link.reset()
+            self._link.assert_reset(True)
+            sleep(self.session.options.get('reset.hold_time'))
+            self._link.assert_reset(False)
+            sleep(self.session.options.get('reset.post_delay'))
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 

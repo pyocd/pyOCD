@@ -25,6 +25,7 @@ from optparse import make_option
 import six
 import prettytable
 import traceback
+import pprint
 
 # Attempt to import readline.
 try:
@@ -49,6 +50,7 @@ from ..utility import (mask, conversion)
 from ..utility.cmdline import convert_session_options
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
+from ..utility.compatibility import get_terminal_size
 
 # Make disasm optional.
 try:
@@ -400,6 +402,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Display the current HPROT value used by the selected MEM-AP."
             },
+        'graph' : {
+            'aliases' : [],
+            'help' : "Print the target object graph."
+            },
         }
 
 OPTION_HELP = {
@@ -648,6 +654,7 @@ class PyOCDCommander(object):
                 'mem-ap' :              self.handle_show_ap,
                 'hnonsec' :             self.handle_show_hnonsec,
                 'hprot' :               self.handle_show_hprot,
+                'graph' :               self.handle_show_graph,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -1480,7 +1487,8 @@ class PyOCDCommander(object):
                 if isinstance(result, six.integer_types):
                     print("0x%08x (%d)" % (result, result))
                 else:
-                    print(result)
+                    w, h = get_terminal_size()
+                    pprint.pprint(result, indent=2, width=w, depth=10)
         except Exception as e:
             print("Exception while executing expression:", e)
             if session.Session.get_current().log_tracebacks:
@@ -1780,6 +1788,9 @@ class PyOCDCommander(object):
                 bitvalue,
                 HPROT_BIT_DESC[bitnum][bitvalue])
         print(desc, end='')
+
+    def handle_show_graph(self, args):
+        self.board.dump()
 
     def handle_set(self, args):
         if len(args) < 1:

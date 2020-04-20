@@ -223,19 +223,22 @@ class JLinkProbe(DebugProbe):
 
     def reset(self):
         try:
-            self._link.reset(halt=False)
-
             self._invalidate_cached_registers()
+
+            self._link.set_reset_pin_low()
+            sleep(self.session.options.get('reset.hold_time'))
+            self._link.set_reset_pin_high()
+            sleep(self.session.options.get('reset.post_delay'))
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def assert_reset(self, asserted):
         try:
+            self._invalidate_cached_registers()
             if asserted:
                 self._link.set_reset_pin_low()
             else:
                 self._link.set_reset_pin_high()
-            self._invalidate_cached_registers()
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
     

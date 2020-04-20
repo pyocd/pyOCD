@@ -177,6 +177,20 @@ Which type of reset to use by default (one of 'default', 'hw', 'sw', 'sw_sysrese
 'sw_vectreset', 'sw_emulated').
 </td></tr>
 
+<tr><td>reset.hold_time</td>
+<td>float</td>
+<td>0.1</td>
+<td>
+Number of seconds to hold hardware reset asserted.
+</td></tr>
+
+<tr><td>reset.post_delay</td>
+<td>float</td>
+<td>0.1</td>
+<td>
+Number of seconds to delay after a reset is issued.
+</td></tr>
+
 <tr><td>resume_on_disconnect</td>
 <td>bool</td>
 <td>True</td>
@@ -344,6 +358,24 @@ The source letters are:
 <td>
 When set to True, XPSR and CONTROL registers will have their respective bitfields defined for
 presentation in gdb.
+</td></tr>
+
+</table>
+
+## J-Link probe options
+
+These user options apply to SEGGER J-Link debug probes
+
+<table>
+
+<tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
+
+<tr><td>jlink.power</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable target power when connecting via a JLink probe, and disable power when disconnecting.
+Default is True.
 </td></tr>
 
 </table>

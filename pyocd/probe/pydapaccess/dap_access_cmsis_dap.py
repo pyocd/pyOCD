@@ -605,13 +605,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def get_unique_id(self):
         return self._unique_id
 
-    def reset(self):
-        self.flush()
-        self._protocol.set_swj_pins(0, Pin.nRESET)
-        time.sleep(0.1)
-        self._protocol.set_swj_pins(Pin.nRESET, Pin.nRESET)
-        time.sleep(0.1)
-
     def assert_reset(self, asserted):
         self.flush()
         if asserted:

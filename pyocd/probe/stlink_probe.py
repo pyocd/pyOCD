@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import six
+from time import sleep
+
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
 from ..core import exceptions
@@ -24,7 +27,6 @@ from .stlink.detect.factory import create_mbed_detector
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..utility import conversion
-import six
 
 class StlinkProbe(DebugProbe):
     """! @brief Wraps an STLink as a DebugProbe."""
@@ -136,7 +138,10 @@ class StlinkProbe(DebugProbe):
         self._link.set_swd_frequency(frequency)
 
     def reset(self):
-        self._link.target_reset()
+        self._link.drive_nreset(True)
+        sleep(self.session.options.get('reset.hold_time'))
+        self._link.drive_nreset(False)
+        sleep(self.session.options.get('reset.post_delay'))
 
     def assert_reset(self, asserted):
         self._link.drive_nreset(asserted)
