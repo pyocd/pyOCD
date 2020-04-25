@@ -128,7 +128,7 @@ COMMAND_INFO = {
             'help' : "Unlock security on the target"
             },
         'status' : {
-            'aliases' : ['stat'],
+            'aliases' : ['stat', 'st'],
             'args' : "",
             'help' : "Show the target's current state"
             },
@@ -579,6 +579,7 @@ class PyOCDCommander(object):
                 'unlock' :  self.handle_unlock,
                 'status' :  self.handle_status,
                 'stat' :    self.handle_status,
+                'st' :      self.handle_status,
                 'reg' :     self.handle_reg,
                 'wreg' :    self.handle_write_reg,
                 'reset' :   self.handle_reset,
@@ -851,16 +852,12 @@ class PyOCDCommander(object):
         ConnectHelper.list_connected_probes()
 
     def handle_status(self, args):
-        if self.target.is_locked():
-            print("Security:       Locked")
-        else:
-            print("Security:       Unlocked")
-        if isinstance(self.target, target_kinetis.Kinetis):
-            print("MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS))
         if not self.target.is_locked():
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d status:  %s" % (i, CORE_STATUS_DESC[core.get_state()]))
+                print("Core %d:  %s" % (i, CORE_STATUS_DESC[core.get_state()]))
+        else:
+            print("Target is locked")
 
     def handle_reg(self, args):
         # If there are no args, print all register values.
