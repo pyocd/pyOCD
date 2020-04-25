@@ -135,12 +135,21 @@ COMMAND_INFO = {
         'reg' : {
             'aliases' : [],
             'args' : "[-f] [REG]",
-            'help' : "Print all or one register"
+            'help' : "Print core or peripheral register(s).",
+            "extra_help" : "If no arguments are provided, all core registers will be printed. "
+                           "Either a core register name, the name of a peripheral, or a "
+                           "peripheral.register can be provided. When a peripheral name is "
+                           "provided without a register, all registers in the peripheral will "
+                           "be printed. If the -f option is passed, then individual fields of "
+                           "peripheral registers will be printed in addition to the full value."
             },
         'wreg' : {
             'aliases' : [],
-            'args' : "REG VALUE",
-            'help' : "Set the value of a register"
+            'args' : "[-r] REG VALUE",
+            'help' : "Set the value of a core or peripheral register.",
+            "extra_help" : "The REG parameter must be a core register name or a peripheral.register. "
+                           "When a peripheral register is written, if the -r option is passed then "
+                           "it is read back and the updated value printed."
             },
         'reset' : {
             'aliases' : [],
@@ -881,7 +890,7 @@ class PyOCDCommander(object):
                 if len(subargs) > 1:
                     r = [x for x in p.registers if x.name.lower() == subargs[1]]
                     if len(r):
-                        self._dump_peripheral_register(p, r[0], True)
+                        self._dump_peripheral_register(p, r[0], show_fields)
                     else:
                         raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
                 else:
@@ -895,6 +904,13 @@ class PyOCDCommander(object):
             raise ToolError("No register specified")
         if len(args) < 2:
             raise ToolError("No value specified")
+        if len(args) == 3:
+            if args[0] != '-r':
+                raise ToolError("Invalid arguments")
+            del args[0]
+            do_readback = True
+        else:
+            do_readback = False
 
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
@@ -903,6 +919,7 @@ class PyOCDCommander(object):
             else:
                 value = self.convert_value(args[1])
             self.target.write_core_register(reg, value)
+            self.target.flush()
         else:
             value = self.convert_value(args[1])
             subargs = reg.split('.')
@@ -929,7 +946,9 @@ class PyOCDCommander(object):
                             self.target.write_memory(addr, value, r.size)
                     else:
                         raise ToolError("too many dots")
-                    self._dump_peripheral_register(p, r, True)
+                    self.target.flush()
+                    if do_readback:
+                        self._dump_peripheral_register(p, r, True)
                 else:
                     raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
             else:
