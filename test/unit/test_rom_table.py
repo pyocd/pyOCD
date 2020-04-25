@@ -18,11 +18,7 @@ import pytest
 import logging
 from intervaltree import (Interval, IntervalTree)
 
-# unittest.mock is available from Python 3.3.
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from .conftest import mock
 
 from pyocd.coresight.component import CoreSightCoreComponent
 from pyocd.core import memory_map
