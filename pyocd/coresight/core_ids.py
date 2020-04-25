@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 019 Arm Limited
+# Copyright (c) 2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from enum import Enum
 
 # pylint: disable=invalid_name
 
@@ -41,3 +43,12 @@ CORE_TYPE_NAME = {
                  ARM_CortexM33 : "Cortex-M33",
                  ARM_CortexM35P : "Cortex-M35P",
                }
+
+class CoreArchitecture(Enum):
+    """! @brief CPU architectures."""
+    ARMv6M = 1
+    ARMv7M = 2
+    ARMv8M_BASE = 3
+    ARMv8M_MAIN = 4
+    
+

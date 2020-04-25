@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,20 @@
 import logging
 
 from .cortex_m import CortexM
-from .core_ids import CORE_TYPE_NAME
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture)
 from ..core import exceptions
 from ..core.target import Target
 
 LOG = logging.getLogger(__name__)
 
 class CortexM_v8M(CortexM):
-    """! @brief Component class for a v8-M architecture Cortex-M core."""
+    """! @brief Component class for a v8.x-M architecture Cortex-M core."""
 
     ARMv8M_BASE = 0xC
     ARMv8M_MAIN = 0xF
+
+    ## DFSR.PMU added in v8.1-M.
+    DFSR_PMU = (1 << 5)
     
     DSCSR = 0xE000EE08
     DSCSR_CDSKEY = 0x00020000
@@ -67,7 +70,7 @@ class CortexM_v8M(CortexM):
         if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
             LOG.warning("CPU implementer is not ARM!")
 
-        self.arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
+        arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
@@ -75,6 +78,11 @@ class CortexM_v8M(CortexM):
         
         pfr1 = self.read32(self.PFR1)
         self.has_security_extension = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT) == 1
+        
+        if arch == self.ARMv8M_BASE:
+            self._architecture = CoreArchitecture.ARMv8M_BASE
+        else:
+            self._architecture = CoreArchitecture.ARMv8M_MAIN
         
         if self.core_type in CORE_TYPE_NAME:
             if self.has_security_extension:
@@ -94,4 +102,28 @@ class CortexM_v8M(CortexM):
             return Target.SecurityState.SECURE
         else:
             return Target.SecurityState.NONSECURE
+    
+    def get_halt_reason(self):
+        """! @brief Returns the reason the core has halted.
         
+        This overridden version of this method adds support for v8.x-M halt reasons.
+        
+        @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
+        """
+        dfsr = self.read32(self.DFSR)
+        if dfsr & self.DFSR_HALTED:
+            reason = Target.HaltReason.DEBUG
+        elif dfsr & self.DFSR_BKPT:
+            reason = Target.HaltReason.BREAKPOINT
+        elif dfsr & self.DFSR_DWTTRAP:
+            reason = Target.HaltReason.WATCHPOINT
+        elif dfsr & self.DFSR_VCATCH:
+            reason = Target.HaltReason.VECTOR_CATCH
+        elif dfsr & self.DFSR_EXTERNAL:
+            reason = Target.HaltReason.EXTERNAL
+        elif dfsr & self.DFSR_PMU:
+            reason = Target.HaltReason.PMU
+        else:
+            reason = None
+        return reason
+
