@@ -128,19 +128,28 @@ COMMAND_INFO = {
             'help' : "Unlock security on the target"
             },
         'status' : {
-            'aliases' : ['stat'],
+            'aliases' : ['stat', 'st'],
             'args' : "",
             'help' : "Show the target's current state"
             },
         'reg' : {
             'aliases' : [],
             'args' : "[-f] [REG]",
-            'help' : "Print all or one register"
+            'help' : "Print core or peripheral register(s).",
+            "extra_help" : "If no arguments are provided, all core registers will be printed. "
+                           "Either a core register name, the name of a peripheral, or a "
+                           "peripheral.register can be provided. When a peripheral name is "
+                           "provided without a register, all registers in the peripheral will "
+                           "be printed. If the -f option is passed, then individual fields of "
+                           "peripheral registers will be printed in addition to the full value."
             },
         'wreg' : {
             'aliases' : [],
-            'args' : "REG VALUE",
-            'help' : "Set the value of a register"
+            'args' : "[-r] REG VALUE",
+            'help' : "Set the value of a core or peripheral register.",
+            "extra_help" : "The REG parameter must be a core register name or a peripheral.register. "
+                           "When a peripheral register is written, if the -r option is passed then "
+                           "it is read back and the updated value printed."
             },
         'reset' : {
             'aliases' : [],
@@ -406,6 +415,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Print the target object graph."
             },
+        'locked' : {
+            'aliases' : [],
+            'help' : "Report whether the target is locked."
+            },
         }
 
 OPTION_HELP = {
@@ -570,6 +583,7 @@ class PyOCDCommander(object):
                 'unlock' :  self.handle_unlock,
                 'status' :  self.handle_status,
                 'stat' :    self.handle_status,
+                'st' :      self.handle_status,
                 'reg' :     self.handle_reg,
                 'wreg' :    self.handle_write_reg,
                 'reset' :   self.handle_reset,
@@ -655,6 +669,7 @@ class PyOCDCommander(object):
                 'hnonsec' :             self.handle_show_hnonsec,
                 'hprot' :               self.handle_show_hprot,
                 'graph' :               self.handle_show_graph,
+                'locked' :              self.handle_show_locked,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -842,16 +857,12 @@ class PyOCDCommander(object):
         ConnectHelper.list_connected_probes()
 
     def handle_status(self, args):
-        if self.target.is_locked():
-            print("Security:       Locked")
-        else:
-            print("Security:       Unlocked")
-        if isinstance(self.target, target_kinetis.Kinetis):
-            print("MDM-AP Status:  0x%08x" % self.target.mdm_ap.read_reg(target_kinetis.MDM_STATUS))
         if not self.target.is_locked():
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d status:  %s" % (i, CORE_STATUS_DESC[core.get_state()]))
+                print("Core %d:  %s" % (i, CORE_STATUS_DESC[core.get_state()]))
+        else:
+            print("Target is locked")
 
     def handle_reg(self, args):
         # If there are no args, print all register values.
@@ -881,7 +892,7 @@ class PyOCDCommander(object):
                 if len(subargs) > 1:
                     r = [x for x in p.registers if x.name.lower() == subargs[1]]
                     if len(r):
-                        self._dump_peripheral_register(p, r[0], True)
+                        self._dump_peripheral_register(p, r[0], show_fields)
                     else:
                         raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
                 else:
@@ -895,6 +906,13 @@ class PyOCDCommander(object):
             raise ToolError("No register specified")
         if len(args) < 2:
             raise ToolError("No value specified")
+        if len(args) == 3:
+            if args[0] != '-r':
+                raise ToolError("Invalid arguments")
+            del args[0]
+            do_readback = True
+        else:
+            do_readback = False
 
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
@@ -903,6 +921,7 @@ class PyOCDCommander(object):
             else:
                 value = self.convert_value(args[1])
             self.target.write_core_register(reg, value)
+            self.target.flush()
         else:
             value = self.convert_value(args[1])
             subargs = reg.split('.')
@@ -929,7 +948,9 @@ class PyOCDCommander(object):
                             self.target.write_memory(addr, value, r.size)
                     else:
                         raise ToolError("too many dots")
-                    self._dump_peripheral_register(p, r, True)
+                    self.target.flush()
+                    if do_readback:
+                        self._dump_peripheral_register(p, r, True)
                 else:
                     raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
             else:
@@ -1520,6 +1541,7 @@ class PyOCDCommander(object):
         addr = self.convert_value(args[0])
         data = self.convert_value(args[1])
         self.target.dp.write_reg(addr, data)
+        self.target.flush()
 
     def handle_readap(self, args):
         if len(args) < 1:
@@ -1547,6 +1569,7 @@ class PyOCDCommander(object):
             data_arg = 2
         data = self.convert_value(args[data_arg])
         self.target.dp.write_ap(addr, data)
+        self.target.flush()
 
     def handle_initdp(self, args):
         self.target.dp.init()
@@ -1791,6 +1814,12 @@ class PyOCDCommander(object):
 
     def handle_show_graph(self, args):
         self.board.dump()
+    
+    def handle_show_locked(self, args):
+        if self.target.is_locked():
+            print("Taget is locked")
+        else:
+            print("Taget is unlocked")
 
     def handle_set(self, args):
         if len(args) < 1:

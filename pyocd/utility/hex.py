@@ -60,15 +60,7 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
     
     The output is always terminated with a newline.
     
-    If you want a string instead of output to a file, you can use `io.StringIO` as such:
-    
-    ```py
-    import io
-    
-    sio = io.StringIO()
-    dump_hex_data(data, output=sio)
-    my_hex_dump = sio.getvalue()
-    ```
+    If you want a string instead of output to a file, use the dump_hex_data_to_str() function.
     
     @param data The data to print as hex. Can be a `bytes`, `bytearray`, or list of integers.
     @param start_address Address of the first byte of the data. Defaults to 0. If set to None,
@@ -124,3 +116,11 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
             output.write("   " + s)
         
         output.write("\n")
+
+def dump_hex_data_to_str(data, **kwargs):
+    """! @brief Returns a string with data formatted as hex.
+    @see dump_hex_data()
+    """
+    sio = io.StringIO()
+    dump_hex_data(data, output=sio, **kwargs)
+    return sio.getvalue()

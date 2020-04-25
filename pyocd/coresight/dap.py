@@ -252,7 +252,7 @@ class DebugPort(object):
     def flush(self):
         try:
             self.probe.flush()
-        except exceptions.ProbeError as error:
+        except exceptions.TargetError as error:
             self._handle_error(error, self.next_access_number)
             raise
 
@@ -356,7 +356,7 @@ class DebugPort(object):
 
         try:
             result_cb = self.probe.read_dp(addr & DPADDR_MASK, now=False)
-        except exceptions.ProbeError as error:
+        except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
 
@@ -366,7 +366,7 @@ class DebugPort(object):
                 result = result_cb()
                 TRACE.debug("read_dp:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
-            except exceptions.ProbeError as error:
+            except exceptions.TargetError as error:
                 self._handle_error(error, num)
                 raise
 
@@ -387,7 +387,7 @@ class DebugPort(object):
         try:
             TRACE.debug("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_dp(addr & DPADDR_MASK, data)
-        except exceptions.ProbeError as error:
+        except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
 
@@ -400,7 +400,7 @@ class DebugPort(object):
         try:
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_ap(addr, data)
-        except exceptions.ProbeError as error:
+        except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
 
@@ -412,7 +412,7 @@ class DebugPort(object):
 
         try:
             result_cb = self.probe.read_ap(addr, now=False)
-        except exceptions.ProbeError as error:
+        except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
 
@@ -422,7 +422,7 @@ class DebugPort(object):
                 result = result_cb()
                 TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
-            except exceptions.ProbeError as error:
+            except exceptions.TargetError as error:
                 self._handle_error(error, num)
                 raise
 

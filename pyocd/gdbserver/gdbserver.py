@@ -267,6 +267,9 @@ class GDBServer(threading.Thread):
 
     def run(self):
         LOG.info('GDB server started on port %d (core %d)', self.port, self.core)
+        
+        # Make sure the target is halted. Otherwise gdb gets easily confused.
+        self.target.halt()
 
         while True:
             try:

@@ -245,6 +245,9 @@ class Session(Notifier):
             # Set a different default for disabling existing loggers.
             if 'disable_existing_loggers' not in config:
                 config['disable_existing_loggers'] = False
+            # Remove an empty 'loggers' key.
+            if ('loggers' in config) and (config['loggers'] is None):
+                del config['loggers']
             
             try:
                 logging.config.dictConfig(config)
