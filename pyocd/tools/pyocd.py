@@ -415,6 +415,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Print the target object graph."
             },
+        'locked' : {
+            'aliases' : [],
+            'help' : "Report whether the target is locked."
+            },
         }
 
 OPTION_HELP = {
@@ -665,6 +669,7 @@ class PyOCDCommander(object):
                 'hnonsec' :             self.handle_show_hnonsec,
                 'hprot' :               self.handle_show_hprot,
                 'graph' :               self.handle_show_graph,
+                'locked' :              self.handle_show_locked,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -1809,6 +1814,12 @@ class PyOCDCommander(object):
 
     def handle_show_graph(self, args):
         self.board.dump()
+    
+    def handle_show_locked(self, args):
+        if self.target.is_locked():
+            print("Taget is locked")
+        else:
+            print("Taget is unlocked")
 
     def handle_set(self, args):
         if len(args) < 1:
