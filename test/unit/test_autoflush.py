@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,21 +15,25 @@
 # limitations under the License.
 
 import pytest
-import logging
 
-# unittest.mock is available from Python 3.3.
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from .conftest import mock
 
-from .mockcore import MockCore
+from pyocd.core.exceptions import TransferError
+from pyocd.utility.autoflush import Autoflush
 
 @pytest.fixture(scope='function')
-def mockcore():
-    return MockCore()
+def mock_obj():
+    return mock.Mock()
 
-# Ignore semihosting test that currently crashes on Travis
-collect_ignore = [
-    "test_semihosting.py",
-    ]
+class TestAutoflush:
+    def test_flushed(self, mock_obj):
+        with Autoflush(mock_obj):
+            pass
+        assert mock_obj.flush.called
+
+    def test_transfer_err_not_flushed(self, mock_obj):
+        with pytest.raises(TransferError):
+            with Autoflush(mock_obj):
+                raise TransferError("bad joojoo")
+        assert mock_obj.flush.not_called
+
