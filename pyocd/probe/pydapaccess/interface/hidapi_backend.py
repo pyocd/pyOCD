@@ -111,18 +111,8 @@ class HidApiUSB(Interface):
 #         LOG.debug("rcv<(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
         return data
 
-    def get_serial_number(self):
-        return self.serial_number
-
     def close(self):
         """! @brief Close the interface
         """
         LOG.debug("closing interface")
         self.device.close()
-
-    def set_packet_count(self, count):
-        # No interface level restrictions on count
-        self.packet_count = count
-
-    def set_packet_size(self, size):
-        self.packet_size = size

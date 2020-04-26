@@ -22,6 +22,7 @@ class Interface(object):
         self.pid = 0
         self.vendor_name = ""
         self.product_name = ""
+        self.serial_number = ""
         self.packet_count = 1
         self.packet_size = 64
     
@@ -30,6 +31,9 @@ class Interface(object):
         return False
 
     def open(self):
+        return
+
+    def close(self):
         return
 
     def write(self, data):
@@ -44,12 +48,15 @@ class Interface(object):
                str(hex(self.vid)) + ", " + \
                str(hex(self.pid)) + ")"
 
-    def set_packet_count(self, count):
-        # Unless overridden the packet count cannot be changed
-        return
-
     def get_packet_count(self):
         return self.packet_count
 
-    def close(self):
-        return
+    def set_packet_count(self, count):
+        # No interface level restrictions on count
+        self.packet_count = count
+
+    def set_packet_size(self, size):
+        self.packet_size = size
+
+    def get_serial_number(self):
+        return self.serial_number
