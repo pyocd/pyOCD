@@ -44,6 +44,7 @@ class GPR(CoreSightComponent):
 
     def __init__(self, ap, cmpid=None, addr=None):
         super(GPR, self).__init__(ap, cmpid, addr)
+        self.domain_count = 0
 
     def init(self):
         """! @brief Inits the GPR."""

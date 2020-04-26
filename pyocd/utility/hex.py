@@ -16,6 +16,8 @@
 
 import sys
 import string
+import io
+
 from . import conversion
 
 ## ASCII printable characters not including whitespace that changes line position.

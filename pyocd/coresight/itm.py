@@ -97,7 +97,7 @@ class ITM(CoreSightComponent):
         self.ap.write32(self.address + ITM.TPR, 0xf) # Allow unprivileged access to all 32 ports.
         self._is_enabled = True
 
-    def set_enabled_ports(enabled_ports):
+    def set_enabled_ports(self, enabled_ports):
         self.ap.write32(self.address + ITM.TERn, enabled_ports)
     
     def disable(self):

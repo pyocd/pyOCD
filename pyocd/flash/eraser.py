@@ -129,6 +129,8 @@ class FlashEraser(object):
                     flash = region.flash
                     flash.init(flash.Operation.ERASE)
         
+                assert flash is not None
+                
                 # Get sector info for the current address.
                 sector_info = flash.get_sector_info(sector_addr)
                 assert sector_info, ("sector address 0x%08x within flash region '%s' is invalid"

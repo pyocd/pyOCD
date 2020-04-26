@@ -68,10 +68,10 @@ class ProgressReport(object):
         self.last = 0
 
     def _update(self, progress):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def _finish(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 class ProgressReportTTY(ProgressReport):
     """!

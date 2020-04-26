@@ -82,6 +82,7 @@ class FileProgrammer(object):
         self._trust_crc = trust_crc
         self._keep_unwritten = keep_unwritten
         self._progress = progress
+        self._loader = None
         
         self._format_handlers = {
             'axf': self._program_elf,
