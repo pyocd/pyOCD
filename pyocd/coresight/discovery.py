@@ -48,7 +48,7 @@ class CoreSightDiscovery(object):
         """! @brief Init task for component discovery.
         @return CallSequence for the discovery process.
         """
-        raise NotImplementedException()
+        raise NotImplementedError()
 
     def _create_component(self, cmpid):
         LOG.debug("Creating %s component", cmpid.name)

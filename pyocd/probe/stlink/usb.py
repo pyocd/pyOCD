@@ -241,4 +241,4 @@ class STLinkUSBInterface(object):
         return "<{} @ {:#x} vid={:#06x} pid={:#06x} sn={} version={}>".format(
             self.__class__.__name__, id(self),
             self._dev.idVendor, self._dev.idProduct, self.serial_number,
-            self.version)
+            self.version_name)

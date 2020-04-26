@@ -43,6 +43,7 @@ class HidApiUSB(Interface):
         super(HidApiUSB, self).__init__()
         # Vendor page and usage_id = 2
         self.device = None
+        self.device_info = None
 
     def open(self):
         try:

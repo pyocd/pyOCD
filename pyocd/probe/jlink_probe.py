@@ -17,7 +17,8 @@
 import six
 import logging
 import pylink
-from pylink.errors import JLinkException
+from time import sleep
+from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadException)
 
 from .debug_probe import DebugProbe
 from ..core import (exceptions, memory_interface)
@@ -301,7 +302,7 @@ class JLinkProbe(DebugProbe):
         results = [self.read_ap(addr, now=True) for n in range(count)]
         
         def read_ap_multiple_result_callback():
-            return result
+            return results
         
         return results if now else read_ap_multiple_result_callback
 

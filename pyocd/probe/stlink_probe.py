@@ -185,7 +185,7 @@ class StlinkProbe(DebugProbe):
         results = [self.read_ap(addr, now=True) for n in range(count)]
         
         def read_ap_multiple_result_callback():
-            return result
+            return results
         
         return results if now else read_ap_multiple_result_callback
 

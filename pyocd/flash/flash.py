@@ -75,7 +75,7 @@ class FlashInfo(object):
 
     def __repr__(self):
         return "<FlashInfo@0x%x start=0x%x erswt=%g crc=%s>" \
-            % (id(self), self.rom_start, self._erase_weight, self.crc_supported)
+            % (id(self), self.rom_start, self.erase_weight, self.crc_supported)
 
 class Flash(object):
     """!

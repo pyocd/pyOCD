@@ -131,7 +131,7 @@ class StreamServer(threading.Thread):
                 data = data[count:]
         return size
 
-    def _get_input(self, length):
+    def _get_input(self, length=-1):
         """! @brief Extract requested amount of data from the read buffer."""
         self._buffer_lock.acquire()
         try:
@@ -164,7 +164,7 @@ class StreamServer(threading.Thread):
             return None
 
         # Extract requested amount of data from the read buffer.
-        b[:] = self._get_input(size)
+        b[:] = self._get_input()
 
         if len(b):
             return len(b)
