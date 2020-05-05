@@ -216,6 +216,7 @@ BOARD_ID_TO_INFO = {
     "2201": BoardInfo(  "WIZwik_W7500",         "w7500",            "l1_w7500mbed.bin",     ),
     "2600": BoardInfo(  "ep_agora",             "nrf52840",         None,                   ),
     "3300": BoardInfo(  "CC3220SF_LaunchXL",    "cc3220sf",         "l1_cc3220sf.bin",      ),
+    "3701": BoardInfo(  "Samsung_S5JS100",      "s5js100",          "s5js100.bin",          ),
     "4337": BoardInfo(  "LPC4337",              "lpc4337",          None,                   ),
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
     "5002": BoardInfo(  "Arm V2M-MPS3",         "cortex_m",         None,                   ),

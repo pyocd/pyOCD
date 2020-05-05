@@ -66,6 +66,7 @@ from . import target_MAX32620
 from . import target_MAX32625
 from . import target_MAX32630
 from . import target_w7500
+from . import target_s5js100
 from . import target_LPC1114FN28_102
 from . import target_LPC824M201JHI33
 from . import target_LPC54114J256BD64
@@ -161,6 +162,7 @@ BUILTIN_TARGETS = {
           'stm32l475xg' : target_STM32L475xx.STM32L475xG,
           'stm32l031x6' : target_STM32L031x6.STM32L031x6,
           'w7500': target_w7500.W7500,
+          's5js100': target_s5js100.S5JS100,
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
           'lpc824': target_LPC824M201JHI33.LPC824,
           'lpc54114': target_LPC54114J256BD64.LPC54114,
