@@ -450,7 +450,10 @@ OPTION_HELP = {
             },
         'mem-ap' : {
             'aliases' : [],
-            'help' : "Select the MEM-AP used for memory read/write commands."
+            'help' : "Select the MEM-AP used for memory read/write commands.",
+            'extra_help' : "When the selected core is changed by the 'core' command, the selected "
+                "MEM-AP is changed to match. This overrides a user-selected MEM-AP if different "
+                "from the AP for the newly selected core.",
             },
         'hnonsec' : {
             'aliases' : [],
@@ -1525,9 +1528,12 @@ class PyOCDCommander(object):
         if len(args) < 1:
             print("Core %d is selected" % self.target.selected_core.core_number)
             return
+        original_core_ap = core_ap = self.target.selected_core.ap
         core = int(args[0], base=0)
         self.target.select_core(core)
-        print("Selected core %d" % core)
+        core_ap = self.target.selected_core.ap
+        self.selected_ap = core_ap.address
+        print("Selected core {} ({})".format(core, core_ap.short_description))
 
     def handle_readdp(self, args):
         if len(args) < 1:
