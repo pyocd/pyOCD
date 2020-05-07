@@ -242,8 +242,10 @@ class PyOCDTool(object):
             help="Specify the telnet port for semihosting (default 4444).")
         gdbserverOptions.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false",
             help="Allow remote TCP/IP connections (default is no).")
-        gdbserverOptions.add_argument("--persist", dest="persist", default=False, action="store_true",
+        gdbserverOptions.add_argument("--persist", action="store_true",
             help="Keep GDB server running even after remote has detached.")
+        gdbserverOptions.add_argument("--core", metavar="CORE_LIST",
+            help="Comma-separated list of cores for which gdbservers will be created. Default is all cores.")
         gdbserverOptions.add_argument("--elf", metavar="PATH",
             help="Optionally specify ELF file being debugged.")
         gdbserverOptions.add_argument("-e", "--erase", choices=ERASE_OPTIONS, default='sector',
@@ -657,6 +659,16 @@ class PyOCDTool(object):
                 'vector_catch' : self._args.vector_catch,
                 })
             
+            # Split list of cores to serve.
+            if self._args.core is not None:
+                try:
+                    core_list = {int(x) for x in self._args.core.split(',')}
+                except ValueError as err:
+                    LOG.error("Invalid value passed to --core")
+                    return
+            else:
+                core_list = None
+            
             session = ConnectHelper.session_with_chosen_probe(
                 blocking=(not self._args.no_wait),
                 project_dir=self._args.project_dir,
@@ -672,10 +684,24 @@ class PyOCDTool(object):
                 LOG.error("No probe selected.")
                 return
             with session:
+                # Validate the core selection.
+                all_cores = set(session.target.cores.keys())
+                if core_list is None:
+                    core_list = all_cores
+                bad_cores = core_list.difference(all_cores)
+                if len(bad_cores): #x for x in core_list if x not in all_cores):
+                    LOG.error("Invalid core number%s: %s",
+                        "s" if len(bad_cores) > 1 else "",
+                        ", ".join(str(x) for x in bad_cores))
+                    return
+                
                 # Set ELF if provided.
                 if self._args.elf:
                     session.board.target.elf = os.path.expanduser(self._args.elf)
                 for core_number, core in session.board.target.cores.items():
+                    # Don't create a server if this core is not listed by the user.
+                    if core_number not in core_list:
+                        continue
                     gdb = GDBServer(session,
                         core=core_number,
                         server_listening_callback=self.server_listening)
