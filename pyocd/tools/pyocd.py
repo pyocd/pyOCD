@@ -26,6 +26,7 @@ import six
 import prettytable
 import traceback
 import pprint
+import textwrap
 
 # Attempt to import readline.
 try:
@@ -1906,6 +1907,7 @@ class PyOCDCommander(object):
         self.target.aps[self.selected_ap].hprot = value
 
     def handle_help(self, args):
+        term_width = get_terminal_size()[0]
         if not args:
             self._list_commands("Commands", COMMAND_INFO, "{cmd:<25} {args:<20} {help}")
             print("""
@@ -1930,9 +1932,9 @@ Prefix line with ! to execute a shell command.""")
                         print(("Usage: " + usageFormat).format(cmd=name, **info))
                         if len(info['aliases']):
                             print("Aliases:", ", ".join(info['aliases']))
-                        print(info['help'])
+                        print("\n" + textwrap.fill(info['help'], width=term_width))
                         if 'extra_help' in info:
-                            print(info['extra_help'])
+                            print("\n" + textwrap.fill(info['extra_help'], width=term_width))
             
             if subcmd is None:
                 print_help(cmd, COMMAND_INFO, "{cmd} {args}")
