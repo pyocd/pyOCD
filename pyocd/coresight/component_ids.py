@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,24 +91,40 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0x9a9, 0x11, 0)      : CmpInfo('TPIU-M7',   TPIU.factory    ),
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x11, 0)      : CmpInfo('TPIU-M23',  TPIU.factory    ),
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x13, 0)      : CmpInfo('ETM-M23',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x31, 0x0a31) : CmpInfo('MTB-M23',   None            ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a02) : CmpInfo('DWT',       DWTv2.factory   ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x14, 0x1a14) : CmpInfo('CTI',       None            ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x2a04) : CmpInfo('SCS-M23',   CortexM_v8M.factory ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x31, 0x0a31) : CmpInfo('MTB-M33',   None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x43, 0x1a01) : CmpInfo('ITM',       ITM.factory     ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a02) : CmpInfo('DWT',       DWTv2.factory   ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x14, 0x1a14) : CmpInfo('CTI',       None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS-M33',   CortexM_v8M.factory ), # M33
-    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM-M33',   None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x11, 0)      : CmpInfo('TPIU-M33',  TPIU.factory    ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x31, 0x0a31) : CmpInfo('MTB-M35P',  None            ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x43, 0x1a01) : CmpInfo('ITM-M35P',  ITM.factory     ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x00, 0x1a02) : CmpInfo('DWT-M35P',  DWTv2.factory   ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x00, 0x1a03) : CmpInfo('BPU-M35P',  FPB.factory     ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x14, 0x1a14) : CmpInfo('CTI-M35P',  None            ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x00, 0x2a04) : CmpInfo('SCS-M35P',  CortexM_v8M.factory ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x13, 0x4a13) : CmpInfo('ETM-M35P',  None            ), # M35P
+    (ARM_ID, CORESIGHT_CLASS, 0xd31, 0x11, 0)      : CmpInfo('TPIU-M35P', TPIU.factory    ), # M35P
     (ARM_ID, GENERIC_CLASS,   0x000, 0x00, 0)      : CmpInfo('SCS-M3',    CortexM.factory ),
     (ARM_ID, GENERIC_CLASS,   0x001, 0x00, 0)      : CmpInfo('ITM',       ITM.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x002, 0x00, 0)      : CmpInfo('DWT',       DWT.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x003, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x004, 0x00, 0)      : CmpInfo('SCS-SC300', CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x005, 0x00, 0)      : CmpInfo('ITM',       ITM.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x006, 0x00, 0)      : CmpInfo('DWT',       DWT.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x007, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x008, 0x00, 0)      : CmpInfo('SCS-M0+',   CortexM.factory ),
     (ARM_ID, GENERIC_CLASS,   0x00a, 0x00, 0)      : CmpInfo('DWT-M0+',   DWT.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x00b, 0x00, 0)      : CmpInfo('BPU',       FPB.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x00c, 0x00, 0)      : CmpInfo('SCS-M4',    CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x00d, 0x00, 0)      : CmpInfo('SCS-SC000', CortexM.factory ),
     (ARM_ID, GENERIC_CLASS,   0x00e, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
     (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',     None            ), # Timestamp Generator
     (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',    None            ),
