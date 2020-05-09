@@ -1346,8 +1346,6 @@ class CortexM(Target, CoreSightCoreComponent):
             reason = Target.HaltReason.VECTOR_CATCH
         elif dfsr & CortexM.DFSR_EXTERNAL:
             reason = Target.HaltReason.EXTERNAL
-        elif dfsr & CortexM.DFSR_PMU:
-            reason = Target.HaltReason.PMU
         else:
             reason = None
         return reason
