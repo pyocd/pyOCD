@@ -774,7 +774,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             if data == self._cached_csw:
                 if TRACE.isEnabledFor(logging.INFO):
                     num = self.dp.next_access_number
-                    TRACE.debug("write_ap:%06d cached (addr=0x%08x) = 0x%08x", num, addr, data)
+                    TRACE.debug("write_ap:%06d cached (ap=0x%x; addr=0x%08x) = 0x%08x",
+                        num, self.address.nominal_address, addr, data)
                 return
             self._cached_csw = data
 
@@ -804,7 +805,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise exceptions.TransferError("%d-bit transfers are not supported by %s"
                 % (transfer_size, self.short_description))
         num = self.dp.next_access_number
-        TRACE.debug("write_mem:%06d (addr=0x%08x, size=%d) = 0x%08x {", num, addr, transfer_size, data)
+        TRACE.debug("write_mem:%06d (ap=0x%x; addr=0x%08x, size=%d) = 0x%08x {",
+            num, self.address.nominal_address, addr, transfer_size, data)
         self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
         if transfer_size == 8:
             data = data << ((addr & 0x03) << 3)
@@ -838,7 +840,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise exceptions.TransferError("%d-bit transfers are not supported by %s"
                 % (transfer_size, self.short_description))
         num = self.dp.next_access_number
-        TRACE.debug("read_mem:%06d (addr=0x%08x, size=%d) {", num, addr, transfer_size)
+        TRACE.debug("read_mem:%06d (ap=0x%x; addr=0x%08x, size=%d) {",
+            num, self.address.nominal_address, addr, transfer_size)
         res = None
         try:
             self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
@@ -861,7 +864,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                     res = (res >> ((addr & 0x03) << 3) & 0xff)
                 elif transfer_size == 16:
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
-                TRACE.debug("read_mem:%06d %s(addr=0x%08x, size=%d) -> 0x%08x }", num, "" if now else "...", addr, transfer_size, res)
+                TRACE.debug("read_mem:%06d %s(ap=0x%x; addr=0x%08x, size=%d) -> 0x%08x }",
+                    num, "" if now else "...", self.address.nominal_address, addr, transfer_size, res)
             except exceptions.TransferFaultError as error:
                 # Annotate error with target address.
                 self._handle_error(error, num)
@@ -887,7 +891,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
-        TRACE.debug("_write_block32:%06d (addr=0x%08x, size=%d) {", num, addr, len(data))
+        TRACE.debug("_write_block32:%06d (ap=0x%x; addr=0x%08x, size=%d) {",
+            num, self.address.nominal_address, addr, len(data))
         # put address in TAR
         self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
@@ -912,7 +917,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
-        TRACE.debug("_read_block32:%06d (addr=0x%08x, size=%d) {", num, addr, size)
+        TRACE.debug("_read_block32:%06d (ap=0x%x; addr=0x%08x, size=%d) {",
+            num, self.address.nominal_address, addr, size)
         # put address in TAR
         self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
