@@ -92,7 +92,7 @@ class DAPSWOMode:
     UART = 1
     MANCHESTER = 2
 
-# SWO control acions.
+# SWO control actions.
 class DAPSWOControl:
     STOP = 0
     START = 1

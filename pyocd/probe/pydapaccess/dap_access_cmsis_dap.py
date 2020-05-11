@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2019 Arm Limited
+# Copyright (c) 2006-2013,2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -143,7 +143,7 @@ class _Transfer(object):
         if self._error is not None:
             # Pylint is confused and thinks self._error is None
             # since that is what it is initialized to.
-            # Supress warnings for this.
+            # Suppress warnings for this.
             # pylint: disable=raising-bad-type
             raise self._error
 
@@ -151,9 +151,9 @@ class _Transfer(object):
         return self._result
 
 class _Command(object):
-    """! @brief Wrapper object representing a command send to the layer below (ex. USB).
+    """! @brief Wrapper object representing a command sent to the layer below (ex. USB).
 
-    This class wraps the phyiscal commands DAP_Transfer and DAP_TransferBlock
+    This class wraps the physical commands DAP_Transfer and DAP_TransferBlock
     to provide a uniform way to build the command to most efficiently transfer
     the data supplied.  Register reads and writes individually or in blocks
     are added to a command object until it is full.  Once full, this class
@@ -450,7 +450,7 @@ class _Command(object):
         return data
 
 class DAPAccessCMSISDAP(DAPAccessIntf):
-    """! @brief An implementation of the DAPAccessIntf layer for DAPLINK boards
+    """! @brief An implementation of the DAPAccessIntf layer for DAPLink boards
     """
 
     # ------------------------------------------- #
@@ -628,7 +628,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def set_deferred_transfer(self, enable):
         """! @brief Allow transfers to be delayed and buffered
 
-        By default deferred transfers are turned off.  All reads and
+        By default deferred transfers are turned on.  When off, all reads and
         writes will be completed by the time the function returns.
 
         When enabled packets are buffered and sent all at once, which
@@ -637,14 +637,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         memory write.  This means that an invalid write could cause an
         exception to occur on a later, unrelated write.  To guarantee
         that previous writes are complete call the flush() function.
-
-        The behaviour of read operations is determined by the modes
-        READ_START, READ_NOW and READ_END.  The option READ_NOW is the
-        default and will cause the read to flush all previous writes,
-        and read the data immediately.  To improve performance, multiple
-        reads can be made using READ_START and finished later with READ_NOW.
-        This allows the reads to be buffered and sent at once.  Note - All
-        READ_ENDs must be called before a call using READ_NOW can be made.
         """
         if self._deferred_transfer and not enable:
             self.flush()
@@ -854,7 +846,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     # ------------------------------------------- #
 
     def _init_deferred_buffers(self):
-        """! @brief Initialize or reinitalize all the deferred transfer buffers
+        """! @brief Initialize or reinitialize all the deferred transfer buffers
 
         Calling this method will drop all pending transactions
         so use with care.
@@ -917,7 +909,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def _send_packet(self):
         """! @brief Send a single packet to the interface
 
-        This function guarentees that the number of packets
+        This function guarantees that the number of packets
         that are stored in daplink's buffer (the number of
         packets written but not read) does not exceed the
         number supported by the given device.
@@ -1000,7 +992,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # clear all deferred buffers
         self._init_deferred_buffers()
         # finish all pending reads and ignore the data
-        # Only do this if the error is a tranfer error.
+        # Only do this if the error is a transfer error.
         # Otherwise this could cause another exception
         if isinstance(exception, DAPAccessIntf.TransferError):
             for _ in range(pending_reads):
