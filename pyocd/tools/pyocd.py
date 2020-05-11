@@ -182,32 +182,43 @@ COMMAND_INFO = {
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 8-bit bytes"
+            'help' : "Read 8-bit bytes",
+            "extra_help" : "Optional length parameter is the number of bytes to read. If the "
+                           "length is not provided, one byte is read."
             },
         'read16' : {
             'aliases' : ['r16', 'rh'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 16-bit halfwords"
+            'help' : "Read 16-bit halfwords",
+            "extra_help" : "Optional length parameter is the number of bytes to read. It must be "
+                           "divisible by 2. If the length is not provided, one halfword is read. "
+                           "The address may be unaligned."
             },
         'read32' : {
             'aliases' : ['r32', 'rw'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 32-bit words"
+            'help' : "Read 32-bit words",
+            "extra_help" : "Optional length parameter is the number of bytes to read. It must be "
+                           "divisible by 4. If the length is not provided, one word is read. "
+                           "The address may be unaligned."
             },
         'write8' : {
             'aliases' : ['write', 'w', 'wb'],
             'args' : "ADDR DATA...",
-            'help' : "Write 8-bit bytes to memory (RAM or flash)"
+            'help' : "Write 8-bit bytes to memory (RAM or flash). Flash writes are subject to "
+                     "minimum write size and alignment."
             },
         'write16' : {
             'aliases' : ['w16', 'wh'],
             'args' : "ADDR DATA...",
-            'help' : "Write 16-bit halfwords to memory (RAM or flash)"
+            'help' : "Write 16-bit halfwords to memory (RAM or flash). The address may be "
+                     "unaligned. Flash writes are subject to minimum write size and alignment."
             },
         'write32' : {
             'aliases' : ['w32', 'ww'],
             'args' : "ADDR DATA...",
-            'help' : "Write 32-bit words to memory (RAM or flash)"
+            'help' : "Write 32-bit words to memory (RAM or flash). The address may be unaligned. "
+                     "Flash writes are subject to minimum write size and alignment."
             },
         'fill' : {
             'aliases' : [],
@@ -215,7 +226,7 @@ COMMAND_INFO = {
             'help' : "Fill a range of memory with a pattern",
             'extra_help' : "The optional SIZE parameter must be one of 8, 16, or 32. If not "
                            "provided, the size is determined by the pattern value's most "
-                           "significant set bit."
+                           "significant set bit. Only RAM regions may be filled."
             },
         'find' : {
             'aliases' : [],
@@ -1249,6 +1260,10 @@ class PyOCDCommander(object):
             count = width // 8
         else:
             count = self.convert_value(args[1])
+        
+        if (count % (width // 8)) != 0:
+            print("Error: length ({}) is not aligned to width ({})".format(count, width // 8))
+            return 1
 
         if width == 8:
             data = self.target.aps[self.selected_ap].read_memory_block8(addr, count)
@@ -1273,7 +1288,7 @@ class PyOCDCommander(object):
             return 1
         else:
             data = [self.convert_value(d) for d in args[1:]]
-
+        
         if width == 8:
             pass
         elif width == 16:
