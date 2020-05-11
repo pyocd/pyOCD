@@ -20,6 +20,7 @@ import logging
 import time
 import collections
 import six
+import threading
 from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
@@ -35,6 +36,7 @@ from .cmsis_dap_core import (
     DAPTransferResponse,
     )
 from ...core import session
+from ...utility.concurrency import locked
 
 # CMSIS-DAP values
 AP_ACC = 1 << 0
@@ -540,6 +542,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._product_name = ""
             self._vidpid = (0, 0)
             
+        self._lock = threading.RLock()
         self._interface = interface
         self._deferred_transfer = False
         self._protocol = None  # TODO, c1728p9 remove when no longer needed
@@ -565,7 +568,16 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def vidpid(self):
         """! @brief A tuple of USB VID and PID, in that order."""
         return self._vidpid
+    
+    def lock(self):
+        """! @brief Lock the interface."""
+        self._lock.acquire()
+    
+    def unlock(self):
+        """! @brief Unlock the interface."""
+        self._lock.release()
 
+    @locked
     def open(self):
         if self._interface is None:
             raise DAPAccessIntf.DeviceError("Unable to open device with no interface")
@@ -597,6 +609,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         self._init_deferred_buffers()
 
+    @locked
     def close(self):
         assert self._interface is not None
         self.flush()
@@ -605,6 +618,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def get_unique_id(self):
         return self._unique_id
 
+    @locked
     def assert_reset(self, asserted):
         self.flush()
         if asserted:
@@ -612,11 +626,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         else:
             self._protocol.set_swj_pins(Pin.nRESET, Pin.nRESET)
     
+    @locked
     def is_reset_asserted(self):
         self.flush()
         pins = self._protocol.set_swj_pins(0, Pin.NONE)
         return (pins & Pin.nRESET) == 0
 
+    @locked
     def set_clock(self, frequency):
         self.flush()
         self._protocol.set_swj_clock(frequency)
@@ -642,6 +658,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self.flush()
         self._deferred_transfer = enable
 
+    @locked
     def flush(self):
         # Send current packet
         self._send_packet()
@@ -649,18 +666,23 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         for _ in range(len(self._commands_to_read)):
             self._read_packet()
 
+    @locked
     def identify(self, item):
         assert isinstance(item, DAPAccessIntf.ID)
+        self.flush()
         return self._protocol.dap_info(item)
 
+    @locked
     def vendor(self, index, data=None):
         if data is None:
             data = []
+        self.flush()
         return self._protocol.vendor(index, data)
 
     # ------------------------------------------- #
     #             Target access functions
     # ------------------------------------------- #
+    @locked
     def connect(self, port=DAPAccessIntf.PORT.DEFAULT):
         assert isinstance(port, DAPAccessIntf.PORT)
         actual_port = self._protocol.connect(port.value)
@@ -676,18 +698,27 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         elif self._dap_port == DAPAccessIntf.PORT.JTAG:
             self.configure_jtag()
 
+    @locked
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
+        self.flush()
         self._protocol.swd_configure(turnaround, always_send_data_phase)
     
+    @locked
     def configure_jtag(self, devices_irlen=None):
+        self.flush()
         self._protocol.jtag_configure(devices_irlen)
 
+    @locked
     def swj_sequence(self, length, bits):
+        self.flush()
         self._protocol.swj_sequence(length, bits)
 
+    @locked
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        self.flush()
         return self._protocol.jtag_sequence(cycles, length, read_tdo, tdi)
 
+    @locked
     def disconnect(self):
         self.flush()
         self._protocol.disconnect()
@@ -695,6 +726,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def has_swo(self):
         return self._has_swo_uart
     
+    @locked
     def swo_configure(self, enabled, rate):
         # Don't send any commands if the SWO commands aren't supported.
         if not self._has_swo_uart:
@@ -735,6 +767,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         finally:
             self._swo_status = SWOStatus.DISABLED
     
+    @locked
     def swo_control(self, start):
         # Don't send any commands if the SWO commands aren't supported.
         if not self._has_swo_uart:
@@ -752,9 +785,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._swo_status = SWOStatus.CONFIGURED
         return True
     
+    @locked
     def get_swo_status(self):
         return self._protocol.swo_status()
     
+    @locked
     def swo_read(self, count=None):
         if self._interface.has_swo_ep:
             return self._interface.read_swo()
@@ -864,6 +899,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # This data will be added to transfers
         self._command_response_buf = bytearray()
 
+    @locked
     def _read_packet(self):
         """! @brief Reads and decodes a single packet
 
@@ -906,6 +942,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         if pos > 0:
             self._command_response_buf = self._command_response_buf[pos:]
 
+    @locked
     def _send_packet(self):
         """! @brief Send a single packet to the interface
 
@@ -930,6 +967,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._commands_to_read.append(cmd)
         self._crnt_cmd = _Command(self._packet_size)
 
+    @locked
     def _write(self, dap_index, transfer_count,
                transfer_request, transfer_data):
         """! @brief Write one or more commands
@@ -982,6 +1020,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         return transfer
 
+    @locked
     def _abort_all_transfers(self, exception):
         """! @brief Abort any ongoing transfers and clear all buffers
         """
