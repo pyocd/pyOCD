@@ -304,7 +304,7 @@ class AccessPort(object):
         return idr != 0
     
     @staticmethod
-    def create(dp, ap_address):
+    def create(dp, ap_address, cmpid=None):
         """! @brief Create a new AP object.
         
         Determines the type of the AP by examining the IDR value and creates a new
@@ -344,11 +344,11 @@ class AccessPort(object):
                 klass = AccessPort
             flags = 0
         
-        ap = klass(dp, ap_address, idr, name, flags)
+        ap = klass(dp, ap_address, idr, name, flags, cmpid)
         ap.init()
         return ap
     
-    def __init__(self, dp, ap_address, idr=None, name="", flags=0):
+    def __init__(self, dp, ap_address, idr=None, name="", flags=0, cmpid=None):
         """! @brief AP constructor.
         @param self
         @param dp The DebugPort object.
@@ -369,6 +369,7 @@ class AccessPort(object):
         self.core = None
         self._lock = threading.RLock()
         self._flags = flags
+        self._cmpid = cmpid
     
     @property
     def short_description(self):
@@ -463,8 +464,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     - Barrier Operation Extension
     """
 
-    def __init__(self, dp, ap_address, idr=None, name="", flags=0):
-        super(MEM_AP, self).__init__(dp, ap_address, idr, name, flags)
+    def __init__(self, dp, ap_address, idr=None, name="", flags=0, cmpid=None):
+        super(MEM_AP, self).__init__(dp, ap_address, idr, name, flags, cmpid)
         
         # Check AP version and set the offset to the control and status registers.
         if self.ap_version == APVersion.APv1:

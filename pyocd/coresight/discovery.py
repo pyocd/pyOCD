@@ -235,7 +235,7 @@ class ADIv6Discovery(CoreSightDiscovery):
         """! @brief Init task to create a single AP object."""
         try:
             ap_address = APv2Address(cmpid.address)
-            ap = AccessPort.create(self.dp, ap_address)
+            ap = AccessPort.create(self.dp, ap_address, cmpid=cmpid)
             self.dp.aps[ap_address] = ap
         except exceptions.Error as e:
             LOG.error("Exception reading AP@0x%08x IDR: %s", cmpid.address, e,
