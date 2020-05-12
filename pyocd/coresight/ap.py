@@ -69,6 +69,9 @@ AP_IDR_VARIANT_MASK = 0x000000f0
 AP_IDR_VARIANT_SHIFT = 4
 AP_IDR_TYPE_MASK = 0x0000000f
 
+# The CoreSight ARCHID value for the CSSOC-600 APv1 Adapter.
+UNKNOWN_AP_ARCHID = 0x0a47
+
 ## The control registers for a v2 MEM-AP start at an offset.
 MEM_APv2_CONTROL_REG_OFFSET = 0xD00
 
@@ -988,7 +991,9 @@ class AHB_AP(MEM_AP):
     def init(self):
         super(AHB_AP, self).init()
 
-        if self.ap_version == APVersion.APv1:
+        # Check for and enable the Master Type bit on AHB-APs where it might be implemented.
+        if (self.ap_version == APVersion.APv1) \
+                or ((self._cmpid is not None) and (self._cmpid.archid == UNKNOWN_AP_ARCHID)):
             self._init_mstrtype()
         
     def _init_mstrtype(self):
