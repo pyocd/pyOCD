@@ -473,9 +473,9 @@ class SemihostAgent(object):
     def _get_string(self, ptr, length=None):
         if length is not None:
             data = self.context.read_memory_block8(ptr, length)
-            return str(bytearray(data))
+            return six.ensure_str(bytes(bytearray(data)), encoding="ascii", errors="ignore")
 
-        target_str = ''
+        target_str = six.ensure_str(bytes(bytearray('')), encoding="ascii", errors="ignore")
         # TODO - use memory map to make sure we don't try to read off the end of memory
         # Limit string size in case it isn't terminated.
         while len(target_str) < MAX_STRING_LENGTH:
@@ -486,14 +486,14 @@ class SemihostAgent(object):
 
                 # Found a null terminator, append data up to but not including the null
                 # and then exit the loop.
-                target_str += str(bytearray(data[:terminator]))
+                target_str += six.ensure_str(bytes(bytearray(data[:terminator])), encoding="ascii", errors="ignore")
                 break
             except exceptions.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:
                 # No null terminator was found. Append all of data.
-                target_str += str(bytearray(data))
+                target_str += six.ensure_str(bytes(bytearray(data)), encoding="ascii", errors="ignore")
                 ptr += 32
         return target_str
 
