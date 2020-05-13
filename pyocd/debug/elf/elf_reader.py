@@ -80,5 +80,5 @@ class ElfReaderContext(DebugContext):
         return list(data)
 
     def read_memory_block32(self, addr, size):
-        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size))
+        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size * 4))
 
