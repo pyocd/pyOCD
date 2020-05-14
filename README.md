@@ -96,7 +96,7 @@ To install the latest prerelease version from the HEAD of the master branch, you
 the following:
 
 ```
-$ pip install --pre -U https://github.com/mbedmicro/pyOCD/archive/master.zip
+$ pip install --pre -U git+https://github.com/mbedmicro/pyOCD.git
 ```
 
 You can also install directly from the source by cloning the git repository and running:
