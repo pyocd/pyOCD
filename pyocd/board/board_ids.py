@@ -220,6 +220,7 @@ BOARD_ID_TO_INFO = {
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
     "5006": BoardInfo(  "Arm Musca-A1",         "musca_a1",         "l1_musca_a1.bin",      ),
     "5007": BoardInfo(  "Arm Musca-B1",         "musca_b1",         "l1_musca_b1.bin",      ),
+    "5009": BoardInfo(  "Arm Musca-S1",         "musca-s1",         None,                   ),
     "7402": BoardInfo(  "mbed 6LoWPAN Border Router HAT", "k64f",   "l1_k64f.bin",          ),
     "7778": BoardInfo(  "Teensy 3.1",           "mk20dx256vlh7",    None,                   ),
     "8080": BoardInfo(  "L-Tek FF1705",         "stm32l151cc",      None,                   ),
