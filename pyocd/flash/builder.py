@@ -218,7 +218,11 @@ class FlashBuilder(object):
         memory mapped and accessible.
         """
         if not self.algo_inited_for_read:
-            self.flash.init(self.flash.Operation.VERIFY)
+            try:
+                self.flash.init(self.flash.Operation.VERIFY)
+            except FlashFailure:
+                # If initing for verify fails, then try again in erase mode.
+                self.flash.init(self.flash.Operation.ERASE)
             self.algo_inited_for_read = True
 
     def _build_sectors_and_pages(self, keep_unwritten):
