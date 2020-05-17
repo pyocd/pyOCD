@@ -714,12 +714,13 @@ class GDBServer(threading.Thread):
         elif b'FlashDone' in ops :
             # Only program if we received data.
             if self.flash_loader is not None:
-                # Write all buffered flash contents.
-                self.flash_loader.commit()
-
-                # Set flash loader to None so that on the next flash command a new
-                # object is used.
-                self.flash_loader = None
+                try:
+                    # Write all buffered flash contents.
+                    self.flash_loader.commit()
+                finally:
+                    # Set flash loader to None so that on the next flash command a new
+                    # object is used.
+                    self.flash_loader = None
 
             self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:

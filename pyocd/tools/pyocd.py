@@ -1028,7 +1028,10 @@ class PyOCDCommander(object):
         region = self.session.target.memory_map.get_region_for_address(addr)
         flash_init_required =  region is not None and region.is_flash and not region.is_powered_on_boot and region.flash is not None
         if flash_init_required:
-            region.flash.init(region.flash.Operation.VERIFY)
+            try:
+                region.flash.init(region.flash.Operation.VERIFY)
+            except exceptions.FlashFailure:
+                region.flash.init(region.flash.Operation.ERASE)
 
         data = bytearray(self.target.aps[self.selected_ap].read_memory_block8(addr, count))
 
@@ -1082,7 +1085,10 @@ class PyOCDCommander(object):
         region = self.session.target.memory_map.get_region_for_address(addr)
         flash_init_required =  region is not None and region.is_flash and not region.is_powered_on_boot and region.flash is not None
         if flash_init_required:
-            region.flash.init(region.flash.Operation.VERIFY)
+            try:
+                region.flash.init(region.flash.Operation.VERIFY)
+            except exceptions.FlashFailure:
+                region.flash.init(region.flash.Operation.ERASE)
 
         with open(filename, 'rb') as f:
             file_data = f.read(length)
