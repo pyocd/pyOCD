@@ -758,7 +758,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ap_regaddr = addr & APREG_MASK
         if ap_regaddr == self._reg_offset + MEM_AP_CSW and self._cached_csw != -1 and now:
             return self._cached_csw
-        return super(MEM_AP, self).read_reg(addr, now)
+        return self.dp.read_ap(self.address.address + addr, now)
 
     @locked
     def write_reg(self, addr, data):
@@ -775,7 +775,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self._cached_csw = data
 
         try:
-            super(MEM_AP, self).write_reg(addr, data)
+            self.dp.write_ap(self.address.address + addr, data)
         except exceptions.ProbeError:
             # Invalidate cached CSW on exception.
             if ap_regaddr == self._reg_offset + MEM_AP_CSW:
