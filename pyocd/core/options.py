@@ -88,6 +88,9 @@ OPTIONS_INFO = {
         "Whether to show the warning about use of the cortex_m target type. Default is True."),
     
     # JLink options
+    'jlink.device': OptionInfo('jlink.device', str, None,
+        "Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD does"
+        "has its own device support, and \"Cortex-M4\" is used."),
     'jlink.power': OptionInfo('jlink.power', bool, True,
         "Enable target power when connecting via a JLink probe, and disable power when "
         "disconnecting. Default is True."),

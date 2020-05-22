@@ -387,4 +387,14 @@ Enable target power when connecting via a JLink probe, and disable power when di
 Default is True.
 </td></tr>
 
+<tr><td>jlink.device</td>
+<td>str</td>
+<td>None</td>
+<td>
+Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD does has its own
+device support, and so when this option is unset, "Cortex-M4" is used just to supply something
+valid. (For non-M4-based devices, you might see a warning about unexpected core type if you look at
+the J-Link logs, but this is harmless. J-Link does not support a "none" or "unknown" device type.)
+</td></tr>
+
 </table>

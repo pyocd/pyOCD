@@ -184,7 +184,8 @@ class JLinkProbe(DebugProbe):
             self._link.set_tif(iface)
             if self.session.options.get('jlink.power'):
                 self._link.power_on()
-            self._link.connect('Cortex-M4')
+            device_name = self.session.options.get('jlink.device') or "Cortex-M4"
+            self._link.connect(device_name)
             self._link.coresight_configure()
             self._protocol = protocol
         except JLinkException as exc:
