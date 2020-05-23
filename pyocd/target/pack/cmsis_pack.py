@@ -529,7 +529,7 @@ class CmsisPackDevice(object):
             return Target.ResetType.SW
     
     def __repr__(self):
-        return "<%s@%x %s %s>" % (self.__class__.__name__, id(self), self.part_number, self._info)
+        return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
         
         
 
