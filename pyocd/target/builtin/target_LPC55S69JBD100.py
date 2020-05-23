@@ -131,6 +131,8 @@ BOOTROM_MAGIC_ADDR      = 0x50000040
 
 class LPC55S69JBD100(CoreSightTarget):
 
+    VENDOR = "NXP"
+
     memoryMap = MemoryMap(
         FlashRegion(name='nsflash',     start=0x00000000, length=0x00098000, access='rx',
             blocksize=0x200,
