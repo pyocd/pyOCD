@@ -132,7 +132,8 @@ class DPConnector(object):
         @exception TransferError
         """
         protocol_name = self._session.options.get('dap_protocol').strip().lower()
-        send_swj = self._session.options.get('dap_enable_swj') and self._probe.supports_swj_sequence
+        send_swj = self._session.options.get('dap_enable_swj') \
+                and (DebugProbe.Capability.SWJ_SEQUENCE in self._probe.capabilities)
         use_deprecated = self._session.options.get('dap_use_deprecated_swj')
 
         # Convert protocol from setting if not passed as parameter.

@@ -129,8 +129,8 @@ class JLinkProbe(DebugProbe):
         return self._link.opened
     
     @property
-    def supports_swj_sequence(self):
-        return False
+    def capabilities(self):
+        return {self.Capability.SWO}
     
     def open(self):
         try:
@@ -310,9 +310,6 @@ class JLinkProbe(DebugProbe):
     def write_ap_multiple(self, addr, values):
         for v in values:
             self.write_ap(addr, v)
-
-    def has_swo(self):
-        return True
 
     def swo_start(self, baudrate):
         try:

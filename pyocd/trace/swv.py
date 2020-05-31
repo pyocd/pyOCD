@@ -26,6 +26,7 @@ from ..coresight.itm import ITM
 from ..coresight.tpiu import TPIU
 from ..core.target import Target
 from ..core import exceptions
+from ..probe.debug_probe import DebugProbe
 
 LOG = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ class SWVReader(threading.Thread):
         """
         self._swo_clock = swo_clock
         
-        if not self._session.probe.has_swo():
+        if DebugProbe.Capability.SWO not in self._session.probe.capabilities:
             LOG.warning("Probe %s does not support SWO", self._session.probe.unique_id)
             return
         

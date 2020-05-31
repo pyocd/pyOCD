@@ -99,6 +99,7 @@ class CMSISDAPProbe(DebugProbe):
         self._protocol = None
         self._is_open = False
         self._dp_select = -1
+        self._caps = set()
     
     @property
     def description(self):
@@ -136,8 +137,8 @@ class CMSISDAPProbe(DebugProbe):
         return self._is_open
     
     @property
-    def supports_swj_sequence(self):
-        return True
+    def capabilities(self):
+        return self._caps
 
     def create_associated_board(self):
         assert self.session is not None
@@ -163,6 +164,14 @@ class CMSISDAPProbe(DebugProbe):
                 self._supported_protocols.append(DebugProbe.Protocol.SWD)
             if self._capabilities & self.JTAG_CAPABILITY_MASK:
                 self._supported_protocols.append(DebugProbe.Protocol.JTAG)
+            
+            self._caps = {
+                self.Capability.SWJ_SEQUENCE,
+                self.Capability.BANKED_DP_REGISTERS,
+                self.Capability.APv2_ADDRESSES,
+                }
+            if self._link.has_swo():
+                self._caps.add(self.Capability.SWO)
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
     
@@ -371,12 +380,6 @@ class CMSISDAPProbe(DebugProbe):
     # ------------------------------------------- #
     #          SWO functions
     # ------------------------------------------- #
-
-    def has_swo(self):
-        try:
-            return self._link.has_swo()
-        except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
 
     def swo_start(self, baudrate):
         try:

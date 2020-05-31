@@ -52,6 +52,7 @@ class StlinkProbe(DebugProbe):
         self._memory_interfaces = {}
         self._mbed_info = None
         self._board_id = None
+        self._caps = set()
         
         # Try to detect associated board info via the STLinkV2-1 MSD volume.
         detector = create_mbed_detector()
@@ -101,8 +102,8 @@ class StlinkProbe(DebugProbe):
         return self._is_open
     
     @property
-    def supports_swj_sequence(self):
-        return False
+    def capabilities(self):
+        return self._caps
 
     def create_associated_board(self):
         assert self.session is not None
@@ -114,6 +115,15 @@ class StlinkProbe(DebugProbe):
     def open(self):
         self._link.open()
         self._is_open = True
+        
+        # Update capabilities.
+        self._caps = {
+                self.Capability.SWO,
+                self.Capability.MANAGED_AP_SELECTION,
+                self.Capability.MANAGED_DPBANKSEL,
+                }
+        if self._link.supports_banked_dp:
+            self._caps.add(self.Capability.BANKED_DP_REGISTERS)
     
     def close(self):
         self._link.close()
@@ -203,9 +213,6 @@ class StlinkProbe(DebugProbe):
             self._link.open_ap(apsel)
             self._memory_interfaces[apsel] = STLinkMemoryInterface(self._link, apsel)
         return self._memory_interfaces[apsel]
-
-    def has_swo(self):
-        return True
 
     def swo_start(self, baudrate):
         self._link.swo_start(baudrate)
