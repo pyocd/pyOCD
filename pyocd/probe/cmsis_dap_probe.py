@@ -49,14 +49,6 @@ class CMSISDAPProbe(DebugProbe):
     
     # Bitmasks for AP register address fields.
     A32 = 0x0000000c
-    DPBANKSEL = 0x0000000f
-    APADDR = 0xfffffff0
-    APBANKSEL = 0x000000f0
-    APSEL = 0xff000000
-    APSEL_APBANKSEL = APSEL | APBANKSEL
-    
-    # Address of DP's SELECT register.
-    DP_SELECT = 0x8
     
     # Map from AP/DP and 2-bit register address to the enums used by pydapaccess.
     REG_ADDR_TO_ID_MAP = {
@@ -98,7 +90,6 @@ class CMSISDAPProbe(DebugProbe):
         self._supported_protocols = None
         self._protocol = None
         self._is_open = False
-        self._dp_select = -1
         self._caps = set()
     
     @property
@@ -200,8 +191,6 @@ class CMSISDAPProbe(DebugProbe):
         # Read the current mode and save it.
         actualMode = self._link.get_swj_mode()
         self._protocol = self.PORT_MAP[actualMode]
-        
-        self._invalidate_cached_registers()
 
     def swj_sequence(self, length, bits):
         try:
@@ -213,7 +202,6 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.disconnect()
             self._protocol = None
-            self._invalidate_cached_registers()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -225,7 +213,6 @@ class CMSISDAPProbe(DebugProbe):
 
     def reset(self):
         try:
-            self._invalidate_cached_registers()
             self._link.assert_reset(True)
             sleep(self.session.options.get('reset.hold_time'))
             self._link.assert_reset(False)
@@ -235,7 +222,6 @@ class CMSISDAPProbe(DebugProbe):
 
     def assert_reset(self, asserted):
         try:
-            self._invalidate_cached_registers()
             self._link.assert_reset(asserted)
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
@@ -262,7 +248,6 @@ class CMSISDAPProbe(DebugProbe):
         try:
             result = self._link.read_reg(reg_id, now=now)
         except DAPAccess.Error as error:
-            self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(error), error)
 
         # Read callback returned for async reads.
@@ -270,7 +255,6 @@ class CMSISDAPProbe(DebugProbe):
             try:
                 return result()
             except DAPAccess.Error as error:
-                self._invalidate_cached_registers()
                 six.raise_from(self._convert_exception(error), error)
 
         return result if now else read_dp_result_callback
@@ -278,41 +262,21 @@ class CMSISDAPProbe(DebugProbe):
     def write_dp(self, addr, data):
         reg_id = self.REG_ADDR_TO_ID_MAP[self.DP, addr]
         
-        # Skip writing DP SELECT register if its value is not changing.
-        if addr == self.DP_SELECT:
-            if data == self._dp_select:
-                return
-            self._dp_select = data
-
         # Write the DP register.
         try:
             self._link.write_reg(reg_id, data)
         except DAPAccess.Error as error:
-            self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(error), error)
 
         return True
-    
-    def _select_ap(self, addr):
-        """! @brief Write DP_SELECT to choose the given AP."""
-        # Attempt to preserve the current DPBANKSEL value.
-        if self._dp_select != -1:
-            select = self._dp_select
-        else:
-            select = 0
-        select = (select & self.DPBANKSEL) | (addr & self.APADDR)
-        self.write_dp(self.DP_SELECT, select)
 
     def read_ap(self, addr, now=True):
         assert type(addr) in (six.integer_types)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
 
         try:
-            self._select_ap(addr)
-            
             result = self._link.read_reg(ap_reg, now=now)
         except DAPAccess.Error as error:
-            self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(error), error)
 
         # Read callback returned for async reads.
@@ -320,7 +284,6 @@ class CMSISDAPProbe(DebugProbe):
             try:
                 return result()
             except DAPAccess.Error as error:
-                self._invalidate_cached_registers()
                 six.raise_from(self._convert_exception(error), error)
 
         return result if now else read_ap_result_callback
@@ -330,13 +293,9 @@ class CMSISDAPProbe(DebugProbe):
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
 
         try:
-            # Select the AP and bank.
-            self._select_ap(addr)
-
             # Perform the AP register write.
             self._link.write_reg(ap_reg, data)
         except DAPAccess.Error as error:
-            self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(error), error)
 
         return True
@@ -346,12 +305,8 @@ class CMSISDAPProbe(DebugProbe):
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
         
         try:
-            # Select the AP and bank.
-            self._select_ap(addr)
-            
             result = self._link.reg_read_repeat(count, ap_reg, dap_index=0, now=now)
         except DAPAccess.Error as exc:
-            self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(exc), exc)
 
         # Need to wrap the deferred callback to convert exceptions.
@@ -359,7 +314,6 @@ class CMSISDAPProbe(DebugProbe):
             try:
                 return result()
             except DAPAccess.Error as exc:
-                self._invalidate_cached_registers()
                 six.raise_from(self._convert_exception(exc), exc)
 
         return result if now else read_ap_repeat_callback
@@ -369,12 +323,8 @@ class CMSISDAPProbe(DebugProbe):
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
         
         try:
-            # Select the AP and bank.
-            self._select_ap(addr)
-            
             return self._link.reg_write_repeat(len(values), ap_reg, values, dap_index=0)
         except DAPAccess.Error as exc:
-            self._invalidate_cached_registers()
             six.raise_from(self._convert_exception(exc), exc)
     
     # ------------------------------------------- #
@@ -399,10 +349,6 @@ class CMSISDAPProbe(DebugProbe):
             return self._link.swo_read()
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
-
-    def _invalidate_cached_registers(self):
-        # Invalidate cached DP SELECT register.
-        self._dp_select = -1
 
     @staticmethod
     def _convert_exception(exc):
