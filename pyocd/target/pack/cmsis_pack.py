@@ -178,16 +178,27 @@ class CmsisPack(object):
 
     def _extract_memories(self):
         def filter(map, elem):
+            # 'name' takes precedence over 'id'.
             if 'name' in elem.attrib:
                 name = elem.attrib['name']
             elif 'id' in elem.attrib:
                 name = elem.attrib['id']
             else:
-                # Neither option for memory name was specified, so skip this region.
-                LOG.debug("skipping unnamed memmory region")
-                return
+                # Neither option for memory name was specified, so use the address range.
+                try:
+                    start = int(elem.attrib['start'], base=0)
+                    size = int(elem.attrib['size'], base=0)
+                except (KeyError, ValueError):
+                    LOG.warning("memory region missing address")
+                    return
+                
+                # Use the start and size for a name.
+                name = "%08x:%08x" % (start, size)
+
+            pname = elem.attrib.get('Pname', None)
+            info = (name, pname)
         
-            map[name] = elem
+            map[info] = elem
         
         return self._extract_items('memories', filter)
 
@@ -400,16 +411,19 @@ class CmsisPackDevice(object):
             # algo for all sector sizes.
             algo = packAlgo.get_pyocd_flash_algo(page_size, self._default_ram)
 
-            # Create a separate flash region for each sector size range.
-            for i, sectorInfo in enumerate(packAlgo.sector_sizes):
+            # Create a separate flash region for each sector size range. The sector_sizes attribute
+            # is a list of bi-tuples of (start-address, sector-size), sorted by start address.
+            for j, sectorInfo in enumerate(packAlgo.sector_sizes):
+                # Unpack this sector range's start address and sector size.
                 start, sector_size = sectorInfo
-                if i + 1 >= len(packAlgo.sector_sizes):
-                    nextStart = region.length
-                else:
-                    nextStart, _ = packAlgo.sector_sizes[i + 1]
                 
-                length = nextStart - start
-                start += region.start
+                # Determine the end address of the this sector range. For the last range, the end
+                # is just the end of the entire region. Otherwise it's the start of the next
+                # range - 1.
+                if j + 1 >= len(packAlgo.sector_sizes):
+                    end = region.end
+                else:
+                    end = packAlgo.sector_sizes[j + 1][0] - 1
                 
                 # Limit page size.
                 if page_size > sector_size:
@@ -431,7 +445,7 @@ class CmsisPackDevice(object):
                 rangeRegion = FlashRegion(name=region.name,
                                 access=region.access,
                                 start=start,
-                                length=length,
+                                end=end,
                                 sector_size=sector_size,
                                 page_size=region_page_size,
                                 flm=packAlgo,
@@ -526,7 +540,7 @@ class CmsisPackDevice(object):
             return Target.ResetType.SW
     
     def __repr__(self):
-        return "<%s@%x %s %s>" % (self.__class__.__name__, id(self), self.part_number, self._info)
+        return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
         
         
 

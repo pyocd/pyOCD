@@ -179,7 +179,6 @@ class PackTargets(object):
             if tgt is None:
                 return
             part = dev.part_number.lower()
-            LOG.debug("Loading target '%s' from CMSIS-Pack", part)
 
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
@@ -200,7 +199,9 @@ class PackTargets(object):
         if not isinstance(pack_list, (list, tuple)):
             pack_list = [pack_list]
         for pack_or_path in pack_list:
-            if not isinstance(pack_or_path, CmsisPack):
+            if isinstance(pack_or_path, CmsisPack):
+                pack = pack_or_path
+            else:
                 pack = CmsisPack(pack_or_path)
             for dev in pack.devices:
                 PackTargets.populate_device(dev)
