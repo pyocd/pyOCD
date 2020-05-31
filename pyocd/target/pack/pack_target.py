@@ -179,7 +179,6 @@ class PackTargets(object):
             if tgt is None:
                 return
             part = dev.part_number.lower()
-            LOG.debug("Loading target '%s' from CMSIS-Pack", part)
 
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
