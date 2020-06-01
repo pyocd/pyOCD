@@ -23,7 +23,7 @@ class CoreSightComponent(GraphNode):
     def factory(cls, ap, cmpid, address):
         """! @brief Common CoreSightComponent factory."""
         cmp = cls(ap, cmpid, address)
-        if ap.core:
+        if hasattr(ap, 'core') and ap.core:
             ap.core.add_child(cmp)
         return cmp
 

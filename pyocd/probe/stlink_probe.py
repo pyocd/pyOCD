@@ -20,7 +20,7 @@ from time import sleep
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
 from ..core import exceptions
-from ..coresight.ap import (APSEL, APSEL_SHIFT)
+from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT)
 from .stlink.usb import STLinkUSBInterface
 from .stlink.stlink import STLink
 from .stlink.detect.factory import create_mbed_detector
@@ -193,8 +193,12 @@ class StlinkProbe(DebugProbe):
         for v in values:
             self.write_ap(addr, v)
 
-    def get_memory_interface_for_ap(self, apsel):
+    def get_memory_interface_for_ap(self, ap_address):
         assert self._is_connected
+        # STLink memory access commands only support an 8-bit APSEL.
+        if ap_address.ap_version != APVersion.APv1:
+            return None
+        apsel = ap_address.apsel
         if apsel not in self._memory_interfaces:
             self._link.open_ap(apsel)
             self._memory_interfaces[apsel] = STLinkMemoryInterface(self._link, apsel)

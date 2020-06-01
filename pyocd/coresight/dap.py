@@ -19,7 +19,7 @@ import six
 from collections import namedtuple
 from enum import Enum
 
-from ..core import exceptions
+from ..core import (exceptions, memory_interface)
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
 from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APREG_MASK, AccessPort)
@@ -33,12 +33,16 @@ TRACE.setLevel(logging.CRITICAL)
 
 # DP register addresses. The DPBANKSEL value is encoded in bits [7:4].
 DP_IDR = 0x00 # read-only
+DP_IDR1 = 0x10 # read-only
+DP_BASEPTR0 = 0x20 # read-only
+DP_BASEPTR1 = 0x30 # read-only
 DP_ABORT = 0x00 # write-only
 DP_CTRL_STAT = 0x04 # read-write
 DP_DLCR = 0x14 # read-write
 DP_TARGETID = 0x24 # read-only
 DP_DLPIDR = 0x34 # read-only
 DP_EVENTSTAT = 0x44 # read-only
+DP_SELECT1 = 0x54 # write-only
 DP_SELECT = 0x8 # write-only
 DP_RDBUFF = 0xC # read-only
 
@@ -47,6 +51,13 @@ DP_RDBUFF = 0xC # read-only
 DPADDR_MASK = 0x0f
 DPBANKSEL_MASK = 0xf0
 DPBANKSEL_SHIFT = 4
+
+DPIDR1_ASIZE_MASK = 0x00000007f
+DPIDR1_ERRMODE_MASK = 0x00000080
+
+BASEPTR0_VALID_MASK = 0x00000001
+BASEPTR0_PTR_MASK = 0xfffff000
+BASEPTR0_PTR_SHIFT = 12
 
 ABORT_DAPABORT = 0x00000001
 ABORT_STKCMPCLR = 0x00000002
@@ -89,6 +100,7 @@ DPIDR = namedtuple('DPIDR', 'idr partno version revision mindp')
 class ADIVersion(Enum):
     """! @brief Supported versions of the Arm Debug Interface."""
     ADIv5 = 5
+    ADIv6 = 6
 
 class DPConnector(object):
     """! @brief Establishes a connection to the DP for a given wire protocol.
@@ -195,6 +207,14 @@ class DebugPort(object):
         self._access_number = 0
         self._cached_dpbanksel = None
         self._protocol = None
+        
+        # DPv3 attributes
+        self._is_dpv3 = False
+        self._addr_size = None
+        self._addr_mask = None
+        self._errmode = None
+        self._base_addr = None
+        self._apacc_mem_interface = None
 
     @property
     def probe(self):
@@ -202,8 +222,20 @@ class DebugPort(object):
     
     @property
     def adi_version(self):
-        return ADIVersion.ADIv5
-
+        return ADIVersion.ADIv6 if self._is_dpv3 else ADIVersion.ADIv5
+    
+    @property
+    def base_address(self):
+        """! @brief Base address of the first component for an ADIv6 system."""
+        return self._base_addr
+    
+    @property
+    def apacc_memory_interface(self):
+        """! @brief Memory interface for performing APACC transactions."""
+        if self._apacc_mem_interface is None:
+            self._apacc_mem_interface = APAccessMemoryInterface(self)
+        return self._apacc_mem_interface
+    
     @property
     def next_access_number(self):
         self._access_number += 1
@@ -237,6 +269,7 @@ class DebugPort(object):
             ('connect',             self._connect),
             ('clear_sticky_err',    self.clear_sticky_err),
             ('power_up_debug',      self.power_up_debug),
+            ('check_version',       self._check_version),
             )
 
     def _connect(self):
@@ -248,6 +281,33 @@ class DebugPort(object):
         self.dpidr = connector.idr
         LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
             " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
+        
+    def _check_version(self):
+        self._is_dpv3 = (self.dpidr.version == 3)
+        if self._is_dpv3:
+            idr1 = self.read_reg(DP_IDR1)
+            
+            self._addr_size = idr1 & DPIDR1_ASIZE_MASK
+            self._addr_mask = (1 << self._addr_size) - 1
+            self._errmode_supported = (idr1 & DPIDR1_ERRMODE_MASK) != 0
+            
+            LOG.debug("DP IDR1 = 0x%08x (addr size=%d, errmode=%d)", idr1, self._addr_size, self._errmode_supported)
+            
+            # Read base system address.
+            baseptr0 = self.read_reg(DP_BASEPTR0)
+            valid = (baseptr0 & BASEPTR0_VALID_MASK) != 0
+            if valid:
+                base = (baseptr0 & BASEPTR0_PTR_MASK) >> BASEPTR0_PTR_SHIFT
+                if self._addr_size > 32:
+                    baseptr1 = self.read_reg(DP_BASEPTR1)
+                    base |= baseptr1 << 32
+
+                base &= self._addr_mask
+                self._base_addr = base
+                
+                LOG.debug("DP BASEPTR = 0x%08x", self._base_addr)
+            else:
+                LOG.warning("DPv3 has no valid base address")
 
     def flush(self):
         try:
@@ -451,5 +511,74 @@ class DebugPort(object):
         else:
             assert False
 
+class APAccessMemoryInterface(memory_interface.MemoryInterface):
+    """! @brief Memory interface for performing simple APACC transactions.
+    
+    This class allows the caller to generate Debug APB transactions from a DPv3. It simply
+    adapts the MemoryInterface to APACC transactions.
+    
+    By default, it passes memory transaction addresses unmodified to the DP. But an instance can be
+    constructed by passing an APAddress object to the constructor that offsets transaction addresses
+    so they are relative to the APAddress base.
+    
+    Only 32-bit transfers are supported.
+    """
+    
+    def __init__(self, dp, ap_address=None):
+        """! @brief Constructor.
+        
+        @param self
+        @param dp The DebugPort object.
+        @param ap_address Optional instance of APAddress. If provided, all memory transaction
+            addresses are offset by the base address of the APAddress.
+        """
+        self._dp = dp
+        self._ap_address = ap_address
+        if ap_address is not None:
+            self._offset = ap_address.address
+        else:
+            self._offset = 0
+    
+    @property
+    def dp(self):
+        return self._dp
+    
+    @property
+    def short_description(self):
+        if self._ap_address is None:
+            return "Root Component"
+        else:
+            return "Root Component ({})".format(self._ap_address)
 
+    def write_memory(self, addr, data, transfer_size=32):
+        """! @brief Write a single memory location.
+        
+        By default the transfer size is a word."""
+        if transfer_size != 32:
+            raise exceptions.DebugError("unsupported transfer size")
+        
+        return self._dp.write_ap(self._offset + addr, data)
+        
+    def read_memory(self, addr, transfer_size=32, now=True):
+        """! @brief Read a memory location.
+        
+        By default, a word will be read."""
+        if transfer_size != 32:
+            raise exceptions.DebugError("unsupported transfer size")
+        
+        return self._dp.read_ap(self._offset + addr, now)
+
+    def write_memory_block32(self, addr, data):
+        """! @brief Write an aligned block of 32-bit words."""
+        addr += self._offset
+        for word in data:
+            self._dp.write_ap(addr, data)
+            addr += 4
+
+    def read_memory_block32(self, addr, size):
+        """! @brief Read an aligned block of 32-bit words."""
+        addr += self._offset
+        result_cbs = [self._dp.read_ap(addr + i * 4, now=False) for i in range(size)]
+        result = [cb() for cb in result_cbs]
+        return result
 

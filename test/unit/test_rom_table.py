@@ -179,6 +179,28 @@ class MockM4Components:
     # [5]<e0041000:ETM-M4 class=9 designer=43b part=925 devtype=13 archid=0000 devid=0:0:0>
     ETM_BASE = 0xe0041000
     ETM = MockCoreSightComponent(ETM_BASE, cidr=0xb105900d, pidr=0x4000bb925, devtype=0x13)
+    
+class MockCSSOC600Components:
+    """! @ brief Namespace for mock Class 0x9 ROM table and CoreSight SoC-600 components."""
+    
+    C9_ROM_TABLE_BASE = 0x00000000
+    C9_ROM_TABLE = MockCoreSightComponent(C9_ROM_TABLE_BASE, cidr=0xb105900d, pidr=0x4000bb7d5,
+        devarch=0x47700af7, devid=[0x20, 0, 0],
+        extra={
+            # ROM table entries.
+            0x00000000: [   0x00001003, # SDC-600
+                            0x00002003, # SoC-600 AHB-AP
+                            0x00000000, 0x00000000, 0x00000000, 0x00000000, # (Terminator and extra)
+                            0x00000000, 0x00000000, 0x00000000, 0x00000000, # (extra)
+                        ],
+        })
+    
+    SDC600_BASE = 0x00001000
+    SDC600 = MockCoreSightComponent(SDC600_BASE, cidr=0xb105900d, pidr=0x4000bb9ef, devarch=0x47700a57)
+    
+    C9_AHB_AP_BASE = 0x00002000
+    C9_AHB_AP = MockCoreSightComponent(C9_AHB_AP_BASE, cidr=0xb105900d, pidr=0x4002bb9e3, devarch=0x47700a17)
+    
 
 # Complete set of components for a Cortex-M4 subsystem.
 @pytest.fixture(scope='function')
@@ -191,6 +213,14 @@ def m4_rom():
                 MockM4Components.ITM,
                 MockM4Components.TPIU,
                 MockM4Components.ETM,
+            ])
+
+@pytest.fixture(scope='function')
+def c9_top_rom():
+    return MockCoreSight([
+                MockCSSOC600Components.C9_ROM_TABLE,
+                MockCSSOC600Components.SDC600,
+                MockCSSOC600Components.C9_AHB_AP,
             ])
 
 @pytest.fixture(scope='function')
@@ -280,6 +310,14 @@ class TestCoreSightComponentID:
         assert cmp.archid == 0
         assert cmp.devarch == 0
         assert cmp.devid == [0xca1, 0, 0]
+    
+    # Test parsing a Class 0x9 ROM table.
+    def test_c9_rom(self):
+        cmp = CoreSightComponentID(None, MockCoreSight([MockCSSOC600Components.C9_ROM_TABLE]),
+                MockCSSOC600Components.C9_ROM_TABLE_BASE)
+        cmp.read_id_registers()
+        assert cmp.component_class == 9
+        assert cmp.is_rom_table
 
 class TestRomTable:
     # Test a Class 0x1 ROM table.
@@ -307,5 +345,36 @@ class TestRomTable:
         assert tpiu.part == 0x9a1
         assert tpiu.devid == [0xca1, 0, 0]
         
+    # Test a Class 0x9 ROM table and CS-600 components.
+    def test_c9_rom(self, c9_top_rom):
+        # Read ROM table component ID.
+        cmpid = CoreSightComponentID(None, c9_top_rom, MockCSSOC600Components.C9_ROM_TABLE_BASE)
+        cmpid.read_id_registers()
+        
+        # Create the ROM table.
+        rom_table = ROMTable.create(c9_top_rom, cmpid)
+        rom_table.init()
 
+        # Validate ROM table properties.
+        assert rom_table._width == 32
+        assert not rom_table.has_com_port
+        assert rom_table.has_prr
+        assert not rom_table.is_sysmem
+
+        # Validate components.
+        assert len(rom_table.components) == 2
+        
+        # Validate SDC-600.
+        sdc = rom_table.components[0]
+        assert sdc.component_class == 9
+        assert sdc.designer == 0x43b
+        assert sdc.part == 0x9ef
+        assert sdc.archid == 0xa57
+        
+        # Validate AHB-AP.
+        ahb = rom_table.components[1]
+        assert ahb.component_class == 9
+        assert ahb.designer == 0x43b
+        assert ahb.part == 0x9e3
+        assert ahb.archid == 0xa17
 

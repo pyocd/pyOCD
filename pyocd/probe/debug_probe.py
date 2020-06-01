@@ -232,14 +232,17 @@ class DebugProbe(object):
         """! @brief Write one AP register multiple times."""
         raise NotImplementedError()
     
-    def get_memory_interface_for_ap(self, apsel):
+    def get_memory_interface_for_ap(self, ap_address):
         """! @brief Returns a @ref pyocd.core.memory_interface.MemoryInterface "MemoryInterface" for
             the specified AP.
         
         Some debug probe types have accelerated memory read and write commands. This method is used
         to get a concrete @ref pyocd.core.memory_interface.MemoryInterface "MemoryInterface"
-        instance that is specific to the AP identified by the _apsel_ parameter. If the probe does
-        not provide an accelerated memory interface, None will be returned.
+        instance that is specific to the AP identified by the _ap_address_ parameter. If the probe
+        does not provide an accelerated memory interface, None will be returned.
+        
+        @param self The debug probe.
+        @param ap_address An instance of @ref pyocd.coresight.ap.APAddress "APAddress".
         """
         return None
     

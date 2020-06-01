@@ -218,6 +218,8 @@ BOARD_ID_TO_INFO = {
     "3300": BoardInfo(  "CC3220SF_LaunchXL",    "cc3220sf",         "l1_cc3220sf.bin",      ),
     "4337": BoardInfo(  "LPC4337",              "lpc4337",          None,                   ),
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
+    "5002": BoardInfo(  "Arm V2M-MPS3",         "cortex_m",         None,                   ),
+    "5005": BoardInfo(  "Arm V2M-MPS3",         "cortex_m",         None,                   ),
     "5006": BoardInfo(  "Arm Musca-A1",         "musca_a1",         "l1_musca_a1.bin",      ),
     "5007": BoardInfo(  "Arm Musca-B1",         "musca_b1",         "l1_musca_b1.bin",      ),
     "5009": BoardInfo(  "Arm Musca-S1",         "musca-s1",         None,                   ),
