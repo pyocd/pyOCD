@@ -48,6 +48,7 @@ from gdb_test import GdbTest
 from gdb_server_json_test import GdbServerJsonTest
 from connect_test import ConnectTest
 from debug_context_test import DebugContextTest
+from concurrency_test import ConcurrencyTest
 
 XML_RESULTS_TEMPLATE = "test_results{}.xml"
 LOG_FILE_TEMPLATE = "automated_test_result{}.txt"
@@ -64,6 +65,7 @@ test_list = [
              ConnectTest(),
              SpeedTest(),
              CortexTest(),
+             ConcurrencyTest(),
              FlashTest(),
              FlashLoaderTest(),
              DebugContextTest(),

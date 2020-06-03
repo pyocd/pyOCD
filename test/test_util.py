@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +23,7 @@ from xml.etree import ElementTree
 import six
 import subprocess
 import tempfile
+import threading
 from pyocd.utility.compatibility import to_str_safe
 
 isPy2 = (sys.version_info[0] == 2)
@@ -93,6 +94,31 @@ def binary_to_elf_file(binary_file, base_address):
     if sys.platform.startswith('win'):
         temp_test_elf_name = temp_test_elf_name.replace('\\', '\\\\')
     return temp_test_elf_name
+
+def run_in_parallel(function, args_list):
+    """Create and run a thread in parallel for each element in args_list
+
+    Wait until all threads finish executing. Throw an exception if an exception
+    occurred on any of the threads.
+    """
+    def _thread_helper(idx, func, args):
+        """Run the function and set result to True if there was not error"""
+        func(*args)
+        result_list[idx] = True
+
+    result_list = [False] * len(args_list)
+    thread_list = []
+    for idx, args in enumerate(args_list):
+        thread = threading.Thread(target=_thread_helper,
+                                  args=(idx, function, args))
+        thread.start()
+        thread_list.append(thread)
+
+    for thread in thread_list:
+        thread.join()
+    for result in result_list:
+        if result is not True:
+            raise Exception("Running in thread failed")
 
 class IOTee(object):
     def __init__(self, *args):
