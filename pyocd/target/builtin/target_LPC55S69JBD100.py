@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -175,13 +175,16 @@ class LPC55S69JBD100(CoreSightTarget):
         return seq
     
     def _modify_ap1(self, seq):
-        seq.insert_before('init_ap.1',
-            ('set_ap1_nonsec',        self._set_ap1_nonsec),
-            )
+        # If AP#1 exists we need to adjust it before we can read the ROM.
+        if seq.has_task('init_ap.1'):
+            seq.insert_before('init_ap.1',
+                ('set_ap1_nonsec',        self._set_ap1_nonsec),
+                )
         
         return seq
 
     def _set_ap1_nonsec(self):
+        # Make AP#1 transactions non-secure so transfers will succeed.
         self.aps[1].hnonsec = 1
 
     def create_lpc55s69_cores(self):
@@ -192,11 +195,13 @@ class LPC55S69JBD100(CoreSightTarget):
         core0.init()
         self.add_core(core0)
         
-        core1 = CortexM_v8M(self.session, self.aps[1], self.memory_map, 1)
-        core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        self.aps[1].core = core1
-        core1.init()
-        self.add_core(core1)
+        # Create core 1 if the AP is present. It uses the standard Cortex-M core class for v8-M.
+        if 1 in self.aps:
+            core1 = CortexM_v8M(self.session, self.aps[1], self.memory_map, 1)
+            core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
+            self.aps[1].core = core1
+            core1.init()
+            self.add_core(core1)
     
     def _enable_traceclk(self):
         SYSCON_NS_Base_Addr = 0x40000000
