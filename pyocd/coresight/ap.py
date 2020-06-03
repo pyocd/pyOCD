@@ -21,6 +21,7 @@ from functools import total_ordering
 from enum import Enum
 
 from ..core import (exceptions, memory_interface)
+from ..utility.concurrency import locked
 
 LOG = logging.getLogger(__name__)
 
@@ -280,16 +281,6 @@ class APv2Address(APAddressBase):
     def __str__(self):
         return "@0x%x" % self.address
 
-def _locked(func):
-    """! @brief Decorator to automatically lock an AccessPort method."""
-    def _locking(self, *args, **kwargs):
-        try:
-            self.lock()
-            return func(self, *args, **kwargs)
-        finally:
-            self.unlock()
-    return _locking
-
 class AccessPort(object):
     """! @brief Base class for a CoreSight Access Port (AP) instance."""
 
@@ -386,7 +377,7 @@ class AccessPort(object):
         """
         return self._ap_version
 
-    @_locked
+    @locked
     def init(self):
         # Read IDR if it wasn't given to us in the ctor.
         if self.idr is None:
@@ -409,11 +400,11 @@ class AccessPort(object):
         """! @brief Find CoreSight components attached to this AP."""
         pass
 
-    @_locked
+    @locked
     def read_reg(self, addr, now=True):
         return self.dp.read_ap(self.address.address + addr, now)
 
-    @_locked
+    @locked
     def write_reg(self, addr, data):
         self.dp.write_ap(self.address.address + addr, data)
     
@@ -527,7 +518,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """! @brief Tuple of transfer sizes supported by this AP."""
         return self._transfer_sizes
 
-    @_locked
+    @locked
     def init(self):
         super(MEM_AP, self).init()
         
@@ -641,7 +632,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
         self._dar_count = (1 << darsize) // 4
  
-    @_locked
+    @locked
     def find_components(self):
         try:
             if self.has_rom_table:
@@ -673,7 +664,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return self._hprot
     
     @hprot.setter
-    @_locked
+    @locked
     def hprot(self, value):
         """! @brief Setter for current HPROT value used for memory transactions.
     
@@ -698,7 +689,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return self._hnonsec
     
     @hnonsec.setter
-    @_locked
+    @locked
     def hnonsec(self, value):
         """! @brief Setter for current HNONSEC value used for memory transactions.
         
@@ -762,14 +753,14 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """! @brief Context manager to temporarily set AP to use non-secure memory transfers."""
         return self.hnonsec_lock(NONSECURE)
 
-    @_locked
+    @locked
     def read_reg(self, addr, now=True):
         ap_regaddr = addr & APREG_MASK
         if ap_regaddr == self._reg_offset + MEM_AP_CSW and self._cached_csw != -1 and now:
             return self._cached_csw
         return super(MEM_AP, self).read_reg(addr, now)
 
-    @_locked
+    @locked
     def write_reg(self, addr, data):
         ap_regaddr = addr & APREG_MASK
 
@@ -796,7 +787,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # TODO use notifications to invalidate CSW cache.
         self._cached_csw = -1
 
-    @_locked
+    @locked
     def _write_memory(self, addr, data, transfer_size=32):
         """! @brief Write a single memory location.
         
@@ -831,7 +822,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
         TRACE.debug("write_mem:%06d }", num)
 
-    @_locked
+    @locked
     def _read_memory(self, addr, transfer_size=32, now=True):
         """! @brief Read a memory location.
         
@@ -887,7 +878,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         else:
             return read_mem_cb
 
-    @_locked
+    @locked
     def _write_block32(self, addr, data):
         """! @brief Write a single transaction's worth of aligned words.
         
@@ -913,7 +904,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
         TRACE.debug("_write_block32:%06d }", num)
 
-    @_locked
+    @locked
     def _read_block32(self, addr, size):
         """! @brief Read a single transaction's worth of aligned words.
         
@@ -940,7 +931,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         TRACE.debug("_read_block32:%06d }", num)
         return resp
 
-    @_locked
+    @locked
     def _write_memory_block32(self, addr, data):
         """! @brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
@@ -955,7 +946,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             addr += n
         return
 
-    @_locked
+    @locked
     def _read_memory_block32(self, addr, size):
         """! @brief Read a block of aligned words in memory.
         
@@ -987,7 +978,7 @@ class AHB_AP(MEM_AP):
     certain ROM table entries will read as zeroes.
     """
 
-    @_locked
+    @locked
     def init(self):
         super(AHB_AP, self).init()
 

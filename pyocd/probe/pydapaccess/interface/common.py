@@ -49,7 +49,7 @@ def is_known_cmsis_dap_vid_pid(vid, pid):
 def filter_device_by_class(vid, pid, device_class):
     """! @brief Test whether the device should be ignored by comparing bDeviceClass.
     
-    This function checks the device's bDeviceClass to determine whether the it is likely to be
+    This function checks the device's bDeviceClass to determine whether it is likely to be
     a CMSIS-DAP device. It uses the vid and pid for device-specific quirks.
     
     @retval True Skip the device.

@@ -63,7 +63,7 @@ class DAPAccessIntf(object):
         pass
 
     class TransferError(CommandError):
-        """! @brief Error ocurred with a transfer over SWD or JTAG"""
+        """! @brief Error occurred with a transfer over SWD or JTAG"""
         pass
 
     class TransferTimeoutError(TransferError):
@@ -132,7 +132,7 @@ class DAPAccessIntf(object):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, port=None):
-        """! @brief Initailize DAP IO pins for JTAG or SWD"""
+        """! @brief Initialize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
     def configure_swd(self, turnaround=1, always_send_data_phase=False):

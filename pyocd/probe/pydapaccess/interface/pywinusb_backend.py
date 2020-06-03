@@ -49,7 +49,7 @@ class PyWinUSB(Interface):
         self.report = None
         # deque used here instead of synchronized Queue
         # since read speeds are ~10-30% faster and are
-        # comprable to a based list implmentation.
+        # comparable to a list based implementation.
         self.rcv_data = collections.deque()
         self.device = None
 
