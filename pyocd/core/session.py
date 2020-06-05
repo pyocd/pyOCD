@@ -373,10 +373,11 @@ class Session(Notifier):
                 # Read the script source.
                 with open(scriptPath, 'r') as scriptFile:
                     LOG.debug("Loading user script: %s", scriptPath)
-                    scriptCode = scriptFile.read()
+                    scriptSource = scriptFile.read()
                 
                 self._init_user_script_namespace(scriptPath)
                 
+                scriptCode = compile(scriptSource, scriptPath, 'exec')
                 # Executing the code will create definitions in the namespace for any
                 # functions or classes. A single namespace is shared for both globals and
                 # locals so that script-level definitions are available within the
