@@ -85,7 +85,8 @@ from .cypress import target_CY8C64xA
 from .cypress import target_CY8C64x5
 from . import target_musca_a1
 from . import target_musca_b1
-from . import target_LPC55S69JBD100
+from . import target_LPC55S69Jxxxxx
+from . import target_LPC55S28Jxxxxx
 from . import target_M252KG6AE
 from . import target_M263KIAAE
 from . import target_HC32F46x
@@ -184,7 +185,8 @@ BUILTIN_TARGETS = {
           'cy8c64x5_cm4': target_CY8C64x5.cy8c64x5_cm4,
           'musca_a1' : target_musca_a1.MuscaA1,
           'musca_b1' : target_musca_b1.MuscaB1,
-          'lpc55s69' : target_LPC55S69JBD100.LPC55S69JBD100,
+          'lpc55s69' : target_LPC55S69Jxxxxx.LPC55S69,
+          'lpc55s28' : target_LPC55S28Jxxxxx.LPC55S28,
           'cy8c64xx_cm4_full_flash' : target_CY8C64xx.cy8c64xx_cm4_full_flash,
           'cy8c64xa_cm4_full_flash' : target_CY8C64xA.cy8c64xA_cm4_full_flash,
           'cy8c64x5_cm4_full_flash' : target_CY8C64x5.cy8c64x5_cm4_full_flash,
