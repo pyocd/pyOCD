@@ -45,7 +45,7 @@ from cortex_test import CortexTest
 from flash_test import FlashTest
 from flash_loader_test import FlashLoaderTest
 from gdb_test import GdbTest
-from gdb_server_json_test import GdbServerJsonTest
+from json_lists_test import JsonListsTest
 from connect_test import ConnectTest
 from debug_context_test import DebugContextTest
 from concurrency_test import ConcurrencyTest
@@ -61,7 +61,7 @@ JOB_TIMEOUT = 30 * 60 # 30 minutes
 # Put together list of tests.
 test_list = [
              BasicTest(),
-             GdbServerJsonTest(),
+             JsonListsTest(),
              ConnectTest(),
              SpeedTest(),
              CortexTest(),
