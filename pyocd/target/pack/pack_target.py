@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 
 class ManagedPacks(object):
     """! @brief Namespace for managed CMSIS-Pack utilities.
-    
+
     By managed, we mean managed by the cmsis-pack-manager package. All the methods on this class
     apply only to those packs managed by cmsis-pack-manager, not any targets from packs specified
     by the user.
@@ -54,7 +54,7 @@ class ManagedPacks(object):
         for pack in cache.packs_for_devices(cache.index.values()):
             # Generate full path to the .pack file.
             pack_path = os.path.join(cache.data_path, pack.get_pack_name())
-            
+
             # If the .pack file exists, the pack is installed.
             if os.path.isfile(pack_path):
                 results.append(pack)
@@ -122,6 +122,9 @@ class _PackTargetMethods(object):
 class PackTargets(object):
     """! @brief Namespace for CMSIS-Pack target generation utilities. """
 
+    # store targets defined in PDSC.
+    supported_targets = list()
+
     @staticmethod
     def _find_family_class(dev):
         """! @brief Search the families list for matching entry."""
@@ -183,6 +186,8 @@ class PackTargets(object):
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
                 TARGET[part] = tgt
+                PackTargets.supported_targets.append(part)
+
         except (MalformedCmsisPackError, FileNotFoundError_) as err:
             LOG.warning(err)
 
