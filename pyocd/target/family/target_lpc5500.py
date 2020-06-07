@@ -55,7 +55,7 @@ class LPC5500Family(CoreSightTarget):
         seq.wrap_task('discovery',
             lambda seq: seq
                     .wrap_task('find_components', self._modify_ap1) \
-                    .replace_task('create_cores', self.create_lpc55s69_cores) \
+                    .replace_task('create_cores', self.create_lpc55xx_cores) \
                     .insert_before('create_components',
                         ('enable_traceclk', self._enable_traceclk),
                         )
@@ -77,6 +77,11 @@ class LPC5500Family(CoreSightTarget):
         self.aps[1].hnonsec = 1
 
     def create_lpc55xx_cores(self):
+        # Make sure AP#0 was detected.
+        if 0 not in self.aps:
+            LOG.error("AP#0 was not found, unable to create core 0")
+            return
+
         # Create core 0 with a custom class.
         core0 = CortexM_LPC5500(self.session, self.aps[0], self.memory_map, 0)
         core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
