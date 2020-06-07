@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .cmsis_dap_probe import CMSISDAPProbe
-from .jlink_probe import JLinkProbe
-from .stlink_probe import StlinkProbe
+import pkg_resources
 
-PROBE_CLASSES = [
-    CMSISDAPProbe,
-    JLinkProbe,
-    StlinkProbe,
-    ]
+from ..core import exceptions
+from ..core.plugin import load_plugin_classes_of_type
+from .debug_probe import DebugProbe
+
+## @brief Dictionary of loaded probe plugins indexed by name.
+PROBE_CLASSES = {}
 
 class DebugProbeAggregator(object):
     """! @brief Simple class to enable collecting probes of all supported probe types."""
@@ -30,7 +29,7 @@ class DebugProbeAggregator(object):
     @staticmethod
     def get_all_connected_probes(unique_id=None):
         probes = []
-        for cls in PROBE_CLASSES:
+        for cls in PROBE_CLASSES.values():
             probes += cls.get_all_connected_probes()
         
         # Filter by unique ID.
@@ -42,11 +41,12 @@ class DebugProbeAggregator(object):
     
     @classmethod
     def get_probe_with_id(cls, unique_id):
-        for cls in PROBE_CLASSES:
+        for cls in PROBE_CLASSES.values():
             probe = cls.get_probe_with_id(unique_id)
             if probe is not None:
                 return probe
         else:
             return None
 
-
+# Load plugins when this module is loaded.
+load_plugin_classes_of_type('pyocd.probe', PROBE_CLASSES, DebugProbe)

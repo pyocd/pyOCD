@@ -20,6 +20,7 @@ from time import sleep
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
 from ..core import exceptions
+from ..core.plugin import Plugin
 from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT)
 from .stlink.usb import STLinkUSBInterface
 from .stlink.stlink import STLink
@@ -270,3 +271,20 @@ class STLinkMemoryInterface(MemoryInterface):
         addr &= 0xffffffff
         return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
 
+class StlinkProbePlugin(Plugin):
+    """! @brief Plugin class for StlLinkProbe."""
+    
+    def should_load(self):
+        # TODO only load the plugin when libusb is available
+        return True
+    
+    def load(self):
+        return StlinkProbe
+    
+    @property
+    def name(self):
+        return "stlink"
+    
+    @property
+    def description(self):
+        return "STMicro STLinkV2 and STLinkV3 debug probe"

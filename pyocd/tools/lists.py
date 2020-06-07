@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -183,22 +183,74 @@ class ListGenerator(object):
         return obj
         
     @staticmethod
+    def list_plugins():
+        """! @brief Generate dictionary with lists of available plugins.
+        
+        Output version history:
+        - 1.0, initial version with debug probe and RTOS plugins
+        """
+        from ..probe.aggregator import PROBE_CLASSES
+        from ..rtos import RTOS
+        plugin_groups = [
+                'pyocd.probe',
+                'pyocd.rtos',
+                ]
+        plugin_groups_list = []
+        obj = {
+            'pyocd_version': __version__,
+            'version': { 'major': 1, 'minor': 0 },
+            'status': 0,
+            'plugins': plugin_groups_list,
+            }
+        
+        # Add plugins info
+        for group_name in plugin_groups:
+            plugin_list = []
+            group_info = {
+                'plugin_type': group_name,
+                'plugins': plugin_list,
+                }
+            
+            for entry_point in pkg_resources.iter_entry_points(group_name):
+                klass = entry_point.load()
+                plugin = klass()
+                info = {
+                    'name': plugin.name,
+                    'version': plugin.version,
+                    'description': plugin.description,
+                    'classname': klass.__name__,
+                    }
+                plugin_list.append(info)
+            plugin_groups_list.append(group_info)
+        
+        return obj
+        
+    @staticmethod
     def list_features():
         """! @brief Generate dictionary with info about supported features and options.
         
         Output version history:
+        - 1.1, added 'plugins' feature
         - 1.0, initial version
         """
-        # Features list is empty right now. It will be populated as new features are added that
-        # external hosts might depend on.
         options_list = []
+        plugins_list = []
         obj = {
             'pyocd_version' : __version__,
-            'version' : { 'major' : 1, 'minor' : 0 },
+            'version' : { 'major' : 1, 'minor' : 1 },
             'status' : 0,
-            'features' : [],
+            'features' : [
+                    {
+                        'name': 'plugins',
+                        'plugins': plugins_list,
+                    },
+                ],
             'options' : options_list,
             }
+        
+        # Add plugins
+        plugins = ListGenerator.list_plugins()
+        plugins_list.extend(plugins['plugins'])
         
         # Add options
         for option_name in options.OPTIONS_INFO.keys():

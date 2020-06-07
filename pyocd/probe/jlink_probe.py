@@ -22,6 +22,8 @@ from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadExcepti
 
 from .debug_probe import DebugProbe
 from ..core import (exceptions, memory_interface)
+from ..core.plugin import Plugin
+from ..core.options import OptionInfo
 
 LOG = logging.getLogger(__name__)
 
@@ -342,3 +344,33 @@ class JLinkProbe(DebugProbe):
             return exceptions.TransferFaultError(str(exc))
         else:
             return exc
+
+class JLinkProbePlugin(Plugin):
+    """! @brief Plugin class for JLinkProbe."""
+    
+    def should_load(self):
+        """! @brief Load the J-Link plugin if the J-Link library is available."""
+        return JLinkProbe._get_jlink() is not None
+    
+    def load(self):
+        return JLinkProbe
+    
+    @property
+    def name(self):
+        return "jlink"
+    
+    @property
+    def description(self):
+        return "SEGGER J-Link debug probe"
+
+    @property
+    def options(self):
+        """! @brief Returns J-Link probe options."""
+        return [
+            OptionInfo('jlink.device', str, None,
+                "Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD "
+                "has its own device support, and \"Cortex-M4\" is used."),
+            OptionInfo('jlink.power', bool, True,
+                "Enable target power when connecting via a JLink probe, and disable power when "
+                "disconnecting. Default is True."),
+            ]

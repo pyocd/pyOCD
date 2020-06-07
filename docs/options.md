@@ -380,7 +380,7 @@ presentation in gdb.
 
 ## J-Link probe options
 
-These user options apply to SEGGER J-Link debug probes
+These user options are available when the SEGGER J-Link debug probe plugin is active.
 
 <table>
 

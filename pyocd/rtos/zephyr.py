@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
 from ..core import exceptions
 from ..core.target import Target
+from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 import logging
@@ -413,3 +414,17 @@ class ZephyrThreadProvider(ThreadProvider):
     @property
     def version(self):
         return self._version
+
+class ZephyrPlugin(Plugin):
+    """! @brief Plugin class for the Zephyr RTOS."""
+    
+    def load(self):
+        return ZephyrThreadProvider
+    
+    @property
+    def name(self):
+        return "zephyr"
+    
+    @property
+    def description(self):
+        return "Zephyr"

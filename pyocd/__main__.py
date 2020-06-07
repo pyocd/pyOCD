@@ -85,6 +85,12 @@ ERASE_OPTIONS = [
     'sector',
     ]
 
+## @brief Map to convert plugin groups to user friendly names.
+PLUGIN_GROUP_NAMES = {
+    'pyocd.probe': "Debug Probe",
+    'pyocd.rtos': "RTOS",
+    }
+
 def flatten_args(args):
     """! @brief Converts a list of lists to a single list."""
     return [item for sublist in args for item in sublist]
@@ -285,6 +291,8 @@ class PyOCDTool(object):
             help="List all known targets.")
         listOutput.add_argument('-b', '--boards', action='store_true',
             help="List all known boards.")
+        listOutput.add_argument('--plugins', action='store_true',
+            help="List available plugins.")
         listOptions = listParser.add_argument_group('list options')
         listOptions.add_argument('-n', '--name',
             help="Restrict listing to items matching the given name. Applies to targets and boards.")
@@ -397,7 +405,7 @@ class PyOCDTool(object):
     
     def do_list(self):
         """! @brief Handle 'list' subcommand."""
-        all_outputs = (self._args.probes, self._args.targets, self._args.boards)
+        all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.plugins)
         
         # Default to listing probes.
         if not any(all_outputs):
@@ -405,8 +413,8 @@ class PyOCDTool(object):
         
         # Check for more than one output option being selected.
         if sum(int(x) for x in all_outputs) > 1:
-            LOG.error("Only one of the output options '--probes', '--targets', or '--boards' "
-                      "may be selected at a time.")
+            LOG.error("Only one of the output options '--probes', '--targets', '--boards', "
+                      "or '--plugins' may be selected at a time.")
             return
         
         # Create a session with no device so we load any config.
@@ -448,6 +456,18 @@ class PyOCDTool(object):
                             info['target'],
                             info['binary']
                             ])
+            print(pt)
+        elif self._args.plugins:
+            obj = ListGenerator.list_plugins()
+            pt = self._get_pretty_table(["Type", "Plugin Name", "Version", "Description"])
+            for group_info in sorted(obj['plugins'], key=lambda i: i['plugin_type']):
+                for plugin_info in sorted(group_info['plugins'], key=lambda i: i['name']):
+                    pt.add_row([
+                                PLUGIN_GROUP_NAMES[group_info['plugin_type']],
+                                plugin_info['name'],
+                                plugin_info['version'],
+                                plugin_info['description'],
+                                ])
             print(pt)
     
     def do_json(self):

@@ -19,6 +19,7 @@ from time import sleep
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
+from ..core.plugin import Plugin
 from .pydapaccess import DAPAccess
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
@@ -365,3 +366,16 @@ class CMSISDAPProbe(DebugProbe):
         else:
             return exc
 
+class CMSISDAPProbePlugin(Plugin):
+    """! @brief Plugin class for CMSISDAPProbe."""
+    
+    def load(self):
+        return CMSISDAPProbe
+    
+    @property
+    def name(self):
+        return "cmsisdap"
+    
+    @property
+    def description(self):
+        return "CMSIS-DAP debug probe"
