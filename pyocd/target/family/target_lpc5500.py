@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from time import sleep
+import logging
 
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
@@ -44,6 +45,8 @@ FLASH_INT_CLR_STATUS    = 0x00034FE8
 FLASH_CMD_READ_SINGLE_WORD = 0x3
 
 BOOTROM_MAGIC_ADDR      = 0x50000040
+
+LOG = logging.getLogger(__name__)
 
 class LPC5500Family(CoreSightTarget):
 
