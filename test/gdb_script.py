@@ -85,7 +85,7 @@ monitor_commands = [
     "set step-into-interrupt on",
     "set step-into-interrupt off",
     # Invalid Command
-    "fawehfawoefhad"
+    "intentional_invalid_command_fawehfawoefhad"
 ]
 
 SIZE_TO_C_TYPE = {
@@ -265,6 +265,7 @@ def run_test():
         event = yield(DEFAULT_TIMEOUT)
         if not is_event_breakpoint(event, breakpoint):
             fail_count += 1
+            print("Expected: %s\nReceived: %s" % (breakpoint, event))
             print("Error - could not set pc to function")
         breakpoint.delete()
 

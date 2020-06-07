@@ -141,10 +141,12 @@ def connect_test(board):
     live_board.target.reset()
     test_count += 1
     print("Verifying target is running")
-    if live_board.target.is_running() or live_board.target.get_state() == Target.State.SLEEPING:
+    current_state = live_board.target.get_state()
+    if live_board.target.is_running() or current_state == Target.State.SLEEPING:
         test_pass_count += 1
         print("TEST PASSED")
     else:
+        print("State=%s" % current_state)
         print("TEST FAILED")
     print("Disconnecting with resume=True")
     live_session.options['resume_on_disconnect'] = True

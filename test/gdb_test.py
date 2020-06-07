@@ -35,6 +35,7 @@ from subprocess import (
 import argparse
 import logging
 import traceback
+import threading
 
 from pyocd.__main__ import PyOCDTool
 from pyocd.core.helpers import ConnectHelper
@@ -53,10 +54,25 @@ from test_util import (
 # TODO, c1728p9 - run script several times with
 #       with different command line parameters
 
+LOG = logging.getLogger(__name__)
+
 PYTHON_GDB = "arm-none-eabi-gdb-py"
+TEST_TIMEOUT_SECONDS = 60.0
 
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def wait_with_deadline(process):
+    try:
+        from subprocess import TimeoutExpired
+        try:
+            process.wait(timeout=TEST_TIMEOUT_SECONDS)
+        except TimeoutExpired as e:
+            LOG.error('Timeout while waiting for process %s to exit: %s', process, e)
+            process.kill()
+    except ImportError:
+        # Python 2.7 doesn't support deadline for wait.
+        # Let's wait without deadline, as Python 2.7 support is close to end anyway.
+        process.wait()
 
 class GdbTestResult(TestResult):
     def __init__(self):
@@ -138,23 +154,39 @@ def test_gdb(board_id=None, n=0):
     with open(test_param_filename, "w") as f:
         f.write(json.dumps(test_params))
 
+    # Remove result from previous run.
+    test_result_filename = "gdb_test_results%s_%d.txt" % (get_env_file_name(), n)
+    if os.path.exists(test_result_filename):
+        os.remove(test_result_filename)
+
     # Run the test
-    gdb = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=gdb_script.py"]
-    output_filename = "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n)
-    with open(output_filename, "w") as f:
-        program = Popen(gdb, stdin=PIPE, stdout=f, stderr=STDOUT)
-        args = ['gdbserver',
+    gdb_script_filename = os.path.join(parentdir, 'test/gdb_script.py')
+    gdb_args = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=%s" % gdb_script_filename]
+    gdb_output_filename = "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n)
+    with open(gdb_output_filename, "w") as f:
+        LOG.debug('Starting gdb (stdout -> %s): %s', gdb_output_filename, ' '.join(gdb_args))
+        gdb_program = Popen(gdb_args, stdin=PIPE, stdout=f, stderr=STDOUT)
+        server_args = ['gdbserver',
                 '--port=%i' % test_port,
                 "--telnet-port=%i" % telnet_port,
                 "--frequency=%i" % target_test_params['test_clock'],
                 "--uid=%s" % board_id,
                 ]
         server = PyOCDTool()
-        server.run(args)
-        program.wait()
+        LOG.debug('Starting gdbserver: %s', ' '.join(server_args))
+        server_thread = threading.Thread(target=server.run, args=[server_args])
+        server_thread.start()
+        LOG.debug('Waiting for gdb...')
+        wait_with_deadline(gdb_program)
+        LOG.debug('Waiting for server...')
+        server_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+        if server_thread.is_alive():
+            LOG.error('Server is still running!')
+
+    with open(gdb_output_filename, 'r') as f:
+        LOG.debug('Gdb output:\n%s', f.read())
 
     # Read back the result
-    test_result_filename = "gdb_test_results%s_%d.txt" % (get_env_file_name(), n)
     with open(test_result_filename, "r") as f:
         test_result = json.loads(f.read())
 
