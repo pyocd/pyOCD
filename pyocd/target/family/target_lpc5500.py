@@ -101,6 +101,10 @@ class LPC5500Family(CoreSightTarget):
             self.add_core(core1)
     
     def _enable_traceclk(self):
+        # Don't make it worse if no APs were found.
+        if 0 not in self.aps:
+            return
+        
         SYSCON_NS_Base_Addr = 0x40000000
         IOCON_NS_Base_Addr  = 0x40001000
         TRACECLKSEL_Addr    = SYSCON_NS_Base_Addr + 0x268
