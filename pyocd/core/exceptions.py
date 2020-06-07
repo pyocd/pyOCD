@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,10 @@ class Error(RuntimeError):
     pass
 
 class InternalError(Error):
-    """! @brief Any sort of timeout"""
+    """! @brief Internal consistency or logic error.
+    
+    This error indicates that something has happened that shouldn't be possible.
+    """
     pass
 
 class TimeoutError(Error):
