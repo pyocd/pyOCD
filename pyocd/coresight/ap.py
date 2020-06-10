@@ -970,12 +970,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 class AHB_AP(MEM_AP):
     """! @brief AHB-AP access port subclass.
     
-    This subclass adds checking for the master type bit in the CSW register. Only the M3/M4 AHB-AP
-    implements it. If supported, the master type is set to debugger.
+    This subclass checks for the AP_MSTRTYPE flag, and if set configures that field in the CSW
+    register to use debugger transactions. Only the M3 and M4 AHB-AP implements MSTRTYPE.
     
     Another AHB-AP specific addition is that an attempt is made to set the TRCENA bit in the DEMCR
     register before reading the ROM table. This is required on some Cortex-M devices, otherwise
-    certain ROM table entries will read as zeroes.
+    certain ROM table entries will read as zeroes or other garbage.
     """
 
     @locked
@@ -983,41 +983,20 @@ class AHB_AP(MEM_AP):
         super(AHB_AP, self).init()
 
         # Check for and enable the Master Type bit on AHB-APs where it might be implemented.
-        if (self.ap_version == APVersion.APv1) \
-                or ((self._cmpid is not None) and (self._cmpid.archid == UNKNOWN_AP_ARCHID)):
+        if self._flags & AP_MSTRTYPE:
             self._init_mstrtype()
         
     def _init_mstrtype(self):
-        """! @brief Detect and set master type control in CSW.
+        """! @brief Set master type control in CSW.
         
         Only the v1 AHB-AP from Cortex-M3 and Cortex-M4 implements the MSTRTYPE flag to control
         whether transactions appear as debugger or internal accesses.
         """
-        # Read initial CSW value to check if the MSTRTYPE bit is implemented. It is most
-        # likely already set.
-        original_csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-        impl_master_type = original_csw & CSW_MSTRTYPE
-        
-        # If MSTRTYPE is not set, attempt to write it.
-        if impl_master_type == 0:
-            # Verify no transfer is in progress.
-            
-            # Set MSTRTYPE and read back to see if it sticks.
-            AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw | CSW_MSTRTYPE)
-            csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-
-            # Restore unmodified value of CSW.
-            if csw != original_csw:
-                AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
-
-            impl_master_type = csw & CSW_MSTRTYPE
-        
-        # Set the master type to debugger for AP's that support this field.
-        if impl_master_type != 0:
-            self._csw |= CSW_MSTRDBG
+        # Set the master type to "debugger" for AP's that support this field.
+        self._csw |= CSW_MSTRDBG
 
     def find_components(self):
-        # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries will
+        # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries can
         # come back as garbage if TRCENA is not set.
         try:
             demcr = self.read32(DEMCR)
@@ -1053,13 +1032,14 @@ AP_TYPE_AHB5_HPROT = 0x8
 # AP flags.
 AP_4K_WRAP = 0x1 # The AP has a 4 kB auto-increment modulus.
 AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers.
+AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
 # The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class, flags).
 #
 # Known AP IDRs:
-# 0x24770011 AHB-AP with 0x1000 wrap
+# 0x24770011 AHB-AP with 0x1000 wrap and MSTRTYPE
 #               Used on m4 & m3 - Documented in arm_cortexm4_processor_trm_100166_0001_00_en.pdf
 #               and arm_cortexm3_processor_trm_100165_0201_00_en.pdf
 # 0x34770001 AHB-AP Documented in DDI0314H_coresight_components_trm.pdf
@@ -1078,7 +1058,7 @@ AP_TYPE_MAP = {
     (AP_JEP106_ARM, AP_CLASS_JTAG_AP,   0,  0):                     ("JTAG-AP", AccessPort, 0   ),
     (AP_JEP106_ARM, AP_CLASS_COM_AP,    0,  0):                     ("SDC-600", AccessPort, 0   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_4K_WRAP ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_4K_WRAP|AP_MSTRTYPE ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    3,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    4,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
