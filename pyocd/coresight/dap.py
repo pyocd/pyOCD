@@ -331,7 +331,7 @@ class DebugPort(object):
         @return Boolean indicating whether the power up request succeeded.
         """
         # Send power up request for system and debug.
-        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ)
+        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
 
         with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
             while time_out.check():
@@ -341,7 +341,7 @@ class DebugPort(object):
             else:
                 return False
 
-        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
+        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
         
         return True
 
@@ -356,7 +356,7 @@ class DebugPort(object):
         @return Boolean indicating whether the power down request succeeded.
         """
         # Power down system first.
-        self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ)
+        self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
         
         with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
             while time_out.check():
@@ -367,7 +367,7 @@ class DebugPort(object):
                 return False
 
         # Now power down debug.
-        self.write_reg(DP_CTRL_STAT, 0)
+        self.write_reg(DP_CTRL_STAT,  MASKLANE | TRNNORMAL)
         
         with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
             while time_out.check():
