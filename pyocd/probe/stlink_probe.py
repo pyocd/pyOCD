@@ -33,11 +33,11 @@ class StlinkProbe(DebugProbe):
     """! @brief Wraps an STLink as a DebugProbe."""
         
     @classmethod
-    def get_all_connected_probes(cls):
+    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         return [cls(dev) for dev in STLinkUSBInterface.get_all_connected_devices()]
     
     @classmethod
-    def get_probe_with_id(cls, unique_id):
+    def get_probe_with_id(cls, unique_id, is_explicit=False):
         for dev in STLinkUSBInterface.get_all_connected_devices():
             if dev.serial_number == unique_id:
                 return cls(dev)

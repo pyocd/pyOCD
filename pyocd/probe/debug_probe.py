@@ -60,15 +60,31 @@ class DebugProbe(object):
         MANAGED_DPBANKSEL = 5
     
     @classmethod
-    def get_all_connected_probes(cls):
-        """! @brief Returns a list of DebugProbe instances."""
+    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
+        """! @brief Returns a list of DebugProbe instances.
+        
+        @param cls The class instance.
+        @param unique_id Optional unique ID value on which probes are being filtered. May be
+            used by the probe to optimize retreiving the probe list.
+        @param is_explicit Whether the probe type was explicitly specified in the unique ID. This
+            can be used, for instance, to specially interpret the unique ID as an IP address or
+            domain name when the probe class was specifically requested but not for general lists
+            of available probes.
+        @return List of DebugProbe instances.
+        """
         raise NotImplementedError()
     
     @classmethod
-    def get_probe_with_id(cls, unique_id):
+    def get_probe_with_id(cls, unique_id, is_explicit=False):
         """! @brief Returns a DebugProbe instance for a probe with the given unique ID.
         
         If no probe is connected with a matching unique ID, then None will be returned.
+        
+        @param cls The class instance.
+        @param unique_id Optional unique ID value on which probes are being filtered. May be
+            used by the probe to optimize retreiving the probe list.
+        @param is_explicit Whether the probe type was explicitly specified in the unique ID.
+        @return DebugProbe instance, or None
         """
         raise NotImplementedError()
 

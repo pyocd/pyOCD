@@ -153,7 +153,8 @@ class PyOCDTool(object):
         connectParser = argparse.ArgumentParser(description='common', add_help=False)
         connectOptions = connectParser.add_argument_group("connection")
         connectOptions.add_argument("-u", "--uid", "--probe", dest="unique_id",
-            help="Choose a probe by its unique ID or a substring thereof.")
+            help="Choose a probe by its unique ID or a substring thereof. Optionally prefixed with "
+            "'<probe-type>:' where <probe-type> is the name of a probe plugin.")
         connectOptions.add_argument("-b", "--board", dest="board_override", metavar="BOARD",
             help="Set the board type (not yet implemented).")
         connectOptions.add_argument("-t", "--target", dest="target_override", metavar="TARGET",

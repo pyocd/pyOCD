@@ -56,7 +56,7 @@ class JLinkProbe(DebugProbe):
             return None
     
     @classmethod
-    def get_all_connected_probes(cls):
+    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         try:
             jlink = cls._get_jlink()
             if jlink is None:
@@ -66,7 +66,7 @@ class JLinkProbe(DebugProbe):
             six.raise_from(cls._convert_exception(exc), exc)
     
     @classmethod
-    def get_probe_with_id(cls, unique_id):
+    def get_probe_with_id(cls, unique_id, is_explicit=False):
         try:
             jlink = cls._get_jlink()
             if jlink is None:

@@ -27,10 +27,32 @@ class DebugProbeAggregator(object):
     """! @brief Simple class to enable collecting probes of all supported probe types."""
 
     @staticmethod
+    def _get_probe_classes(unique_id):
+        """! @brief Return probe classes to query based on the unique ID string."""
+        probe_type = None
+        if unique_id is not None:
+            fields = unique_id.split(':', 1)
+            if len(fields) > 1:
+                probe_type = fields[0].lower()
+                unique_id = fields[1]
+
+        if probe_type is None:
+            klasses = PROBE_CLASSES.values()
+        else:
+            # Perform a case-insensitive match.
+            klasses = [PROBE_CLASSES[k] for k in PROBE_CLASSES if k.lower() == probe_type]
+            if not klasses:
+                raise exceptions.Error("unknown debug probe type '{}'".format(probe_type))
+
+        return klasses, unique_id, (probe_type is not None)
+
+    @staticmethod
     def get_all_connected_probes(unique_id=None):
+        klasses, unique_id, is_explicit = DebugProbeAggregator._get_probe_classes(unique_id)
+        
         probes = []
-        for cls in PROBE_CLASSES.values():
-            probes += cls.get_all_connected_probes()
+        for cls in klasses:
+            probes += cls.get_all_connected_probes(unique_id, is_explicit)
         
         # Filter by unique ID.
         if unique_id is not None:
@@ -41,8 +63,10 @@ class DebugProbeAggregator(object):
     
     @classmethod
     def get_probe_with_id(cls, unique_id):
-        for cls in PROBE_CLASSES.values():
-            probe = cls.get_probe_with_id(unique_id)
+        klasses, unique_id, is_explicit = DebugProbeAggregator._get_probe_classes(unique_id)
+        
+        for cls in klasses:
+            probe = cls.get_probe_with_id(unique_id, is_explicit)
             if probe is not None:
                 return probe
         else:
