@@ -593,20 +593,20 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def _init_rom_table_base(self):
         """! @brief Read ROM table base address."""
         base = self.read_reg(self._reg_offset + MEM_AP_BASE)
-        
         is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
         is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
-        if (base == AP_BASE_LEGACY_NOTPRESENT) or (is_adiv5_base and not is_base_present):
+        is_legacy_base_present = not is_adiv5_base and not is_base_present
+        if is_legacy_base_present:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
+        elif (base == AP_BASE_LEGACY_NOTPRESENT) or (not is_base_present):
             self.has_rom_table = False
             self.rom_addr = 0
         elif is_adiv5_base and is_base_present:
             self.has_rom_table = True
             self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
-        elif not is_adiv5_base:
-            self.has_rom_table = True
-            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
         else:
-            assert False, "Unhandled AP BASE value 0x%08x" % base
+            raise exceptions.TargetError("invalid AP BASE value 0x%08x" % base)
     
     def _init_cfg(self):
         """! @brief Read MEM-APv2 CFG register."""
