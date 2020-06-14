@@ -33,6 +33,15 @@ class Board(GraphNode):
         # As a last resort, default the target to 'cortex_m'.
         if target is None:
             target = 'cortex_m'
+        
+            # Log a helpful warning when defaulting to the generic cortex_m target.
+            if session.options.get('warning.cortex_m_default'):
+                LOG.warning("Generic 'cortex_m' target type is selected by default; is this "
+                            "intentional? You will be able to debug most devices, but not program "
+                            " flash. To set the target type use the '--target' argument or "
+                            "'target_override' option. Use 'pyocd list --targets' to see available "
+                            "targets types.")
+
         self._session = session
         self._target_type = target.lower()
         self._test_binary = session.options.get('test_binary')
@@ -59,13 +68,6 @@ class Board(GraphNode):
         
         # Tell the user what target type is selected.
         LOG.info("Target type is %s", self._target_type)
-        
-        # Log a helpful warning when using the generic cortex_m target.
-        if self._target_type == 'cortex_m':
-            LOG.warning("Generic 'cortex_m' target type is selected; is this intentional? "
-                        "You will be able to debug but not program flash. To set the "
-                        "target type use the '--target' argument or 'target_override' option. "
-                        "Use 'pyocd list --targets' to see available targets types.")
         
         self.add_child(self.target)
 

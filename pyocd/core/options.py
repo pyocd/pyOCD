@@ -84,6 +84,8 @@ OPTIONS_INFO = {
         "Name of test firmware binary."),
     'user_script': OptionInfo('user_script', str, None,
         "Path of the user script file."),
+    'warning.cortex_m_default': OptionInfo('warning.cortex_m_default', bool, True,
+        "Whether to show the warning about use of the cortex_m target type. Default is True."),
     
     # JLink options
     'jlink.power': OptionInfo('jlink.power', bool, True,

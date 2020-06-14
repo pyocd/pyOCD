@@ -226,7 +226,16 @@ file for running the functional tests on boards that cannot be automatically det
 <tr><td>user_script</td>
 <td>str</td>
 <td><i>No default.</i></td>
-<td>Path of the user script file.</td></tr>
+<td>
+Path of the user script file.
+</td></tr>
+
+<tr><td>warning.cortex_m_default</td>
+<td>bool</td>
+<td><i>True</i></td>
+<td>Whether to show the warning when no target type is selected and the default cortex_m target
+type is used. The warning is never shown if the cortex_m target type is explicitly specified.
+</td></tr>
 
 </table>
 
