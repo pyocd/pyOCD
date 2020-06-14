@@ -167,12 +167,14 @@ class PyOCDTool(object):
             help="SWD/JTAG clock frequency in Hz, with optional k/K or m/M suffix for kHz or MHz.")
         connectOptions.add_argument("-W", "--no-wait", action="store_true",
             help="Do not wait for a probe to be connected if none are available.")
+        connectOptions.add_argument("-M", "--connect", dest="connect_mode", metavar="MODE",
+            help="Select connect mode from one of (halt, pre-reset, under-reset, attach).")
 
         # Create *commander* subcommand parser.
         commanderParser = argparse.ArgumentParser(description='commander', add_help=False)
         commanderOptions = commanderParser.add_argument_group("commander options")
         commanderOptions.add_argument("-H", "--halt", action="store_true", default=None,
-            help="Halt core upon connect.")
+            help="Halt core upon connect. (Deprecated, see --connect.)")
         commanderOptions.add_argument("-N", "--no-init", action="store_true",
             help="Do not init debug system.")
         commanderOptions.add_argument("--elf", metavar="PATH",
@@ -520,6 +522,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
+                            connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to flash")
@@ -555,6 +558,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
+                            connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to erase")
@@ -568,8 +572,6 @@ class PyOCDTool(object):
     
     def do_reset(self):
         """! @brief Handle 'reset' subcommand."""
-        self._increase_logging(["pyocd.flash.loader"])
-        
         # Verify selected reset type.
         try:
             the_reset_type = convert_reset_type(self._args.reset_type)
@@ -587,6 +589,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
+                            connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to reset")
@@ -679,6 +682,7 @@ class PyOCDTool(object):
                 unique_id=self._args.unique_id,
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
+                connect_mode=self._args.connect_mode,
                 options=sessionOptions)
             if session is None:
                 LOG.error("No probe selected.")
