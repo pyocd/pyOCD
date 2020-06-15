@@ -48,7 +48,7 @@ from ..flash.eraser import FlashEraser
 from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import (mask, conversion)
-from ..utility.cmdline import convert_session_options
+from ..utility.cmdline import (convert_session_options, convert_frequency)
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
 from ..utility.compatibility import get_terminal_size
@@ -453,7 +453,10 @@ OPTION_HELP = {
             },
         'clock' : {
             'aliases' : [],
-            'help' : "Set SWD or JTAG clock frequency in kilohertz."
+            'help' : "Set SWD or JTAG clock frequency in Hertz. A case-insensitive metric scale "
+                "suffix of either 'k' or 'm' is allowed, as well as a trailing \"Hz\". There must "
+                "be no space between the frequency and the suffix. For example, \"2.5MHz\" sets "
+                "the clock to 2.5 MHz."
             },
         'option' : {
             'aliases' : [],
@@ -1492,7 +1495,7 @@ class PyOCDCommander(object):
             print("Error: no clock frequency provided")
             return 1
         try:
-            freq_Hz = self.convert_value(args[0]) * 1000
+            freq_Hz = convert_frequency(args[0])
         except:
             print("Error: invalid frequency")
             return 1
