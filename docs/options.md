@@ -226,7 +226,16 @@ file for running the functional tests on boards that cannot be automatically det
 <tr><td>user_script</td>
 <td>str</td>
 <td><i>No default.</i></td>
-<td>Path of the user script file.</td></tr>
+<td>
+Path of the user script file.
+</td></tr>
+
+<tr><td>warning.cortex_m_default</td>
+<td>bool</td>
+<td><i>True</i></td>
+<td>Whether to show the warning when no target type is selected and the default cortex_m target
+type is used. The warning is never shown if the cortex_m target type is explicitly specified.
+</td></tr>
 
 </table>
 
@@ -376,6 +385,16 @@ These user options apply to SEGGER J-Link debug probes
 <td>
 Enable target power when connecting via a JLink probe, and disable power when disconnecting.
 Default is True.
+</td></tr>
+
+<tr><td>jlink.device</td>
+<td>str</td>
+<td>None</td>
+<td>
+Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD does has its own
+device support, and so when this option is unset, "Cortex-M4" is used just to supply something
+valid. (For non-M4-based devices, you might see a warning about unexpected core type if you look at
+the J-Link logs, but this is harmless. J-Link does not support a "none" or "unknown" device type.)
 </td></tr>
 
 </table>

@@ -161,3 +161,24 @@ def convert_reset_type(value):
         raise ValueError("unexpected value for reset_type option ('%s')" % value)
     return RESET_TYPE_MAP[value]
 
+def convert_frequency(value):
+    """! @brief Applies scale suffix to frequency value string.
+    @param value String with a float and possible 'k' or 'm' suffix (case-insensitive). "Hz" may
+        also follow. No space is allowed between the float and suffix. Leading and trailing
+        whitespace is allowed.
+    @return Integer scaled according to optional metric suffix.
+    """
+    value = value.strip().lower()
+    if value.endswith("hz"):
+        value = value[:-2]
+    suffix = value[-1]
+    if suffix in ('k', 'm'):
+        value = float(value[:-1])
+        if suffix == 'k':
+            value *= 1000
+        elif suffix == 'm':
+            value *= 1000000
+        return int(value)
+    else:
+        return int(float(value))
+

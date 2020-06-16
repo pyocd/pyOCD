@@ -26,6 +26,8 @@ import six
 import prettytable
 import traceback
 import pprint
+import textwrap
+import colorama
 
 # Attempt to import readline.
 try:
@@ -47,7 +49,7 @@ from ..flash.eraser import FlashEraser
 from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import (mask, conversion)
-from ..utility.cmdline import convert_session_options
+from ..utility.cmdline import (convert_session_options, convert_frequency)
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
 from ..utility.compatibility import get_terminal_size
@@ -181,32 +183,43 @@ COMMAND_INFO = {
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 8-bit bytes"
+            'help' : "Read 8-bit bytes",
+            "extra_help" : "Optional length parameter is the number of bytes to read. If the "
+                           "length is not provided, one byte is read."
             },
         'read16' : {
             'aliases' : ['r16', 'rh'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 16-bit halfwords"
+            'help' : "Read 16-bit halfwords",
+            "extra_help" : "Optional length parameter is the number of bytes to read. It must be "
+                           "divisible by 2. If the length is not provided, one halfword is read. "
+                           "The address may be unaligned."
             },
         'read32' : {
             'aliases' : ['r32', 'rw'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 32-bit words"
+            'help' : "Read 32-bit words",
+            "extra_help" : "Optional length parameter is the number of bytes to read. It must be "
+                           "divisible by 4. If the length is not provided, one word is read. "
+                           "The address may be unaligned."
             },
         'write8' : {
             'aliases' : ['write', 'w', 'wb'],
             'args' : "ADDR DATA...",
-            'help' : "Write 8-bit bytes to memory (RAM or flash)"
+            'help' : "Write 8-bit bytes to memory (RAM or flash). Flash writes are subject to "
+                     "minimum write size and alignment."
             },
         'write16' : {
             'aliases' : ['w16', 'wh'],
             'args' : "ADDR DATA...",
-            'help' : "Write 16-bit halfwords to memory (RAM or flash)"
+            'help' : "Write 16-bit halfwords to memory (RAM or flash). The address may be "
+                     "unaligned. Flash writes are subject to minimum write size and alignment."
             },
         'write32' : {
             'aliases' : ['w32', 'ww'],
             'args' : "ADDR DATA...",
-            'help' : "Write 32-bit words to memory (RAM or flash)"
+            'help' : "Write 32-bit words to memory (RAM or flash). The address may be unaligned. "
+                     "Flash writes are subject to minimum write size and alignment."
             },
         'fill' : {
             'aliases' : [],
@@ -214,7 +227,7 @@ COMMAND_INFO = {
             'help' : "Fill a range of memory with a pattern",
             'extra_help' : "The optional SIZE parameter must be one of 8, 16, or 32. If not "
                            "provided, the size is determined by the pattern value's most "
-                           "significant set bit."
+                           "significant set bit. Only RAM regions may be filled."
             },
         'find' : {
             'aliases' : [],
@@ -441,7 +454,10 @@ OPTION_HELP = {
             },
         'clock' : {
             'aliases' : [],
-            'help' : "Set SWD or JTAG clock frequency in kilohertz."
+            'help' : "Set SWD or JTAG clock frequency in Hertz. A case-insensitive metric scale "
+                "suffix of either 'k' or 'm' is allowed, as well as a trailing \"Hz\". There must "
+                "be no space between the frequency and the suffix. For example, \"2.5MHz\" sets "
+                "the clock to 2.5 MHz."
             },
         'option' : {
             'aliases' : [],
@@ -450,7 +466,10 @@ OPTION_HELP = {
             },
         'mem-ap' : {
             'aliases' : [],
-            'help' : "Select the MEM-AP used for memory read/write commands."
+            'help' : "Select the MEM-AP used for memory read/write commands.",
+            'extra_help' : "When the selected core is changed by the 'core' command, the selected "
+                "MEM-AP is changed to match. This overrides a user-selected MEM-AP if different "
+                "from the AP for the newly selected core.",
             },
         'hnonsec' : {
             'aliases' : [],
@@ -484,7 +503,7 @@ def cmdoptions(opts):
     return process_opts
 
 class PyOCDConsole(object):
-    PROMPT = '>>> '
+    PROMPT = colorama.Fore.BLUE + 'pyocd> ' + colorama.Style.RESET_ALL
 
     def __init__(self, tool):
         self.tool = tool
@@ -768,9 +787,12 @@ class PyOCDCommander(object):
 
         options = convert_session_options(self.args.options)
         
-        # Set connect mode. If --halt is set then the connect mode is halt. If connect_mode is
-        # set through -O then use that. Otherwise default to attach.
-        if self.args.halt:
+        # Set connect mode. The --connect option takes precedence when set. Then, if --halt is set
+        # then the connect mode is halt. If connect_mode is set through -O then use that.
+        # Otherwise default to attach.
+        if hasattr(self.args, 'connect_mode') and self.args.connect_mode is not None:
+            connect_mode = self.args.connect_mode
+        elif self.args.halt:
             connect_mode = 'halt'
         elif 'connect_mode' in options:
             connect_mode = None
@@ -1245,6 +1267,10 @@ class PyOCDCommander(object):
             count = width // 8
         else:
             count = self.convert_value(args[1])
+        
+        if (count % (width // 8)) != 0:
+            print("Error: length ({}) is not aligned to width ({})".format(count, width // 8))
+            return 1
 
         if width == 8:
             data = self.target.aps[self.selected_ap].read_memory_block8(addr, count)
@@ -1269,7 +1295,7 @@ class PyOCDCommander(object):
             return 1
         else:
             data = [self.convert_value(d) for d in args[1:]]
-
+        
         if width == 8:
             pass
         elif width == 16:
@@ -1470,7 +1496,7 @@ class PyOCDCommander(object):
             print("Error: no clock frequency provided")
             return 1
         try:
-            freq_Hz = self.convert_value(args[0]) * 1000
+            freq_Hz = convert_frequency(args[0])
         except:
             print("Error: invalid frequency")
             return 1
@@ -1525,9 +1551,12 @@ class PyOCDCommander(object):
         if len(args) < 1:
             print("Core %d is selected" % self.target.selected_core.core_number)
             return
+        original_core_ap = core_ap = self.target.selected_core.ap
         core = int(args[0], base=0)
         self.target.select_core(core)
-        print("Selected core %d" % core)
+        core_ap = self.target.selected_core.ap
+        self.selected_ap = core_ap.address
+        print("Selected core {} ({})".format(core, core_ap.short_description))
 
     def handle_readdp(self, args):
         if len(args) < 1:
@@ -1900,6 +1929,7 @@ class PyOCDCommander(object):
         self.target.aps[self.selected_ap].hprot = value
 
     def handle_help(self, args):
+        term_width = get_terminal_size()[0]
         if not args:
             self._list_commands("Commands", COMMAND_INFO, "{cmd:<25} {args:<20} {help}")
             print("""
@@ -1924,9 +1954,9 @@ Prefix line with ! to execute a shell command.""")
                         print(("Usage: " + usageFormat).format(cmd=name, **info))
                         if len(info['aliases']):
                             print("Aliases:", ", ".join(info['aliases']))
-                        print(info['help'])
+                        print("\n" + textwrap.fill(info['help'], width=term_width))
                         if 'extra_help' in info:
-                            print(info['extra_help'])
+                            print("\n" + textwrap.fill(info['extra_help'], width=term_width))
             
             if subcmd is None:
                 print_help(cmd, COMMAND_INFO, "{cmd} {args}")

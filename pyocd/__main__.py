@@ -41,6 +41,7 @@ from .utility.cmdline import (
     convert_vector_catch,
     convert_session_options,
     convert_reset_type,
+    convert_frequency,
     )
 from .probe.pydapaccess import DAPAccess
 from .tools.lists import ListGenerator
@@ -81,20 +82,6 @@ ERASE_OPTIONS = [
     'chip',
     'sector',
     ]
-
-def convert_frequency(value):
-    """! @brief Applies scale suffix to frequency value string."""
-    value = value.strip()
-    suffix = value[-1].lower()
-    if suffix in ('k', 'm'):
-        value = int(value[:-1])
-        if suffix == 'k':
-            value *= 1000
-        elif suffix == 'm':
-            value *= 1000000
-        return value
-    else:
-        return int(value)
 
 def flatten_args(args):
     """! @brief Converts a list of lists to a single list."""
@@ -157,22 +144,25 @@ class PyOCDTool(object):
         # Common connection related options.
         connectParser = argparse.ArgumentParser(description='common', add_help=False)
         connectOptions = connectParser.add_argument_group("connection")
-        connectOptions.add_argument("-u", "--uid", dest="unique_id",
+        connectOptions.add_argument("-u", "--uid", "--probe", dest="unique_id",
             help="Choose a probe by its unique ID or a substring thereof.")
         connectOptions.add_argument("-b", "--board", dest="board_override", metavar="BOARD",
             help="Set the board type (not yet implemented).")
         connectOptions.add_argument("-t", "--target", dest="target_override", metavar="TARGET",
             help="Set the target type.")
         connectOptions.add_argument("-f", "--frequency", dest="frequency", default=None, type=convert_frequency,
-            help="SWD/JTAG clock frequency in Hz, with optional k/K or m/M suffix for kHz or MHz.")
+            help="SWD/JTAG clock frequency in Hz. Accepts a float or int with optional case-"
+                "insensitive K/M suffix and optional Hz. Examples: \"1000\", \"2.5khz\", \"10m\".")
         connectOptions.add_argument("-W", "--no-wait", action="store_true",
             help="Do not wait for a probe to be connected if none are available.")
+        connectOptions.add_argument("-M", "--connect", dest="connect_mode", metavar="MODE",
+            help="Select connect mode from one of (halt, pre-reset, under-reset, attach).")
 
         # Create *commander* subcommand parser.
         commanderParser = argparse.ArgumentParser(description='commander', add_help=False)
         commanderOptions = commanderParser.add_argument_group("commander options")
         commanderOptions.add_argument("-H", "--halt", action="store_true", default=None,
-            help="Halt core upon connect.")
+            help="Halt core upon connect. (Deprecated, see --connect.)")
         commanderOptions.add_argument("-N", "--no-init", action="store_true",
             help="Do not init debug system.")
         commanderOptions.add_argument("--elf", metavar="PATH",
@@ -242,8 +232,10 @@ class PyOCDTool(object):
             help="Specify the telnet port for semihosting (default 4444).")
         gdbserverOptions.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false",
             help="Allow remote TCP/IP connections (default is no).")
-        gdbserverOptions.add_argument("--persist", dest="persist", default=False, action="store_true",
+        gdbserverOptions.add_argument("--persist", action="store_true",
             help="Keep GDB server running even after remote has detached.")
+        gdbserverOptions.add_argument("--core", metavar="CORE_LIST",
+            help="Comma-separated list of cores for which gdbservers will be created. Default is all cores.")
         gdbserverOptions.add_argument("--elf", metavar="PATH",
             help="Optionally specify ELF file being debugged.")
         gdbserverOptions.add_argument("-e", "--erase", choices=ERASE_OPTIONS, default='sector',
@@ -518,6 +510,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
+                            connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to flash")
@@ -553,6 +546,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
+                            connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to erase")
@@ -566,8 +560,6 @@ class PyOCDTool(object):
     
     def do_reset(self):
         """! @brief Handle 'reset' subcommand."""
-        self._increase_logging(["pyocd.flash.loader"])
-        
         # Verify selected reset type.
         try:
             the_reset_type = convert_reset_type(self._args.reset_type)
@@ -585,6 +577,7 @@ class PyOCDTool(object):
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
+                            connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to reset")
@@ -657,6 +650,16 @@ class PyOCDTool(object):
                 'vector_catch' : self._args.vector_catch,
                 })
             
+            # Split list of cores to serve.
+            if self._args.core is not None:
+                try:
+                    core_list = {int(x) for x in self._args.core.split(',')}
+                except ValueError as err:
+                    LOG.error("Invalid value passed to --core")
+                    return
+            else:
+                core_list = None
+            
             session = ConnectHelper.session_with_chosen_probe(
                 blocking=(not self._args.no_wait),
                 project_dir=self._args.project_dir,
@@ -667,15 +670,30 @@ class PyOCDTool(object):
                 unique_id=self._args.unique_id,
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
+                connect_mode=self._args.connect_mode,
                 options=sessionOptions)
             if session is None:
                 LOG.error("No probe selected.")
                 return
             with session:
+                # Validate the core selection.
+                all_cores = set(session.target.cores.keys())
+                if core_list is None:
+                    core_list = all_cores
+                bad_cores = core_list.difference(all_cores)
+                if len(bad_cores): #x for x in core_list if x not in all_cores):
+                    LOG.error("Invalid core number%s: %s",
+                        "s" if len(bad_cores) > 1 else "",
+                        ", ".join(str(x) for x in bad_cores))
+                    return
+                
                 # Set ELF if provided.
                 if self._args.elf:
                     session.board.target.elf = os.path.expanduser(self._args.elf)
                 for core_number, core in session.board.target.cores.items():
+                    # Don't create a server if this core is not listed by the user.
+                    if core_number not in core_list:
+                        continue
                     gdb = GDBServer(session,
                         core=core_number,
                         server_listening_callback=self.server_listening)
