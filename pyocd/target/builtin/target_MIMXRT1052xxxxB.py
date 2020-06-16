@@ -15,10 +15,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
+from ...coresight.cortex_m import CortexM 
+from ...core.target import Target
+LOG = logging.getLogger(__name__)
+
+FCFB = 0x42464346
+FCFB_ADDR = 0x60000000
+IVT_ADDR = 0x60001000
+
+FPB_CTRL = 0xE0002000
+FPB_COMP0 = 0xE0002008
+
+SRC_SBMR2 = 0x400F801C
 
 FLASH_ALGO_QUADSPI = {
     'load_address' : 0x00000000,
@@ -1105,6 +1118,20 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
         super(MIMXRT1052xxxxB_hyperflash, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
 
+    def create_init_sequence(self):
+        seq = super(MIMXRT1052xxxxB_hyperflash, self).create_init_sequence()
+        seq.wrap_task('discovery',
+            lambda seq: seq.replace_task('create_cores', self.create_cores)
+            )
+        return seq
+
+    def create_cores(self):
+        core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
+        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        self.aps[0].core = core
+        core.init()
+        self.add_core(core)
+
 class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
 
     VENDOR = "NXP"
@@ -1129,21 +1156,69 @@ class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
         super(MIMXRT1052xxxxB_quadspi, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
 
-    def set_reset_catch(self, core, reset_type=None):
-        # Clear reset vector catch and remember whether it was set.
-        self._saved_vc = self.get_vector_catch()
-        self.set_vector_catch(self._saved_vc & ~Target.VectorCatch.CORE_RESET)
-        
-        # Set breakpoint on user reset handler.
-        self._reset_handler = self.read32(0x4)
-        if self._reset_handler < 0x80000:
-            self._had_reset_handler_bp = (self.get_breakpoint_type(self._reset_handler) is not None)
-            self.set_breakpoint(self._reset_handler)
+    def create_init_sequence(self):
+        seq = super(MIMXRT1052xxxxB_quadspi, self).create_init_sequence()
+        seq.wrap_task('discovery',
+            lambda seq: seq.replace_task('create_cores', self.create_cores)
+            )
+        return seq
 
-    def clear_reset_catch(self, core, reset_type=None):
-        # Clear breakpoint if it wasn't previously set.
-        if not self._had_reset_handler_bp:
-            self.remove_breakpoint(self._reset_handler)
-        
-        # Restore vector catch.
-        self.set_vector_catch(self._saved_vc)
+    def create_cores(self):
+        core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
+        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        self.aps[0].core = core
+        core.init()
+        self.add_core(core)
+
+class CortexM7_IMXRT(CortexM):
+    BOOT_MODE_INTERNAL = 0
+    BOOT_MODE_SERIAL_DOWNLOAD = 1
+    def __init__(self, session, ap, memoryMap, core_num):
+        super(CortexM7_IMXRT, self).__init__(session, ap, memoryMap, core_num)
+
+    def is_boot_from_flash(self):
+        if not (self.read32(SRC_SBMR2) & 0x2000000):
+            return False
+        if not (self.read32(FCFB_ADDR) == FCFB):
+            return False
+        entry = self.read32(IVT_ADDR + 4)
+        self._reset_handler = self.read32(entry + 4)
+        if self._reset_handler == 0xFFFFFFFF:
+            return False
+        LOG.debug("internal boot")
+        return True
+
+    def reset_and_halt(self, reset_type=None):
+        """! @brief Perform a reset and stop the core on the reset handler."""
+        boot_mode = self.BOOT_MODE_SERIAL_DOWNLOAD
+        demcr = self.read_memory(CortexM.DEMCR)
+        self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
+
+        if reset_type is None:
+            reset_type = Target.ResetType.SW_SYSRESETREQ
+
+        if (reset_type == Target.ResetType.SW_SYSRESETREQ):
+            # Set breakpoint on user reset handler.
+            if self.is_boot_from_flash():
+                boot_mode = self.BOOT_MODE_INTERNAL
+                self.write_memory(FPB_COMP0, self._reset_handler|1)
+                self.write_memory(FPB_CTRL, 0x3)
+                LOG.debug("enable fpb")
+
+        # Perform the reset.
+        mask = CortexM.NVIC_AIRCR_VECTRESET
+        if (reset_type == Target.ResetType.SW_SYSRESETREQ):
+            mask |= CortexM.NVIC_AIRCR_SYSRESETREQ
+        self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
+
+        xpsr = self.read_core_register('xpsr')
+        if xpsr & self.XPSR_THUMB == 0:
+            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+
+        self.write_memory(CortexM.DEMCR, demcr)
+        if (reset_type == Target.ResetType.SW_SYSRESETREQ):
+            if boot_mode == self.BOOT_MODE_INTERNAL:
+                self.write32(FPB_COMP0, 0)
+                LOG.debug("clear fpb")
+        if not self.is_halted():
+            self.halt()
