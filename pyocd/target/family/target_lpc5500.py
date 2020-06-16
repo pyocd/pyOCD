@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from time import sleep
+import logging
 
 from ...core.target import Target
 from ...core.coresight_target import CoreSightTarget
@@ -44,6 +45,8 @@ FLASH_INT_CLR_STATUS    = 0x00034FE8
 FLASH_CMD_READ_SINGLE_WORD = 0x3
 
 BOOTROM_MAGIC_ADDR      = 0x50000040
+
+LOG = logging.getLogger(__name__)
 
 class LPC5500Family(CoreSightTarget):
 
@@ -98,6 +101,10 @@ class LPC5500Family(CoreSightTarget):
             self.add_core(core1)
     
     def _enable_traceclk(self):
+        # Don't make it worse if no APs were found.
+        if 0 not in self.aps:
+            return
+        
         SYSCON_NS_Base_Addr = 0x40000000
         IOCON_NS_Base_Addr  = 0x40001000
         TRACECLKSEL_Addr    = SYSCON_NS_Base_Addr + 0x268
