@@ -499,6 +499,8 @@ class DebugPort(object):
             self.clear_sticky_err()
         # For timeouts caused by WAIT responses, set DAPABORT to abort the transfer.
         elif isinstance(error, exceptions.TransferTimeoutError):
+            # This may put the AP that was aborted into an unpredictable state. Should consider
+            # attempting to reset debug logic.
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
@@ -507,7 +509,8 @@ class DebugPort(object):
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
         elif mode == DebugProbe.Protocol.JTAG:
-            self.write_reg(DP_CTRL_STAT, CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
+            self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE
+                    | CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
         else:
             assert False
 
