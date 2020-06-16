@@ -246,6 +246,14 @@ class DebugPort(object):
     def next_access_number(self):
         self._access_number += 1
         return self._access_number
+    
+    def lock(self):
+        """! @brief Lock the DP from access by other threads."""
+        self.probe.lock()
+    
+    def unlock(self):
+        """! @brief Unlock the DP."""
+        self.probe.unlock()
 
     def init(self, protocol=None):
         """! @brief Connect to the target.
@@ -416,7 +424,10 @@ class DebugPort(object):
         self.probe.set_clock(frequency)
 
     def _write_dp_select(self, mask, value):
-        """! @brief Modify part of the DP SELECT register and write if cache is stale."""
+        """! @brief Modify part of the DP SELECT register and write if cache is stale.
+        
+        The DP lock must already be acquired before calling this method.
+        """
         # Compute the new SELECT value and see if we need to write it.
         if self._cached_dp_select is None:
             select = value
@@ -466,6 +477,7 @@ class DebugPort(object):
                     return False
             
             # Update the selected DP bank.
+            self.lock()
             self._write_dp_select(SELECT_DPBANKSEL_MASK, dpbanksel)
             return True
         else:
@@ -475,12 +487,18 @@ class DebugPort(object):
         num = self.next_access_number
         
         # Update DPBANKSEL if required.
-        self._set_dpbanksel(addr, False)
+        did_lock = self._set_dpbanksel(addr, False)
 
         try:
             result_cb = self.probe.read_dp(addr & DPADDR_MASK, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            if did_lock:
+                self.unlock()
+            raise
+        except Exception:
+            if did_lock:
+                self.unlock()
             raise
 
         # Read callback returned for async reads.
@@ -493,6 +511,9 @@ class DebugPort(object):
                 TRACE.debug("read_dp:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)
                 raise
+            finally:
+                if did_lock:
+                    self.unlock()
 
         if now:
             return read_dp_cb()
@@ -504,7 +525,7 @@ class DebugPort(object):
         num = self.next_access_number
         
         # Update DPBANKSEL if required.
-        self._set_dpbanksel(addr, True)
+        did_lock = self._set_dpbanksel(addr, True)
 
         # Write the DP register.
         try:
@@ -513,6 +534,9 @@ class DebugPort(object):
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
+        finally:
+            if did_lock:
+                self.unlock()
 
         return True
     
@@ -529,11 +553,13 @@ class DebugPort(object):
             return False
         
         # Write DP SELECT to select the probe.
+        self.lock()
         if self.adi_version == ADIVersion.ADIv5:
             self._write_dp_select(APSEL_APBANKSEL, addr & APSEL_APBANKSEL)
         elif self.adi_version == ADIVersion.ADIv6:
             self._write_dp_select(SELECT_APADDR_MASK, addr & SELECT_APADDR_MASK)
         else:
+            self.unlock()
             assert False, "invalid ADI version"
         return True
 
@@ -542,12 +568,15 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
-            self._select_ap(addr)
+            did_lock = self._select_ap(addr)
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_ap(addr, data)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
+        finally:
+            if did_lock:
+                self.unlock()
 
         return True
 
@@ -556,10 +585,16 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
-            self._select_ap(addr)
+            did_lock = self._select_ap(addr)
             result_cb = self.probe.read_ap(addr, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            if did_lock:
+                self.unlock()
+            raise
+        except Exception:
+            if did_lock:
+                self.unlock()
             raise
 
         # Read callback returned for async reads.
@@ -572,6 +607,9 @@ class DebugPort(object):
                 TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)
                 raise
+            finally:
+                if did_lock:
+                    self.unlock()
 
         if now:
             return read_ap_cb()
@@ -584,23 +622,30 @@ class DebugPort(object):
         num = self.next_access_number
         
         try:
-            self._select_ap(addr)
+            did_lock = self._select_ap(addr)
             TRACE.debug("write_ap_multiple:%06d (addr=0x%08x) = (%i values)", num, addr, len(values))
             return self.probe.write_ap_multiple(addr, values)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
+        finally:
+            if did_lock:
+                self.unlock()
 
     def read_ap_multiple(self, addr, count=1, now=True):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
         
         try:
-            self._select_ap(addr)
+            did_lock = self._select_ap(addr)
             TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
             result_cb = self.probe.read_ap_multiple(addr, count, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            raise
+        except Exception:
+            if did_lock:
+                self.unlock()
             raise
 
         # Need to wrap the deferred callback to convert exceptions.
@@ -611,6 +656,9 @@ class DebugPort(object):
                 TRACE.debug("read_ap_multiple:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)
                 raise
+            finally:
+                if did_lock:
+                    self.unlock()
 
         if now:
             return read_ap_multiple_cb()

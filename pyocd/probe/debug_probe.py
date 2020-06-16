@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from enum import Enum
+import threading
 
 class DebugProbe(object):
     """! @brief Abstract debug probe class."""
@@ -74,6 +75,7 @@ class DebugProbe(object):
     def __init__(self):
         """! @brief Constructor."""
         self._session = None
+        self._lock = threading.RLock()
 
     @property
     def session(self):
@@ -161,6 +163,22 @@ class DebugProbe(object):
     def close(self):
         """! @brief Close the probe's USB interface."""
         raise NotImplementedError()
+    
+    def lock(self):
+        """! @brief Lock the probe from access by other threads.
+        
+        This lock is recursive, so locking multiple times from a single thread is acceptable as long
+        as the thread unlocks the same number of times.
+        """
+        self._lock.acquire()
+    
+    def unlock(self):
+        """! @brief Unlock the probe.
+        
+        Only when the thread unlocks the probe the same number of times it has called lock() will
+        the lock actually be released and other threads allowed access.
+        """
+        self._lock.release()
 
     ## @name Target control
     ##@{

@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import logging
-import threading
 from contextlib import contextmanager
 from functools import total_ordering
 from enum import Enum
@@ -362,7 +361,6 @@ class AccessPort(object):
         self.has_rom_table = False
         self.rom_table = None
         self.core = None
-        self._lock = threading.RLock()
         self._flags = flags
         self._cmpid = cmpid
     
@@ -415,11 +413,11 @@ class AccessPort(object):
     
     def lock(self):
         """! @brief Lock the AP from access by other threads."""
-        self._lock.acquire()
+        self.dp.probe.lock()
     
     def unlock(self):
         """! @brief Unlock the AP."""
-        self._lock.release()
+        self.dp.probe.unlock()
     
     @contextmanager
     def locked(self):
