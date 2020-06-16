@@ -485,7 +485,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._cached_csw = -1
         
         ## Supported transfer sizes.
-        self._transfer_sizes = (32)
+        self._transfer_sizes = (32,)
 
         ## Auto-increment wrap modulus.
         #
@@ -496,6 +496,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         ## Number of DAR registers.
         self._dar_count = 0
+        
+        ## Mask of addresses. This indicates whether 32-bit or 64-bit addresses are supported.
+        self._address_mask = 0xffffffff
         
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
@@ -525,10 +528,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._init_transfer_sizes()
         self._init_hprot()
         self._init_rom_table_base()
-        
-        # For v2 MEM-APs, read the CFG register.
-        if self.ap_version == APVersion.APv2:
-            self._init_cfg()
+        self._init_cfg()
 
     def _init_transfer_sizes(self):
         """! @brief Determine supported transfer sizes.
@@ -609,28 +609,34 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise exceptions.TargetError("invalid AP BASE value 0x%08x" % base)
     
     def _init_cfg(self):
-        """! @brief Read MEM-APv2 CFG register."""
+        """! @brief Read MEM-AP CFG register."""
         cfg = self.read_reg(self._reg_offset + MEM_AP_CFG)
         
-        # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
-        # default of 1 kB in the ctor.
-        tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
-        if tarinc != 0:
-            self.auto_increment_page_size = 1 << (9 + tarinc)
+        # Check for 64-bit address support.
+        if cfg & MEM_AP_CFG_LA_MASK:
+            self._address_mask = 0xffffffffffffffff
         
-        # Determine supported err mode.
-        err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
-        if err == MEM_AP_CFG_ERR_V1:
-            # Configure the error mode such that errors are passed upstream, but they don't
-            # prevent future transactions.
-            self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
+        # Check v2 MEM-AP CFG fields.
+        if self.ap_version == APVersion.APv2:
+            # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
+            # default of 1 kB in the ctor.
+            tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
+            if tarinc != 0:
+                self.auto_increment_page_size = 1 << (9 + tarinc)
+        
+            # Determine supported err mode.
+            err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
+            if err == MEM_AP_CFG_ERR_V1:
+                # Configure the error mode such that errors are passed upstream, but they don't
+                # prevent future transactions.
+                self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
             
-            # Clear TRR in case we attach to a device with a sticky error already set.
-            self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
+                # Clear TRR in case we attach to a device with a sticky error already set.
+                self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
         
-        # Init size of DAR register window.
-        darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
-        self._dar_count = (1 << darsize) // 4
+            # Init size of DAR register window.
+            darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
+            self._dar_count = (1 << darsize) // 4
  
     @locked
     def find_components(self):
@@ -796,6 +802,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         @exception TransferError Raised if the requested transfer size is not supported by the AP.
         """
         assert (addr & (transfer_size // 8 - 1)) == 0
+        addr &= self._address_mask
         if transfer_size not in self._transfer_sizes:
             raise exceptions.TransferError("%d-bit transfers are not supported by %s"
                 % (transfer_size, self.short_description))
@@ -831,6 +838,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         @exception TransferError Raised if the requested transfer size is not supported by the AP.
         """
         assert (addr & (transfer_size // 8 - 1)) == 0
+        addr &= self._address_mask
         if transfer_size not in self._transfer_sizes:
             raise exceptions.TransferError("%d-bit transfers are not supported by %s"
                 % (transfer_size, self.short_description))
@@ -937,6 +945,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def _write_memory_block32(self, addr, data):
         """! @brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
+        addr &= self._address_mask
         size = len(data)
         while size > 0:
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
@@ -955,6 +964,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         @return A list of word values.
         """
         assert (addr & 0x3) == 0
+        addr &= self._address_mask
         resp = []
         while size > 0:
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
