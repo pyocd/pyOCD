@@ -147,7 +147,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.open()
             self._is_open = True
-            self._link.set_deferred_transfer(True)
+            self._link.set_deferred_transfer(self.session.options.get('cmsis_dap.deferred_transfers'))
         
             # Read CMSIS-DAP capabilities
             self._capabilities = self._link.identify(DAPAccess.ID.CAPABILITIES)

@@ -45,6 +45,14 @@ Whether to perform a chip erase or sector erases when programming flash. The val
 'auto', 'sector', or 'chip'.
 </td></tr>
 
+<tr><td>cmsis_dap.deferred_transfers</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Whether to use deferred transfers in the CMSIS-DAP probe backend. By disabling deferred transfers,
+all writes take effect immediately. However, performance is negatively affected.
+</td></tr>
+
 <tr><td>commander.history_length</td>
 <td>int</td>
 <td>1000</td>
