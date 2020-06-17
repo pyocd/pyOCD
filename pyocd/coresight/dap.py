@@ -331,7 +331,7 @@ class DebugPort(object):
         @return Boolean indicating whether the power up request succeeded.
         """
         # Send power up request for system and debug.
-        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ)
+        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
 
         with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
             while time_out.check():
@@ -341,7 +341,7 @@ class DebugPort(object):
             else:
                 return False
 
-        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE)
+        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
         
         return True
 
@@ -356,7 +356,7 @@ class DebugPort(object):
         @return Boolean indicating whether the power down request succeeded.
         """
         # Power down system first.
-        self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ)
+        self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
         
         with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
             while time_out.check():
@@ -367,7 +367,7 @@ class DebugPort(object):
                 return False
 
         # Now power down debug.
-        self.write_reg(DP_CTRL_STAT, 0)
+        self.write_reg(DP_CTRL_STAT,  MASKLANE | TRNNORMAL)
         
         with Timeout(DP_POWER_REQUEST_TIMEOUT) as time_out:
             while time_out.check():
@@ -499,6 +499,8 @@ class DebugPort(object):
             self.clear_sticky_err()
         # For timeouts caused by WAIT responses, set DAPABORT to abort the transfer.
         elif isinstance(error, exceptions.TransferTimeoutError):
+            # This may put the AP that was aborted into an unpredictable state. Should consider
+            # attempting to reset debug logic.
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
@@ -507,7 +509,8 @@ class DebugPort(object):
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
         elif mode == DebugProbe.Protocol.JTAG:
-            self.write_reg(DP_CTRL_STAT, CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
+            self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE
+                    | CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
         else:
             assert False
 

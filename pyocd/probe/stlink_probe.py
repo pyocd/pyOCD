@@ -229,6 +229,7 @@ class STLinkMemoryInterface(MemoryInterface):
         By default the transfer size is a word.
         """
         assert transfer_size in (8, 16, 32)
+        addr &= 0xffffffff
         if transfer_size == 32:
             self._link.write_mem32(addr, conversion.u32le_list_to_byte_list([data]), self._apsel)
         elif transfer_size == 16:
@@ -242,6 +243,7 @@ class STLinkMemoryInterface(MemoryInterface):
         By default, a word will be read.
         """
         assert transfer_size in (8, 16, 32)
+        addr &= 0xffffffff
         if transfer_size == 32:
             result = conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, 4, self._apsel))[0]
         elif transfer_size == 16:
@@ -254,8 +256,10 @@ class STLinkMemoryInterface(MemoryInterface):
         return result if now else read_callback
 
     def write_memory_block32(self, addr, data):
+        addr &= 0xffffffff
         self._link.write_mem32(addr, conversion.u32le_list_to_byte_list(data), self._apsel)
 
     def read_memory_block32(self, addr, size):
+        addr &= 0xffffffff
         return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
 

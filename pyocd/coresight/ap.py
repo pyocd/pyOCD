@@ -485,7 +485,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._cached_csw = -1
         
         ## Supported transfer sizes.
-        self._transfer_sizes = (32)
+        self._transfer_sizes = (32,)
 
         ## Auto-increment wrap modulus.
         #
@@ -496,6 +496,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         ## Number of DAR registers.
         self._dar_count = 0
+        
+        ## Mask of addresses. This indicates whether 32-bit or 64-bit addresses are supported.
+        self._address_mask = 0xffffffff
         
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
@@ -525,10 +528,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._init_transfer_sizes()
         self._init_hprot()
         self._init_rom_table_base()
-        
-        # For v2 MEM-APs, read the CFG register.
-        if self.ap_version == APVersion.APv2:
-            self._init_cfg()
+        self._init_cfg()
 
     def _init_transfer_sizes(self):
         """! @brief Determine supported transfer sizes.
@@ -593,44 +593,50 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def _init_rom_table_base(self):
         """! @brief Read ROM table base address."""
         base = self.read_reg(self._reg_offset + MEM_AP_BASE)
-        
         is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
         is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
-        if (base == AP_BASE_LEGACY_NOTPRESENT) or (is_adiv5_base and not is_base_present):
+        is_legacy_base_present = not is_adiv5_base and not is_base_present
+        if is_legacy_base_present:
+            self.has_rom_table = True
+            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
+        elif (base == AP_BASE_LEGACY_NOTPRESENT) or (not is_base_present):
             self.has_rom_table = False
             self.rom_addr = 0
         elif is_adiv5_base and is_base_present:
             self.has_rom_table = True
             self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
-        elif not is_adiv5_base:
-            self.has_rom_table = True
-            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
         else:
-            assert False, "Unhandled AP BASE value 0x%08x" % base
+            raise exceptions.TargetError("invalid AP BASE value 0x%08x" % base)
     
     def _init_cfg(self):
-        """! @brief Read MEM-APv2 CFG register."""
+        """! @brief Read MEM-AP CFG register."""
         cfg = self.read_reg(self._reg_offset + MEM_AP_CFG)
         
-        # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
-        # default of 1 kB in the ctor.
-        tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
-        if tarinc != 0:
-            self.auto_increment_page_size = 1 << (9 + tarinc)
+        # Check for 64-bit address support.
+        if cfg & MEM_AP_CFG_LA_MASK:
+            self._address_mask = 0xffffffffffffffff
         
-        # Determine supported err mode.
-        err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
-        if err == MEM_AP_CFG_ERR_V1:
-            # Configure the error mode such that errors are passed upstream, but they don't
-            # prevent future transactions.
-            self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
+        # Check v2 MEM-AP CFG fields.
+        if self.ap_version == APVersion.APv2:
+            # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
+            # default of 1 kB in the ctor.
+            tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
+            if tarinc != 0:
+                self.auto_increment_page_size = 1 << (9 + tarinc)
+        
+            # Determine supported err mode.
+            err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
+            if err == MEM_AP_CFG_ERR_V1:
+                # Configure the error mode such that errors are passed upstream, but they don't
+                # prevent future transactions.
+                self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
             
-            # Clear TRR in case we attach to a device with a sticky error already set.
-            self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
+                # Clear TRR in case we attach to a device with a sticky error already set.
+                self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
         
-        # Init size of DAR register window.
-        darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
-        self._dar_count = (1 << darsize) // 4
+            # Init size of DAR register window.
+            darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
+            self._dar_count = (1 << darsize) // 4
  
     @locked
     def find_components(self):
@@ -758,7 +764,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ap_regaddr = addr & APREG_MASK
         if ap_regaddr == self._reg_offset + MEM_AP_CSW and self._cached_csw != -1 and now:
             return self._cached_csw
-        return super(MEM_AP, self).read_reg(addr, now)
+        return self.dp.read_ap(self.address.address + addr, now)
 
     @locked
     def write_reg(self, addr, data):
@@ -775,7 +781,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self._cached_csw = data
 
         try:
-            super(MEM_AP, self).write_reg(addr, data)
+            self.dp.write_ap(self.address.address + addr, data)
         except exceptions.ProbeError:
             # Invalidate cached CSW on exception.
             if ap_regaddr == self._reg_offset + MEM_AP_CSW:
@@ -796,6 +802,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         @exception TransferError Raised if the requested transfer size is not supported by the AP.
         """
         assert (addr & (transfer_size // 8 - 1)) == 0
+        addr &= self._address_mask
         if transfer_size not in self._transfer_sizes:
             raise exceptions.TransferError("%d-bit transfers are not supported by %s"
                 % (transfer_size, self.short_description))
@@ -831,6 +838,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         @exception TransferError Raised if the requested transfer size is not supported by the AP.
         """
         assert (addr & (transfer_size // 8 - 1)) == 0
+        addr &= self._address_mask
         if transfer_size not in self._transfer_sizes:
             raise exceptions.TransferError("%d-bit transfers are not supported by %s"
                 % (transfer_size, self.short_description))
@@ -878,11 +886,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         else:
             return read_mem_cb
 
-    @locked
-    def _write_block32(self, addr, data):
+    def _write_block32_page(self, addr, data):
         """! @brief Write a single transaction's worth of aligned words.
         
         The transaction must not cross the MEM-AP's auto-increment boundary.
+
+        This method is not locked because it is only called by _write_memory_block32(), which is locked.
         """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
@@ -904,11 +913,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
         TRACE.debug("_write_block32:%06d }", num)
 
-    @locked
-    def _read_block32(self, addr, size):
+    def _read_block32_page(self, addr, size):
         """! @brief Read a single transaction's worth of aligned words.
         
         The transaction must not cross the MEM-AP's auto-increment boundary.
+
+        This method is not locked because it is only called by _read_memory_block32(), which is locked.
         """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
@@ -935,12 +945,13 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def _write_memory_block32(self, addr, data):
         """! @brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
+        addr &= self._address_mask
         size = len(data)
         while size > 0:
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            self._write_block32(addr, data[:n//4])
+            self._write_block32_page(addr, data[:n//4])
             data = data[n//4:]
             size -= n//4
             addr += n
@@ -950,15 +961,16 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def _read_memory_block32(self, addr, size):
         """! @brief Read a block of aligned words in memory.
         
-        @return An array of word values
+        @return A list of word values.
         """
         assert (addr & 0x3) == 0
+        addr &= self._address_mask
         resp = []
         while size > 0:
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            resp += self._read_block32(addr, n//4)
+            resp += self._read_block32_page(addr, n//4)
             size -= n//4
             addr += n
         return resp
@@ -970,12 +982,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 class AHB_AP(MEM_AP):
     """! @brief AHB-AP access port subclass.
     
-    This subclass adds checking for the master type bit in the CSW register. Only the M3/M4 AHB-AP
-    implements it. If supported, the master type is set to debugger.
+    This subclass checks for the AP_MSTRTYPE flag, and if set configures that field in the CSW
+    register to use debugger transactions. Only the M3 and M4 AHB-AP implements MSTRTYPE.
     
     Another AHB-AP specific addition is that an attempt is made to set the TRCENA bit in the DEMCR
     register before reading the ROM table. This is required on some Cortex-M devices, otherwise
-    certain ROM table entries will read as zeroes.
+    certain ROM table entries will read as zeroes or other garbage.
     """
 
     @locked
@@ -983,41 +995,20 @@ class AHB_AP(MEM_AP):
         super(AHB_AP, self).init()
 
         # Check for and enable the Master Type bit on AHB-APs where it might be implemented.
-        if (self.ap_version == APVersion.APv1) \
-                or ((self._cmpid is not None) and (self._cmpid.archid == UNKNOWN_AP_ARCHID)):
+        if self._flags & AP_MSTRTYPE:
             self._init_mstrtype()
         
     def _init_mstrtype(self):
-        """! @brief Detect and set master type control in CSW.
+        """! @brief Set master type control in CSW.
         
         Only the v1 AHB-AP from Cortex-M3 and Cortex-M4 implements the MSTRTYPE flag to control
         whether transactions appear as debugger or internal accesses.
         """
-        # Read initial CSW value to check if the MSTRTYPE bit is implemented. It is most
-        # likely already set.
-        original_csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-        impl_master_type = original_csw & CSW_MSTRTYPE
-        
-        # If MSTRTYPE is not set, attempt to write it.
-        if impl_master_type == 0:
-            # Verify no transfer is in progress.
-            
-            # Set MSTRTYPE and read back to see if it sticks.
-            AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw | CSW_MSTRTYPE)
-            csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-
-            # Restore unmodified value of CSW.
-            if csw != original_csw:
-                AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
-
-            impl_master_type = csw & CSW_MSTRTYPE
-        
-        # Set the master type to debugger for AP's that support this field.
-        if impl_master_type != 0:
-            self._csw |= CSW_MSTRDBG
+        # Set the master type to "debugger" for AP's that support this field.
+        self._csw |= CSW_MSTRDBG
 
     def find_components(self):
-        # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries will
+        # Turn on DEMCR.TRCENA before reading the ROM table. Some ROM table entries can
         # come back as garbage if TRCENA is not set.
         try:
             demcr = self.read32(DEMCR)
@@ -1053,13 +1044,14 @@ AP_TYPE_AHB5_HPROT = 0x8
 # AP flags.
 AP_4K_WRAP = 0x1 # The AP has a 4 kB auto-increment modulus.
 AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers.
+AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
 # The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class, flags).
 #
 # Known AP IDRs:
-# 0x24770011 AHB-AP with 0x1000 wrap
+# 0x24770011 AHB-AP with 0x1000 wrap and MSTRTYPE
 #               Used on m4 & m3 - Documented in arm_cortexm4_processor_trm_100166_0001_00_en.pdf
 #               and arm_cortexm3_processor_trm_100165_0201_00_en.pdf
 # 0x34770001 AHB-AP Documented in DDI0314H_coresight_components_trm.pdf
@@ -1078,7 +1070,7 @@ AP_TYPE_MAP = {
     (AP_JEP106_ARM, AP_CLASS_JTAG_AP,   0,  0):                     ("JTAG-AP", AccessPort, 0   ),
     (AP_JEP106_ARM, AP_CLASS_COM_AP,    0,  0):                     ("SDC-600", AccessPort, 0   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_4K_WRAP ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_4K_WRAP|AP_MSTRTYPE ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    3,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    4,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
