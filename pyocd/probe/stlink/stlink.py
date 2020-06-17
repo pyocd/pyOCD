@@ -188,7 +188,7 @@ class STLink(object):
         
         This property is not valid until the connection is opened.
         """
-        return self._jtag_version >= self.MIN_JTAG_VERSION_DPBANKSEL_HW_V2[self._hw_version]
+        return self._jtag_version >= self.MIN_JTAG_VERSION_DPBANKSEL[self._hw_version]
 
     def get_target_voltage(self):
         response = self._device.transfer([Commands.GET_TARGET_VOLTAGE], readSize=8)
