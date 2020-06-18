@@ -699,7 +699,7 @@ class PyOCDTool(object):
                         server_listening_callback=self.server_listening)
                     gdbs.append(gdb)
                 gdb = gdbs[0]
-                while gdb.isAlive():
+                while gdb.is_alive():
                     gdb.join(timeout=0.5)
         except (KeyboardInterrupt, Exception):
             for gdb in gdbs:
