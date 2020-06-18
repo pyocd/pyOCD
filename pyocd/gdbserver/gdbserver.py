@@ -233,13 +233,13 @@ class GDBServer(threading.Thread):
         self.start()
 
     def restart(self):
-        if self.isAlive():
+        if self.is_alive():
             self.detach_event.set()
 
     def stop(self):
-        if self.isAlive():
+        if self.is_alive():
             self.shutdown_event.set()
-            while self.isAlive():
+            while self.is_alive():
                 pass
             LOG.info("GDB server thread killed")
 
