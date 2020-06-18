@@ -900,6 +900,10 @@ class PyOCDCommander(object):
 
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
+            if not self.target.is_halted():
+                print("Core is not halted; cannot read core registers")
+                return
+
             value = self.target.read_core_register(reg)
             if isinstance(value, six.integer_types):
                 print("%s = 0x%08x (%d)" % (reg, value, value))
@@ -938,6 +942,10 @@ class PyOCDCommander(object):
 
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
+            if not self.target.is_halted():
+                print("Core is not halted; cannot write core registers")
+                return
+
             if (reg.startswith('s') and reg != 'sp') or reg.startswith('d'):
                 value = float(args[1])
             else:
@@ -1373,6 +1381,10 @@ class PyOCDCommander(object):
             print("Unknown target status: %s" % status)
 
     def handle_step(self, args):
+        if not self.target.is_halted():
+            print("Core is not halted; cannot step")
+            return
+
         self.target.step(disable_interrupts=not self.step_into_interrupt)
         addr = self.target.read_core_register('pc')
         if isCapstoneAvailable:
@@ -2055,6 +2067,10 @@ Prefix line with ! to execute a shell command.""")
                 'r3', 'r9', 'pc',
                 'r4', 'r10', 'xpsr',
                 'r5', 'r11', 'primask']
+
+        if not self.target.is_halted():
+            print("Core is not halted; cannot read core registers")
+            return
 
         for i, reg in enumerate(regs):
             regValue = self.target.read_core_register(reg)
