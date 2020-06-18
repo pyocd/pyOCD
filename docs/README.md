@@ -12,6 +12,7 @@
 - [Configuration](configuration.md)
 - [Available options](options.md)
 - [User scripts](user_scripts.md)
+- [Remote probe access](remote_probe_access.md)
 
 #### Advanced
 
@@ -28,12 +29,15 @@
 
 ### Developer documentation
 
+#### How-tos
 - [Developers’ guide](developers_guide.md)
-- [Architecture overview](architecture.md)
 - [How to add new targets](adding_new_targets.md)
 - [Building a standalone gdb server executable](how_to_build.md)
 - [Running the automated tests](automated_tests.md)
 
+#### Architecture and Design
+- [Architecture overview](architecture.md)
+- [Remote probe protocol](remote_probe_protocol.md)
 
 
 
