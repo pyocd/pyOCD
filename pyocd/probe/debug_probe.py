@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from enum import Enum
+import threading
 
 class DebugProbe(object):
     """! @brief Abstract debug probe class."""
@@ -32,6 +33,32 @@ class DebugProbe(object):
             'default': Protocol.DEFAULT,
         }
     
+    class Capability(Enum):
+        """! @brief Probe capabilities."""
+        ## @brief Whether the probe supports the swj_sequence() API.
+        #
+        # If this property is True, then the swj_sequence() method is used to move between protocols.
+        # If False, it is assumed the probe firmware automatically manages the protocol switch.
+        SWJ_SEQUENCE = 0
+        
+        ## @brief Whether the probe supports receiving SWO data.
+        SWO = 1
+
+        ## @brief Whether the probe can access banked DP registers.
+        BANKED_DP_REGISTERS = 2
+        
+        ## @brief Whether the probe can access APv2 registers.
+        APv2_ADDRESSES = 3
+        
+        ## @brief Whether the probe automatically handles AP selection in the DP.
+        #
+        # If this capability is not present, the DebugPort object will perform the AP selection
+        # by DP register writes.
+        MANAGED_AP_SELECTION = 4
+        
+        ## @brief whether the probe automatically handles access of banked DAP registers.
+        MANAGED_DPBANKSEL = 5
+    
     @classmethod
     def get_all_connected_probes(cls):
         """! @brief Returns a list of DebugProbe instances."""
@@ -48,6 +75,7 @@ class DebugProbe(object):
     def __init__(self):
         """! @brief Constructor."""
         self._session = None
+        self._lock = threading.RLock()
 
     @property
     def session(self):
@@ -108,11 +136,10 @@ class DebugProbe(object):
         raise NotImplementedError()
     
     @property
-    def supports_swj_sequence(self):
-        """! @brief Whether the probe supports the swj_sequence() API.
+    def capabilities(self):
+        """! @brief A set of DebugProbe.Capability enums indicating the probe's features.
         
-        If this property is True, then the swj_sequence() method is used to move between protocols.
-        If False, it is assumed the probe firmware automatically manages the protocol switch.
+        This value should not be trusted until after the probe is opened.
         """
         raise NotImplementedError()
 
@@ -136,6 +163,22 @@ class DebugProbe(object):
     def close(self):
         """! @brief Close the probe's USB interface."""
         raise NotImplementedError()
+    
+    def lock(self):
+        """! @brief Lock the probe from access by other threads.
+        
+        This lock is recursive, so locking multiple times from a single thread is acceptable as long
+        as the thread unlocks the same number of times.
+        """
+        self._lock.acquire()
+    
+    def unlock(self):
+        """! @brief Unlock the probe.
+        
+        Only when the thread unlocks the probe the same number of times it has called lock() will
+        the lock actually be released and other threads allowed access.
+        """
+        self._lock.release()
 
     ## @name Target control
     ##@{
@@ -250,10 +293,6 @@ class DebugProbe(object):
 
     ## @name SWO
     ##@{
-
-    def has_swo(self):
-        """! @brief Returns bool indicating whether the probe supports SWO."""
-        raise NotImplementedError()
 
     def swo_start(self, baudrate):
         """! @brief Start receiving SWO data at the given baudrate.

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,14 +43,19 @@ class STLink(object):
     # 8-bit transfers have a maximum size of the maximum USB packet size (64 bytes for full speed).
     MAXIMUM_TRANSFER_SIZE = 1024
     
-    ## Minimum required STLink firmware version.
+    ## Minimum required STLink firmware version (hw version 2).
     MIN_JTAG_VERSION = 24
     
-    ## Firmware version that adds 16-bit transfers.
+    ## Firmware version that adds 16-bit transfers (hw version 2).
     MIN_JTAG_VERSION_16BIT_XFER = 26
     
-    ## Firmware version that adds multiple AP support.
+    ## Firmware version that adds multiple AP support (hw version 2).
     MIN_JTAG_VERSION_MULTI_AP = 28
+    
+    ## Firmware version that adds DP bank support.
+    #
+    # Keys are the hardware version, value is the minimum JTAG version.
+    MIN_JTAG_VERSION_DPBANKSEL = {2: 32, 3: 2}
     
     ## Port number to use to indicate DP registers.
     DP_PORT = 0xffff
@@ -176,6 +181,14 @@ class STLink(object):
     @property
     def target_voltage(self):
         return self._target_voltage
+    
+    @property
+    def supports_banked_dp(self):
+        """! @brief Whether the firmware version supports accessing banked DP registers.
+        
+        This property is not valid until the connection is opened.
+        """
+        return self._jtag_version >= self.MIN_JTAG_VERSION_DPBANKSEL[self._hw_version]
 
     def get_target_voltage(self):
         response = self._device.transfer([Commands.GET_TARGET_VOLTAGE], readSize=8)
@@ -402,9 +415,19 @@ class STLink(object):
     def write_mem8(self, addr, data, apsel):
         self._write_mem(addr, data, Commands.JTAG_WRITEMEM_8BIT, self._device.max_packet_size, apsel)
     
+    def _check_dp_bank(self, port, addr):
+        """! @brief Check if attempting to access a banked DP register with a firmware version that
+                doesn't support that.
+        """
+        if ((port == self.DP_PORT) and ((addr & 0xf0) != 0) and not self.supports_banked_dp):
+            raise exceptions.ProbeError("this STLinkV%d firmware version does not support accessing"
+                    " banked DP registers; please upgrade to the latest STLinkV%d firmware release",
+                    self._hw_version, self._hw_version)
+    
     def read_dap_register(self, port, addr):
-        assert ((addr & 0xf0) == 0) or (port != self.DP_PORT), "banks are not allowed for DP registers"
         assert (addr >> 16) == 0, "register address must be 16-bit"
+        
+        self._check_dp_bank(port, addr)
         
         with self._lock:
             cmd = [Commands.JTAG_COMMAND, Commands.JTAG_READ_DAP_REG]
@@ -415,8 +438,9 @@ class STLink(object):
             return value
     
     def write_dap_register(self, port, addr, value):
-        assert ((addr & 0xf0) == 0) or (port != self.DP_PORT), "banks are not allowed for DP registers"
         assert (addr >> 16) == 0, "register address must be 16-bit"
+
+        self._check_dp_bank(port, addr)
 
         with self._lock:
             cmd = [Commands.JTAG_COMMAND, Commands.JTAG_WRITE_DAP_REG]

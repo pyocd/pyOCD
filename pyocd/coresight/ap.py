@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import logging
-import threading
 from contextlib import contextmanager
 from functools import total_ordering
 from enum import Enum
@@ -37,6 +36,7 @@ A32 = 0x0c
 APSEL_SHIFT = 24
 APSEL = 0xff000000
 APBANKSEL = 0x000000f0
+APSEL_APBANKSEL = APSEL | APBANKSEL
 
 ## @brief Mask for register address within the AP address space.
 #
@@ -361,7 +361,6 @@ class AccessPort(object):
         self.has_rom_table = False
         self.rom_table = None
         self.core = None
-        self._lock = threading.RLock()
         self._flags = flags
         self._cmpid = cmpid
     
@@ -414,11 +413,11 @@ class AccessPort(object):
     
     def lock(self):
         """! @brief Lock the AP from access by other threads."""
-        self._lock.acquire()
+        self.dp.probe.lock()
     
     def unlock(self):
         """! @brief Unlock the AP."""
-        self._lock.release()
+        self.dp.probe.unlock()
     
     @contextmanager
     def locked(self):
@@ -901,7 +900,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
         try:
-            self.dp.probe.write_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, data)
+            self.dp.write_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -928,7 +927,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | CSW_SIZE32)
         self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
         try:
-            resp = self.dp.probe.read_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, size)
+            resp = self.dp.read_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, size)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
