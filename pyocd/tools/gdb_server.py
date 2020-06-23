@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # pyOCD debugger
 # Copyright (c) 2006-2018 Arm Limited
+# Copyright (c) 2020 Cypress Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,6 +34,7 @@ from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, conver
 from ..probe.cmsis_dap_probe import CMSISDAPProbe
 from ..probe.pydapaccess import DAPAccess
 from ..core.session import Session
+from ..coresight.generic_mem_ap import GenericMemAPTarget
 
 LOG = logging.getLogger(__name__)
 
@@ -289,6 +291,9 @@ class GDBServerTool(object):
                     if self.args.elf:
                         session.board.target.elf = self.args.elf
                     for core_number, core in session.board.target.cores.items():
+                        if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
+                            continue
+                            
                         gdb = GDBServer(session,
                             core=core_number,
                             server_listening_callback=self.server_listening)

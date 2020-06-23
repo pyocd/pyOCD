@@ -2,6 +2,7 @@
 
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2020 Cypress Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +50,7 @@ from .tools.pyocd import PyOCDCommander
 from .flash.eraser import FlashEraser
 from .flash.file_programmer import FileProgrammer
 from .core import options
+from .coresight.generic_mem_ap import GenericMemAPTarget
 
 try:
     import cmsis_pack_manager
@@ -691,6 +693,9 @@ class PyOCDTool(object):
                 if self._args.elf:
                     session.board.target.elf = os.path.expanduser(self._args.elf)
                 for core_number, core in session.board.target.cores.items():
+                    # Don't create a server for CPU-less memory Access Port. 
+                    if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
+                        continue
                     # Don't create a server if this core is not listed by the user.
                     if core_number not in core_list:
                         continue

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019 Arm Limited
+# Copyright (c) 2020 Cypress Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,7 +72,55 @@ class CY8C6xx7(PSoC6):
     def __init__(self, link):
         super(CY8C6xx7, self).__init__(link, CortexM_PSoC6_BLE2, self.memoryMap)
 
+class CY8C6xx7_S25FS512S(PSoC6):
+    from .flash_algos.flash_algo_CY8C6xx7 import flash_algo as flash_algo_main
+    from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
+    from .flash_algos.flash_algo_CY8C6xxx_SFLASH import flash_algo as flash_algo_sflash
+    from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25FS512S import flash_algo as flash_algo_smif
 
+    memoryMap = MemoryMap(
+        PSoC6FlashParams.defaultRomRegion,
+        PSoC6FlashParams.defaultRamRegion,
+
+        FlashRegion(start=0x10000000, length=0x100000, blocksize=0x200,
+                    is_boot_memory=True,
+                    erased_byte_value=0,
+                    algo=flash_algo_main,
+                    erase_all_weight=PSoC6FlashParams.MFLASH_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.MFLASH_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.MFLASH_PROGRAM_PAGE_WEIGHT),
+
+        FlashRegion(start=0x14000000, length=0x8000, blocksize=0x200,
+                    is_boot_memory=False,
+                    erased_byte_value=0,
+                    algo=flash_algo_work,
+                    erase_all_weight=PSoC6FlashParams.MFLASH_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.MFLASH_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.MFLASH_PROGRAM_PAGE_WEIGHT),
+
+        FlashRegion(start=0x16000000, length=0x8000, blocksize=0x200,
+                    is_boot_memory=False,
+                    erased_byte_value=0,
+                    is_testable=False,
+                    algo=flash_algo_sflash,
+                    erase_all_weight=PSoC6FlashParams.MFLASH_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.MFLASH_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.MFLASH_PROGRAM_PAGE_WEIGHT),
+
+        FlashRegion(start=0x18000000, length=0x4000000, blocksize=0x40000, page_size=0x1000,
+                    is_boot_memory=False,
+                    is_testable=False,
+                    erased_byte_value=0xFF,
+                    is_powered_on_boot=False,
+                    algo=flash_algo_smif,
+                    erase_all_weight=PSoC6FlashParams.SMIF_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.SMIF_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.SMIF_PROGRAM_PAGE_WEIGHT),
+    )
+
+    def __init__(self, link):
+        super(CY8C6xx7_S25FS512S, self).__init__(link, CortexM_PSoC6_BLE2, self.memoryMap)
+        
 class CY8C6xx7_nosmif(PSoC6):
     from .flash_algos.flash_algo_CY8C6xx7 import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
