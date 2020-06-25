@@ -47,6 +47,7 @@ from .utility.cmdline import (
     )
 from .probe.pydapaccess import DAPAccess
 from .probe.tcp_probe_server import DebugProbeServer
+from .probe.shared_probe_proxy import SharedDebugProbeProxy
 from .tools.lists import ListGenerator
 from .tools.pyocd import PyOCDCommander
 from .flash.eraser import FlashEraser
@@ -238,14 +239,22 @@ class PyOCDTool(object):
         # Create *gdbserver* subcommand parser.
         gdbserverParser = argparse.ArgumentParser(description='gdbserver', add_help=False)
         gdbserverOptions = gdbserverParser.add_argument_group("gdbserver options")
-        gdbserverOptions.add_argument("-p", "--port", dest="port_number", type=int, default=3333,
-            help="Set the port number that GDB server will open (default 3333).")
-        gdbserverOptions.add_argument("-T", "--telnet-port", dest="telnet_port", type=int, default=4444,
+        gdbserverOptions.add_argument("-p", "--port", metavar="PORT", dest="port_number", type=int,
+            default=3333,
+            help="Set starting port number for the GDB server (default 3333). Additional cores "
+                "will have a port number of this parameter plus the core number.")
+        gdbserverOptions.add_argument("-T", "--telnet-port", metavar="PORT", dest="telnet_port",
+            type=int, default=4444,
+            help="Specify starting telnet port for semihosting (default 4444).")
+        gdbserverOptions.add_argument("-R", "--probe-server-port",
+            dest="probe_server_port", metavar="PORT", type=int, default=5555,
             help="Specify the telnet port for semihosting (default 4444).")
         gdbserverOptions.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false",
             help="Allow remote TCP/IP connections (default is no).")
         gdbserverOptions.add_argument("--persist", action="store_true",
             help="Keep GDB server running even after remote has detached.")
+        gdbserverOptions.add_argument("-r", "--probe-server", action="store_true", dest="enable_probe_server",
+            help="Enable the probe server in addition to the GDB server.")
         gdbserverOptions.add_argument("--core", metavar="CORE_LIST",
             help="Comma-separated list of cores for which gdbservers will be created. Default is all cores.")
         gdbserverOptions.add_argument("--elf", metavar="PATH",
@@ -675,6 +684,7 @@ class PyOCDTool(object):
         """! @brief Handle 'gdbserver' subcommand."""
         self._process_commands(self._args.commands)
 
+        probe_server = None
         gdbs = []
         try:
             # Build dict of session options.
@@ -701,8 +711,21 @@ class PyOCDTool(object):
             else:
                 core_list = None
             
-            session = ConnectHelper.session_with_chosen_probe(
-                blocking=(not self._args.no_wait),
+            # Get the probe.
+            probe = ConnectHelper.choose_probe(
+                        blocking=(not self._args.no_wait),
+                        return_first=False,
+                        unique_id=self._args.unique_id,
+                        )
+            if probe is None:
+                LOG.error("No probe selected.")
+                return
+            
+            # Create a proxy so the probe can be shared between the session and probe server.
+            probe_proxy = SharedDebugProbeProxy(probe)
+            
+            # Create the session.
+            session = Session(probe_proxy,
                 project_dir=self._args.project_dir,
                 user_script=self._args.script,
                 config_file=self._args.config,
@@ -722,7 +745,7 @@ class PyOCDTool(object):
                 if core_list is None:
                     core_list = all_cores
                 bad_cores = core_list.difference(all_cores)
-                if len(bad_cores): #x for x in core_list if x not in all_cores):
+                if len(bad_cores):
                     LOG.error("Invalid core number%s: %s",
                         "s" if len(bad_cores) > 1 else "",
                         ", ".join(str(x) for x in bad_cores))
@@ -731,6 +754,14 @@ class PyOCDTool(object):
                 # Set ELF if provided.
                 if self._args.elf:
                     session.board.target.elf = os.path.expanduser(self._args.elf)
+                    
+                # Run the probe server is requested.
+                if self._args.enable_probe_server:
+                    probe_server = DebugProbeServer(session, session.probe,
+                            self._args.probe_server_port, self._args.serve_local_only)
+                    probe_server.start()
+                    
+                # Start up the gdbservers.
                 for core_number, core in session.board.target.cores.items():
                     # Don't create a server for CPU-less memory Access Port. 
                     if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
@@ -743,11 +774,15 @@ class PyOCDTool(object):
                         server_listening_callback=self.server_listening)
                     gdbs.append(gdb)
                 gdb = gdbs[0]
-                while gdb.is_alive():
-                    gdb.join(timeout=0.5)
+                while any(g.is_alive() for g in gdbs):
+                    sleep(0.1)
+                if probe_server:
+                    probe_server.stop()
         except (KeyboardInterrupt, Exception):
-            for gdb in gdbs:
-                gdb.stop()
+            for server in gdbs:
+                server.stop()
+            if probe_server:
+                probe_server.stop()
             raise
     
     def do_commander(self):
