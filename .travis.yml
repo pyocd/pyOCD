@@ -4,9 +4,12 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
+# first update setuptools and pip
+before_install:
+  - pip install -U setuptools pip
 # command to install dependencies
 install:
-  - pip install -r dev-requirements.txt
+  - pip install -U --upgrade-strategy=eager -r dev-requirements.txt
 # command to run tests
 script:
   - pytest --cache-clear
