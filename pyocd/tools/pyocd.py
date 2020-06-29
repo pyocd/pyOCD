@@ -503,7 +503,7 @@ def cmdoptions(opts):
     return process_opts
 
 class PyOCDConsole(object):
-    PROMPT = colorama.Fore.BLUE + 'pyocd> ' + colorama.Style.RESET_ALL
+    PROMPT = 'pyocd> '
 
     def __init__(self, tool):
         self.tool = tool
