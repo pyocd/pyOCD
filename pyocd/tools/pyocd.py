@@ -71,14 +71,6 @@ LEVELS = {
         'critical':logging.CRITICAL
         }
 
-CORE_STATUS_DESC = {
-        Target.State.HALTED : "Halted",
-        Target.State.RUNNING : "Running",
-        Target.State.RESET : "Reset",
-        Target.State.SLEEPING : "Sleeping",
-        Target.State.LOCKUP : "Lockup",
-        }
-
 VC_NAMES_MAP = {
         Target.VectorCatch.HARD_FAULT : "hard fault",
         Target.VectorCatch.BUS_FAULT : "bus fault",
@@ -719,7 +711,7 @@ class PyOCDCommander(object):
                             status = "locked"
                         else:
                             try:
-                                status = CORE_STATUS_DESC[self.target.get_state()]
+                                status = self.target.get_state().name.capitalize()
                             except (AttributeError, KeyError):
                                 status = "<no core>"
 
@@ -882,7 +874,11 @@ class PyOCDCommander(object):
         if not self.target.is_locked():
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d:  %s" % (i, CORE_STATUS_DESC[core.get_state()]))
+                state_desc = core.get_state().name.capitalize()
+                desc = "Core %d:  %s" % (i, state_desc)
+                if len(core.supported_security_states) > 1:
+                    desc += " [%s]" % core.get_security_state().name.capitalize()
+                print(desc)
         else:
             print("Target is locked")
 
@@ -1399,7 +1395,7 @@ class PyOCDCommander(object):
 
         status = self.target.get_state()
         if status != Target.State.HALTED:
-            print("Failed to halt device; target state is %s" % CORE_STATUS_DESC[status])
+            print("Failed to halt device; target state is %s" % status.name.capitalize())
             return 1
         else:
             print("Successfully halted device")
