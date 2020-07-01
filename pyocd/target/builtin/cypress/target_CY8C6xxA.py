@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019 Arm Limited
+# Copyright (c) 2020 Cypress Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

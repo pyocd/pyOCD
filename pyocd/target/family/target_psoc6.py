@@ -17,8 +17,10 @@
 import logging
 from time import sleep
 
+from pyocd.coresight.generic_mem_ap import GenericMemAPTarget
 from ...core import exceptions
 from ...core.coresight_target import CoreSightTarget
+from ...core.memory_map import (MemoryMap, RamRegion)
 from ...core.target import Target
 from ...coresight.cortex_m import CortexM
 from ...utility.timeout import Timeout
@@ -155,15 +157,16 @@ class PSoC6(CoreSightTarget):
 
 class CortexM_PSoC64(CortexM):
     TEST_MODE_ADDR = None
-    IPC2_DATA_ADDR = None
+    MAGIC_NUM_ADDR = None
     CM4_PWR_CTL_ADDR = None
 
-    IPC2_DATA_MAGIC = 0x12344321
+    MAGIC_NUM_VALUE = 0x12344321
     TEST_MODE_VALUE = 0x80000000
     CM4_PWR_CTL_VALUE = 0x05FA0003
 
     def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
         self._acquire_timeout = acquire_timeout
+        self._skip_reset_and_halt = False
         super(CortexM_PSoC64, self).__init__(session, ap, memoryMap, core_num)
 
     @property
@@ -173,6 +176,14 @@ class CortexM_PSoC64(CortexM):
     @acquire_timeout.setter
     def acquire_timeout(self, value):
         self._acquire_timeout = value
+
+    @property
+    def skip_reset_and_halt(self):
+        return self._skip_reset_and_halt
+
+    @skip_reset_and_halt.setter
+    def skip_reset_and_halt(self, value):
+        self._skip_reset_and_halt = value
 
     def reset(self, reset_type=None):
         self.session.notify(Target.Event.PRE_RESET, self)
@@ -206,7 +217,7 @@ class CortexM_PSoC64(CortexM):
                         break
                     self.flush()
                 except exceptions.TransferError:
-                    sleep(0.01)
+                    pass
 
         self.session.notify(Target.Event.POST_RESET, self)
 
@@ -242,7 +253,7 @@ class CortexM_PSoC64(CortexM):
                 try:
                     self._ap.dp.init()
                     self._ap.dp.power_up_debug()
-                    self.write32(self.IPC2_DATA_ADDR, 0)
+                    # self.write32(self.IPC2_DATA_ADDR, 0)
                     self.write32(self.TEST_MODE_ADDR, self.TEST_MODE_VALUE)
                     self.flush()
                     break
@@ -252,7 +263,28 @@ class CortexM_PSoC64(CortexM):
             else:
                 LOG.warning("Failed to enter test mode")
 
+    def check_flashboot_ver(self):
+        fb_ver_hi = self.read32(0x16002004)
+        fb_ver_lo = self.read32(0x16002018)
+        b0 = fb_ver_hi >> 28
+        b1 = (fb_ver_hi >> 24) & 0xF
+        b2 = (fb_ver_hi >> 16) & 0xFF
+        b3 = fb_ver_hi & 0x0000FFFF
+        if b3 != 0x8001 or b0 != 2:
+            LOG.error("Flash Boot is corrupted or non Flash Boot image programmed")
+            return
+
+        patch = fb_ver_lo >> 24
+        if b1 == 4 and b2 == 0 and patch == 0:
+            LOG.warning("Pre-production version of device is detected which is incompatible with this software")
+            LOG.warning("Please contact Cypress for new production parts")
+
+        return
+
     def reset_and_halt(self, reset_type=None):
+        if self.skip_reset_and_halt:
+            return
+
         LOG.info("Acquiring target...")
 
         self.reset(self.ResetType.SW_SYSRESETREQ)
@@ -266,7 +298,7 @@ class CortexM_PSoC64(CortexM):
         with Timeout(self.acquire_timeout) as t_o:
             while t_o.check():
                 try:
-                    if self.read32(self.IPC2_DATA_ADDR) == self.IPC2_DATA_MAGIC:
+                    if self.read32(self.MAGIC_NUM_ADDR) == self.MAGIC_NUM_VALUE:
                         break
                 except exceptions.TransferError:
                     pass
@@ -274,16 +306,13 @@ class CortexM_PSoC64(CortexM):
         if not t_o.check():
             LOG.warning("Failed to acquire the target (listen window not implemented?)")
 
+        self.check_flashboot_ver()
+
         with Timeout(self.acquire_timeout) as t_o:
             while t_o.check():
-                try:                        
+                try:
                     self._ap.dp.init()
                     self._ap.dp.power_up_debug()
-                    
-                    if self.ap.ap_num == 2 and self.read32(self.CM4_PWR_CTL_ADDR) & 3 != 3:
-                        LOG.debug("CM4 is sleeping, trying to wake it up...")
-                        self.write32(self.CM4_PWR_CTL_ADDR, self.CM4_PWR_CTL_VALUE)
-                        
                     self.halt()
                     self.wait_halted()
                     self.write_core_register('xpsr', CortexM.XPSR_THUMB)
@@ -303,14 +332,61 @@ class CortexM_PSoC64(CortexM):
 
 class CortexM_PSoC64_BLE2(CortexM_PSoC64):
     TEST_MODE_ADDR = 0x40260100
-    IPC2_DATA_ADDR = 0x4023004C
+    MAGIC_NUM_ADDR = 0x08044804
     CM4_PWR_CTL_ADDR = 0x40210080
 
 
 class CortexM_PSoC64_A2M(CortexM_PSoC64):
     TEST_MODE_ADDR = 0x40260100
-    IPC2_DATA_ADDR = 0x4022004C
+    MAGIC_NUM_ADDR = 0x080FE004
     CM4_PWR_CTL_ADDR = 0x40201200
+
+
+class CortexM_PSoC64_A512K(CortexM_PSoC64):
+    TEST_MODE_ADDR = 0x40260100
+    MAGIC_NUM_ADDR = 0x0803E004
+    CM4_PWR_CTL_ADDR = 0x40201200
+
+
+class SYS_AP_PSoC64(GenericMemAPTarget):
+    def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
+        self._acquire_timeout = acquire_timeout
+        self._skip_reset_and_halt = False
+        super(SYS_AP_PSoC64, self).__init__(session, ap, memoryMap, core_num)
+
+    @property
+    def acquire_timeout(self):
+        return self._acquire_timeout
+
+    @acquire_timeout.setter
+    def acquire_timeout(self, value):
+        self._acquire_timeout = value
+
+    @property
+    def skip_reset_and_halt(self):
+        return self._skip_reset_and_halt
+
+    @skip_reset_and_halt.setter
+    def skip_reset_and_halt(self, value):
+        self._skip_reset_and_halt = value
+
+    def reset(self, reset_type=None):
+        self.session.notify(Target.Event.PRE_RESET, self)
+        try:
+            self.ap.dp.reset()
+        except exceptions.TransferError:
+            pass
+
+        with Timeout(self._acquire_timeout) as t_o:
+            while t_o.check():
+                try:
+                    self._ap.dp.init()
+                    self._ap.dp.power_up_debug()
+                    break
+                except exceptions.TransferError:
+                    pass
+
+        self.session.notify(Target.Event.POST_RESET, self)
 
 
 class PSoC64(CoreSightTarget):
@@ -320,8 +396,8 @@ class PSoC64(CoreSightTarget):
 
     def __init__(self, link, CoretxM_Core, MemoryMap, ap_num):
         self.CoretxM_Core = CoretxM_Core
-        self.DEFAULT_ACQUIRE_TIMEOUT = 25.0
         self.AP_NUM = ap_num
+        self.DEFAULT_ACQUIRE_TIMEOUT = 25.0
         super(PSoC64, self).__init__(link, MemoryMap)
 
     def create_init_sequence(self):
@@ -337,11 +413,30 @@ class PSoC64(CoreSightTarget):
         if self.dp.valid_aps is not None:
             return
 
-        self.dp.valid_aps = (self.AP_NUM,)
+        if self.AP_NUM:
+            self.dp.valid_aps = (0, self.AP_NUM,)
+        else:
+            self.dp.valid_aps = (0,)
 
     def create_psoc_core(self):
-        core = self.CoretxM_Core(self.session, self.aps[self.AP_NUM], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
-        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        self.aps[self.AP_NUM].core = core
-        core.init()
-        self.add_core(core)
+        sysap = SYS_AP_PSoC64(self.session, self.aps[0], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
+        sysap.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        self.aps[0].core = sysap
+        sysap.init()
+        self.add_core(sysap)
+
+        if self.AP_NUM:
+            core = self.CoretxM_Core(self.session, self.aps[self.AP_NUM], self.memory_map, 1,
+                                     self.DEFAULT_ACQUIRE_TIMEOUT)
+            core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+            self.aps[self.AP_NUM].core = core
+            core.init()
+            self.add_core(core)
+            self.selected_core = 1
+
+
+class cy8c64_sysap(PSoC64):
+    memoryMap = MemoryMap(RamRegion(start=0, length=0x100000000))
+
+    def __init__(self, link):
+        super(cy8c64_sysap, self).__init__(link, None, self.memoryMap, 0)

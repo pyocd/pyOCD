@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019 Arm Limited
+# Copyright (c) 2020 Cypress Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 import logging
 
 from ...family.flash_psoc6 import Flash_PSoC64, PSoC6FlashParams
-from ...family.target_psoc6 import PSoC64, CortexM_PSoC64_A2M
+from ...family.target_psoc6 import PSoC64, CortexM_PSoC64_A512K
 from ....core.memory_map import (FlashRegion, MemoryMap)
 
 LOG = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 class cy8c64x5(PSoC64):
     from .flash_algos.flash_algo_CY8C64x5 import flash_algo as flash_algo_main
-    from .flash_algos.flash_algo_CY8C6xxA_SMIF_S25FL512S import flash_algo as flash_algo_smif
+    from .flash_algos.flash_algo_CY8C6xxA_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
     memoryMap = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
@@ -53,7 +53,7 @@ class cy8c64x5(PSoC64):
     )
 
     def __init__(self, link, ap_num):
-        super(cy8c64x5, self).__init__(link, CortexM_PSoC64_A2M, self.memoryMap, ap_num)
+        super(cy8c64x5, self).__init__(link, CortexM_PSoC64_A512K, self.memoryMap, ap_num)
 
 
 class cy8c64x5_cm0(cy8c64x5):
@@ -69,6 +69,7 @@ class cy8c64x5_cm4(cy8c64x5):
 class cy8c64x5_cm4_full_flash(cy8c64x5_cm4):
     from .flash_algos.flash_algo_CY8C64x5 import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxA_WFLASH import flash_algo as flash_algo_work
+    from .flash_algos.flash_algo_CY8C6xxA_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
     memoryMap = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
@@ -90,5 +91,56 @@ class cy8c64x5_cm4_full_flash(cy8c64x5_cm4):
                     erase_all_weight=PSoC6FlashParams.MFLASH_ERASE_ALL_WEIGHT,
                     erase_sector_weight=PSoC6FlashParams.MFLASH_ERASE_SECTOR_WEIGHT,
                     program_page_weight=PSoC6FlashParams.MFLASH_PROGRAM_PAGE_WEIGHT,
+                    flash_class=Flash_PSoC64),
+
+        FlashRegion(start=0x18000000, length=0x4000000, blocksize=0x40000, page_size=0x1000,
+                    is_boot_memory=False,
+                    is_testable=False,
+                    erased_byte_value=0xFF,
+                    is_powered_on_boot=False,
+                    algo=flash_algo_smif,
+                    erase_all_weight=PSoC6FlashParams.SMIF_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.SMIF_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.SMIF_PROGRAM_PAGE_WEIGHT,
+                    flash_class=Flash_PSoC64),
+    )
+
+
+class cy8c64x5_cm0_full_flash(cy8c64x5_cm0):
+    from .flash_algos.flash_algo_CY8C64x5 import flash_algo as flash_algo_main
+    from .flash_algos.flash_algo_CY8C6xxA_WFLASH import flash_algo as flash_algo_work
+    from .flash_algos.flash_algo_CY8C6xxA_SMIF_S25Hx512T import flash_algo as flash_algo_smif
+
+    memoryMap = MemoryMap(
+        PSoC6FlashParams.defaultRomRegion,
+        PSoC6FlashParams.defaultRamRegion,
+
+        FlashRegion(start=0x10000000, length=0x80000, blocksize=0x200,
+                    is_boot_memory=True,
+                    erased_byte_value=0,
+                    algo=flash_algo_main,
+                    erase_all_weight=PSoC6FlashParams.MFLASH_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.MFLASH_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.MFLASH_PROGRAM_PAGE_WEIGHT,
+                    flash_class=Flash_PSoC64),
+
+        FlashRegion(start=0x14000000, length=0x8000, blocksize=0x200,
+                    is_boot_memory=False,
+                    erased_byte_value=0,
+                    algo=flash_algo_work,
+                    erase_all_weight=PSoC6FlashParams.MFLASH_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.MFLASH_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.MFLASH_PROGRAM_PAGE_WEIGHT,
+                    flash_class=Flash_PSoC64),
+
+        FlashRegion(start=0x18000000, length=0x4000000, blocksize=0x40000, page_size=0x1000,
+                    is_boot_memory=False,
+                    is_testable=False,
+                    erased_byte_value=0xFF,
+                    is_powered_on_boot=False,
+                    algo=flash_algo_smif,
+                    erase_all_weight=PSoC6FlashParams.SMIF_ERASE_ALL_WEIGHT,
+                    erase_sector_weight=PSoC6FlashParams.SMIF_ERASE_SECTOR_WEIGHT,
+                    program_page_weight=PSoC6FlashParams.SMIF_PROGRAM_PAGE_WEIGHT,
                     flash_class=Flash_PSoC64),
     )
