@@ -162,13 +162,6 @@ Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(
 list of available targets.
 </td></tr>
 
-<tr><td>probe_all_aps</td>
-<td>bool</td>
-<td>False</td>
-<td>
-Controls whether all 256 ADIv5 AP addresses will be probed.
-</td></tr>
-
 <tr><td>project_dir</td>
 <td>str</td>
 <td><i>See description.</i></td>
@@ -211,6 +204,13 @@ Timeout for waiting for the core to halt after a reset and halt.
 <td>True</td>
 <td>
 Whether to resume a halted target when disconnecting.
+</td></tr>
+
+<tr><td>scan_all_aps</td>
+<td>bool</td>
+<td>False</td>
+<td>
+Controls whether all 256 ADIv5 AP addresses will be probed.
 </td></tr>
 
 <tr><td>smart_flash</td>

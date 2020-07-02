@@ -102,7 +102,7 @@ class ADIv5Discovery(CoreSightDiscovery):
         """! @brief Find valid APs using the ADIv5 method.
         
         Scans for valid APs starting at APSEL=0. The default behaviour is to stop after reading
-        0 for the AP's IDR twice in succession. If the `probe_all_aps` user option is set to True,
+        0 for the AP's IDR twice in succession. If the `scan_all_aps` user option is set to True,
         then the scan will instead probe every APSEL from 0-255.
         
         If there is already a list of valid APs defined for the @ref pyocd.coresight.dap.DebugPort
@@ -125,7 +125,7 @@ class ADIv5Discovery(CoreSightDiscovery):
                 if isValid:
                     ap_list.append(apsel)
                     invalid_count = 0
-                elif not self.session.options.get('probe_all_aps'):
+                elif not self.session.options.get('scan_all_aps'):
                     invalid_count += 1
                     if invalid_count == 2:
                         break

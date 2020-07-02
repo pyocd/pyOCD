@@ -63,8 +63,6 @@ BUILTIN_OPTIONS = [
     OptionInfo('pack', (str, list), None,
         "Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are "
         "added to the list of available targets."),
-    OptionInfo('scan_all_aps', bool, False,
-        "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
     OptionInfo('project_dir', str, None,
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),
@@ -79,6 +77,8 @@ BUILTIN_OPTIONS = [
         "Timeout for waiting for the core to halt after a reset and halt. Default is 2.0 s."),
     OptionInfo('resume_on_disconnect', bool, True,
         "Whether to run target on disconnect."),
+    OptionInfo('scan_all_aps', bool, False,
+        "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
     OptionInfo('smart_flash', bool, True,
         "If set to True, the flash loader will attempt to not program pages whose contents are not "
         "going to change by scanning target flash memory. A value of False will force all pages to "
