@@ -57,6 +57,7 @@ from ..utility.progress import print_progress
 from ..utility.compatibility import get_terminal_size
 from ..utility.columns import ColumnFormatter
 from ..utility.mask import round_up_div
+from ..probe.tcp_probe_server import DebugProbeServer
 
 # Make disasm optional.
 try:
@@ -365,6 +366,13 @@ COMMAND_INFO = {
             'help' : "Start or stop the gdbserver.",
             'extra_help' : "The action argument should be either 'start' or 'stop'. Use the 'gdbserver_port' and 'telnet_port' user options to control the ports the gdbserver uses.",
             },
+        'probeserver' : {
+            'aliases' : [],
+            'args' : "ACTION",
+            'help' : "Start or stop the debug probe server.",
+            'extra_help' : "The action argument should be either 'start' or 'stop'. Use the "
+                "'probeserver.port' options to control the TCP port the server uses.",
+            },
         }
 
 INFO_HELP = {
@@ -620,6 +628,7 @@ class PyOCDCommander(object):
         self._peripherals = {}
         self._loaded_peripherals = False
         self._gdbserver = None
+        self._probe_server = None
         
         self.command_list = {
                 'list' :    self.handle_list,
@@ -695,6 +704,7 @@ class PyOCDCommander(object):
                 'gdbserver':self.handle_gdbserver,
                 'fill' :    self.handle_fill,
                 'find' :    self.handle_find,
+                'probeserver': self.handle_probeserver,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -1731,6 +1741,8 @@ class PyOCDCommander(object):
         action = args[0].lower()
         if action == 'start':
             if self._gdbserver is None:
+                # Persist the gdbserver
+                self.session.options['persist'] = True
                 self._gdbserver = GDBServer(self.session, core=self.target.selected_core.core_number)
             else:
                 print("gdbserver is already running")
@@ -1740,6 +1752,25 @@ class PyOCDCommander(object):
                 self._gdbserver = None
             else:
                 print("gdbserver is not running")
+        else:
+            print("Invalid action")
+
+    def handle_probeserver(self, args):
+        if len(args) < 1:
+            raise ToolError("missing action argument")
+        action = args[0].lower()
+        if action == 'start':
+            if self._probe_server is None:
+                self._probe_server = DebugProbeServer(self.session, self.session.probe)
+                self._probe_server.start()
+            else:
+                print("gdbserver is already running")
+        elif action == 'stop':
+            if self._probe_server is not None:
+                self._probe_server.stop()
+                self._probe_server = None
+            else:
+                print("probe server is not running")
         else:
             print("Invalid action")
 
