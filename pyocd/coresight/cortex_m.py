@@ -973,17 +973,21 @@ class CortexM(Target, CoreSightCoreComponent):
         self.reset(reset_type)
 
         # wait until the unit resets
-        with timeout.Timeout(2.0) as t_o:
+        with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
             while t_o.check():
                 if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
                     break
                 sleep(0.01)
+            else:
+                LOG.warning("Timed out waiting for target to complete reset (state is %s)", self.get_state().name)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
-        # points to an invalid address.
-        xpsr = self.read_core_register('xpsr')
-        if xpsr & self.XPSR_THUMB == 0:
-            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+        # points to an invalid address. Only do this if the core is actually halted, otherwise we
+        # can't access XPSR.
+        if self.get_state() == Target.State.HALTED:
+            xpsr = self.read_core_register('xpsr')
+            if xpsr & self.XPSR_THUMB == 0:
+                self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
 
         # Restore to original state.
         self.clear_reset_catch(reset_type)

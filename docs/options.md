@@ -199,6 +199,13 @@ Number of seconds to hold hardware reset asserted.
 Number of seconds to delay after a reset is issued.
 </td></tr>
 
+<tr><td>reset.halt_timeout</td>
+<td>float</td>
+<td>2.0</td>
+<td>
+Timeout for waiting for the core to halt after a reset and halt.
+</td></tr>
+
 <tr><td>resume_on_disconnect</td>
 <td>bool</td>
 <td>True</td>
