@@ -148,12 +148,12 @@ def cortex_test(board_id):
         print("\n\n----- TESTING CORTEX-M PERFORMANCE -----")
         test_time = test_function(session, gdbFacade.get_t_response)
         result.times["get_t_response"] = test_time
-        print("Function get_t_response time: %f" % test_time)
+        print("Function get_t_response time:    %f" % test_time)
 
         # Step
         test_time = test_function(session, target.step)
         result.times["step"] = test_time
-        print("Function step time: %f" % test_time)
+        print("Function step time:              %f" % test_time)
 
         # Breakpoint
         def set_remove_breakpoint():
@@ -161,12 +161,12 @@ def cortex_test(board_id):
             target.remove_breakpoint(0)
         test_time = test_function(session, set_remove_breakpoint)
         result.times["bp_add_remove"] = test_time
-        print("Add and remove breakpoint: %f" % test_time)
+        print("Add and remove breakpoint:       %f" % test_time)
 
         # get_register_context
         test_time = test_function(session, gdbFacade.get_register_context)
         result.times["get_reg_context"] = test_time
-        print("Function get_register_context: %f" % test_time)
+        print("Function get_register_context:   %f" % test_time)
 
         # set_register_context
         context = gdbFacade.get_register_context()
@@ -174,7 +174,7 @@ def cortex_test(board_id):
             gdbFacade.set_register_context(context)
         test_time = test_function(session, set_register_context)
         result.times["set_reg_context"] = test_time
-        print("Function set_register_context: %f" % test_time)
+        print("Function set_register_context:   %f" % test_time)
 
         # Run / Halt
         def run_halt():
@@ -182,7 +182,7 @@ def cortex_test(board_id):
             target.halt()
         test_time = test_function(session, run_halt)
         result.times["run_halt"] = test_time
-        print("Resume and halt: %f" % test_time)
+        print("Resume and halt:                 %f" % test_time)
 
         # GDB stepping
         def simulate_step():
@@ -195,7 +195,7 @@ def cortex_test(board_id):
             target.remove_breakpoint(0)
         test_time = test_function(session, simulate_step)
         result.times["gdb_step"] = test_time
-        print("Simulated GDB step: %f" % test_time)
+        print("Simulated GDB step:              %f" % test_time)
 
         # Test passes if there are no exceptions
         test_pass_count += 1
@@ -316,6 +316,38 @@ def cortex_test(board_id):
         # Restore regs
         origRegs[0] = origR0
         target.write_core_registers_raw(['r0', 'r1', 'r2', 'r3'], origRegs)
+        
+        print("Verify exception is raised while core is running")
+        target.resume()
+        try:
+            val = target.read_core_register('r0')
+        except exceptions.CoreRegisterAccessError:
+            passed = True
+        else:
+            passed = False
+        test_count += 1
+        if passed:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        
+        print("Verify failure to write core register while running raises exception")
+        try:
+            target.write_core_register('r0', 0x1234)
+        except exceptions.CoreRegisterAccessError:
+            passed = True
+        else:
+            passed = False
+        test_count += 1
+        if passed:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        
+        # Resume execution.
+        target.halt()
 
         if target.selected_core.has_fpu:
             print("Reading s0")
@@ -377,6 +409,23 @@ def cortex_test(board_id):
             origRegs[0] = origRawS0
             target.write_core_registers_raw(['s0', 's1'], origRegs)
         
+        print("Verify that all listed core registers can be accessed")
+        reg_count = 0
+        passed_reg_count = 0
+        for r in target.selected_core.core_registers.as_set:
+            try:
+                reg_count += 1
+                val = target.read_core_register(r.name)
+                target.write_core_register(r.name, val)
+                passed_reg_count += 1
+            except exceptions.CoreRegisterAccessError:
+                pass
+        test_count += 1
+        if passed_reg_count == reg_count:
+            test_pass_count += 1
+            print("TEST PASSED (%i registers)" % reg_count)
+        else:
+            print("TEST FAILED (%i registers, %i failed)" % (reg_count, reg_count - passed_reg_count))
 
         print("\n\n------ Testing Invalid Memory Access Recovery ------")
         memory_access_pass = True
@@ -528,6 +577,13 @@ def cortex_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
+
+        print("\nTest Summary:")
+        print("Pass count %i of %i tests" % (test_pass_count, test_count))
+        if test_pass_count == test_count:
+            print("CORTEX TEST PASSED")
+        else:
+            print("CORTEX TEST FAILED")
 
         target.reset()
 
