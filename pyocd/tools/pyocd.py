@@ -895,7 +895,9 @@ class PyOCDCommander(object):
             show_fields = False
 
         reg = args[0].lower()
-        if reg in coresight.cortex_m.CORE_REGISTER:
+        if reg == "all":
+            self.dump_registers(True)
+        elif reg in coresight.cortex_m.CORE_REGISTER:
             if not self.target.is_halted():
                 print("Core is not halted; cannot read core registers")
                 return
@@ -2055,7 +2057,7 @@ Prefix line with ! to execute a shell command.""")
 
         return value
 
-    def dump_registers(self):
+    def dump_registers(self, show_all=False):
         # Registers organized into columns for display.
         regs = ['r0', 'r6', 'r12',
                 'r1', 'r7', 'sp',
@@ -2070,9 +2072,26 @@ Prefix line with ! to execute a shell command.""")
 
         for i, reg in enumerate(regs):
             regValue = self.target.read_core_register(reg)
-            print("{:>8} {:#010x} ".format(reg + ':', regValue), end=' ')
+            print("{:>16} {:#010x} ".format(reg + ':', regValue), end=' ')
             if i % 3 == 2:
                 print()
+        
+        if show_all:
+            other_regs = sorted(r for r in self.target.selected_core.core_registers.by_name if r not in regs)
+            for i, reg in enumerate(other_regs):
+                value = self.target.read_core_register(reg)
+                info = coresight.core_registers.CoreRegisterInfo.get(reg)
+                if info.bitsize == 64:
+                    if isinstance(value, six.integer_types):
+                        value_str = "%s = %#018x (%d)" % (reg, value, value)
+                    elif isinstance(value, float):
+                        value_str = "%s = %g (%#018x)" % (reg, value, conversion.float64_to_u64(value))
+                else:
+                    if isinstance(value, six.integer_types):
+                        value_str = "%s = %#010x (%d)" % (reg, value, value)
+                    elif isinstance(value, float):
+                        value_str = "%s = %g (%#010x)" % (reg, value, conversion.float32_to_u32(value))
+                print("{:>16} {} ".format(reg + ':', value_str))
 
     def _dump_peripheral_register(self, periph, reg, show_fields):
         size = reg.size or 32
