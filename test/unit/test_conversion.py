@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015 Paul Osborne <osbpau@gmail.com>
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,16 @@ import pytest
 import six
 
 from pyocd.utility.conversion import (
+    byte_list_to_nbit_le_list,
+    nbit_le_list_to_byte_list,
     byte_list_to_u32le_list,
     u32le_list_to_byte_list,
     u16le_list_to_byte_list,
     byte_list_to_u16le_list,
     u32_to_float32,
     float32_to_u32,
+    uint_to_hex_le,
+    hex_le_to_uint,
     u32_to_hex8le,
     u64_to_hex16le,
     hex8_to_u32be,
@@ -48,6 +52,66 @@ from pyocd.gdbserver.gdbserver import (
 
 # pylint: disable=invalid-name
 class TestConversionUtilities(object):
+    @pytest.mark.parametrize(("w",), [
+            (8,),
+            (16,),
+            (32,),
+            (64,),
+            (128,),
+            (256,),
+        ])
+    def test_byte_list_to_nbit_le_list_empty(self, w):
+        assert byte_list_to_nbit_le_list([], w) == []
+
+    @pytest.mark.parametrize(("w",), [
+            (8,),
+            (16,),
+            (32,),
+            (64,),
+            (128,),
+            (256,),
+        ])
+    def test_nbit_le_list_to_byte_list(self, w):
+        assert nbit_le_list_to_byte_list([], w) == []
+
+    @pytest.mark.parametrize(("w", "r"), [
+            (8, [0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]),
+            (16, [0x201, 0x403, 0x605, 0x807]),
+            (32, [0x4030201, 0x8070605]),
+            (64, [0x807060504030201]),
+            (128, [0x807060504030201]),
+            (256, [0x807060504030201]),
+        ])
+    def test_byte_list_to_nbit_le_list(self, w, r):
+        assert byte_list_to_nbit_le_list([1,2,3,4,5,6,7,8], w) == r
+
+    @pytest.mark.parametrize(("w", "r"), [
+            (8, [0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]),
+            (16, [0x201, 0x403, 0x605, 0x807]),
+            (32, [0x4030201, 0x8070605]),
+            (64, [0x807060504030201]),
+            (128, [0x55555555555555550807060504030201]),
+            (256, [0x5555555555555555555555555555555555555555555555550807060504030201]),
+        ])
+    def test_byte_list_to_nbit_le_list_nz_pad(self, w, r):
+        assert byte_list_to_nbit_le_list([1,2,3,4,5,6,7,8], w, pad=0x55) == r
+
+    @pytest.mark.parametrize(("w", "i"), [
+            (8, [1,2,3,4,5,6,7,8]),
+            (16, [0x201, 0x403, 0x605, 0x807]),
+            (32, [0x4030201, 0x8070605]),
+            (64, [0x807060504030201]),
+        ])
+    def test_nbit_le_list_to_byte_list(self, w, i):
+        assert nbit_le_list_to_byte_list(i, w) == [1,2,3,4,5,6,7,8]
+
+    @pytest.mark.parametrize(("w", "i", "r"), [
+            (128, [0x55555555555555550807060504030201], [1,2,3,4,5,6,7,8,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55]),
+            (256, [0x555555555555555555555555555555550807060504030201], [1,2,3,4,5,6,7,8,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0,0,0,0,0,0,0,0]),
+        ])
+    def test_nbit_le_list_to_byte_list_lg(self, w, i, r):
+        assert nbit_le_list_to_byte_list(i, w) == r
+
     def test_byte_list_to_u32le_list_empty(self):
         assert byte_list_to_u32le_list([]) == []
         
@@ -129,6 +193,12 @@ class TestConversionUtilities(object):
 
     def test_hex16ToU64le(self):
         assert hex16_to_u64le("0102ABCD171819EF") == 0x0102ABCD171819EF
+    
+    def test_uint_to_hex_le_odd_width(self):
+        assert uint_to_hex_le(0xd0102ABCD, 36) == "cdab02010d"
+    
+    def test_hex_le_to_uint_odd_width(self):
+        assert hex_le_to_uint("0102ABCD0d", 36) == 0x0dCDAB0201
 
     def test_byteToHex2(self):
         assert byte_to_hex2(0xC3) == "c3"
