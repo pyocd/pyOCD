@@ -28,6 +28,7 @@ import traceback
 import pprint
 import textwrap
 import colorama
+import atexit
 
 # Attempt to import readline.
 try:
@@ -496,10 +497,34 @@ def cmdoptions(opts):
 
 class PyOCDConsole(object):
     PROMPT = 'pyocd> '
+    
+    PYOCD_HISTORY_ENV_VAR = 'PYOCD_HISTORY'
+    PYOCD_HISTORY_LENGTH_ENV_VAR = 'PYOCD_HISTORY_LENGTH'
+    DEFAULT_HISTORY_FILE = ".pyocd_history"
 
     def __init__(self, tool):
         self.tool = tool
         self.last_command = ''
+        
+        # Enable readline history.
+        self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
+                os.path.join(os.path.expanduser("~"), self.DEFAULT_HISTORY_FILE))
+        
+        # Read command history and set history length.
+        try:
+            readline.read_history_file(self._history_path)
+            
+            history_len = int(os.environ.get(self.PYOCD_HISTORY_LENGTH_ENV_VAR,
+                    session.Session.get_current().options.get('commander.history_length')))
+            readline.set_history_length(history_len)
+        except (NameError, IOError) as err:
+            pass
+
+        # Install exit handler to write out the command history.
+        try:
+            atexit.register(readline.write_history_file, self._history_path)
+        except (NameError, IOError) as err:
+            pass
 
     def run(self):
         try:

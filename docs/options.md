@@ -37,6 +37,13 @@ Whether to perform a chip erase or sector erases when programming flash. The val
 'auto', 'sector', or 'chip'.
 </td></tr>
 
+<tr><td>commander.history_length</td>
+<td>int</td>
+<td>1000</td>
+<td>
+Number of entries in the pyOCD Commander command history. Set to -1 for unlimited.
+</td></tr>
+
 <tr><td>config_file</td>
 <td>str</td>
 <td><i>See description.</i></td>
