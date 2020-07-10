@@ -103,6 +103,9 @@ CSW_SIZE     =  0x00000007
 CSW_SIZE8    =  0x00000000
 CSW_SIZE16   =  0x00000001
 CSW_SIZE32   =  0x00000002
+CSW_SIZE64   =  0x00000003
+CSW_SIZE128  =  0x00000004
+CSW_SIZE256  =  0x00000005
 CSW_ADDRINC  =  0x00000030
 CSW_NADDRINC =  0x00000000 # No increment
 CSW_SADDRINC =  0x00000010 # Single increment by SIZE field
@@ -121,7 +124,10 @@ DEFAULT_CSW_VALUE = CSW_SADDRINC
 
 TRANSFER_SIZE = {8: CSW_SIZE8,
                  16: CSW_SIZE16,
-                 32: CSW_SIZE32
+                 32: CSW_SIZE32,
+                 64: CSW_SIZE64,
+                 128: CSW_SIZE128,
+                 256: CSW_SIZE256,
                  }
 
 CSW_HPROT_MASK = 0x0f000000 # HPROT[3:0]
@@ -499,6 +505,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ## Mask of addresses. This indicates whether 32-bit or 64-bit addresses are supported.
         self._address_mask = 0xffffffff
         
+        ## Whether the Large Data extension is supported.
+        self._has_large_data = False
+        
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
         # memory interface based on AP register accesses.
@@ -529,6 +538,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         
         It performs these checks:
         - Check for Long Address extension.
+        - Check for Large Data extension.
         - (v2 only) Get the auto-increment page size.
         - (v2 only) Determine supported error mode.
         - (v2 only) Get the size of the DAR register window.
@@ -551,6 +561,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             # Check for 64-bit address support.
             if cfg & MEM_AP_CFG_LA_MASK:
                 self._address_mask = 0xffffffffffffffff
+        
+            # Check for Large Data extension.
+            if cfg & MEM_AP_CFG_LD_MASK:
+                self._has_large_data = True
         
             # Check v2 MEM-AP CFG fields.
             if self.ap_version == APVersion.APv2:
@@ -577,24 +591,52 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         def _init_transfer_sizes():
             """! @brief Determine supported transfer sizes.
         
-            If the AP_ALL_TX_SZ flag is set, then we know a priori that this AP implementation
-            supports all transfer sizes.
+            If the #AP_ALL_TX_SZ flag is set, then we know a priori that this AP implementation
+            supports 8-, 16- and 32- transfer sizes. If the Large Data extension is implemented, then this
+            flag is ignored.
         
-            Otherwise an attempt to modify CSW_SIZE to a non-32-bit transfer size is made. If CSW_SIZE
-            is successfully changed, then the AP supports both 8- and 16-bit transfers in addition to
-            the required 32-bit.
+            Note in ADIv6: "If a MEM-AP implementation does not support the Large Data Extension, but does
+            support various access sizes, it must support word, halfword, and byte accesses."
+
+            So, if the Large Data extension is present, then we have to individually test each
+            transfer size (aside from the required 32-bit).
+            
+            If Large Data is not present, then only one non-32-bit transfer size needs to be tested to
+            determine if the AP supports both 8- and 16-bit transfers in addition to the required 32-bit.
             """
-           # If AP_ALL_TX_SZ is set, we can skip the test.
-            if (self._flags & AP_ALL_TX_SZ) == 0:
+            # If AP_ALL_TX_SZ is set, we can skip the test. Double check this by ensuring that LD is not
+            # enabled.
+            if (self._flags & AP_ALL_TX_SZ) and not self._has_large_data:
                 self._transfer_sizes = (8, 16, 32)
                 return
+        
+            def _test_transfer_size(sz):
+                """! @brief Utility to verify whether the MEM-AP supports a given transfer size.
+                
+                From ADIv6:
+                If the CSW.Size field is written with a value corresponding to a size that is not supported,
+                or with a reserved value: A read of the field returns a value corresponding to a supported
+                size.
+                """
+                # Write CSW_SIZE to select requested transfer size.
+                AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw & ~CSW_SIZE | sz)
+        
+                # Read back CSW and see if SIZE matches what we wrote.
+                csw_cb = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW, now=False)
+                
+                return lambda: (csw_cb() & CSW_SIZE) == sz
+            
+            # Thus if LD ext is not present, we only need to test one size.
 
-            # Write CSW_SIZE to select 16-bit transfer.
-            AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw & ~CSW_SIZE | CSW_SIZE16)
-
-            # Read back CSW and see if SIZE changed.
-            csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-            if (csw & CSW_SIZE) == CSW_SIZE16:
+            if self._has_large_data:
+                # Need to scan all sizes except 32-bit, which is required.
+                SIZES_TO_TEST = (CSW_SIZE8, CSW_SIZE16, CSW_SIZE64, CSW_SIZE128, CSW_SIZE256)
+                
+                sz_result_cbs = ((sz, _test_transfer_size(sz)) for sz in SIZES_TO_TEST)
+                self._transfer_sizes = ([32] + [(8 * (1 << sz)) for sz, cb in sz_result_cbs if cb()])
+                self._transfer_sizes.sort()
+                
+            elif _test_transfer_size(CSW_SIZE16)():
                 self._transfer_sizes = (8, 16, 32)
 
         def _init_hprot():
@@ -640,10 +682,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                 raise exceptions.TargetError("invalid AP BASE value 0x%08x" % base)
         
         # Run the init tests.
+        _init_cfg()
         _init_transfer_sizes()
         _init_hprot()
         _init_rom_table_base()
-        _init_cfg()
  
         # Restore unmodified value of CSW.
         AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
@@ -824,10 +866,18 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             data = data << ((addr & 0x03) << 3)
         elif transfer_size == 16:
             data = data << ((addr & 0x02) << 3)
+        elif transfer_size > 32:
+            # Split the value into a tuple of 32-bit words, least-significant first.
+            data = (((v >> (32 * i)) & 0xffffffff) for i in range(transfer_size // 32))
 
         try:
             self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
-            self.write_reg(self._reg_offset + MEM_AP_DRW, data)
+            
+            if transfer_size <= 32:
+                self.write_reg(self._reg_offset + MEM_AP_DRW, data)
+            else:
+                # Multi-word transfer.
+                self.dp.write_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW, data)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -859,7 +909,13 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         try:
             self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
             self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
-            result_cb = self.read_reg(self._reg_offset + MEM_AP_DRW, now=False)
+            
+            if transfer_size <= 32:
+                result_cb = self.read_reg(self._reg_offset + MEM_AP_DRW, now=False)
+            else:
+                # Multi-word transfer.
+                result_cb = self.dp.read_ap_multiple(self.address.address + self._reg_offset + MEM_AP_DRW,
+                        transfer_size // 32, now=False)
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
@@ -877,6 +933,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                     res = (res >> ((addr & 0x03) << 3) & 0xff)
                 elif transfer_size == 16:
                     res = (res >> ((addr & 0x02) << 3) & 0xffff)
+                elif transfer_size > 32:
+                    res = sum((w << (32 * i)) for i, w in enumerate(res))
                 TRACE.debug("read_mem:%06d %s(ap=0x%x; addr=0x%08x, size=%d) -> 0x%08x }",
                     num, "" if now else "...", self.address.nominal_address, addr, transfer_size, res)
             except exceptions.TransferFaultError as error:
@@ -1053,7 +1111,7 @@ AP_TYPE_AHB5_HPROT = 0x8
 
 # AP flags.
 AP_4K_WRAP = 0x1 # The AP has a 4 kB auto-increment modulus.
-AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers.
+AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers, *unless* Large Data is implemented.
 AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
 
 ## Map from AP IDR fields to AccessPort subclass.
