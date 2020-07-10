@@ -522,121 +522,132 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     @locked
     def init(self):
+        """! @brief Initialize the MEM-AP.
+        
+        This method interrogates the MEM-AP to determine its capabilities, and performs any initial setup
+        that is required.
+        
+        It performs these checks:
+        - Check for Long Address extension.
+        - (v2 only) Get the auto-increment page size.
+        - (v2 only) Determine supported error mode.
+        - (v2 only) Get the size of the DAR register window.
+        - Determine supported transfer sizes.
+        - Determine the implemented HPROT and HNONSEC controls.
+        - Read the ROM table base address.
+
+        These controls are configured.
+        - (v2 only) Configure the error mode.
+        """
         super(MEM_AP, self).init()
         
-        self._init_transfer_sizes()
-        self._init_hprot()
-        self._init_rom_table_base()
-        self._init_cfg()
-
-    def _init_transfer_sizes(self):
-        """! @brief Determine supported transfer sizes.
-        
-        If the AP_ALL_TX_SZ flag is set, then we know a priori that this AP implementation
-        supports all transfer sizes.
-        
-        Otherwise an attempt to modify CSW_SIZE to a non-32-bit transfer size is made. If CSW_SIZE
-        is successfully changed, then the AP supports both 8- and 16-bit transfers in addition to
-        the required 32-bit.
-        """
-        # If AP_ALL_TX_SZ is set, we can skip the test.
-        if (self._flags & AP_ALL_TX_SZ) == 0:
-            self._transfer_sizes = (8, 16, 32)
-            return
-
-        # Read initial CSW.
-        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-        original_csw = csw
-        
-        # Write CSW_SIZE to select 16-bit transfer.
-        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, csw & ~CSW_SIZE | CSW_SIZE16)
-        
-        # Read back CSW and see if SIZE changed.
-        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-        if (csw & CSW_SIZE) == CSW_SIZE16:
-            self._transfer_sizes = (8, 16, 32)
- 
-        # Restore unmodified value of CSW.
-        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
-
-    def _init_hprot(self):
-        """! @brief Init HPROT HNONSEC.
-        
-        Determines the implemented bits of HPROT and HNONSEC in this MEM-AP. The defaults for these
-        fields of the CSW are based on the implemented bits.
-        """
-        # Read initial values of HPROT and HNONSEC. Superclass register access methods are used to
-        # avoid the CSW cache.
-        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-        original_csw = csw
-        
-        default_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
-        default_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
-        LOG.debug("%s default HPROT=%x HNONSEC=%x", self.short_description, default_hprot, default_hnonsec)
-        
-        # Now attempt to see which HPROT and HNONSEC bits are implemented.
-        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, csw | CSW_HNONSEC_MASK | CSW_HPROT_MASK)
-        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
-        
-        self._impl_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
-        self._impl_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
-        LOG.debug("%s implemented HPROT=%x HNONSEC=%x", self.short_description, self._impl_hprot, self._impl_hnonsec)
-        
-        # Update current HPROT and HNONSEC, and the current base CSW value.
-        self.hprot = self._hprot & self._impl_hprot
-        self.hnonsec = self._hnonsec & self._impl_hnonsec
- 
-        # Restore unmodified value of CSW.
-        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
-
-    def _init_rom_table_base(self):
-        """! @brief Read ROM table base address."""
-        base = self.read_reg(self._reg_offset + MEM_AP_BASE)
-        is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
-        is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
-        is_legacy_base_present = not is_adiv5_base and not is_base_present
-        if is_legacy_base_present:
-            self.has_rom_table = True
-            self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
-        elif (base == AP_BASE_LEGACY_NOTPRESENT) or (not is_base_present):
-            self.has_rom_table = False
-            self.rom_addr = 0
-        elif is_adiv5_base and is_base_present:
-            self.has_rom_table = True
-            self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
-        else:
-            raise exceptions.TargetError("invalid AP BASE value 0x%08x" % base)
+        # Read initial CSW. Superclass register access methods are used to avoid the CSW cache.
+        original_csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
     
-    def _init_cfg(self):
-        """! @brief Read MEM-AP CFG register."""
-        cfg = self.read_reg(self._reg_offset + MEM_AP_CFG)
+        def _init_cfg():
+            """! @brief Read MEM-AP CFG register."""
+            cfg = self.read_reg(self._reg_offset + MEM_AP_CFG)
         
-        # Check for 64-bit address support.
-        if cfg & MEM_AP_CFG_LA_MASK:
-            self._address_mask = 0xffffffffffffffff
+            # Check for 64-bit address support.
+            if cfg & MEM_AP_CFG_LA_MASK:
+                self._address_mask = 0xffffffffffffffff
         
-        # Check v2 MEM-AP CFG fields.
-        if self.ap_version == APVersion.APv2:
-            # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
-            # default of 1 kB in the ctor.
-            tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
-            if tarinc != 0:
-                self.auto_increment_page_size = 1 << (9 + tarinc)
+            # Check v2 MEM-AP CFG fields.
+            if self.ap_version == APVersion.APv2:
+                # Set autoinc page size if TARINC is non-zero. Otherwise we've already set the
+                # default of 1 kB in the ctor.
+                tarinc = (cfg & MEM_AP_CFG_TARINC_MASK) >> MEM_AP_CFG_TARINC_SHIFT
+                if tarinc != 0:
+                    self.auto_increment_page_size = 1 << (9 + tarinc)
         
-            # Determine supported err mode.
-            err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
-            if err == MEM_AP_CFG_ERR_V1:
-                # Configure the error mode such that errors are passed upstream, but they don't
-                # prevent future transactions.
-                self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
+                # Determine supported err mode.
+                err = (cfg & MEM_AP_CFG_ERR_MASK) >> MEM_AP_CFG_ERR_SHIFT
+                if err == MEM_AP_CFG_ERR_V1:
+                    # Configure the error mode such that errors are passed upstream, but they don't
+                    # prevent future transactions.
+                    self._csw &= ~(CSW_ERRSTOP | CSW_ERRNPASS)
             
-                # Clear TRR in case we attach to a device with a sticky error already set.
-                self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
+                    # Clear TRR in case we attach to a device with a sticky error already set.
+                    self.write_reg(self._reg_offset + MEM_AP_TRR, MEM_AP_TRR_ERR_MASK)
         
-            # Init size of DAR register window.
-            darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
-            self._dar_count = (1 << darsize) // 4
+                # Init size of DAR register window.
+                darsize = (cfg & MEM_AP_CFG_DARSIZE_MASK) >> MEM_AP_CFG_DARSIZE_SHIFT
+                self._dar_count = (1 << darsize) // 4
+
+        def _init_transfer_sizes():
+            """! @brief Determine supported transfer sizes.
+        
+            If the AP_ALL_TX_SZ flag is set, then we know a priori that this AP implementation
+            supports all transfer sizes.
+        
+            Otherwise an attempt to modify CSW_SIZE to a non-32-bit transfer size is made. If CSW_SIZE
+            is successfully changed, then the AP supports both 8- and 16-bit transfers in addition to
+            the required 32-bit.
+            """
+           # If AP_ALL_TX_SZ is set, we can skip the test.
+            if (self._flags & AP_ALL_TX_SZ) == 0:
+                self._transfer_sizes = (8, 16, 32)
+                return
+
+            # Write CSW_SIZE to select 16-bit transfer.
+            AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw & ~CSW_SIZE | CSW_SIZE16)
+
+            # Read back CSW and see if SIZE changed.
+            csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
+            if (csw & CSW_SIZE) == CSW_SIZE16:
+                self._transfer_sizes = (8, 16, 32)
+
+        def _init_hprot():
+            """! @brief Init HPROT HNONSEC.
+        
+            Determines the implemented bits of HPROT and HNONSEC in this MEM-AP. The defaults for these
+            fields of the CSW are based on the implemented bits.
+            """
+            default_hprot = (original_csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
+            default_hnonsec = (original_csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
+            LOG.debug("%s default HPROT=%x HNONSEC=%x", self.short_description, default_hprot, default_hnonsec)
+        
+            # Now attempt to see which HPROT and HNONSEC bits are implemented.
+            AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW,
+                    original_csw | CSW_HNONSEC_MASK | CSW_HPROT_MASK)
+            csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
+        
+            self._impl_hprot = (csw & CSW_HPROT_MASK) >> CSW_HPROT_SHIFT
+            self._impl_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
+            LOG.debug("%s implemented HPROT=%x HNONSEC=%x", self.short_description, self._impl_hprot,
+                    self._impl_hnonsec)
+        
+            # Update current HPROT and HNONSEC, and the current base CSW value.
+            self.hprot = self._hprot & self._impl_hprot
+            self.hnonsec = self._hnonsec & self._impl_hnonsec
+
+        def _init_rom_table_base():
+            """! @brief Read ROM table base address."""
+            base = self.read_reg(self._reg_offset + MEM_AP_BASE)
+            is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
+            is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
+            is_legacy_base_present = not is_adiv5_base and not is_base_present
+            if is_legacy_base_present:
+                self.has_rom_table = True
+                self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
+            elif (base == AP_BASE_LEGACY_NOTPRESENT) or (not is_base_present):
+                self.has_rom_table = False
+                self.rom_addr = 0
+            elif is_adiv5_base and is_base_present:
+                self.has_rom_table = True
+                self.rom_addr = base & AP_BASE_BASEADDR_MASK # clear format and present bits
+            else:
+                raise exceptions.TargetError("invalid AP BASE value 0x%08x" % base)
+        
+        # Run the init tests.
+        _init_transfer_sizes()
+        _init_hprot()
+        _init_rom_table_base()
+        _init_cfg()
  
+        # Restore unmodified value of CSW.
+        AccessPort.write_reg(self, self._reg_offset + MEM_AP_CSW, original_csw)
+
     @locked
     def find_components(self):
         try:
