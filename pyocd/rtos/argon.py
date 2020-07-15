@@ -246,9 +246,7 @@ class ArgonThread(TargetThread):
         }
 
     def __init__(self, targetContext, provider, base):
-        super(ArgonThread, self).__init__()
-        self._target_context = targetContext
-        self._provider = provider
+        super(ArgonThread, self).__init__(targetContext, provider, base)
         self._base = base
         self._thread_context = ArgonThreadContext(self._target_context, self)
         self._has_fpu = self._thread_context.core.has_fpu

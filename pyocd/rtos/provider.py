@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,14 @@ LOG = logging.getLogger(__name__)
 class TargetThread(object):
     """@brief Base class representing a thread on the target."""
 
-    def __init__(self):
-        pass
+    def __init__(self, target_context, provider, tcb_address):
+        self._target_context = target_context
+        self._provider = provider
+        self._tcb_address = tcb_address
+
+    @property
+    def provider(self):
+        return self._provider
 
     @property
     def unique_id(self):

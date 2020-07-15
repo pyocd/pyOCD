@@ -236,9 +236,7 @@ class RTXTargetThread(TargetThread):
     }
 
     def __init__(self, targetContext, provider, base):
-        super(RTXTargetThread, self).__init__()
-        self._target_context = targetContext
-        self._provider = provider
+        super(RTXTargetThread, self).__init__(targetContext, provider, base)
         self._base = base
         self._state = 0
         self._priority = 0

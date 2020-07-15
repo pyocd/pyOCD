@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -67,9 +67,7 @@ class HandlerModeThread(TargetThread):
     UNIQUE_ID = 2
 
     def __init__(self, targetContext, provider):
-        super(HandlerModeThread, self).__init__()
-        self._target_context = targetContext
-        self._provider = provider
+        super(HandlerModeThread, self).__init__(targetContext, provider, 0)
 
     def get_stack_pointer(self):
         return self._target_context.read_core_register('msp')
@@ -99,11 +97,8 @@ class HandlerModeThread(TargetThread):
     def context(self):
         return self._target_context
 
-    def __str__(self):
-        return "<HandlerModeThread@0x%08x>" % (id(self))
-
     def __repr__(self):
-        return str(self)
+        return "<HandlerModeThread@0x%08x>" % (id(self))
 
 
 

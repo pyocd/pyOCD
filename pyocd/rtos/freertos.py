@@ -250,9 +250,7 @@ class FreeRTOSThread(TargetThread):
         }
 
     def __init__(self, targetContext, provider, base):
-        super(FreeRTOSThread, self).__init__()
-        self._target_context = targetContext
-        self._provider = provider
+        super(FreeRTOSThread, self).__init__(targetContext, provider, base)
         self._base = base
         self._state = FreeRTOSThread.READY
         self._thread_context = FreeRTOSThreadContext(self._target_context, self)
@@ -303,11 +301,8 @@ class FreeRTOSThread(TargetThread):
     def context(self):
         return self._thread_context
 
-    def __str__(self):
-        return "<FreeRTOSThread@0x%08x id=%x name=%s>" % (id(self), self.unique_id, self.name)
-
     def __repr__(self):
-        return str(self)
+        return "<FreeRTOSThread@0x%08x id=%x name=%s>" % (id(self), self.unique_id, self.name)
 
 class FreeRTOSThreadProvider(ThreadProvider):
     """@brief Thread provider for FreeRTOS."""

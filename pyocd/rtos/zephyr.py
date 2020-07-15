@@ -165,13 +165,11 @@ class ZephyrThread(TargetThread):
             RUNNING : "Running",
         }
 
-    def __init__(self, targetContext, provider, base, offsets):
-        super(ZephyrThread, self).__init__()
-        self._target_context = targetContext
-        self._provider = provider
+    def __init__(self, targetContext, provider, base):
+        super(ZephyrThread, self).__init__(targetContext, provider, base)
         self._base = base
         self._thread_context = ZephyrThreadContext(self._target_context, self)
-        self._offsets = offsets
+        self._offsets = provider.offsets
         self._state = ZephyrThread.READY
         self._priority = 0
         self._name = "Unnamed"
@@ -271,6 +269,10 @@ class ZephyrThreadProvider(ThreadProvider):
         self._all_threads = None
         self._curr_thread = None
         self._threads = {}
+
+    @property
+    def offsets(self):
+        return self._offsets
 
     def init(self, symbolProvider):
         # Lookup required symbols.
