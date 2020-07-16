@@ -17,14 +17,24 @@
 
 import logging
 
-from .provider import TargetThread
+from .provider import (TargetThread, ThreadProvider)
 from ..core import exceptions
+from ..coresight.cortex_m_core_registers import CortexMCoreRegisterInfo
 
 LOG = logging.getLogger(__name__)
 
+## The security domain to which the exception was taken. 0==NS, 1=S.
+EXC_RETURN_ES_MASK = (1 << 0)
 ## Mask on EXC_RETURN indicating whether space for FP registers is allocated
 # on the frame. The bit is 0 if the frame is extended.
 EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
+EXC_RETURN_FTYPE_BIT = 4
+## Callee registers are already on the stack when this bit is 0.
+EXC_RETURN_DCRS_BIT = 5
+
+def nbits(n, v):
+    """@brief Return a tuple of the low n bits of v. First element is MSb."""
+    return tuple(((v >> i) & 1) for i in range(n - 1, -1, -1))
 
 def read_c_string(context, ptr):
     """@brief Reads a null-terminated C string from the target."""
@@ -60,6 +70,27 @@ def read_c_string(context, ptr):
         LOG.debug("TransferError while trying to read 16 bytes at 0x%08x", ptr)
 
     return s
+
+def build_register_offset_table(register_order):
+    """@brief Construct a register offset table.
+    @param register_order Iterable of registers in the order from current thread SP, the lowest address, to
+        the register at the highest address. Software-stacked registers will naturally be listed first. Either
+        register names or indexes may be used. Invalid register names are accepted and will be used as-is
+        for the keys. This is to support non-register stack frame entries and reserved words. Invalid
+        registers always have a size of 4 bytes, while known registers use their actual size.
+    @return Dict from register index -> SP offset.
+    """
+    table = {}
+    offset = 0
+    for reg in register_order:
+        try:
+            info = CortexMCoreRegisterInfo.get(reg)
+            table[info.index] = offset
+            offset += info.bitsize // 8
+        except KeyError:
+            table[reg] = offset
+            offset += 4
+    return table
 
 class HandlerModeThread(TargetThread):
     """@brief Class representing the handler mode."""
