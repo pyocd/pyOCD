@@ -1671,6 +1671,7 @@ class PyOCDCommander(object):
             addr = self.convert_value(args[0])
         else:
             addr = self.target.read_core_register('pc')
+        addr &= ~0x1 # remove thumb bit
         
         lineInfo = self.elf.address_decoder.get_line_for_address(addr)
         if lineInfo is not None:
@@ -1683,10 +1684,13 @@ class PyOCDCommander(object):
         fnInfo = self.elf.address_decoder.get_function_for_address(addr)
         if fnInfo is not None:
             name = fnInfo.name.decode()
+            offset = addr - fnInfo.low_pc
         else:
             name = "<unknown symbol>"
+            offset = 0
         
-        print("{addr:#10x} : {fn} : {pathline}".format(addr=addr, fn=name, pathline=pathline))
+        print("{addr:#10x} : {fn}+{offset} : {pathline}".format(
+                addr=addr, fn=name, offset=offset, pathline=pathline))
 
     def handle_symbol(self, args):
         if self.elf is None:
