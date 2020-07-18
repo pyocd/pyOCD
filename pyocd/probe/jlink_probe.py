@@ -78,6 +78,7 @@ class JLinkProbe(DebugProbe):
             six.raise_from(cls._convert_exception(exc), exc)
 
     def __init__(self, serial_number):
+        super(JLinkProbe, self).__init__()
         self._link = self._get_jlink()
         if self._link is None:
             raise exceptions.ProbeError("unable to open JLink DLL")
