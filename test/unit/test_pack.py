@@ -27,7 +27,7 @@ from pyocd.core import (memory_map, target)
 
 K64F = "MK64FN1M0VDC12"
 
-TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+TEST_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 K64F_PACK_NAME = "NXP.MK64F12_DFP.11.0.0.pack"
 K64F_PACK_PATH = os.path.join(TEST_DATA_DIR, K64F_PACK_NAME)
 K64F_1M0_FLM = "arm/MK_P1M0.FLM"

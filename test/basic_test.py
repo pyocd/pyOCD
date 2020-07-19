@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,9 +31,8 @@ from pyocd.utility.conversion import float32_to_u32
 from test_util import (
     Test,
     get_session_options,
+    get_test_binary_path,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class BasicTest(Test):
     def __init__(self):
@@ -51,7 +50,7 @@ def basic_test(board_id, file):
         binary_file = "l1_"
 
         if file is None:
-            binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+            binary_file = get_test_binary_path(board.test_binary)
         else:
             binary_file = file
 

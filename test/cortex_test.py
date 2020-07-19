@@ -41,9 +41,8 @@ from test_util import (
     TestResult,
     get_session_options,
     get_target_test_params,
+    get_test_binary_path,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 TEST_COUNT = 20
 
@@ -108,7 +107,7 @@ def cortex_test(board_id):
         board = session.board
         target_type = board.target_type
 
-        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+        binary_file = get_test_binary_path(board.test_binary)
 
         test_params = get_target_test_params(session)
         test_clock = test_params['test_clock']

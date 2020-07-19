@@ -30,12 +30,11 @@ from test_util import (
     TestResult,
     get_session_options,
     get_target_test_params,
+    get_test_binary_path,
+    TEST_DIR,
     )
 
-testdir = os.path.dirname(os.path.abspath(__file__))
-parentdir = os.path.dirname(testdir)
-
-TEST_USER_SCRIPT = os.path.join(testdir, "test_user_script.py")
+TEST_USER_SCRIPT = os.path.join(TEST_DIR, "test_user_script.py")
 
 class UserScriptTestResult(TestResult):
     def __init__(self):
@@ -70,7 +69,7 @@ def user_script_test(board_id):
         memory_map = target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
-        binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+        binary_file = get_test_binary_path(board.test_binary)
         
         test_pass_count = 0
         test_count = 0

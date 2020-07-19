@@ -34,14 +34,14 @@ from test_util import Test, TestResult
 import logging
 from random import randrange
 
-class GdbServerJsonTestResult(TestResult):
+class JsonListsTestResult(TestResult):
     def __init__(self):
-        super(GdbServerJsonTestResult, self).__init__(None, None, None)
-        self.name = "gdb_server_json"
+        super(JsonListsTestResult, self).__init__(None, None, None)
+        self.name = "json_lsits"
 
-class GdbServerJsonTest(Test):
+class JsonListsTest(Test):
     def __init__(self):
-        super(GdbServerJsonTest, self).__init__("Gdb Server Json Test", gdb_server_json_test)
+        super(JsonListsTest, self).__init__("Json Lists Test", json_lists_test)
 
     def print_perf_info(self, result_list, output_file=None):
         pass
@@ -50,7 +50,7 @@ class GdbServerJsonTest(Test):
         try:
             result = self.test_function(board.unique_id)
         except Exception as e:
-            result = GdbServerJsonTestResult()
+            result = JsonListsTestResult()
             result.passed = False
             print("Exception %s when testing board %s" % (e, board.unique_id))
             traceback.print_exc(file=sys.stdout)
@@ -58,7 +58,7 @@ class GdbServerJsonTest(Test):
         result.test = self
         return result
 
-def gdb_server_json_test(board_id, testing_standalone=False):
+def json_lists_test(board_id, testing_standalone=False):
 
     test_count = 0
     test_pass_count = 0
@@ -183,7 +183,7 @@ def gdb_server_json_test(board_id, testing_standalone=False):
         return did_pass
 
 
-    result = GdbServerJsonTestResult()
+    result = JsonListsTestResult()
 
     print("\n\n----- TESTING PROBES LIST -----")
     out = subprocess.check_output(['pyocd', 'json', '--probes'])
@@ -223,9 +223,9 @@ def gdb_server_json_test(board_id, testing_standalone=False):
     return result
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='pyocd-gdbserver json output test')
+    parser = argparse.ArgumentParser(description='pyocd json output test')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    gdb_server_json_test(None, testing_standalone=True)
+    json_lists_test(None, testing_standalone=True)

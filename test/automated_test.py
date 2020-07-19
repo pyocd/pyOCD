@@ -45,7 +45,7 @@ from cortex_test import CortexTest
 from flash_test import FlashTest
 from flash_loader_test import FlashLoaderTest
 from gdb_test import GdbTest
-from gdb_server_json_test import GdbServerJsonTest
+from json_lists_test import JsonListsTest
 from connect_test import ConnectTest
 from debug_context_test import DebugContextTest
 from concurrency_test import ConcurrencyTest
@@ -58,10 +58,10 @@ LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
 
 JOB_TIMEOUT = 30 * 60 # 30 minutes
 
-# Put together list of tests.
-test_list = [
+# Put together list of all tests.
+all_tests = [
              BasicTest(),
-             GdbServerJsonTest(),
+             JsonListsTest(),
              ConnectTest(),
              SpeedTest(),
              CortexTest(),
@@ -71,6 +71,9 @@ test_list = [
              DebugContextTest(),
              GdbTest(),
              ]
+
+# Actual list used at runtime, filted by command line args.
+test_list = []
 
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
@@ -178,13 +181,25 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     originalStdout = sys.stdout
     originalStderr = sys.stderr
 
-    # Open board-specific output file.
+    # Set up board-specific output file. A previously existing file is removed.
     env_name = (("_" + os.environ['TOX_ENV_NAME']) if ('TOX_ENV_NAME' in os.environ) else '')
     name_info = "{}_{}_{}".format(env_name, board.name, n)
     log_filename = LOG_FILE_TEMPLATE.format(name_info)
     if os.path.exists(log_filename):
         os.remove(log_filename)
-    log_file = open(log_filename, "a", buffering=1) # 1=Unbuffered
+    
+    # Skip board if specified in the config.
+    if session.options['skip_test']:
+        print("Skipping board %s due as specified in config" % board.unique_id)
+        return []
+    # Skip this board if we don't have a test binary.
+    if board.test_binary is None:
+        print("Skipping board %s due to missing test binary" % board.unique_id)
+        return []
+
+    # Open board-specific output file. This is done after skipping so a skipped board doesn't have a
+    # log file created for it (but a previous log file will be removed, above).
+    log_file = open(log_filename, "w", buffering=1) # 1=Line buffered
     
     # Setup logging.
     log_handler = RecordingLogHandler(None)
@@ -200,11 +215,6 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         if commonLogFile:
             print_board_header(commonLogFile, board, n, includeLeadingNewline=(n != 0))
         print_board_header(originalStdout, board, n, logToConsole, includeLeadingNewline=(n != 0))
-        
-        # Skip this board if we don't have a test binary.
-        if board.test_binary is None:
-            print("Skipping board %s due to missing test binary" % board.unique_id)
-            return result_list
 
         # Run all tests on this board.
         for test in test_list:
@@ -249,6 +259,25 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         log_handler.close()
     return result_list
 
+def filter_tests(args):
+    """! @brief Generate the list of tests to run based on arguments."""
+    if args.exclude_tests and args.include_tests:
+        print("Please only include or exclude tests, not both simultaneously.")
+        sys.exit(1)
+    excludes = [t.strip().lower() for t in args.exclude_tests.split(',')] if args.exclude_tests else []
+    includes = [t.strip().lower() for t in args.include_tests.split(',')] if args.include_tests else []
+    
+    for test in all_tests:
+        if excludes:
+            include_it = (test.name.lower() not in excludes)
+        elif includes:
+            include_it = (test.name.lower() in includes)
+        else:
+            include_it = True
+        
+        if include_it:
+            test_list.append(test)
+
 def main():
     parser = argparse.ArgumentParser(description='pyOCD automated testing')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
@@ -256,11 +285,21 @@ def main():
     parser.add_argument('-j', '--jobs', action="store", default=1, type=int, metavar="JOBS",
         help='Set number of concurrent board tests (default is 1)')
     parser.add_argument('-b', '--board', action="append", metavar="ID", help="Limit testing to boards with specified unique IDs. Multiple boards can be listed.")
+    parser.add_argument('-l', '--list-tests', action="store_true", help="Print a list of tests that will be run.")
+    parser.add_argument('-x', '--exclude-tests', metavar="TESTS", default="", help="Comma-separated list of tests to exclude.")
+    parser.add_argument('-i', '--include-tests', metavar="TESTS", default="", help="Comma-separated list of tests to include.")
     args = parser.parse_args()
     
     # Allow CI to override the number of concurrent jobs.
     if 'CI_JOBS' in os.environ:
         args.jobs = int(os.environ['CI_JOBS'])
+    
+    filter_tests(args)
+    
+    if args.list_tests:
+        for test in test_list:
+            print(test.name)
+        return
     
     # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
     # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()

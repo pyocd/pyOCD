@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,9 +25,10 @@ import logging
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.flash.file_programmer import FileProgrammer
-from test_util import get_session_options
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from test_util import (
+    get_session_options,
+    get_test_binary_path,
+    )
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -54,7 +55,7 @@ for i in range(0, 100):
 print("\n\n------ Flashing new code ------")
 with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
     board = session.board
-    binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
+    binary_file = get_test_binary_path(board.test_binary)
     FileProgrammer(session).program(binary_file)
 
 print("\n\n------ Testing Attaching to regular board ------")
