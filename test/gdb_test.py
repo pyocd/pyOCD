@@ -50,6 +50,7 @@ from test_util import (
     binary_to_elf_file,
     get_env_file_name,
     get_test_binary_path,
+    TEST_DIR,
     )
 
 # TODO, c1728p9 - run script several times with
@@ -58,9 +59,9 @@ from test_util import (
 LOG = logging.getLogger(__name__)
 
 PYTHON_GDB = "arm-none-eabi-gdb-py"
-TEST_TIMEOUT_SECONDS = 60.0
+TEST_TIMEOUT_SECONDS = 60.0 * 5
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+GDB_SCRIPT_PATH = os.path.join(TEST_DIR, "gdb_script.py")
 
 def wait_with_deadline(process):
     try:
@@ -70,10 +71,12 @@ def wait_with_deadline(process):
         except TimeoutExpired as e:
             LOG.error('Timeout while waiting for process %s to exit: %s', process, e)
             process.kill()
+            return False
     except ImportError:
         # Python 2.7 doesn't support deadline for wait.
         # Let's wait without deadline, as Python 2.7 support is close to end anyway.
         process.wait()
+    return True
 
 class GdbTestResult(TestResult):
     def __init__(self):
@@ -160,11 +163,10 @@ def test_gdb(board_id=None, n=0):
         os.remove(test_result_filename)
 
     # Run the test
-    gdb_script_filename = os.path.join(parentdir, 'test/gdb_script.py')
-    gdb_args = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=%s" % gdb_script_filename]
+    gdb_args = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=%s" % GDB_SCRIPT_PATH]
     gdb_output_filename = "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n)
     with open(gdb_output_filename, "w") as f:
-        LOG.debug('Starting gdb (stdout -> %s): %s', gdb_output_filename, ' '.join(gdb_args))
+        LOG.info('Starting gdb (stdout -> %s): %s', gdb_output_filename, ' '.join(gdb_args))
         gdb_program = Popen(gdb_args, stdin=PIPE, stdout=f, stderr=STDOUT)
         server_args = ['gdbserver',
                 '--port=%i' % test_port,
@@ -173,42 +175,59 @@ def test_gdb(board_id=None, n=0):
                 "--uid=%s" % board_id,
                 ]
         server = PyOCDTool()
-        LOG.debug('Starting gdbserver: %s', ' '.join(server_args))
+        LOG.info('Starting gdbserver: %s', ' '.join(server_args))
         server_thread = threading.Thread(target=server.run, args=[server_args])
+        server_thread.daemon = True
         server_thread.start()
-        LOG.debug('Waiting for gdb...')
-        wait_with_deadline(gdb_program)
-        LOG.debug('Waiting for server...')
+        LOG.info('Waiting for gdb to finish...')
+        did_complete = wait_with_deadline(gdb_program)
+        LOG.info('Waiting for server to finish...')
         server_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+        if not did_complete:
+            LOG.error("Test timed out!")
         if server_thread.is_alive():
             LOG.error('Server is still running!')
 
-    with open(gdb_output_filename, 'r') as f:
-        LOG.debug('Gdb output:\n%s', f.read())
+    try:
+        with open(gdb_output_filename, 'r') as f:
+            LOG.debug('Gdb output:\n%s', f.read())
+    except IOError:
+        pass
 
     # Read back the result
-    with open(test_result_filename, "r") as f:
-        test_result = json.loads(f.read())
+    result.passed = False
+    if did_complete:
+        try:
+            with open(test_result_filename, "r") as f:
+                test_result = json.loads(f.read())
 
-    # Print results
-    if set(TEST_RESULT_KEYS).issubset(test_result):
-        print("----------------Test Results----------------")
-        print("HW breakpoint count: %s" % test_result["breakpoint_count"])
-        print("Watchpoint count: %s" % test_result["watchpoint_count"])
-        print("Average instruction step time: %s" %
-              test_result["step_time_si"])
-        print("Average single step time: %s" % test_result["step_time_s"])
-        print("Average over step time: %s" % test_result["step_time_n"])
-        print("Failure count: %i" % test_result["fail_count"])
-        result.passed = test_result["fail_count"] == 0
+            # Print results
+            if set(TEST_RESULT_KEYS).issubset(test_result):
+                print("----------------Test Results----------------")
+                print("HW breakpoint count: %s" % test_result["breakpoint_count"])
+                print("Watchpoint count: %s" % test_result["watchpoint_count"])
+                print("Average instruction step time: %s" %
+                      test_result["step_time_si"])
+                print("Average single step time: %s" % test_result["step_time_s"])
+                print("Average over step time: %s" % test_result["step_time_n"])
+                print("Failure count: %i" % test_result["fail_count"])
+                result.passed = test_result["fail_count"] == 0
+        except IOError as err:
+            LOG.error("Error reading test results: %s", err, exc_info=True)
+
+    if result.passed:
+        print("GDB TEST PASSED")
     else:
-        result.passed = False
+        print("GDB TEST FAILED")
 
     # Cleanup
-    if temp_test_elf_name and os.path.exists(temp_test_elf_name):
-        os.remove(temp_test_elf_name)
-    os.remove(test_result_filename)
-    os.remove(test_param_filename)
+    try:
+        if temp_test_elf_name and os.path.exists(temp_test_elf_name):
+            os.remove(temp_test_elf_name)
+        os.remove(test_result_filename)
+        os.remove(test_param_filename)
+    except IOError as err:
+        pass
 
     return result
 
