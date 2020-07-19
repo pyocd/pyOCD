@@ -178,13 +178,25 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     originalStdout = sys.stdout
     originalStderr = sys.stderr
 
-    # Open board-specific output file.
+    # Set up board-specific output file. A previously existing file is removed.
     env_name = (("_" + os.environ['TOX_ENV_NAME']) if ('TOX_ENV_NAME' in os.environ) else '')
     name_info = "{}_{}_{}".format(env_name, board.name, n)
     log_filename = LOG_FILE_TEMPLATE.format(name_info)
     if os.path.exists(log_filename):
         os.remove(log_filename)
-    log_file = open(log_filename, "a", buffering=1) # 1=Unbuffered
+    
+    # Skip board if specified in the config.
+    if session.options['skip_test']:
+        print("Skipping board %s due as specified in config" % board.unique_id)
+        return []
+    # Skip this board if we don't have a test binary.
+    if board.test_binary is None:
+        print("Skipping board %s due to missing test binary" % board.unique_id)
+        return []
+
+    # Open board-specific output file. This is done after skipping so a skipped board doesn't have a
+    # log file created for it (but a previous log file will be removed, above).
+    log_file = open(log_filename, "w", buffering=1) # 1=Line buffered
     
     # Setup logging.
     log_handler = RecordingLogHandler(None)
@@ -200,11 +212,6 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         if commonLogFile:
             print_board_header(commonLogFile, board, n, includeLeadingNewline=(n != 0))
         print_board_header(originalStdout, board, n, logToConsole, includeLeadingNewline=(n != 0))
-        
-        # Skip this board if we don't have a test binary.
-        if board.test_binary is None:
-            print("Skipping board %s due to missing test binary" % board.unique_id)
-            return result_list
 
         # Run all tests on this board.
         for test in test_list:

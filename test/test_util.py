@@ -47,7 +47,11 @@ def get_env_file_name():
 # Returns common option values passed in when creating test sessions.
 def get_session_options():
     return {
-        'frequency' : 1000000, # 1 MHz
+        # These options can be overridden by probe config in pyocd.yaml.
+        'option_defaults': {
+            'frequency': 1000000, # 1 MHz
+            'skip_test': False,
+            },
         }
 
 # Returns a dict containing some test parameters for the target in the passed-in session.
