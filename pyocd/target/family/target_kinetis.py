@@ -54,7 +54,7 @@ class Kinetis(CoreSightTarget):
     """
 
     VENDOR = "NXP"
-    
+
     def __init__(self, link, memoryMap=None):
         super(Kinetis, self).__init__(link, memoryMap)
         self.mdm_ap = None
@@ -62,48 +62,55 @@ class Kinetis(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(Kinetis, self).create_init_sequence()
-        
+
         seq.wrap_task('discovery',  lambda seq: \
                                         seq.insert_before('find_components',
                                             ('check_mdm_ap_idr',        self.check_mdm_ap_idr),
                                             ('check_flash_security',    self.check_flash_security),
                                             ))
-        
+
         return seq
 
     def check_mdm_ap_idr(self):
+        if not self.dp.aps:
+            LOG.debug('Not found valid aps, skip MDM-AP check.')
+            return
+
         self.mdm_ap = self.dp.aps[1]
-        
+
         # Check MDM-AP ID.
         if (self.mdm_ap.idr & ~MDM_IDR_VERSION_MASK) != MDM_IDR_EXPECTED:
             LOG.error("%s: bad MDM-AP IDR (is 0x%08x)", self.part_number, self.mdm_ap.idr)
-        
+
         self.mdm_ap_version = (self.mdm_ap.idr & MDM_IDR_VERSION_MASK) >> MDM_IDR_VERSION_SHIFT
         LOG.debug("MDM-AP version %d", self.mdm_ap_version)
 
     def check_flash_security(self):
         """! @brief Check security and unlock device.
-        
+
         This init task determines whether the device is locked (flash security enabled). If it is,
         and if auto unlock is enabled, then perform a mass erase to unlock the device.
-        
+
         This whole sequence is greatly complicated by some behaviour of the device when flash is
         blank. If flash is blank and the device does not have a ROM, then it will repeatedly enter
         lockup and then reset.
-        
+
         Immediately after reset asserts, the flash controller begins to initialise. The device is
         always locked, and flash security reads as enabled, until the flash controller has finished
         its init sequence. Thus, depending on exactly when the debugger reads the MDM-AP status
         register, a blank, unlocked device may be detected as locked.
-        
+
         There is also the possibility that the device will be (correctly) detected as unlocked, but
         it resets again before the core can be halted, thus causing connect to fail.
-        
+
         This init task runs *before* cores are created.
         """
+        if not self.dp.aps:
+            return
+
         # check for flash security
         isLocked = self.is_locked()
-        
+
         # Test whether we can reliably access the memory and the core. This test can fail if flash
         # is blank and the device is auto-resetting.
         if isLocked:
@@ -117,7 +124,7 @@ class Kinetis(CoreSightTarget):
                 canAccess = False
             else:
                 canAccess = True
-        
+
         # Verify locked status under reset. We only want to assert reset if the device looks locked
         # or accesses fail, otherwise we could not support attach mode debugging.
         if not canAccess:
@@ -130,24 +137,24 @@ class Kinetis(CoreSightTarget):
 
             # Re-read locked status under reset.
             isLocked = self.is_locked()
-            
+
             # If the device isn't really locked, we have no choice but to halt on connect.
             if not isLocked and self.session.options.get('connect_mode') == 'attach':
                 LOG.warning("Forcing halt on connect in order to gain control of device")
                 self._force_halt_on_connect = True
-        
+
         # Only do a mass erase if the device is actually locked.
         if isLocked:
             if self.session.options.get('auto_unlock'):
                 LOG.warning("%s in secure state: will try to unlock via mass erase", self.part_number)
-                
+
                 # Do the mass erase.
                 if not self.mass_erase():
                     self.dp.assert_reset(False)
                     self.mdm_ap.write_reg(MDM_CTRL, 0)
                     LOG.error("%s: mass erase failed", self.part_number)
                     raise exceptions.TargetError("unable to unlock device")
-                
+
                 # Assert that halt on connect was forced above. Reset will stay asserted
                 # until halt on connect is executed.
 #                 assert self._force_halt_on_connect
@@ -161,6 +168,8 @@ class Kinetis(CoreSightTarget):
     def perform_halt_on_connect(self):
         """! This init task runs *after* cores are created."""
         if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
+            if not self.mdm_ap:
+                return
             LOG.info("Configuring MDM-AP to halt when coming out of reset")
             # Prevent the target from resetting if it has invalid code
             with Timeout(HALT_TIMEOUT) as to:
@@ -179,6 +188,8 @@ class Kinetis(CoreSightTarget):
 
     def post_connect(self):
         if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
+            if not self.mdm_ap:
+                return
             # We can now deassert reset.
             LOG.info("Deasserting reset post connect")
             self.dp.assert_reset(False)
@@ -204,8 +215,11 @@ class Kinetis(CoreSightTarget):
                 raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
     def is_locked(self):
+        if not self.mdm_ap:
+            return False
+
         self._wait_for_flash_init()
-        
+
         val = self.mdm_ap.read_reg(MDM_STATUS)
         return (val & MDM_STATUS_SYSTEM_SECURITY) != 0
 
@@ -229,7 +243,7 @@ class Kinetis(CoreSightTarget):
         wasResetAsserted = self.dp.is_reset_asserted()
         if not wasResetAsserted:
             self.dp.assert_reset(True)
-            
+
         # Perform the erase.
         result = self._mass_erase()
 
