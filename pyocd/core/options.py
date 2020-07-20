@@ -27,6 +27,8 @@ OPTIONS_INFO = {
     'chip_erase': OptionInfo('chip_erase', str, "sector",
         "Whether to perform a chip erase or sector erases when programming flash. The value must be"
         " one of \"auto\", \"sector\", or \"chip\"."),
+    'commander.history_length': OptionInfo('commander.history_length', int, 1000,
+        "Number of entries in the pyOCD Commander command history. Set to -1 for unlimited. Default is 1000."),
     'config_file': OptionInfo('config_file', str, None,
         "Path to custom config file."),
     'connect_mode': OptionInfo('connect_mode', str, "halt",

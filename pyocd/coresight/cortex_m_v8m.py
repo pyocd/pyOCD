@@ -42,6 +42,9 @@ class CortexM_v8M(CortexM):
     PFR1 = 0xE000ED44
     PFR1_SECURITY_MASK = 0x000000f0
     PFR1_SECURITY_SHIFT = 4
+    
+    PFR1_SECURITY_EXT_V8_0 = 0x1 # Base security extension.
+    PFR1_SECURITY_EXT_V8_1 = 0x3 # v8.1-M adds several instructions.
 
     def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
         super(CortexM_v8M, self).__init__(rootTarget, ap, memoryMap, core_num, cmpid, address)
@@ -59,7 +62,7 @@ class CortexM_v8M(CortexM):
         if self.has_security_extension:
             return (Target.SecurityState.NONSECURE, Target.SecurityState.SECURE)
         else:
-            return (Target.SecurityState.NONSECURE)
+            return (Target.SecurityState.NONSECURE,)
 
     def _read_core_type(self):
         """! @brief Read the CPUID register and determine core type and architecture."""
@@ -77,7 +80,8 @@ class CortexM_v8M(CortexM):
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
         
         pfr1 = self.read32(self.PFR1)
-        self.has_security_extension = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT) == 1
+        pfr1_sec = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT)
+        self.has_security_extension = pfr1_sec in (self.PFR1_SECURITY_EXT_V8_0, self.PFR1_SECURITY_EXT_V8_1)
         
         if arch == self.ARMv8M_BASE:
             self._architecture = CoreArchitecture.ARMv8M_BASE

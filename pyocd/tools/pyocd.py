@@ -28,6 +28,7 @@ import traceback
 import pprint
 import textwrap
 import colorama
+import atexit
 
 # Attempt to import readline.
 try:
@@ -69,14 +70,6 @@ LEVELS = {
         'warning':logging.WARNING,
         'error':logging.ERROR,
         'critical':logging.CRITICAL
-        }
-
-CORE_STATUS_DESC = {
-        Target.State.HALTED : "Halted",
-        Target.State.RUNNING : "Running",
-        Target.State.RESET : "Reset",
-        Target.State.SLEEPING : "Sleeping",
-        Target.State.LOCKUP : "Lockup",
         }
 
 VC_NAMES_MAP = {
@@ -504,10 +497,34 @@ def cmdoptions(opts):
 
 class PyOCDConsole(object):
     PROMPT = 'pyocd> '
+    
+    PYOCD_HISTORY_ENV_VAR = 'PYOCD_HISTORY'
+    PYOCD_HISTORY_LENGTH_ENV_VAR = 'PYOCD_HISTORY_LENGTH'
+    DEFAULT_HISTORY_FILE = ".pyocd_history"
 
     def __init__(self, tool):
         self.tool = tool
         self.last_command = ''
+        
+        # Enable readline history.
+        self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
+                os.path.join(os.path.expanduser("~"), self.DEFAULT_HISTORY_FILE))
+        
+        # Read command history and set history length.
+        try:
+            readline.read_history_file(self._history_path)
+            
+            history_len = int(os.environ.get(self.PYOCD_HISTORY_LENGTH_ENV_VAR,
+                    session.Session.get_current().options.get('commander.history_length')))
+            readline.set_history_length(history_len)
+        except (NameError, IOError) as err:
+            pass
+
+        # Install exit handler to write out the command history.
+        try:
+            atexit.register(readline.write_history_file, self._history_path)
+        except (NameError, IOError) as err:
+            pass
 
     def run(self):
         try:
@@ -719,7 +736,7 @@ class PyOCDCommander(object):
                             status = "locked"
                         else:
                             try:
-                                status = CORE_STATUS_DESC[self.target.get_state()]
+                                status = self.target.get_state().name.capitalize()
                             except (AttributeError, KeyError):
                                 status = "<no core>"
 
@@ -882,7 +899,11 @@ class PyOCDCommander(object):
         if not self.target.is_locked():
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d:  %s" % (i, CORE_STATUS_DESC[core.get_state()]))
+                state_desc = core.get_state().name.capitalize()
+                desc = "Core %d:  %s" % (i, state_desc)
+                if len(core.supported_security_states) > 1:
+                    desc += " [%s]" % core.get_security_state().name.capitalize()
+                print(desc)
         else:
             print("Target is locked")
 
@@ -899,7 +920,13 @@ class PyOCDCommander(object):
             show_fields = False
 
         reg = args[0].lower()
-        if reg in coresight.cortex_m.CORE_REGISTER:
+        if reg == "all":
+            self.dump_registers(True)
+        elif reg in coresight.cortex_m.CORE_REGISTER:
+            if not self.target.is_halted():
+                print("Core is not halted; cannot read core registers")
+                return
+
             value = self.target.read_core_register(reg)
             if isinstance(value, six.integer_types):
                 print("%s = 0x%08x (%d)" % (reg, value, value))
@@ -938,6 +965,10 @@ class PyOCDCommander(object):
 
         reg = args[0].lower()
         if reg in coresight.cortex_m.CORE_REGISTER:
+            if not self.target.is_halted():
+                print("Core is not halted; cannot write core registers")
+                return
+
             if (reg.startswith('s') and reg != 'sp') or reg.startswith('d'):
                 value = float(args[1])
             else:
@@ -1373,6 +1404,10 @@ class PyOCDCommander(object):
             print("Unknown target status: %s" % status)
 
     def handle_step(self, args):
+        if not self.target.is_halted():
+            print("Core is not halted; cannot step")
+            return
+
         self.target.step(disable_interrupts=not self.step_into_interrupt)
         addr = self.target.read_core_register('pc')
         if isCapstoneAvailable:
@@ -1387,7 +1422,7 @@ class PyOCDCommander(object):
 
         status = self.target.get_state()
         if status != Target.State.HALTED:
-            print("Failed to halt device; target state is %s" % CORE_STATUS_DESC[status])
+            print("Failed to halt device; target state is %s" % status.name.capitalize())
             return 1
         else:
             print("Successfully halted device")
@@ -1636,6 +1671,7 @@ class PyOCDCommander(object):
             addr = self.convert_value(args[0])
         else:
             addr = self.target.read_core_register('pc')
+        addr &= ~0x1 # remove thumb bit
         
         lineInfo = self.elf.address_decoder.get_line_for_address(addr)
         if lineInfo is not None:
@@ -1648,10 +1684,13 @@ class PyOCDCommander(object):
         fnInfo = self.elf.address_decoder.get_function_for_address(addr)
         if fnInfo is not None:
             name = fnInfo.name.decode()
+            offset = addr - fnInfo.low_pc
         else:
             name = "<unknown symbol>"
+            offset = 0
         
-        print("{addr:#10x} : {fn} : {pathline}".format(addr=addr, fn=name, pathline=pathline))
+        print("{addr:#10x} : {fn}+{offset} : {pathline}".format(
+                addr=addr, fn=name, offset=offset, pathline=pathline))
 
     def handle_symbol(self, args):
         if self.elf is None:
@@ -2047,7 +2086,7 @@ Prefix line with ! to execute a shell command.""")
 
         return value
 
-    def dump_registers(self):
+    def dump_registers(self, show_all=False):
         # Registers organized into columns for display.
         regs = ['r0', 'r6', 'r12',
                 'r1', 'r7', 'sp',
@@ -2056,11 +2095,32 @@ Prefix line with ! to execute a shell command.""")
                 'r4', 'r10', 'xpsr',
                 'r5', 'r11', 'primask']
 
+        if not self.target.is_halted():
+            print("Core is not halted; cannot read core registers")
+            return
+
         for i, reg in enumerate(regs):
             regValue = self.target.read_core_register(reg)
-            print("{:>8} {:#010x} ".format(reg + ':', regValue), end=' ')
+            print("{:>16} {:#010x} ".format(reg + ':', regValue), end=' ')
             if i % 3 == 2:
                 print()
+        
+        if show_all:
+            other_regs = sorted(r for r in self.target.selected_core.core_registers.by_name if r not in regs)
+            for i, reg in enumerate(other_regs):
+                value = self.target.read_core_register(reg)
+                info = coresight.core_registers.CoreRegisterInfo.get(reg)
+                if info.bitsize == 64:
+                    if isinstance(value, six.integer_types):
+                        value_str = "%s = %#018x (%d)" % (reg, value, value)
+                    elif isinstance(value, float):
+                        value_str = "%s = %g (%#018x)" % (reg, value, conversion.float64_to_u64(value))
+                else:
+                    if isinstance(value, six.integer_types):
+                        value_str = "%s = %#010x (%d)" % (reg, value, value)
+                    elif isinstance(value, float):
+                        value_str = "%s = %g (%#010x)" % (reg, value, conversion.float32_to_u32(value))
+                print("{:>16} {} ".format(reg + ':', value_str))
 
     def _dump_peripheral_register(self, periph, reg, show_fields):
         size = reg.size or 32
