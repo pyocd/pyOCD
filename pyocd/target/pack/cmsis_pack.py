@@ -377,6 +377,9 @@ class CmsisPackDevice(object):
             LOG.warning("CMSIS-Pack device %s has no default RAM defined, cannot program flash" % self.part_number)
             return
         
+        regions_to_delete = [] # List of regions to delete.
+        regions_to_add = [] # List of FlashRegion objects to add.
+
         # Create flash algo dicts once we have the full memory map.
         for i, region in enumerate(self._regions):
             # We're only interested in ROM regions here.
@@ -389,8 +392,8 @@ class CmsisPackDevice(object):
                 # Must be a mask ROM or non-programmable flash.
                 continue
 
-            # Remove the ROM region that we'll replace with flash region(s).
-            del self._regions[i]
+            # The ROM region will be replaced with one or more flash regions.
+            regions_to_delete.append(region)
 
             # Load flash algo from .FLM file.
             algoData = self.pack.get_file(algo.attrib['name'])
@@ -415,7 +418,8 @@ class CmsisPackDevice(object):
             # is a list of bi-tuples of (start-address, sector-size), sorted by start address.
             for j, sectorInfo in enumerate(packAlgo.sector_sizes):
                 # Unpack this sector range's start address and sector size.
-                start, sector_size = sectorInfo
+                offset, sector_size = sectorInfo
+                start = region.start + offset
                 
                 # Determine the end address of the this sector range. For the last range, the end
                 # is just the end of the entire region. Otherwise it's the start of the next
@@ -455,7 +459,13 @@ class CmsisPackDevice(object):
                                 is_boot_memory=isBoot,
                                 is_testable=region.is_testable,
                                 alias=region.alias)
-                self._regions.append(rangeRegion)
+                regions_to_add.append(rangeRegion)
+        
+        # Now update the regions list.
+        for region in regions_to_delete:
+            self._regions.remove(region)
+        for region in regions_to_add:
+            self._regions.append(region)
     
     def _find_matching_algo(self, region):
         """! @brief Searches for a flash algo covering the regions's address range.'"""
