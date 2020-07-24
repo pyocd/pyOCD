@@ -360,6 +360,7 @@ The source letters are:
 - `h`=hard fault
 - `b`=bus fault
 - `m`=mem fault
+- `e`=secure fault
 - `i`=irq err
 - `s`=state err
 - `c`=check err

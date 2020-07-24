@@ -56,6 +56,7 @@ def split_command_line(cmd_line):
 
 ## Map of vector char characters to masks.
 VECTOR_CATCH_CHAR_MAP = {
+        'e': Target.VectorCatch.SECURE_FAULT,
         'h': Target.VectorCatch.HARD_FAULT,
         'b': Target.VectorCatch.BUS_FAULT,
         'm': Target.VectorCatch.MEM_FAULT,

@@ -208,6 +208,7 @@ class CortexM(Target, CoreSightCoreComponent):
     DEMCR = 0xE000EDFC
     # DWTENA in armv6 architecture reference manual
     DEMCR_TRCENA = (1 << 24)
+    DEMCR_VC_SFERR = (1 << 11)
     DEMCR_VC_HARDERR = (1 << 10)
     DEMCR_VC_INTERR = (1 << 9)
     DEMCR_VC_BUSERR = (1 << 8)
@@ -1289,6 +1290,8 @@ class CortexM(Target, CoreSightCoreComponent):
             result |= CortexM.DEMCR_VC_NOCPERR
         if mask & Target.VectorCatch.CORE_RESET:
             result |= CortexM.DEMCR_VC_CORERESET
+        if mask & Target.VectorCatch.SECURE_FAULT:
+            result |= CortexM.DEMCR_VC_SFERR
         return result
 
     @staticmethod
@@ -1310,6 +1313,8 @@ class CortexM(Target, CoreSightCoreComponent):
             result |= Target.VectorCatch.COPROCESSOR_ERR
         if mask & CortexM.DEMCR_VC_CORERESET:
             result |= Target.VectorCatch.CORE_RESET
+        if mask & CortexM.DEMCR_VC_SFERR:
+            result |= Target.VectorCatch.SECURE_FAULT
         return result
 
     def set_vector_catch(self, enableMask):

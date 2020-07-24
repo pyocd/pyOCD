@@ -103,8 +103,11 @@ class Target(MemoryInterface):
         COPROCESSOR_ERR = (1 << 6)
         ## Trap on local reset.
         CORE_RESET = (1 << 7)
-        ALL = (HARD_FAULT | BUS_FAULT | MEM_FAULT | INTERRUPT_ERR \
-                    | STATE_ERR | CHECK_ERR | COPROCESSOR_ERR | CORE_RESET)
+        ## Trap SecureFault.
+        SECURE_FAULT = (1 << 8)
+        ALL = (HARD_FAULT | BUS_FAULT | MEM_FAULT | INTERRUPT_ERR
+                    | STATE_ERR | CHECK_ERR | COPROCESSOR_ERR | CORE_RESET
+                    | SECURE_FAULT)
 
     class Event(Enum):
         """! Target notification events."""
