@@ -25,7 +25,7 @@ from ..utility.notification import Notification
 from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture)
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
 
@@ -399,6 +399,7 @@ class CortexM(Target, CoreSightCoreComponent):
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
         self._architecture = None
+        self._extensions = []
         self.core_type = 0
         self.has_fpu = False
         self.core_number = core_num
@@ -440,6 +441,11 @@ class CortexM(Target, CoreSightCoreComponent):
     def architecture(self):
         """! @brief @ref pyocd.coresight.core_ids.CoreArchitecture "CoreArchitecture" for this core."""
         return self._architecture
+
+    @property
+    def extensions(self):
+        """! @brief List of extensions supported by this core."""
+        return self._extensions
 
     @property
     def elf(self):
@@ -617,6 +623,8 @@ class CortexM(Target, CoreSightCoreComponent):
         self.write32(CortexM.CPACR, originalCpacr)
 
         if self.has_fpu:
+            self._extensions.append(CortexMExtension.FPU)
+            
             # Now check whether double-precision is supported.
             # (Minimal tests to distinguish current permitted ARMv7-M and
             # ARMv8-M FPU types; used for printing only).
@@ -628,6 +636,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
             if dp_val >= 2:
                 fpu_type = "FPv5"
+                self._extensions.append(CortexMExtension.FPU_DP)
             elif vfp_misc_val >= 4:
                 fpu_type = "FPv5-SP"
             else:
