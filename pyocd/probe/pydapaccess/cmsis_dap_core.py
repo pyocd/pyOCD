@@ -83,6 +83,7 @@ class CMSISDAPVersion:
     V1_1_0 = (1, 1, 0)
     V1_2_0 = (1, 2, 0)
     V2_0_0 = (2, 0, 0)
+    V2_1_0 = (2, 1, 0)
 
 DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
