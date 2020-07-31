@@ -131,14 +131,18 @@ class Apollo3(CortexM):
     MCUCTRL_BOOTLDR = 0x400401A0
     JDEC_PID = 0xF0000FE0
 
+    SECBOOTFEATURE_Msk = 0x0C000000
+    SECBOOTFEATURE_EN = 0x04000000
+    PID_Msk = 0xf0
+    PID_APOLLO3 = 0xc0
+
     def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
         self._acquire_timeout = acquire_timeout
         super(Apollo3, self).__init__(session, ap, memoryMap, core_num)
 
     def set_reset_catch(self, reset_type=None):
         """! @brief Prepare to halt core on reset."""
-        #LOG.debug("set reset catch, core %d", self.core_number)
-
+        
         self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
         
         # Default behaviour if the delegate didn't handle it.
@@ -146,33 +150,29 @@ class Apollo3(CortexM):
             # Halt the target.
             self.halt()
 
+        #Verify Part is an Apollo3
         jdecpid = self.read_memory(self.JDEC_PID)
-        #print("JDEC PID " + str(jdecpid))
-
-        if((jdecpid & 0xf0) == 0xc0):
-            #print("Ambiq Apollo3")
+        if((jdecpid & PID_Msk) == PID_APOLLO3):
+            #Verify part is "secure"
             bootldr = self.read_memory(self.MCUCTRL_BOOTLDR)
-            if ((bootldr & 0x0C000000) == 0x04000000):
-                #print("Secure Part.")
+            if ((bootldr & SECBOOTFEATURE_Msk) == SECBOOTFEATURE_EN):
                 secure = True
         
+        #Set MCUCTRL Scratch0, indicating that the Bootloader needs to run, then halt when it is finished.
         if(secure):
             scratch0 = self.read_memory(self.MCUCTRL_SCRATCH0)
-            #print("scratch0 = "+ str(scratch0))
             self.write_memory(self.MCUCTRL_SCRATCH0, (scratch0 | 0x1))
-            #print("wrote " + str(scratch0 | 0x1) + " to scratch0")
         else:
             super(Apollo3, self).set_reset_catch(reset_type)
-            #print("I havent wrtten non secure yet")
 
     def reset(self, reset_type=None):
         super(Apollo3, self).reset(reset_type)
         sleep(0.1)
 
 class AMA3B1KK(CoreSightTarget):
-    
     VENDOR = "Ambiq Micro"
     CortexM_Core = Apollo3
+    DEFAULT_ACQUIRE_TIMEOUT = 25.0
 
     memoryMap = MemoryMap(
         FlashRegion(start=0x0000c000, length=0x000F4000, sector_size=0x2000,
@@ -183,29 +183,20 @@ class AMA3B1KK(CoreSightTarget):
         )
 
     def __init__(self, link):
-        self.DEFAULT_ACQUIRE_TIMEOUT = 25.0
+        
         super(AMA3B1KK, self).__init__(link, self.memoryMap)
         self._svd_location = SVDFile.from_builtin("apollo3.svd")
 
     def create_init_sequence(self):
         seq = super(AMA3B1KK, self).create_init_sequence()
-        seq.replace_task('create_cores', self.create_ap3_core)
+        seq.wrap_task('discovery', 
+            lambda seq: seq.replace_task('create_cores', self.create_ap3_core)
+            )
         return seq
 
     def create_ap3_core(self):
-        #print(self.aps)
         core = self.CortexM_Core(self.session, self.aps[0], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
         core.default_reset_type = self.ResetType.SW_SYSRESETREQ
         self.aps[0].core = core
         core.init()
         self.add_core(core)
-
-    def resetn(self):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        print("HELLO reset sequence")
-        self.reset()
-
-
