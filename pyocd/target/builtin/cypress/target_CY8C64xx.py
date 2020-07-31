@@ -173,7 +173,7 @@ class cy8c64xx_cm4_nosmif(cy8c64xx_nosmif):
 class cy8c64xx_cm4_full_flash(cy8c64xx_cm4):
     from .flash_algos.flash_algo_CY8C64xx import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
-    from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25FL128S import flash_algo as flash_algo_smif
+    from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
     memoryMap = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
@@ -213,7 +213,7 @@ class cy8c64xx_cm4_full_flash(cy8c64xx_cm4):
 class cy8c64xx_cm0_full_flash(cy8c64xx_cm0):
     from .flash_algos.flash_algo_CY8C64xx import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
-    from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25FL128S import flash_algo as flash_algo_smif
+    from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
     memoryMap = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
