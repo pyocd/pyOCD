@@ -152,10 +152,10 @@ class Apollo3(CortexM):
 
         #Verify Part is an Apollo3
         jdecpid = self.read_memory(self.JDEC_PID)
-        if((jdecpid & PID_Msk) == PID_APOLLO3):
+        if((jdecpid & self.PID_Msk) == self.PID_APOLLO3):
             #Verify part is "secure"
             bootldr = self.read_memory(self.MCUCTRL_BOOTLDR)
-            if ((bootldr & SECBOOTFEATURE_Msk) == SECBOOTFEATURE_EN):
+            if ((bootldr & self.SECBOOTFEATURE_Msk) == self.SECBOOTFEATURE_EN):
                 secure = True
         
         #Set MCUCTRL Scratch0, indicating that the Bootloader needs to run, then halt when it is finished.
@@ -176,7 +176,7 @@ class AMA3B1KK(CoreSightTarget):
 
     memoryMap = MemoryMap(
         FlashRegion(start=0x0000c000, length=0x000F4000, sector_size=0x2000,
-                        page_size=0x200,
+                        page_size=0x2000,
                         is_boot_memory=True,
                         algo=flash_algo),
         RamRegion(  start=0x10000000,  length=0x60000)
