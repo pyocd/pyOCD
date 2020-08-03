@@ -427,7 +427,7 @@ class CmsisPackDevice(object):
                 if j + 1 >= len(packAlgo.sector_sizes):
                     end = region.end
                 else:
-                    end = packAlgo.sector_sizes[j + 1][0] - 1
+                    end = region.start + packAlgo.sector_sizes[j + 1][0] - 1
                 
                 # Limit page size.
                 if page_size > sector_size:
