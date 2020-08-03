@@ -27,6 +27,7 @@ try:
 except ImportError:
     from inspect import getargspec
 
+from . import exceptions
 from .options_manager import OptionsManager
 from ..board.board import Board
 from ..utility.notification import Notifier
@@ -187,7 +188,11 @@ class Session(Notifier):
                 try:
                     with open(configPath, 'r') as configFile:
                         LOG.debug("Loading config from: %s", configPath)
-                        return yaml.safe_load(configFile)
+                        config = yaml.safe_load(configFile)
+                        if not isinstance(config, dict):
+                            raise exceptions.Error("configuration file %s does not contain a top-level dictionary"
+                                    % configPath)
+                        return config
                 except IOError as err:
                     LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
         
