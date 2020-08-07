@@ -16,7 +16,7 @@
 
 import six
 import logging
-import .pemicro/pemicrounitacmp as pyPEMicro
+from .pemicro.pemicro import *
 from time import sleep
 
 from .debug_probe import DebugProbe
@@ -27,23 +27,23 @@ LOG = logging.getLogger(__name__)
 
 
 ## @brief Wraps a PEMicro as a DebugProbe.
-class JPEMicroProbe(DebugProbe):
+class PEMicroProbe(DebugProbe):
 
     # Address of DP's SELECT register.
     DP_SELECT = 0x8
 
     # Bitmasks for AP register address fields.
-    A32 = 0x0000000c
     APBANKSEL = 0x000000f0
     APSEL = 0xff000000
+    APSEL_SHIFT = 24
     APSEL_APBANKSEL = APSEL | APBANKSEL
     
     @classmethod
     def _get_pemicro(cls):
         # TypeError is raised by pylink if the JLink DLL cannot be found.
         try:
-            return pyPEMicro.pemicroUnitAcmp()
-        except ProbeError:
+            return pemicroUnitAcmp()
+        except PEMicroException:
             return None
     
     @classmethod
@@ -52,8 +52,11 @@ class JPEMicroProbe(DebugProbe):
             pemicro = cls._get_pemicro()
             if pemicro is None:
                 return []
-            return [cls(str(info["id"])) for info in pemicro.listPorts()]
-        except ProbeError as exc:
+            port_list = pemicro.listPorts()
+            if port_list is None:
+                return []
+            return [cls(str(info["id"])) for info in port_list]
+        except PEMicroException as exc:
             six.raise_from(cls._convert_exception(exc), exc)
     
     @classmethod
@@ -67,26 +70,29 @@ class JPEMicroProbe(DebugProbe):
                     return cls(str(info["id"]))
             else:
                 return None
-        except ProbeError as exc:
+        except PEMicroException as exc:
             six.raise_from(cls._convert_exception(exc), exc)
 
     def __init__(self, serial_number):
-        super(JPEMicroProbe, self).__init__()
+        super(PEMicroProbe, self).__init__()
         self._pemicro = self._get_pemicro()
         if self._pemicro is None:
-            raise exceptions.ProbeError("unable to open PEMicro DLL")
+            raise PEMicroException("unable to open PEMicro DLL")
 
         self._serial_number = serial_number
         self._supported_protocols = None
         self._protocol = None
         self._default_protocol = None
         self._is_open = False
-        self._dp_select = -1
-        self._product_name = self._pemicro.version or "Unknown"
+        self._reset_delay_ms = -1
+        self.reset_pin_state = True
+        self._product_name = self._pemicro.version() or "Unknown"
         
     @property
     def description(self):
-        return self.vendor_name + " " + self.product_name
+        vendor = self.vendor_name
+        product = self.product_name
+        return  vendor + " " + product
     
     @property
     def vendor_name(self):
@@ -136,14 +142,14 @@ class JPEMicroProbe(DebugProbe):
                 self._default_protocol = DebugProbe.Protocol.SWD
             else:
                 self._default_protocol = DebugProbe.Protocol.JTAG
-        except ProbeError as exc:
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
     
     def close(self):
         try:
             self._pemicro.close()
             self._is_open = False
-        except ProbeError as exc:
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     # ------------------------------------------- #
@@ -169,13 +175,15 @@ class JPEMicroProbe(DebugProbe):
             if self.session.options.get('pemicro.power'):
                 self._pemicro.power_on()
             
-            if device_name = self.session.options.get('pemicro.device') is not None:
+            device_name = self.session.options.get('pemicro.device')
+
+            if device_name is not None:
                 if self._pemicro.set_device_name(device_name) is False:
                     LOG.warning("Set of PEMicro device name({name}) failed".format(name=device_name))
 
             self._pemicro.connect(iface, self.session.options.get("swv_clock"))            
             self._protocol = protocol
-        except exceptions.ProbeError as exc:
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def swj_sequence(self, length, bits):
@@ -197,88 +205,95 @@ class JPEMicroProbe(DebugProbe):
     def disconnect(self):
         """! @brief Disconnect from the target."""
         self._protocol = None
-        self._invalidate_cached_registers()
 
-    # def set_clock(self, frequency):
-    #     try:
-    #         self._pemicro.set_speed(frequency // 1000)
-    #     except JLinkException as exc:
-    #         six.raise_from(self._convert_exception(exc), exc)
+    def set_clock(self, frequency):
+        try:
+            self._pemicro.set_debug_frequency(frequency)
+        except PEMicroException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
 
     def reset(self):
         try:
-            self._invalidate_cached_registers()
+            # If it's neccessary, change the reset delay
+            delay = int(1000 * max(self.session.options.get('reset.hold_time'), self.session.options.get('reset.post_delay')))
+            if delay is not self._reset_delay_ms:
+                self._pemicro.set_reset_delay_in_ms(delay)
+                self._reset_delay_ms = delay
 
-            self._pemicro.set_reset_pin_low()
-            sleep(self.session.options.get('reset.hold_time'))
-            self._pemicro.set_reset_pin_high()
-            sleep(self.session.options.get('reset.post_delay'))
-        except JLinkException as exc:
+            # Try to force reset Hardware
+            self._pemicro.reset_target()
+
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def assert_reset(self, asserted):
         try:
-            self._invalidate_cached_registers()
             if asserted:
-                self._pemicro.set_reset_pin_low()
+                self.reset_pin_state = False
+                self.reset()
             else:
-                self._pemicro.set_reset_pin_high()
-        except JLinkException as exc:
+                self.reset_pin_state = True
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
     
     def is_reset_asserted(self):
-        try:
-            status = self._pemicro.hardware_status()
-            return status.tres == 0
-        except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+        return not self.reset_pin_state
 
     # ------------------------------------------- #
     #          DAP Access functions
     # ------------------------------------------- #
+    def flush(self):
+        try:
+            self._pemicro.flush_any_queued_data()
+        except exc:
+            six.raise_from(self._convert_exception(exc), exc) 
 
     def read_dp(self, addr, now=True):
         try:
-            value = self._pemicro.coresight_read(addr // 4, ap=False)
-        except JLinkException as exc:
+            value = self._pemicro.readDpRegister(addr=addr, now=now)
+        except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
         else:
             def read_reg_cb():
+                #print("Read dp value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
                 return value
-        
+
+            #if now is True:
+                #print("Read dp value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
+
             return value if now else read_reg_cb
 
     def write_dp(self, addr, data):
-        # Skip writing DP SELECT register if its value is not changing.
-        if addr == self.DP_SELECT:
-            if data == self._dp_select:
-                return
-            self._dp_select = data
-
         try:
-            ack = self._pemicro.coresight_write(addr // 4, data, ap=False)
-        except JLinkException as exc:
+            #print("Write dp value 0x{val:08X} on address 0x{addr:08X}.".format(val=data, addr=addr))
+            ack = self._pemicro.writeDpRegister(addr=addr, value=data)
+        except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def read_ap(self, addr, now=True):
         assert type(addr) in (six.integer_types)
         try:
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
-            value = self._pemicro.coresight_read((addr & self.A32) // 4, ap=True)
-        except JLinkException as exc:
+            #self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
+            value = self._pemicro.readApRegister(addr=addr, now=now, apselect= ((addr & self.APSEL_APBANKSEL) >> self.APSEL_SHIFT))
+        except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
         else:
             def read_reg_cb():
+                #print("Read ap value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
                 return value
-        
+
+            #if now is True:
+                #print("Read ap value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
+
             return value if now else read_reg_cb
 
     def write_ap(self, addr, data):
         assert type(addr) in (six.integer_types)
         try:
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
-            ack = self._pemicro.coresight_write((addr & self.A32) // 4, data, ap=True)
-        except JLinkException as exc:
+            #self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
+            ack = self._pemicro.writeApRegister(addr=addr, value=data, apselect=((addr & self.APSEL_APBANKSEL) >> self.APSEL_SHIFT))
+            #print("Write ap value 0x{val:08X} on address 0x{addr:08X}.".format(val=data, addr=addr))
+        except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def read_ap_multiple(self, addr, count=1, now=True):
@@ -296,30 +311,26 @@ class JPEMicroProbe(DebugProbe):
     def swo_start(self, baudrate):
         try:
             self._jlink.swo_start(baudrate)
-        except JLinkException as exc:
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def swo_stop(self):
         try:
             self._jlink.swo_stop()
-        except JLinkException as exc:
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def swo_read(self):
         try:
             return self._jlink.swo_read(0, self._jlink.swo_num_bytes(), True)
-        except JLinkException as exc:
+        except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
-
-    def _invalidate_cached_registers(self):
-        # Invalidate cached DP SELECT register.
-        self._dp_select = -1
 
     @staticmethod
     def _convert_exception(exc):
-        if isinstance(exc, JLinkException):
+        if isinstance(exc, PEMicroTransferException):
+            return exceptions.TransferFaultError()
+        elif isinstance(exc, PEMicroException):
             return exceptions.ProbeError(str(exc))
-        elif isinstance(exc, (JLinkWriteException, JLinkReadException)):
-            return exceptions.TransferFaultError(str(exc))
         else:
             return exc

@@ -155,7 +155,7 @@ def speed_test(board_id):
                 for i in range(len(block)):
                     if (block[i] != data[i]):
                         error = True
-                        print("ERROR: 0x%X, 0x%X, 0x%X!!!" % ((addr + i), block[i], data[i]))
+                        print("ERROR: 0x%X, 0x%X, 0x%X!!!" % ((test_addr + i), block[i], data[i]))
             if error:
                 print("TEST FAILED")
             else:
