@@ -67,21 +67,22 @@ Controls how pyOCD connects to the target. One of 'halt', 'pre-reset', 'under-re
 Wire protocol, either 'swd', 'jtag', or 'default'.
 </td></tr>
 
-<tr><td>dap_enable_swj</td>
+<tr><td>dap_swj_enable</td>
 <td>bool</td>
 <td>True</td>
 <td>
 Send SWJ transition sequence to switch between SWD and JTAG.
 </td></tr>
 
-<tr><td>dap_use_deprecated_swj</td>
+<tr><td>dap_swj_use_dormant</td>
 <td>bool</td>
-<td>True</td>
+<td>False</td>
 <td>
-Use the SWJ sequence deprecated in ADIv5.2 to transition between SWD and JTAG rather than the new
-sequence that goes through dormant mode. Requires a SWJ-DPv2. Note that if the connection attempt
-fails using the deprecated sequence, then pyOCD will automatically attempt to use the new sequence.
-This option simply skips the deprecated sequence in case it causes problems.
+When switching between SWD and JTAG, use the SWJ sequence added in ADIv5.2 that transitions through
+a new dormant state. Requires a SWJ-DPv2. Note that if the connection attempt fails using the
+deprecated sequence (when this option is disabled), then pyOCD will automatically attempt to use the
+new sequence. This option simply skips the deprecated sequence in case it causes problems or it is
+known that dormant state is required for the target.
 </td></tr>
 
 <tr><td>debug.log_flm_info</td>

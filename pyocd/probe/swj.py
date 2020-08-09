@@ -23,17 +23,17 @@ LOG = logging.getLogger(__name__)
 class SWJSequenceSender(object):
     """! @brief Class to send canned SWJ sequences."""
 
-    def __init__(self, probe, use_deprecated):
+    def __init__(self, probe, use_dormant):
         self._probe = probe
-        self._use_deprecated = use_deprecated
+        self._use_dormant = use_dormant
     
     @property
-    def use_deprecated(self):
-        return self._use_deprecated
+    def use_dormant(self):
+        return self._use_dormant
     
-    @use_deprecated.setter
-    def use_deprecated(self, flag):
-        self._use_deprecated = flag
+    @use_dormant.setter
+    def use_dormant(self, flag):
+        self._use_dormant = flag
 
     def select_protocol(self, protocol):
         """! @brief Send SWJ sequence to select chosen wire protocol."""
@@ -46,7 +46,7 @@ class SWJSequenceSender(object):
 
     def _switch_to_swd(self):
         """! @brief Send SWJ sequence to select SWD."""
-        if not self._use_deprecated:
+        if self._use_dormant:
             LOG.debug("Sending SWJ sequence to select SWD; using dormant state")
             
             # Ensure current debug interface is in reset state
@@ -78,7 +78,7 @@ class SWJSequenceSender(object):
     
     def _switch_to_jtag(self):
         """! @brief Send SWJ sequence to select JTAG."""
-        if not self._use_deprecated:
+        if self._use_dormant:
             LOG.debug("Sending SWJ sequence to select JTAG ; using dormant state")
             
             # Ensure current debug interface is in reset state
