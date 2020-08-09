@@ -654,12 +654,12 @@ class CortexM(Target, CoreSightCoreComponent):
             vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
 
             if dp_val >= 2:
-                fpu_type = "FPv5"
+                fpu_type = "FPv5-D16-M"
                 self._extensions.append(CortexMExtension.FPU_DP)
             elif vfp_misc_val >= 4:
-                fpu_type = "FPv5-SP"
+                fpu_type = "FPv5-SP-D16-M"
             else:
-                fpu_type = "FPv4-SP"
+                fpu_type = "FPv4-SP-D16-M"
             LOG.info("FPU present: " + fpu_type)
 
     def write_memory(self, addr, value, transfer_size=32):
