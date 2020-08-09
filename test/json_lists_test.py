@@ -216,7 +216,7 @@ def json_lists_test(board_id, testing_standalone=False):
     out = subprocess.check_output(['pyocd', 'json', '--features'])
     data = json.loads(out)
     test_count += 1
-    if validate_basic_keys(data, minor_version=0):
+    if validate_basic_keys(data, minor_version=1):
         test_pass_count += 1
 
     result.passed = test_count == test_pass_count

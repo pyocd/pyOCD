@@ -19,6 +19,7 @@ from time import sleep
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
+from ..core.plugin import Plugin
 from .pydapaccess import DAPAccess
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
@@ -67,14 +68,14 @@ class CMSISDAPProbe(DebugProbe):
     DAPLINK_VIDPID = (0x0d28, 0x0204)
     
     @classmethod
-    def get_all_connected_probes(cls):
+    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         try:
             return [cls(dev) for dev in DAPAccess.get_connected_devices()]
         except DAPAccess.Error as exc:
             six.raise_from(cls._convert_exception(exc), exc)
     
     @classmethod
-    def get_probe_with_id(cls, unique_id):
+    def get_probe_with_id(cls, unique_id, is_explicit=False):
         try:
             dap_access = DAPAccess.get_device(unique_id)
             if dap_access is not None:
@@ -365,3 +366,16 @@ class CMSISDAPProbe(DebugProbe):
         else:
             return exc
 
+class CMSISDAPProbePlugin(Plugin):
+    """! @brief Plugin class for CMSISDAPProbe."""
+    
+    def load(self):
+        return CMSISDAPProbe
+    
+    @property
+    def name(self):
+        return "cmsisdap"
+    
+    @property
+    def description(self):
+        return "CMSIS-DAP debug probe"
