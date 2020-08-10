@@ -81,6 +81,7 @@ VC_NAMES_MAP = {
         Target.VectorCatch.CHECK_ERR : "check error",
         Target.VectorCatch.COPROCESSOR_ERR : "coprocessor error",
         Target.VectorCatch.CORE_RESET : "core reset",
+        Target.VectorCatch.SECURE_FAULT : "secure fault",
         }
 
 HPROT_BIT_DESC = {
