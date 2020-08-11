@@ -242,6 +242,8 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 'write_mem':            (self._request__write_mem,          4   ), # 'write_mem', handle:int, addr:int, value:int, xfer_size:int
                 'read_block32':         (self._request__read_block32,       3   ), # 'read_block32', handle:int, addr:int, word_count:int -> List[int]
                 'write_block32':        (self._request__write_block32,      3   ), # 'write_block32', handle:int, addr:int, data:List[int]
+                'read_block8':          (self._request__read_block8,        3   ), # 'read_block8', handle:int, addr:int, word_count:int -> List[int]
+                'write_block8':         (self._request__write_block8,       3   ), # 'write_block8', handle:int, addr:int, data:List[int]
             }
         
         # Let superclass do its thing. (Can't use super() here because the superclass isn't derived
@@ -432,7 +434,21 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        self._ap_memif_handles[handle].read_memory_block32(addr, data)
+        self._ap_memif_handles[handle].write_memory_block32(addr, data)
+    
+    def _request__read_block8(self, handle, addr, word_count):
+        # 'read_block8', handle:int, addr:int, word_count:int -> List[int]
+        # TODO use base64 data
+        if handle not in self._ap_memif_handles:
+            raise exceptions.Error("invalid handle received from remote memory access")
+        return self._ap_memif_handles[handle].read_memory_block8(addr, word_count)
+    
+    def _request__write_block8(self, handle, addr, data):
+        # 'write_block8', handle:int, addr:int, data:List[int]
+        # TODO use base64 data
+        if handle not in self._ap_memif_handles:
+            raise exceptions.Error("invalid handle received from remote memory access")
+        self._ap_memif_handles[handle].write_memory_block8(addr, data)
 
     _PROPERTY_CONVERTERS = {
             'capabilities':                 lambda value: [v.name for v in value],

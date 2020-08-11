@@ -363,6 +363,12 @@ class RemoteMemoryInterface(MemoryInterface):
     def read_memory_block32(self, addr, size):
         return self._remote_probe._perform_request('read_block32', self._handle, addr, size)
 
+    def write_memory_block8(self, addr, data):
+        self._remote_probe._perform_request('write_block8', self._handle, addr, data)
+
+    def read_memory_block8(self, addr, size):
+        return self._remote_probe._perform_request('read_block8', self._handle, addr, size)
+
 class TCPClientProbePlugin(Plugin):
     """! @brief Plugin class for TCPClientProbePlugin."""
     

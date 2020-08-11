@@ -82,6 +82,8 @@ Command                  | Arguments                                          | 
 `write_mem`              | handle:int, addr:int, value:int, xfer_size:int     |
 `read_block32`           | handle:int, addr:int, word_count:int               | List[int]
 `write_block32`          | handle:int, addr:int, data:List[int]               |
+`read_block8`            | handle:int, addr:int, word_count:int               | List[int]
+`write_block8`           | handle:int, addr:int, data:List[int]               |
 
 
 Semantics
