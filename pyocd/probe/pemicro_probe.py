@@ -15,8 +15,8 @@
 # limitations under the License.
 
 import six
-import logging
 from .pemicro.pemicro import *
+import logging
 from time import sleep
 
 from .debug_probe import DebugProbe
@@ -24,6 +24,8 @@ from ..core import (exceptions, memory_interface)
 
 LOG = logging.getLogger(__name__)
 
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.WARNING)
 
 
 ## @brief Wraps a PEMicro as a DebugProbe.
@@ -42,7 +44,10 @@ class PEMicroProbe(DebugProbe):
     def _get_pemicro(cls):
         # TypeError is raised by pylink if the JLink DLL cannot be found.
         try:
-            return pemicroUnitAcmp()
+            return pemicroUnitAcmp(log_debug=TRACE.debug, 
+                                   log_err=TRACE.error, 
+                                   log_war=TRACE.warning, 
+                                   log_info=TRACE.info)
         except PEMicroException:
             return None
     
@@ -255,17 +260,17 @@ class PEMicroProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
         else:
             def read_reg_cb():
-                #print("Read dp value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
+                TRACE.debug("Read dp value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
                 return value
 
-            #if now is True:
-                #print("Read dp value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
+            if now is True:
+                TRACE.debug("Read dp value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
 
             return value if now else read_reg_cb
 
     def write_dp(self, addr, data):
         try:
-            #print("Write dp value 0x{val:08X} on address 0x{addr:08X}.".format(val=data, addr=addr))
+            TRACE.debug("Write dp value 0x{val:08X} on address 0x{addr:08X}.".format(val=data, addr=addr))
             ack = self._pemicro.writeDpRegister(addr=addr, value=data)
         except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
@@ -279,11 +284,11 @@ class PEMicroProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
         else:
             def read_reg_cb():
-                #print("Read ap value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
+                TRACE.debug("Read ap value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
                 return value
 
-            #if now is True:
-                #print("Read ap value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
+            if now is True:
+                TRACE.debug("Read ap value is 0x{val:08X} on address 0x{addr:08X}.".format(val=value, addr=addr))
 
             return value if now else read_reg_cb
 
@@ -292,16 +297,21 @@ class PEMicroProbe(DebugProbe):
         try:
             #self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
             ack = self._pemicro.writeApRegister(addr=addr, value=data, apselect=((addr & self.APSEL_APBANKSEL) >> self.APSEL_SHIFT))
-            #print("Write ap value 0x{val:08X} on address 0x{addr:08X}.".format(val=data, addr=addr))
+            TRACE.debug("Write ap value 0x{val:08X} on address 0x{addr:08X}.".format(val=data, addr=addr))
         except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def read_ap_multiple(self, addr, count=1, now=True):
-        results = [self.read_ap(addr, now=True) for n in range(count)]
+        now = True
+        results = [self.read_ap(addr, now=now) for n in range(count)]
         
         def read_ap_multiple_result_callback():
+            print(results)
             return results
         
+        if now:
+            print(results)
+
         return results if now else read_ap_multiple_result_callback
 
     def write_ap_multiple(self, addr, values):
