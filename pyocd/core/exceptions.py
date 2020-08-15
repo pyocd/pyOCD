@@ -119,4 +119,7 @@ class FlashProgramFailure(FlashFailure):
     """! @brief An attempt to program flash failed. """
     pass
 
+class CommandError(Error):
+    """! @brief Raised when a command encounters an error."""
+    pass
 

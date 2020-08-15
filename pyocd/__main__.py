@@ -49,7 +49,7 @@ from .probe.pydapaccess import DAPAccess
 from .probe.tcp_probe_server import DebugProbeServer
 from .probe.shared_probe_proxy import SharedDebugProbeProxy
 from .tools.lists import ListGenerator
-from .tools.pyocd import PyOCDCommander
+from .commands.commander import PyOCDCommander
 from .flash.eraser import FlashEraser
 from .flash.file_programmer import FileProgrammer
 from .core import options
