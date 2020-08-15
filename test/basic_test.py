@@ -84,11 +84,16 @@ def basic_test(board_id, file):
         psp = target.read_core_register('psp')
         print("MSP = 0x%08x; PSP = 0x%08x" % (msp, psp))
 
-        control = target.read_core_register('control')
-        faultmask = target.read_core_register('faultmask')
-        basepri = target.read_core_register('basepri')
-        primask = target.read_core_register('primask')
-        print("CONTROL = 0x%02x; FAULTMASK = 0x%02x; BASEPRI = 0x%02x; PRIMASK = 0x%02x" % (control, faultmask, basepri, primask))
+        if 'faultmask' in target.core_registers.by_name:
+            control = target.read_core_register('control')
+            faultmask = target.read_core_register('faultmask')
+            basepri = target.read_core_register('basepri')
+            primask = target.read_core_register('primask')
+            print("CONTROL = 0x%02x; FAULTMASK = 0x%02x; BASEPRI = 0x%02x; PRIMASK = 0x%02x" % (control, faultmask, basepri, primask))
+        else:
+            control = target.read_core_register('control')
+            primask = target.read_core_register('primask')
+            print("CONTROL = 0x%02x; PRIMASK = 0x%02x" % (control, primask))
 
         target.write_core_register('primask', 1)
         newPrimask = target.read_core_register('primask')
