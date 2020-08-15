@@ -183,3 +183,36 @@ def convert_frequency(value):
     else:
         return int(float(value))
 
+class UniquePrefixMatcher(object):
+    """! @brief Manages detection of shortest unique prefix match of a set of strings."""
+    
+    def __init__(self, items):
+        """! @brief Constructor.
+        @param self This object.
+        @param items Sequence of strings.
+        """
+        self._items = items
+    
+    def find_all(self, prefix):
+        """! @brief Return all items matching the given prefix.
+        @param self This object.
+        @param prefix String that is compared as a prefix against the items passed to the constructor.
+            Must not be the empty string.
+        @return List of all items where `prefix` is a valid prefix.
+        @exception ValueError Raised for an empty `prefix`.
+        """
+        if len(prefix) == 0:
+            raise ValueError("empty prefix")
+        return tuple(i for i in self._items if i.startswith(prefix))
+    
+    def find_one(self, prefix):
+        """! @brief Return the item matching the given prefix, or None.
+        @param self This object.
+        @param prefix String that is compared as a prefix against the items passed to the constructor.
+        @return The full value of the matching item where `prefix` is a valid prefix.
+        @exception ValueError Raised for an empty `prefix`.
+        """
+        all_matches = self.find_all(prefix)
+        if len(all_matches) == 1:
+            return all_matches[0]
+        return None
