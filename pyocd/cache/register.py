@@ -73,14 +73,17 @@ class RegisterCache(object):
             LOG.debug("no accesses")
 
     def _check_cache(self):
+        """! @brief Invalidates the cache if needed and returns whether the core is running."""
         if self._core.is_running():
             LOG.debug("core is running; invalidating cache")
             self._reset_cache()
+            return True
         elif self._run_token != self._core.run_token:
             self._dump_metrics()
             LOG.debug("out of date run token; invalidating cache")
             self._reset_cache()
             self._run_token = self._core.run_token
+        return False
 
     def _convert_and_check_registers(self, reg_list):
         # convert to index only
@@ -89,7 +92,9 @@ class RegisterCache(object):
         return reg_list
 
     def read_core_registers_raw(self, reg_list):
-        self._check_cache()
+        # Invalidate the cache. If the core is still running, just read directly from it.
+        if self._check_cache():
+            return self._context.read_core_registers_raw(reg_list)
 
         reg_list = self._convert_and_check_registers(reg_list)
         reg_set = set(reg_list)
@@ -156,7 +161,11 @@ class RegisterCache(object):
 
     # TODO only write dirty registers to target right before running.
     def write_core_registers_raw(self, reg_list, data_list):
-        self._check_cache()
+        # Check and invalidate the cache. If the core is still running, just pass the writes
+        # to our context.
+        if self._check_cache():
+            self._context.write_core_registers_raw(reg_list, data_list)
+            return
 
         reg_list = self._convert_and_check_registers(reg_list)
         self._metrics.writes += len(reg_list)
