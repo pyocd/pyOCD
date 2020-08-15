@@ -338,61 +338,21 @@ class CortexM(Target, CoreSightCoreComponent):
                 DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
                 )
 
-    def build_target_xml(self):
-        """! @brief Build register_list and targetXML"""
-        self.register_list = []
-        xml_root = Element('target')
-        xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
+    def _build_registers(self):
+        """! @brief Build set of core registers available on this code.
         
-        def append_regs(regs, xml_element):
-            for reg in regs:
-                self.register_list.append(reg)
-                SubElement(xml_element, 'reg', **reg.gdb_xml_attrib)
+        This method builds the list of core registers for this particular core. This includes all
+        available core registers, and some variants of registers such as 'ipsr', 'iapsr', and the
+        individual CFBP registers as well as 'cfbp' itself. This set of registers is available in
+        the `core_registers` property as a CoreRegistersIndex object.
+        """
+        self._core_registers.add_group(CoreRegisterGroups.M_PROFILE_COMMON)
 
-        # Add general purpose registers.
-        append_regs(self.regs_general, xml_regs_general)
-        
-        # Depending on the xpsr_control_fields setting, the XPSR and CONTROL registers are
-        # added as either plain int regs or structured registers with fields defined in the XML.
-        if self.session.options.get('xpsr_control_fields'):
-            # Define XPSR and CONTROL register fields.
-            control = SubElement(xml_regs_general, 'flags', id="control", size="4")
-            SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
-            SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")
-            if self.has_fpu:
-                SubElement(control, "field", name="FPCS", start="2", end="2", type="bool")
-
-            apsr = SubElement(xml_regs_general, 'flags', id="apsr", size="4")
-            SubElement(apsr, "field", name="N", start="31", end="31", type="bool")
-            SubElement(apsr, "field", name="Z", start="30", end="30", type="bool")
-            SubElement(apsr, "field", name="C", start="29", end="29", type="bool")
-            SubElement(apsr, "field", name="V", start="28", end="28", type="bool")
-            SubElement(apsr, "field", name="Q", start="27", end="27", type="bool")
-
-            ipsr = SubElement(xml_regs_general, 'struct', id="ipsr", size="4")
-            SubElement(ipsr, "field", name="EXC", start="0", end="8", type="int")
-        
-            xpsr = SubElement(xml_regs_general, 'union', id="xpsr")
-            SubElement(xpsr, "field", name="xpsr", type="uint32")
-            SubElement(xpsr, "field", name="apsr", type="apsr")
-            SubElement(xpsr, "field", name="ipsr", type="ipsr")
-            
-            append_regs(self.regs_xpsr_control_fields, xml_regs_general)
-        else:
-            # Add XPSR and CONTROL as plain int registers.
-            append_regs(self.regs_xpsr_control_plain, xml_regs_general)
-        
-        # Check if target has ARMv7 registers
         if self.architecture == CoreArchitecture.ARMv7M:
-            append_regs(self.regs_system_armv7_only, xml_regs_general)
-        # Check if target has FPU registers
-        if self.has_fpu:
-            # GDB understands the double/single separation so we don't need
-            # to separately pass the single regs, just the double
-            xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
-            append_regs(self.regs_float, xml_regs_fpu)
+            self._core_registers.add_group(CoreRegisterGroups.V7M_v8M_ML_ONLY)
 
-        self.target_xml = b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
+        if self.has_fpu:
+            self._core_registers.add_group(CoreRegisterGroups.VFP_V5)
 
     def _read_core_type(self):
         """! @brief Read the CPUID register and determine core type and architecture."""

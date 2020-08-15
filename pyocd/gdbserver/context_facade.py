@@ -32,6 +32,10 @@ MAP_XML_HEADER = b"""<?xml version="1.0"?>
 <!DOCTYPE memory-map PUBLIC "+//IDN gnu.org//DTD GDB Memory Map V1.0//EN" "http://sourceware.org/gdb/gdb-memory-map.dtd">
 """
 
+TARGET_XML_HEADER = b"""<?xml version="1.0"?>
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+"""
+
 ## @brief Maps the fault code found in the IPSR to a GDB signal value.
 FAULT = [
             signals.SIGSTOP,
@@ -54,6 +58,9 @@ GDB_TYPE_MAP = {
 class GDBDebugContextFacade(object):
     """! @brief Provides GDB specific transformations to a DebugContext."""
 
+    ## The order certain target features should appear in target XML.        
+    REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.vfp")
+
     def __init__(self, context):
         self._context = context
         
@@ -71,6 +78,9 @@ class GDBDebugContextFacade(object):
         
         ## Map of gdb regnum to register info.
         self._gdb_regnum_map = {reg.gdb_regnum: reg for reg in self._register_list}
+        
+        ## String of XML target description for gdb.
+        self._target_xml = self._build_target_xml()
 
     @property
     def context(self):
@@ -248,8 +258,73 @@ class GDBDebugContextFacade(object):
                 prop.text = hex(r.blocksize).rstrip("L")
         return MAP_XML_HEADER + ElementTree.tostring(root)
 
+    def _define_xpsr_control_fields(self, xml_feature):
+        """! @brief Define XPSR and CONTROL register types with fields."""
+        control = ElementTree.SubElement(xml_feature, 'flags', id="control", size="4")
+        ElementTree.SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
+        ElementTree.SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")
+        if self._context.core.has_fpu:
+            ElementTree.SubElement(control, "field", name="FPCA", start="2", end="2", type="bool")
+        if Target.SecurityState.SECURE in self._context.core.supported_security_states:
+            ElementTree.SubElement(control, "field", name="SFPA", start="3", end="3", type="bool")
+
+        apsr = ElementTree.SubElement(xml_feature, 'flags', id="apsr", size="4")
+        ElementTree.SubElement(apsr, "field", name="N", start="31", end="31", type="bool")
+        ElementTree.SubElement(apsr, "field", name="Z", start="30", end="30", type="bool")
+        ElementTree.SubElement(apsr, "field", name="C", start="29", end="29", type="bool")
+        ElementTree.SubElement(apsr, "field", name="V", start="28", end="28", type="bool")
+        ElementTree.SubElement(apsr, "field", name="Q", start="27", end="27", type="bool")
+        ElementTree.SubElement(apsr, "field", name="GE", start="16", end="19", type="int")
+
+        ipsr = ElementTree.SubElement(xml_feature, 'struct', id="ipsr", size="4")
+        ElementTree.SubElement(ipsr, "field", name="EXC", start="0", end="8", type="int")
+
+        xpsr = ElementTree.SubElement(xml_feature, 'union', id="xpsr")
+        ElementTree.SubElement(xpsr, "field", name="xpsr", type="uint32")
+        ElementTree.SubElement(xpsr, "field", name="apsr", type="apsr")
+        ElementTree.SubElement(xpsr, "field", name="ipsr", type="ipsr")
+
+    def _build_target_xml(self):
+        # Extract list of registers, group into gdb features.
+        regs_sorted_by_feature = sorted(self._register_list, key=lambda r: r.gdb_feature) # Must sort for groupby().
+        regs_by_feature = {k: list(g) for k, g in groupby(regs_sorted_by_feature, key=lambda r: r.gdb_feature)}
+        unordered_features = list(regs_by_feature.keys())
+        features = []
+        
+        # Get a list of gdb features with some features having a determined order.
+        for feature_name in self.REQUIRED_FEATURE_ORDER:
+            if feature_name in unordered_features:
+                features.append(feature_name)
+                unordered_features.remove(feature_name)
+        # Add any remaining features at the end of the feature list.
+        features += unordered_features
+        
+        use_xpsr_control_fields = self._context.session.options.get('xpsr_control_fields')
+        
+        xml_root = ElementTree.Element('target')
+        
+        for feature_name in features:
+            regs = regs_by_feature[feature_name]
+        
+            xml_feature = ElementTree.SubElement(xml_root, "feature", name=feature_name)
+
+            # Special case for XPSR and CONTROL bitfield presentation.
+            if (feature_name == "org.gnu.gdb.arm.m-profile") and use_xpsr_control_fields:
+                self._define_xpsr_control_fields(xml_feature)
+            
+            # Add XML for the registers in this feature.
+            for reg in regs:
+                if use_xpsr_control_fields and (reg.name in ('xpsr', 'control')):
+                    reg_type = reg.name
+                else:
+                    reg_type = reg.gdb_type
+                ElementTree.SubElement(xml_feature, 'reg', name=reg.name, bitsize=str(reg.bitsize),
+                        type=reg_type, group=reg.group, regnum=str(reg.gdb_regnum))
+
+        return TARGET_XML_HEADER + ElementTree.tostring(xml_root)
+
     def get_target_xml(self):
-        return self._context.core.get_target_xml()
+        return self._target_xml
 
     def flush(self):
         self._context.core.flush()
