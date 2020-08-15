@@ -47,6 +47,13 @@ class CortexM_v8M(CortexM):
     PFR1_SECURITY_EXT_V8_0 = 0x1 # Base security extension.
     PFR1_SECURITY_EXT_V8_1 = 0x3 # v8.1-M adds several instructions.
 
+    # Media and FP Feature Register 1
+    MVFR1 = 0xE000EF44
+    MVFR1_MVE_MASK = 0x00000f00
+    MVFR1_MVE_SHIFT = 8
+    MVFR1_MVE__INTEGER = 0x1
+    MVFR1_MVE__FLOAT = 0x2
+
     def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
         super(CortexM_v8M, self).__init__(rootTarget, ap, memoryMap, core_num, cmpid, address)
 
@@ -85,6 +92,8 @@ class CortexM_v8M(CortexM):
         self.has_security_extension = pfr1_sec in (self.PFR1_SECURITY_EXT_V8_0, self.PFR1_SECURITY_EXT_V8_1)
         if self.has_security_extension:
             self._extensions.append(CortexMExtension.SEC)
+        if pfr1_sec == self.PFR1_SECURITY_EXT_V8_1:
+            self._extensions.append(CortexMExtension.SEC_V81)
         
         if arch == self.ARMv8M_BASE:
             self._architecture = CoreArchitecture.ARMv8M_BASE
@@ -99,13 +108,40 @@ class CortexM_v8M(CortexM):
         else:
             LOG.warning("CPU core #%d type is unrecognized", self.core_number)
 
+    def _check_for_fpu(self):
+        """! @brief Determine if a core has an FPU.
+        
+        In addition to the tests performed by CortexM, this method tests for the MVE extension.
+        """
+        super(CortexM_v8M, self)._check_for_fpu()
+        
+        # Check for MVE.
+        mvfr1 = self.read32(self.MVFR1)
+        mve = (mvfr1 & self.MVFR1_MVE_MASK) >> self.MVFR1_MVE_SHIFT
+        if mve == self.MVFR1_MVE__INTEGER:
+            self.extensions.append(CortexMExtension.MVE)
+        elif mve == self.MVFR1_MVE__FLOAT:
+            self.extensions += [CortexMExtension.MVE, CortexMExtension.MVE_FP]
+
     def _build_registers(self):
         super(CortexM_v8M, self)._build_registers()
+        
+        # Registers available with Security extension, either Baseline or Mainline.
+        if self.has_security_extension:
+            self._core_registers.add_group(CoreRegisterGroups.V8M_SEC_ONLY)
 
+        # Mainline-only registers.
         if self.architecture == CoreArchitecture.ARMv8M_MAIN:
             self._core_registers.add_group(CoreRegisterGroups.V7M_v8M_ML_ONLY)
         
-    
+            # Registers available when both Mainline and Security extensions are implemented.
+            if self.has_security_extension:
+                self._core_registers.add_group(CoreRegisterGroups.V8M_ML_SEC_ONLY)
+        
+        # MVE registers.
+        if CortexMExtension.MVE in self.extensions:
+            self._core_registers.add_group(CoreRegisterGroups.V81M_MVE_ONLY)
+        
     def get_security_state(self):
         """! @brief Returns the current security state of the processor.
         

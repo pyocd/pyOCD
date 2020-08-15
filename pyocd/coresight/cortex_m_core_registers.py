@@ -149,6 +149,32 @@ class CoreRegisterGroups:
         _I('faultmask', -3,     32,     'int',          'system',   39,     "org.gnu.gdb.arm.m-profile"),
         ]
 
+    ## @brief Extra registers available with only with the Security extension.
+    V8M_SEC_ONLY = [
+        #  Name         index   bits    type            group      gdbnum  feature
+        _I('msp_ns',    24,     32,     'data_ptr',     'stack',    40,     "v8-m.sp"),
+        _I('psp_ns',    25,     32,     'data_ptr',     'stack',    41,     "v8-m.sp"),
+        _I('msp_s',     26,     32,     'data_ptr',     'stack',    42,     "v8-m.sp"),
+        _I('psp_s',     27,     32,     'data_ptr',     'stack',    43,     "v8-m.sp"),
+        _I('msplim_s',  28,     32,     'int',          'stack',    46,     "v8-m.sp"),
+        _I('psplim_s',  29,     32,     'int',          'stack',    47,     "v8-m.sp"),
+        _I('cfbp_s',    34,     32,     'int',          'system'),
+        _I('cfbp_ns',   35,     32,     'int',          'system'),
+        ]
+
+    ## @brief The NS stack limits are only available when both Main and Security extensions are present.
+    V8M_ML_SEC_ONLY = [
+        #  Name         index   bits    type            group       gdbnum  feature
+        _I('msplim_ns', 30,     32,     'int',          'stack',    44,     "v8-m.sp"),
+        _I('psplim_ns', 31,     32,     'int',          'stack',    45,     "v8-m.sp"),
+        ]
+
+    ## @brief Registers only available with the MVE extension.
+    V81M_MVE_ONLY = [
+        #  Name         index   bits    type            group       gdbnum  feature
+        _I('vpr',       36,     32,     'int',          'mve',      44,     "v8-m.mve"),
+        ]
+
     ## @brief VFPv5 floating point registers.
     #
     # GDB understands the double/single separation so we don't need to separately pass the single regs,
@@ -223,6 +249,9 @@ class CoreRegisterGroups:
 # Build info map.
 CortexMCoreRegisterInfo.add_to_map(CoreRegisterGroups.M_PROFILE_COMMON
             + CoreRegisterGroups.V7M_v8M_ML_ONLY
+            + CoreRegisterGroups.V8M_SEC_ONLY
+            + CoreRegisterGroups.V8M_ML_SEC_ONLY
+            + CoreRegisterGroups.V81M_MVE_ONLY
             + CoreRegisterGroups.VFP_V5)
 
 def index_for_reg(name):
