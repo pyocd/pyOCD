@@ -114,6 +114,7 @@ setup(
         'pyocd.probe': [
             'cmsisdap = pyocd.probe.cmsis_dap_probe:CMSISDAPProbePlugin',
             'jlink = pyocd.probe.jlink_probe:JLinkProbePlugin',
+            'remote = pyocd.probe.tcp_client_probe:TCPClientProbePlugin',
             'stlink = pyocd.probe.stlink_probe:StlinkProbePlugin',
         ],
         'pyocd.rtos': [

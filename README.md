@@ -21,6 +21,7 @@ The `pyocd` command line tool gives you total control over your device with thes
 - `pack`: Manage [CMSIS Device Family Packs](http://arm-software.github.io/CMSIS_5/Pack/html/index.html)
     that provide additional target device support.
 - `commander`: Interactive REPL control and inspection of the MCU.
+- `server`: Share a debug probe with a TCP/IP server.
 - `list`: Show connected devices.
 
 The API and tools provide these features:
