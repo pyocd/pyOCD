@@ -108,3 +108,7 @@ def align_up(value, multiple):
     """! @brief Return value aligned up to multiple."""
     return (value + multiple - 1) // multiple * multiple
 
+def round_up_div(value, divisor):
+    """! @brief Return value divided by the divisor, rounding up to the nearest multiple of the divisor."""
+    return (value + divisor - 1) // divisor
+

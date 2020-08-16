@@ -15,8 +15,6 @@
 # limitations under the License.
 
 from .provider import (TargetThread, ThreadProvider)
-from ..debug.context import DebugContext
-from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from ..core import exceptions
 import logging
 

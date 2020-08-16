@@ -49,6 +49,10 @@ class DebugError(TargetError):
     """! @brief Error controlling target debug resources"""
     pass
 
+class CoreRegisterAccessError(DebugError):
+    """! @brief Failure to read or write a core register."""
+    pass
+
 class TransferError(DebugError):
     """! @brief Error ocurred with a transfer over SWD or JTAG"""
     pass

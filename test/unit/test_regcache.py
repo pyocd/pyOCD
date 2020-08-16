@@ -19,13 +19,8 @@ import logging
 
 from pyocd.cache.register import RegisterCache
 from pyocd.debug.context import DebugContext
-from pyocd.coresight.cortex_m import (
-    CortexM,
-    CORE_REGISTER,
-    register_name_to_index,
-    is_psr_subregister,
-    sysm_to_psr_mask
-)
+from pyocd.coresight.cortex_m import CortexM
+from pyocd.coresight.cortex_m_core_registers import CortexMCoreRegisterInfo
 from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
@@ -34,13 +29,17 @@ from pyocd.utility import mask
 def regcache(mockcore):
     return RegisterCache(DebugContext(mockcore), mockcore)
 
-# Copy of the register list without composite registers.
-CORE_REGS_NO_COMPOSITES = CORE_REGISTER.copy()
-CORE_REGS_NO_COMPOSITES.pop('cfbp')
-CORE_REGS_NO_COMPOSITES.pop('xpsr')
-CORE_REGS_NO_COMPOSITES.pop('iapsr')
-CORE_REGS_NO_COMPOSITES.pop('eapsr')
-CORE_REGS_NO_COMPOSITES.pop('iepsr')
+@pytest.fixture(scope='function')
+def regcache_no_fpu(mockcore_no_fpu):
+    return RegisterCache(DebugContext(mockcore_no_fpu), mockcore_no_fpu)
+
+COMPOSITES = [
+    'cfbp',
+    'xpsr',
+    'iapsr',
+    'eapsr',
+    'iepsr',
+    ]
 
 # Appropriate modifiers for masked registers - others modified by adding 7
 REG_MODIFIER = {
@@ -48,13 +47,17 @@ REG_MODIFIER = {
     'epsr': 0x01000C00,
 }
 
+# Return list of reg names from the core, excluding composite regs.
+def core_regs_composite_regs(core):
+    return list(r for r in core.core_registers.by_name.keys() if r not in COMPOSITES)
+
 def get_modifier(r):
     return REG_MODIFIER.get(r, 7)
 
 def get_expected_reg_value(r):
-    i = register_name_to_index(r)
-    if is_psr_subregister(i):
-        return 0x55555555 & sysm_to_psr_mask(i)
+    i = CortexMCoreRegisterInfo.register_name_to_index(r)
+    if CortexMCoreRegisterInfo.get(i).is_psr_subregister:
+        return 0x55555555 & CortexMCoreRegisterInfo.get(i).psr_mask
     if i < 0:
         i += 100
     return i + 1
@@ -72,7 +75,7 @@ def get_expected_xpsr():
 
 class TestRegisterCache:
     def set_core_regs(self, mockcore, modify=False):
-        for r in CORE_REGS_NO_COMPOSITES:
+        for r in core_regs_composite_regs(mockcore):
             if modify:
                 modifier = get_modifier(r)
             else:
@@ -99,17 +102,17 @@ class TestRegisterCache:
 
     def test_reading_from_core(self, mockcore, regcache):
         self.set_core_regs(mockcore)
-        for r in CORE_REGS_NO_COMPOSITES:
+        for r in core_regs_composite_regs(mockcore):
             assert regcache.read_core_registers_raw([r]) == [get_expected_reg_value(r)]
 
     def test_read_cached(self, mockcore, regcache):
         self.set_core_regs(mockcore)
         # cache all regs
-        regcache.read_core_registers_raw(CORE_REGS_NO_COMPOSITES.values())
+        regcache.read_core_registers_raw(core_regs_composite_regs(mockcore))
         # modify regs in mock core
         self.set_core_regs(mockcore, True)
         # cache should return original unmodified values
-        for r in CORE_REGS_NO_COMPOSITES:
+        for r in core_regs_composite_regs(mockcore):
             assert regcache.read_core_registers_raw([r]) == [get_expected_reg_value(r)]
 
     def test_read_cfbp(self, mockcore, regcache):
@@ -153,9 +156,9 @@ class TestRegisterCache:
     
     def test_write_regs(self, mockcore, regcache):
         self.set_core_regs(mockcore)
-        for r in CORE_REGS_NO_COMPOSITES:
+        for r in core_regs_composite_regs(mockcore):
             regcache.write_core_registers_raw([r], [get_expected_reg_value(r) + get_modifier(r)])
-        for r in CORE_REGS_NO_COMPOSITES:
+        for r in core_regs_composite_regs(mockcore):
             assert mockcore.read_core_registers_raw([r]) == [get_expected_reg_value(r) + get_modifier(r)]
      
     def test_write_cfbp(self, mockcore, regcache):
@@ -187,22 +190,20 @@ class TestRegisterCache:
             ]
 
     def test_invalid_reg_r(self, regcache):
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             regcache.read_core_registers_raw([132423])
 
     def test_invalid_reg_w(self, regcache):
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             regcache.write_core_registers_raw([132423], [1234])
     
-    def test_invalid_fpu_reg_r(self, mockcore, regcache):
-        mockcore.has_fpu = False
-        with pytest.raises(ValueError):
-            regcache.read_core_registers_raw(['s1'])
+    def test_invalid_fpu_reg_r(self, regcache_no_fpu):
+        with pytest.raises(KeyError):
+            regcache_no_fpu.read_core_registers_raw(['s1'])
     
-    def test_invalid_fpu_reg_w(self, mockcore, regcache):
-        mockcore.has_fpu = False
-        with pytest.raises(ValueError):
-            regcache.write_core_registers_raw(['s1'], [1.234])
+    def test_invalid_fpu_reg_w(self, regcache_no_fpu):
+        with pytest.raises(KeyError):
+            regcache_no_fpu.write_core_registers_raw(['s1'], [1.234])
 
             
 

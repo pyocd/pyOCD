@@ -29,6 +29,7 @@ import pprint
 import textwrap
 import colorama
 import atexit
+from natsort import natsort
 
 # Attempt to import readline.
 try:
@@ -50,10 +51,12 @@ from ..flash.eraser import FlashEraser
 from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import (mask, conversion)
-from ..utility.cmdline import (convert_session_options, convert_frequency)
+from ..utility.cmdline import (convert_session_options, convert_frequency, UniquePrefixMatcher)
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
 from ..utility.compatibility import get_terminal_size
+from ..utility.columns import ColumnFormatter
+from ..utility.mask import round_up_div
 
 # Make disasm optional.
 try:
@@ -426,6 +429,10 @@ INFO_HELP = {
             'aliases' : [],
             'help' : "Report whether the target is locked."
             },
+        'register-groups' : {
+            'aliases' : [],
+            'help' : "Display available register groups for the selected core."
+            },
         }
 
 OPTION_HELP = {
@@ -566,7 +573,7 @@ class PyOCDConsole(object):
             args = args[1:]
 
             # Handle register name as command.
-            if cmd in coresight.cortex_m.CORE_REGISTER:
+            if cmd in self.tool.target.core_registers.by_name:
                 self.tool.handle_reg([cmd])
                 return
 
@@ -707,6 +714,7 @@ class PyOCDCommander(object):
                 'hprot' :               self.handle_show_hprot,
                 'graph' :               self.handle_show_graph,
                 'locked' :              self.handle_show_locked,
+                'register-groups' :     self.handle_show_register_groups,
             }
         self.option_list = {
                 'vector-catch' :        self.handle_set_vectorcatch,
@@ -922,34 +930,42 @@ class PyOCDCommander(object):
 
         reg = args[0].lower()
         if reg == "all":
-            self.dump_registers(True)
-        elif reg in coresight.cortex_m.CORE_REGISTER:
+            self.dump_registers(show_all=True)
+            return
+        
+        # Check register names first.
+        if reg in self.target.core_registers.by_name:
             if not self.target.is_halted():
                 print("Core is not halted; cannot read core registers")
                 return
 
+            info = self.target.core_registers.by_name[reg]
             value = self.target.read_core_register(reg)
-            if isinstance(value, six.integer_types):
-                print("%s = 0x%08x (%d)" % (reg, value, value))
-            elif type(value) is float:
-                print("%s = %g" % (reg, value))
-            else:
-                raise ToolError("Unknown register value type")
-        else:
-            subargs = reg.split('.')
-            if subargs[0] in self.peripherals:
-                p = self.peripherals[subargs[0]]
-                if len(subargs) > 1:
-                    r = [x for x in p.registers if x.name.lower() == subargs[1]]
-                    if len(r):
-                        self._dump_peripheral_register(p, r[0], show_fields)
-                    else:
-                        raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
+            value_str = self._format_core_register(info, value)
+            print("%s = %s" % (reg, value_str))
+            return
+        
+        # Now look for matching group name.
+        matcher = UniquePrefixMatcher(self.target.core_registers.groups)
+        group_matches = matcher.find_all(reg)
+        if len(group_matches) == 1:
+            self.dump_registers(show_group=group_matches[0])
+            return
+        
+        subargs = reg.split('.')
+        if subargs[0] in self.peripherals:
+            p = self.peripherals[subargs[0]]
+            if len(subargs) > 1:
+                r = [x for x in p.registers if x.name.lower() == subargs[1]]
+                if len(r):
+                    self._dump_peripheral_register(p, r[0], show_fields)
                 else:
-                    for r in p.registers:
-                        self._dump_peripheral_register(p, r, show_fields)
+                    raise ToolError("invalid register '%s' for %s" % (subargs[1], p.name))
             else:
-                raise ToolError("invalid peripheral '%s'" % (subargs[0]))
+                for r in p.registers:
+                    self._dump_peripheral_register(p, r, show_fields)
+        else:
+            raise ToolError("invalid peripheral '%s'" % (subargs[0]))
 
     def handle_write_reg(self, args):
         if len(args) < 1:
@@ -965,7 +981,7 @@ class PyOCDCommander(object):
             do_readback = False
 
         reg = args[0].lower()
-        if reg in coresight.cortex_m.CORE_REGISTER:
+        if reg in self.target.core_registers.by_name:
             if not self.target.is_halted():
                 print("Core is not halted; cannot write core registers")
                 return
@@ -1897,6 +1913,10 @@ class PyOCDCommander(object):
         else:
             print("Taget is unlocked")
 
+    def handle_show_register_groups(self, args):
+        for g in sorted(self.target.core_registers.groups):
+            print(g)
+
     def handle_set(self, args):
         if len(args) < 1:
             raise ToolError("missing option name argument")
@@ -2060,7 +2080,7 @@ Prefix line with ! to execute a shell command.""")
                 offset = int(offset.strip(), base=0)
 
         value = None
-        if arg.lower() in coresight.cortex_m.CORE_REGISTER:
+        if arg.lower() in self.target.core_registers.by_name:
             value = self.target.read_core_register(arg.lower())
             print("%s = 0x%08x" % (arg.lower(), value))
         else:
@@ -2087,41 +2107,46 @@ Prefix line with ! to execute a shell command.""")
 
         return value
 
-    def dump_registers(self, show_all=False):
-        # Registers organized into columns for display.
-        regs = ['r0', 'r6', 'r12',
-                'r1', 'r7', 'sp',
-                'r2', 'r8', 'lr',
-                'r3', 'r9', 'pc',
-                'r4', 'r10', 'xpsr',
-                'r5', 'r11', 'primask']
+    def _format_core_register(self, info, value):
+        hex_width = round_up_div(info.bitsize, 4) + 2 # add 2 for the "0x" prefix
+        if info.is_float_register:
+            value_str = "{f:g} ({i:#0{w}x})".format(f=conversion.u32_to_float32(value), i=value, w=hex_width)
+        elif info.gdb_type in ('data_ptr', 'code_ptr'):
+            value_str = "{h:#0{w}x}".format(h=value, w=hex_width)
+        else:
+            value_str = "{h:#0{w}x} ({d:d})".format(h=value, w=hex_width, d=value)
+        return value_str
 
+    def dump_register_group(self, group_name):
+        regs = natsort(self.target.core_registers.iter_matching(
+                lambda r: r.group == group_name), key=lambda r: r.name)
+        reg_values = self.target.read_core_registers_raw(r.name for r in regs)
+        
+        col_printer = ColumnFormatter()
+        for info, value in zip(regs, reg_values):
+            value_str = self._format_core_register(info, value)
+            col_printer.add_items([(info.name, value_str)])
+        
+        col_printer.write()
+
+    def dump_registers(self, show_all=False, show_group=None):
         if not self.target.is_halted():
             print("Core is not halted; cannot read core registers")
             return
 
-        for i, reg in enumerate(regs):
-            regValue = self.target.read_core_register(reg)
-            print("{:>16} {:#010x} ".format(reg + ':', regValue), end=' ')
-            if i % 3 == 2:
-                print()
-        
+        all_groups = sorted(self.target.core_registers.groups)
         if show_all:
-            other_regs = sorted(r for r in self.target.selected_core.core_registers.by_name if r not in regs)
-            for i, reg in enumerate(other_regs):
-                value = self.target.read_core_register(reg)
-                info = coresight.core_registers.CoreRegisterInfo.get(reg)
-                if info.bitsize == 64:
-                    if isinstance(value, six.integer_types):
-                        value_str = "%s = %#018x (%d)" % (reg, value, value)
-                    elif isinstance(value, float):
-                        value_str = "%s = %g (%#018x)" % (reg, value, conversion.float64_to_u64(value))
-                else:
-                    if isinstance(value, six.integer_types):
-                        value_str = "%s = %#010x (%d)" % (reg, value, value)
-                    elif isinstance(value, float):
-                        value_str = "%s = %g (%#010x)" % (reg, value, conversion.float32_to_u32(value))
-                print("{:>16} {} ".format(reg + ':', value_str))
+            groups_to_show = all_groups
+        elif show_group:
+            if show_group not in all_groups:
+                raise ToolError("invalid register group %s" % show_group)
+            groups_to_show = [show_group]
+        else:
+            groups_to_show = ['general']
+        
+        for group in groups_to_show:
+            print("%s registers:" % group)
+            self.dump_register_group(group)
 
     def _dump_peripheral_register(self, periph, reg, show_fields):
         size = reg.size or 32

@@ -20,159 +20,22 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
 from ..core import exceptions
+from ..core.core_registers import CoreRegistersIndex
 from ..core.memory_map import (MemoryMap, RamRegion, DeviceRegion)
 from ..utility import (cmdline, conversion, timeout)
 from ..utility.notification import Notification
 from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension )
+from .cortex_m_core_registers import (
+    CortexMCoreRegisterInfo,
+    CoreRegisterGroups,
+    )
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
 
 LOG = logging.getLogger(__name__)
-
-## @brief Map from register name to DCRSR register index.
-#
-# The CONTROL, FAULTMASK, BASEPRI, and PRIMASK registers are special in that they share the
-# same DCRSR register index and are returned as a single value. In this dict, these registers
-# have negative values to signal to the register read/write functions that special handling
-# is necessary. The values are the byte number containing the register value, plus 1 and then
-# negated. So -1 means a mask of 0xff, -2 is 0xff00, and so on. The actual DCRSR register index
-# for these combined registers has the key of 'cfbp'.
-#
-# XPSR is always read in its entirety via the debug interface, but we also provide
-# aliases for the submasks APSR, IPSR and EPSR. These are encoded as 0x10000 plus 3 lower bits
-# indicating which parts of the PSR we're interested in - encoded the same way as MRS's SYSm.
-# (Note that 'XPSR' continues to denote the raw 32 bits of the register, as per previous versions,
-# not the union of the three APSR+IPSR+EPSR masks which don't cover the entire register).
-#
-# The double-precision floating point registers (D0-D15) are composed of two single-precision
-# floating point registers (S0-S31). The value for double-precision registers in this dict is
-# the negated value of the first associated single-precision register.
-CORE_REGISTER = {
-                 'r0': 0,
-                 'r1': 1,
-                 'r2': 2,
-                 'r3': 3,
-                 'r4': 4,
-                 'r5': 5,
-                 'r6': 6,
-                 'r7': 7,
-                 'r8': 8,
-                 'r9': 9,
-                 'r10': 10,
-                 'r11': 11,
-                 'r12': 12,
-                 'sp': 13,
-                 'r13': 13,
-                 'lr': 14,
-                 'r14': 14,
-                 'pc': 15,
-                 'r15': 15,
-                 'xpsr': 16,
-                 'apsr': 0x10000,
-                 'iapsr': 0x10001,
-                 'eapsr': 0x10002,
-                 'ipsr': 0x10005,
-                 'epsr': 0x10006,
-                 'iepsr': 0x10007,
-                 'msp': 17,
-                 'psp': 18,
-                 'cfbp': 20,
-                 'control':-4,
-                 'faultmask':-3,
-                 'basepri':-2,
-                 'primask':-1,
-                 'fpscr': 33,
-                 's0': 0x40,
-                 's1': 0x41,
-                 's2': 0x42,
-                 's3': 0x43,
-                 's4': 0x44,
-                 's5': 0x45,
-                 's6': 0x46,
-                 's7': 0x47,
-                 's8': 0x48,
-                 's9': 0x49,
-                 's10': 0x4a,
-                 's11': 0x4b,
-                 's12': 0x4c,
-                 's13': 0x4d,
-                 's14': 0x4e,
-                 's15': 0x4f,
-                 's16': 0x50,
-                 's17': 0x51,
-                 's18': 0x52,
-                 's19': 0x53,
-                 's20': 0x54,
-                 's21': 0x55,
-                 's22': 0x56,
-                 's23': 0x57,
-                 's24': 0x58,
-                 's25': 0x59,
-                 's26': 0x5a,
-                 's27': 0x5b,
-                 's28': 0x5c,
-                 's29': 0x5d,
-                 's30': 0x5e,
-                 's31': 0x5f,
-                 'd0': -0x40,
-                 'd1': -0x42,
-                 'd2': -0x44,
-                 'd3': -0x46,
-                 'd4': -0x48,
-                 'd5': -0x4a,
-                 'd6': -0x4c,
-                 'd7': -0x4e,
-                 'd8': -0x50,
-                 'd9': -0x52,
-                 'd10': -0x54,
-                 'd11': -0x56,
-                 'd12': -0x58,
-                 'd13': -0x5a,
-                 'd14': -0x5c,
-                 'd15': -0x5e,
-                 }
-
-def register_name_to_index(reg):
-    if isinstance(reg, str):
-        try:
-            reg = CORE_REGISTER[reg.lower()]
-        except KeyError:
-            raise KeyError('cannot find %s core register' % reg)
-    return reg
-
-def is_float_register(index):
-    return is_single_float_register(index) or is_double_float_register(index)
-
-def is_single_float_register(index):
-    """! @brief Returns true for registers holding single-precision float values"""
-    return 0x40 <= index <= 0x5f
-
-def is_double_float_register(index):
-    """! Returns true for registers holding double-precision float values"""
-    return -0x40 >= index > -0x60
-
-def is_fpu_register(index):
-    return index == 33 or is_single_float_register(index) or is_double_float_register(index)
-
-def is_cfbp_subregister(index):
-    return -4 <= index <= -1
-
-def is_psr_subregister(index):
-    return 0x10000 <= index <= 0x10007
-
-def sysm_to_psr_mask(sysm):
-    """! Generate a PSR mask based on bottom 3 bits of a MRS SYSm value"""
-    mask = 0
-    if (sysm & 1) != 0:
-        mask |= CortexM.IPSR_MASK
-    if (sysm & 2) != 0:
-        mask |= CortexM.EPSR_MASK
-    if (sysm & 4) == 0:
-        mask |= CortexM.APSR_MASK
-    return mask
 
 class CortexM(Target, CoreSightCoreComponent):
     """! @brief CoreSight component for a v6-M or v7-M Cortex-M core.
@@ -306,77 +169,6 @@ class CortexM(Target, CoreSightCoreComponent):
     MVFR2_VFP_MISC_MASK = 0x000000f0
     MVFR2_VFP_MISC_SHIFT = 4
 
-    class RegisterInfo(object):
-        def __init__(self, name, bitsize, reg_type, reg_group):
-            self.name = name
-            self.reg_num = CORE_REGISTER[name]
-            self.bitsize = bitsize
-            self.gdb_xml_attrib = {}
-            self.gdb_xml_attrib['name'] = str(name)
-            self.gdb_xml_attrib['bitsize'] = str(bitsize)
-            self.gdb_xml_attrib['type'] = str(reg_type)
-            self.gdb_xml_attrib['group'] = str(reg_group)
-
-    regs_general = [
-        #            Name       bitsize     type            group
-        RegisterInfo('r0',      32,         'int',          'general'),
-        RegisterInfo('r1',      32,         'int',          'general'),
-        RegisterInfo('r2',      32,         'int',          'general'),
-        RegisterInfo('r3',      32,         'int',          'general'),
-        RegisterInfo('r4',      32,         'int',          'general'),
-        RegisterInfo('r5',      32,         'int',          'general'),
-        RegisterInfo('r6',      32,         'int',          'general'),
-        RegisterInfo('r7',      32,         'int',          'general'),
-        RegisterInfo('r8',      32,         'int',          'general'),
-        RegisterInfo('r9',      32,         'int',          'general'),
-        RegisterInfo('r10',     32,         'int',          'general'),
-        RegisterInfo('r11',     32,         'int',          'general'),
-        RegisterInfo('r12',     32,         'int',          'general'),
-        RegisterInfo('sp',      32,         'data_ptr',     'general'),
-        RegisterInfo('lr',      32,         'int',          'general'),
-        RegisterInfo('pc',      32,         'code_ptr',     'general'),
-        RegisterInfo('msp',     32,         'data_ptr',     'system'),
-        RegisterInfo('psp',     32,         'data_ptr',     'system'),
-        RegisterInfo('primask', 32,         'int',          'system'),
-        ]
-    
-    regs_xpsr_control_plain = [
-        RegisterInfo('xpsr',    32,         'int',          'general'),
-        RegisterInfo('control', 32,         'int',          'system'),
-        ]
-    
-    regs_xpsr_control_fields = [
-        RegisterInfo('xpsr',    32,         'xpsr',         'general'),
-        RegisterInfo('control', 32,         'control',      'system'),
-        ]
-
-    regs_system_armv7_only = [
-        #            Name       bitsize     type            group
-        RegisterInfo('basepri',     32,     'int',          'system'),
-        RegisterInfo('faultmask',   32,     'int',          'system'),
-        ]
-
-    regs_float = [
-        #            Name       bitsize     type            group
-        RegisterInfo('fpscr',   32,         'int',          'float'),
-        RegisterInfo('d0' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d1' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d2' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d3' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d4' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d5' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d6' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d7' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d8' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d9' ,     64,         'ieee_double',  'float'),
-        RegisterInfo('d10',     64,         'ieee_double',  'float'),
-        RegisterInfo('d11',     64,         'ieee_double',  'float'),
-        RegisterInfo('d12',     64,         'ieee_double',  'float'),
-        RegisterInfo('d13',     64,         'ieee_double',  'float'),
-        RegisterInfo('d14',     64,         'ieee_double',  'float'),
-        RegisterInfo('d15',     64,         'ieee_double',  'float'),
-        ]
-
     @classmethod
     def factory(cls, ap, cmpid, address):
         # Create a new core instance.
@@ -413,6 +205,7 @@ class CortexM(Target, CoreSightCoreComponent):
         self._target_context = None
         self._elf = None
         self.target_xml = None
+        self._core_registers = CoreRegistersIndex()
         self._supports_vectreset = False
         self._reset_catch_delegate_result = False
         self._reset_catch_saved_demcr = 0
@@ -452,6 +245,13 @@ class CortexM(Target, CoreSightCoreComponent):
     def extensions(self):
         """! @brief List of extensions supported by this core."""
         return self._extensions
+
+    @property
+    def core_registers(self):
+        """! @brief Instance of @ref pyocd.core.core_registers.CoreRegistersIndex "CoreRegistersIndex"
+            describing available core registers.
+        """
+        return self._core_registers
 
     @property
     def elf(self):
@@ -503,7 +303,7 @@ class CortexM(Target, CoreSightCoreComponent):
         if not self.call_delegate('will_start_debug_core', core=self):
             self._read_core_type()
             self._check_for_fpu()
-            self.build_target_xml()
+            self._build_registers()
             self.sw_bp.init()
 
         self.call_delegate('did_start_debug_core', core=self)
@@ -538,61 +338,21 @@ class CortexM(Target, CoreSightCoreComponent):
                 DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
                 )
 
-    def build_target_xml(self):
-        """! @brief Build register_list and targetXML"""
-        self.register_list = []
-        xml_root = Element('target')
-        xml_regs_general = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.m-profile")
+    def _build_registers(self):
+        """! @brief Build set of core registers available on this code.
         
-        def append_regs(regs, xml_element):
-            for reg in regs:
-                self.register_list.append(reg)
-                SubElement(xml_element, 'reg', **reg.gdb_xml_attrib)
+        This method builds the list of core registers for this particular core. This includes all
+        available core registers, and some variants of registers such as 'ipsr', 'iapsr', and the
+        individual CFBP registers as well as 'cfbp' itself. This set of registers is available in
+        the `core_registers` property as a CoreRegistersIndex object.
+        """
+        self._core_registers.add_group(CoreRegisterGroups.M_PROFILE_COMMON)
 
-        # Add general purpose registers.
-        append_regs(self.regs_general, xml_regs_general)
-        
-        # Depending on the xpsr_control_fields setting, the XPSR and CONTROL registers are
-        # added as either plain int regs or structured registers with fields defined in the XML.
-        if self.session.options.get('xpsr_control_fields'):
-            # Define XPSR and CONTROL register fields.
-            control = SubElement(xml_regs_general, 'flags', id="control", size="4")
-            SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
-            SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")
-            if self.has_fpu:
-                SubElement(control, "field", name="FPCS", start="2", end="2", type="bool")
-
-            apsr = SubElement(xml_regs_general, 'flags', id="apsr", size="4")
-            SubElement(apsr, "field", name="N", start="31", end="31", type="bool")
-            SubElement(apsr, "field", name="Z", start="30", end="30", type="bool")
-            SubElement(apsr, "field", name="C", start="29", end="29", type="bool")
-            SubElement(apsr, "field", name="V", start="28", end="28", type="bool")
-            SubElement(apsr, "field", name="Q", start="27", end="27", type="bool")
-
-            ipsr = SubElement(xml_regs_general, 'struct', id="ipsr", size="4")
-            SubElement(ipsr, "field", name="EXC", start="0", end="8", type="int")
-        
-            xpsr = SubElement(xml_regs_general, 'union', id="xpsr")
-            SubElement(xpsr, "field", name="xpsr", type="uint32")
-            SubElement(xpsr, "field", name="apsr", type="apsr")
-            SubElement(xpsr, "field", name="ipsr", type="ipsr")
-            
-            append_regs(self.regs_xpsr_control_fields, xml_regs_general)
-        else:
-            # Add XPSR and CONTROL as plain int registers.
-            append_regs(self.regs_xpsr_control_plain, xml_regs_general)
-        
-        # Check if target has ARMv7 registers
         if self.architecture == CoreArchitecture.ARMv7M:
-            append_regs(self.regs_system_armv7_only, xml_regs_general)
-        # Check if target has FPU registers
-        if self.has_fpu:
-            # GDB understands the double/single separation so we don't need
-            # to separately pass the single regs, just the double
-            xml_regs_fpu = SubElement(xml_root, "feature", name="org.gnu.gdb.arm.vfp")
-            append_regs(self.regs_float, xml_regs_fpu)
+            self._core_registers.add_group(CoreRegisterGroups.V7M_v8M_ML_ONLY)
 
-        self.target_xml = b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "gdb-target.dtd">' + tostring(xml_root)
+        if self.has_fpu:
+            self._core_registers.add_group(CoreRegisterGroups.VFP_V5)
 
     def _read_core_type(self):
         """! @brief Read the CPUID register and determine core type and architecture."""
@@ -754,7 +514,7 @@ class CortexM(Target, CoreSightCoreComponent):
                 break
 
             # Read program counter and compare to [start, end)
-            program_counter = self.read_core_register(CORE_REGISTER['pc'])
+            program_counter = self.read_core_register('pc')
             if program_counter < start or end <= program_counter:
                 break
 
@@ -1065,76 +825,121 @@ class CortexM(Target, CoreSightCoreComponent):
     def find_breakpoint(self, addr):
         return self.bp_manager.find_breakpoint(addr)
 
+    def check_reg_list(self, reg_list):
+        """! @brief Sanity check register values and raise helpful errors."""
+        for reg in reg_list:
+            if reg not in self.core_registers.by_index:
+                # Invalid register, try to give useful error. An invalid name will already
+                # have raised a KeyError above.
+                info = CortexMCoreRegisterInfo.get(reg)
+                if info.is_fpu_register and (not self.has_fpu):
+                    raise KeyError("attempt to read FPU register %s without FPU", info.name)
+                else:
+                    raise KeyError("register %s not available in this CPU", info.name)
+
     def read_core_register(self, reg):
-        """! @brief Read CPU register.
+        """! @brief Read one core register.
         
-        Unpack floating point register values
+        The core must be halted or reads will fail.
+        
+        @param self The core.
+        @param reg Either the register's name in lowercase or an integer register index.
+        @return The current value of the register. Most core registers return an integer value,
+            while the floating point single and double precision register return a float value.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read the register.
         """
-        regIndex = register_name_to_index(reg)
-        regValue = self.read_core_register_raw(regIndex)
-        # Convert int to float.
-        if is_single_float_register(regIndex):
-            regValue = conversion.u32_to_float32(regValue)
-        elif is_double_float_register(regIndex):
-            regValue = conversion.u64_to_float64(regValue)
-        return regValue
+        reg_info = CortexMCoreRegisterInfo.get(reg)
+        regValue = self.read_core_register_raw(reg_info.index)
+        return reg_info.from_raw(regValue)
 
     def read_core_register_raw(self, reg):
-        """! @brief Read a core register.
+        """! @brief Read a core register without type conversion.
         
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
+        The core must be halted or reads will fail.
+        
+        @param self The core.
+        @param reg Either the register's name in lowercase or an integer register index.
+        @return The current integer value of the register. Even float register values are returned
+            as integers (thus the "raw").
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read the register.
         """
         vals = self.read_core_registers_raw([reg])
         return vals[0]
 
     def read_core_registers_raw(self, reg_list):
         """! @brief Read one or more core registers.
-
-        Read core registers in reg_list and return a list of values.
-        If any register in reg_list is a string, find the number
-        associated to this register in the lookup table CORE_REGISTER.
+        
+        The core must be halted or reads will fail.
+        
+        @param self The core.
+        @param reg_list List of registers to read. Each element in the list can be either the
+            register's name in lowercase or the integer register index.
+        @return List of integer values of the registers requested to be read. The result list will
+            be the same length as _reg_list_.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read one or more registers.
         """
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [CortexMCoreRegisterInfo.register_name_to_index(reg) for reg in reg_list]
+        self.check_reg_list(reg_list)
+        return self._base_read_core_registers_raw(reg_list)
 
-        # Sanity check register values
-        for reg in reg_list:
-            if reg not in CORE_REGISTER.values():
-                raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self.has_fpu):
-                raise ValueError("attempt to read FPU register without FPU")
+    def _base_read_core_registers_raw(self, reg_list):
+        """! @brief Private core register read routine.
+        
+        Items in the _reg_list_ must be pre-converted to index and only include valid
+        registers for the core.
 
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read one or more registers.
+        """
+        # Make sure the core is in debug state. If not, the DHCSR.S_REGRDY bit is UNKNOWN and may read
+        # as 1, so we have no way to see that the read failed. (This is seen on real devices.)
+        if not self.is_halted():
+            raise exceptions.CoreRegisterAccessError(
+                    "cannot read register{0} {1} because core #{2} is not halted".format(
+                    "s" if (len(reg_list) > 1) else "",
+                    ", ".join(CortexMCoreRegisterInfo.get(r).name for r in reg_list),
+                    self.core_number))
+        
         # Handle doubles.
-        doubles = [reg for reg in reg_list if is_double_float_register(reg)]
+        doubles = [reg for reg in reg_list if CortexMCoreRegisterInfo.get(reg).is_double_float_register]
         hasDoubles = len(doubles) > 0
         if hasDoubles:
             originalRegList = reg_list
             
             # Strip doubles from reg_list.
-            reg_list = [reg for reg in reg_list if not is_double_float_register(reg)]
+            reg_list = [reg for reg in reg_list if not CortexMCoreRegisterInfo.get(reg).is_double_float_register]
             
             # Read float regs required to build doubles.
             singleRegList = []
             for reg in doubles:
                 singleRegList += (-reg, -reg + 1)
-            singleValues = self.read_core_registers_raw(singleRegList)
+            singleValues = self._base_read_core_registers_raw(singleRegList)
 
         # Begin all reads and writes
         dhcsr_cb_list = []
         reg_cb_list = []
         for reg in reg_list:
-            if is_cfbp_subregister(reg):
-                reg = CORE_REGISTER['cfbp']
-            elif is_psr_subregister(reg):
-                reg = CORE_REGISTER['xpsr']
+            if CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
+                reg = CortexMCoreRegisterInfo.get('cfbp').index
+            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
+                reg = CortexMCoreRegisterInfo.get('xpsr').index
 
             # write id in DCRSR
             self.write_memory(CortexM.DCRSR, reg)
 
             # Technically, we need to poll S_REGRDY in DHCSR here before reading DCRDR. But
             # we're running so slow compared to the target that it's not necessary.
-            # Read it and assert that S_REGRDY is set
+            # Read it and check that S_REGRDY is set.
 
             dhcsr_cb = self.read_memory(CortexM.DHCSR, now=False)
             reg_cb = self.read_memory(CortexM.DCRDR, now=False)
@@ -1143,25 +948,32 @@ class CortexM(Target, CoreSightCoreComponent):
 
         # Read all results
         reg_vals = []
+        fail_list = []
         for reg, reg_cb, dhcsr_cb in zip(reg_list, reg_cb_list, dhcsr_cb_list):
             dhcsr_val = dhcsr_cb()
-            assert dhcsr_val & CortexM.S_REGRDY
+            if (dhcsr_val & CortexM.S_REGRDY) == 0:
+                fail_list.append(reg)
             val = reg_cb()
 
             # Special handling for registers that are combined into a single DCRSR number.
-            if is_cfbp_subregister(reg):
+            if CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
                 val = (val >> ((-reg - 1) * 8)) & 0xff
-            elif is_psr_subregister(reg):
-                val &= sysm_to_psr_mask(reg)
+            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
+                val &= CortexMCoreRegisterInfo.get(reg).psr_mask
 
             reg_vals.append(val)
+        
+        if fail_list:
+            raise exceptions.CoreRegisterAccessError("failed to read register{0} {1}".format(
+                    "s" if (len(fail_list) > 1) else "",
+                    ", ".join(CortexMCoreRegisterInfo.get(r).name for r in fail_list)))
         
         # Merge double regs back into result list.
         if hasDoubles:
             results = []
             for reg in originalRegList:
                 # Double
-                if is_double_float_register(reg):
+                if CortexMCoreRegisterInfo.get(reg).is_double_float_register:
                     doubleIndex = doubles.index(reg)
                     singleLow = singleValues[doubleIndex * 2]
                     singleHigh = singleValues[doubleIndex * 2 + 1]
@@ -1177,58 +989,90 @@ class CortexM(Target, CoreSightCoreComponent):
     def write_core_register(self, reg, data):
         """! @brief Write a CPU register.
         
-        Will need to pack floating point register values before writing.
+        The core must be halted or the write will fail.
+        
+        @param self The core.
+        @param reg The name of the register to write.
+        @param data New value of the register. Float registers accept float values.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write the register.
         """
-        regIndex = register_name_to_index(reg)
-        # Convert float to int.
-        if is_single_float_register(regIndex) and type(data) is float:
-            data = conversion.float32_to_u32(data)
-        elif is_double_float_register(regIndex) and type(data) is float:
-            data = conversion.float64_to_u64(data)
-        self.write_core_register_raw(regIndex, data)
+        reg_info = CortexMCoreRegisterInfo.get(reg)
+        self.write_core_register_raw(reg_info.index, reg_info.to_raw(data))
 
     def write_core_register_raw(self, reg, data):
-        """! @brief Write a core register.
+        """! @brief Write a CPU register without type conversion.
         
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
+        The core must be halted or the write will fail.
+        
+        @param self The core.
+        @param reg The name of the register to write.
+        @param data New value of the register. Must be an integer, even for float registers.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write the register.
         """
         self.write_core_registers_raw([reg], [data])
 
     def write_core_registers_raw(self, reg_list, data_list):
         """! @brief Write one or more core registers.
+        
+        The core must be halted or writes will fail.
 
-        Write core registers in reg_list with the associated value in
-        data_list.  If any register in reg_list is a string, find the number
-        associated to this register in the lookup table CORE_REGISTER.
+        @param self The core.
+        @param reg_list List of registers to read. Each element in the list can be either the
+            register's name in lowercase or the integer register index.
+        @param data_list List of values for the registers in the corresponding positions of
+            _reg_list_. All values must be integers, even for float registers.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write one or more registers.
         """
         assert len(reg_list) == len(data_list)
+        
         # convert to index only
-        reg_list = [register_name_to_index(reg) for reg in reg_list]
+        reg_list = [CortexMCoreRegisterInfo.register_name_to_index(reg) for reg in reg_list]
+        self.check_reg_list(reg_list)
+        self._base_write_core_registers_raw(reg_list, data_list)
 
-        # Sanity check register values
-        for reg in reg_list:
-            if reg not in CORE_REGISTER.values():
-                raise ValueError("unknown reg: %d" % reg)
-            elif is_fpu_register(reg) and (not self.has_fpu):
-                raise ValueError("attempt to write FPU register without FPU")
+    def _base_write_core_registers_raw(self, reg_list, data_list):
+        """! @brief Private core register write routine.
+        
+        Items in the _reg_list_ must be pre-converted to index and only include valid
+        registers for the core. Similarly, data_list items must be pre-converted to integer values.
 
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write one or more registers.
+        """
+        # Make sure the core is in debug state. If not, the DHCSR.S_REGRDY bit is UNKNOWN and may read
+        # as 1, so we have no way to see that the write failed. (This is seen on real devices.)
+        if not self.is_halted():
+            raise exceptions.CoreRegisterAccessError(
+                    "cannot write register{0} {1} because core #{2} is not halted".format(
+                    "s" if (len(reg_list) > 1) else "",
+                    ", ".join(CortexMCoreRegisterInfo.get(r).name for r in reg_list),
+                    self.core_number))
+        
         # Read special register if it is present in the list and
         # convert doubles to single float register writes.
         cfbpValue = None
         xpsrValue = None
         reg_data_list = []
         for reg, data in zip(reg_list, data_list):
-            if is_double_float_register(reg):
+            if CortexMCoreRegisterInfo.get(reg).is_double_float_register:
                 # Replace double with two single float register writes. For instance,
                 # a write of D2 gets converted to writes to S4 and S5.
                 singleLow = data & 0xffffffff
                 singleHigh = (data >> 32) & 0xffffffff
                 reg_data_list += [(-reg, singleLow), (-reg + 1, singleHigh)]
-            elif is_cfbp_subregister(reg) and cfbpValue is None:
-                cfbpValue = self.read_core_register_raw(CORE_REGISTER['cfbp'])
-            elif is_psr_subregister(reg) and xpsrValue is None:
-                xpsrValue = self.read_core_register_raw(CORE_REGISTER['xpsr'])
+            elif CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister and cfbpValue is None:
+                cfbpValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('cfbp').index])[0]
+            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister and xpsrValue is None:
+                xpsrValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('xpsr').index])[0]
             else:
                 # Other register, just copy directly.
                 reg_data_list.append((reg, data))
@@ -1236,19 +1080,19 @@ class CortexM(Target, CoreSightCoreComponent):
         # Write out registers
         dhcsr_cb_list = []
         for reg, data in reg_data_list:
-            if is_cfbp_subregister(reg):
+            if CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
                 # Mask in the new special register value so we don't modify the other register
                 # values that share the same DCRSR number.
                 shift = (-reg - 1) * 8
                 mask = 0xffffffff ^ (0xff << shift)
                 data = (cfbpValue & mask) | ((data & 0xff) << shift)
                 cfbpValue = data # update special register for other writes that might be in the list
-                reg = CORE_REGISTER['cfbp']
-            elif is_psr_subregister(reg):
-                mask = sysm_to_psr_mask(reg)
+                reg = CortexMCoreRegisterInfo.get('cfbp').index
+            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
+                mask = CortexMCoreRegisterInfo.get(reg).psr_mask
                 data = (xpsrValue & (0xffffffff ^ mask)) | (data & mask)
                 xpsrValue = data
-                reg = CORE_REGISTER['xpsr']
+                reg = CortexMCoreRegisterInfo.get('xpsr').index
 
             # write DCRDR
             self.write_memory(CortexM.DCRDR, data)
@@ -1262,11 +1106,17 @@ class CortexM(Target, CoreSightCoreComponent):
             dhcsr_cb = self.read_memory(CortexM.DHCSR, now=False)
             dhcsr_cb_list.append(dhcsr_cb)
 
-        # Make sure S_REGRDY was set for all register
-        # writes
-        for dhcsr_cb in dhcsr_cb_list:
+        # Make sure S_REGRDY was set for all register writes.
+        fail_list = []
+        for dhcsr_cb, reg_and_data in zip(dhcsr_cb_list, reg_data_list):
             dhcsr_val = dhcsr_cb()
-            assert dhcsr_val & CortexM.S_REGRDY
+            if (dhcsr_val & CortexM.S_REGRDY) == 0:
+                fail_list.append(reg_and_data[0])
+        
+        if fail_list:
+            raise exceptions.CoreRegisterAccessError("failed to write register{0} {1}".format(
+                    "s" if (len(fail_list) > 1) else "",
+                    ", ".join(CortexMCoreRegisterInfo.get(r).name for r in fail_list)))
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         """! @brief Set a hardware or software breakpoint at a specific location in memory.
@@ -1360,10 +1210,6 @@ class CortexM(Target, CoreSightCoreComponent):
         demcr = self.read_memory(CortexM.DEMCR)
         return CortexM._map_from_vector_catch_mask(demcr)
 
-    # GDB functions
-    def get_target_xml(self):
-        return self.target_xml
-
     def is_debug_trap(self):
         debugEvents = self.read_memory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
         return debugEvents != 0
@@ -1372,6 +1218,10 @@ class CortexM(Target, CoreSightCoreComponent):
         return self.get_halt_reason() == Target.HaltReason.VECTOR_CATCH
     
     def get_halt_reason(self):
+        """! @brief Returns the reason the core has halted.
+        
+        @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
+        """
         dfsr = self.read32(CortexM.DFSR)
         if dfsr & CortexM.DFSR_HALTED:
             reason = Target.HaltReason.DEBUG

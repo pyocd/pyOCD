@@ -1042,7 +1042,7 @@ class GDBServer(threading.Thread):
         if query == b'memory_map':
             xml = self.target_facade.get_memory_map_xml()
         elif query == b'read_feature':
-            xml = self.target.get_target_xml()
+            xml = self.target_facade.get_target_xml()
         elif query == b'threads':
             xml = self.get_threads_xml()
         else:

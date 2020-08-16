@@ -64,7 +64,9 @@ class CortexMExtension(Enum):
     FPU_DP = "FPU_DP" # Double-Precision floating point
     FPU_HP = "FPU_HP" # Half-Precision floating point
     SEC = "SEC" # Security Extension
-    MVE = "MVE" # M-profile Vector Extension
+    SEC_V81 = "SEC_V81" # v8.1-M additions to the Security Extension
+    MVE = "MVE" # M-profile Vector Extension, with integer support
+    MVE_FP = "MVE_FP" # M-profile Vector Extension single- and half-precision floating-point
     UDE = "UDE" # Unprivileged Debug Extension
     RAS = "RAS" # Reliability, Serviceability, and Availability
     PMU = "PMU" # Performance Monitoring Unit

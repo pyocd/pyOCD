@@ -104,6 +104,10 @@ class CoreSightTarget(Target, GraphNode):
     @property
     def supported_security_states(self):
         return self.selected_core.supported_security_states
+    
+    @property
+    def core_registers(self):
+        return self.selected_core.core_registers
 
     @property
     def svd_device(self):

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,7 @@
 
 from ..core.memory_interface import MemoryInterface
 from pyocd.coresight.component import CoreSightCoreComponent
-from ..coresight.cortex_m import (
-    CORE_REGISTER,
-    register_name_to_index,
-    is_single_float_register,
-    is_double_float_register
-    )
+from ..coresight.cortex_m_core_registers import CortexMCoreRegisterInfo
 from ..utility import conversion
 
 class DebugContext(MemoryInterface):
@@ -62,6 +57,10 @@ class DebugContext(MemoryInterface):
     @property
     def core(self):
         return self._core
+    
+    @property
+    def session(self):
+        return self.core.session
 
     def write_memory(self, addr, value, transfer_size=32):
         return self._parent.write_memory(addr, value, transfer_size)
@@ -82,53 +81,91 @@ class DebugContext(MemoryInterface):
         return self._parent.read_memory_block32(addr, size)
 
     def read_core_register(self, reg):
-        """! @brief Read CPU register
+        """! @brief Read one core register.
         
-        Unpack floating point register values
+        @param self The debug context.
+        @param reg Either the register's name in lowercase or an integer register index.
+        @return The current value of the register. Most core registers return an integer value,
+            while the floating point single and double precision register return a float value.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read the register.
         """
-        regIndex = register_name_to_index(reg)
-        regValue = self.read_core_register_raw(regIndex)
-        # Convert int to float.
-        if is_single_float_register(regIndex):
-            regValue = conversion.u32_to_float32(regValue)
-        elif is_double_float_register(regIndex):
-            regValue = conversion.u64_to_float64(regValue)
-        return regValue
+        reg_info = CortexMCoreRegisterInfo.get(reg)
+        regValue = self.read_core_register_raw(reg_info.index)
+        return reg_info.from_raw(regValue)
 
     def read_core_register_raw(self, reg):
-        """! @brief Read a core register.
+        """! @brief Read a core register without type conversion.
         
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
+        @param self The debug context.
+        @param reg Either the register's name in lowercase or an integer register index.
+        @return The current integer value of the register. Even float register values are returned
+            as integers (thus the "raw").
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read the register.
         """
         vals = self.read_core_registers_raw([reg])
         return vals[0]
 
     def read_core_registers_raw(self, reg_list):
+        """! @brief Read one or more core registers.
+        
+        @param self The debug context.
+        @param reg_list List of registers to read. Each element in the list can be either the
+            register's name in lowercase or the integer register index.
+        @return List of integer values of the registers requested to be read. The result list will
+            be the same length as _reg_list_.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            read one or more registers.
+        """
         return self._parent.read_core_registers_raw(reg_list)
 
     def write_core_register(self, reg, data):
-        """! Write a CPU register.
+        """! @brief Write a CPU register.
         
-        Will need to pack floating point register values before writing.
+        @param self The debug context.
+        @param reg The name of the register to write.
+        @param data New value of the register. Float registers accept float values.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write the register.
         """
-        regIndex = register_name_to_index(reg)
-        # Convert float to int.
-        if is_single_float_register(regIndex) and type(data) is float:
-            data = conversion.float32_to_u32(data)
-        elif is_double_float_register(regIndex) and type(data) is float:
-            data = conversion.float64_to_u64(data)
-        self.write_core_register_raw(regIndex, data)
+        reg_info = CortexMCoreRegisterInfo.get(reg)
+        self.write_core_register_raw(reg_info.index, reg_info.to_raw(data))
 
     def write_core_register_raw(self, reg, data):
-        """! @brief Write a core register.
+        """! @brief Write a CPU register without type conversion.
         
-        If reg is a string, find the number associated to this register
-        in the lookup table CORE_REGISTER
+        @param self The debug context.
+        @param reg The name of the register to write.
+        @param data New value of the register. Must be an integer, even for float registers.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write the register.
         """
         self.write_core_registers_raw([reg], [data])
 
     def write_core_registers_raw(self, reg_list, data_list):
+        """! @brief Write one or more core registers.
+
+        @param self The debug context.
+        @param reg_list List of registers to read. Each element in the list can be either the
+            register's name in lowercase or the integer register index.
+        @param data_list List of values for the registers in the corresponding positions of
+            _reg_list_. All values must be integers, even for float registers.
+        
+        @exception KeyError Invalid or unsupported register was requested.
+        @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
+            write one or more registers.
+        """
         self._parent.write_core_registers_raw(reg_list, data_list)
 
     def flush(self):

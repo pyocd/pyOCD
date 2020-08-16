@@ -77,6 +77,7 @@ setup(
         'hidapi;platform_system=="Darwin"',
         'intelhex>=2.0,<3.0',
         'intervaltree>=3.0.2,<4.0',
+        'naturalsort>=1.5,<2.0',
         'prettytable',
         'pyelftools',
         'pylink-square',
