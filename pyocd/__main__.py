@@ -775,6 +775,7 @@ class PyOCDTool(object):
                         server_listening_callback=self.server_listening)
                     session.gdbservers[core_number] = gdb
                     gdbs.append(gdb)
+                    gdb.start()
                 gdb = gdbs[0]
                 while any(g.is_alive() for g in gdbs):
                     sleep(0.1)

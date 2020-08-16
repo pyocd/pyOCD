@@ -21,6 +21,7 @@ from time import (sleep, time)
 import sys
 import six
 from xml.etree.ElementTree import (Element, SubElement, tostring)
+import io
 
 from ..core import exceptions
 from ..core.target import Target
@@ -46,6 +47,9 @@ from .packet_io import (
     ConnectionClosedException,
     GDBServerPacketIOThread,
     )
+from ..commands.execution_context import CommandExecutionContext
+from ..commands.commander import ToolExitException
+from ..commands.base import CommandBase
 
 LOG = logging.getLogger(__name__)
 
@@ -202,6 +206,8 @@ class GDBServer(threading.Thread):
                 swo_clock = int(session.options.get("swv_clock"))
                 self._swv_reader = SWVReader(session, self.core, self.lock)
                 self._swv_reader.init(sys_clock, swo_clock, console_file)
+        
+        self._init_remote_commands()
 
         # pylint: disable=invalid-name
         
@@ -250,7 +256,16 @@ class GDBServer(threading.Thread):
         # pylint: enable=invalid-name
 
         self.setDaemon(True)
-        self.start()
+
+    def _init_remote_commands(self):
+        """! @brief Initialize the remote command processor infrastructure."""
+        # Create command execution context. The output stream will default to stdout
+        # but we'll change it to a fresh StringIO prior to running each command.
+        self._command_context = CommandExecutionContext()
+        self._command_context.attach_session(self.session)
+        
+        # Add the gdbserver command group.
+        self._command_context.command_set.add_command_group('gdbserver')
 
     def restart(self):
         if self.is_alive():
@@ -974,87 +989,50 @@ class GDBServer(threading.Thread):
             return None
         return symValue
 
-    # TODO rewrite the remote command handler
+    def handle_remote_command_compatibility(self, cmd):
+        """! @brief Handle certain monitor commands for OpenOCD compatibility."""
+        if cmd.startswith('arm semihosting'):
+            enable = ('enable' in cmd)
+            self.session.options['enable_semihosting'] = enable
+        return False, None
+
     def handle_remote_command(self, cmd):
+        """! @brief Pass remote commands to the commander command processor."""
+        # Convert the command line to a string.
+        cmd = to_str_safe(cmd)
         LOG.debug('Remote command: %s', cmd)
 
-        safecmd = {
-            b'init'  : [b'(ignored for compatibility)', 0],
-            b'reset' : [b'Reset and halt the target', 0x2],
-            b'halt'  : [b'Halt target', 0x4],
-            b'help'  : [b'Display this help', 0x80],
-            b'arm semihosting' : [b'Enable or disable semihosting', 0],
-            b'set' : [b'Change options', 0],
-            b'erase' : [b'Erase flash ranges', 0],
-        }
+        # Create a new stream to collect the command output.
+        stream = six.StringIO()
+        self._command_context.output_stream = stream
+        
+        # TODO run this in a separate thread so we can cancel the command with ^C from gdb?
+        try:
+            # Run command and collect output.
+            self._command_context.process_command_line(cmd)
+        except exceptions.CommandError as err:
+            stream.write("Error: %s\n" % err)
+        except ToolExitException:
+            stream.write("Error: cannot exit gdbserver\n")
+        except exceptions.TransferError as err:
+            stream.write("Transfer failed: %s\n" % err)
+            LOG.error("Transfer failure while executing remote command '%s': %s", cmd, err,
+                    exc_info=self.session.log_tracebacks)
+        except Exception as err:
+            stream.write("Unexpected error: %s\n" % err)
+            LOG.error("Exception while executing remote command '%s': %s", cmd, err,
+                    exc_info=self.session.log_tracebacks)
+        
+        # Convert back to bytes, hex encode, then return the response packet.
+        output = stream.getvalue()
+        if not output:
+            output = "OK\n"
+        response = hex_encode(to_bytes_safe(output))
 
-        cmdList = cmd.split()
-        resp = b'OK'
-        if cmd == b'help':
-            resp = b''.join([b'%s\t%s\n' % (k, v[0]) for k, v in safecmd.items()])
-            resp = hex_encode(resp)
-        elif cmd.startswith(b'arm semihosting'):
-            self.enable_semihosting = b'enable' in cmd
-            LOG.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
-        elif cmdList[0] == b'set':
-            if len(cmdList) < 3:
-                resp = hex_encode(b"Error: invalid set command\n")
-            elif cmdList[1] == b'vector-catch':
-                try:
-                    self.target.set_vector_catch(convert_vector_catch(cmdList[2]))
-                except ValueError as e:
-                    resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
-            elif cmdList[1] == b'step-into-interrupt':
-                self.step_into_interrupt = (cmdList[2].lower() in (b"true", b"on", b"yes", b"1"))
-            else:
-                resp = hex_encode(b"Error: invalid set option\n")
-        elif cmd == b"flush threads":
-            if self.thread_provider is not None:
-                self.thread_provider.invalidate()
-        elif cmdList[0] == b'erase':
-            try:
-                if cmdList[1] == b'--chip':
-                    eraser = FlashEraser(self.session, FlashEraser.Mode.CHIP)
-                    eraser.erase()
-                else:
-                    eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
-                    eraser.erase(to_str_safe(x) for x in cmdList[1:])
-                resp = hex_encode(b"Erase successful\n")
-            except exceptions.Error as e:
-                resp = hex_encode(to_bytes_safe("Error: " + str(e) + "\n"))
-        elif cmdList[0] == b'sync':
-            self.send_stop_notification()
-        else:
-            resultMask = 0x00
-            if cmdList[0] == b'help':
-                # a 'help' is only valid as the first cmd, and only
-                # gives info on the second cmd if it is valid
-                resultMask |= 0x80
-                del cmdList[0]
-
-            for cmd_sub in cmdList:
-                if cmd_sub not in safecmd:
-                    LOG.warning("Invalid mon command '%s'", cmd_sub)
-                    resp = ('Invalid Command: "%s"\n' % cmd_sub).encode()
-                    resp = hex_encode(resp)
-                    return self.create_rsp_packet(resp)
-                elif resultMask == 0x80:
-                    # if the first command was a 'help', we only need
-                    # to return info about the first cmd after it
-                    resp = hex_encode(safecmd[cmd_sub][0]+b'\n')
-                    return self.create_rsp_packet(resp)
-                resultMask |= safecmd[cmd_sub][1]
-
-            # Run cmds in proper order
-            if (resultMask & 0x6) == 0x6:
-                self.target.reset_and_halt()
-            elif resultMask & 0x2:
-                # on 'reset' still do a reset halt
-                self.target.reset_and_halt()
-            elif resultMask & 0x4:
-                self.target.halt()
-
-        return self.create_rsp_packet(resp)
+        # Disconnect the stream.
+        self._command_context.output_stream = None
+            
+        return self.create_rsp_packet(response)
 
     def handle_general_set(self, msg):
         feature = msg.split(b'#')[0]
@@ -1229,5 +1207,66 @@ class GDBServer(threading.Thread):
             LOG.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
         elif notification.event == 'report_core_number':
             self.report_core = notification.data.new_value
-        
 
+class ThreadsCommand(CommandBase):
+    INFO = {
+            'names': ['threads'],
+            'group': 'gdbserver',
+            'category': 'threads',
+            'nargs': 1,
+            'usage': "{flush,enable,disable,status}",
+            'help': "Control thread awareness.",
+            }
+    
+    def parse(self, args):
+        self.action = args[0]
+        if self.action not in ('flush', 'enable', 'disable', 'status'):
+            raise exceptions.CommandError("invalid action")
+    
+    def execute(self):
+        # Get the gdbserver for the selected core.
+        core_number = self.context.target.selected_core.core_number
+        try:
+            gdbserver = self.context.session.gdbservers[core_number]
+        except KeyError:
+            raise exceptions.CommandError("no gdbserver for core #%i" % core_number)
+
+        if gdbserver.thread_provider is None:
+            self.context.write("Threads are unavailable")
+            return
+
+        if self.action == 'flush':
+            gdbserver.thread_provider.invalidate()
+            self.context.write("Threads flushed")
+        elif self.action == 'enable':
+            gdbserver.thread_provider.read_from_target = True
+            self.context.write("Threads enabled")
+        elif self.action == 'disable':
+            gdbserver.thread_provider.read_from_target = False
+            self.context.write("Threads disabled")
+        elif self.action == 'status':
+            self.context.write("Threads are " +
+                    ("enabled" if gdbserver.thread_provider.read_from_target else "disabled"))
+
+class ArmSemihostingCommand(CommandBase):
+    INFO = {
+            'names': ['arm'],
+            'group': 'gdbserver',
+            'category': 'semihosting',
+            'nargs': 2,
+            'usage': "semihosting {enable,disable}",
+            'help': "Enable or disable semihosting.",
+            'extra_help': "Provided for compatibility with OpenOCD. The same functionality can be achieved "
+                            "by setting the 'enable_semihosting' session option.",
+            }
+    
+    def parse(self, args):
+        if args[0] != 'semihosting':
+            raise exceptions.CommandError("invalid action")
+        if args[1] not in ('enable', 'disable'):
+            raise exceptions.CommandError("invalid action")
+        self.action = args[1]
+    
+    def execute(self):
+        enable = (self.action == 'enable')
+        self.context.session.options['enable_semihosting'] = enable
