@@ -491,7 +491,24 @@ class pemicroUnitAcmp():
 
         # Set Shift Rate
         self.lib.set_debug_shift_frequency(freq)
-        
+
+    def control_reset_line(self, assert_reset=True):
+        if not self.libraryLoaded:
+            raise PEMicroException("The library is not loaded")
+
+        self._log_debug("{0}Asserting RESET signal".format("De-" if not assert_reset else ""))
+
+        bdc_drive_reset_pin_low = 0x37000014
+        bdc_drive_reset_pin_tristate = 0x37000015
+
+        if assert_reset:
+            if self.lib.pe_special_features(bdc_drive_reset_pin_low, True, 0,0, 0,0,0) is False:
+                raise PEMicroException("Unable to assert RESET Line")
+        else:
+            if self.lib.pe_special_features(bdc_drive_reset_pin_tristate, True, 0,0, 0,0,0) is False:
+                raise PEMicroException("Unable to deassert RESET Line")
+
+
     def __check_swd_error(self):
         swd_status = self.lastSwdStatus()
 
@@ -508,7 +525,7 @@ class pemicroUnitAcmp():
 
     def writeApRegister(self, apselect, addr, value, now=False):
         if self.__openRefCount == 0:
-            return
+            raise PEMicroException("There is NO opened connection with target")
 
         self._log_debug("Writing into AP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}, mode:{when}".format(addr=addr, val=value, when="Now" if now else "Delayed"))
 
@@ -518,13 +535,12 @@ class pemicroUnitAcmp():
         # Check the status of SWD    
         self.__check_swd_error()
 
-        return
 
     def readApRegister(self, apselect, addr, now=True, requiresDelay=False):
         if self.__openRefCount == 0:
-            return 0
+            raise PEMicroException("There is NO opened connection with target")
         retVal = c_ulong()
-        if self.lib.pe_special_features(pe_arm_read_ap_register,True,apselect,addr,0,byref(retVal),0) is False:
+        if self.lib.pe_special_features(pe_arm_read_ap_register,now,apselect,addr,0,byref(retVal),0) is False:
             raise PEMicroException("Unable to Read AP Register")
         
         self._log_debug("Read AP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=retVal.value))
@@ -535,7 +551,7 @@ class pemicroUnitAcmp():
     
     def writeDpRegister(self, addr, value, now=False):
         if self.__openRefCount == 0:
-            return
+            raise PEMicroException("There is NO opened connection with target")
         
         self._log_debug("Writing into DP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}, mode:{when}".format(addr=addr, val=value, when="Now" if now else "Delayed"))
     
@@ -545,13 +561,12 @@ class pemicroUnitAcmp():
         # Check the status of SWD    
         self.__check_swd_error()
         
-        return
 
     def readDpRegister(self, addr, now=True, requiresDelay=False):
         if self.__openRefCount == 0:
-            return 0
+            raise PEMicroException("There is NO opened connection with target")
         retVal = c_ulong()
-        if self.lib.pe_special_features(pe_arm_read_dp_register,True,addr,0,0,byref(retVal),0) is False:
+        if self.lib.pe_special_features(pe_arm_read_dp_register, now, addr, 0, 0, byref(retVal), 0) is False:
             raise PEMicroException("Unable to Read DP Register")
 
         self._log_debug("Read DP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=retVal.value))
@@ -563,7 +578,7 @@ class pemicroUnitAcmp():
     
     def lastSwdStatus(self):
         if not self.libraryLoaded:
-            return 0
+            raise PEMicroException("Library is not loaded")
         retVal = c_ulong()
         self.lib.pe_special_features(pe_arm_get_last_swd_status,True,0,0,0,byref(retVal),0)
         self._log_debug("Got last SWD status:{val}, 0x{val:08X}".format(val=retVal.value))

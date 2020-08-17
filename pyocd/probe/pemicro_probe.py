@@ -227,17 +227,23 @@ class PEMicroProbe(DebugProbe):
 
             # Try to force reset Hardware
             self._pemicro.reset_target()
+            # self.assert_reset(asserted=True)
+            # sleep(self.session.options.get('reset.hold_time'))
+            # self.assert_reset(asserted=False)
+            # sleep(self.session.options.get('reset.post_delay'))
 
         except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
-    def assert_reset(self, asserted):
+    def assert_reset(self, asserted=False):
         try:
-            if asserted:
-                self.reset_pin_state = False
-                self.reset()
-            else:
-                self.reset_pin_state = True
+            # if asserted:
+            #     self.reset_pin_state = False
+            #     self.reset()
+            # else:
+            #     self.reset_pin_state = True
+            self._pemicro.control_reset_line(asserted)
+            self.reset_pin_state = not asserted
         except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
     
