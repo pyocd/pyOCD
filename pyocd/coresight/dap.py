@@ -639,7 +639,7 @@ class DebugPort(object):
         try:
             did_lock = self._select_ap(addr)
             TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
-            result_cb = self.probe.read_ap_multiple(addr, count, now=False)
+            result_cb = self.probe.read_ap_multiple(addr, count, now=now)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
@@ -661,7 +661,7 @@ class DebugPort(object):
                     self.unlock()
 
         if now:
-            return read_ap_multiple_cb()
+            return result_cb
         else:
             return read_ap_multiple_cb
 
