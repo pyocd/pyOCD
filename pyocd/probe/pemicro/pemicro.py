@@ -35,52 +35,58 @@
 # This file has been modified by NXP 2020 to implement into PyOCD project
 
 
-import time
-import platform
 import ctypes
-import sys
-import os.path
-from ctypes import *
 import logging
+import os.path
+import platform
+import sys
+import time
+from ctypes import *
+from enum import IntEnum
 
-PortType_Autodetect = 99
-PortType_ParallelPortCable = 1
-PortType_PCIBDMLightning = 2
-PortType_USBMultilink = 3
-PortType_CycloneProMaxSerial = 4
-PortType_CycloneProMaxUSB = 5
-PortType_CycloneProMaxEthernet = 6
-PortType_OpenSDAUSB = 9
 
-# Special Features for Power Management
-pwr_set_power_options = 0x38000001      
-pwr_turn_power_on = 0x38000011
-pwr_turn_power_off = 0x38000012
+# Enumeration of all PEMicro port types
+class PEMicroPortType(IntEnum):
+    AUTODETECT = 99
+    PARALLEL_PORT_CABLE = 1
+    PCIBDM_LIGHTNING = 2
+    USB_MULTILINK = 3
+    CYCLONE_PRO_MAX_SERIAL = 4
+    CYCLONE_PRO_MAX_USB = 5
+    CYCLONE_PRO_MAX_ETHERNET = 6
+    OPENSDA_USB = 9
 
-# Special Features for debug communications mode
-pe_arm_set_communications_mode = 0x44000001
-pe_arm_set_debug_comm_swd = 0x00000000
-pe_arm_set_debug_comm_jtag = 0x00000001
+# Enumeration of all PEMicro Special features
+class PEMicroSpecialFeatures(IntEnum):
+    # Special Features for Power Management
+    PE_PWR_SET_POWER_OPTIONS = 0X38000001      
+    PE_PWR_TURN_POWER_ON = 0X38000011
+    PE_PWR_TURN_POWER_OFF = 0X38000012
 
-pe_arm_enable_debug_module = 0x44000002
-pe_arm_write_ap_register = 0x44000003
-pe_arm_read_ap_register = 0x44000004
-pe_arm_write_dp_register = 0x44000007
-pe_arm_read_dp_register = 0x44000008
-pe_arm_flush_any_queued_data = 0x44000005
+    # Special Features for debug communications mode
+    PE_ARM_SET_COMMUNICATIONS_MODE = 0X44000001
+    PE_ARM_SET_DEBUG_COMM_SWD = 0X00000000
+    PE_ARM_SET_DEBUG_COMM_JTAG = 0X00000001
 
-pe_arm_get_last_swd_status = 0x44000006
-pe_arm_swd_status_ack = 0x04
-pe_arm_swd_status_wait = 0x02
-pe_arm_swd_status_fault = 0x01
+    PE_ARM_ENABLE_DEBUG_MODULE = 0X44000002
+    PE_ARM_WRITE_AP_REGISTER = 0X44000003
+    PE_ARM_READ_AP_REGISTER = 0X44000004
+    PE_ARM_WRITE_DP_REGISTER = 0X44000007
+    PE_ARM_READ_DP_REGISTER = 0X44000008
+    PE_ARM_FLUSH_ANY_QUEUED_DATA = 0X44000005
 
-  
-# Special Features for Setting current device and core
-pe_generic_get_device_list = 0x58004000
-pe_generic_select_device = 0x58004001
-pe_generic_get_core_list = 0x58004002
-pe_generic_select_core = 0x58004003
-pe_set_default_application_files_directory = 0x58006000
+    # SWD control special features
+    PE_ARM_GET_LAST_SWD_STATUS = 0X44000006
+    PE_ARM_SWD_STATUS_ACK = 0X04
+    PE_ARM_SWD_STATUS_WAIT = 0X02
+    PE_ARM_SWD_STATUS_FAULT = 0X01
+
+    # Special Features for Setting current device and core
+    PE_GENERIC_GET_DEVICE_LIST = 0X58004000
+    PE_GENERIC_SELECT_DEVICE = 0X58004001
+    PE_GENERIC_GET_CORE_LIST = 0X58004002
+    PE_GENERIC_SELECT_CORE = 0X58004003
+    PE_SET_DEFAULT_APPLICATION_FILES_DIRECTORY = 0X58006000
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +147,7 @@ class PEMicroTransferException(PEMicroException):
     """PEMicro Transfer exception."""
     pass
 
-class pemicroUnitAcmp():
+class PEMicroUnitAcmp():
 
     @staticmethod
     def get_user_friendly_library_name():
@@ -151,7 +157,7 @@ class pemicroUnitAcmp():
         return systems[platform.system()]
 
     @staticmethod
-    def getLibraryName():
+    def get_library_name():
         libs = {"Windows"           :{"32bit":"unitacmp-32.dll", "64bit":"unitacmp-64.dll"},
                 ("Linux", "Linux2") :{("32bit","64bit")                 :"unitacmp-64.so"},
                 ("Darwin")          :{("32bit","64bit")                 :"unitacmp-64.dylib"}}
@@ -167,8 +173,8 @@ class pemicroUnitAcmp():
     def __init__(self, dllpath=None, log_info=None, log_war=None, log_err=None, log_debug=None):
         
         # Initialize the basic objects
-        self.__openRefCount = 0
-        self.libraryLoaded = False
+        self.__open_ref_count = 0
+        self.library_loaded = False
         self.lib = None
 
         #register logging objects
@@ -178,10 +184,10 @@ class pemicroUnitAcmp():
         self._log_debug = lambda s:(log_debug or logger.debug)(s)
 
         if dllpath is None:
-            osUtilityPath = os.path.join("libs", pemicroUnitAcmp.get_user_friendly_library_name())
+            osUtilityPath = os.path.join("libs", PEMicroUnitAcmp.get_user_friendly_library_name())
             
             # Get the name of PEMicro dynamic library
-            self.name = self.getLibraryName()
+            self.name = self.get_library_name()
 
             if self.name is None:
                 raise PEMicroException("unable to determinate running operation system")
@@ -189,20 +195,20 @@ class pemicroUnitAcmp():
             # load the library
             try:
                 # Look in System Folders
-                self.libraryPath = ''
+                self.library_path = ''
                 self.lib = cdll.LoadLibrary(self.name)
             except:
                 try:
                     # Look in the folder with .py file
-                    self.libraryPath = os.path.dirname(__file__)
-                    self.lib = cdll.LoadLibrary(os.path.join(self.libraryPath,self.name))
+                    self.library_path = os.path.dirname(__file__)
+                    self.lib = cdll.LoadLibrary(os.path.join(self.library_path,self.name))
                 except:
                     # Look in a structured subfolder
-                    self.libraryPath = os.path.join(os.path.dirname(__file__),osUtilityPath)
-                    self.lib = cdll.LoadLibrary(os.path.join(self.libraryPath,self.name))
+                    self.library_path = os.path.join(os.path.dirname(__file__),osUtilityPath)
+                    self.lib = cdll.LoadLibrary(os.path.join(self.library_path,self.name))
 
         if self.lib:
-            self.libraryLoaded = True
+            self.library_loaded = True
             self.lib.pe_special_features.argtypes = [c_ulong,c_bool,c_ulong,c_ulong,c_ulong,c_void_p,c_void_p]
             self.lib.pe_special_features.restype = c_bool
 
@@ -256,14 +262,26 @@ class pemicroUnitAcmp():
             # bool target_resume(void);
             self.lib.target_resume.restype = c_bool
 
-            self.lib.pe_special_features(pe_set_default_application_files_directory,True,0,0,0,c_char_p(self.libraryPath.encode('utf-8')),0)
+            self._special_features(PEMicroSpecialFeatures.PE_SET_DEFAULT_APPLICATION_FILES_DIRECTORY,ref1=c_char_p(self.library_path.encode('utf-8')))
 
-    def open(self, debugHardwareNameIpOrSerialnum=None):
+    def _special_features(self, featurenum, fset=True, par1=0, par2=0, par3=0, ref1=None, ref2=None):
+        
+        if not self.library_loaded:
+            raise PEMicroException("Library is not loaded")
+
+        if not isinstance(featurenum, PEMicroSpecialFeatures):
+            raise PEMicroException("Invalide argument to do special feature")
+
+        if self.lib.pe_special_features(featurenum, fset, par1, par2, par3, ref1, ref2) is False:
+            raise PEMicroException("The special feature command hasn't accepted")
+
+
+    def open(self, debug_hardware_name_ip_or_serialnum=None):
         """ This function opens the connection to PEMicro debug probe
 
         Args:
-            self(pemicroUnitAcmp): the "pemicroUnitAcmp" Instance
-            hardwareId: Hardware identifier of PEMicro debug probe
+            self(PEMicroUnitAcmp): the "PEMicroUnitAcmp" Instance
+            debug_hardware_name_ip_or_serialnum: Hardware identifier of PEMicro debug probe
 
         Returns:
             "None"
@@ -272,25 +290,24 @@ class pemicroUnitAcmp():
             ProbeError : With any problem with probe itself
 
         """
-        if not self.libraryLoaded:
+        if not self.library_loaded:
             raise PEMicroException("Library is not loaded")
 
-        if self.__openRefCount > 0:
-            self.__openRefCount += 1
+        if self.__open_ref_count > 0:
+            self.__open_ref_count += 1
             return None
 
-        if debugHardwareNameIpOrSerialnum==None:
+        if debug_hardware_name_ip_or_serialnum==None:
             # USB1 is a generic identifier which will select the first autodetected USB pemicro device
-            portName = c_char_p('USB1'.encode('utf-8'))
+            port_name = c_char_p('USB1'.encode('utf-8'))
         else:
             # This identifier can be the debug hardware's IP address, assigned name, serial number, or generic identifier (USB1, ETHERNET1)
-            portName = c_char_p(debugHardwareNameIpOrSerialnum.encode('utf-8'))
+            port_name = c_char_p(debug_hardware_name_ip_or_serialnum.encode('utf-8'))
         
-        
-        if not self.lib.open_port_by_identifier(portName):
+        if not self.lib.open_port_by_identifier(port_name):
             raise PEMicroException("Cannot connect to debug probe")
         
-        self.__openRefCount = 1
+        self.__open_ref_count = 1
 
         # Connect and initialize the P&E hardware interface. This does not attempt to reset the target.
         self.lib.reset_hardware_interface()
@@ -308,20 +325,20 @@ class pemicroUnitAcmp():
 
     @property
     def opened(self):
-        return True if self.__openRefCount > 0 else False            
+        return True if self.__open_ref_count > 0 else False            
 
     def close(self):
-        if self.__openRefCount == 0:
+        if self.__open_ref_count == 0:
             # Do nothing if .open() has not been called.
             return None
 
-        self.__openRefCount -= 1
+        self.__open_ref_count -= 1
 
-        if self.__openRefCount > 0:
+        if self.__open_ref_count > 0:
             return None
 
         # Close any open connections to hardware
-        self.lib.pe_special_features(pe_arm_flush_any_queued_data,True,0,0,0,0,0)
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_FLUSH_ANY_QUEUED_DATA)
         self.lib.close_port()
 
         return
@@ -333,35 +350,20 @@ class pemicroUnitAcmp():
         if self.lib is not None:
             libHandle = self.lib._handle
             del self.lib
-            pemicroUnitAcmp.free_library(libHandle)
-
+            PEMicroUnitAcmp.free_library(libHandle)
 
     def power_on(self):
-        if not self.libraryLoaded:
-            raise PEMicroException("Library is not loaded,yet")
-
         self._log_debug("Power on target")
 
-        if self.lib.pe_special_features(pwr_turn_power_on,True,0,0,0,0,0) == False:
-            self._log_error('Power ON command has NOT been accepted.')    
-            return False
-
-        return True
+        self._special_features(PEMicroSpecialFeatures.PE_PWR_TURN_POWER_ON)
 
     def power_off(self):
-        if not self.libraryLoaded:
-            raise PEMicroException("Library is not loaded,yet")
-
         self._log_debug("Power off target")
 
-        if self.lib.pe_special_features(pwr_turn_power_off,True,0,0,0,0,0) == False:
-            self._log_error('Power OFF command has NOT been accepted.')    
-            return False
-
-        return True
+        self._special_features(PEMicroSpecialFeatures.PE_PWR_TURN_POWER_OFF)
 
     def reset_target(self):
-        if not self.libraryLoaded:
+        if not self.library_loaded:
             raise PEMicroException("Library is not loaded,yet")
 
         self._log_debug("Reset target")
@@ -372,10 +374,8 @@ class pemicroUnitAcmp():
         # if self.lib.target_resume() is not True:
         #     raise PEMicroException("Resume after reset of target sequence failed")    
         
-
-
     def set_reset_delay_in_ms(self, delay):
-        if not self.libraryLoaded:
+        if not self.library_loaded:
             raise PEMicroException("Library is not loaded,yet")
 
         self._log_debug("Reset target delay has been set to {t}ms".format(t=delay))
@@ -383,136 +383,120 @@ class pemicroUnitAcmp():
         self.lib.set_reset_delay_in_ms(delay)        
 
     def flush_any_queued_data(self):
-        if not self.libraryLoaded:
-            raise PEMicroException("Library is not loaded,yet")
-        if self.__openRefCount == 0:
+        if self.__open_ref_count == 0:
             raise PEMicroException("The connection is not active")
 
         self._log_debug("All queued data has been flushed")
 
-        if self.lib.pe_special_features(pe_arm_flush_any_queued_data,True,0,0,0,0,0) == False:
-            raise PEMicroException("Can't Flush queued data")
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_FLUSH_ANY_QUEUED_DATA)
 
     def set_device_name(self, device_name="Cortex-M4"):
-        if not self.libraryLoaded:
-            raise PEMicroException("Library is not loaded,yet")
-    
-        if self.__openRefCount > 0:
+        if self.__open_ref_count > 0:
             raise PEMicroException("The connection is already opened, can't change the device name")
 
         self._log_debug("The device name is set to {name}".format(name=device_name))
 
-        if self.lib.pe_special_features(pe_generic_select_device,True,0,0,0,device_name.encode('utf-8'),0) == False:
-            self._log_error('Set device name command has not been accepted.')    
-            return False
-
-        return True
+        self._special_features(PEMicroSpecialFeatures.PE_GENERIC_SELECT_DEVICE, ref1=device_name.encode('utf-8'))
 
     def version(self):
-        version = self.lib.version().decode('utf-8') if self.libraryLoaded else "Unknown"
+        version = self.lib.version().decode('utf-8') if self.library_loaded else "Unknown"
         self._log_debug("Getting version: {ver}".format(ver=version))
         return version
 
 
     def version_dll(self):
-        version = self.lib.get_dll_version()  if self.libraryLoaded else "Unknown"
+        version = self.lib.get_dll_version()  if self.library_loaded else "Unknown"
         self._log_debug("Getting DLL version: {ver}".format(ver=version))
         return version 
 
 
     def listPortsDescription(self):
-        if not self.libraryLoaded:
+        if not self.library_loaded:
+            raise PEMicroException("No PEMicro Library is loaded!")
             return
-        numports = self.lib.get_enumerated_number_of_ports(PortType_Autodetect)
+        numports = self.lib.get_enumerated_number_of_ports(PEMicroPortType.AUTODETECT)
         if numports == 0:
-            self._log_warning('No hardware detected locally.')
+            self._log_info('No hardware detected locally.')
         for i in range(numports):
-            self._log_info(self.lib.get_port_descriptor_short(PortType_Autodetect,i+1).decode("utf-8") + ' : ' + self.lib.get_port_descriptor(PortType_Autodetect,i+1).decode("utf-8"))
-        return
+            self._log_info(self.lib.get_port_descriptor_short(PEMicroPortType.AUTODETECT,i+1).decode("utf-8") + ' : ' + self.lib.get_port_descriptor(PEMicroPortType.AUTODETECT,i+1).decode("utf-8"))
+        
 
     def listPorts(self):
-        if not self.libraryLoaded:
+        if not self.library_loaded:
             raise PEMicroException("No PEMicro Library is loaded!")
-        numports = self.lib.get_enumerated_number_of_ports(PortType_Autodetect)
+        numports = self.lib.get_enumerated_number_of_ports(PEMicroPortType.AUTODETECT)
         if numports == 0:
             return None
         ports = list()
-
         for i in range(numports):
-            ports.append({"id":self.lib.get_port_descriptor_short(PortType_Autodetect,i+1).decode("utf-8"), "description":self.lib.get_port_descriptor(PortType_Autodetect,i+1).decode("utf-8")})
+            ports.append({"id":self.lib.get_port_descriptor_short(PEMicroPortType.AUTODETECT,i+1).decode("utf-8"), "description":self.lib.get_port_descriptor(PEMicroPortType.AUTODETECT,i+1).decode("utf-8")})
         return ports
 
-    def printPorts(self, ports):
+    def print_ports(self, ports):
         if ports == None or len(ports) == 0:
-            self._log_warning('No hardware detected locally.')
+            self._log_info('No hardware detected locally.')
         i=0
         for port in ports:
             self._log_info("{ix:>2}: {id} => {desc}".format(ix=i, id=port["id"], desc=port["description"]))
             i += 1
 
-    def listPortsName(self):
-        if not self.libraryLoaded:
-            return
-        numports = self.lib.get_enumerated_number_of_ports(PortType_Autodetect)
+    def list_ports_name(self):
+        if not self.library_loaded:
+            raise PEMicroException("No PEMicro Library is loaded!")
+        numports = self.lib.get_enumerated_number_of_ports(PEMicroPortType.AUTODETECT)
         if numports == 0:
-            self._log_warning('No hardware detected locally.')
+            self._log_info('No hardware detected locally.')
         for i in range(numports):
-            self._log_info(self.lib.get_port_descriptor_short(PortType_Autodetect,i+1).decode("utf-8"))
+            self._log_info(self.lib.get_port_descriptor_short(PEMicroPortType.AUTODETECT,i+1).decode("utf-8"))
         return    
 
     def connect(self, interface=PEMicroInterfaces.SWD, shiftSpeed=1000000):
         # connectToDebugCable must be used first to connect to the debug hardware
-        if not self.libraryLoaded:
-            return False
-        if self.__openRefCount == 0:
-            return False
+        if not self.library_loaded:
+            raise PEMicroException("No PEMicro Library is loaded!")
+        if self.__open_ref_count == 0:
+            raise PEMicroException("The connection is not opened, can't connect to target")
+        self._log_debug("Selecting the communication interface to {intf}".format(intf=PEMicroInterfaces().get_str(interface)))   
         if interface is PEMicroInterfaces.SWD:
-            ret = self.lib.pe_special_features(pe_arm_set_communications_mode,True,pe_arm_set_debug_comm_swd,0,0,0,0)
+            self._special_features(PEMicroSpecialFeatures.PE_ARM_SET_COMMUNICATIONS_MODE, par1=PEMicroSpecialFeatures.PE_ARM_SET_DEBUG_COMM_SWD)
         else:       
-            ret = self.lib.pe_special_features(pe_arm_set_communications_mode,True,pe_arm_set_debug_comm_jtag,0,0,0,0)
-        if ret is False:
-            self._log_error("Can't select the communication interface to {intf}".format(intf=PEMicroInterfaces().get_str(interface)))    
+            self._special_features(PEMicroSpecialFeatures.PE_ARM_SET_COMMUNICATIONS_MODE, par1=PEMicroSpecialFeatures.PE_ARM_SET_DEBUG_COMM_JTAG)
         # Set 1Mhz as a default or given value by parameter shiftSpeed for communication speed
         self.lib.set_debug_shift_frequency(shiftSpeed)
         # Communicate to the target, power up debug module, check  (powering it up). Looks for arm IDCODE to verify connection.
-        ret = self.lib.pe_special_features(pe_arm_enable_debug_module,True,0,0,0,0,0)
-        if ret:
-            self._log_info("Connected to target over {intf} with clock {clk}Hz".format(intf=PEMicroInterfaces.get_str(interface), clk=shiftSpeed))
-        else:
+        try:
+            self._special_features(PEMicroSpecialFeatures.PE_ARM_ENABLE_DEBUG_MODULE)
+        except:
             self._log_error("Failed to connect to target")    
-        return 
+        
+        self._log_info("Connected to target over {intf} with clock {clk}Hz".format(intf=PEMicroInterfaces.get_str(interface), clk=shiftSpeed))
 
     def set_debug_frequency(self, freq):
-        if not self.libraryLoaded:
-            return False
-        if self.__openRefCount == 0:
-            return False
+        if not self.library_loaded:
+            raise PEMicroException("No PEMicro Library is loaded!")
+        if self.__open_ref_count == 0:
+            raise PEMicroException("The communication interface is not opened")
         self._log_debug("The communication speed has been switched to {clk}Hz".format(clk=freq))
 
         # Set Shift Rate
         self.lib.set_debug_shift_frequency(freq)
 
     def control_reset_line(self, assert_reset=True):
-        if not self.libraryLoaded:
-            raise PEMicroException("The library is not loaded")
-
         self._log_debug("{0}Asserting RESET signal".format("De-" if not assert_reset else ""))
 
         bdc_drive_reset_pin_low = 0x37000014
         bdc_drive_reset_pin_tristate = 0x37000015
 
         if assert_reset:
-            if self.lib.pe_special_features(bdc_drive_reset_pin_low, True, 0,0, 0,0,0) is False:
-                raise PEMicroException("Unable to assert RESET Line")
+            self._special_features(bdc_drive_reset_pin_low)
         else:
-            if self.lib.pe_special_features(bdc_drive_reset_pin_tristate, True, 0,0, 0,0,0) is False:
-                raise PEMicroException("Unable to deassert RESET Line")
+            self._special_features(bdc_drive_reset_pin_tristate)
 
 
     def __check_swd_error(self):
-        swd_status = self.lastSwdStatus()
+        swd_status = self.last_swd_status()
 
-        if swd_status is not pe_arm_swd_status_ack:
+        if swd_status not in [PEMicroSpecialFeatures.PE_ARM_SWD_STATUS_ACK, PEMicroSpecialFeatures.PE_ARM_SWD_STATUS_WAIT]:
             # Verify that the connection to the P&E hardware interface is good.
             probe_error = self.lib.check_critical_error()
             
@@ -523,66 +507,60 @@ class pemicroUnitAcmp():
             raise PEMicroTransferException("SWD Status failed during IO operation. status: 0x{err:02X}".format(err=swd_status))
 
 
-    def writeApRegister(self, apselect, addr, value, now=False):
-        if self.__openRefCount == 0:
+    def write_ap_register(self, apselect, addr, value, now=False):
+        if self.__open_ref_count == 0:
             raise PEMicroException("There is NO opened connection with target")
 
         self._log_debug("Writing into AP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}, mode:{when}".format(addr=addr, val=value, when="Now" if now else "Delayed"))
 
-        if self.lib.pe_special_features(pe_arm_write_ap_register, now, apselect,addr,value,0,0) is False:
-            raise PEMicroException("Unable to Write AP Register")
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_WRITE_AP_REGISTER, fset=now, par1=apselect, par2=addr, par3=value)
 
         # Check the status of SWD    
         self.__check_swd_error()
 
 
-    def readApRegister(self, apselect, addr, now=True, requiresDelay=False):
-        if self.__openRefCount == 0:
+    def read_ap_register(self, apselect, addr, now=True, requiresDelay=False):
+        if self.__open_ref_count == 0:
             raise PEMicroException("There is NO opened connection with target")
-        retVal = c_ulong()
-        if self.lib.pe_special_features(pe_arm_read_ap_register,now,apselect,addr,0,byref(retVal),0) is False:
-            raise PEMicroException("Unable to Read AP Register")
+        ret_val = c_ulong()
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_READ_AP_REGISTER,fset=now, par1=apselect, par2=addr, ref1=byref(ret_val))
         
-        self._log_debug("Read AP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=retVal.value))
+        self._log_debug("Read AP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=ret_val.value))
         # Check the status of SWD    
         self.__check_swd_error()
 
-        return retVal.value
+        return ret_val.value
     
-    def writeDpRegister(self, addr, value, now=False):
-        if self.__openRefCount == 0:
+    def write_dp_register(self, addr, value, now=False):
+        if self.__open_ref_count == 0:
             raise PEMicroException("There is NO opened connection with target")
         
         self._log_debug("Writing into DP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}, mode:{when}".format(addr=addr, val=value, when="Now" if now else "Delayed"))
     
-        if self.lib.pe_special_features(pe_arm_write_dp_register, now, addr,value,0,0,0) is False:
-            raise PEMicroException("Unable to Write DP Register")
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_WRITE_DP_REGISTER, fset=now, par1=addr, par2=value)
 
         # Check the status of SWD    
         self.__check_swd_error()
         
 
-    def readDpRegister(self, addr, now=True, requiresDelay=False):
-        if self.__openRefCount == 0:
+    def read_dp_register(self, addr, now=True, requiresDelay=False):
+        if self.__open_ref_count == 0:
             raise PEMicroException("There is NO opened connection with target")
-        retVal = c_ulong()
-        if self.lib.pe_special_features(pe_arm_read_dp_register, now, addr, 0, 0, byref(retVal), 0) is False:
-            raise PEMicroException("Unable to Read DP Register")
+        ret_val = c_ulong()
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_READ_DP_REGISTER, fset=now, par1=addr, ref1=byref(ret_val))
 
-        self._log_debug("Read DP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=retVal.value))
+        self._log_debug("Read DP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=ret_val.value))
 
         # Check the status of SWD    
         self.__check_swd_error()
         
-        return retVal.value
+        return ret_val.value
     
-    def lastSwdStatus(self):
-        if not self.libraryLoaded:
-            raise PEMicroException("Library is not loaded")
-        retVal = c_ulong()
-        self.lib.pe_special_features(pe_arm_get_last_swd_status,True,0,0,0,byref(retVal),0)
-        self._log_debug("Got last SWD status:{val}, 0x{val:08X}".format(val=retVal.value))
-        return retVal.value
+    def last_swd_status(self):
+        ret_val = c_ulong()
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_GET_LAST_SWD_STATUS, ref1=byref(ret_val))
+        self._log_debug("Got last SWD status:{val}, 0x{val:08X}".format(val=ret_val.value))
+        return ret_val.value
 
 
 # All functions names in DLL
@@ -629,4 +607,3 @@ class pemicroUnitAcmp():
 # open_debug_file
 # get_dll_version
 # version
-
