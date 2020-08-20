@@ -91,10 +91,12 @@ class PyUSB(Interface):
         self.kernel_driver_was_attached = False
         try:
             if dev.is_kernel_driver_active(interface_number):
+                LOG.debug("Detaching Kernel Driver of Interface %d from USB device (VID=%04x PID=%04x).", interface_number, dev.idVendor, dev.idProduct)
                 dev.detach_kernel_driver(interface_number)
                 self.kernel_driver_was_attached = True
-        except NotImplementedError as e:
+        except (NotImplementedError,usb.core.USBError) as e:
             # Some implementations don't don't have kernel attach/detach
+            LOG.warning("USB Kernel Driver Detach Failed ([%s] %s). Attached driver may interfere with pyOCD operations.", e.errno, e.strerror)
             pass
 
         # Explicitly claim the interface
