@@ -46,10 +46,10 @@ Number of entries in the pyOCD Commander command history. Set to -1 for unlimite
 
 <tr><td>config_file</td>
 <td>str</td>
-<td><i>See description.</i></td>
+<td><i>See description</i></td>
 <td>
 Relative path to a YAML config file that lets you specify user options either globally or per probe.
-The format of the file is documented above. The default is a `pyocd.yaml` or `pyocd.yml` file in the
+The format of the file is documented above. The default is a <tt>pyocd.yaml</tt> or <tt>pyocd.yml</tt> file in the
 working directory.
 </td></tr>
 
@@ -140,10 +140,10 @@ with new data.
 
 <tr><td>logging</td>
 <td>str, dict</td>
-<td><i>No default.</i></td>
+<td><i>No default</i></td>
 <td>
 Either a dictionary with logging configuration, or a path to a separate yaml logging configuration
-file. See the [logging configuration documentation](configuring_logging.md) for details of how to
+file. See the <a href="configuring_logging.md">logging configuration documentation</a> for details of how to
 use this option.
 </td></tr>
 
@@ -156,7 +156,7 @@ Do not use default config file.
 
 <tr><td>pack</td>
 <td>str, list of str</td>
-<td><i>No default.</i></td>
+<td><i>No default</i></td>
 <td>
 Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are added to the
 list of available targets.
@@ -171,7 +171,7 @@ TCP port for the debug probe server.
 
 <tr><td>project_dir</td>
 <td>str</td>
-<td><i>See description.</i></td>
+<td><i>See description</i></td>
 <td>
 Path to the session's project directory. Defaults to the working directory when the pyocd tool was
 executed.
@@ -231,23 +231,23 @@ programmed.
 
 <tr><td>target_override</td>
 <td>str</td>
-<td></td>
+<td><i>No default</i></td>
 <td>
-Target type name to use instead of default board target or default `cortex_m`.
+Target type name to use instead of default board target or default <tt>cortex_m</tt>.
 </td></tr>
 
 <tr><td>test_binary</td>
 <td>str</td>
-<td></td>
+<td><i>No default</i></td>
 <td>
-Specify the test binary file name used by the functional test suite (in the `test/` directory). The
-binary must be in the `binaries/` directory. This option is most useful when set in a board config
+Specify the test binary file name used by the functional test suite (in the <tt>test/</tt> directory). The
+binary must be in the <tt>binaries/</tt> directory. This option is most useful when set in a board config
 file for running the functional tests on boards that cannot be automatically detected.
 </td></tr>
 
 <tr><td>user_script</td>
 <td>str</td>
-<td><i>No default.</i></td>
+<td><i>No default</i></td>
 <td>
 Path of the user script file.
 </td></tr>
@@ -274,15 +274,15 @@ These user options are currently only applied when running the GDB server.
 <td>bool</td>
 <td>False</td>
 <td>
-Set to True to handle semihosting requests. Also see the `semihost_console_type` option.
+Set to True to handle semihosting requests. Also see the <tt>semihost_console_type</tt> option.
 </td></tr>
 
 <tr><td>enable_swv</td>
 <td>bool</td>
 <td>False</td>
 <td>
-Whether to enable SWV printf output over the semihosting console. Requires the `swv_system_clock`
-option to be set. The SWO baud rate can be controlled with the `swv_clock` option.
+Whether to enable SWV printf output over the semihosting console. Requires the <tt>swv_system_clock</tt>
+option to be set. The SWO baud rate can be controlled with the <tt>swv_clock</tt> option.
 </td></tr>
 
 <tr><td>gdbserver_port</td>
@@ -349,7 +349,7 @@ Frequency in Hertz of the SWO baud rate.
 
 <tr><td>swv_system_clock</td>
 <td>int</td>
-<td><i>No default.</i></td>
+<td><i>No default</i></td>
 <td>
 Frequency in Hertz of the target's system clock. Used to compute the SWO baud rate
 divider.
@@ -365,23 +365,23 @@ primary core, is added to this value.
 
 <tr><td>vector_catch</td>
 <td>str</td>
-<td>h</td>
+<td>'h'</td>
 <td>
 Enable vector catch sources, one letter per enabled source in any order, or
-`all` or `none`.
+<tt>all</tt> or <tt>none</tt>.
 
 The source letters are:
-- `h`=hard fault
-- `b`=bus fault
-- `m`=mem fault
-- `e`=secure fault
-- `i`=irq err
-- `s`=state err
-- `c`=check err
-- `p`=nocp
-- `r`=reset
-- `a`=all
-- `n`=none
+- <tt>h</tt>=hard fault
+- <tt>b</tt>=bus fault
+- <tt>m</tt>=mem fault
+- <tt>e</tt>=secure fault
+- <tt>i</tt>=irq err
+- <tt>s</tt>=state err
+- <tt>c</tt>=check err
+- <tt>p</tt>=nocp
+- <tt>r</tt>=reset
+- <tt>a</tt>=all
+- <tt>n</tt>=none
 </td></tr>
 
 <tr><td>xpsr_control_fields</td>
@@ -412,7 +412,7 @@ Default is True.
 
 <tr><td>jlink.device</td>
 <td>str</td>
-<td>None</td>
+<td><i>No default</i></td>
 <td>
 Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD does has its own
 device support, and so when this option is unset, "Cortex-M4" is used just to supply something
