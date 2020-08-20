@@ -25,7 +25,7 @@ from ..core import (exceptions, memory_interface)
 LOG = logging.getLogger(__name__)
 
 TRACE = LOG.getChild("trace")
-TRACE.setLevel(logging.WARNING)
+TRACE.setLevel(logging.INFO)
 
 
 ## @brief Wraps a PEMicro as a DebugProbe.
@@ -220,28 +220,26 @@ class PEMicroProbe(DebugProbe):
     def reset(self):
         try:
             # If it's neccessary, change the reset delay
-            delay = int(1000 * max(self.session.options.get('reset.hold_time'), self.session.options.get('reset.post_delay')))
-            if delay is not self._reset_delay_ms:
-                self._pemicro.set_reset_delay_in_ms(delay)
-                self._reset_delay_ms = delay
+            # delay = int(1000 * max(self.session.options.get('reset.hold_time'), self.session.options.get('reset.post_delay')))
+            # if delay is not self._reset_delay_ms:
+            #     self._pemicro.set_reset_delay_in_ms(delay)
+            #     self._reset_delay_ms = delay
 
-            # Try to force reset Hardware
-            self._pemicro.reset_target()
-            # self.assert_reset(asserted=True)
-            # sleep(self.session.options.get('reset.hold_time'))
-            # self.assert_reset(asserted=False)
-            # sleep(self.session.options.get('reset.post_delay'))
+            # # Try to force reset Hardware
+            # self._pemicro.reset_target()
+
+            self._pemicro.flush_any_queued_data()
+
+            self.assert_reset(asserted=True)
+            sleep(self.session.options.get('reset.hold_time'))
+            self.assert_reset(asserted=False)
+            sleep(self.session.options.get('reset.post_delay'))
 
         except PEMicroException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
     def assert_reset(self, asserted=False):
         try:
-            # if asserted:
-            #     self.reset_pin_state = False
-            #     self.reset()
-            # else:
-            #     self.reset_pin_state = True
             self._pemicro.control_reset_line(asserted)
             self.reset_pin_state = not asserted
         except PEMicroException as exc:

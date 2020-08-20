@@ -262,6 +262,9 @@ class PEMicroUnitAcmp():
             # bool target_resume(void);
             self.lib.target_resume.restype = c_bool
 
+            # void set_reset_pin_state(unsigned char state)
+            self.lib.set_reset_pin_state.argtypes = [c_byte]
+
             self._special_features(PEMicroSpecialFeatures.PE_SET_DEFAULT_APPLICATION_FILES_DIRECTORY,ref1=c_char_p(self.library_path.encode('utf-8')))
 
     def _special_features(self, featurenum, fset=True, par1=0, par2=0, par3=0, ref1=None, ref2=None):
@@ -484,14 +487,7 @@ class PEMicroUnitAcmp():
     def control_reset_line(self, assert_reset=True):
         self._log_debug("{0}Asserting RESET signal".format("De-" if not assert_reset else ""))
 
-        bdc_drive_reset_pin_low = 0x37000014
-        bdc_drive_reset_pin_tristate = 0x37000015
-
-        if assert_reset:
-            self._special_features(bdc_drive_reset_pin_low)
-        else:
-            self._special_features(bdc_drive_reset_pin_tristate)
-
+        self.lib.set_reset_pin_state(0 if assert_reset else 1)        
 
     def __check_swd_error(self):
         swd_status = self.last_swd_status()
