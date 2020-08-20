@@ -107,6 +107,11 @@ BUILTIN_OPTIONS = [
         "If True, the GDB server will not exit after GDB disconnects."),
     OptionInfo('report_core_number', bool, False,
         "Whether gdb server should report core number as part of the per-thread information."),
+    OptionInfo('rtos.enable', bool, True,
+        "Overall enable flag for RTOS aware debugging. By default it's enabled but can be switched off "
+        "if necessary."),
+    OptionInfo('rtos.name', str, None,
+        "Name of the RTOS plugin to use. If not set, all RTOS plugins are given a chance to load."),
     OptionInfo('semihost_console_type', str, 'telnet',
         "If set to \"telnet\" then the semihosting telnet server will be started, otherwise "
         "semihosting will print to the console."),

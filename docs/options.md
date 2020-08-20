@@ -307,6 +307,21 @@ If True, the GDB server will not exit after GDB disconnects.
 Whether gdb server should report core number as part of the per-thread information.
 </td></tr>
 
+<tr><td>rtos.enable</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Overall enable flag for RTOS aware debugging. By default it's enabled but can be switched off
+if necessary.
+</td></tr>
+
+<tr><td>rtos.name</td>
+<td>str</td>
+<td><i>No default</i></td>
+<td>
+Name of the RTOS plugin to use. If not set, all RTOS plugins are given a chance to load.
+</td></tr>
+
 <tr><td>semihost_console_type</td>
 <td>str</td>
 <td>'telnet'</td>
