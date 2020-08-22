@@ -119,9 +119,9 @@ class CortexM_v8M(CortexM):
         mvfr1 = self.read32(self.MVFR1)
         mve = (mvfr1 & self.MVFR1_MVE_MASK) >> self.MVFR1_MVE_SHIFT
         if mve == self.MVFR1_MVE__INTEGER:
-            self.extensions.append(CortexMExtension.MVE)
+            self._extensions.append(CortexMExtension.MVE)
         elif mve == self.MVFR1_MVE__FLOAT:
-            self.extensions += [CortexMExtension.MVE, CortexMExtension.MVE_FP]
+            self._extensions += [CortexMExtension.MVE, CortexMExtension.MVE_FP]
 
     def _build_registers(self):
         super(CortexM_v8M, self)._build_registers()
