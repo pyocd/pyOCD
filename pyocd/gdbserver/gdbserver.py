@@ -895,9 +895,17 @@ class GDBServer(threading.Thread):
             return self.create_rsp_packet(b"")
 
     def init_thread_providers(self):
+        if not self.session.options.get('rtos.enable'):
+            LOG.debug("Skipping RTOS load because it was disabled.")
+            return self.create_rsp_packet(b"OK")
+        
+        forced_rtos_name = self.session.options.get('rtos.enable')
+        
         symbol_provider = GDBSymbolProvider(self)
 
         for rtosName, rtosClass in RTOS.items():
+            if (forced_rtos_name is not None) and (rtosName != forced_rtos_name):
+                continue
             try:
                 LOG.info("Attempting to load %s", rtosName)
                 rtos = rtosClass(self.target)
@@ -905,7 +913,7 @@ class GDBServer(threading.Thread):
                     LOG.info("%s loaded successfully", rtosName)
                     self.thread_provider = rtos
                     break
-            except RuntimeError as e:
+            except exceptions.Error as e:
                 LOG.error("Error during symbol lookup: " + str(e), exc_info=self.session.log_tracebacks)
 
         self.did_init_thread_providers = True
