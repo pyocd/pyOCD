@@ -191,7 +191,7 @@ class UniquePrefixMatcher(object):
         @param self This object.
         @param items Sequence of strings.
         """
-        self._items = items
+        self._items = set(items)
     
     def find_all(self, prefix):
         """! @brief Return all items matching the given prefix.
@@ -203,6 +203,9 @@ class UniquePrefixMatcher(object):
         """
         if len(prefix) == 0:
             raise ValueError("empty prefix")
+        # First look for an exact match.
+        if prefix in self._items:
+            return (prefix,)
         return tuple(i for i in self._items if i.startswith(prefix))
     
     def find_one(self, prefix):
