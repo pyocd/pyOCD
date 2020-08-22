@@ -110,21 +110,32 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
         self.abstract_socket = None
+
         self.port = session.options.get('gdbserver_port')
         if self.port != 0:
             self.port += self.core
         self.telnet_port = session.options.get('telnet_port')
         if self.telnet_port != 0:
             self.telnet_port += self.core
+
         self.vector_catch = session.options.get('vector_catch')
         self.target.set_vector_catch(convert_vector_catch(self.vector_catch))
         self.step_into_interrupt = session.options.get('step_into_interrupt')
         self.persist = session.options.get('persist')
         self.enable_semihosting = session.options.get('enable_semihosting')
-        self.semihost_console_type = session.options.get('semihost_console_type')
-        self.semihost_use_syscalls = session.options.get('semihost_use_syscalls')
-        self.serve_local_only = session.options.get('serve_local_only')
+        self.semihost_console_type = session.options.get('semihost_console_type') # Not subscribed.
+        self.semihost_use_syscalls = session.options.get('semihost_use_syscalls') # Not subscribed.
+        self.serve_local_only = session.options.get('serve_local_only') # Not subscribed.
         self.report_core = session.options.get('report_core_number')
+        # Subscribe to changes for those of the above options that make sense to change at runtime.
+        self.session.options.subscribe(self._option_did_change, [
+                'vector_catch',
+                'step_into_interrupt',
+                'persist',
+                'enable_semihosting',
+                'report_core_number',
+                ])
+
         self.server_listening_callback = server_listening_callback
         self.packet_size = 2048
         self.packet_io = None
@@ -1201,4 +1212,22 @@ class GDBServer(threading.Thread):
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = False
 
+    def _option_did_change(self, notification):
+        """! @brief Handle an option changing at runtime.
+        
+        For option notifications, the event is the name of the option and the `data` attribute is an
+        OptionChangeInfo object with `new_value` and `old_value` attributes.
+        """
+        if notification.event == 'vector_catch':
+            self.target.set_vector_catch(convert_vector_catch(notification.data.new_value))
+        elif notification.event == 'step_into_interrupt':
+            self.step_into_interrupt = notification.data.new_value
+        elif notification.event == 'persist':
+            self.persist = notification.data.new_value
+        elif notification.event == 'enable_semihosting':
+            self.enable_semihosting = notification.data.new_value
+            LOG.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
+        elif notification.event == 'report_core_number':
+            self.report_core = notification.data.new_value
+        
 
