@@ -84,6 +84,10 @@ monitor_commands = [
     "set vector-catch a",
     "set step-into-interrupt on",
     "set step-into-interrupt off",
+    "threads status",
+    "readdp 0",
+    "status",
+    "show fault",
     # Invalid Command
     "intentional_invalid_command_fawehfawoefhad"
 ]
