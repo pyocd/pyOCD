@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import six
-from .pemicro.pemicro import *
+from .pemicro.pemicro import PEMicroUnitAcmp, PEMicroException, PEMicroTransferException, PEMicroInterfaces
 import logging
 from time import sleep
 
@@ -57,7 +57,7 @@ class PEMicroProbe(DebugProbe):
             pemicro = cls._get_pemicro()
             if pemicro is None:
                 return []
-            port_list = pemicro.listPorts()
+            port_list = pemicro.list_ports()
             if port_list is None:
                 return []
             return [cls(str(info["id"])) for info in port_list]
@@ -70,7 +70,7 @@ class PEMicroProbe(DebugProbe):
             pemicro = cls._get_pemicro()
             if pemicro is None:
                 return None
-            for info in pemicro.listPorts():
+            for info in pemicro.list_ports():
                 if str(info["id"]) == unique_id:
                     return cls(str(info["id"]))
             else:
@@ -254,7 +254,7 @@ class PEMicroProbe(DebugProbe):
     def flush(self):
         try:
             self._pemicro.flush_any_queued_data()
-        except exc:
+        except Exception as exc:
             six.raise_from(self._convert_exception(exc), exc) 
 
     def read_dp(self, addr, now=True):
@@ -270,7 +270,7 @@ class PEMicroProbe(DebugProbe):
 
     def write_dp(self, addr, data):
         try:
-            ack = self._pemicro.write_dp_register(addr=addr, value=data)
+            self._pemicro.write_dp_register(addr=addr, value=data)
         except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -289,7 +289,7 @@ class PEMicroProbe(DebugProbe):
     def write_ap(self, addr, data):
         assert type(addr) in (six.integer_types)
         try:
-            ack = self._pemicro.write_ap_register(addr=addr, value=data, apselect=((addr & self.APSEL_APBANKSEL) >> self.APSEL_SHIFT))           
+            self._pemicro.write_ap_register(addr=addr, value=data, apselect=((addr & self.APSEL_APBANKSEL) >> self.APSEL_SHIFT))           
         except PEMicroTransferException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -305,23 +305,23 @@ class PEMicroProbe(DebugProbe):
         for v in values:
             self.write_ap(addr, v)
 
-    def swo_start(self, baudrate):
-        try:
-            self._jlink.swo_start(baudrate)
-        except PEMicroException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+    # def swo_start(self, baudrate):
+    #     try:
+    #         self._jlink.swo_start(baudrate)
+    #     except PEMicroException as exc:
+    #         six.raise_from(self._convert_exception(exc), exc)
 
-    def swo_stop(self):
-        try:
-            self._jlink.swo_stop()
-        except PEMicroException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+    # def swo_stop(self):
+    #     try:
+    #         self._jlink.swo_stop()
+    #     except PEMicroException as exc:
+    #         six.raise_from(self._convert_exception(exc), exc)
 
-    def swo_read(self):
-        try:
-            return self._jlink.swo_read(0, self._jlink.swo_num_bytes(), True)
-        except PEMicroException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+    # def swo_read(self):
+    #     try:
+    #         return self._jlink.swo_read(0, self._jlink.swo_num_bytes(), True)
+    #     except PEMicroException as exc:
+    #         six.raise_from(self._convert_exception(exc), exc)
 
     @staticmethod
     def _convert_exception(exc):

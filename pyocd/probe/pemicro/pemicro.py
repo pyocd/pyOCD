@@ -41,7 +41,7 @@ import os.path
 import platform
 import sys
 import time
-from ctypes import *
+from ctypes import cdll, c_bool, c_ulong, c_ushort, c_char_p, c_byte, c_void_p, byref
 from enum import IntEnum
 
 
@@ -101,7 +101,7 @@ class PEMicroInterfaces():
         if not isinstance(interface, cls):
             return "Not selected"
         else: 
-            return "SWD" if interface is self.SWD else "JTAG"
+            return "SWD" if interface is cls.SWD else "JTAG"
 
 
 
@@ -130,7 +130,7 @@ class PEMicroException(Exception):
                 val += 1
             except TypeError:
                 return False
-            return T
+            return True
 
         message = code
 
@@ -236,7 +236,6 @@ class PEMicroUnitAcmp():
             # char * get_port_descriptor_short(unsigned int PortType, unsigned int PortNum);
             self.lib.get_port_descriptor_short.argtypes = [c_ulong,c_ulong]
             self.lib.get_port_descriptor_short.restype = c_char_p
-
 
             # void reset_hardware_interface(void);
             #  No parameters and return value
@@ -413,10 +412,9 @@ class PEMicroUnitAcmp():
         return version 
 
 
-    def listPortsDescription(self):
+    def list_ports_description(self):
         if not self.library_loaded:
             raise PEMicroException("No PEMicro Library is loaded!")
-            return
         numports = self.lib.get_enumerated_number_of_ports(PEMicroPortType.AUTODETECT)
         if numports == 0:
             self._log_info('No hardware detected locally.')
@@ -424,7 +422,7 @@ class PEMicroUnitAcmp():
             self._log_info(self.lib.get_port_descriptor_short(PEMicroPortType.AUTODETECT,i+1).decode("utf-8") + ' : ' + self.lib.get_port_descriptor(PEMicroPortType.AUTODETECT,i+1).decode("utf-8"))
         
 
-    def listPorts(self):
+    def list_ports(self):
         if not self.library_loaded:
             raise PEMicroException("No PEMicro Library is loaded!")
         numports = self.lib.get_enumerated_number_of_ports(PEMicroPortType.AUTODETECT)
@@ -519,7 +517,7 @@ class PEMicroUnitAcmp():
         if self.__open_ref_count == 0:
             raise PEMicroException("There is NO opened connection with target")
         ret_val = c_ulong()
-        self._special_features(PEMicroSpecialFeatures.PE_ARM_READ_AP_REGISTER,fset=now, par1=apselect, par2=addr, ref1=byref(ret_val))
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_READ_AP_REGISTER,fset=True, par1=apselect, par2=addr, ref1=byref(ret_val))
         
         self._log_debug("Read AP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=ret_val.value))
         # Check the status of SWD    
@@ -543,7 +541,7 @@ class PEMicroUnitAcmp():
         if self.__open_ref_count == 0:
             raise PEMicroException("There is NO opened connection with target")
         ret_val = c_ulong()
-        self._special_features(PEMicroSpecialFeatures.PE_ARM_READ_DP_REGISTER, fset=now, par1=addr, ref1=byref(ret_val))
+        self._special_features(PEMicroSpecialFeatures.PE_ARM_READ_DP_REGISTER, fset=True, par1=addr, ref1=byref(ret_val))
 
         self._log_debug("Read DP register: Addr: 0x{addr:08X}, Value:{val}, 0x{val:08X}".format(addr=addr, val=ret_val.value))
 
