@@ -759,6 +759,7 @@ class PyOCDTool(object):
                 if self._args.enable_probe_server:
                     probe_server = DebugProbeServer(session, session.probe,
                             self._args.probe_server_port, self._args.serve_local_only)
+                    session.probeserver = probe_server
                     probe_server.start()
                     
                 # Start up the gdbservers.
@@ -772,6 +773,7 @@ class PyOCDTool(object):
                     gdb = GDBServer(session,
                         core=core_number,
                         server_listening_callback=self.server_listening)
+                    session.gdbservers[core_number] = gdb
                     gdbs.append(gdb)
                 gdb = gdbs[0]
                 while any(g.is_alive() for g in gdbs):
@@ -893,6 +895,7 @@ class PyOCDTool(object):
         
         # Create the server instance.
         server = DebugProbeServer(session, probe, self._args.port_number, self._args.serve_local_only)
+        session.probeserver = server
         LOG.debug("Starting debug probe server")
         server.start()
         
