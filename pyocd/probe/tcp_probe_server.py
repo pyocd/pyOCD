@@ -237,7 +237,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 'get_memory_interface_for_ap': (self._request__get_memory_interface_for_ap, 2), # 'get_memory_interface_for_ap', ap_address_version:int, ap_nominal_address:int -> handle:int|null
                 'swo_start':            (self._probe.swo_start,             1   ), # 'swo_start', baudrate:int
                 'swo_stop':             (self._probe.swo_stop,              0   ), # 'swo_stop'
-                'swo_read':             (self._probe.swo_read,              0   ), # 'swo_read' -> List[int]
+                'swo_read':             (self._request__swo_read,           0   ), # 'swo_read' -> List[int]
                 'read_mem':             (self._request__read_mem,           3   ), # 'read_mem', handle:int, addr:int, xfer_size:int -> int
                 'write_mem':            (self._request__write_mem,          4   ), # 'write_mem', handle:int, addr:int, value:int, xfer_size:int
                 'read_block32':         (self._request__read_block32,       3   ), # 'read_block32', handle:int, addr:int, word_count:int -> List[int]
@@ -400,6 +400,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             ap_address = APv2Address(ap_nominal_address)
         else:
             raise exceptions.Error("invalid AP version in remote get_memory_interface_for_ap request")
+
         memif = self._probe.get_memory_interface_for_ap(ap_address)
         if memif is not None:
             handle = self._next_ap_memif_handle
@@ -410,6 +411,9 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             handle = None
         return handle
     
+    def _request__swo_read(self):
+        return list(self._probe.swo_read())
+
     def _request__read_mem(self, handle, addr, xfer_size):
         # 'read_mem', handle:int, addr:int, xfer_size:int -> int
         if handle not in self._ap_memif_handles:

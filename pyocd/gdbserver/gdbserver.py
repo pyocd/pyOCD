@@ -152,6 +152,9 @@ class GDBServer(threading.Thread):
         # Read back bound port in case auto-assigned (port 0)
         self.port = self.abstract_socket.port
 
+        # Coarse grain lock to synchronize SWO with other activity
+        self.lock = threading.Lock()
+
         self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
 
         # Init semihosting and telnet console.
@@ -173,14 +176,20 @@ class GDBServer(threading.Thread):
             semihost_console = semihost_io_handler
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
         
+        #
+        # If SWV is enabled, create a SWVReader thread. Note that we only do
+        # this if the core is 0: SWV is not a per-core construct, and can't
+        # be meaningfully read by multiple threads concurrently.
+        #
         self._swv_reader = None
-        if session.options.get("enable_swv"):
+
+        if session.options.get("enable_swv") and core == 0:
             if "swv_system_clock" not in session.options:
                 LOG.warning("Cannot enable SWV due to missing swv_system_clock option")
             else:
                 sys_clock = int(session.options.get("swv_system_clock"))
                 swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core)
+                self._swv_reader = SWVReader(session, self.core, self.lock)
                 self._swv_reader.init(sys_clock, swo_clock, console_file)
 
         # pylint: disable=invalid-name
@@ -377,14 +386,18 @@ class GDBServer(threading.Thread):
                 LOG.error("Unknown RSP packet: %s", msg)
                 return self.create_rsp_packet(b""), 0
 
+            self.lock.acquire()
             if msgStart == 0:
                 reply = handler()
             else:
                 reply = handler(msg[msgStart:])
+            self.lock.release()
+
             detach = 1 if msg[1:2] in self.DETACH_COMMANDS else 0
             return reply, detach
 
         except Exception as e:
+            self.lock.release()
             LOG.error("Unhandled exception in handle_message: %s", e, exc_info=self.session.log_tracebacks)
             return self.create_rsp_packet(b"E01"), 0
 
@@ -546,13 +559,18 @@ class GDBServer(threading.Thread):
                 self.packet_io.interrupt_event.clear()
                 return self.create_rsp_packet(val)
 
+            self.lock.release()
+
             # Wait for a ctrl-c to be received.
             if self.packet_io.interrupt_event.wait(0.01):
+                self.lock.acquire()
                 LOG.debug("receive CTRL-C")
                 self.packet_io.interrupt_event.clear()
                 self.target.halt()
                 val = self.get_t_response(forceSignal=signals.SIGINT)
                 break
+
+            self.lock.acquire()
 
             try:
                 if self.target.get_state() == Target.State.HALTED:

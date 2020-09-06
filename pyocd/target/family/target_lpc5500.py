@@ -126,6 +126,12 @@ class LPC5500Family(CoreSightTarget):
         
         self.call_delegate('trace_start', target=self, mode=0)
 
+        # On a reset when ITM is enabled, TRACECLKDIV/TRACECLKSEL will be reset
+        # even though ITM will remain enabled -- which will cause ITM stimulus
+        # writes to hang in the target because the FIFO will never appear ready.
+        # To prevent this, we explicitly (re)enable traceclk.
+        self._enable_traceclk()
+
 class CortexM_LPC5500(CortexM_v8M):
 
     def reset_and_halt(self, reset_type=None):

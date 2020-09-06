@@ -732,6 +732,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         if not self._has_swo_uart:
             return False
         
+        # Before we attempt any configuration, we must explicitly disable SWO
+        # (if SWO is enabled, setting any other configuration fails).
+        self._swo_disable()
+
         try:
             if enabled:
                 # Select the streaming SWO endpoint if available.
@@ -750,9 +754,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                     self._swo_disable()
                     return False
                 self._swo_status = SWOStatus.CONFIGURED
-            else:
-                self._swo_disable()
-                return True
+
+            return True
         except DAPAccessIntf.CommandError as e:
             LOG.debug("Exception while configuring SWO: %s", e)
             self._swo_disable()
