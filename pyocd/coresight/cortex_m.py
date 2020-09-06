@@ -707,7 +707,8 @@ class CortexM(Target, CoreSightCoreComponent):
         """! @brief Perform a reset of the specified type."""
         assert isinstance(reset_type, Target.ResetType)
         if reset_type is Target.ResetType.HW:
-            self.session.target.dp.reset()
+            # Tell DP to not send reset notifications because we are doing it.
+            self.session.target.dp.reset(send_notifications=False)
         elif reset_type is Target.ResetType.SW_EMULATED:
             self._perform_emulated_reset()
         else:
@@ -779,9 +780,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
         LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
 
-        # The HW reset type is passed to the DP, which itself sends reset notifications.
-        if reset_type is not Target.ResetType.HW:
-            self.session.notify(Target.Event.PRE_RESET, self)
+        self.session.notify(Target.Event.PRE_RESET, self)
 
         self._run_token += 1
 
@@ -803,8 +802,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
         self.call_delegate('did_reset', core=self, reset_type=reset_type)
 
-        if reset_type is not Target.ResetType.HW:
-            self.session.notify(Target.Event.POST_RESET, self)
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def set_reset_catch(self, reset_type=None):
         """! @brief Prepare to halt core on reset."""
