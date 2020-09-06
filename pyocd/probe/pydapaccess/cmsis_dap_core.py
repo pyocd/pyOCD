@@ -534,6 +534,6 @@ class CMSISDAPProtocol(object):
 
         if resp[0] != Command.DAP_VENDOR0 + index:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError("expected DAP_VENDOR0")
+            raise DAPAccessIntf.DeviceError("expected DAP_VENDOR%i" % index)
 
         return resp[1:]
