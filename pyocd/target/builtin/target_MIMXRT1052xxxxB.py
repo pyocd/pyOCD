@@ -20,7 +20,7 @@ from ...flash.flash import Flash
 from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-from ...coresight.cortex_m import CortexM 
+from ...coresight.cortex_m import CortexM
 from ...core.target import Target
 LOG = logging.getLogger(__name__)
 
@@ -1097,7 +1097,7 @@ FLASH_ALGO_HYPERFLASH = {
 class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
@@ -1135,7 +1135,7 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
 class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
@@ -1190,12 +1190,16 @@ class CortexM7_IMXRT(CortexM):
 
     def reset_and_halt(self, reset_type=None):
         """! @brief Perform a reset and stop the core on the reset handler."""
+        if not reset_type:
+            reset_type = self.default_reset_type
+
+        if reset_type not in (Target.ResetType.SW_SYSRESETREQ, Target.ResetType.SW_VECTRESET):
+            super(CortexM7_IMXRT, self).reset_and_halt(reset_type)
+            return
+
         boot_mode = self.BOOT_MODE_SERIAL_DOWNLOAD
         demcr = self.read_memory(CortexM.DEMCR)
         self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
-
-        if reset_type is None:
-            reset_type = Target.ResetType.SW_SYSRESETREQ
 
         if (reset_type == Target.ResetType.SW_SYSRESETREQ):
             # Set breakpoint on user reset handler.
@@ -1211,9 +1215,10 @@ class CortexM7_IMXRT(CortexM):
             mask |= CortexM.NVIC_AIRCR_SYSRESETREQ
         self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
 
-        xpsr = self.read_core_register('xpsr')
-        if xpsr & self.XPSR_THUMB == 0:
-            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+        if self.get_state() == Target.State.HALTED:
+            xpsr = self.read_core_register('xpsr')
+            if xpsr & self.XPSR_THUMB == 0:
+                self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
 
         self.write_memory(CortexM.DEMCR, demcr)
         if (reset_type == Target.ResetType.SW_SYSRESETREQ):
