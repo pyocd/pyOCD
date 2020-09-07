@@ -19,13 +19,15 @@ Each subcommand for the `pyocd` tool has a default logging level.
 
 Subcommand     | Default level
 ---------------|--------------
-`list`         | INFO
-`json`         | Logging fully disabled
-`flash`        | WARNING
-`erase`        | WARNING
-`gdbserver`    | INFO
 `commander`    | WARNING
+`erase`        | WARNING
+`flash`        | WARNING
+`gdbserver`    | INFO
+`json`         | Logging fully disabled
+`list`         | INFO
 `pack`         | INFO
+`reset`        | WARNING
+`server`       | INFO
 
 
 ## Basic control
@@ -100,7 +102,8 @@ will set the `disabled_existing_loggers` key to false unless it is specified in 
 Note that if you change the configuration for the root logger, you will need to define a handler
 and formatter in the configuration (see the example below).
 
-Here is a much more complex example configuration that sets a custom formatter:
+Here is a much more complex example configuration that sets a custom formatter and changes several log
+levels:
 
 ```yaml
 logging:
@@ -120,7 +123,24 @@ logging:
   loggers:
     pyocd:
       level: INFO        # set all pyocd loggers to INFO level
-    pyocd.core.coresight_target:
+    pyocd.probe:
       level: DEBUG       # set this logger to DEBUG level
 ```
 
+This example shows how to direct log output to a log file called `pyocd_log.txt`:
+
+```yaml
+logging:
+  root:
+    handlers: [logfile]
+  formatters:
+    precise:
+      format: "[%(relativeCreated)07d:%(levelname)s:%(module)s] %(message)s"
+  handlers:
+    logfile:
+      class: logging.FileHandler
+      formatter: precise
+      filename: pyocd_log.txt
+      mode: w
+      delay: false
+```
