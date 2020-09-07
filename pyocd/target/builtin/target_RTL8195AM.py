@@ -21,12 +21,12 @@ class RTL8195AM(CoreSightTarget):
 
     VENDOR = "Realtek Semiconductor"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         RamRegion(      start=0x00000000,  length=0x400000),
         RamRegion(      start=0x10000000,  length=0x80000),
         RamRegion(      start=0x30000000,  length=0x200000),
         RamRegion(      start=0x40000000,  length=0x40000)
         )
 
-    def __init__(self, link):
-        super(RTL8195AM, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(RTL8195AM, self).__init__(session, self.MEMORY_MAP)

@@ -150,7 +150,7 @@ class S5JS100(CoreSightTarget):
     AP_NUM = 0
     ROM_ADDR = 0xE00FE000
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(start=0x406f4000, length=0x00100000,
                     page_size=0x400, blocksize=0x1000,
                     is_boot_memory=True,
@@ -163,8 +163,8 @@ class S5JS100(CoreSightTarget):
         RamRegion(start=0x00100000, length=0x80000)
     )
 
-    def __init__(self, link):
-        super(S5JS100, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(S5JS100, self).__init__(session, self.MEMORY_MAP)
         self.AP_NUM = 0
 
     def create_init_sequence(self):

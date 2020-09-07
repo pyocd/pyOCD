@@ -77,7 +77,7 @@ class STM32L475xx(CoreSightTarget):
 
 class STM32L475xC(STM32L475xx):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash', start=0x08000000, length=0x40000,
                         sector_size=0x800,
                         page_size=0x400,
@@ -87,13 +87,13 @@ class STM32L475xC(STM32L475xx):
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
 
-    def __init__(self, transport):
-        super(STM32L475xC, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(STM32L475xC, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
 
 class STM32L475xE(STM32L475xx):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash', start=0x08000000, length=0x80000,
                         sector_size=0x800,
                         page_size=0x400,
@@ -103,13 +103,13 @@ class STM32L475xE(STM32L475xx):
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
 
-    def __init__(self, transport):
-        super(STM32L475xE, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(STM32L475xE, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
 
 class STM32L475xG(STM32L475xx):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash', start=0x08000000, length=0x100000,
                         sector_size=0x800,
                         page_size=0x400,
@@ -119,8 +119,8 @@ class STM32L475xG(STM32L475xx):
         RamRegion(name='sram2',   start=0x10000000, length=0x8000)
         )
 
-    def __init__(self, transport):
-        super(STM32L475xG, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(STM32L475xG, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
 
 

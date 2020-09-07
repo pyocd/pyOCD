@@ -53,7 +53,7 @@ class LPC11XX_32(CoreSightTarget):
 
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,       is_boot_memory=True,
                                                                 blocksize=4096,
                                                                 page_size=256,
@@ -61,8 +61,8 @@ class LPC11XX_32(CoreSightTarget):
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 
-    def __init__(self, link):
-        super(LPC11XX_32, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC11XX_32, self).__init__(session, self.MEMORY_MAP)
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
         super(LPC11XX_32, self).reset_and_halt(reset_type)

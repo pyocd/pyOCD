@@ -248,7 +248,7 @@ class MuscaB1(CoreSightTarget):
 
     VENDOR = "Arm"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='neflash',     start=0x0A000000, length=0x00200000, access='rx',
                         blocksize=0x4000,
                         page_size=0x4000,
@@ -284,8 +284,8 @@ class MuscaB1(CoreSightTarget):
                         alias='nsysram'),
         )
 
-    def __init__(self, link):
-        super(MuscaB1, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MuscaB1, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("Musca_B1.svd")
 
     def create_init_sequence(self):

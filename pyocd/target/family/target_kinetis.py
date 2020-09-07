@@ -55,8 +55,8 @@ class Kinetis(CoreSightTarget):
 
     VENDOR = "NXP"
 
-    def __init__(self, link, memoryMap=None):
-        super(Kinetis, self).__init__(link, memoryMap)
+    def __init__(self, session, memory_map=None):
+        super(Kinetis, self).__init__(session, memory_map)
         self.mdm_ap = None
         self._force_halt_on_connect = False
 

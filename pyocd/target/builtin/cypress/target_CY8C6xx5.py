@@ -29,7 +29,7 @@ class CY8C6xx5(PSoC6):
     from .flash_algos.flash_algo_CY8C6xxA_SFLASH import flash_algo as flash_algo_sflash
     from .flash_algos.flash_algo_CY8C6xxA_SMIF_S25FL512S import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -69,5 +69,5 @@ class CY8C6xx5(PSoC6):
                     program_page_weight=PSoC6FlashParams.SMIF_PROGRAM_PAGE_WEIGHT),
     )
 
-    def __init__(self, link):
-        super(CY8C6xx5, self).__init__(link, CortexM_PSoC6_A2M, self.memoryMap)
+    def __init__(self, session):
+        super(CY8C6xx5, self).__init__(session, CortexM_PSoC6_A2M, self.MEMORY_MAP)

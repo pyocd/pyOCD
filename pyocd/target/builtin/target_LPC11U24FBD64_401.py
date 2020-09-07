@@ -51,7 +51,7 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
 class LPC11U24(CoreSightTarget):
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,   is_boot_memory=True,
                                                             blocksize=0x1000,
                                                             page_size=0x400,
@@ -60,8 +60,8 @@ class LPC11U24(CoreSightTarget):
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 
-    def __init__(self, link):
-        super(LPC11U24, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC11U24, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("LPC11Uxx_v7.svd")
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):

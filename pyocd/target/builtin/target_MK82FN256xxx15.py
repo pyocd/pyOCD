@@ -84,12 +84,12 @@ FLASH_ALGO = {
 
 class K82F25615(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x40000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff0000,  length=0x40000)
         )
-    def __init__(self, transport):
-        super(K82F25615, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(K82F25615, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK82F25615.svd")
 

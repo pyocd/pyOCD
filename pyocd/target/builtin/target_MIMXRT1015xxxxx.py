@@ -731,7 +731,7 @@ class MIMXRT1015xxxxx(CoreSightTarget):
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 128 KB, but that is the maximum and
     # will not actually be available in all regions simultaneously.
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         RamRegion(name="itcm",      start=0x00000000, length=0x8000), # 32 KB
         RomRegion(name="romcp",     start=0x00200000, length=0x18000), # 96 KB
         RamRegion(name="dtcm",      start=0x20000000, length=0x8000), # 32 KB
@@ -740,6 +740,6 @@ class MIMXRT1015xxxxx(CoreSightTarget):
             algo=FLASH_ALGO_QUADSPI, page_size=0x100),
         )
 
-    def __init__(self, link):
-        super(MIMXRT1015xxxxx, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MIMXRT1015xxxxx, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MIMXRT1015.xml")

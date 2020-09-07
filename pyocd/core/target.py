@@ -176,7 +176,7 @@ class Target(MemoryInterface):
 
     VENDOR = "Generic"
 
-    def __init__(self, session, memoryMap=None):
+    def __init__(self, session, memory_map=None):
         self._session = session
         self._delegate = None
         self.vendor = self.VENDOR
@@ -184,7 +184,7 @@ class Target(MemoryInterface):
         self.part_number = ""
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
-        self.memory_map = memoryMap.clone() if memoryMap else MemoryMap()
+        self.memory_map = memory_map.clone() if memory_map else MemoryMap()
         self._svd_location = None
         self._svd_device = None
 

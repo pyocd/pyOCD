@@ -53,7 +53,7 @@ class NRF51(CoreSightTarget):
 
     VENDOR = "Nordic Semiconductor"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x40000,      blocksize=0x400, is_boot_memory=True,
             algo=FLASH_ALGO),
         # User Information Configation Registers (UICR) as a flash region
@@ -62,8 +62,8 @@ class NRF51(CoreSightTarget):
         RamRegion(      start=0x20000000,  length=0x4000)
         )
 
-    def __init__(self, link):
-        super(NRF51, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(NRF51, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("nrf51.svd")
 
     def resetn(self):

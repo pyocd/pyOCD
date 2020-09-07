@@ -81,14 +81,14 @@ class STM32L031x6(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='Flash', start=0x08000000, length=0x8000, blocksize=0x1000,  is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(name='RAM', start=0x20000000, length=0x2000),
         FlashRegion(name='EEPROM', start=0x08080000, length=0x400, blocksize=0x400, algo=FLASH_ALGO)
         )
 
-    def __init__(self, link):
-        super(STM32L031x6, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(STM32L031x6, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32L0x1.svd")
 
     def post_connect_hook(self):

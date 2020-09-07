@@ -72,7 +72,7 @@ FLASH_ALGO = {
 
 class LPC4088dm(LPC4088):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
                                                                 blocksize=0x1000,
                                                                 page_size=0x200,
@@ -88,5 +88,5 @@ class LPC4088dm(LPC4088):
         RamRegion(      start=0x10000000,  length=0x10000),
         )
 
-    def __init__(self, link):
-        super(LPC4088dm, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC4088dm, self).__init__(session, self.MEMORY_MAP)

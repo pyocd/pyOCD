@@ -29,7 +29,7 @@ class CY8C6xx7(PSoC6):
     from .flash_algos.flash_algo_CY8C6xxx_SFLASH import flash_algo as flash_algo_sflash
     from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25FL512S import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -69,8 +69,8 @@ class CY8C6xx7(PSoC6):
                     program_page_weight=PSoC6FlashParams.SMIF_PROGRAM_PAGE_WEIGHT),
     )
 
-    def __init__(self, link):
-        super(CY8C6xx7, self).__init__(link, CortexM_PSoC6_BLE2, self.memoryMap)
+    def __init__(self, session):
+        super(CY8C6xx7, self).__init__(session, CortexM_PSoC6_BLE2, self.MEMORY_MAP)
 
 class CY8C6xx7_S25FS512S(PSoC6):
     from .flash_algos.flash_algo_CY8C6xx7 import flash_algo as flash_algo_main
@@ -78,7 +78,7 @@ class CY8C6xx7_S25FS512S(PSoC6):
     from .flash_algos.flash_algo_CY8C6xxx_SFLASH import flash_algo as flash_algo_sflash
     from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25FS512S import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -118,15 +118,15 @@ class CY8C6xx7_S25FS512S(PSoC6):
                     program_page_weight=PSoC6FlashParams.SMIF_PROGRAM_PAGE_WEIGHT),
     )
 
-    def __init__(self, link):
-        super(CY8C6xx7_S25FS512S, self).__init__(link, CortexM_PSoC6_BLE2, self.memoryMap)
+    def __init__(self, session):
+        super(CY8C6xx7_S25FS512S, self).__init__(session, CortexM_PSoC6_BLE2, self.MEMORY_MAP)
         
 class CY8C6xx7_nosmif(PSoC6):
     from .flash_algos.flash_algo_CY8C6xx7 import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
     from .flash_algos.flash_algo_CY8C6xxx_SFLASH import flash_algo as flash_algo_sflash
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -157,5 +157,5 @@ class CY8C6xx7_nosmif(PSoC6):
 
     )
 
-    def __init__(self, link):
-        super(CY8C6xx7_nosmif, self).__init__(link, CortexM_PSoC6_BLE2, self.memoryMap)
+    def __init__(self, session):
+        super(CY8C6xx7_nosmif, self).__init__(session, CortexM_PSoC6_BLE2, self.MEMORY_MAP)

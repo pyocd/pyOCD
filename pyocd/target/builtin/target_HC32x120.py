@@ -79,15 +79,15 @@ class HC32F120x6TA(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32F120x6TA, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32F120x6TA, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32F120.svd")
 
     def post_connect_hook(self):
@@ -98,15 +98,15 @@ class HC32F120x8TA(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x10000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32F120x8TA, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32F120x8TA, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32F120.svd")
 
     def post_connect_hook(self):
@@ -117,15 +117,15 @@ class HC32M120(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32M120, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32M120, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32M120.svd")
 
     def post_connect_hook(self):

@@ -70,14 +70,14 @@ class STM32F051(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x08000000,  length=0x10000,      blocksize=0x400, is_boot_memory=True,
             algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x2000)
         )
 
-    def __init__(self, link):
-        super(STM32F051, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(STM32F051, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32F0xx.svd")
 
     def post_connect_hook(self):

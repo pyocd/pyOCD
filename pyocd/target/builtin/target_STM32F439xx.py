@@ -68,7 +68,7 @@ class STM32F439xG(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000,  sector_size=0x4000,
                                                         page_size=0x1000, 
                                                         is_boot_memory=True,
@@ -85,8 +85,8 @@ class STM32F439xG(CoreSightTarget):
         RamRegion(   start=0x20000000, length=0x40000)
         )
 
-    def __init__(self, transport):
-        super(STM32F439xG, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(STM32F439xG, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32F439x.svd")
 
     def post_connect_hook(self):
@@ -98,7 +98,7 @@ class STM32F439xI(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000,  sector_size=0x4000,
                                                         page_size=0x1000,
                                                         is_boot_memory=True,
@@ -127,8 +127,8 @@ class STM32F439xI(CoreSightTarget):
         RamRegion(   start=0x20000000, length=0x30000)
         )
 
-    def __init__(self, transport):
-        super(STM32F439xI, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(STM32F439xI, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32F439x.svd")
 
     def post_connect_hook(self):

@@ -30,6 +30,6 @@ class AN522(CoreSightTarget):
         RamRegion(  name='dram9_s',     start=0x90000000, length=0x10000000, access='rwxs'),
         )
 
-    def __init__(self, link):
-        super(AN522, self).__init__(link, self.MEMORY_MAP)
+    def __init__(self, session):
+        super(AN522, self).__init__(session, self.MEMORY_MAP)
 

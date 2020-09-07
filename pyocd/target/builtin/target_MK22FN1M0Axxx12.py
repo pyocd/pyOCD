@@ -92,14 +92,14 @@ FLASH_ALGO = {
 class K22FA12(Kinetis):
 
     # 1MB flash with 4kB sectors, 128kB RAM
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x100000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff0000,  length=0x20000)
         )
 
-    def __init__(self, link):
-        super(K22FA12, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(K22FA12, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK22FA12.svd")
 
     def post_connect_hook(self):

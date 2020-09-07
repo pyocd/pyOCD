@@ -42,12 +42,12 @@ class W7500(CoreSightTarget):
 
     VENDOR = "WIZnet"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x00000000,  length=0x20000,      blocksize=0x100, is_boot_memory=True,
             algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x4000)
         )
 
-    def __init__(self, link):
-        super(W7500, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(W7500, self).__init__(session, self.MEMORY_MAP)
 

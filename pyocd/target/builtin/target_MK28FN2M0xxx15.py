@@ -75,7 +75,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class K28F15(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x200000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1ffC0000,  length=0x80000),
@@ -83,7 +83,7 @@ class K28F15(Kinetis):
         RamRegion(      start=0x14000000,  length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(K28F15, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(K28F15, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK28FA15.xml")
 

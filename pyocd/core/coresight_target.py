@@ -53,8 +53,8 @@ class CoreSightTarget(Target, GraphNode):
     at any time. You may also directly access specific cores and perform operations on them.
     """
     
-    def __init__(self, session, memoryMap=None):
-        Target.__init__(self, session, memoryMap)
+    def __init__(self, session, memory_map=None):
+        Target.__init__(self, session, memory_map)
         GraphNode.__init__(self)
         self.part_number = self.__class__.__name__
         self.cores = {}

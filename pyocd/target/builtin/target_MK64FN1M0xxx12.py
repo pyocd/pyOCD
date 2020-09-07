@@ -74,13 +74,13 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class K64F(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x100000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff0000,  length=0x40000)
         )
 
-    def __init__(self, link):
-        super(K64F, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(K64F, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK64F12.svd")
 

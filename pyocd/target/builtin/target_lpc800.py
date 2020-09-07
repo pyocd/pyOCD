@@ -52,13 +52,13 @@ class LPC800(CoreSightTarget):
 
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x4000,       blocksize=0x400, is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x1000)
         )
 
-    def __init__(self, link):
-        super(LPC800, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC800, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("LPC800_v0.3.svd")
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
