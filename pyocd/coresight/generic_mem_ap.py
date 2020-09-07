@@ -94,7 +94,6 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
 
     def reset_and_halt(self, reset_type=None):
         self.reset(reset_type)
-        pass
 
     def get_state(self):
         return Target.State.HALTED
@@ -152,9 +151,6 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
 
     def get_vector_catch(self):
         return 0
-
-    def get_target_xml(self):
-        return None
 
     def get_halt_reason(self):
         return Target.HaltReason.DEBUG

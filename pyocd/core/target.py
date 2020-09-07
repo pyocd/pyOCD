@@ -174,14 +174,9 @@ class Target(MemoryInterface):
         ## PMU event. v8.1-M only.
         PMU = 7
 
-    VENDOR = "Generic"
-
     def __init__(self, session, memory_map=None):
         self._session = session
         self._delegate = None
-        self.vendor = self.VENDOR
-        self.part_families = []
-        self.part_number = ""
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
         self.memory_map = memory_map.clone() if memory_map else MemoryMap()
@@ -317,10 +312,6 @@ class Target(MemoryInterface):
         raise NotImplementedError()
 
     def get_vector_catch(self):
-        raise NotImplementedError()
-
-    # GDB functions
-    def get_target_xml(self):
         raise NotImplementedError()
 
     def get_target_context(self, core=None):

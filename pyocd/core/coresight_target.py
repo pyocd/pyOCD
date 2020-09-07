@@ -23,12 +23,10 @@ from . import exceptions
 from ..flash.eraser import FlashEraser
 from ..coresight import (dap, discovery, cortex_m, cortex_m_v8m, rom_table)
 from ..debug.svd.loader import (SVDFile, SVDLoader)
-from ..debug.context import DebugContext
 from ..debug.cache import CachingDebugContext
 from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.elf_reader import ElfReaderContext
 from ..utility.graph import GraphNode
-from ..utility.notification import Notification
 from ..utility.sequencer import CallSequence
 from ..target.pack.flash_algo import PackFlashAlgo
 
@@ -53,10 +51,14 @@ class CoreSightTarget(Target, GraphNode):
     at any time. You may also directly access specific cores and perform operations on them.
     """
     
+    VENDOR = "Generic"
+
     def __init__(self, session, memory_map=None):
         Target.__init__(self, session, memory_map)
         GraphNode.__init__(self)
-        self.part_number = self.__class__.__name__
+        self.vendor = self.VENDOR
+        self.part_families = getattr(self, 'PART_FAMILIES', [])
+        self.part_number = getattr(self, 'PART_NUMBER', self.__class__.__name__)
         self.cores = {}
         self.dp = dap.DebugPort(session.probe, self)
         self._selected_core = None
@@ -92,10 +94,6 @@ class CoreSightTarget(Target, GraphNode):
             for core_number in range(len(self.cores)):
                 self.cores[core_number].elf = self._elf
                 self.cores[core_number].set_target_context(ElfReaderContext(self.cores[core_number].get_target_context(), self._elf))
-
-    def select_core(self, num):
-        """! @note Deprecated."""
-        self.selected_core = num
 
     @property
     def aps(self):
@@ -407,10 +405,6 @@ class CoreSightTarget(Target, GraphNode):
 
     def get_vector_catch(self):
         return self.selected_core.get_vector_catch()
-
-    # GDB functions
-    def get_target_xml(self):
-        return self.selected_core.get_target_xml()
 
     def get_target_context(self, core=None):
         if core is None:
