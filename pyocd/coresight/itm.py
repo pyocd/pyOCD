@@ -94,7 +94,7 @@ class ITM(CoreSightComponent):
                                     | ITM.TCR_TXENA_MASK
                                     | (ITM.TCR_TSPRESCALE_DIV_1 << ITM.TCR_TSPRESCALE_SHIFT)))
         self.ap.write32(self.address + ITM.TERn, enabled_ports)
-        self.ap.write32(self.address + ITM.TPR, 0xf) # Allow unprivileged access to all 32 ports.
+        self.ap.write32(self.address + ITM.TPR, 0) # Allow unprivileged access to all 32 ports.
         self._is_enabled = True
 
     def set_enabled_ports(self, enabled_ports):

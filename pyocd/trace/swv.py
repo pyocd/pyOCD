@@ -49,10 +49,7 @@ class SWVEventSink(TraceEventSink):
         """
         if not isinstance(event, TraceITMEvent):
             return
-        
-        if not event.port == 0:
-            return
-        
+
         # Extract bytes.
         if event.width == 1:
             data = chr(event.data)
@@ -69,7 +66,7 @@ class SWVEventSink(TraceEventSink):
 class SWVReader(threading.Thread):
     """! @brief Sets up SWV and processes data in a background thread."""
 
-    def __init__(self, session, core_number=0):
+    def __init__(self, session, core_number=0, lock=None):
         """! @brief Constructor.
         @param self
         @param session The Session instance.
@@ -82,6 +79,7 @@ class SWVReader(threading.Thread):
         self._core_number = core_number
         self._shutdown_event = threading.Event()
         self._swo_clock = 0
+        self._lock = lock
         
         self._session.subscribe(self._reset_handler, Target.Event.POST_RESET, self._session.target.cores[core_number])
         
@@ -153,6 +151,10 @@ class SWVReader(threading.Thread):
         thread runs, it reads SWO data from the probe and passes it to the SWO parser created in
         init(). When the thread is signaled to stop, it calls DebugProbe.swo_stop() before exiting.
         """
+
+        if self._lock:
+            self._lock.acquire()
+
         # Stop SWO first in case the probe already had it started. Ignore if this fails.
         try:
             self._session.probe.swo_stop()
@@ -165,9 +167,18 @@ class SWVReader(threading.Thread):
             if data:
                 self._parser.parse(data)
         
+            if self._lock:
+                self._lock.release()
+
             sleep(0.001)
+
+            if self._lock:
+                self._lock.acquire()
             
         self._session.probe.swo_stop()
+
+        if self._lock:
+            self._lock.release()
     
     def _reset_handler(self, notification):
         """! @brief Reset notification handler.

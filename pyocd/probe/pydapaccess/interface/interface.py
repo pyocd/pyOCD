@@ -58,5 +58,8 @@ class Interface(object):
     def set_packet_size(self, size):
         self.packet_size = size
 
+    def get_packet_size(self):
+        return self.packet_size
+
     def get_serial_number(self):
         return self.serial_number

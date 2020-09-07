@@ -135,7 +135,7 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_INFO:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_INFO")
 
         if resp[1] == 0:
             return
@@ -162,11 +162,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_LED:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_LED")
 
         if resp[1] != 0:
             # Second response byte must be 0
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_LED failed")
 
         return resp[1]
 
@@ -179,11 +179,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_CONNECT:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_CONNECT")
 
         if resp[1] == 0:
             # DAP connect failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_CONNECT failed")
 
         return resp[1]
 
@@ -195,11 +195,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_DISCONNECT:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_DISCONNECT")
 
         if resp[1] != DAP_OK:
             # DAP Disconnect failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_DISCONNECT failed")
 
         return resp[1]
 
@@ -216,11 +216,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_WRITE_ABORT:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_WRITE_ABORT")
 
         if resp[1] != DAP_OK:
             # DAP Write Abort failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_WRITE_ABORT failed")
 
         return True
 
@@ -232,11 +232,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_RESET_TARGET:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_RESET_TARGET")
 
         if resp[1] != DAP_OK:
             # DAP Reset target failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_RESET_TARGET failed")
 
         return resp[1]
 
@@ -253,11 +253,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_TRANSFER_CONFIGURE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_TRANSFER_CONFIGURE")
 
         if resp[1] != DAP_OK:
             # DAP Transfer Configure failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_TRANSFER_CONFIGURE failed")
 
         return resp[1]
 
@@ -274,11 +274,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWJ_CLOCK:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWJ_CLOCK")
 
         if resp[1] != DAP_OK:
             # DAP SWJ Clock failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_SWJ_CLOCK failed")
 
         return resp[1]
 
@@ -296,7 +296,7 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWJ_PINS:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWJ_PINS")
 
         return resp[1]
 
@@ -312,11 +312,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWD_CONFIGURE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWD_CONFIGURE")
 
         if resp[1] != DAP_OK:
             # DAP SWD Configure failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_SWD_CONFIGURE failed")
 
         return resp[1]
 
@@ -333,11 +333,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWJ_SEQUENCE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWJ_SEQUENCE")
 
         if resp[1] != DAP_OK:
             # DAP SWJ Sequence failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_SWJ_SEQUENCE failed")
 
         return resp[1]
 
@@ -359,11 +359,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_JTAG_SEQUENCE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("exected DAP_JTAG_SEQUENCE")
 
         if resp[1] != DAP_OK:
             # DAP JTAG Sequence failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE failed")
 
         return resp[2]
 
@@ -382,11 +382,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_JTAG_CONFIGURE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_JTAG_CONFIGURE")
 
         if resp[1] != DAP_OK:
             # DAP JTAG Configure failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_JTAG_CONFIGURE failed")
 
         return resp[2:]
 
@@ -399,11 +399,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_JTAG_IDCODE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_JTAG_IDCODE")
 
         if resp[1] != DAP_OK:
             # Operation failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_JTAG_IDCODE failed")
 
         return  (resp[2] << 0) | \
                 (resp[3] << 8) | \
@@ -417,13 +417,14 @@ class CMSISDAPProtocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
+
         if resp[0] != Command.DAP_SWO_TRANSPORT:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWO_TRANSPORT")
 
         if resp[1] != DAP_OK:
             # Operation failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_SWO_TRANSPORT failed")
 
         return resp[1]
 
@@ -436,11 +437,11 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWO_MODE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWO_MODE")
 
         if resp[1] != DAP_OK:
             # Operation failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_SWO_MODE failed")
 
         return resp[1]
 
@@ -456,7 +457,7 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWO_BAUDRATE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWO_BAUDRATE")
 
         return  (resp[1] << 0) | \
                 (resp[2] << 8) | \
@@ -470,13 +471,14 @@ class CMSISDAPProtocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
+
         if resp[0] != Command.DAP_SWO_CONTROL:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWO_CONTROL")
 
         if resp[1] != DAP_OK:
             # Operation failed
-            raise DAPAccessIntf.CommandError()
+            raise DAPAccessIntf.CommandError("DAP_SWO_CONTROL failed")
 
         return resp[1]
 
@@ -488,7 +490,7 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_SWO_STATUS:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWO_STATUS")
 
         return (resp[1],
                     (resp[2] << 0) | \
@@ -500,14 +502,18 @@ class CMSISDAPProtocol(object):
     def swo_data(self, count):
         cmd = []
         cmd.append(Command.DAP_SWO_DATA)
+
+        # Account for protocol overhead when setting the count
+        count = min(self.interface.get_packet_size() - 4, count)
         cmd.append(count & 0xff)
         cmd.append((count >> 8) & 0xff)
-        self.interface.write(cmd)
 
+        self.interface.write(cmd)
         resp = self.interface.read()
+
         if resp[0] != Command.DAP_SWO_DATA:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_SWO_DATA")
 
         status = resp[1]
         count = (resp[2] << 0) | \
@@ -528,6 +534,6 @@ class CMSISDAPProtocol(object):
 
         if resp[0] != Command.DAP_VENDOR0 + index:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError()
+            raise DAPAccessIntf.DeviceError("expected DAP_VENDOR%i" % index)
 
         return resp[1:]
