@@ -25,6 +25,9 @@ BUILTIN_OPTIONS = [
         "Prevents raising an error if no core were found after CoreSight discovery."),
     OptionInfo('auto_unlock', bool, True,
         "Whether to unlock secured target by erasing."),
+    OptionInfo('cache.read_code_from_elf', bool, True,
+        "Controls whether reads of code sections will be taken from an attached ELF file instead of the "
+        "target memory."),
     OptionInfo('chip_erase', str, "sector",
         "Whether to perform a chip erase or sector erases when programming flash. The value must be"
         " one of \"auto\", \"sector\", or \"chip\"."),
