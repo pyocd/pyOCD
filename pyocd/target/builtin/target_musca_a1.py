@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
@@ -97,7 +97,7 @@ class MuscaA1(CoreSightTarget):
 
     VENDOR = "Arm"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         # Due to an errata, only the first 256 kB of QSPI is memory mapped. The remainder
         # of the 8 MB region can be read and written via register accesses only.
         FlashRegion(name='nqspi',    start=0x00200000, length=0x00040000, access='rx',
@@ -140,7 +140,7 @@ class MuscaA1(CoreSightTarget):
                         alias='nsysram'),
         )
 
-    def __init__(self, link):
-        super(MuscaA1, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MuscaA1, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("Musca.svd")
 

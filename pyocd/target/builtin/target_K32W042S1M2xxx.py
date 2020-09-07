@@ -18,7 +18,7 @@ from ..family.target_kinetis import Kinetis
 from ...flash.flash import Flash
 from ...core import exceptions
 from ...core.target import Target
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...coresight import ap
@@ -159,7 +159,7 @@ FLASH_ALGO = {
 
 class K32W042S(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash0',      start=         0,   length=0x100000,    blocksize=0x1000,
             is_boot_memory=True, algo=FLASH_ALGO),
         FlashRegion(name='flash1',      start= 0x1000000,   length=0x40000,     blocksize=0x800,
@@ -172,8 +172,8 @@ class K32W042S(Kinetis):
         RamRegion(  name='usb ram',     start=0x48010000,   length=0x800),
         )
 
-    def __init__(self, link):
-        super(K32W042S, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(K32W042S, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("K32W042S1M2_M4.xml")
 
     def perform_halt_on_connect(self):

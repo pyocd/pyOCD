@@ -105,7 +105,7 @@ FLASH_ALGO = {
 
 class LPC55S69(LPC5500Family):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='nsflash',     start=0x00000000, length=0x00098000, access='rx',
             blocksize=0x200,
             is_boot_memory=True,
@@ -130,6 +130,6 @@ class LPC55S69(LPC5500Family):
             alias='nsram'),
         )
 
-    def __init__(self, link):
-        super(LPC55S69, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC55S69, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("LPC55S69_cm33_core0.xml")

@@ -29,6 +29,14 @@ If the target is locked, it will by default be automatically mass erased in orde
 access. Set this option to False to disable auto unlock.
 </td></tr>
 
+<tr><td>cache.read_code_from_elf</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Controls whether reads of code sections will be taken from an attached ELF file instead of the target memory.
+This can improve performance, especially over slow target connections. Requires an ELF file to be set.
+</td></tr>
+
 <tr><td>chip_erase</td>
 <td>str</td>
 <td>'sector'</td>

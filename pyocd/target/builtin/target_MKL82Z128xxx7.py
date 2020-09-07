@@ -85,7 +85,7 @@ FLASH_ALGO = {
 
 class KL82Z7(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x20000,      blocksize=0x800, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RomRegion(      start=0x1c000000,  end=0x1c007fff),
@@ -93,8 +93,8 @@ class KL82Z7(Kinetis):
         RamRegion(      start=0x1fffA000,  length=0x18000)
         )
 
-    def __init__(self, link):
-        super(KL82Z7, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(KL82Z7, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKL82Z7.svd")
 
 

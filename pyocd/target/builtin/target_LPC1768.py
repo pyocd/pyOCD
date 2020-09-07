@@ -16,7 +16,7 @@
 
 import logging
 from ...core.target import Target
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
 from ...debug.svd.loader import SVDFile
 
@@ -68,7 +68,7 @@ class LPC1768(CoreSightTarget):
 
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
                                                                 blocksize=0x1000,
                                                                 page_size=0x400,
@@ -84,8 +84,8 @@ class LPC1768(CoreSightTarget):
         RamRegion(      start=0x2007C000,  length=0x8000)
         )
 
-    def __init__(self, link):
-        super(LPC1768, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC1768, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("LPC176x5x_v0.2.svd")
         self._saved_vc = False
         self._reset_handler = 0

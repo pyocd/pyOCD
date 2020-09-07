@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
@@ -146,7 +146,7 @@ FLASH_ALGO_LD_4 = {
 class M263KIAAE(CoreSightTarget):
     VENDOR = "Nuvoton"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x80000,  sector_size=0x0800,
                                                         page_size=0x0800,
                                                         is_boot_memory=True,
@@ -157,6 +157,6 @@ class M263KIAAE(CoreSightTarget):
         RamRegion(   start=0x20000000, length=0x18000)
         )
 
-    def __init__(self, link):
-        super(M263KIAAE, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(M263KIAAE, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("M261_v1.svd")

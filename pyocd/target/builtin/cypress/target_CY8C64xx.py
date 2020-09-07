@@ -28,7 +28,7 @@ class cy8c64xx(PSoC64):
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
     from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25FL128S import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -62,8 +62,8 @@ class cy8c64xx(PSoC64):
                     flash_class=Flash_PSoC64),
     )
 
-    def __init__(self, link, ap_num):
-        super(cy8c64xx, self).__init__(link, CortexM_PSoC64_BLE2, self.memoryMap, ap_num)
+    def __init__(self, session, ap_num):
+        super(cy8c64xx, self).__init__(session, CortexM_PSoC64_BLE2, self.MEMORY_MAP, ap_num)
 
 
 class cy8c64xx_s25hx512t(PSoC64):
@@ -71,7 +71,7 @@ class cy8c64xx_s25hx512t(PSoC64):
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
     from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -105,15 +105,15 @@ class cy8c64xx_s25hx512t(PSoC64):
                     flash_class=Flash_PSoC64),
     )
 
-    def __init__(self, link, ap_num):
-        super(cy8c64xx_s25hx512t, self).__init__(link, CortexM_PSoC64_BLE2, self.memoryMap, ap_num)
+    def __init__(self, session, ap_num):
+        super(cy8c64xx_s25hx512t, self).__init__(session, CortexM_PSoC64_BLE2, self.MEMORY_MAP, ap_num)
         
         
 class cy8c64xx_nosmif(PSoC64):
     from .flash_algos.flash_algo_CY8C64xx import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -136,38 +136,38 @@ class cy8c64xx_nosmif(PSoC64):
                     flash_class=Flash_PSoC64),
     )
 
-    def __init__(self, link, ap_num):
-        super(cy8c64xx_nosmif, self).__init__(link, CortexM_PSoC64_BLE2, self.memoryMap, ap_num)
+    def __init__(self, session, ap_num):
+        super(cy8c64xx_nosmif, self).__init__(session, CortexM_PSoC64_BLE2, self.MEMORY_MAP, ap_num)
 
 
 class cy8c64xx_cm0(cy8c64xx):
-    def __init__(self, link):
-        super(cy8c64xx_cm0, self).__init__(link, 1)
+    def __init__(self, session):
+        super(cy8c64xx_cm0, self).__init__(session, 1)
 
 
 class cy8c64xx_cm4(cy8c64xx):
-    def __init__(self, link):
-        super(cy8c64xx_cm4, self).__init__(link, 2)
+    def __init__(self, session):
+        super(cy8c64xx_cm4, self).__init__(session, 2)
 
 
 class cy8c64xx_cm0_s25hx512t(cy8c64xx_s25hx512t):
-    def __init__(self, link):
-        super(cy8c64xx_cm0_s25hx512t, self).__init__(link, 1)
+    def __init__(self, session):
+        super(cy8c64xx_cm0_s25hx512t, self).__init__(session, 1)
 
 
 class cy8c64xx_cm4_s25hx512t(cy8c64xx_s25hx512t):
-    def __init__(self, link):
-        super(cy8c64xx_cm4_s25hx512t, self).__init__(link, 2)
+    def __init__(self, session):
+        super(cy8c64xx_cm4_s25hx512t, self).__init__(session, 2)
         
         
 class cy8c64xx_cm0_nosmif(cy8c64xx_nosmif):
-    def __init__(self, link):
-        super(cy8c64xx_cm0_nosmif, self).__init__(link, 1)
+    def __init__(self, session):
+        super(cy8c64xx_cm0_nosmif, self).__init__(session, 1)
 
 
 class cy8c64xx_cm4_nosmif(cy8c64xx_nosmif):
-    def __init__(self, link):
-        super(cy8c64xx_cm4_nosmif, self).__init__(link, 2)
+    def __init__(self, session):
+        super(cy8c64xx_cm4_nosmif, self).__init__(session, 2)
 
 
 class cy8c64xx_cm4_full_flash(cy8c64xx_cm4):
@@ -175,7 +175,7 @@ class cy8c64xx_cm4_full_flash(cy8c64xx_cm4):
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
     from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 
@@ -215,7 +215,7 @@ class cy8c64xx_cm0_full_flash(cy8c64xx_cm0):
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
     from .flash_algos.flash_algo_CY8C6xxx_SMIF_S25Hx512T import flash_algo as flash_algo_smif
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         PSoC6FlashParams.defaultRomRegion,
         PSoC6FlashParams.defaultRamRegion,
 

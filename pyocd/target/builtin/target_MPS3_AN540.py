@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (RamRegion, MemoryMap)
 
 class AN540(CoreSightTarget):
@@ -34,6 +34,6 @@ class AN540(CoreSightTarget):
         RamRegion(  name='dram9_s',     start=0x90000000, length=0x10000000, access='rwxs'),
         )
 
-    def __init__(self, link):
-        super(AN540, self).__init__(link, self.MEMORY_MAP)
+    def __init__(self, session):
+        super(AN540, self).__init__(session, self.MEMORY_MAP)
 

@@ -17,7 +17,7 @@
 
 import logging
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...coresight.cortex_m import CortexM
@@ -1102,7 +1102,7 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
     # will not actually be available in all regions simultaneously.
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         RamRegion(name="itcm",              start=0x00000000, length=0x80000), # 512 KB
         RomRegion(name="romcp",             start=0x00200000, length=0x18000), # 96 KB
         RomRegion(name="flexspi_alias",     start=0x08000000, length=0x8000000, alias='flexspi'), # 128 MB
@@ -1114,8 +1114,8 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
         RamRegion(name="semc",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
 
-    def __init__(self, link):
-        super(MIMXRT1052xxxxB_hyperflash, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MIMXRT1052xxxxB_hyperflash, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
 
     def create_init_sequence(self):
@@ -1140,7 +1140,7 @@ class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
     # will not actually be available in all regions simultaneously.
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         RamRegion(name="itcm",              start=0x00000000, length=0x80000), # 512 KB
         RomRegion(name="romcp",             start=0x00200000, length=0x18000), # 96 KB
         RomRegion(name="flexspi_alias",     start=0x08000000, length=0x8000000, alias='flexspi'), # 128 MB
@@ -1152,8 +1152,8 @@ class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
         RamRegion(name="semc",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
 
-    def __init__(self, link):
-        super(MIMXRT1052xxxxB_quadspi, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MIMXRT1052xxxxB_quadspi, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
 
     def create_init_sequence(self):

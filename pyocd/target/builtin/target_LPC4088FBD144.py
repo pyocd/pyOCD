@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
 from ...debug.svd.loader import SVDFile
 
@@ -65,7 +65,7 @@ class LPC4088(CoreSightTarget):
 
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
                                                                 blocksize=0x1000,
                                                                 page_size=0x200,
@@ -78,10 +78,10 @@ class LPC4088(CoreSightTarget):
         RamRegion(      start=0x10000000,  length=0x10000),
         )
 
-    def __init__(self, link, mem_map=None):
+    def __init__(self, session, mem_map=None):
         if mem_map is None:
-            mem_map = self.memoryMap
-        super(LPC4088, self).__init__(link, mem_map)
+            mem_map = self.MEMORY_MAP
+        super(LPC4088, self).__init__(session, mem_map)
         self.ignoreReset = False
         self._svd_location = SVDFile.from_builtin("LPC408x_7x_v0.7.svd")
 

@@ -81,13 +81,13 @@ FLASH_ALGO = {
 
 class KW41Z4(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x80000,      blocksize=0x800, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fff8000,  length=0x20000)
         )
 
-    def __init__(self, transport):
-        super(KW41Z4, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(KW41Z4, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKW41Z4.svd")
 

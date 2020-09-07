@@ -1615,7 +1615,7 @@ class PyOCDCommander(object):
             return
         original_core_ap = core_ap = self.target.selected_core.ap
         core = int(args[0], base=0)
-        self.target.select_core(core)
+        self.target.selected_core = core
         core_ap = self.target.selected_core.ap
         self.selected_ap = core_ap.address
         print("Selected core {} ({})".format(core, core_ap.short_description))

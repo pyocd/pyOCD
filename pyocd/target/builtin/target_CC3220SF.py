@@ -16,7 +16,7 @@
 
 from ...flash.flash import Flash
 from ...core import exceptions
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM
 from ...coresight import (ap, dap)
 from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
@@ -116,14 +116,14 @@ class Flash_cc3220sf(Flash):
 class CC3220SF(CoreSightTarget):
     VENDOR = "Texas Instruments"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         RomRegion(start=0x00000000, length=0x00080000),
         FlashRegion(start=0x01000000, length=0x00100000, blocksize=0x800, is_boot_memory=True, flash_class=Flash_cc3220sf),
         RamRegion(start=0x20000000, length=0x40000)
     )
 
-    def __init__(self, link):
-        super(CC3220SF, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(CC3220SF, self).__init__(session, self.MEMORY_MAP)
 
     def post_connect_hook(self):
         self.cores[0].default_reset_type = self.ResetType.SW_VECTRESET

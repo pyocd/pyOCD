@@ -187,13 +187,13 @@ class CortexM(Target, CoreSightCoreComponent):
         
         return core
 
-    def __init__(self, session, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
+    def __init__(self, session, ap, memory_map=None, core_num=0, cmpid=None, address=None):
         # Supply a default memory map.
-        if (memoryMap is None) or (memoryMap.region_count == 0):
-            memoryMap = self._create_default_cortex_m_memory_map()
+        if (memory_map is None) or (memory_map.region_count == 0):
+            memory_map = self._create_default_cortex_m_memory_map()
             LOG.debug("Using default memory map for core #%d (no memory map supplied)", core_num)
         
-        Target.__init__(self, session, memoryMap)
+        Target.__init__(self, session, memory_map)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
         self._architecture = None

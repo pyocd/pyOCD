@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
@@ -106,7 +106,7 @@ class HC32F4A0xG(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x100000, page_size=0x800, sector_size=0x2000,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
@@ -114,8 +114,8 @@ class HC32F4A0xG(CoreSightTarget):
         RamRegion(   start=0x200F0000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32F4A0xG, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32F4A0xG, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32F4A0.svd")
 
     def post_connect_hook(self):
@@ -128,7 +128,7 @@ class HC32F4A0xI(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x200000, page_size=0x800, sector_size=0x2000,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
@@ -136,8 +136,8 @@ class HC32F4A0xI(CoreSightTarget):
         RamRegion(   start=0x200F0000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32F4A0xI, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32F4A0xI, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32F4A0.svd")
 
     def post_connect_hook(self):

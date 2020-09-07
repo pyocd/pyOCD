@@ -161,7 +161,7 @@ class Flash_kl28z(Flash_Kinetis):
 
 class KL28x(Kinetis):
 
-    singleMap = MemoryMap(
+    SINGLE_MAP = MemoryMap(
         FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, is_boot_memory=True,
             flash_class=Flash_kl28z,
             algo=FLASH_ALGO),
@@ -169,7 +169,7 @@ class KL28x(Kinetis):
         RamRegion(name='usb ram', start=0x40100000, length=0x800)
         )
 
-    dualMap = MemoryMap(
+    DUAL_MAP = MemoryMap(
         FlashRegion(name='flash', start=0, length=0x80000, blocksize=0x800, is_boot_memory=True,
             flash_class=Flash_kl28z,
             algo=FLASH_ALGO),
@@ -180,8 +180,8 @@ class KL28x(Kinetis):
         RamRegion(name='usb ram', start=0x40100000, length=0x800)
         )
 
-    def __init__(self, link):
-        super(KL28x, self).__init__(link, self.singleMap)
+    def __init__(self, session):
+        super(KL28x, self).__init__(session, self.SINGLE_MAP)
         self.is_dual_core = False
 
         self._svd_location = SVDFile.from_builtin("MKL28T7_CORE0.svd")
@@ -214,7 +214,7 @@ class KL28x(Kinetis):
         self.is_dual_core = (keyattr == KEYATTR_DUAL_CORE)
         if self.is_dual_core:
             LOG.info("KL28 is dual core")
-            self.memory_map = self.dualMap
+            self.memory_map = self.DUAL_MAP
 
     def post_connect_hook(self):
         # Disable ROM vector table remapping.

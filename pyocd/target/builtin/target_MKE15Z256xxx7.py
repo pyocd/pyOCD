@@ -86,14 +86,14 @@ FLASH_ALGO = {
 
 class KE15Z7(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x40000,       blocksize=0x800, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fffe000,  length=0x8000)
         )
 
-    def __init__(self, link):
-        super(KE15Z7, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(KE15Z7, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKE15Z7.svd")
 
     def post_connect_hook(self):

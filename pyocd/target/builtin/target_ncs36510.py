@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
 FLASH_ALGO = {
@@ -83,11 +83,11 @@ class NCS36510(CoreSightTarget):
 
     VENDOR = "ONSemiconductor"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x2000,           length=0x50000,      blocksize=0x800, is_boot_memory=True,
             algo=FLASH_ALGO),
         RamRegion(      start=0x3FFF4000,  length=0xC000)
         )
 
-    def __init__(self, link):
-        super(NCS36510, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(NCS36510, self).__init__(session, self.MEMORY_MAP)

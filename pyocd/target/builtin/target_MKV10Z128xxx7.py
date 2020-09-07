@@ -91,13 +91,13 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class KV10Z7(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x8000,      blocksize=0x400, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1ffff800,  length=0x2000)
         )
 
-    def __init__(self, transport):
-        super(KV10Z7, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(KV10Z7, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKV10Z7.svd")
 

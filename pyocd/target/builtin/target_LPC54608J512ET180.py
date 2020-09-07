@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...coresight import ap
 from ...coresight.cortex_m import CortexM
@@ -57,7 +57,7 @@ class LPC54608(CoreSightTarget):
 
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash',   start=0,           length=0x80000,  is_boot_memory=True,
                                                                         blocksize=0x8000,
                                                                         page_size=0x100,
@@ -68,8 +68,8 @@ class LPC54608(CoreSightTarget):
         RamRegion(  name='sram2',   start=0x20020000,  length=0x8000)
         )
 
-    def __init__(self, link):
-        super(LPC54608, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC54608, self).__init__(session, self.MEMORY_MAP)
         self.ignoreReset = False
         self._svd_location = SVDFile.from_builtin("LPC54608.xml")
 

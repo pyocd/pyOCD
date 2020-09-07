@@ -18,7 +18,7 @@ import time
 import logging
 from ...utility import timeout
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...core import exceptions
 from ...coresight.cortex_m import CortexM
@@ -104,7 +104,7 @@ class STM32F767xx(CoreSightTarget):
     # flash sectors structure.
     # For Single bank there is 12 sectors, for dual bank there is 24 sectors.
     # For dual bank configurations sectors are half size.
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x20000,  sector_size=0x8000,
                                                         page_size=0x400,
                                                         is_boot_memory=True,
@@ -120,8 +120,8 @@ class STM32F767xx(CoreSightTarget):
         RamRegion(   start=0x20000000, length=0x80000)
         )
 
-    def __init__(self, transport):
-        super(STM32F767xx, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(STM32F767xx, self).__init__(session, self.MEMORY_MAP)
 
     def assert_reset_for_connect(self):
         self.dp.probe.assert_reset(1)

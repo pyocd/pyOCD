@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
@@ -61,11 +61,11 @@ class MAX32625(CoreSightTarget):
 
     VENDOR = "Maxim"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,            length=0x80000, blocksize=0x2000, is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,   length=0x28000),
         )
 
-    def __init__(self, link):
-        super(MAX32625, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MAX32625, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("max32625.svd")

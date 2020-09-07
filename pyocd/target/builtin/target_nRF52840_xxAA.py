@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ..family.target_nRF52 import NRF52
@@ -45,7 +44,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class NRF52840(NRF52):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO),
         # User Information Configation Registers (UICR) as a flash region
@@ -54,8 +53,8 @@ class NRF52840(NRF52):
         RamRegion(      start=0x20000000,  length=0x40000)
         )
 
-    def __init__(self, link):
-        super(NRF52840, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(NRF52840, self).__init__(session, self.MEMORY_MAP)
 
     def resetn(self):
         """

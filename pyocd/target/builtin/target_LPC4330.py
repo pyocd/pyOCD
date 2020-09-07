@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
@@ -317,7 +317,7 @@ class LPC4330(CoreSightTarget):
 
     VENDOR = "NXP"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x14000000,  length=0x4000000,    blocksize=0x400, is_boot_memory=True,
             algo=FLASH_ALGO),
         RamRegion(      start=0x10000000,  length=0x20000),
@@ -326,8 +326,8 @@ class LPC4330(CoreSightTarget):
         RamRegion(      start=0x20008000,  length=0x8000)
         )
 
-    def __init__(self, link):
-        super(LPC4330, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(LPC4330, self).__init__(session, self.MEMORY_MAP)
         self.ignoreReset = False
         self._svd_location = SVDFile.from_builtin("LPC43xx_svd_v5.svd")
 

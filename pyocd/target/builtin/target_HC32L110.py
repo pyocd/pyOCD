@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
@@ -67,15 +67,15 @@ class HC32L110(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32L110, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32L110, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32L110.svd")
 
     def post_connect_hook(self):
@@ -86,15 +86,15 @@ class HC32F003(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x4000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x800)
         )
 
-    def __init__(self, transport):
-        super(HC32F003, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32F003, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32F003.svd")
 
     def post_connect_hook(self):
@@ -105,15 +105,15 @@ class HC32F005(CoreSightTarget):
 
     VENDOR = "HDSC"
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x1000)
         )
 
-    def __init__(self, transport):
-        super(HC32F005, self).__init__(transport, self.memoryMap)
+    def __init__(self, session):
+        super(HC32F005, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32F005.svd")
 
     def post_connect_hook(self):

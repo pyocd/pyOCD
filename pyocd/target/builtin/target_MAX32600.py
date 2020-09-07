@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, DeviceRegion, MemoryMap)
 import logging
 
@@ -58,12 +58,12 @@ class MAX32600(CoreSightTarget):
 
     VENDOR = "Maxim"
     
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x40000,      blocksize=0x800, is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x8000),
         DeviceRegion(   start=0x40000000,  length=0x100000),
         DeviceRegion(   start=0xe0000000,  length=0x100000)
         )
 
-    def __init__(self, link):
-        super(MAX32600, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(MAX32600, self).__init__(session, self.MEMORY_MAP)

@@ -19,7 +19,7 @@ from time import sleep
 
 from pyocd.coresight.generic_mem_ap import GenericMemAPTarget
 from ...core import exceptions
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (MemoryMap, RamRegion)
 from ...core.target import Target
 from ...coresight.cortex_m import CortexM
@@ -128,11 +128,11 @@ class CortexM_PSoC6_A2M(CortexM_PSoC6):
 
 class PSoC6(CoreSightTarget):
     VENDOR = "Cypress"
-    CoretxM_Core = None
+    cortex_m_core_class = None
 
-    def __init__(self, link, CoretxM_Core, MemoryMap):
-        self.CoretxM_Core = CoretxM_Core
-        super(PSoC6, self).__init__(link, MemoryMap)
+    def __init__(self, session, cortex_m_core_class, memory_map):
+        self.cortex_m_core_class = cortex_m_core_class
+        super(PSoC6, self).__init__(session, memory_map)
 
     def create_init_sequence(self):
         seq = super(PSoC6, self).create_init_sequence()
@@ -142,9 +142,9 @@ class PSoC6(CoreSightTarget):
         return seq
 
     def create_psoc_cores(self):
-        core0 = self.CoretxM_Core(self.session, self.aps[1], self.memory_map, 0)
+        core0 = self.cortex_m_core_class(self.session, self.aps[1], self.memory_map, 0)
         core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        core1 = self.CoretxM_Core(self.session, self.aps[2], self.memory_map, 1)
+        core1 = self.cortex_m_core_class(self.session, self.aps[2], self.memory_map, 1)
         core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
 
         self.aps[1].core = core0
@@ -164,10 +164,10 @@ class CortexM_PSoC64(CortexM):
     TEST_MODE_VALUE = 0x80000000
     CM4_PWR_CTL_VALUE = 0x05FA0003
 
-    def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
+    def __init__(self, session, ap, memory_map, core_num, acquire_timeout):
         self._acquire_timeout = acquire_timeout
         self._skip_reset_and_halt = False
-        super(CortexM_PSoC64, self).__init__(session, ap, memoryMap, core_num)
+        super(CortexM_PSoC64, self).__init__(session, ap, memory_map, core_num)
 
     @property
     def acquire_timeout(self):
@@ -349,10 +349,10 @@ class CortexM_PSoC64_A512K(CortexM_PSoC64):
 
 
 class SYS_AP_PSoC64(GenericMemAPTarget):
-    def __init__(self, session, ap, memoryMap, core_num, acquire_timeout):
+    def __init__(self, session, ap, memory_map, core_num, acquire_timeout):
         self._acquire_timeout = acquire_timeout
         self._skip_reset_and_halt = False
-        super(SYS_AP_PSoC64, self).__init__(session, ap, memoryMap, core_num)
+        super(SYS_AP_PSoC64, self).__init__(session, ap, memory_map, core_num)
 
     @property
     def acquire_timeout(self):
@@ -392,13 +392,13 @@ class SYS_AP_PSoC64(GenericMemAPTarget):
 class PSoC64(CoreSightTarget):
     VENDOR = "Cypress"
     AP_NUM = None
-    CoretxM_Core = None
+    cortex_m_core_class = None
 
-    def __init__(self, link, CoretxM_Core, MemoryMap, ap_num):
-        self.CoretxM_Core = CoretxM_Core
+    def __init__(self, session, cortex_m_core_class, memory_map, ap_num):
+        self.cortex_m_core_class = cortex_m_core_class
         self.AP_NUM = ap_num
         self.DEFAULT_ACQUIRE_TIMEOUT = 25.0
-        super(PSoC64, self).__init__(link, MemoryMap)
+        super(PSoC64, self).__init__(session, memory_map)
 
     def create_init_sequence(self):
         seq = super(PSoC64, self).create_init_sequence()
@@ -426,7 +426,7 @@ class PSoC64(CoreSightTarget):
         self.add_core(sysap)
 
         if self.AP_NUM:
-            core = self.CoretxM_Core(self.session, self.aps[self.AP_NUM], self.memory_map, 1,
+            core = self.cortex_m_core_class(self.session, self.aps[self.AP_NUM], self.memory_map, 1,
                                      self.DEFAULT_ACQUIRE_TIMEOUT)
             core.default_reset_type = self.ResetType.SW_SYSRESETREQ
             self.aps[self.AP_NUM].core = core
@@ -436,7 +436,7 @@ class PSoC64(CoreSightTarget):
 
 
 class cy8c64_sysap(PSoC64):
-    memoryMap = MemoryMap(RamRegion(start=0, length=0x100000000))
+    MEMORY_MAP = MemoryMap(RamRegion(start=0, length=0x100000000))
 
-    def __init__(self, link):
-        super(cy8c64_sysap, self).__init__(link, None, self.memoryMap, 0)
+    def __init__(self, session):
+        super(cy8c64_sysap, self).__init__(session, None, self.MEMORY_MAP, 0)

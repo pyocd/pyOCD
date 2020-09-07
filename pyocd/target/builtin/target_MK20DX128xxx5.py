@@ -74,13 +74,13 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
 class K20D50M(Kinetis):
 
-    memoryMap = MemoryMap(
+    MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x20000,     blocksize=0x400, is_boot_memory=True,
             algo=FLASH_ALGO, flash_class=Flash_Kinetis),
         RamRegion(      start=0x1fffe000,  length=0x4000)
         )
 
-    def __init__(self, link):
-        super(K20D50M, self).__init__(link, self.memoryMap)
+    def __init__(self, session):
+        super(K20D50M, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK20D5.svd")
 

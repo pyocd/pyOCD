@@ -54,8 +54,8 @@ class CortexM_v8M(CortexM):
     MVFR1_MVE__INTEGER = 0x1
     MVFR1_MVE__FLOAT = 0x2
 
-    def __init__(self, rootTarget, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
-        super(CortexM_v8M, self).__init__(rootTarget, ap, memoryMap, core_num, cmpid, address)
+    def __init__(self, rootTarget, ap, memory_map=None, core_num=0, cmpid=None, address=None):
+        super(CortexM_v8M, self).__init__(rootTarget, ap, memory_map, core_num, cmpid, address)
 
         # Only v7-M supports VECTRESET.
         self._supports_vectreset = False

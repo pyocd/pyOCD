@@ -16,7 +16,7 @@
 # limitations under the License.
 
 from ...core import exceptions
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
 from ...utility.timeout import Timeout
 import logging
@@ -56,8 +56,8 @@ class NRF52(CoreSightTarget):
 
     VENDOR = "Nordic Semiconductor"
 
-    def __init__(self, link, memoryMap=None):
-        super(NRF52, self).__init__(link, memoryMap)
+    def __init__(self, session, memory_map=None):
+        super(NRF52, self).__init__(session, memory_map)
         self._svd_location = SVDFile.from_builtin("nrf52.svd")
         self.ctrl_ap = None
 
