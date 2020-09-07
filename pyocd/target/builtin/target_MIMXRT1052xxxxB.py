@@ -17,7 +17,7 @@
 
 import logging
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...coresight.cortex_m import CortexM

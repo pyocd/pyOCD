@@ -18,7 +18,7 @@ import time
 import logging
 from ...utility import timeout
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...core import exceptions
 from ...coresight.cortex_m import CortexM

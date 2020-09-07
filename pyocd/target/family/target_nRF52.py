@@ -16,7 +16,7 @@
 # limitations under the License.
 
 from ...core import exceptions
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
 from ...utility.timeout import Timeout
 import logging

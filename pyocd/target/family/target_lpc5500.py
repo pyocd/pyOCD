@@ -18,7 +18,7 @@ from time import sleep
 import logging
 
 from ...core.target import Target
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...coresight.cortex_m import CortexM
 from ...coresight.cortex_m_v8m import CortexM_v8M

@@ -22,7 +22,7 @@ import os
 from .cmsis_pack import (CmsisPack, MalformedCmsisPackError)
 from ..family import FAMILIES
 from .. import TARGET
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
 from ...utility.compatibility import FileNotFoundError_
 

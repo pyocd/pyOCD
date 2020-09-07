@@ -18,7 +18,7 @@ from ..family.target_kinetis import Kinetis
 from ...flash.flash import Flash
 from ...core import exceptions
 from ...core.target import Target
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...coresight import ap

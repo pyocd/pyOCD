@@ -16,7 +16,7 @@
 
 import logging
 from ...core.target import Target
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, DefaultFlashWeights)
 from ...debug.svd.loader import SVDFile
 

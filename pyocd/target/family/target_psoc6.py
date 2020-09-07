@@ -19,7 +19,7 @@ from time import sleep
 
 from pyocd.coresight.generic_mem_ap import GenericMemAPTarget
 from ...core import exceptions
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (MemoryMap, RamRegion)
 from ...core.target import Target
 from ...coresight.cortex_m import CortexM

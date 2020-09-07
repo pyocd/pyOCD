@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ..family import target_kinetis
 from . import target_MIMXRT1011xxxxx
 from . import target_MIMXRT1015xxxxx

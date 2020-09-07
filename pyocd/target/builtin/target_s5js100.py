@@ -17,7 +17,7 @@
 import logging
 from time import sleep
 from ...flash.flash import Flash
-from ...core.coresight_target import CoreSightTarget
+from ...coresight.coresight_target import CoreSightTarget
 from ...coresight import (ap, dap)
 from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 from ...core.target import Target
