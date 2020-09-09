@@ -89,7 +89,10 @@ class ListGenerator(object):
             'boards' : boards
             }
 
+        # Lowercase target names for comparison
         managed_targets = [dev.part_number.lower() for dev in pack_target.ManagedPacks.get_installed_targets()]
+        builtin_target_names = [target_name.lower() for target_name in BUILTIN_TARGETS]
+        target_names = [target_name.lower() for target_name in TARGET]
 
         for board_id, info in BOARD_ID_TO_INFO.items():
             # Filter by name.
@@ -100,8 +103,8 @@ class ListGenerator(object):
                 'name' : info.name,
                 'target': info.target,
                 'binary' : info.binary,
-                'is_target_builtin': (info.target in BUILTIN_TARGETS),
-                'is_target_supported': (info.target in TARGET or info.target in managed_targets)
+                'is_target_builtin': (info.target.lower() in builtin_target_names),
+                'is_target_supported': (info.target.lower() in target_names or info.target in managed_targets)
                 }
             boards.append(d)
 
