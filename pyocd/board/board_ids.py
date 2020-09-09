@@ -204,7 +204,7 @@ BOARD_ID_TO_INFO = {
     "1907": BoardInfo(  "CY8CPROTO-064-SB",     "cy8c64xx_cm4_s25hx512t", "l1_cy8c6xx7.bin",),
     "1908": BoardInfo(  "CYW9P62S1-43438EVB-01","cy8c6xx7",         "l1_cy8c6xx7.bin",      ),
     "1909": BoardInfo(  "CY8CPROTO-062S2-43012","cy8c6xxa",         "l1_cy8c6xxa.bin",      ),
-    "190A": BoardInfo(  "CY8CKIT-064S2-4343W",  "cy8c64xA_cm4",     "l1_cy8c6xxa.bin",      ),
+    "190A": BoardInfo(  "CY8CKIT-064S2-4343W",  "cy8c64xa_cm4",     "l1_cy8c6xxa.bin",      ),
     "190B": BoardInfo(  "CY8CKIT-062S2-43012",  "cy8c6xxa",         "l1_062S2-43012.bin",   ),
     "190C": BoardInfo(  "CY8CPROTO-064B0S3",    "cy8c64x5_cm4",     "l1_cy8c6xxa.bin",      ),
     "190D": BoardInfo(  "AUGUST_CYW43012",      "cy8c64xx_cm4",     "l1_cy8c6xx7.bin",      ),
