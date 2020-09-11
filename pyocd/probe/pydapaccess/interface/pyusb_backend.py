@@ -48,6 +48,8 @@ class PyUSB(Interface):
     """
 
     isAvailable = IS_AVAILABLE
+    
+    did_show_no_libusb_warning = False
 
     def __init__(self):
         super(PyUSB, self).__init__()
@@ -152,7 +154,13 @@ class PyUSB(Interface):
         returns an array of PyUSB (Interface) objects
         """
         # find all cmsis-dap devices
-        all_devices = usb.core.find(find_all=True, custom_match=FindDap())
+        try:
+            all_devices = usb.core.find(find_all=True, custom_match=FindDap())
+        except usb.core.NoBackendError:
+            if not PyUSB.did_show_no_libusb_warning:
+                LOG.warning("CMSIS-DAPv1 probes may not be detected because no libusb library was found.")
+                PyUSB.did_show_no_libusb_warning = True
+            return []
 
         # iterate on all devices found
         boards = []
