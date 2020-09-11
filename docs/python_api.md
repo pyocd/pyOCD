@@ -26,8 +26,8 @@ allow automatically picking the first available probe.
 One of the most useful parameters for `session_with_chosen_probe()` is `unique_id`. Pass whole or
 part of a probe's unique ID (aka serial number) to programmatically select a specific probe.
 
-User options may be passed to `session_with_chosen_probe()` in two ways. The `options`
-parameter accepts a dictionary of user options. Or, you may pass options as keyword parameters.
+Session options may be passed to `session_with_chosen_probe()` in two ways. The `options`
+parameter accepts a dictionary of session options. Or, you may pass options as keyword parameters.
 The two methods may be combined.
 
 

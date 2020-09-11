@@ -28,7 +28,7 @@ composition, not inheritance.
 ```
 
 The root of the runtime object graph is a `Session` object. This object holds references to the debug
-probe and the board. It is also responsible for managing per-session user options that control
+probe and the board. It is also responsible for managing per-session options that control
 various features and settings.
 
 Attached to the board is a `CoreSightTarget` instance, which represents an MCU. This owns the

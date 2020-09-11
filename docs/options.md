@@ -1,4 +1,4 @@
-User options list
+Session options list
 =================
 
 _**Note:** The names of these options are expected to change before the 1.0 release of pyOCD, so
@@ -56,7 +56,7 @@ Number of entries in the pyOCD Commander command history. Set to -1 for unlimite
 <td>str</td>
 <td><i>See description</i></td>
 <td>
-Relative path to a YAML config file that lets you specify user options either globally or per probe.
+Relative path to a YAML config file that lets you specify session options either globally or per probe.
 The format of the file is documented above. The default is a <tt>pyocd.yaml</tt> or <tt>pyocd.yml</tt> file in the
 working directory.
 </td></tr>
@@ -272,7 +272,7 @@ type is used. The warning is never shown if the cortex_m target type is explicit
 
 ## GDB server options
 
-These user options are currently only applied when running the GDB server.
+These session options are currently only applied when running the GDB server.
 
 <table>
 
@@ -419,7 +419,7 @@ presentation in gdb.
 
 ## J-Link probe options
 
-These user options are available when the SEGGER J-Link debug probe plugin is active.
+These session options are available when the SEGGER J-Link debug probe plugin is active.
 
 <table>
 

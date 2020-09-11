@@ -93,7 +93,7 @@ both target related objects, as well as parts of the pyOCD Python API.
 | `LOG` | `Logger` object for the user script. |
 | `MemoryMap` | Class representing the device's memory map. |
 | `MemoryType` | Memory region type enumeration. |
-| `options` | The user options dictionary. |
+| `options` | The session options dictionary. |
 | `probe` | The connected debug probe object. |
 | `pyocd` | The root pyOCD package. |
 | `RamRegion` | RAM memory region. |

@@ -41,7 +41,7 @@ level of WARNING to INFO.
 Fine-grained control of pyOCD log output is available through logging configuration. The logging
 package supports loading a configuration dictionary to control almost all aspects of log output.
 
-The `logging` user option is used to specify the logging configuration. It can be set to either a
+The `logging` session option is used to specify the logging configuration. It can be set to either a
 logging configuration dictionary or the path to a YAML file containing a configuration dictionary.
 Usually it is easiest to include the configuration directly in a `pyocd.yaml` config file. See the
 [configuration documentation](configuration.md) for more on config files. The file path is most
@@ -74,7 +74,7 @@ logging:
       level: DEBUG
 ```
 
-The top level `logging` key is the user option. Under it must be a `loggers` key, which has the
+The top level `logging` key is the session option. Under it must be a `loggers` key, which has the
 name of each module you wish to configure as a child key. Then, under each module name, the `level`
 key specifies the log level for that module. Due to the way logging propagation works, you do not
 need to set the level of parent loggers to match the child levels. In fact, setting the level of a

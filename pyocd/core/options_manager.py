@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 OptionChangeInfo = namedtuple('OptionChangeInfo', 'new_value old_value')
 
 class OptionsManager(Notifier):
-    """! @brief Handles user option management for a session.
+    """! @brief Handles session option management for a session.
     
     The options manager supports multiple layers of option priority. When an option's value is
     accessed, the highest priority layer that contains a value for the option is used. This design
@@ -91,7 +91,7 @@ class OptionsManager(Notifier):
         self._update_layers(new_options, self._layers.append)
     
     def _convert_options(self, new_options):
-        """! @brief Prepare a dictionary of user options for use by the manager.
+        """! @brief Prepare a dictionary of session options for use by the manager.
         
         1. Strip dictionary entries with a value of None.
         2. Replace double-underscores ("__") with a dot (".").

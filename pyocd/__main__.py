@@ -122,7 +122,7 @@ class PyOCDTool(object):
         
         parser.add_argument('-V', '--version', action='version', version=__version__)
         parser.add_argument('--help-options', action='store_true',
-            help="Display available user options.")
+            help="Display available session options.")
         
         # Define logging related options.
         loggingOptions = argparse.ArgumentParser(description='logging', add_help=False)
@@ -409,7 +409,7 @@ class PyOCDTool(object):
             return 1
     
     def show_options_help(self):
-        """! @brief Display help for user options."""
+        """! @brief Display help for session options."""
         for infoName in sorted(options.OPTIONS_INFO.keys()):
             info = options.OPTIONS_INFO[infoName]
             if isinstance(info.type, tuple):
