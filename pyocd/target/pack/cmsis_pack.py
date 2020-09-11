@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
+# Copyright (c) 2020 Men Shiyun
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -428,6 +429,10 @@ class CmsisPackDevice(object):
                     end = region.end
                 else:
                     end = region.start + packAlgo.sector_sizes[j + 1][0] - 1
+                
+                # Skip wrong start and end addresses
+                if end < start:
+                    continue
                 
                 # Limit page size.
                 if page_size > sector_size:
