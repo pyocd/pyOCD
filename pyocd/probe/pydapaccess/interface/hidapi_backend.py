@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,27 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+import platform
+import six
+
 from .interface import Interface
 from .common import filter_device_by_usage_page
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
-import logging
-import os
-import six
 
 LOG = logging.getLogger(__name__)
 
 try:
     import hid
 except:
-    if os.name == "posix" and os.uname()[0] == 'Darwin':
-        LOG.error("cython-hidapi is required on a Mac OS X Machine")
+    if platform.system() == 'Darwin':
+        LOG.error("hidapi is required for CMSIS-DAP support on macOS")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
 
 class HidApiUSB(Interface):
-    """! @brief CMSIS-DAP USB interface class using cython-hidapi backend.
+    """! @brief CMSIS-DAP USB interface class using hidapi backend.
     """
 
     isAvailable = IS_AVAILABLE

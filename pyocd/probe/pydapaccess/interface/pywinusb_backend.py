@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+import platform
+import collections
+from time import sleep
+import six
+
 from .interface import Interface
 from .common import filter_device_by_usage_page
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
-import logging
-import os
-import collections
-from time import time, sleep
-import six
 
 OPEN_TIMEOUT_S = 60.0
 
@@ -31,7 +32,7 @@ LOG = logging.getLogger(__name__)
 try:
     import pywinusb.hid as hid
 except:
-    if os.name == "nt":
+    if platform.system() == "Windows":
         LOG.error("PyWinUSB is required on a Windows Machine")
     IS_AVAILABLE = False
 else:

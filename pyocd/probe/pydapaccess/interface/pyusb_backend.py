@@ -14,16 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .interface import Interface
-from .common import (USB_CLASS_HID, filter_device_by_class, is_known_cmsis_dap_vid_pid, check_ep)
-from ..dap_access_api import DAPAccessIntf
 import logging
-import os
 import threading
 import six
 from time import sleep
 import platform
 import errno
+
+from .interface import Interface
+from .common import (
+    USB_CLASS_HID,
+    filter_device_by_class,
+    is_known_cmsis_dap_vid_pid,
+    check_ep,
+    )
+from ..dap_access_api import DAPAccessIntf
+from ... import common
 
 LOG = logging.getLogger(__name__)
 
@@ -31,8 +37,8 @@ try:
     import usb.core
     import usb.util
 except:
-    if os.name == "posix" and not os.uname()[0] == 'Darwin':
-        LOG.error("PyUSB is required on a Linux Machine")
+    if platform.system() == "Linux":
+        LOG.error("PyUSB is required for CMSIS-DAP support on Linux")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
@@ -94,7 +100,7 @@ class PyUSB(Interface):
                 LOG.debug("Detaching Kernel Driver of Interface %d from USB device (VID=%04x PID=%04x).", interface_number, dev.idVendor, dev.idProduct)
                 dev.detach_kernel_driver(interface_number)
                 self.kernel_driver_was_attached = True
-        except (NotImplementedError,usb.core.USBError) as e:
+        except (NotImplementedError, usb.core.USBError) as e:
             # Some implementations don't don't have kernel attach/detach
             LOG.warning("USB Kernel Driver Detach Failed ([%s] %s). Attached driver may interfere with pyOCD operations.", e.errno, e.strerror)
             pass

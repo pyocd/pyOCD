@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,18 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .interface import Interface
-from .common import (USB_CLASS_VENDOR_SPECIFIC, filter_device_by_class, is_known_cmsis_dap_vid_pid,
-                        check_ep)
-from ..dap_access_api import DAPAccessIntf
-from ... import common
 import logging
-import os
 import threading
 import six
 from time import sleep
 import errno
 import platform
+
+from .interface import Interface
+from .common import (
+    USB_CLASS_VENDOR_SPECIFIC,
+    filter_device_by_class,
+    is_known_cmsis_dap_vid_pid,
+    check_ep,
+    )
+from ..dap_access_api import DAPAccessIntf
+from ... import common
 
 LOG = logging.getLogger(__name__)
 
