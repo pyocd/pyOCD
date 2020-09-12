@@ -917,7 +917,7 @@ class GDBServer(threading.Thread):
             LOG.debug("Skipping RTOS load because it was disabled.")
             return self.create_rsp_packet(b"OK")
         
-        forced_rtos_name = self.session.options.get('rtos.enable')
+        forced_rtos_name = self.session.options.get('rtos.name')
         
         symbol_provider = GDBSymbolProvider(self)
 
