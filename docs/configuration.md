@@ -5,17 +5,17 @@ This guide documents how to configure pyOCD.
 
 ## Introduction
 
-pyOCD allows you to control many aspects of its behaviour by setting user options. There are
+pyOCD allows you to control many aspects of its behaviour by setting session options. There are
 multiple ways to set these options.
 
-- Many of the most commonly used user options have dedicated command line arguments.
+- Many of the most commonly used session options have dedicated command line arguments.
 - Options can be placed in a YAML config file.
 - Arbitrary options can be set individually with the `-Ooption=value` command line argument.
 - If you are using the Python API, you may pass any option values directly
     to the `ConnectHelper` methods or `Session` constructor as keyword arguments. You can also
     pass a dictionary for the `options` parameter of these methods.
 
-The priorities of the different user option sources, from highest to lowest:
+The priorities of the different session option sources, from highest to lowest:
 
 1. Keyword arguments to the `Session` constructor. Applies to most command-line arguments.
 2. _options_ parameter to constructor. Applies to `-O` command-line arguments.
@@ -37,7 +37,7 @@ uses the filename as-is. Otherwise, it looks for the file in the project directo
 
 ## Config file
 
-pyOCD supports a YAML configuration file that lets you set user options that either apply to
+pyOCD supports a YAML configuration file that lets you set session options that either apply to
 all probes or to a single probe, based on the probe's unique ID.
 
 The easiest way to use a config file is to place a `pyocd.yaml` file in the project directory.
@@ -47,13 +47,13 @@ optional dot prefix on the config file name are allowed. Alternatively, you can 
 `config_file` option.
 
 The top level of the YAML file is a dictionary. The keys in the top-level dictionary must be names
-of user options, or the key `probes`. User options are set to the value corresponding to the
+of session options, or the key `probes`. Session options are set to the value corresponding to the
 dictionary entry. Unrecognized option names are ignored.
 
 If there is a top-level `probes` key, its value must be a dictionary with keys that match a
 substring of debug probe unique IDs. Usually you would just use the complete unique ID shown by
 listing connected boards (i.e., `pyocd list`). The values for the unique ID entries are
-dictionaries containing user options, just like the top level of the YAML file. Of course, these
+dictionaries containing session options, just like the top level of the YAML file. Of course, these
 options are only applied when connecting with the given probe. If the probe unique ID
 substring listed in the config file matches more than one probe, the corresponding options
 will be applied to all matching probes.

@@ -55,7 +55,16 @@ class Session(Notifier):
     graph, where it owns the debug probe and the board objects.
     
     Another important function of this class is that it contains a dictionary of session-scope
-    user options. These would normally be passed in from the command line, or perhaps a config file.
+    options. These would normally be passed in from the command line. Options can also be loaded
+    from a config file.
+
+    Precedence for session options:
+    
+    1. Keyword arguments to constructor.
+    2. _options_ parameter to constructor.
+    3. Probe-specific options from a config file.
+    4. General options from a config file.
+    5. _option_defaults_ parameter to constructor.
     
     See the @ref pyocd.core.helpers.ConnectHelper "ConnectHelper" class for several methods that
     make it easy to create new sessions, with or without user interaction in the case of multiple
@@ -82,7 +91,7 @@ class Session(Notifier):
         still alive. If no live session exists, a new default session will be created and returned.
         That at least provides access to the user's config file(s).
         
-        Used primarily so code that doesn't have a session reference can access user options. This
+        Used primarily so code that doesn't have a session reference can access session options. This
         method should only be used to access options that are unlikely to differ between sessions,
         or for debug or other purposes.
         """
@@ -94,32 +103,25 @@ class Session(Notifier):
     def __init__(self, probe, auto_open=True, options=None, option_defaults=None, **kwargs):
         """! @brief Session constructor.
         
-        Creates a new session using the provided debug probe. User options are merged from the
+        Creates a new session using the provided debug probe. Session options are merged from the
         _options_ parameter and any keyword arguments. Normally a board instance is created that can
         either be a generic board or a board associated with the debug probe.
-        
-        Precedence for user options:
-        1. Keyword arguments to constructor.
-        2. _options_ parameter to constructor.
-        3. Probe-specific options from a config file.
-        4. General options from a config file.
-        5. _option_defaults_ parameter to constructor.
         
         Note that the 'project_dir' and 'config' options must be set in either keyword arguments or
         the _options_ parameter.
         
         Passing in a _probe_ that is None is allowed. This is useful to create a session that operates
-        only as a container for user options. In this case, the board instance is not created, so the
+        only as a container for session options. In this case, the board instance is not created, so the
         #board attribute will be None. Such a Session cannot be opened.
         
         @param self
-        @param probe The DebugProbe instance. May be None.
+        @param probe The @ref pyocd.probe.debug_probe. "DebugProbe" instance. May be None.
         @param auto_open Whether to automatically open the session when used as a context manager.
-        @param options Optional user options dictionary.
-        @param option_defaults Optional dictionary of user option values. This dictionary has the
-            lowest priority in determining final user option values, and is intended to set new
+        @param options Optional session options dictionary.
+        @param option_defaults Optional dictionary of session option values. This dictionary has the
+            lowest priority in determining final session option values, and is intended to set new
             defaults for option if they are not set through any other method.
-        @param kwargs User options passed as keyword arguments.
+        @param kwargs Session options passed as keyword arguments.
         """
         super(Session, self).__init__()
         
@@ -261,38 +263,50 @@ class Session(Notifier):
     
     @property
     def is_open(self):
+        """! @brief Boolean of whether the session has been opened."""
         return self._inited and not self._closed
     
     @property
     def probe(self):
+        """! @brief The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" instance."""
         return self._probe
     
     @property
     def board(self):
+        """! @brief The @ref pyocd.board.board.Board "Board" object."""
         return self._board
     
     @property
     def target(self):
+        """! @brief The @ref pyocd.core.target.soc_target "SoCTarget" object representing the SoC.
+        
+        This is the @ref pyocd.core.target.soc_target "SoCTarget" instance owned by the board.
+        """
         return self.board.target
     
     @property
     def options(self):
+        """! @brief The @ref pyocd.core.options_manager.OptionsManager "OptionsManager" object."""
         return self._options
     
     @property
     def project_dir(self):
+        """! @brief Path to the project directory."""
         return self._project_dir
     
     @property
     def delegate(self):
+        """! @brief An optional delegate object for customizing behaviour."""
         return self._delegate
     
     @delegate.setter
     def delegate(self, new_delegate):
+        """! @brief Setter for the `delegate` property."""
         self._delegate = new_delegate
     
     @property
     def user_script_proxy(self):
+        """! @brief The UserScriptDelegateProxy object for a loaded user script."""
         return self._user_script_proxy
     
     @property

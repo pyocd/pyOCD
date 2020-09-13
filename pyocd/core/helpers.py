@@ -47,8 +47,8 @@ class ConnectHelper(object):
               available probes.
         @param unique_id String to match against probes' unique IDs using a contains match. If the
               default of None is passed, then all available probes are matched.
-        @param options Dictionary of user options.
-        @param kwargs User options passed as keyword arguments.
+        @param options Dictionary of session options.
+        @param kwargs Session options passed as keyword arguments.
         
         @return A list of Session objects. The returned Session objects are not yet active, in that
               open() has not yet been called. If _blocking_ is True, the list will contain at least
@@ -195,7 +195,7 @@ class ConnectHelper(object):
         This method provides an easy to use command line interface for selecting one of the
         connected debug probes, then creating and opening a Session instance. It has several
         parameters that control filtering of probes by unique ID and automatic selection of the
-        first discovered probe. In addition, you can pass user options to the Session either with
+        first discovered probe. In addition, you can pass session options to the Session either with
         the _options_ parameter or directly as keyword arguments.
         
         If, after application of the _unique_id_ and _return_first_ parameter, there are still
@@ -225,8 +225,8 @@ class ConnectHelper(object):
               default of None is passed, then all available probes are matched.
         @param auto_open Sets whether the returned Session object will be opened when used as a
               context manager.
-        @param options Dictionary of user options.
-        @param kwargs User options passed as keyword arguments.
+        @param options Dictionary of session options.
+        @param kwargs Session options passed as keyword arguments.
         
         @return Either None or a Session instance.
         """

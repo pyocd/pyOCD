@@ -11,7 +11,7 @@ user-specified port number. Additional cores have port numbers incremented from 
 To prevent reset requests from multiple connected gdb instances causing havoc, secondary cores have
 their default reset type set to core-only reset (VECTRESET), which will fall back to an emulated
 reset for non-v7-M architectures. This feature can be disabled by setting the
-`enable_multicore_debug` user option to false.
+`enable_multicore_debug` session option to false.
 
 To debug a multicore device, run `pyocd gdbserver` as usual. This will connect to the device, detect
 the cores, and create the gdb server instances on separate ports. Next, start up two gdb instances

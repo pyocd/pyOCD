@@ -19,13 +19,15 @@ Each subcommand for the `pyocd` tool has a default logging level.
 
 Subcommand     | Default level
 ---------------|--------------
-`list`         | INFO
-`json`         | Logging fully disabled
-`flash`        | WARNING
-`erase`        | WARNING
-`gdbserver`    | INFO
 `commander`    | WARNING
+`erase`        | WARNING
+`flash`        | WARNING
+`gdbserver`    | INFO
+`json`         | Logging fully disabled
+`list`         | INFO
 `pack`         | INFO
+`reset`        | WARNING
+`server`       | INFO
 
 
 ## Basic control
@@ -41,7 +43,7 @@ level of WARNING to INFO.
 Fine-grained control of pyOCD log output is available through logging configuration. The logging
 package supports loading a configuration dictionary to control almost all aspects of log output.
 
-The `logging` user option is used to specify the logging configuration. It can be set to either a
+The `logging` session option is used to specify the logging configuration. It can be set to either a
 logging configuration dictionary or the path to a YAML file containing a configuration dictionary.
 Usually it is easiest to include the configuration directly in a `pyocd.yaml` config file. See the
 [configuration documentation](configuration.md) for more on config files. The file path is most
@@ -74,7 +76,7 @@ logging:
       level: DEBUG
 ```
 
-The top level `logging` key is the user option. Under it must be a `loggers` key, which has the
+The top level `logging` key is the session option. Under it must be a `loggers` key, which has the
 name of each module you wish to configure as a child key. Then, under each module name, the `level`
 key specifies the log level for that module. Due to the way logging propagation works, you do not
 need to set the level of parent loggers to match the child levels. In fact, setting the level of a
@@ -100,7 +102,8 @@ will set the `disabled_existing_loggers` key to false unless it is specified in 
 Note that if you change the configuration for the root logger, you will need to define a handler
 and formatter in the configuration (see the example below).
 
-Here is a much more complex example configuration that sets a custom formatter:
+Here is a much more complex example configuration that sets a custom formatter and changes several log
+levels:
 
 ```yaml
 logging:
@@ -120,7 +123,24 @@ logging:
   loggers:
     pyocd:
       level: INFO        # set all pyocd loggers to INFO level
-    pyocd.core.coresight_target:
+    pyocd.probe:
       level: DEBUG       # set this logger to DEBUG level
 ```
 
+This example shows how to direct log output to a log file called `pyocd_log.txt`:
+
+```yaml
+logging:
+  root:
+    handlers: [logfile]
+  formatters:
+    precise:
+      format: "[%(relativeCreated)07d:%(levelname)s:%(module)s] %(message)s"
+  handlers:
+    logfile:
+      class: logging.FileHandler
+      formatter: precise
+      filename: pyocd_log.txt
+      mode: w
+      delay: false
+```

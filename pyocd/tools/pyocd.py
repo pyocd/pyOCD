@@ -364,7 +364,7 @@ COMMAND_INFO = {
             'aliases' : [],
             'args' : "ACTION",
             'help' : "Start or stop the gdbserver.",
-            'extra_help' : "The action argument should be either 'start' or 'stop'. Use the 'gdbserver_port' and 'telnet_port' user options to control the ports the gdbserver uses.",
+            'extra_help' : "The action argument should be either 'start' or 'stop'. Use the 'gdbserver_port' and 'telnet_port' session options to control the ports the gdbserver uses.",
             },
         'probeserver' : {
             'aliases' : [],
@@ -415,7 +415,7 @@ INFO_HELP = {
             },
         'option' : {
             'aliases' : [],
-            'help' : "Show the current value of one or more user options.",
+            'help' : "Show the current value of one or more session options.",
             },
         'mem-ap' : {
             'aliases' : [],
@@ -470,7 +470,7 @@ OPTION_HELP = {
             },
         'option' : {
             'aliases' : [],
-            'help' : "Change the value of one or more user options.",
+            'help' : "Change the value of one or more session options.",
             'extra_help' : "Each parameter should follow the form OPTION=VALUE.",
             },
         'mem-ap' : {
@@ -1904,7 +1904,7 @@ class PyOCDCommander(object):
 
     def handle_show_option(self, args):
         if len(args) < 1:
-            raise ToolError("missing user option name argument")
+            raise ToolError("missing session option name argument")
         for name in args:
             try:
                 value = self.session.options[name]
@@ -2066,7 +2066,7 @@ Prefix line with ! to execute a shell command.""")
 
     def handle_set_option(self, args):
         if len(args) < 1:
-            raise ToolError("missing user option setting")
+            raise ToolError("missing session option setting")
         opts = convert_session_options(args)
         self.session.options.update(opts)
 
