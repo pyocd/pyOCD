@@ -630,7 +630,7 @@ FLASH_ALGO_QUADSPI = {
 class MIMXRT1021xxxxx(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     # Note: itcm, dtcm, and ocram share a single 256 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 256 KB, but that is the maximum and
@@ -641,7 +641,7 @@ class MIMXRT1021xxxxx(CoreSightTarget):
         RamRegion(name="dtcm",      start=0x20000000, length=0x40000), # 256 KB
         RamRegion(name="ocram",     start=0x20200000, length=0x40000), # 256 KB
         FlashRegion(name="flexspi", start=0x60000000, end=0x67ffffff, blocksize=0x1000, is_boot_memory=True,
-            algo=FLASH_ALGO_QUADSPI),
+            page_size=0x100, algo=FLASH_ALGO_QUADSPI),
         RamRegion(name="semc",      start=0x80000000, end=0xdfffffff, is_external=True)
         )
 
