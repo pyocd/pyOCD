@@ -19,6 +19,7 @@ from ...flash.flash import Flash
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
+from ..family.target_imxrt import IMXRT
 
 FLASH_ALGO_QUADSPI = {
     'load_address' : 0x20000000,
@@ -81,7 +82,7 @@ FLASH_ALGO_QUADSPI = {
     'min_program_length' : 0x100,
 }
 
-class MIMXRT1024xxxxx(CoreSightTarget):
+class MIMXRT1024xxxxx(IMXRT):
 
     VENDOR = "NXP"
 
@@ -97,4 +98,4 @@ class MIMXRT1024xxxxx(CoreSightTarget):
 
     def __init__(self, link):
         super(MIMXRT1024xxxxx, self).__init__(link, self.memoryMap)
-        # self._svd_location = SVDFile.from_builtin("MIMXRT1024.xml")
+        self._svd_location = SVDFile.from_builtin("MIMXRT1024.xml")

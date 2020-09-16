@@ -19,6 +19,7 @@ from ...flash.flash import Flash
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
+from ..family.target_imxrt import IMXRT
 
 FLASH_ALGO_QUADSPI = {
     'load_address' : 0x20000000,
@@ -627,7 +628,7 @@ FLASH_ALGO_QUADSPI = {
     'min_program_length' : 0x00000100,
 }
 
-class MIMXRT1021xxxxx(CoreSightTarget):
+class MIMXRT1021xxxxx(IMXRT):
 
     VENDOR = "NXP"
 
@@ -640,7 +641,7 @@ class MIMXRT1021xxxxx(CoreSightTarget):
         RomRegion(name="romcp",     start=0x00200000, length=0x18000), # 96 KB
         RamRegion(name="dtcm",      start=0x20000000, length=0x40000), # 256 KB
         RamRegion(name="ocram",     start=0x20200000, length=0x40000), # 256 KB
-        FlashRegion(name="flexspi", start=0x60000000, end=0x67ffffff, blocksize=0x1000, is_boot_memory=True,
+        FlashRegion(name="flexspi", start=0x60000000, length=0x800000, blocksize=0x1000, is_boot_memory=True,
             page_size=0x100, algo=FLASH_ALGO_QUADSPI),
         RamRegion(name="semc",      start=0x80000000, end=0xdfffffff, is_external=True)
         )

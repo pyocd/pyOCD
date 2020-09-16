@@ -19,6 +19,7 @@ from ...flash.flash import Flash
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
+from ..family.target_imxrt import IMXRT
 
 FLASH_ALGO_QUADSPI = {
     'load_address' : 0x20200000,
@@ -710,10 +711,10 @@ FLASH_ALGO_QUADSPI = {
     'min_program_length' : 0x00000100,
 }
 
-class MIMXRT1011xxxxx(CoreSightTarget):
+class MIMXRT1011xxxxx(IMXRT):
 
     VENDOR = "NXP"
-    
+
     # Note: itcm, dtcm, and ocram share a single 128 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 128 KB, but that is the maximum and

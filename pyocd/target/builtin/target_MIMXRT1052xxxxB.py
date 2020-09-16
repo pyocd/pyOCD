@@ -22,6 +22,8 @@ from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...coresight.cortex_m import CortexM
 from ...core.target import Target
+from ..family.target_imxrt import IMXRT
+
 LOG = logging.getLogger(__name__)
 
 FCFB = 0x42464346
@@ -1094,7 +1096,7 @@ FLASH_ALGO_HYPERFLASH = {
     'min_program_length' : 0x200,
 }
 
-class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
+class MIMXRT1052xxxxB_hyperflash(IMXRT):
 
     VENDOR = "NXP"
 
@@ -1109,7 +1111,7 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
         RamRegion(name="semc_alias",        start=0x10000000, length=0x10000000, alias='semc'), # 256 MB
         RamRegion(name="dtcm",              start=0x20000000, length=0x80000), # 512 KB
         RamRegion(name="ocram",             start=0x20200000, length=0x80000), # 512 KB
-        FlashRegion(name="flexspi",         start=0x60000000, length=0x1f800000, blocksize=0x40000,
+        FlashRegion(name="flexspi",         start=0x60000000, length=0x4000000, blocksize=0x40000,
             is_boot_memory=True, algo=FLASH_ALGO_HYPERFLASH, page_size=0x200),
         RamRegion(name="semc",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
@@ -1118,21 +1120,8 @@ class MIMXRT1052xxxxB_hyperflash(CoreSightTarget):
         super(MIMXRT1052xxxxB_hyperflash, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
 
-    def create_init_sequence(self):
-        seq = super(MIMXRT1052xxxxB_hyperflash, self).create_init_sequence()
-        seq.wrap_task('discovery',
-            lambda seq: seq.replace_task('create_cores', self.create_cores)
-            )
-        return seq
 
-    def create_cores(self):
-        core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
-        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        self.aps[0].core = core
-        core.init()
-        self.add_core(core)
-
-class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
+class MIMXRT1052xxxxB_quadspi(IMXRT):
 
     VENDOR = "NXP"
 
@@ -1155,75 +1144,3 @@ class MIMXRT1052xxxxB_quadspi(CoreSightTarget):
     def __init__(self, session):
         super(MIMXRT1052xxxxB_quadspi, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MIMXRT1052.xml")
-
-    def create_init_sequence(self):
-        seq = super(MIMXRT1052xxxxB_quadspi, self).create_init_sequence()
-        seq.wrap_task('discovery',
-            lambda seq: seq.replace_task('create_cores', self.create_cores)
-            )
-        return seq
-
-    def create_cores(self):
-        core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
-        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        self.aps[0].core = core
-        core.init()
-        self.add_core(core)
-
-class CortexM7_IMXRT(CortexM):
-    BOOT_MODE_INTERNAL = 0
-    BOOT_MODE_SERIAL_DOWNLOAD = 1
-    def __init__(self, session, ap, memoryMap, core_num):
-        super(CortexM7_IMXRT, self).__init__(session, ap, memoryMap, core_num)
-
-    def is_boot_from_flash(self):
-        if not (self.read32(SRC_SBMR2) & 0x2000000):
-            return False
-        if not (self.read32(FCFB_ADDR) == FCFB):
-            return False
-        entry = self.read32(IVT_ADDR + 4)
-        self._reset_handler = self.read32(entry + 4)
-        if self._reset_handler == 0xFFFFFFFF:
-            return False
-        LOG.debug("internal boot")
-        return True
-
-    def reset_and_halt(self, reset_type=None):
-        """! @brief Perform a reset and stop the core on the reset handler."""
-        if not reset_type:
-            reset_type = self.default_reset_type
-
-        if reset_type not in (Target.ResetType.SW_SYSRESETREQ, Target.ResetType.SW_VECTRESET):
-            super(CortexM7_IMXRT, self).reset_and_halt(reset_type)
-            return
-
-        boot_mode = self.BOOT_MODE_SERIAL_DOWNLOAD
-        demcr = self.read_memory(CortexM.DEMCR)
-        self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
-
-        if (reset_type == Target.ResetType.SW_SYSRESETREQ):
-            # Set breakpoint on user reset handler.
-            if self.is_boot_from_flash():
-                boot_mode = self.BOOT_MODE_INTERNAL
-                self.write_memory(FPB_COMP0, self._reset_handler|1)
-                self.write_memory(FPB_CTRL, 0x3)
-                LOG.debug("enable fpb")
-
-        # Perform the reset.
-        mask = CortexM.NVIC_AIRCR_VECTRESET
-        if (reset_type == Target.ResetType.SW_SYSRESETREQ):
-            mask |= CortexM.NVIC_AIRCR_SYSRESETREQ
-        self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
-
-        if self.get_state() == Target.State.HALTED:
-            xpsr = self.read_core_register('xpsr')
-            if xpsr & self.XPSR_THUMB == 0:
-                self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
-
-        self.write_memory(CortexM.DEMCR, demcr)
-        if (reset_type == Target.ResetType.SW_SYSRESETREQ):
-            if boot_mode == self.BOOT_MODE_INTERNAL:
-                self.write32(FPB_COMP0, 0)
-                LOG.debug("clear fpb")
-        if not self.is_halted():
-            self.halt()
