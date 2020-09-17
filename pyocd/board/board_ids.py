@@ -190,6 +190,7 @@ BOARD_ID_TO_INFO = {
     "1236": BoardInfo(  "u-blox EVK-ODIN-W2",   "stm32f439xi",      "ublox_evk_odin_w2.bin",),
     "1237": BoardInfo(  "u-blox-EVK-NINA-B1",   "nrf52",            "l1_nrf52-dk.bin",      ),
     "12A0": BoardInfo(  "Calliope-mini",        "nrf51",            None,                   ),
+    "1304": BoardInfo(  "NuMaker-PFM-M487",     "m487jidae",        None,                   ),
     "1309": BoardInfo(  "NuMaker-M252KG",       "m252kg6ae",        None,                   ),
     "1310": BoardInfo(  "NuMaker-IoT-M263A",    "m263kiaae",        None,                   ),
     "1549": BoardInfo(  "LPC1549",              "lpc1549jbd100",    None,                   ),
