@@ -20,6 +20,7 @@ from xml.etree import ElementTree
 from itertools import groupby
 
 from ..utility import conversion
+from ..utility.mask import (align_up, round_up_div)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.memory_map import MemoryType
@@ -104,12 +105,12 @@ class GDBDebugContextFacade(object):
         for reg, regValue in zip(self._register_list, vals):
             # Return x's to indicate unavailable register value.
             if regValue is None:
-                resp += b"xx" * (reg.bitsize // 8)
-            elif reg.bitsize == 64:
-                resp += six.b(conversion.u64_to_hex16le(regValue))
+                r = b"xx" * round_up_div(reg.bitsize, 8)
             else:
-                resp += six.b(conversion.u32_to_hex8le(regValue))
-            LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
+                r = six.b(conversion.uint_to_hex_le(regValue, reg.bitsize))
+            resp += r
+            LOG.debug("GDB get_reg_context: %s = %s -> %s", reg.name,
+                    "None" if (regValue is None) else ("0x%08X" % regValue), r)
 
         return resp
 
@@ -125,12 +126,10 @@ class GDBDebugContextFacade(object):
         for reg in self._register_list:
             if offset >= len(data):
                 break
-            if reg.bitsize == 64:
-                regValue = conversion.hex16_to_u64be(data[offset:offset+16])
-                offset += 16
-            else:
-                regValue = conversion.hex8_to_u32be(data[offset:offset+8])
-                offset += 8
+            hex_byte_count = align_up(reg.bitsize // 4, 2)
+            reg_data = data[offset:(offset + hex_byte_count)]
+            regValue = conversion.hex_le_to_uint(reg_data, reg.bitsize)
+            offset += hex_byte_count
             reg_num_list.append(reg.index)
             reg_data_list.append(regValue)
             LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
@@ -147,10 +146,7 @@ class GDBDebugContextFacade(object):
         """
         reg = self._gdb_regnum_map.get(gdb_regnum, None)
         if reg is not None:
-            if reg.bitsize == 64:
-                value = conversion.hex16_to_u64be(data)
-            else:
-                value = conversion.hex8_to_u32be(data)
+            value = conversion.hex_le_to_uint(data, reg.bitsize)
             LOG.debug("GDB: write reg %s: 0x%X", reg.name, value)
             self._context.write_core_register_raw(reg.name, value)
         else:
@@ -171,14 +167,12 @@ class GDBDebugContextFacade(object):
         
         try:
             regValue = self._context.read_core_register_raw(reg.name)
-            if reg.bitsize == 64:
-                resp = six.b(conversion.u64_to_hex16le(regValue))
-            else:
-                resp = six.b(conversion.u32_to_hex8le(regValue))
+            resp = six.b(conversion.uint_to_hex_le(regValue, reg.bitsize))
+            LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
         except exceptions.CoreRegisterAccessError:
             # Return x's if the register read failed.
-            resp = b"xx" * (reg.bitsize // 8)
-        LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
+            resp = b"xx" * round_up_div(reg.bitsize, 8)
+            LOG.debug("GDB reg: %s = <error reading>", reg.name)
         return resp
 
     def get_t_response(self, forceSignal=None):
@@ -207,10 +201,10 @@ class GDBDebugContextFacade(object):
 
         if self._context.core.is_vector_catch():
             fault = self._context.core.read_core_register('ipsr')
-            assert fault is not None, "Failed to read IPSR"
             try:
                 signal = FAULT[fault]
             except IndexError:
+                # Default to SIGSTOP as set above.
                 pass
 
         LOG.debug("GDB lastSignal: %d", signal)
@@ -233,11 +227,9 @@ class GDBDebugContextFacade(object):
             reg = self._context.core.core_registers.by_name[reg_name]
             # Return x's if the register read failed.
             if reg_value is None:
-                encoded_reg = "xx" * (reg.bitsize // 8)
-            elif reg.bitsize == 64:
-                encoded_reg = conversion.u64_to_hex16le(reg_value)
+                encoded_reg = "xx" * round_up_div(reg.bitsize, 8)
             else:
-                encoded_reg = conversion.u32_to_hex8le(reg_value)
+                encoded_reg = conversion.uint_to_hex_le(reg_value, reg.bitsize)
             result += six.b(conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';')
         return result
 
