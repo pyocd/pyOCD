@@ -19,6 +19,7 @@ from ..family import target_kinetis
 from . import target_MIMXRT1011xxxxx
 from . import target_MIMXRT1015xxxxx
 from . import target_MIMXRT1021xxxxx
+from . import target_MIMXRT1024xxxxx
 from . import target_MIMXRT1052xxxxB
 from . import target_MKE15Z256xxx7
 from . import target_MKE18F256xxx16
@@ -147,6 +148,7 @@ BUILTIN_TARGETS = {
           'mimxrt1010': target_MIMXRT1011xxxxx.MIMXRT1011xxxxx,
           'mimxrt1015': target_MIMXRT1015xxxxx.MIMXRT1015xxxxx,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
+          'mimxrt1024': target_MIMXRT1024xxxxx.MIMXRT1024xxxxx,
           'mimxrt1050_quadspi': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_quadspi,
           'mimxrt1050_hyperflash': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_hyperflash,
           'mimxrt1050': target_MIMXRT1052xxxxB.MIMXRT1052xxxxB_hyperflash, # Alias for default external flash.
