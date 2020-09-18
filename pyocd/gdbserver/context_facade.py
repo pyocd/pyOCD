@@ -87,8 +87,8 @@ class GDBDebugContextFacade(object):
     def context(self):
         return self._context
 
-    def set_context(self, newContext):
-        self._context = newContext
+    def set_context(self, new_context):
+        self._context = new_context
 
     def get_register_context(self):
         """! @brief Return hexadecimal dump of registers as expected by GDB.
@@ -102,15 +102,15 @@ class GDBDebugContextFacade(object):
         except exceptions.CoreRegisterAccessError:
             vals = [None] * len(self._full_reg_num_list)
             
-        for reg, regValue in zip(self._register_list, vals):
+        for reg, reg_value in zip(self._register_list, vals):
             # Return x's to indicate unavailable register value.
-            if regValue is None:
+            if reg_value is None:
                 r = b"xx" * round_up_div(reg.bitsize, 8)
             else:
-                r = six.b(conversion.uint_to_hex_le(regValue, reg.bitsize))
+                r = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
             resp += r
             LOG.debug("GDB get_reg_context: %s = %s -> %s", reg.name,
-                    "None" if (regValue is None) else ("0x%08X" % regValue), r)
+                    "None" if (reg_value is None) else ("0x%08X" % reg_value), r)
 
         return resp
 
@@ -128,11 +128,11 @@ class GDBDebugContextFacade(object):
                 break
             hex_byte_count = align_up(reg.bitsize // 4, 2)
             reg_data = data[offset:(offset + hex_byte_count)]
-            regValue = conversion.hex_le_to_uint(reg_data, reg.bitsize)
+            reg_value = conversion.hex_le_to_uint(reg_data, reg.bitsize)
             offset += hex_byte_count
             reg_num_list.append(reg.index)
-            reg_data_list.append(regValue)
-            LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
+            reg_data_list.append(reg_value)
+            LOG.debug("GDB reg: %s = 0x%X", reg.name, reg_value)
         self._context.write_core_registers_raw(reg_num_list, reg_data_list)
 
     def set_register(self, gdb_regnum, data):
@@ -166,24 +166,24 @@ class GDBDebugContextFacade(object):
             return b''
         
         try:
-            regValue = self._context.read_core_register_raw(reg.name)
-            resp = six.b(conversion.uint_to_hex_le(regValue, reg.bitsize))
-            LOG.debug("GDB reg: %s = 0x%X", reg.name, regValue)
+            reg_value = self._context.read_core_register_raw(reg.name)
+            resp = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
+            LOG.debug("GDB reg: %s = 0x%X", reg.name, reg_value)
         except exceptions.CoreRegisterAccessError:
             # Return x's if the register read failed.
             resp = b"xx" * round_up_div(reg.bitsize, 8)
             LOG.debug("GDB reg: %s = <error reading>", reg.name)
         return resp
 
-    def get_t_response(self, forceSignal=None):
+    def get_t_response(self, force_signal=None):
         """! @brief Returns a GDB T response string.
         
         This includes:
         - The signal encountered.
         - The current value of the important registers (sp, lr, pc).
         """
-        if forceSignal is not None:
-            response = six.b('T' + conversion.byte_to_hex2(forceSignal))
+        if force_signal is not None:
+            response = six.b('T' + conversion.byte_to_hex2(force_signal))
         else:
             response = six.b('T' + conversion.byte_to_hex2(self.get_signal_value()))
 
@@ -240,11 +240,11 @@ class GDBDebugContextFacade(object):
         for r in  self._context.core.memory_map:
             # Look up the region type name. Regions default to ram if gdb doesn't
             # have a concept of the region type.
-            gdbType = GDB_TYPE_MAP.get(r.type, 'ram')
+            gdb_type = GDB_TYPE_MAP.get(r.type, 'ram')
             
             start = hex(r.start).rstrip("L")
             length = hex(r.length).rstrip("L")
-            mem = ElementTree.SubElement(root, 'memory', type=gdbType, start=start, length=length)
+            mem = ElementTree.SubElement(root, 'memory', type=gdb_type, start=start, length=length)
             if r.is_flash:
                 prop = ElementTree.SubElement(mem, 'property', name='blocksize')
                 prop.text = hex(r.blocksize).rstrip("L")
