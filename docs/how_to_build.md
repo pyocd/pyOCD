@@ -1,5 +1,6 @@
-How to Build pyOCD into Single Executable File
-==============================================
+---
+title: How to build binary
+---
 
 This manual provides a step-by-step guide on how to build a single
 file executable using

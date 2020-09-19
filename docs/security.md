@@ -1,4 +1,6 @@
-# Security and Protection Features
+---
+title: Security and protection
+---
 
 Many targets support some way of disabling JTAG/SWD access or protecting the flash from read-back or write.
 In the text below, this is called a "locked" target, though each silicon vendor tends to have their
@@ -47,7 +49,7 @@ features, pyOCD can perform this unlock procedure for you.
 
 ***WARNING:** Unlocking a locked device will erase all data on the chip!*
 
-You can add the option `auto_unlock` to your [configuration](/configuration.md):
+You can add the option `auto_unlock` to your [configuration]({% link _docs/configuration.md %}):
 
 ```bash
 (venv) ~/devel/contrib/pyocd$ pyocd commander --target nrf52 -O auto_unlock

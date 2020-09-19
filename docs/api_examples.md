@@ -1,6 +1,6 @@
-Python API Examples
-===================
-
+---
+title: Python API examples
+---
 
 ### Hello World example code
 

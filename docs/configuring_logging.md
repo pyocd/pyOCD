@@ -1,10 +1,11 @@
-Configuring Logging
-===================
+---
+title: Configuring logging
+---
 
 ## Overview
 
 pyOCD provides extensive control over log output. It uses the standard Python
-[logging](https://docs.python.org/3.8/library/logging.html) package for all its logging. There are several ways
+[logging](https://docs.python.org/3/library/logging.html) package for all its logging. There are several ways
 to set log levels, both globally and with precise control.
 
 - Verbosity controls
@@ -121,7 +122,7 @@ package supports loading a configuration dictionary to control almost all aspect
 The `logging` session option is used to specify the logging configuration. It can be set to either a
 logging configuration dictionary or the path to a YAML file containing a configuration dictionary.
 Usually it is easiest to include the configuration directly in a `pyocd.yaml` config file. See the
-[configuration documentation](configuration.md) for more on config files. The file path is most
+[configuration documentation]({% link _docs/configuration.md %}) for more on config files. The file path is most
 useful when passing the `logging` option via the command line, since you can't provide a dictionary
 this way.
 
@@ -152,9 +153,9 @@ for all of pyOCD.
 ### Full control
 
 The full schema for the logging configuration dictionary is documented in the
-[logging.config module documentation](https://docs.python.org/3.8/library/logging.config.html#logging-config-dictschema).
+[logging.config module documentation](https://docs.python.org/3/library/logging.config.html#logging-config-dictschema).
 The logging module's
-[advanced tutorial](https://docs.python.org/3.8/howto/logging.html#logging-advanced-tutorial)
+[advanced tutorial](https://docs.python.org/3/howto/logging.html#logging-advanced-tutorial)
 has a good introduction to the features and log output flow, so you can better understand the
 configuration schema.
 

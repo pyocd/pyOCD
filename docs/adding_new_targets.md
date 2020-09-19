@@ -1,11 +1,12 @@
-Adding a new builtin target
-===========================
+---
+title: Adding a new built-in target
+---
 
 This guide describes how to manually add support for a new target and/or board to pyOCD. In most
 cases you do not need to add a builtin target anymore, and can use pyOCD's support for CMSIS
 Device Family Packs.
 
-For background information, review the [architecture overview](architecture.md) document first. The
+For background information, review the [architecture overview]({% link _docs/architecture.md %}) document first. The
 [CMSIS Pack documentation](https://arm-software.github.io/CMSIS_5/Pack/html/index.html) may also be helpful.
 
 

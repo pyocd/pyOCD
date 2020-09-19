@@ -1,5 +1,6 @@
-pyOCD Developers' Guide
-=======================
+---
+title: Developers' Guide
+---
 
 ## Setup
 
@@ -47,8 +48,8 @@ $ pip install -e .[test]
 
 **Step 3.** Develop
 
-See the [porting guide](adding_new_targets.md) for how to add new devices. Of course, we welcome
-all improvements and changes. See the [contributor statement](../CONTRIBUTING.md) for some guidelines.
+See the [porting guide]({% link _docs/adding_new_targets.md %}) for how to add new devices. Of course, we welcome
+all improvements and changes. See the [contributor statement](https://github.com/pyocd/pyOCD/blob/main/CONTRIBUTING.md) for some guidelines.
 
 Normally you should work from the `develop` branch. See the [branch policy](#branch-configuration-policy) below for
 more information about branches.

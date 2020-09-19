@@ -1,5 +1,6 @@
-Remote Probe Protocol
-=====================
+---
+title: Remote probe protocol
+---
 
 PyOCD provides a server and client for sharing and accessing debug probes across a TCP/IP
 network connection. This document describes the protocol design, available commands, and semantics.

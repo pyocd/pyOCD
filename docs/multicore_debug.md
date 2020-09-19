@@ -1,5 +1,6 @@
-Multicore Debug
-===============
+---
+title: Multicore debug
+---
 
 pyOCD supports debugging multicore devices. It does this by serving one gdb server per core, to which
 you connect independant gdb instances. This is the most reliable method of debugging multicore

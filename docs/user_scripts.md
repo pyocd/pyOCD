@@ -1,5 +1,6 @@
-User Scripts
-============
+---
+title: User Scripts
+---
 
 ## Introduction
 

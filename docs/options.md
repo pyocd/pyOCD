@@ -1,5 +1,6 @@
-Session options list
-=================
+---
+title: Session options list
+---
 
 _**Note:** The names of these options are expected to change before the 1.0 release of pyOCD, so
 they will be better normalized and grouped._
@@ -10,7 +11,7 @@ Note that the `project_dir`, `no_config`, and `config` options must come from ei
 argument or the _options_ parameter passed to the `Session` constructor due to how early they are
 processed. The consequence of this is that these options cannot be set in a YAML config file.
 
-<table>
+<table class="docs-table">
 
 <tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
 
@@ -227,7 +228,7 @@ with new data.
 <td><i>No default</i></td>
 <td>
 Either a dictionary with logging configuration, or a path to a separate yaml logging configuration
-file. See the <a href="configuring_logging.md">logging configuration documentation</a> for details of how to
+file. See the <a href="{% link _docs/configuring_logging.md %}">logging configuration documentation</a> for details of how to
 use this option.
 </td></tr>
 

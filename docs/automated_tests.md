@@ -1,5 +1,6 @@
-Automated Tests
-===============
+---
+title: Automated tests
+---
 
 Both unit tests and functional tests are used to verify pyOCD.
 

@@ -1,5 +1,6 @@
-Architecture
-============
+---
+title: Architecture
+---
 
 ## Object graph
 

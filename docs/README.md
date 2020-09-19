@@ -1,4 +1,6 @@
-# pyOCD Documentation
+---
+title: Contents
+---
 
 ## Table of Contents
 
