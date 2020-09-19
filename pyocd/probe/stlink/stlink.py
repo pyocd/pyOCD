@@ -339,7 +339,7 @@ class STLink(object):
                         # Clear sticky errors.
                         self._clear_sticky_error()
                 
-                        exc = exceptions.TransferFaultError()
+                        exc = exceptions.TransferFaultError("read")
                         exc.fault_address = faultAddr
                         exc.fault_length = thisTransferSize - (faultAddr - addr)
                         raise exc
@@ -373,7 +373,7 @@ class STLink(object):
                         # Clear sticky errors.
                         self._clear_sticky_error()
                 
-                        exc = exceptions.TransferFaultError()
+                        exc = exceptions.TransferFaultError("write")
                         exc.fault_address = faultAddr
                         exc.fault_length = thisTransferSize - (faultAddr - addr)
                         raise exc

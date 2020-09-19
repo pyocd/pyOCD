@@ -191,10 +191,6 @@ class TCPClientProbe(DebugProbe):
     
     def _create_exception_from_status_code(self, status, message):
         """! @brief Convert a status code into an exception instance."""
-        # The TransferFaultError class requires special handling because it doesn't take a
-        # message as the first argument.
-        if status == self.StatusCode.TRANSFER_FAULT:
-            return exceptions.TransferFaultError()
         # Other status codes can use the map.
         return self.STATUS_CODE_CLASS_MAP.get(status, exceptions.ProbeError)(message)
 
