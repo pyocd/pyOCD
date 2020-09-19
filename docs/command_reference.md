@@ -1,8 +1,6 @@
 ---
 title: Command reference
 ---
-Command reference
-=================
 
 PyOCD has a simple command processor that is accessible from the console via the commander subcommand,
 or from gdb as remote monitor commands.
@@ -23,7 +21,7 @@ precedence even when it is a prefix of multiple other commands.
 All commands
 ------------
 
-<table>
+<table class="docs-table">
 
 <tr><th>Command</th><th>Arguments</th><th>Description</th></tr>
 

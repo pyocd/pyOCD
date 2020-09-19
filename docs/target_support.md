@@ -1,5 +1,6 @@
-Target support
-==============
+---
+title: Target support
+---
 
 Through both built-in support and CMSIS-Packs, pyOCD supports nearly every Cortex-M MCU that is
 available on the market.
@@ -48,7 +49,7 @@ type name. This argument must be passed every time you run `pyocd` with a subcom
 to the target.
 
 Another method is to set the `target_override` session option in a `pyocd.yaml` configuration file. The
-[configuration file documentation](configuration.md) describes how to do this for a specific debug
+[configuration file documentation]({% link _docs/configuration.md %}) describes how to do this for a specific debug
 probe instead of globally.
 
 
@@ -172,7 +173,7 @@ passed for every invocation in addition to the other arguments. For instance, to
 you might execute `pyocd gdbserver --pack=Keil.STM32L4xx_DFP.2.2.0.pack`. Note that you can pass
 multiple `--pack` arguments to pyOCD, which might be useful in a scripted execution of pyOCD.
 
-For a more permanent solution, use a [`pyocd.yaml` configuration file](configuration.md). In the
+For a more permanent solution, use a [`pyocd.yaml` configuration file]({% link _docs/configuration.md %}). In the
 config file, set the `pack` session option to either a single .pack file path or a list of paths. Now
 when you run the `pyocd` tool, it will automatically pick up the pack file(s) to use.
 

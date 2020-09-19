@@ -1,5 +1,6 @@
-Installing on non-x86 platforms
-===============================
+---
+title: Installing on non-x86 platforms
+---
 
 pyOCD itself is pure Python and should run on any platform with a modern Python installation.
 However, it has several dependencies with binary backends that cause trouble on non-x86 platforms or
@@ -11,7 +12,7 @@ single-board computers.
 ## cmsis-pack-manager
 
 The main dependency that causes trouble is
-[cmsis-pack-manager](https://github.com/armmbed/cmsis-pack-manager/). It has a backend written in
+[cmsis-pack-manager](https://github.com/pyocd/cmsis-pack-manager/). It has a backend written in
 the Rust language to greatly improve performance. Unfortunately, wheels are not available for
 non-x86 systems. And, worse, the Rust compiler runs out of memory and dies when attempting to build
 on small platforms such as the Raspberry Pi. (Cross-compilation may be an option but has not been
@@ -21,7 +22,7 @@ The good news is that cmsis-pack-manager is optional for pyOCD. Although it is l
 dependency in `setup.py` (so the vast majority of users benefit from it), pyOCD can run without it
 with minimal loss of functionality. The `pack` subcommand is disabled, which removes automatic
 CMSIS-Pack download and management. But you can still use CMSIS-Packs manually with the `--pack`
-option, as described in [Target support](target_support.md).
+option, as described in [Target support]({% link _docs/target_support.md %}).
 
 To install pyOCD on such a system, you need to use the `pip install --no-deps` option. This will
 install the core pyOCD package only, so all additional requirements must be manually installed.

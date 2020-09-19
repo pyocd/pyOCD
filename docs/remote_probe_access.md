@@ -1,5 +1,6 @@
-Remote probe access
-===================
+---
+title: Remote probe access
+---
 
 PyOCD provides a server and client for sharing and accessing debug probes across a TCP/IP
 network connection. This can be used to provide shared debug access for multiple developers, to
@@ -62,7 +63,7 @@ would be `--uid=remote:localhost:1234`.
 
 **Important:** Currently you must always specify the target type for the remote device, even in
 cases where the target type is automatically detected when you use the probe directly. To do this,
-pass the `--target` argument followed by the target type. See [Target support](target_support.md)
+pass the `--target` argument followed by the target type. See [Target support]({% link _docs/target_support.md %})
 for more information about target types.
 
 Note that remote probes will not appear in the list when you run `pyocd list --probes`.

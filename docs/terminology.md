@@ -1,5 +1,6 @@
-Terminology
-===========
+---
+title: Terminology
+---
 
 These are the key terms used by pyOCD and its documentation.
 

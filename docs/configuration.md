@@ -1,5 +1,6 @@
-Configuration
-=============
+---
+title: Configuration
+---
 
 This guide documents how to configure pyOCD.
 
