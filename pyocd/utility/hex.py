@@ -17,6 +17,7 @@
 import sys
 import string
 import io
+import six
 
 from . import conversion
 
@@ -101,7 +102,7 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                 break
         
         if print_ascii:
-            s = ""
+            s = "|"
             for n in range(start_i, start_i + line_width):
                 if n >= len(data):
                     break
@@ -115,7 +116,7 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                     d = conversion.u32le_list_to_byte_list([d])
                     d.reverse()
                 s += "".join((chr(b) if (chr(b) in _PRINTABLE) else '.') for b in d)
-            output.write("   " + s)
+            output.write("   " + s + "|")
         
         output.write("\n")
 
@@ -123,6 +124,6 @@ def dump_hex_data_to_str(data, **kwargs):
     """! @brief Returns a string with data formatted as hex.
     @see dump_hex_data()
     """
-    sio = io.StringIO()
+    sio = six.StringIO()
     dump_hex_data(data, output=sio, **kwargs)
     return sio.getvalue()
