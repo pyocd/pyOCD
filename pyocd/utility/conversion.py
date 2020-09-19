@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,40 @@ import binascii
 from itertools import tee
 import six
 from six.moves import zip
+
+from .mask import align_up
+
+def byte_list_to_nbit_le_list(data, bitwidth, pad=0x00):
+    """! @brief Convert a list of bytes to a list of n-bit integers (little endian)
+    
+    If the length of the data list is not a multiple of `bitwidth` // 8, then the pad value is used
+    for the additional required bytes.
+    
+    @param data List of bytes.
+    @param bitwidth Width in bits of the resulting values.
+    @param pad Optional value used to pad input data if not aligned to the bitwidth.
+    @result List of integer values that are `bitwidth` bits wide.
+    """
+    bytewidth = bitwidth // 8
+    datalen = len(data) // bytewidth * bytewidth
+    res = [sum((data[offset + i] << (i * 8)) for i in range(bytewidth))
+            for offset in range(0, datalen, bytewidth)
+            ]
+    remainder = len(data) % bytewidth
+    if remainder != 0:
+        pad_count = bytewidth - remainder
+        padded_data = list(data[-remainder:]) + [pad] * pad_count
+        res.append(sum((padded_data[i] << (i * 8)) for i in range(bytewidth)))
+    return res
+
+def nbit_le_list_to_byte_list(data, bitwidth):
+    """! @brief Convert a list of n-bit values into a byte list.
+    
+    @param data List of n-bit values.
+    @param bitwidth Width in bits of the input vales.
+    @result List of integer bytes.
+    """
+    return [(x >> shift) & 0xff for x in data for shift in range(0, bitwidth, 8)]
 
 def byte_list_to_u32le_list(data, pad=0x00):
     """! @brief Convert a list of bytes to a list of 32-bit integers (little endian)
@@ -82,42 +116,56 @@ def float64_to_u64(data):
     d = struct.pack(">d", data)
     return struct.unpack(">Q", d)[0]
 
+def uint_to_hex_le(value, width):
+    """! @brief Create an n-digit hexadecimal string from an integer value.
+    @param value Integer value to format.
+    @param width The width in bits. 
+    @return A string with the number of hex bytes required to fit `width` bits, rounded up to the
+        next whole byte. The bytes represent `value` in little-endian order. That is, the first hex
+        byte contains the LSB of `value`, while the last hex byte the MSB.
+    """
+    return ''.join("%02x" % ((value >> b) & 0xff) for b in range(0, align_up(width, 8), 8))
+
+def hex_le_to_uint(value, width):
+    """! @brief Create an an integer value from an n-digit hexadecimal string.
+    @param value String consisting of pairs of hex digits with no intervening whitespace. Must have at least
+        enough hex bytes to meet the desired width. The first hex byte is the LSB.
+    @param width The width in bits. The width can be shorter then the input `value` width, in which case
+        more significant bytes will be truncated.
+    @return An integer converted from `value`.
+    """
+    return sum((int(value[i:i+2], base=16) << (i * 4)) for i in range(0, align_up(width, 8) // 4, 2))
+
 def u32_to_hex8le(val):
     """! @brief Create 8-digit hexadecimal string from 32-bit register value"""
-    return ''.join("%02x" % (x & 0xFF) for x in (
-        val,
-        val >> 8,
-        val >> 16,
-        val >> 24,
-    ))
+    return uint_to_hex_le(val, 32)
 
 def u64_to_hex16le(val):
     """! @brief Create 16-digit hexadecimal string from 64-bit register value"""
-    return ''.join("%02x" % (x & 0xFF) for x in (
-        val,
-        val >> 8,
-        val >> 16,
-        val >> 24,
-        val >> 32,
-        val >> 40,
-        val >> 48,
-        val >> 56,
-    ))
+    return uint_to_hex_le(val, 64)
 
 def hex8_to_u32be(data):
-    """! @brief Build 32-bit register value from big-endian 8-digit hexadecimal string"""
-    return int(data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
+    """! @brief Build 32-bit register value from big-endian 8-digit hexadecimal string
+    @note Endianness in this function name is backwards.
+    """
+    return hex_le_to_uint(data, 32)
 
 def hex16_to_u64be(data):
-    """! @brief Build 64-bit register value from big-endian 16-digit hexadecimal string"""
-    return int(data[14:16] + data[12:14] + data[10:12] + data[8:10] + data[6:8] + data[4:6] + data[2:4] + data[0:2], 16)
+    """! @brief Build 64-bit register value from big-endian 16-digit hexadecimal string
+    @note Endianness in this function name is backwards.
+    """
+    return hex_le_to_uint(data, 64)
 
 def hex8_to_u32le(data):
-    """! @brief Build 32-bit register value from little-endian 8-digit hexadecimal string"""
+    """! @brief Build 32-bit register value from little-endian 8-digit hexadecimal string
+    @note Endianness in this function name is backwards.
+    """
     return int(data[0:8], 16)
 
 def hex16_to_u64le(data):
-    """! @brief Build 64-bit register value from little-endian 16-digit hexadecimal string"""
+    """! @brief Build 64-bit register value from little-endian 16-digit hexadecimal string
+    @note Endianness in this function name is backwards.
+    """
     return int(data[0:16], 16)
 
 def byte_to_hex2(val):
