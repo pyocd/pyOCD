@@ -66,6 +66,12 @@ try:
 except NameError:
     FileNotFoundError = OSError
 
+# zipfile from Python 2 has a misspelled BadZipFile exception class.
+try:
+    from zipfile import BadZipFile
+except ImportError:
+    from zipfile import BadZipfile as BadZipFile
+
 try:
     from shutil import get_terminal_size
 except ImportError:
