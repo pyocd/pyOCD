@@ -132,9 +132,12 @@ def test_gdb(board_id=None, n=0):
         target_test_params = get_target_test_params(session)
         test_port = 3333 + n
         telnet_port = 4444 + n
+        
         # Hardware breakpoints are not supported above 0x20000000 on
-        # CortexM devices
-        ignore_hw_bkpt_result = 1 if ram_region.start >= 0x20000000 else 0
+        # Cortex-M devices with FPB revision 1.
+        fpb = session.target.selected_core.fpb
+        assert fpb is not None
+        ignore_hw_bkpt_result = int(fpb.revision == 1 and ram_region.start >= 0x20000000)
 
         # Program with initial test image
         FileProgrammer(session).program(binary_file, base_address=rom_region.start)

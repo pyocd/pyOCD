@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,20 +18,11 @@ from __future__ import print_function
 import argparse
 import os
 import sys
-from time import (sleep, time)
-from random import randrange
-import math
-import struct
 import traceback
-import argparse
 import logging
 
 from pyocd.core.helpers import ConnectHelper
-from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
-from pyocd.utility.conversion import float32_to_u32
-from pyocd.utility.mask import same
-from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
 
 from test_util import (
@@ -40,9 +31,8 @@ from test_util import (
     get_session_options,
     get_target_test_params,
     get_test_binary_path,
+    PYOCD_DIR,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GDB_TEST_BIN = "src/gdb_test_program/gdb_test.bin"
 GDB_TEST_ELF = "src/gdb_test_program/gdb_test.elf"
@@ -81,43 +71,49 @@ def debug_context_test(board_id):
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         ram_base = ram_region.start
         binary_file = get_test_binary_path(board.test_binary)
-        gdb_test_binary_file = os.path.join(parentdir, GDB_TEST_BIN)
-        gdb_test_elf_file = os.path.join(parentdir, GDB_TEST_ELF)
+        gdb_test_binary_file = os.path.join(PYOCD_DIR, GDB_TEST_BIN)
 
         # Read the gdb test binary file.
         with open(gdb_test_binary_file, "rb") as f:
             gdb_test_binary_data = list(bytearray(f.read()))
-        gdb_test_binary_data_length = len(gdb_test_binary_data)
-        
-        # Set the elf on the target, which will add a context to read from the elf.
-        target.elf = gdb_test_elf_file
 
         test_pass_count = 0
         test_count = 0
         result = DebugContextTestResult()
         
-        ctx = target.get_target_context()
-        
         target.reset_and_halt()
         
         # Reproduce a gdbserver failure.
         print("\n------ Test 1: Mem cache ------")
+        
+        ctx = target.get_target_context()
+
         print("Writing gdb test binary")
-        ctx.write_memory_block8(0x20000000, gdb_test_binary_data)
+        ctx.write_memory_block8(ram_base, gdb_test_binary_data)
         
         print("Reading first chunk")
-        data = ctx.read_memory_block8(0x20000000, 64)
+        data = ctx.read_memory_block8(ram_base, 64)
         if data == gdb_test_binary_data[:64]:
             test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
         test_count += 1
             
         print("Reading N chunks")
+        did_pass = True
         for n in range(8):
             offset = 0x7e + (4 * n)
-            data = ctx.read_memory_block8(0x20000000 + offset, 4)
+            data = ctx.read_memory_block8(ram_base + offset, 4)
             if data == gdb_test_binary_data[offset:offset + 4]:
                 test_pass_count += 1
+            else:
+                did_pass = False
             test_count += 1
+        if did_pass:
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
 
         print("\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))
@@ -126,6 +122,7 @@ def debug_context_test(board_id):
         else:
             print("DEBUG CONTEXT TEST FAILED")
 
+        # Clean up.
         target.reset()
 
         result.passed = test_count == test_pass_count
