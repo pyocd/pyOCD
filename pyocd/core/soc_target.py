@@ -142,8 +142,8 @@ class SoCTarget(Target, GraphNode):
     def halt(self):
         return self.selected_core.halt()
 
-    def step(self, disable_interrupts=True, start=0, end=0):
-        return self.selected_core.step(disable_interrupts, start, end)
+    def step(self, disable_interrupts=True, start=0, end=0, hook_cb=None):
+        return self.selected_core.step(disable_interrupts, start, end, hook_cb)
 
     def resume(self):
         return self.selected_core.resume()

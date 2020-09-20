@@ -39,6 +39,8 @@ BUILTIN_OPTIONS = [
         "Path to custom config file."),
     OptionInfo('connect_mode', str, "halt",
         "One of 'halt', 'pre-reset', 'under-reset', 'attach'. Default is 'halt'."),
+    OptionInfo('cpu.step.instruction.timeout', float, 0.0,
+        "Timeout in seconds for instruction step operations. Defaults to 0, or no timeout."),
     OptionInfo('dap_protocol', str, 'default',
         "Wire protocol, either 'swd', 'jtag', or 'default'."),
     OptionInfo('dap_swj_enable', bool, True,
