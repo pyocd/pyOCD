@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -184,7 +184,7 @@ def valid_watchpoint(bkpt_size, bkpt_access, bkpt_addr):
 # Initial setup
 testn = int(gdb.parse_and_eval("$testn"))
 
-test_param_filename = "gdb_test_params%s_%d.txt" % (env_file_name, testn)
+test_param_filename = os.path.join("output", "gdb_test_params%s_%d.txt" % (env_file_name, testn))
 with open(test_param_filename, "rb") as f:
     test_params = json.loads(f.read())
 
@@ -215,7 +215,7 @@ def run_test():
         gdb_execute("set mem inaccessible-by-default off")
 
         # Set raw logging
-        gdb_execute("set remotelogfile gdb_test_raw%s_%d.txt" % (env_file_name, testn))
+        gdb_execute("set remotelogfile output/gdb_test_raw%s_%d.txt" % (env_file_name, testn))
 
         # Connect to server
         gdb_execute("target remote localhost:%d" % test_port)
@@ -474,7 +474,7 @@ def run_test():
         fail_count += 1
     finally:
         test_result["fail_count"] = fail_count
-        test_result_filename = "gdb_test_results%s_%d.txt" % (env_file_name, testn)
+        test_result_filename = os.path.join("output", "gdb_test_results%s_%d.txt" % (env_file_name, testn))
         with open(test_result_filename, "wb") as f:
             f.write(json.dumps(test_result))
         gdb_execute("detach")

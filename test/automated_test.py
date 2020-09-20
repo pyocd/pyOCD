@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,6 +37,8 @@ from test_util import (
     IOTee,
     RecordingLogHandler,
     get_session_options,
+    ensure_output_dir,
+    TEST_OUTPUT_DIR,
     )
 
 from basic_test import BasicTest
@@ -142,7 +144,7 @@ def generate_xml_results(result_list):
     root.set('failures', str(total_failures))
     root.set('time', "%.3f" % total_time)
     
-    xml_results = XML_RESULTS_TEMPLATE.format(get_env_file_name())
+    xml_results = os.path.join(TEST_OUTPUT_DIR, XML_RESULTS_TEMPLATE.format(get_env_file_name()))
     ElementTree.ElementTree(root).write(xml_results, encoding="UTF-8", xml_declaration=True)
 
 def print_board_header(outputFile, board, n, includeDividers=True, includeLeadingNewline=False):
@@ -186,7 +188,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     # Set up board-specific output file. A previously existing file is removed.
     env_name = (("_" + os.environ['TOX_ENV_NAME']) if ('TOX_ENV_NAME' in os.environ) else '')
     name_info = "{}_{}_{}".format(env_name, board.name, n)
-    log_filename = LOG_FILE_TEMPLATE.format(name_info)
+    log_filename = os.path.join(TEST_OUTPUT_DIR, LOG_FILE_TEMPLATE.format(name_info))
     if os.path.exists(log_filename):
         os.remove(log_filename)
     
@@ -312,10 +314,12 @@ def main():
         print("WARNING: Cannot support multiple jobs on macOS prior to Python 3.4. Forcing 1 job.")
         args.jobs = 1
 
+    ensure_output_dir()
+    
     # Setup logging based on concurrency and quiet option.
     level = logging.DEBUG if args.debug else logging.INFO
     if args.jobs == 1 and not args.quiet:
-        log_file = LOG_FILE_TEMPLATE.format(get_env_file_name())
+        log_file = os.path.join(TEST_OUTPUT_DIR, LOG_FILE_TEMPLATE.format(get_env_file_name()))
         # Create common log file.
         if os.path.exists(log_file):
             os.remove(log_file)
@@ -360,7 +364,7 @@ def main():
     test_time = (stop - start)
 
     print_summary(test_list, result_list, test_time)
-    summary_file = SUMMARY_FILE_TEMPLATE.format(get_env_file_name())
+    summary_file = os.path.join(TEST_OUTPUT_DIR, SUMMARY_FILE_TEMPLATE.format(get_env_file_name()))
     with open(summary_file, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
     generate_xml_results(result_list)
