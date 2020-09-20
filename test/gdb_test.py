@@ -61,7 +61,7 @@ LOG = logging.getLogger(__name__)
 PYTHON_GDB = "arm-none-eabi-gdb-py"
 TEST_TIMEOUT_SECONDS = 60.0 * 5
 
-GDB_SCRIPT_PATH = os.path.join(TEST_DIR, "gdb_script.py")
+GDB_SCRIPT_PATH = os.path.join(TEST_DIR, "gdb_test_script.py")
 
 def wait_with_deadline(process):
     try:
