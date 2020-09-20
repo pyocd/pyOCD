@@ -35,7 +35,6 @@ from ..trace.swv import SWVReader
 from ..utility.sockets import ListenerSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
-from ..cache.memory import MemoryAccessError
 from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
@@ -761,10 +760,7 @@ class GDBServer(threading.Thread):
             # Flush so an exception is thrown now if invalid memory was accesses
             self.target_context.flush()
             val = hex_encode(bytearray(mem))
-        except exceptions.TransferError:
-            LOG.debug("get_memory failed at 0x%x" % addr)
-            val = b'E01' #EPERM
-        except MemoryAccessError as e:
+        except exceptions.TransferError as e:
             LOG.debug("get_memory failed at 0x%x: %s", addr, str(e))
             val = b'E01' #EPERM
         return self.create_rsp_packet(val)
@@ -787,12 +783,9 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target_context.flush()
             resp = b"OK"
-        except exceptions.TransferError:
-            LOG.debug("write_memory failed at 0x%x" % addr)
+        except exceptions.TransferError as e:
+            LOG.debug("write_memory_hex failed at 0x%x: %s", addr, str(e))
             resp = b'E01' #EPERM
-        except MemoryAccessError as e:
-            LOG.debug("get_memory failed at 0x%x: %s", addr, str(e))
-            val = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
 
@@ -813,12 +806,9 @@ class GDBServer(threading.Thread):
                 # Flush so an exception is thrown now if invalid memory was accessed
                 self.target_context.flush()
             resp = b"OK"
-        except exceptions.TransferError:
-            LOG.debug("write_memory failed at 0x%x" % addr)
+        except exceptions.TransferError as e:
+            LOG.debug("write_memory failed at 0x%x: %s", addr, str(e))
             resp = b'E01' #EPERM
-        except MemoryAccessError as e:
-            LOG.debug("get_memory failed at 0x%x: %s", addr, str(e))
-            val = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
 
