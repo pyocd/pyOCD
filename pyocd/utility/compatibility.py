@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,11 +61,10 @@ else:
             return v
 
 # Make FileNotFoundError available to Python 2.x.
-if not PY3:
-    FileNotFoundError = IOError
-
-# Symbol to reference either the builtin FNF or our custom subclass.
-FileNotFoundError_ = FileNotFoundError
+try:
+    FileNotFoundError = FileNotFoundError
+except NameError:
+    FileNotFoundError = OSError
 
 try:
     from shutil import get_terminal_size

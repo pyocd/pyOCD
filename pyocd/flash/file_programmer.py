@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import errno
 from .loader import FlashLoader
 from ..core import exceptions
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
-from ..utility.compatibility import FileNotFoundError_
+from ..utility.compatibility import FileNotFoundError
 
 LOG = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class FileProgrammer(object):
         
         # Check for valid path first.
         if isPath and not os.path.isfile(file_or_path):
-            raise FileNotFoundError_(errno.ENOENT, "No such file: '{}'".format(file_or_path))
+            raise FileNotFoundError(errno.ENOENT, "No such file: '{}'".format(file_or_path))
         
         # If no format provided, use the file's extension.
         if not file_format:

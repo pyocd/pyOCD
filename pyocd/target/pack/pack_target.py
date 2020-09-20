@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ from ..family import FAMILIES
 from .. import TARGET
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
-from ...utility.compatibility import FileNotFoundError_
+from ...utility.compatibility import FileNotFoundError
 
 try:
     import cmsis_pack_manager
@@ -162,7 +162,7 @@ class PackTargets(object):
                         "set_default_reset_type": _PackTargetMethods._pack_target_set_default_reset_type,
                     })
             return targetClass
-        except (MalformedCmsisPackError, FileNotFoundError_) as err:
+        except (MalformedCmsisPackError, FileNotFoundError) as err:
             LOG.warning(err)
             return None
 
@@ -183,7 +183,7 @@ class PackTargets(object):
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
                 TARGET[part] = tgt
-        except (MalformedCmsisPackError, FileNotFoundError_) as err:
+        except (MalformedCmsisPackError, FileNotFoundError) as err:
             LOG.warning(err)
 
     @staticmethod
