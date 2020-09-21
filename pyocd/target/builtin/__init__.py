@@ -91,8 +91,9 @@ from . import target_musca_a1
 from . import target_musca_b1
 from . import target_LPC55S69Jxxxxx
 from . import target_LPC55S28Jxxxxx
-from . import target_M252KG6AE
-from . import target_M263KIAAE
+from . import target_M251
+from . import target_M261
+from . import target_M480
 from . import target_HC32F46x
 from . import target_HC32F4A0
 from . import target_HC32M423
@@ -206,8 +207,9 @@ BUILTIN_TARGETS = {
           'cy8c64xa_cm4_full_flash' : target_CY8C64xA.cy8c64xA_cm4_full_flash,
           'cy8c64x5_cm0_full_flash' : target_CY8C64x5.cy8c64x5_cm0_full_flash,
           'cy8c64x5_cm4_full_flash' : target_CY8C64x5.cy8c64x5_cm4_full_flash,
-          'm252kg6ae' : target_M252KG6AE.M252KG6AE,
-          'm263kiaae' : target_M263KIAAE.M263KIAAE,
+          'm252kg6ae' : target_M251.M252KG6AE,
+          'm263kiaae' : target_M261.M263KIAAE,
+          'm487jidae' : target_M480.M487JIDAE,
           'hc32f46x' : target_HC32F46x.HC32F46x,
           'hc32f4a0xg' : target_HC32F4A0.HC32F4A0xG,
           'hc32f4a0xi' : target_HC32F4A0.HC32F4A0xI,

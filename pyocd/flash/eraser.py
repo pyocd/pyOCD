@@ -98,7 +98,7 @@ class FlashEraser(object):
                     region.flash.erase_all()
                     region.flash.cleanup()
                 else:
-                    self._sector_erase((region.start, region.end))
+                    self._sector_erase([(region.start, region.end)])
         LOG.info("Done")
     
     def _sector_erase(self, addresses):
