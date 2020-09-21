@@ -23,10 +23,6 @@ from .metrics import CacheMetrics
 
 LOG = logging.getLogger(__name__)
 
-class MemoryAccessError(exceptions.Error):
-    """! @brief Generic failure to access memory."""
-    pass
-
 class MemoryCache(object):
     """! @brief Memory cache.
     
@@ -37,7 +33,7 @@ class MemoryCache(object):
     tokens). If the target is currently running, all accesses cause the cache to be invalidated.
     
     The target's memory map is referenced. All memory accesses must be fully contained within a single
-    memory region, or a MemoryAccessError will be raised. However, if an access is outside of all regions,
+    memory region, or a TransferFaultError will be raised. However, if an access is outside of all regions,
     the access is passed to the underlying context unmodified. When an access is within a region, that
     region's cacheability flag is honoured.
     """
@@ -212,7 +208,7 @@ class MemoryCache(object):
     def _check_regions(self, addr, count):
         """! @return A bool indicating whether the given address range is fully contained within
               one known memory region, and that region is cacheable.
-        @exception MemoryAccessError Raised if the access is not entirely contained within a single region.
+        @exception TransferFaultError Raised if the access is not entirely contained within a single region.
         """
         regions = self._core.memory_map.get_intersecting_regions(addr, length=count)
 
@@ -222,7 +218,7 @@ class MemoryCache(object):
 
         # Raise if not fully contained within one region.
         if len(regions) > 1 or not regions[0].contains_range(addr, length=count):
-            raise MemoryAccessError("individual memory accesses must not cross memory region boundaries")
+            raise TransferFaultError("individual memory accesses must not cross memory region boundaries")
 
         # Otherwise return whether the region is cacheable.
         return regions[0].is_cacheable

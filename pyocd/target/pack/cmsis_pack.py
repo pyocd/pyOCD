@@ -25,17 +25,12 @@ import itertools
 import six
 import struct
 
-# zipfile from Python 2 has a misspelled BadZipFile exception class.
-try:
-    from zipfile import BadZipFile
-except ImportError:
-    from zipfile import BadZipfile as BadZipFile
-
 from .flash_algo import PackFlashAlgo
 from ... import core
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
+from ...utility.compatibility import BadZipFile
 
 LOG = logging.getLogger(__name__)
 

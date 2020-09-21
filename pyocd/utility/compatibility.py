@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,11 +61,16 @@ else:
             return v
 
 # Make FileNotFoundError available to Python 2.x.
-if not PY3:
-    FileNotFoundError = IOError
+try:
+    FileNotFoundError = FileNotFoundError
+except NameError:
+    FileNotFoundError = OSError
 
-# Symbol to reference either the builtin FNF or our custom subclass.
-FileNotFoundError_ = FileNotFoundError
+# zipfile from Python 2 has a misspelled BadZipFile exception class.
+try:
+    from zipfile import BadZipFile
+except ImportError:
+    from zipfile import BadZipfile as BadZipFile
 
 try:
     from shutil import get_terminal_size

@@ -62,11 +62,22 @@ class TransferTimeoutError(TransferError):
     pass
 
 class TransferFaultError(TransferError):
-    """! @brief An SWD Fault occurred"""
-    def __init__(self, faultAddress=None, length=None):
-        super(TransferFaultError, self).__init__(faultAddress)
-        self._address = faultAddress
-        self._length = length
+    """! @brief A memory fault occurred.
+    
+    This exception class is extended to optionally record the start address and an optional length of the
+    attempted memory access that caused the fault. The address and length, if available, will be included
+    in the description of the exception when it is converted to a string.
+    
+    Positional arguments passed to the constructor are passed through to the superclass'
+    constructor, and thus operate like any other standard exception class. Keyword arguments of
+    'fault_address' and 'length' can optionally be passed to the constructor to initialize the fault
+    start address and length. Alternatively, the corresponding property setters can be used after
+    the exception is created.
+    """
+    def __init__(self, *args, **kwargs):
+        super(TransferFaultError, self).__init__(*args)
+        self._address = kwargs.get('fault_address', None)
+        self._length = kwargs.get('length', None)
 
     @property
     def fault_address(self):
@@ -89,7 +100,12 @@ class TransferFaultError(TransferError):
         self._length = length
 
     def __str__(self):
-        desc = "SWD/JTAG Transfer Fault"
+        desc = "Memory transfer fault"
+        if self.args:
+            if len(self.args) == 1:
+                desc += " (" + str(self.args[0]) + ")"
+            else:
+                desc += " " + str(self.args) + ""
         if self._address is not None:
             desc += " @ 0x%08x" % self._address
             if self._length is not None:
@@ -97,11 +113,17 @@ class TransferFaultError(TransferError):
         return desc
   
 class FlashFailure(TargetError):
-    """! @brief Exception raised when flashing fails for some reason. """
-    def __init__(self, msg, address=None, result_code=None):
-        super(FlashFailure, self).__init__(msg)
-        self._address = address
-        self._result_code = result_code
+    """! @brief Exception raised when flashing fails for some reason.
+    
+    Positional arguments passed to the constructor are passed through to the superclass'
+    constructor, and thus operate like any other standard exception class. The flash address that
+    failed and/or result code from the algorithm can optionally be recorded in the exception, if
+    passed to the constructor as 'address' and 'result_code' keyword arguments.
+    """
+    def __init__(self, *args, **kwargs):
+        super(FlashFailure, self).__init__(*args)
+        self._address = kwargs.get('address', None)
+        self._result_code = kwargs.get('result_code', None)
     
     @property
     def address(self):
@@ -110,6 +132,19 @@ class FlashFailure(TargetError):
     @property
     def result_code(self):
         return self._result_code
+
+    def __str__(self):
+        desc = super(FlashFailure, self).__str__()
+        parts = []
+        if self.address is not None:
+            parts.append("address 0x%08x" % self.address)
+        if self.result_code is not None:
+            parts.append("result code 0x%x" % self.result_code)
+        if parts:
+            if desc:
+                desc += " "
+            desc += "(%s)" % ("; ".join(parts))
+        return desc
 
 class FlashEraseFailure(FlashFailure):
     """! @brief An attempt to erase flash failed. """

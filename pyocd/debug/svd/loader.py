@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,10 @@ import pkg_resources
 import zipfile
 
 from .parser import SVDParser
-from ...utility.compatibility import FileNotFoundError_
+from ...utility.compatibility import (
+    FileNotFoundError,
+    BadZipFile,
+    )
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +37,7 @@ class SVDFile(object):
             zip_stream = pkg_resources.resource_stream("pyocd", BUILTIN_SVD_DATA_PATH)
             zip = zipfile.ZipFile(zip_stream, 'r')
             return SVDFile(zip.open(svd_name))
-        except (FileNotFoundError_, zipfile.BadZipFile) as err:
+        except (KeyError, FileNotFoundError, BadZipFile) as err:
             from ...core.session import Session
             LOG.warning("unable to open builtin SVD file: %s", err, exc_info=Session.get_current().log_tracebacks)
             return None
