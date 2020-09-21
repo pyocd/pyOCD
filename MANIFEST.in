@@ -2,6 +2,7 @@ include dev-requirements.txt
 include pyocd/debug/svd/svd_data.zip
 recursive-include docs *
 recursive-include udev *
+recursive-include scripts *.py
 recursive-include src *.ld *.txt *.c *.bat *.py
 recursive-include test *.py *.sh
 recursive-include test/data *

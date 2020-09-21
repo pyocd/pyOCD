@@ -66,6 +66,11 @@ class Session(Notifier):
     4. General options from a config file.
     5. _option_defaults_ parameter to constructor.
     
+    The session also tracks several other objects:
+    - @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances created for any cores.
+    - @ref pyocd.probe.tcp_probe_server.DebugProbeServer "DebugProbeServer".
+    - The user script proxy.
+    
     See the @ref pyocd.core.helpers.ConnectHelper "ConnectHelper" class for several methods that
     make it easy to create new sessions, with or without user interaction in the case of multiple
     available debug probes. A common pattern is to combine @ref 
@@ -135,6 +140,8 @@ class Session(Notifier):
         self._delegate = None
         self._auto_open = auto_open
         self._options = OptionsManager()
+        self._gdbservers = {}
+        self._probeserver = None
         
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -308,6 +315,21 @@ class Session(Notifier):
     def user_script_proxy(self):
         """! @brief The UserScriptDelegateProxy object for a loaded user script."""
         return self._user_script_proxy
+    
+    @property
+    def gdbservers(self):
+        """! @brief Dictionary of core numbers to @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances."""
+        return self._gdbservers
+    
+    @property
+    def probeserver(self):
+        """! @brief A @ref pyocd.probe.tcp_probe_server.DebugProbeServer "DebugProbeServer" instance."""
+        return self._probeserver
+    
+    @probeserver.setter
+    def probeserver(self, server):
+        """! @brief Setter for the `probeserver` property."""
+        self._probeserver = server
     
     @property
     def log_tracebacks(self):

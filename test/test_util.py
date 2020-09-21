@@ -80,7 +80,7 @@ def get_target_test_params(session):
 
 # Generate an Intel hex file from the binary test file.
 def binary_to_hex_file(binary_file, base_address):
-    temp_test_hex_name = tempfile.mktemp('.elf')
+    temp_test_hex_name = tempfile.mktemp('.hex')
     objcopyOutput = subprocess.check_output([OBJCOPY,
         "-v", "-I", "binary", "-O", "ihex", "-B", "arm", "-S",
         "--set-start", "0x%x" % base_address,

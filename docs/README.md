@@ -18,6 +18,7 @@
 #### Reference
 
 - [Session options reference](options.md)
+- [Command reference](command_reference.md)
 
 #### Python API
 

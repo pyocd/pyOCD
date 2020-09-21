@@ -186,12 +186,19 @@ def convert_frequency(value):
 class UniquePrefixMatcher(object):
     """! @brief Manages detection of shortest unique prefix match of a set of strings."""
     
-    def __init__(self, items):
+    def __init__(self, items=None):
         """! @brief Constructor.
+        @param self This object.
+        @param items Optional sequence of strings.
+        """
+        self._items = set(items) if (items is not None) else set()
+    
+    def add_items(self, items):
+        """! @brief Add some items to be matched.
         @param self This object.
         @param items Sequence of strings.
         """
-        self._items = items
+        self._items.update(items)
     
     def find_all(self, prefix):
         """! @brief Return all items matching the given prefix.
@@ -203,6 +210,9 @@ class UniquePrefixMatcher(object):
         """
         if len(prefix) == 0:
             raise ValueError("empty prefix")
+        # First look for an exact match.
+        if prefix in self._items:
+            return (prefix,)
         return tuple(i for i in self._items if i.startswith(prefix))
     
     def find_one(self, prefix):

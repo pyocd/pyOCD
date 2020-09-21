@@ -49,6 +49,7 @@ from json_lists_test import JsonListsTest
 from connect_test import ConnectTest
 from debug_context_test import DebugContextTest
 from concurrency_test import ConcurrencyTest
+from commands_test import CommandsTest
 
 XML_RESULTS_TEMPLATE = "test_results{}.xml"
 LOG_FILE_TEMPLATE = "automated_test_result{}.txt"
@@ -70,6 +71,7 @@ all_tests = [
              FlashLoaderTest(),
              DebugContextTest(),
              GdbTest(),
+             CommandsTest(),
              ]
 
 # Actual list used at runtime, filted by command line args.
