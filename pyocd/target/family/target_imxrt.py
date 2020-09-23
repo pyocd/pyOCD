@@ -16,8 +16,7 @@
 # limitations under the License.
 
 import logging
-import time
-from ...core.target import Target
+from ...core.memory_map import MemoryType
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM
 
@@ -34,11 +33,15 @@ class IMXRT(CoreSightTarget):
         return seq
 
     def create_cores(self):
-        core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
-        core.default_reset_type = self.ResetType.SW_SYSRESETREQ
-        self.aps[0].core = core
-        core.init()
-        self.add_core(core)
+        try:
+            core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
+            core.default_reset_type = self.ResetType.SW_VECTRESET
+            self.aps[0].core = core
+            core.init()
+            self.add_core(core)
+        except KeyError:
+            LOG.error("No core-0 were discovered")
+
 
 
 class CortexM7_IMXRT(CortexM):
@@ -57,6 +60,12 @@ class CortexM7_IMXRT(CortexM):
         0x03: "Reserved"
     }
 
+    def _get_flash_vector_addr(self):
+        mem = self.memory_map.get_boot_memory()
+        if mem and mem.type == MemoryType.FLASH:
+            return mem.start + 0x1004
+        return None
+
     def set_reset_catch(self, reset_type=None):
         # Read Boot Mode
         # SBMR2: Bit 25..24:
@@ -74,40 +83,54 @@ class CortexM7_IMXRT(CortexM):
         #              11xxb - Serial NAND boot via FlexSPI
         bootdevice = (self.read_memory(CortexM7_IMXRT.SRC_SBMR1) & 0x000000F0) >> 4
         LOG.info("IMXRT Boot mode: %s" % self.BOOT_MODES[bootmode])
-        self.boot_from_flexspi_nor = bootmode == 2 and bootdevice == 0
+        self.did_normal_reset_catch = True
 
-        if self.boot_from_flexspi_nor and reset_type in \
-            (self.ResetType.SW_SYSRESETREQ, self.ResetType.SW_VECTRESET):
+        # boot from flexspi_nor
+        if bootmode == 2 and bootdevice == 0 and \
+            reset_type not in (self.ResetType.SW_SYSRESETREQ, self.ResetType.SW_VECTRESET):
             # Disable Reset Vector Catch in DEMCR
             value = self.read_memory(CortexM.DEMCR)
             self.write_memory(CortexM.DEMCR, (value & (~0x00000001)))
-            # Read user Image Vector Table address
-            vectable = self.read_memory(0x60001004)
-            if (vectable != 0xFFFFFFFF):
-                # Read user image entry point and clear Thumb bit
-                imageentry = self.read_memory(vectable + 4) & (~0x00000001)
-                if (imageentry != 0xFFFFFFFF):
-                    LOG.debug("vectable: %s, imageentry: %s" % (vectable, imageentry))
-                    # Program FPB Comparator 0 to user image entry point
-                    self.write_memory(CortexM7_IMXRT.FPB_COMP0, (imageentry | 1))
-                    # Enable FPB (FPB_CTRL = FPB_KEY|FPB_ENABLE)
-                    self.write_memory(CortexM7_IMXRT.FPB_CTRL, 0x00000003)
-                    LOG.debug("enable fpb")
+            vectable_addr = self._get_flash_vector_addr()
+            LOG.debug("vectable_addr: %x", vectable_addr)
+            vectable = None
+            imageentry = None
+            if vectable_addr:
+                try:
+                    # Read user Image Vector Table address
+                    vectable = self.read_memory(vectable_addr)
+                except:
+                    pass
 
-            if not self.is_halted:
-                self.halt()
-            return
-        else:
-            super(CortexM7_IMXRT, self).set_reset_catch()
+                if vectable and vectable != 0xFFFFFFFF:
+                    try:
+                        # Read user image entry point and clear Thumb bit
+                        imageentry = self.read_memory(vectable + 4) & (~0x00000001)
+                    except:
+                        pass
+                    if imageentry and imageentry != 0xFFFFFFFF:
+                        LOG.debug("vectable: %s, imageentry: %s" % (vectable, imageentry))
+                        # Program FPB Comparator 0 to user image entry point
+                        self.write_memory(CortexM7_IMXRT.FPB_COMP0, (imageentry | 1))
+                        # Enable FPB (FPB_CTRL = FPB_KEY|FPB_ENABLE)
+                        self.write_memory(CortexM7_IMXRT.FPB_CTRL, 0x00000003)
+                        LOG.debug("enable fpb")
+                        self.did_normal_reset_catch = False
+                        return
+
+        # normal reset catch
+        LOG.debug("normal_set_reset_catch")
+        self.did_normal_reset_catch = True
+        super(CortexM7_IMXRT, self).set_reset_catch()
 
     def clear_reset_catch(self, reset_type=None):
-        if not self.boot_from_flexspi_nor:
+        if self.did_normal_reset_catch:
             super(CortexM7_IMXRT, self).clear_reset_catch()
         else:
             # Disable Reset Vector Catch in DEMCR
             value = self.read_memory(CortexM.DEMCR)
             self.write_memory(CortexM.DEMCR, (value& (~0x00000001)))
             # Clear BP0 and FPB
-            self.write_memory(CortexM7_IMXRT.FPB_COMP0, 0);                         # Clear BP0
+            self.write_memory(CortexM7_IMXRT.FPB_COMP0, 0);                        # Clear BP0
             self.write_memory(CortexM7_IMXRT.FPB_CTRL, 0x00000002);                # Disable FPB
             LOG.debug("clear fpb")
