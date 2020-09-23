@@ -17,7 +17,7 @@ Install the necessary tools listed below. Skip any step where a compatible tool 
         work properly and for the `test/gdb_test.py` functional test to pass.
 * [Install Git](https://git-scm.com/downloads). Add to PATH.
 * [Install virtualenv](https://virtualenv.pypa.io/en/latest/) in your global Python installation, eg: `pip install virtualenv`.
-* [Install GNU Arm Embedded toolchain](https://developer.arm.com/tools-and-software/open-source-software/gnu-toolchain/gnu-rm).
+* [Install GNU Arm Embedded toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm).
     This provides `arm-none-eabi-gdb` used for testing the gdbserver. Add to PATH.
 
 ## Steps
