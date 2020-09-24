@@ -534,7 +534,13 @@ class CortexM(Target, CoreSightCoreComponent):
         self.session.notify(Target.Event.POST_RUN, self, Target.RunType.STEP)
 
     def clear_debug_cause_bits(self):
-        self.write_memory(CortexM.DFSR, CortexM.DFSR_VCATCH | CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
+        self.write32(CortexM.DFSR,
+                CortexM.DFSR_EXTERNAL
+                | CortexM.DFSR_VCATCH
+                | CortexM.DFSR_DWTTRAP
+                | CortexM.DFSR_BKPT
+                | CortexM.DFSR_HALTED
+                )
     
     def _perform_emulated_reset(self):
         """! @brief Emulate a software reset by writing registers.

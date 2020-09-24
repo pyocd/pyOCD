@@ -152,6 +152,15 @@ class CortexM_v8M(CortexM):
             return Target.SecurityState.SECURE
         else:
             return Target.SecurityState.NONSECURE
+
+    def clear_debug_cause_bits(self):
+        self.write32(CortexM.DFSR,
+                self.DFSR_PMU
+                | CortexM.DFSR_EXTERNAL
+                | CortexM.DFSR_VCATCH
+                | CortexM.DFSR_DWTTRAP
+                | CortexM.DFSR_BKPT
+                | CortexM.DFSR_HALTED)
     
     def get_halt_reason(self):
         """! @brief Returns the reason the core has halted.
