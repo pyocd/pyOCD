@@ -365,7 +365,9 @@ class DisassembleCommand(CommandBase):
             }
     
     def parse(self, args):
-        self.center = (len(args) > 1) and (args.pop(0) in ('-c', '--center'))
+        self.center = (len(args) > 1) and (args[0] in ('-c', '--center'))
+        if self.center:
+            del args[0]
         self.addr = self._convert_value(args[0])
         if len(args) < 2:
             self.count = 6
