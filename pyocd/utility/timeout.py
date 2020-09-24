@@ -52,12 +52,15 @@ class Timeout(object):
     If you pass a non-zero value for _sleeptime_ to the constructor, the check() method will
     automatically sleep by default starting with the second call. You can disable auto-sleep
     by passing `autosleep=False` to check().
+    
+    Passing a timeout of None to the constructor is allowed. In this case, check() will always return
+    True and the loop must be exited via some other means.
     """
 
     def __init__(self, timeout, sleeptime=0):
         """! @brief Constructor.
         @param self
-        @param timeout The timeout in seconds.
+        @param timeout The timeout in seconds. May be None to indicate no timeout.
         @param sleeptime Time in seconds to sleep during calls to check(). Defaults to 0, thus
             check() will not sleep unless you pass a different value.
         """
@@ -83,12 +86,16 @@ class Timeout(object):
             - A non-zero _sleeptime_ was passed to the constructor.
             - The _autosleep_ parameter is True.
         
+        This method is intended to be used as the predicate of a while loop.
+        
         @param self
         @param autosleep Whether to sleep if not timed out yet. The sleeptime passed to the
             constructor must have been non-zero.
+        @retval True The timeout has _not_ occurred.
+        @retval False Timeout is passed and the loop should be exited.
         """
         # Check for a timeout.
-        if (time() - self._start) > self._timeout:
+        if (self._timeout is not None) and ((time() - self._start) > self._timeout):
             self._timed_out = True
         # Sleep if appropriate.
         elif (not self._is_first_check) and autosleep and self._sleeptime:
