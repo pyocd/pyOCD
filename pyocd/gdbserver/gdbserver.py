@@ -625,8 +625,22 @@ class GDBServer(threading.Thread):
     def step(self, data, start=0, end=0):
         addr = self._get_resume_step_addr(data)
         LOG.debug("GDB step: %s (start=0x%x, end=0x%x)", data, start, end)
-        self.target.step(not self.step_into_interrupt, start, end)
-        return self.create_rsp_packet(self.get_t_response())
+        
+        # Use the step hook to check for an interrupt event.
+        def step_hook():
+            # Note we don't clear the interrupt event here!
+            return self.packet_io.interrupt_event.is_set()
+        self.target.step(not self.step_into_interrupt, start, end, hook_cb=step_hook)
+        
+        # Clear and handle an interrupt.
+        if self.packet_io.interrupt_event.is_set():
+            LOG.debug("Received Ctrl-C during step")
+            self.packet_io.interrupt_event.clear()
+            response = self.get_t_response(forceSignal=signals.SIGINT)
+        else:
+            response = self.get_t_response()
+        
+        return self.create_rsp_packet(response)
 
     def halt(self):
         self.target.halt()

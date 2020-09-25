@@ -86,7 +86,7 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
     def halt(self):
         pass
 
-    def step(self, disable_interrupts=True, start=0, end=0):
+    def step(self, disable_interrupts=True, start=0, end=0, hook_cb=None):
         pass
 
     def reset(self, reset_type=None):

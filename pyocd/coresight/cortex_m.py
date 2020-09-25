@@ -113,6 +113,7 @@ class CortexM(Target, CoreSightCoreComponent):
     C_STEP = (1 << 2)
     C_MASKINTS = (1 << 3)
     C_SNAPSTALL = (1 << 5)
+    C_PMOV = (1 << 6)
     S_REGRDY = (1 << 16)
     S_HALT = (1 << 17)
     S_SLEEP = (1 << 18)
@@ -473,41 +474,87 @@ class CortexM(Target, CoreSightCoreComponent):
         self.flush()
         self.session.notify(Target.Event.POST_HALT, self, Target.HaltReason.USER)
 
-    def step(self, disable_interrupts=True, start=0, end=0):
+    def step(self, disable_interrupts=True, start=0, end=0, hook_cb=None):
         """! @brief Perform an instruction level step.
         
-        This function preserves the previous interrupt mask state.
+        This API will execute one or more individual instructions on the core. With default parameters, it
+        masks interrupts and only steps a single instruction. The _start_ and _stop_ parameters define an
+        address range of [_start_, _end_). The core will be repeatedly stepped until the PC falls outside this
+        range, a debug event occurs, or the optional callback returns True.
+        
+        The _disable_interrupts_ parameter controls whether to allow stepping into interrupts. This function
+        preserves the previous interrupt mask state.
+        
+        If the _hook_cb_ parameter is set to a callable, it will be invoked repeatedly to give the caller a
+        chance to check for interrupt requests or other reasons to exit.
+
+        Note that stepping may take a very long time for to return in cases such as stepping over a branch
+        into the Secure world where the debugger doesn't have secure debug access, or similar for Privileged
+        code in the case of UDE.
+        
+        @param self The object.
+        @param disable_interrupts Boolean specifying whether to mask interrupts during the step.
+        @param start Integer start address for range stepping. Not included in the range.
+        @param end Integer end address for range stepping. The range is inclusive of this address.
+        @param hook_cb Optional callable taking no parameters and returning a boolean. The signature is
+            `hook_cb() -> bool`. Invoked repeatedly while waiting for step operations to complete. If the
+            callback returns True, then stepping is stopped immediately.
+        
+        @exception DebugError Raised if debug is not enabled on the core.
         """
-        # Was 'if self.get_state() != TARGET_HALTED:'
-        # but now value of dhcsr is saved
-        dhcsr = self.read_memory(CortexM.DHCSR)
-        if not (dhcsr & (CortexM.C_STEP | CortexM.C_HALT)):
-            LOG.error('cannot step: target not halted')
+        # Save DHCSR and make sure the core is halted. We also check that C_DEBUGEN is set because if it's
+        # not, then C_HALT is UNKNOWN.
+        dhcsr = self.read32(CortexM.DHCSR)
+        if not (dhcsr & CortexM.C_DEBUGEN):
+            raise exception.DebugError('cannot step: debug not enabled')
+        if not (dhcsr & CortexM.C_HALT):
+            LOG.error('cannot step: core not halted')
             return
 
-        LOG.debug("step core %d", self.core_number)
+        if start != end:
+            LOG.debug("step core %d (start=%#010x, end=%#010x)", self.core_number, start, end)
+        else:
+            LOG.debug("step core %d", self.core_number)
 
         self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.STEP)
 
+        self._run_token += 1
+
         self.clear_debug_cause_bits()
 
-        # Save previous interrupt mask state
-        interrupts_masked = (CortexM.C_MASKINTS & dhcsr) != 0
+        # Get current state.
+        saved_maskints = dhcsr & CortexM.C_MASKINTS
+        saved_pmov = dhcsr & CortexM.C_PMOV
+        maskints_differs = bool(saved_maskints) != disable_interrupts
 
-        # Mask interrupts - C_HALT must be set when changing to C_MASKINTS
-        if not interrupts_masked and disable_interrupts:
-            self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT | CortexM.C_MASKINTS)
+        # Get the DHCSR value to use when stepping based on whether we're masking interrupts.
+        dhcsr_step = CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP | saved_pmov
+        if disable_interrupts:
+            dhcsr_step |= CortexM.C_MASKINTS
 
-        # Single step using current C_MASKINTS setting
+        # Update mask interrupts setting - C_HALT must be set when changing to C_MASKINTS.
+        if maskints_differs:
+            self.write32(CortexM.DHCSR, dhcsr_step | CortexM.C_HALT)
+
+        # Get the step timeout. A timeout of 0 means no timeout, so we have to pass None to the Timeout class.
+        step_timeout = self.session.options.get('cpu.step.instruction.timeout') or None
+
         while True:
-            if disable_interrupts or interrupts_masked:
-                self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_MASKINTS | CortexM.C_STEP)
-            else:
-                self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_STEP)
+            # Single step using current C_MASKINTS setting
+            self.write32(CortexM.DHCSR, dhcsr_step)
 
-            # Wait for halt to auto set (This should be done before the first read)
-            while not self.read_memory(CortexM.DHCSR) & CortexM.C_HALT:
-                pass
+            # Wait for halt to auto set.
+            #
+            # Note that it may take a very long time for this loop to exit in cases such as stepping over
+            # a branch into the Secure world where the debugger doesn't have secure debug access, or similar
+            # for Privileged code in the case of UDE.
+            with timeout.Timeout(step_timeout) as tmo:
+                while tmo.check():
+                    if (self.read32(CortexM.DHCSR) & CortexM.C_HALT) != 0:
+                        break
+                    # Invoke the callback if provided. If it returns True, then exit the loop.
+                    if (hook_cb is not None) and hook_cb():
+                        break
 
             # Range is empty, 'range step' will degenerate to 'step'
             if start == end:
@@ -515,26 +562,30 @@ class CortexM(Target, CoreSightCoreComponent):
 
             # Read program counter and compare to [start, end)
             program_counter = self.read_core_register('pc')
-            if program_counter < start or end <= program_counter:
+            if (program_counter < start) or (end <= program_counter):
                 break
 
-            # Check other stop reasons
-            if self.read_memory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT):
+            # Check for stop reasons other than HALTED, which will have been set by our step action.
+            if (self.read32(CortexM.DFSR) & ~CortexM.DFSR_HALTED) != 0:
                 break
 	
-        # Restore interrupt mask state
-        if not interrupts_masked and disable_interrupts:
-            # Unmask interrupts - C_HALT must be set when changing to C_MASKINTS
-            self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
+        # Restore interrupt mask state.
+        if maskints_differs:
+            self.write32(CortexM.DHCSR,
+                    CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT | saved_maskints | saved_pmov)
 
         self.flush()
-
-        self._run_token += 1
 
         self.session.notify(Target.Event.POST_RUN, self, Target.RunType.STEP)
 
     def clear_debug_cause_bits(self):
-        self.write_memory(CortexM.DFSR, CortexM.DFSR_VCATCH | CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
+        self.write32(CortexM.DFSR,
+                CortexM.DFSR_EXTERNAL
+                | CortexM.DFSR_VCATCH
+                | CortexM.DFSR_DWTTRAP
+                | CortexM.DFSR_BKPT
+                | CortexM.DFSR_HALTED
+                )
     
     def _perform_emulated_reset(self):
         """! @brief Emulate a software reset by writing registers.

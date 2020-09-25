@@ -26,13 +26,29 @@ import logging
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.file_programmer import FileProgrammer
-from pyocd.utility.conversion import float32_to_u32
+from pyocd.utility.conversion import (float32_to_u32, u16le_list_to_byte_list)
+from pyocd.utility.mask import same
 
 from test_util import (
     Test,
     get_session_options,
     get_test_binary_path,
     )
+
+# Simple code sequence used to test range stepping.
+# The important part is that it has no branches.
+RANGE_STEP_CODE = u16le_list_to_byte_list([
+        0x3001, # adds    r0, #1
+        0x43C1, # mvns    r1, r0
+        0x3101, # adds    r1, #1
+        0x0102, # movs    r2, r0, lsl #4
+        0x0013, # movs    r3, r2
+        0x404B, # eors    r3, r1
+        0x1840, # adds    r0, r1
+        0x1880, # adds    r0, r2
+        0x1AC0, # subs    r0, r3
+        0xBE00, # bkpt    #0
+        ])
 
 class BasicTest(Test):
     def __init__(self):
@@ -138,9 +154,40 @@ def basic_test(board_id, file):
             target.step()
             newPC = target.read_core_register('pc')
             print("STEP: pc: 0x%X" % newPC)
-            currentPC = newPC
             sleep(0.2)
 
+        print("\n\n------ TEST RANGE STEP ------")
+
+        # Add some extra room before end of memory, and a second copy so there are instructions
+        # after the final bkpt. Add 1 because region end is always odd.
+        test_addr = ram_region.end + 1 - len(RANGE_STEP_CODE) * 2 - 32
+        # Since the end address is inclusive, we need to exclude the last instruction.
+        test_end_addr = test_addr + len(RANGE_STEP_CODE) - 2
+        print("range start = %#010x; range_end = %#010x" % (test_addr, test_end_addr))
+        # Load up some code into ram to test range step.
+        target.write_memory_block8(test_addr, RANGE_STEP_CODE * 2)
+        check_data = target.read_memory_block8(test_addr, len(RANGE_STEP_CODE) * 2)
+        if not same(check_data, RANGE_STEP_CODE * 2):
+            print("Failed to write range step test code to RAM")
+        else:
+            print("wrote range test step code to RAM successfully")
+        
+        target.write_core_register('pc', test_addr)
+        currentPC = target.read_core_register('pc')
+        print("start PC: 0x%X" % currentPC)
+        target.step(start=test_addr, end=test_end_addr)
+        newPC = target.read_core_register('pc')
+        print("end PC: 0x%X" % newPC)
+
+        # Now test again to ensure the bkpt stops it.
+        target.write_core_register('pc', test_addr)
+        currentPC = target.read_core_register('pc')
+        print("start PC: 0x%X" % currentPC)
+        target.step(start=test_addr, end=test_end_addr + 4) # include bkpt
+        newPC = target.read_core_register('pc')
+        print("end PC: 0x%X" % newPC)
+        halt_reason = target.get_halt_reason()
+        print("halt reason: %s (should be BREAKPOINT)" % halt_reason.name)
 
         print("\n\n------ TEST READ / WRITE MEMORY ------")
         target.halt()

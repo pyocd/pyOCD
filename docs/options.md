@@ -76,6 +76,16 @@ working directory.
 Controls how pyOCD connects to the target. One of 'halt', 'pre-reset', 'under-reset', 'attach'.
 </td></tr>
 
+<tr><td>cpu.step.instruction.timeout</td>
+<td>float</td>
+<td>0.0</td>
+<td>
+<p>Timeout in seconds for instruction step operations. The default of 0 means no timeout.<p>
+<p>Note that stepping may take a very long time for to return in cases such as stepping over a branch
+into the Secure world where the debugger doesn't have secure debug access, or similar for Privileged
+code in the case of UDE.</p>
+</td></tr>
+
 <tr><td>dap_protocol</td>
 <td>str</td>
 <td>'default'</td>
