@@ -770,14 +770,14 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ap_regaddr = addr & APREG_MASK
 
         # Don't need to write CSW if it's not changing value.
-        if ap_regaddr == self._reg_offset + MEM_AP_CSW:
-            if data == self._cached_csw:
-                if TRACE.isEnabledFor(logging.INFO):
-                    num = self.dp.next_access_number
-                    TRACE.debug("write_ap:%06d cached (ap=0x%x; addr=0x%08x) = 0x%08x",
-                        num, self.address.nominal_address, addr, data)
-                return
-            self._cached_csw = data
+        # if ap_regaddr == self._reg_offset + MEM_AP_CSW:
+        #     if data == self._cached_csw:
+        #         if TRACE.isEnabledFor(logging.INFO):
+        #             num = self.dp.next_access_number
+        #             TRACE.debug("write_ap:%06d cached (ap=0x%x; addr=0x%08x) = 0x%08x",
+        #                 num, self.address.nominal_address, addr, data)
+        #         return
+        #     self._cached_csw = data
 
         try:
             self.dp.write_ap(self.address.address + addr, data)

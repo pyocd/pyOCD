@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import six
-from .pemicro.pemicro import PEMicroUnitAcmp, PEMicroException, PEMicroTransferException, PEMicroInterfaces
+from .pemicro.pemicro import PyPemicro, PEMicroException, PEMicroTransferException, PEMicroInterfaces
 import logging
 from time import sleep
 
@@ -44,10 +44,10 @@ class PEMicroProbe(DebugProbe):
     def _get_pemicro(cls):
         # TypeError is raised by pylink if the JLink DLL cannot be found.
         try:
-            return PEMicroUnitAcmp(log_debug=TRACE.debug, 
-                                   log_err=TRACE.error, 
-                                   log_war=TRACE.warning, 
-                                   log_info=TRACE.info)
+            return PyPemicro(log_debug=TRACE.debug, 
+                             log_err=TRACE.error, 
+                             log_war=TRACE.warning, 
+                             log_info=TRACE.info)
         except PEMicroException:
             return None
     
@@ -82,7 +82,7 @@ class PEMicroProbe(DebugProbe):
         super(PEMicroProbe, self).__init__()
         self._pemicro = self._get_pemicro()
         if self._pemicro is None:
-            raise PEMicroException("unable to open PEMicro DLL")
+            raise PEMicroException("unable to get PEMicro DLL")
 
         self._serial_number = serial_number
         self._supported_protocols = None
@@ -91,7 +91,12 @@ class PEMicroProbe(DebugProbe):
         self._is_open = False
         self._reset_delay_ms = -1
         self.reset_pin_state = True
-        self._product_name = self._pemicro.version() or "Unknown"
+        try:
+            self._pemicro.open(self._serial_number)
+            self._product_name = self._pemicro.version() or "Unknown"
+            self._pemicro.close()
+        except PEMicroException as exc:
+            six.raise_from(self._convert_exception(exc), exc)
         
     @property
     def description(self):
@@ -268,7 +273,7 @@ class PEMicroProbe(DebugProbe):
 
             return value if now else read_reg_cb
 
-    def write_dp(self, addr, data):
+    def write_dp(self, addr, data, now = True):
         try:
             self._pemicro.write_dp_register(addr=addr, value=data)
         except PEMicroTransferException as exc:
@@ -286,7 +291,7 @@ class PEMicroProbe(DebugProbe):
 
             return value if now else read_reg_cb
 
-    def write_ap(self, addr, data):
+    def write_ap(self, addr, data, now = True):
         assert type(addr) in (six.integer_types)
         try:
             self._pemicro.write_ap_register(addr=addr, value=data, apselect=((addr & self.APSEL_APBANKSEL) >> self.APSEL_SHIFT))           
@@ -294,14 +299,14 @@ class PEMicroProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def read_ap_multiple(self, addr, count=1, now=True):        
-        results = [self.read_ap(addr, now=now) for n in range(count)]
+        results = [self.read_ap(addr, True) for n in range(count)]
         
         def read_ap_multiple_result_callback():
             return results
         
         return results if now else read_ap_multiple_result_callback
 
-    def write_ap_multiple(self, addr, values):
+    def write_ap_multiple(self, addr, values, now = True):
         for v in values:
             self.write_ap(addr, v)
 
