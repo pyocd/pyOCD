@@ -45,6 +45,11 @@ Configuration and customization is supported through [config files](docs/configu
 Requirements
 ------------
 
+_**Important note**: Python 2 support is deprecated and is planned to be dropped from an upcoming release.
+Existing releases of pyOCD will, of course, continue to work with Python 2. If this is a major issue for you
+moving forward, please create a [new issue](https://github.com/mbedmicro/pyOCD/issues/new/choose) describing
+your concerns._
+
 - Python 3.6.0 or later (preferred), or Python 2.7.9 or later
 - macOS, Linux, or Windows 7 or newer
 - Microcontroller with an Arm Cortex-M CPU
@@ -188,21 +193,18 @@ The recommended toolchain for embedded Arm Cortex-M development is [GNU Arm
 Embedded](https://developer.arm.com/tools-and-software/open-source-software/gnu-toolchain/gnu-rm),
 provided by Arm. GDB is included with this toolchain.
 
-The GDB server works well with [Eclipse](https://www.eclipse.org/) and the [GNU MCU Eclipse
-plug-ins](https://gnu-mcu-eclipse.github.io/). GNU MCU Eclipse fully supports pyOCD with an included
-pyOCD debugging plugin.
+For [Visual Studio Code](https://code.visualstudio.com), the
+[cortex-debug](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug) plugin is available
+that supports pyOCD.
 
-To view peripheral register values either the built-in GNU MCU Eclipse register view can be used, or
-the Embedded System Register Viewer plugin can be installed. These can be installed from inside
-Eclipse using the following software update server addresses:
+The GDB server also works well with [Eclipse Embedded CDT](https://projects.eclipse.org/projects/iot.embed-cdt),
+previously known as [GNU MCU/ARM Eclipse](https://gnu-mcu-eclipse.github.io/). It fully supports pyOCD with
+an included pyOCD debugging plugin.
 
-- GNU MCU Eclipse: http://gnu-mcu-eclipse.sourceforge.net/updates
-- Embedded System Register Viewer: http://embsysregview.sourceforge.net/update
-
-In Eclipse, select the "Help -> Install New Software..." menu item. Then either click the "Add..."
-button and fill in the name and URL from above (once for each site), or simply copy the URL into the
-field where it says "type or select a site". Then you can select the software to install and click
-Next to start the process.
+To view peripheral register values either the built-in Eclipse Embedded CDT register view can be used, or
+the Embedded System Register Viewer plugin can be installed. The latter can be installed from inside
+Eclipse adding `http://embsysregview.sourceforge.net/update` as a software update server URL
+under the "Help -> Install New Software..." menu item.
 
 
 Development setup
@@ -228,4 +230,4 @@ License
 PyOCD is licensed with the permissive Apache 2.0 license. See the [LICENSE](LICENSE) file for the
 full text of the license.
 
-Copyright © 2006-2019 Arm Ltd and others (see individual source files)
+Copyright © 2006-2020 Arm Ltd and others (see individual source files)
