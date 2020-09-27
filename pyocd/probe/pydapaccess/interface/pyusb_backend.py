@@ -106,7 +106,6 @@ class PyUSB(Interface):
         except (NotImplementedError, usb.core.USBError) as e:
             # Some implementations don't don't have kernel attach/detach
             LOG.warning("USB Kernel Driver Detach Failed ([%s] %s). Attached driver may interfere with pyOCD operations.", e.errno, e.strerror)
-            pass
 
         # Explicitly claim the interface
         try:

@@ -63,7 +63,6 @@ FLASH_ALGO = {
     # Double buffering is not supported since there is not enough ram
     'begin_data' : 0x10000000 + 0x00000A00,  # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
     'page_size' : 0x00000200,
-    'analyzer_supported' : False,
     'min_program_length' : 512,
     'analyzer_supported' : True,
     'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600

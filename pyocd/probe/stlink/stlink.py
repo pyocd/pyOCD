@@ -216,8 +216,7 @@ class STLink(object):
                         response = self._device.transfer([Commands.JTAG_COMMAND, Commands.SWD_SET_FREQ, d], readSize=2)
                         self._check_status(response)
                         return
-                else:
-                    raise exceptions.ProbeError("Selected SWD frequency is too low")
+                raise exceptions.ProbeError("Selected SWD frequency is too low")
 
     def set_jtag_frequency(self, freq=1120000):
         with self._lock:
@@ -229,8 +228,7 @@ class STLink(object):
                         response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_SET_FREQ, d], readSize=2)
                         self._check_status(response)
                         return
-                else:
-                    raise exceptions.ProbeError("Selected JTAG frequency is too low")
+                raise exceptions.ProbeError("Selected JTAG frequency is too low")
     
     def get_com_frequencies(self, protocol):
         assert self._hw_version >= 3

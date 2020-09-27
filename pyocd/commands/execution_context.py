@@ -354,7 +354,6 @@ class CommandExecutionContext(object):
                         ", ".join("'%s'" % c for c in all_matches)))
             else:
                 raise exceptions.CommandError("unrecognized command '%s'" % cmd)
-            return
         
         return CommandInvocation(matched_command, args, self.execute_command)
 

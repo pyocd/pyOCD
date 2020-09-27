@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018,2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,8 +66,7 @@ class GPR(CoreSightComponent):
                 value = self.ap.read32(self.address + self.CPWRUPACK)
                 if (value & mask) == mask:
                     return True
-            else:
-                return False
+            return False
     
     def power_up_all(self):
         """! @brief Enable power to all available power domains.

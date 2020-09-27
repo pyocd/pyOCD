@@ -277,10 +277,6 @@ class GDBServer(threading.Thread):
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
 
-    def restart(self):
-        if self.is_alive():
-            self.detach_event.set()
-
     def stop(self):
         if self.is_alive():
             self.shutdown_event.set()

@@ -289,7 +289,6 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             try:
                 request = None
                 request_dict = None
-                request_id = -1
                 self._current_request_id = -1
                 
                 # Read request line.

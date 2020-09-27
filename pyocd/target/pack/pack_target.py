@@ -136,9 +136,9 @@ class PackTargets(object):
                 match = familyInfo.matches.match(compare_name)
                 if match and match.span() == (0, len(compare_name)):
                     return familyInfo.klass
-        else:
-            # Default target superclass.
-            return CoreSightTarget
+
+        # Didn't match, so return default target superclass.
+        return CoreSightTarget
 
     @staticmethod
     def _generate_pack_target_class(dev):

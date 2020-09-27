@@ -79,6 +79,10 @@ class ELFSection(MemoryRange):
         if flagsDesc[-1] == '|':
             flagsDesc = flagsDesc[:-1]
         return flagsDesc
+    
+    def __eq__(self, other):
+        # Include section name in equality test.
+        return super(ELFSection, self).__eq__(other) and self.name == other.name
 
     def __repr__(self):
         return "<ELFSection@0x{0:x} {1} {2} {3} {4} {5}>".format(

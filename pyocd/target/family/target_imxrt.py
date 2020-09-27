@@ -112,14 +112,14 @@ class CortexM7_IMXRT(CortexM):
                 try:
                     # Read user Image Vector Table address
                     vectable = self.read_memory(vectable_addr)
-                except:
+                except exceptions.TransferFaultError:
                     pass
 
                 if vectable and vectable != 0xFFFFFFFF:
                     try:
                         # Read user image entry point and clear Thumb bit
                         imageentry = self.read_memory(vectable + 4) & (~0x00000001)
-                    except:
+                    except exceptions.TransferFaultError:
                         pass
                     if imageentry and imageentry != 0xFFFFFFFF:
                         LOG.debug("vectable: %s, imageentry: %s" % (vectable, imageentry))

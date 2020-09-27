@@ -47,8 +47,8 @@ class TraceEventFilter(TraceEventSink):
         event = self.filter(event)
         if (event is not None) and (self._sink is not None):
             if isinstance(event, collections.Iterable):
-                for e in event:
-                    self._sink.receive(event)
+                for event_item in event:
+                    self._sink.receive(event_item)
             else:
                 self._sink.receive(event)
     
