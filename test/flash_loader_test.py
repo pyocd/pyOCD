@@ -45,11 +45,6 @@ from test_util import (
     get_test_binary_path,
     )
 
-addr = 0
-size = 0
-
-board = None
-
 class FlashLoaderTestResult(TestResult):
     def __init__(self):
         super(FlashLoaderTestResult, self).__init__(None, None, None)
