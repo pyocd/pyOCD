@@ -21,10 +21,8 @@ from ..core.target import Target
 from ..core.memory_map import MemoryType
 from ..core.soc_target import SoCTarget
 from ..core import exceptions
-from . import (dap, discovery, cortex_m, cortex_m_v8m, rom_table)
-from ..debug.svd.loader import (SVDFile, SVDLoader)
-from ..debug.cache import CachingDebugContext
-from ..utility.graph import GraphNode
+from . import (dap, discovery)
+from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
 from ..target.pack.flash_algo import PackFlashAlgo
 

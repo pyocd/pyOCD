@@ -16,10 +16,9 @@
 
 import logging
 import prettytable
-import textwrap
 
 from .. import coresight
-from ..core import (exceptions, session)
+from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target

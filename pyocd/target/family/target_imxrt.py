@@ -16,6 +16,8 @@
 # limitations under the License.
 
 import logging
+
+from ...core import exceptions
 from ...core.memory_map import MemoryType
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM

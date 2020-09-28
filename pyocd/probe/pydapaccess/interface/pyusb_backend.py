@@ -30,7 +30,6 @@ from .common import (
     check_ep,
     )
 from ..dap_access_api import DAPAccessIntf
-from ... import common
 
 LOG = logging.getLogger(__name__)
 

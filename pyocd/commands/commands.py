@@ -21,7 +21,7 @@ import textwrap
 
 from .. import coresight
 from ..core.helpers import ConnectHelper
-from ..core import (exceptions, session)
+from ..core import exceptions
 from ..probe.tcp_probe_server import DebugProbeServer
 from ..core.target import Target
 from ..flash.loader import FlashLoader
@@ -44,7 +44,6 @@ from ..utility.mask import (
     msb,
     bfx,
     bfi,
-    round_up_div,
     )
 from .base import CommandBase
 

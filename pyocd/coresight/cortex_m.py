@@ -16,7 +16,6 @@
 
 import logging
 from time import (time, sleep)
-from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
 from ..core import exceptions

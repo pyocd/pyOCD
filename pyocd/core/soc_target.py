@@ -15,11 +15,8 @@
 # limitations under the License.
 
 import logging
-import six
 
 from .target import Target
-from .memory_map import MemoryType
-from . import exceptions
 from ..flash.eraser import FlashEraser
 from ..debug.cache import CachingDebugContext
 from ..debug.elf.elf import ELFBinaryFile

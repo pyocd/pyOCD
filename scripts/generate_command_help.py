@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
-import textwrap
 import pyocd.commands.commands
 import pyocd.commands.values
 from pyocd.commands.base import (
     ALL_COMMANDS,
-    CommandBase,
     ValueBase,
     )
 

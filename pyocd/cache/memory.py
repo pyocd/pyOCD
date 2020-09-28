@@ -17,7 +17,6 @@
 from intervaltree import (Interval, IntervalTree)
 import logging
 
-from ..core import exceptions
 from ..utility import conversion
 from .metrics import CacheMetrics
 

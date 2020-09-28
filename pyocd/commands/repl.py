@@ -17,7 +17,6 @@
 from __future__ import print_function
 import logging
 import os
-import sys
 import six
 import traceback
 import atexit
