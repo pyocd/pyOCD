@@ -208,8 +208,18 @@ class TestResult(object):
                         type="failure"
                         )
         system_out = ElementTree.SubElement(case, 'system-out')
-        system_out.text = self.output
+        system_out.text = self.filter_output(self.output)
         return case
+    
+    def filter_output(self, output):
+        """! @brief Hex-encode null byte and control characters."""
+        result = six.text_type()
+        for c in output:
+            if (c not in ('\n', '\r', '\t')) and (0 <= ord(c) <= 31):
+                result += u"\\x{:02x}".format(ord(c))
+            else:
+                result += c
+        return result
 
 class Test(object):
 
