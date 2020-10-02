@@ -16,6 +16,7 @@
 
 from __future__ import print_function
 import logging
+import os
 import traceback
 
 from ..core.helpers import ConnectHelper
@@ -215,7 +216,7 @@ class PyOCDCommander(object):
 
         # Set elf file if provided.
         if self.args.elf:
-            self.target.elf = os.path.expanduser(self.args.elf)
+            self.session.target.elf = os.path.expanduser(self.args.elf)
 
         # Handle a device with flash security enabled.
         if not self.args.no_init and self.session.target.is_locked():
