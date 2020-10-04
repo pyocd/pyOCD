@@ -14,8 +14,8 @@ nearly every Cortex-M device on the market is supported.
 
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
-- `gdbserver`: GDB remote server allows you to debug using gdb via either
-    [GNU MCU Eclipse plug-in](https://gnu-mcu-eclipse.github.io/) or the console.
+- `gdbserver`: GDB remote server allows you to debug using gdb via either the console or
+    [several GUI debugger options](#recommended-gdb-and-ide-setup).
 - `flash`: Program files of various formats into flash memory.
 - `erase`: Erase part or all of an MCU's flash memory.
 - `pack`: Manage [CMSIS Device Family Packs](http://arm-software.github.io/CMSIS_5/Pack/html/index.html)
@@ -38,20 +38,29 @@ The API and tools provide these features:
 -  SWO and SWV
 -  and more!
 
-Configuration and customization is supported through [config files](docs/configuration.md) and
-[user scripts](docs/user_scripts.md).
+Configuration and customization is supported through [config files](docs/configuration.md),
+[user scripts](docs/user_scripts.md), and the Python API.
+
+
+News
+----
+
+- PyOCD has moved to [its own organization](https://github.com/pyocd/) on GitHub! You will continue to see
+    further changes to increase communication and make pyOCD a more independent and open project.
+
+- _**Important note**: Python 2 support is deprecated and is planned to be dropped from an upcoming release._
+Existing releases of pyOCD will, of course, continue to work with Python 2. If this is a major problem for you
+moving forward, please create a [new issue](https://github.com/mbedmicro/pyOCD/issues/new/choose) describing
+your concerns.
 
 
 Requirements
 ------------
 
-_**Important note**: Python 2 support is deprecated and is planned to be dropped from an upcoming release.
-Existing releases of pyOCD will, of course, continue to work with Python 2. If this is a major issue for you
-moving forward, please create a [new issue](https://github.com/mbedmicro/pyOCD/issues/new/choose) describing
-your concerns._
-
-- Python 3.6.0 or later (preferred), or Python 2.7.9 or later
+- Python 3.6.0 or later. Currently Python 2.7.9 or later also works, but see note above about Python 2 support
+    being deprecated.
 - macOS, Linux, or Windows 7 or newer
+- A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
   - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID),
