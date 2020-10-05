@@ -20,12 +20,13 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core.target import Target
 from ..core import exceptions
+from ..core.memory_map import (MemoryMap, RamRegion, DeviceRegion)
 from ..utility import (cmdline, conversion, timeout)
 from ..utility.notification import Notification
 from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture)
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
 
@@ -208,6 +209,7 @@ class CortexM(Target, CoreSightCoreComponent):
     DEMCR = 0xE000EDFC
     # DWTENA in armv6 architecture reference manual
     DEMCR_TRCENA = (1 << 24)
+    DEMCR_VC_SFERR = (1 << 11)
     DEMCR_VC_HARDERR = (1 << 10)
     DEMCR_VC_INTERR = (1 << 9)
     DEMCR_VC_BUSERR = (1 << 8)
@@ -394,10 +396,16 @@ class CortexM(Target, CoreSightCoreComponent):
         return core
 
     def __init__(self, session, ap, memoryMap=None, core_num=0, cmpid=None, address=None):
+        # Supply a default memory map.
+        if (memoryMap is None) or (memoryMap.region_count == 0):
+            memoryMap = self._create_default_cortex_m_memory_map()
+            LOG.debug("Using default memory map for core #%d (no memory map supplied)", core_num)
+        
         Target.__init__(self, session, memoryMap)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
         self._architecture = None
+        self._extensions = []
         self.core_type = 0
         self.has_fpu = False
         self.core_number = core_num
@@ -439,6 +447,11 @@ class CortexM(Target, CoreSightCoreComponent):
     def architecture(self):
         """! @brief @ref pyocd.coresight.core_ids.CoreArchitecture "CoreArchitecture" for this core."""
         return self._architecture
+
+    @property
+    def extensions(self):
+        """! @brief List of extensions supported by this core."""
+        return self._extensions
 
     @property
     def elf(self):
@@ -511,6 +524,19 @@ class CortexM(Target, CoreSightCoreComponent):
                 self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
         self.call_delegate('did_stop_debug_core', core=self)
+
+    def _create_default_cortex_m_memory_map(self):
+        """! @brief Create a MemoryMap for the Cortex-M system address map."""
+        return MemoryMap(
+                RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
+                RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
+                DeviceRegion(name="Peripheral", start=0x40000000, length=0x20000000, access='rw'),
+                RamRegion(name="RAM1",          start=0x60000000, length=0x20000000, access='rwx'),
+                RamRegion(name="RAM2",          start=0x80000000, length=0x20000000, access='rwx'),
+                DeviceRegion(name="Device1",    start=0xA0000000, length=0x20000000, access='rw'),
+                DeviceRegion(name="Device2",    start=0xC0000000, length=0x20000000, access='rw'),
+                DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
+                )
 
     def build_target_xml(self):
         """! @brief Build register_list and targetXML"""
@@ -616,6 +642,8 @@ class CortexM(Target, CoreSightCoreComponent):
         self.write32(CortexM.CPACR, originalCpacr)
 
         if self.has_fpu:
+            self._extensions.append(CortexMExtension.FPU)
+            
             # Now check whether double-precision is supported.
             # (Minimal tests to distinguish current permitted ARMv7-M and
             # ARMv8-M FPU types; used for printing only).
@@ -626,11 +654,12 @@ class CortexM(Target, CoreSightCoreComponent):
             vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
 
             if dp_val >= 2:
-                fpu_type = "FPv5"
+                fpu_type = "FPv5-D16-M"
+                self._extensions.append(CortexMExtension.FPU_DP)
             elif vfp_misc_val >= 4:
-                fpu_type = "FPv5-SP"
+                fpu_type = "FPv5-SP-D16-M"
             else:
-                fpu_type = "FPv4-SP"
+                fpu_type = "FPv4-SP-D16-M"
             LOG.info("FPU present: " + fpu_type)
 
     def write_memory(self, addr, value, transfer_size=32):
@@ -963,17 +992,21 @@ class CortexM(Target, CoreSightCoreComponent):
         self.reset(reset_type)
 
         # wait until the unit resets
-        with timeout.Timeout(2.0) as t_o:
+        with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
             while t_o.check():
                 if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
                     break
                 sleep(0.01)
+            else:
+                LOG.warning("Timed out waiting for target to complete reset (state is %s)", self.get_state().name)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
-        # points to an invalid address.
-        xpsr = self.read_core_register('xpsr')
-        if xpsr & self.XPSR_THUMB == 0:
-            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+        # points to an invalid address. Only do this if the core is actually halted, otherwise we
+        # can't access XPSR.
+        if self.get_state() == Target.State.HALTED:
+            xpsr = self.read_core_register('xpsr')
+            if xpsr & self.XPSR_THUMB == 0:
+                self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
 
         # Restore to original state.
         self.clear_reset_catch(reset_type)
@@ -1289,6 +1322,8 @@ class CortexM(Target, CoreSightCoreComponent):
             result |= CortexM.DEMCR_VC_NOCPERR
         if mask & Target.VectorCatch.CORE_RESET:
             result |= CortexM.DEMCR_VC_CORERESET
+        if mask & Target.VectorCatch.SECURE_FAULT:
+            result |= CortexM.DEMCR_VC_SFERR
         return result
 
     @staticmethod
@@ -1310,6 +1345,8 @@ class CortexM(Target, CoreSightCoreComponent):
             result |= Target.VectorCatch.COPROCESSOR_ERR
         if mask & CortexM.DEMCR_VC_CORERESET:
             result |= Target.VectorCatch.CORE_RESET
+        if mask & CortexM.DEMCR_VC_SFERR:
+            result |= Target.VectorCatch.SECURE_FAULT
         return result
 
     def set_vector_catch(self, enableMask):

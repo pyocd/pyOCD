@@ -67,21 +67,22 @@ Controls how pyOCD connects to the target. One of 'halt', 'pre-reset', 'under-re
 Wire protocol, either 'swd', 'jtag', or 'default'.
 </td></tr>
 
-<tr><td>dap_enable_swj</td>
+<tr><td>dap_swj_enable</td>
 <td>bool</td>
 <td>True</td>
 <td>
 Send SWJ transition sequence to switch between SWD and JTAG.
 </td></tr>
 
-<tr><td>dap_use_deprecated_swj</td>
+<tr><td>dap_swj_use_dormant</td>
 <td>bool</td>
-<td>True</td>
+<td>False</td>
 <td>
-Use the SWJ sequence deprecated in ADIv5.2 to transition between SWD and JTAG rather than the new
-sequence that goes through dormant mode. Requires a SWJ-DPv2. Note that if the connection attempt
-fails using the deprecated sequence, then pyOCD will automatically attempt to use the new sequence.
-This option simply skips the deprecated sequence in case it causes problems.
+When switching between SWD and JTAG, use the SWJ sequence added in ADIv5.2 that transitions through
+a new dormant state. Requires a SWJ-DPv2. Note that if the connection attempt fails using the
+deprecated sequence (when this option is disabled), then pyOCD will automatically attempt to use the
+new sequence. This option simply skips the deprecated sequence in case it causes problems or it is
+known that dormant state is required for the target.
 </td></tr>
 
 <tr><td>debug.log_flm_info</td>
@@ -161,13 +162,6 @@ Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(
 list of available targets.
 </td></tr>
 
-<tr><td>probe_all_aps</td>
-<td>bool</td>
-<td>False</td>
-<td>
-Controls whether all 256 ADIv5 AP addresses will be probed.
-</td></tr>
-
 <tr><td>project_dir</td>
 <td>str</td>
 <td><i>See description.</i></td>
@@ -198,11 +192,25 @@ Number of seconds to hold hardware reset asserted.
 Number of seconds to delay after a reset is issued.
 </td></tr>
 
+<tr><td>reset.halt_timeout</td>
+<td>float</td>
+<td>2.0</td>
+<td>
+Timeout for waiting for the core to halt after a reset and halt.
+</td></tr>
+
 <tr><td>resume_on_disconnect</td>
 <td>bool</td>
 <td>True</td>
 <td>
 Whether to resume a halted target when disconnecting.
+</td></tr>
+
+<tr><td>scan_all_aps</td>
+<td>bool</td>
+<td>False</td>
+<td>
+Controls whether all 256 ADIv5 AP addresses will be probed.
 </td></tr>
 
 <tr><td>smart_flash</td>
@@ -359,6 +367,7 @@ The source letters are:
 - `h`=hard fault
 - `b`=bus fault
 - `m`=mem fault
+- `e`=secure fault
 - `i`=irq err
 - `s`=state err
 - `c`=check err
@@ -380,7 +389,7 @@ presentation in gdb.
 
 ## J-Link probe options
 
-These user options apply to SEGGER J-Link debug probes
+These user options are available when the SEGGER J-Link debug probe plugin is active.
 
 <table>
 

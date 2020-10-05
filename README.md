@@ -59,6 +59,7 @@ Requirements
     - Keil ULINKplus
   - SEGGER J-Link (experimental)
   - STLinkV2 or STLinkV3, either on-board or the standalone versions.
+  - PEMicro(Cyclone / Multilink) or OpenSDA, either on-board or the standalone versions.
 
 
 Status

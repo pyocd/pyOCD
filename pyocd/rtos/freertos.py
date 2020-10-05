@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
 from ..core import exceptions
 from ..core.target import Target
+from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 import logging
@@ -531,3 +532,17 @@ class FreeRTOSThreadProvider(ThreadProvider):
                     LOG.debug("FreeRTOS symbol '%s' size (%ld) from elf file matches calculated value", name, calculated_size)
                 return symInfo.size
         return calculated_size
+
+class FreeRTOSPlugin(Plugin):
+    """! @brief Plugin class for FreeRTOS."""
+    
+    def load(self):
+        return FreeRTOSThreadProvider
+    
+    @property
+    def name(self):
+        return "freertos"
+    
+    @property
+    def description(self):
+        return "FreeRTOS"

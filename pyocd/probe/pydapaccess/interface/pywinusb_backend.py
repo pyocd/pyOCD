@@ -83,13 +83,14 @@ class PyWinUSB(Interface):
                     # If the device could not be opened in read only mode
                     # Then it either has been disconnected or is in use
                     # by another thread/process
-                    raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
+                    raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device %s"
+                            % self.serial_number), exc)
 
             else:
                 # If this timeout has elapsed then another process
                 # has locked this device in shared mode. This should
                 # not happen.
-                assert False
+                raise DAPAccessIntf.DeviceError("timed out attempting to open device %s" % self.serial_number)
 
     @staticmethod
     def get_all_connected_interfaces():

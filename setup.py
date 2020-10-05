@@ -110,6 +110,18 @@ setup(
             'pyocd-flashtool = pyocd.tools.flash_tool:main',
             'pyocd-tool = pyocd.tools.pyocd:main',
         ],
+        'pyocd.probe': [
+            'cmsisdap = pyocd.probe.cmsis_dap_probe:CMSISDAPProbePlugin',
+            'jlink = pyocd.probe.jlink_probe:JLinkProbePlugin',
+            'stlink = pyocd.probe.stlink_probe:StlinkProbePlugin',
+            'pemicro = pyocd.probe.pemicro_probe:PEMicroProbePlugin',
+        ],
+        'pyocd.rtos': [
+            'argon = pyocd.rtos.argon:ArgonPlugin',
+            'freertos = pyocd.rtos.freertos:FreeRTOSPlugin',
+            'zephyr = pyocd.rtos.zephyr:ZephyrPlugin',
+            'rtx5 = pyocd.rtos.rtx5:RTX5Plugin',
+        ],
     },
     packages=find_packages(),
     include_package_data=True,  # include files from MANIFEST.in

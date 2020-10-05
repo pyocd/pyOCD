@@ -20,6 +20,7 @@ import logging
 from time import sleep
 
 from .debug_probe import DebugProbe
+from ..core.plugin import Plugin
 from ..core import (exceptions, memory_interface)
 
 LOG = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class PEMicroProbe(DebugProbe):
             return None
 
     @classmethod
-    def get_all_connected_probes(cls):
+    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         try:
             pemicro = cls._get_pemicro()
             if pemicro is None:
@@ -65,7 +66,7 @@ class PEMicroProbe(DebugProbe):
             six.raise_from(cls._convert_exception(exc), exc)
 
     @classmethod
-    def get_probe_with_id(cls, unique_id):
+    def get_probe_with_id(cls, unique_id, is_explicit=False):
         try:
             pemicro = cls._get_pemicro()
             if pemicro is None:
@@ -308,3 +309,17 @@ class PEMicroProbe(DebugProbe):
             return exceptions.ProbeError(str(exc))
         else:
             return exc
+
+class PEMicroProbePlugin(Plugin):
+    """! @brief Plugin class for CMSISDAPProbe."""
+    
+    def load(self):
+        return PEMicroProbe
+    
+    @property
+    def name(self):
+        return "pemicro"
+    
+    @property
+    def description(self):
+        return "PEMicro debug probe"

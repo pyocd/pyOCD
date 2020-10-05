@@ -17,7 +17,7 @@
 import logging
 
 from .cortex_m import CortexM
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture)
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
 from ..core import exceptions
 from ..core.target import Target
 
@@ -82,6 +82,8 @@ class CortexM_v8M(CortexM):
         pfr1 = self.read32(self.PFR1)
         pfr1_sec = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT)
         self.has_security_extension = pfr1_sec in (self.PFR1_SECURITY_EXT_V8_0, self.PFR1_SECURITY_EXT_V8_1)
+        if self.has_security_extension:
+            self._extensions.append(CortexMExtension.SEC)
         
         if arch == self.ARMv8M_BASE:
             self._architecture = CoreArchitecture.ARMv8M_BASE

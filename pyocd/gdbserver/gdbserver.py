@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1164,7 +1164,7 @@ class GDBServer(threading.Thread):
         try:
             ipsr = self.target_context.read_core_register('ipsr')
             return self.target_context.core.exception_number_to_name(ipsr)
-        except:
+        except exceptions.Error:
             return None
 
     def event_handler(self, notification):

@@ -57,4 +57,20 @@ class CoreArchitecture(Enum):
     ARMv8M_BASE = 3
     ARMv8M_MAIN = 4
     
-
+class CortexMExtension(Enum):
+    """! @brief Extensions for the Cortex-M architecture."""
+    FPU = "FPU" # Single-Precision floating point
+    DSP = "DSP" # Digital Signal Processing instructions
+    FPU_DP = "FPU_DP" # Double-Precision floating point
+    FPU_HP = "FPU_HP" # Half-Precision floating point
+    SEC = "SEC" # Security Extension
+    MVE = "MVE" # M-profile Vector Extension
+    UDE = "UDE" # Unprivileged Debug Extension
+    RAS = "RAS" # Reliability, Serviceability, and Availability
+    PMU = "PMU" # Performance Monitoring Unit
+    LOB = "LOB" # Low-Overhead loops and Branch Future
+    PXN = "PXN" # Privileged eXecute-Never
+    MAIN = "MAIN" # Main Extension
+    MPU = "MPU" # Memory Protection Unit
+    DIT = "DIT" # Data-Independent Timing
+    FPCXT = "FPCXT" # Floating Point Context

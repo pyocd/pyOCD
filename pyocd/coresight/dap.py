@@ -134,9 +134,9 @@ class DPConnector(object):
         @exception TransferError
         """
         protocol_name = self._session.options.get('dap_protocol').strip().lower()
-        send_swj = self._session.options.get('dap_enable_swj') \
+        send_swj = self._session.options.get('dap_swj_enable') \
                 and (DebugProbe.Capability.SWJ_SEQUENCE in self._probe.capabilities)
-        use_deprecated = self._session.options.get('dap_use_deprecated_swj')
+        use_dormant = self._session.options.get('dap_swj_use_dormant')
 
         # Convert protocol from setting if not passed as parameter.
         if protocol is None:
@@ -155,7 +155,7 @@ class DPConnector(object):
             LOG.debug("Default wire protocol selected; using %s", protocol.name)
         
         # Create object to send SWJ sequences.
-        swj = SWJSequenceSender(self._probe, use_deprecated)
+        swj = SWJSequenceSender(self._probe, use_dormant)
         
         # Multiple attempts to select protocol and read DP IDR.
         for attempt in range(4):
@@ -175,16 +175,16 @@ class DPConnector(object):
                 
                 # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
                 # in a state where it thought the SWJ sequence was an invalid transfer. We also
-                # try 
-                LOG.debug("DP IDCODE read failed; resending SWJ sequence (use deprecated=%s)", use_deprecated)
+                # try enabling use of dormant state if it wasn't already enabled.
+                LOG.debug("DP IDCODE read failed; resending SWJ sequence (use dormant=%s)", use_dormant)
                 
                 if attempt == 1:
                     # If already using dormant mode, just raise, we don't need to retry the same mode.
-                    if not use_deprecated:
+                    if use_dormant:
                         raise
                     
                     # After the second attempt, switch to enabling dormant mode.
-                    swj.use_deprecated = False
+                    swj.use_dormant = True
                 elif attempt == 3:
                     # After 4 attempts, we let the exception propagate.
                     raise
@@ -639,7 +639,7 @@ class DebugPort(object):
         try:
             did_lock = self._select_ap(addr)
             TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
-            result_cb = self.probe.read_ap_multiple(addr, count, now=False)
+            result_cb = self.probe.read_ap_multiple(addr, count, now=now)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
@@ -661,7 +661,7 @@ class DebugPort(object):
                     self.unlock()
 
         if now:
-            return read_ap_multiple_cb()
+            return result_cb
         else:
             return read_ap_multiple_cb
 

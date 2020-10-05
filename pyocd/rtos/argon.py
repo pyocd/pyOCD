@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
 from ..core import exceptions
 from ..core.target import Target
+from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m import (CORE_REGISTER, register_name_to_index)
 from ..trace import events
@@ -518,4 +519,18 @@ class ArgonTraceEventFilter(TraceEventFilter):
                 self._pending_event = None
 
         return event        
+
+class ArgonPlugin(Plugin):
+    """! @brief Plugin class for the Argon RTOS."""
+    
+    def load(self):
+        return ArgonThreadProvider
+    
+    @property
+    def name(self):
+        return "argon"
+    
+    @property
+    def description(self):
+        return "Argon RTOS"
 
