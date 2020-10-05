@@ -43,7 +43,7 @@ import logging
 import os.path
 import platform
 import sys
-from ctypes import cdll, c_bool, c_ulong, c_ushort, c_char_p, c_byte, c_void_p, byref
+from ctypes import cdll, c_bool, c_ulong, c_ushort, c_char_p, c_byte, c_void_p, byref, WinDLL, wintypes
 from enum import IntEnum
 
 
@@ -158,18 +158,222 @@ class PyPemicro():
 
         return libs[platform.system()][pointer_size]    # type: ignore
 
-    # @staticmethod
-    # def free_library(handle: Any) -> None:
-    #     """Freed library.
+    @staticmethod
+    def free_library(handle: Any) -> None:
+        """Freed library.
 
-    #     :param handle: Handle of library to freed.
-    #     """
-    #     kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-    #     kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
-    #     kernel32.FreeLibrary(handle)
+        :param handle: Handle of library to freed.
+        """
+		# Delete the object
+        kernel32 = WinDLL('kernel32', use_last_error=True)
+        kernel32.FreeLibrary.argtypes = [wintypes.HMODULE]
+        kernel32.FreeLibrary(handle)
 
-    # pylint: disable=too-many-branches
-    # pylint: disable=too-many-statements
+    @staticmethod
+    def _load_pemicro_lib_info(dll_path: str, lib_name: str) -> dict:
+        """Get the PEMicro library info.
+
+        Help function to try load and fill up information
+        about the Pemicro DLL on specified path.
+        :param dll_path: path to look for the library.
+        :param lib_name: name of the library.
+        :return: Fill up information about libraray on specified path
+        :raises PEMicroException: Cannot load the library
+        """
+        try:
+            lib_info = {}
+            lib_info["path"] = dll_path
+            lib_info["name"] = lib_name
+            dll = cdll.LoadLibrary(os.path.join(dll_path, lib_name))
+
+            # char * version(void);
+            dll.version.restype = c_char_p
+            # unsigned short get_dll_version(void);
+            dll.get_dll_version.restype = c_ushort
+
+            lib_info["version"] = dll.version()
+            lib_info["version_num"] = dll.get_dll_version()
+        except FileNotFoundError as exc:
+            raise PEMicroException(f"Cannot load the PEMICRO library({lib_name}) \
+                                        on this path:{dll_path}. Error({str(exc)})")
+        return lib_info
+
+    @staticmethod
+    def get_pemicro_lib_list(dllpath: str = None, search_generic: bool = True) -> list:
+        """Gets the description list of PEMicro DLL's.
+
+        :param dllpath: User way to add specific a DLL path.
+        :param search_generic: If it's True, the engine search also in general places in system.
+        :return: The List of serch results.
+        :raises PEMicroException: Various kind of issues
+        """
+        # Get the name of PEMicro dynamic library
+        lib_name = PyPemicro.get_library_name()
+        if lib_name is None:
+            raise PEMicroException("Unable to determinate running operation system")
+
+        library_dlls = list()
+        if dllpath is not None:
+            try:
+                library_dlls.append(PyPemicro._load_pemicro_lib_info(dllpath, lib_name))
+            except PEMicroException as exc:
+                logger.debug(f"{str(exc)}")
+
+        if search_generic is True:
+            # Look in System Folders
+            try:
+                library_dlls.append(PyPemicro._load_pemicro_lib_info("", lib_name))
+            except PEMicroException as exc:
+                logger.debug(f"{str(exc)}")
+            # Look in the folder with .py file
+            try:
+                library_dlls.append(PyPemicro._load_pemicro_lib_info(os.path.dirname(__file__), lib_name))
+            except PEMicroException as exc:
+                logger.debug(f"{str(exc)}")
+            # Look in a local library storage snapshot
+            try:
+                os_utility_path = os.path.join("libs", PyPemicro.get_user_friendly_os_name())
+                library_dlls.append(PyPemicro._load_pemicro_lib_info(os.path.join(os.path.dirname(__file__),
+                                                                                  os_utility_path),
+                                                                     lib_name))
+            except PEMicroException as exc:
+                logger.debug(f"{str(exc)}")
+
+        return library_dlls
+
+    @staticmethod
+    def open_library(file_name: str) -> Any:
+        """Open PEMicro library with specified full path.
+
+        :param file_name: File Name of PEMicro dynamic library.
+        :return: Fill up infomrmation about libraray and library itself
+        :raises PEMicroException: Cannot load the library
+        """
+        if file_name is None:
+            raise PEMicroException("The libray file name MSUT be specified.")
+
+        # Open the Pemicro library and
+        dll = cdll.LoadLibrary(file_name)
+
+        if dll is None:
+            raise PEMicroException("The PEMicro library load failed.")
+
+        # bool pe_special_features(unsigned long featurenum,
+        #                         bool set_feature,
+        #                         unsigned long paramvalue1,
+        #                         unsigned long paramvalue2,
+        #                         unsigned long paramvalue3,
+        #                         void *paramreference1,
+        #                         void *paramreference2);
+        dll.pe_special_features.argtypes = [c_ulong,
+                                            c_bool,
+                                            c_ulong,
+                                            c_ulong,
+                                            c_ulong,
+                                            c_void_p,
+                                            c_void_p]
+        dll.pe_special_features.restype = c_bool
+
+        # bool open_port(unsigned int PortType, unsigned int PortNum);
+        dll.open_port.argtypes = [c_ulong, c_ulong]
+        dll.open_port.restype = c_bool
+
+        # void close_port(void);
+        #  No parameters and return value
+
+        dll.open_port_by_identifier.argtypes = [c_char_p]
+        dll.open_port_by_identifier.restype = c_bool
+
+        # bool reenumerate_all_port_types(void);
+        dll.reenumerate_all_port_types.restype = c_bool
+
+        # unsigned int get_enumerated_number_of_ports(unsigned int PortType);
+        dll.get_enumerated_number_of_ports.argtypes = [c_ulong]
+        dll.get_enumerated_number_of_ports.restype = c_ulong
+
+        # char * get_port_descriptor(unsigned int PortType, unsigned int PortNum);
+        dll.get_port_descriptor.argtypes = [c_ulong, c_ulong]
+        dll.get_port_descriptor.restype = c_char_p
+
+        # char * get_port_descriptor_short(unsigned int PortType, unsigned int PortNum);
+        dll.get_port_descriptor_short.argtypes = [c_ulong, c_ulong]
+        dll.get_port_descriptor_short.restype = c_char_p
+
+        # void reset_hardware_interface(void);
+        #  No parameters and return value
+
+        # unsigned char check_critical_error(void);
+        dll.check_critical_error.restype = c_byte
+
+        # char * version(void);
+        dll.version.restype = c_char_p
+
+        # unsigned short get_dll_version(void);
+        dll.get_dll_version.restype = c_ushort
+
+        # void set_debug_shift_frequency (signed long shift_speed_in_hz);
+        dll.set_debug_shift_frequency.argtypes = [c_ulong]
+
+        # void set_reset_delay_in_ms(unsigned int delaylength);
+        dll.set_reset_delay_in_ms.argtypes = [c_ulong]
+
+        # bool target_reset(void);
+        dll.target_reset.restype = c_bool
+
+        # bool target_resume(void);
+        dll.target_resume.restype = c_bool
+
+        # bool target_halt(void);
+        dll.target_halt.restype = c_bool
+
+        # void set_reset_pin_state(unsigned char state)
+        dll.set_reset_pin_state.argtypes = [c_byte]
+
+        if dll.pe_special_features(PEMicroSpecialFeatures.PE_SET_DEFAULT_APPLICATION_FILES_DIRECTORY,
+                                   True,
+                                   0,
+                                   0,
+                                   0,
+                                   c_char_p(os.path.dirname(os.path.abspath(file_name).encode('utf-8'))),
+                                   None) is False:
+            raise PEMicroException("The special feature command hasn't accepted")
+
+        return dll
+
+    @staticmethod
+    def get_lib_filename(lib_record: dict) -> str:
+        """Get the filename from the library dictionary record.
+
+        Convert the dictionary record to filename.
+        :param lib_record: Input dictionary record.
+        :return: File name path in string.
+        """
+        return os.path.join(lib_record['path'], lib_record['name'])
+
+    @staticmethod
+    def get_newest_lib_filename(lib_list: list) -> str:
+        """Gets the latest version of PEMicro library from list.
+
+        :param lib_list: List of PEMicro libraries in system
+                         (for example it can be get by get_pemicro_lib_list() method).
+        :return: The absolute path to PEMicro library.
+        :raises PEMicroException: Various kind of issues
+        """
+        if lib_list is None:
+            raise PEMicroException("The input list must exists")
+
+        # Get the best one library from the list now
+        if len(lib_list) == 0:
+            raise PEMicroException("Unable to find any usable library in the system!")
+
+        # Find the latest version from all loaded libraries
+        ver_ix = 0
+        for count, item in enumerate(lib_list):
+            if item["version_num"] > lib_list[ver_ix]["version_num"]:
+                ver_ix = count
+
+        return PyPemicro.get_lib_filename(lib_list[ver_ix])
+
     @staticmethod
     def get_pemicro_lib(dllpath: str = None, get_newest: bool = True) -> Any:
         """Gets the best possible PEMicro DLL.
@@ -179,155 +383,16 @@ class PyPemicro():
         :return: The PEMicro CDLL Python object.
         :raises PEMicroException: Various kind of issues
         """
-        def _load_pemicro(dll_path: str, lib_name: str) -> dict:
-            """Get the library and its info.
+        try:
+            libs_list = PyPemicro.get_pemicro_lib_list(dllpath=dllpath)
+            if get_newest:
+                filename = PyPemicro.get_newest_lib_filename(libs_list)
+            else:
+                filename = PyPemicro.get_lib_filename(libs_list[0])
+        except PEMicroException as exc:
+            raise PEMicroException(str(exc))
 
-            Local help function to try load and fill up information
-            about the Pemicro DLL on specified path.
-            :param dll_path: path to look for the library.
-            :param lib_name: name of the library.
-            :return: Fill up infomrmation about libraray and library itself
-            :raises PEMicroException: Cannot load the library
-            """
-            try:
-                lib = {}
-                lib["path"] = dll_path
-                lib["name"] = lib_name
-                dll = cdll.LoadLibrary(os.path.join(dll_path, lib_name))
-
-                # char * version(void);
-                dll.version.restype = c_char_p
-                # unsigned short get_dll_version(void);
-                dll.get_dll_version.restype = c_ushort
-
-                lib["version"] = dll.version()
-                lib["version_num"] = dll.get_dll_version()
-            except FileNotFoundError as exc:
-                raise PEMicroException(f"Cannot load the PEMICRO library({lib_name}) \
-                                         on this path:{dll_path}. Error({str(exc)})")
-            return lib
-
-        # Get the name of PEMicro dynamic library
-        lib_name = PyPemicro.get_library_name()
-        if lib_name is None:
-            raise PEMicroException("Unable to determinate running operation system")
-
-        library_dlls = list()
-        if dllpath is not None:
-            try:
-                library_dlls.append(_load_pemicro(dllpath, lib_name))
-            except PEMicroException as exc:
-                logger.debug(f"{str(exc)}")
-
-        if dllpath is None or get_newest is True:
-            # Look in System Folders
-            try:
-                library_dlls.append(_load_pemicro("", lib_name))
-            except PEMicroException as exc:
-                logger.debug(f"{str(exc)}")
-            # Look in the folder with .py file
-            try:
-                library_dlls.append(_load_pemicro(os.path.dirname(__file__), lib_name))
-            except PEMicroException as exc:
-                logger.debug(f"{str(exc)}")
-            # Look in a local library storage snapshot
-            try:
-                os_utility_path = os.path.join("libs", PyPemicro.get_user_friendly_os_name())
-                library_dlls.append(_load_pemicro(os.path.join(os.path.dirname(__file__), os_utility_path), lib_name))
-            except PEMicroException as exc:
-                logger.debug(f"{str(exc)}")
-
-        # Get the best one library from the list now
-        if len(library_dlls) == 0:
-            raise PEMicroException("Unable to find any usable library in the system!")
-
-        if get_newest is False:
-            # Just respect the original order of finding the library
-            pemicro_library = library_dlls[0]
-        else:
-            # Find the latest version from all loaded libraries
-            ver_ix = 0
-            index = 0
-            for lib in library_dlls:
-                if lib["version_num"] > library_dlls[ver_ix]["version_num"]:
-                    ver_ix = index
-                index += 1
-            pemicro_library = library_dlls[ver_ix]
-
-        if pemicro_library:
-            logger.info(f"Loaded the PEMICRO library({pemicro_library['name']}) on this path:{pemicro_library['path']}"+
-                        f". Version: {pemicro_library['version'].decode('utf-8')}")
-
-            dll = cdll.LoadLibrary(os.path.join(pemicro_library['path'], pemicro_library['name']))
-
-            dll.pe_special_features.argtypes = [c_ulong,
-                                                c_bool,
-                                                c_ulong,
-                                                c_ulong,
-                                                c_ulong,
-                                                c_void_p,
-                                                c_void_p]
-            dll.pe_special_features.restype = c_bool
-
-            # bool open_port(unsigned int PortType, unsigned int PortNum);
-            dll.open_port.argtypes = [c_ulong, c_ulong]
-            dll.open_port.restype = c_bool
-
-            # void close_port(void);
-            #  No parameters and return value
-
-            dll.open_port_by_identifier.argtypes = [c_char_p]
-            dll.open_port_by_identifier.restype = c_bool
-
-            # bool reenumerate_all_port_types(void);
-            dll.reenumerate_all_port_types.restype = c_bool
-
-            # unsigned int get_enumerated_number_of_ports(unsigned int PortType);
-            dll.get_enumerated_number_of_ports.argtypes = [c_ulong]
-            dll.get_enumerated_number_of_ports.restype = c_ulong
-
-            # char * get_port_descriptor(unsigned int PortType, unsigned int PortNum);
-            dll.get_port_descriptor.argtypes = [c_ulong, c_ulong]
-            dll.get_port_descriptor.restype = c_char_p
-
-            # char * get_port_descriptor_short(unsigned int PortType, unsigned int PortNum);
-            dll.get_port_descriptor_short.argtypes = [c_ulong, c_ulong]
-            dll.get_port_descriptor_short.restype = c_char_p
-
-            # void reset_hardware_interface(void);
-            #  No parameters and return value
-
-            # unsigned char check_critical_error(void);
-            dll.check_critical_error.restype = c_byte
-
-            # char * version(void);
-            dll.version.restype = c_char_p
-
-            # unsigned short get_dll_version(void);
-            dll.get_dll_version.restype = c_ushort
-
-            # void set_debug_shift_frequency (signed long shift_speed_in_hz);
-            dll.set_debug_shift_frequency.argtypes = [c_ulong]
-
-            # void set_reset_delay_in_ms(unsigned int delaylength);
-            dll.set_reset_delay_in_ms.argtypes = [c_ulong]
-
-            # bool target_reset(void);
-            dll.target_reset.restype = c_bool
-
-            # bool target_resume(void);
-            dll.target_resume.restype = c_bool
-
-            # void set_reset_pin_state(unsigned char state)
-            dll.set_reset_pin_state.argtypes = [c_byte]
-
-            if dll.pe_special_features(PEMicroSpecialFeatures.PE_SET_DEFAULT_APPLICATION_FILES_DIRECTORY,
-                                       True, 0, 0, 0, c_char_p(pemicro_library["path"].encode('utf-8')), None) is False:
-                raise PEMicroException("The special feature command hasn't accepted")
-
-            return dll
-
-        raise PEMicroException("The load of PEMicro DLL failed")
+        return PyPemicro.open_library(filename)
 
     @staticmethod
     def list_ports() -> list:
@@ -397,6 +462,7 @@ class PyPemicro():
         self.__open_ref_count = 0
         self.lib = None
         self.dllpath = dllpath
+        self.interface = PEMicroInterfaces.SWD
 
         #register logging objects
         self._log_info = log_info or logger.info
@@ -499,9 +565,9 @@ class PyPemicro():
         self.close()
         # Unload the library if neccessary
         if self.lib is not None:
-            # lib_handle = self.lib._handle
+            lib_handle = self.lib._handle
             del self.lib
-            # PyPemicro.free_library(lib_handle)
+            PyPemicro.free_library(lib_handle)
 
     def power_on(self) -> None:
         """Power on target."""
@@ -524,6 +590,36 @@ class PyPemicro():
         self._log_debug(f"Reset target")
         if self.lib.target_reset() is not True:
             raise PEMicroException("Reset target sequence failed")
+
+    def halt_target(self) -> None:
+        """Halt target.
+
+        Tries to place the CPU into the background mode via a special sequence.
+        Used to halt execution in a CPU currently running. For example, may be
+        used to halt the CPU after a resume command.
+
+        :raises PEMicroException: Various kind of exceptions.
+        """
+        if self.lib is None:
+            raise PEMicroException("Library is not loaded")
+
+        self._log_debug(f"Halt target")
+
+        if self.lib.target_halt() is not True:
+            raise PEMicroException("Halt target sequence failed")
+
+    def resume_target(self) -> None:
+        """Resume target.
+
+        :raises PEMicroException: Various kind of exceptions.
+        """
+        if self.lib is None:
+            raise PEMicroException("Library is not loaded")
+
+        self._log_debug(f"Resume target")
+
+        if self.lib.target_resume() is not True:
+            raise PEMicroException("Resume target sequence failed")
 
     def set_reset_delay_in_ms(self, delay: int) -> None:
         """Set the Reset delay.
@@ -592,7 +688,8 @@ class PyPemicro():
         if self.__open_ref_count == 0:
             raise PEMicroException("The connection is not opened, can't connect to target")
         self._log_debug(f"Selecting the communication interface to {str(interface)}")
-        if interface is PEMicroInterfaces.SWD:
+        self.interface = interface
+        if self.interface is PEMicroInterfaces.SWD:
             self._special_features(PEMicroSpecialFeatures.PE_ARM_SET_COMMUNICATIONS_MODE,
                                    par1=PEMicroSpecialFeatures.PE_ARM_SET_DEBUG_COMM_SWD)
         else:
@@ -655,9 +752,13 @@ class PyPemicro():
             if probe_error & 0x08:
                 # Connect and initialize the P&E hardware interface. This does not attempt to reset the target.
                 self.lib.reset_hardware_interface()
-            self._log_error(f"SWD Status failed during IO operation. status: 0x{swd_status:02X}")
-            raise PEMicroTransferException(f"SWD Status failed during IO operation. status: 0x{swd_status:02X}")
 
+            self.reset_target()
+            self.halt_target()
+
+            self._log_warning(f"SWD Status failed during IO operation. status: 0x{swd_status:02X},"+
+                              "the communication has been resumed by reset target sequence.")
+            raise PEMicroTransferException(f"SWD Status failed during IO operation. status: 0x{swd_status:02X}")
 
     def write_ap_register(self, apselect: int, addr: int, value: int, now: bool = False) -> None:
         """Write Access port register.
