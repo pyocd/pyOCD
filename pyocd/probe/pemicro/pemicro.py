@@ -43,7 +43,7 @@ import logging
 import os.path
 import platform
 import sys
-from ctypes import cdll, c_bool, c_ulong, c_ushort, c_char_p, c_byte, c_void_p, byref, WinDLL, wintypes
+from ctypes import cdll, c_bool, c_ulong, c_ushort, c_char_p, c_byte, c_void_p, byref
 from enum import IntEnum
 
 
@@ -157,17 +157,6 @@ class PyPemicro():
         pointer_size = "64bit" if sys.maxsize > 2**32 else "32bit"
 
         return libs[platform.system()][pointer_size]    # type: ignore
-
-    @staticmethod
-    def free_library(handle: Any) -> None:
-        """Freed library.
-
-        :param handle: Handle of library to freed.
-        """
-		# Delete the object
-        kernel32 = WinDLL('kernel32', use_last_error=True)
-        kernel32.FreeLibrary.argtypes = [wintypes.HMODULE]
-        kernel32.FreeLibrary(handle)
 
     @staticmethod
     def _load_pemicro_lib_info(dll_path: str, lib_name: str) -> dict:
@@ -565,9 +554,7 @@ class PyPemicro():
         self.close()
         # Unload the library if neccessary
         if self.lib is not None:
-            lib_handle = self.lib._handle
             del self.lib
-            PyPemicro.free_library(lib_handle)
 
     def power_on(self) -> None:
         """Power on target."""
