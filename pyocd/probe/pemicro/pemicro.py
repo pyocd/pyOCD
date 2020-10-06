@@ -100,6 +100,19 @@ class PEMicroInterfaces(IntEnum):
     JTAG = 0
     SWD = 1
 
+    @classmethod
+    def get_str(cls, interface: Any) -> str:
+        """Gets the string version of PEMicro Interface.
+
+        :param interface: The Interface in numeric format
+        :return: String format of interface.
+        """
+        if not isinstance(interface, cls):
+            return "Not selected"
+        else:
+            return "SWD" if interface is cls.SWD else "JTAG"
+
+
 
 class PEMicroException(Exception):
     """The base PEMicro implementation exception."""
@@ -678,7 +691,7 @@ class PyPemicro():
         except PEMicroException as exc:
             raise PEMicroException(f"Failed to connect to target: {str(exc)}")
 
-        self._log_info(f"Connected to target over {str(interface)} with clock {shift_speed}Hz")
+        self._log_info(f"Connected to target over {PEMicroInterfaces.get_str(interface)} with clock {shift_speed}Hz")
 
 
     def set_debug_frequency(self, freq: int) -> None:
