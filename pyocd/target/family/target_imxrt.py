@@ -60,13 +60,11 @@ class CortexM7_IMXRT(CortexM):
         0x03: "Reserved"
     }
 
-    def _get_flash_vector_addr(self):
-        mem = self.memory_map.get_boot_memory()
-        if mem and mem.type == MemoryType.FLASH:
-            return mem.start + 0x1004
-        return None
+    def __init__(self, *args, **kwargs):
+        super(CortexM7_IMXRT, self).__init__(*args, **kwargs)
+        self.get_boot_mode()
 
-    def set_reset_catch(self, reset_type=None):
+    def get_boot_mode(self):
         # Read Boot Mode
         # SBMR2: Bit 25..24:
         # BOOT_MODE[1:0]: 00b - Boot From Fuses
@@ -74,6 +72,10 @@ class CortexM7_IMXRT(CortexM):
         #                 10b - Internal Boot
         #                 11b - Reserved
         bootmode = (self.read_memory(CortexM7_IMXRT.SRC_SBMR2) & 0x03000000) >> 24
+        LOG.info("IMXRT Boot Mode: %s" % self.BOOT_MODES[bootmode])
+        return bootmode
+
+    def get_boot_device(self):
         # Read Boot Device
         # Boot Device: 0000b - Serial NOR boot via FlexSPI
         #              001xb - SD boot via uSDHC
@@ -82,8 +84,19 @@ class CortexM7_IMXRT(CortexM):
         #              0001b - Parallel NOR boot via SEMC
         #              11xxb - Serial NAND boot via FlexSPI
         bootdevice = (self.read_memory(CortexM7_IMXRT.SRC_SBMR1) & 0x000000F0) >> 4
-        LOG.info("IMXRT Boot mode: %s" % self.BOOT_MODES[bootmode])
+        LOG.info("IMXRT Boot Device: %x" % bootdevice)
+        return bootdevice
+
+    def _get_flash_vector_addr(self):
+        mem = self.memory_map.get_boot_memory()
+        if mem and mem.type == MemoryType.FLASH:
+            return mem.start + 0x1004
+        return None
+
+    def set_reset_catch(self, reset_type=None):
         self.did_normal_reset_catch = True
+        bootmode = self.get_boot_mode()
+        bootdevice = self.get_boot_device()
 
         # boot from flexspi_nor
         if bootmode == 2 and bootdevice == 0 and \
