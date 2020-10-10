@@ -34,9 +34,9 @@ LOG = logging.getLogger(__name__)
 
 class PyocdRepl(object):
     """! @brief Read-Eval-Print-Loop for pyOCD commander."""
-    
+
     PROMPT = 'pyocd> '
-    
+
     PYOCD_HISTORY_ENV_VAR = 'PYOCD_HISTORY'
     PYOCD_HISTORY_LENGTH_ENV_VAR = 'PYOCD_HISTORY_LENGTH'
     DEFAULT_HISTORY_FILE = ".pyocd_history"
@@ -44,15 +44,15 @@ class PyocdRepl(object):
     def __init__(self, command_context):
         self.context = command_context
         self.last_command = ''
-        
+
         # Enable readline history.
         self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
                 os.path.join(os.path.expanduser("~"), self.DEFAULT_HISTORY_FILE))
-        
+
         # Read command history and set history length.
         try:
             readline.read_history_file(self._history_path)
-            
+
             history_len = int(os.environ.get(self.PYOCD_HISTORY_LENGTH_ENV_VAR,
                     session.Session.get_current().options.get('commander.history_length')))
             readline.set_history_length(history_len)
@@ -79,7 +79,7 @@ class PyocdRepl(object):
             # Windows exits with a Ctrl-Z+Return, so there is no need for this.
             if os.name != "nt":
                 print()
-    
+
     def run_one_command(self, line):
         """! @brief Execute a single command line and handle exceptions."""
         try:
@@ -99,7 +99,3 @@ class PyocdRepl(object):
                 traceback.print_exc()
         except exceptions.CommandError as e:
             print("Error:", e)
-        except Exception as e:
-            print("Error:", e)
-            if session.Session.get_current().log_tracebacks:
-                traceback.print_exc()
