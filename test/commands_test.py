@@ -98,7 +98,7 @@ def commands_test(board_id):
         context.attach_session(session)
         
         COMMANDS_TO_TEST = [
-                "list",
+#                 "list",
                 "status",
                 "reset",
                 "reset halt",
@@ -174,7 +174,7 @@ def commands_test(board_id):
                 "show hnonsec",
                 "set hnonsec 0",
                 "show hprot",
-                "show hprot 0x3", # set default hprot: data, priv
+                "set hprot 0x3", # set default hprot: data, priv
                 "show graph",
                 "show locked",
                 "show register-groups",

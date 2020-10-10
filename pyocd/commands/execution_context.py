@@ -302,10 +302,10 @@ class CommandExecutionContext(object):
         if matched_command is None:
             all_matches = self._command_set.command_matcher.find_all(cmd)
             if len(all_matches) > 1:
-                self.writei("Error: command '%s' is ambiguous; matches are %s", cmd,
-                        ", ".join("'%s'" % c for c in all_matches))
+                raise exceptions.CommandError("command '%s' is ambiguous; matches are %s" % (cmd,
+                        ", ".join("'%s'" % c for c in all_matches)))
             else:
-                self.writei("Error: unrecognized command '%s'", cmd)
+                raise exceptions.CommandError("unrecognized command '%s'" % cmd)
             return
 
         # Run command.
@@ -345,6 +345,7 @@ class CommandExecutionContext(object):
                     w, h = get_terminal_size()
                     self.write(pprint.pformat(result, indent=2, width=w, depth=10))
         except Exception as e:
-            self.writei("Exception while executing expression: %s", e)
-            LOG.error("Exception while executing expression: %s", e,
-                    exc_info=self.session.log_tracebacks)
+            # Log the traceback before raising the exception.
+            if self.session.log_tracebacks:
+                LOG.error("Exception while executing expression: %s", e, exc_info=True)
+            raise exceptions.CommandError("exception while executing expression: %s" % e)

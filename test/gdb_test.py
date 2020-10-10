@@ -51,6 +51,8 @@ from test_util import (
     get_env_file_name,
     get_test_binary_path,
     TEST_DIR,
+    TEST_OUTPUT_DIR,
+    ensure_output_dir,
     )
 
 # TODO, c1728p9 - run script several times with
@@ -61,7 +63,7 @@ LOG = logging.getLogger(__name__)
 PYTHON_GDB = "arm-none-eabi-gdb-py"
 TEST_TIMEOUT_SECONDS = 60.0 * 5
 
-GDB_SCRIPT_PATH = os.path.join(TEST_DIR, "gdb_script.py")
+GDB_SCRIPT_PATH = os.path.join(TEST_DIR, "gdb_test_script.py")
 
 def wait_with_deadline(process):
     try:
@@ -130,9 +132,12 @@ def test_gdb(board_id=None, n=0):
         target_test_params = get_target_test_params(session)
         test_port = 3333 + n
         telnet_port = 4444 + n
+        
         # Hardware breakpoints are not supported above 0x20000000 on
-        # CortexM devices
-        ignore_hw_bkpt_result = 1 if ram_region.start >= 0x20000000 else 0
+        # Cortex-M devices with FPB revision 1.
+        fpb = session.target.selected_core.fpb
+        assert fpb is not None
+        ignore_hw_bkpt_result = int(fpb.revision == 1 and ram_region.start >= 0x20000000)
 
         # Program with initial test image
         FileProgrammer(session).program(binary_file, base_address=rom_region.start)
@@ -153,18 +158,18 @@ def test_gdb(board_id=None, n=0):
         "ignore_hw_bkpt_result" : ignore_hw_bkpt_result,
         "test_elf" : temp_test_elf_name,
         }
-    test_param_filename = "gdb_test_params%s_%d.txt" % (get_env_file_name(), n)
+    test_param_filename = os.path.join(TEST_OUTPUT_DIR, "gdb_test_params%s_%d.txt" % (get_env_file_name(), n))
     with open(test_param_filename, "w") as f:
         f.write(json.dumps(test_params))
 
     # Remove result from previous run.
-    test_result_filename = "gdb_test_results%s_%d.txt" % (get_env_file_name(), n)
+    test_result_filename = os.path.join(TEST_OUTPUT_DIR, "gdb_test_results%s_%d.txt" % (get_env_file_name(), n))
     if os.path.exists(test_result_filename):
         os.remove(test_result_filename)
 
     # Run the test
     gdb_args = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=%s" % GDB_SCRIPT_PATH]
-    gdb_output_filename = "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n)
+    gdb_output_filename = os.path.join(TEST_OUTPUT_DIR, "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n))
     with open(gdb_output_filename, "w") as f:
         LOG.info('Starting gdb (stdout -> %s): %s', gdb_output_filename, ' '.join(gdb_args))
         gdb_program = Popen(gdb_args, stdin=PIPE, stdout=f, stderr=STDOUT)
@@ -237,4 +242,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
+    ensure_output_dir()
     test_gdb()

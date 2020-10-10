@@ -33,6 +33,7 @@ OBJCOPY = "arm-none-eabi-objcopy"
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 PYOCD_DIR = os.path.dirname(TEST_DIR)
 TEST_DATA_DIR = os.path.join(TEST_DIR, "data")
+TEST_OUTPUT_DIR = os.path.join(TEST_DIR, "output")
 
 def get_test_binary_path(binary_name):
     return os.path.join(TEST_DATA_DIR, "binaries", binary_name)
@@ -43,6 +44,12 @@ def get_env_name():
 def get_env_file_name():
     env_name = get_env_name()
     return ("_" + env_name) if env_name else ''
+
+def ensure_output_dir():
+    if not os.path.isdir(TEST_OUTPUT_DIR):
+        if os.path.exists(TEST_OUTPUT_DIR):
+            raise RuntimeError("path '%s' already exists but is not a directory" % TEST_OUTPUT_DIR)
+        os.mkdir(TEST_OUTPUT_DIR)
 
 # Returns common option values passed in when creating test sessions.
 def get_session_options():
@@ -201,8 +208,18 @@ class TestResult(object):
                         type="failure"
                         )
         system_out = ElementTree.SubElement(case, 'system-out')
-        system_out.text = self.output
+        system_out.text = self.filter_output(self.output)
         return case
+    
+    def filter_output(self, output):
+        """! @brief Hex-encode null byte and control characters."""
+        result = six.text_type()
+        for c in output:
+            if (c not in ('\n', '\r', '\t')) and (0 <= ord(c) <= 31):
+                result += u"\\x{:02x}".format(ord(c))
+            else:
+                result += c
+        return result
 
 class Test(object):
 

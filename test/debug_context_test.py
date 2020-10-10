@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,21 +18,22 @@ from __future__ import print_function
 import argparse
 import os
 import sys
-from time import (sleep, time)
-from random import randrange
-import math
-import struct
 import traceback
-import argparse
 import logging
+
+# unittest.mock is available from Python 3.3.
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
-from pyocd.utility.conversion import float32_to_u32
+from pyocd.utility import conversion
 from pyocd.utility.mask import same
-from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
+from pyocd.debug.elf.elf_reader import ElfReaderContext
 
 from test_util import (
     Test,
@@ -40,9 +41,9 @@ from test_util import (
     get_session_options,
     get_target_test_params,
     get_test_binary_path,
+    PYOCD_DIR,
+    binary_to_elf_file,
     )
-
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GDB_TEST_BIN = "src/gdb_test_program/gdb_test.bin"
 GDB_TEST_ELF = "src/gdb_test_program/gdb_test.elf"
@@ -81,41 +82,102 @@ def debug_context_test(board_id):
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         ram_base = ram_region.start
         binary_file = get_test_binary_path(board.test_binary)
-        gdb_test_binary_file = os.path.join(parentdir, GDB_TEST_BIN)
-        gdb_test_elf_file = os.path.join(parentdir, GDB_TEST_ELF)
+        gdb_test_binary_file = os.path.join(PYOCD_DIR, GDB_TEST_BIN)
 
         # Read the gdb test binary file.
         with open(gdb_test_binary_file, "rb") as f:
             gdb_test_binary_data = list(bytearray(f.read()))
-        gdb_test_binary_data_length = len(gdb_test_binary_data)
+
+        # Read the test binary file.
+        with open(binary_file, "rb") as f:
+            test_binary_data = bytearray(f.read())
+        test_binary_data_length = len(test_binary_data)
         
-        # Set the elf on the target, which will add a context to read from the elf.
-        target.elf = gdb_test_elf_file
+        # Generate ELF file from the binary test file.
+        temp_test_elf_name = binary_to_elf_file(binary_file, boot_region.start)
 
         test_pass_count = 0
         test_count = 0
         result = DebugContextTestResult()
         
-        ctx = target.get_target_context()
-        
         target.reset_and_halt()
         
         # Reproduce a gdbserver failure.
         print("\n------ Test 1: Mem cache ------")
+        
+        ctx = target.get_target_context()
+
         print("Writing gdb test binary")
-        ctx.write_memory_block8(0x20000000, gdb_test_binary_data)
+        ctx.write_memory_block8(ram_base, gdb_test_binary_data)
         
         print("Reading first chunk")
-        data = ctx.read_memory_block8(0x20000000, 64)
+        data = ctx.read_memory_block8(ram_base, 64)
         if data == gdb_test_binary_data[:64]:
             test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
         test_count += 1
             
         print("Reading N chunks")
+        did_pass = True
         for n in range(8):
             offset = 0x7e + (4 * n)
-            data = ctx.read_memory_block8(0x20000000 + offset, 4)
+            data = ctx.read_memory_block8(ram_base + offset, 4)
             if data == gdb_test_binary_data[offset:offset + 4]:
+                test_pass_count += 1
+            else:
+                did_pass = False
+            test_count += 1
+        if did_pass:
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        
+        # Force a memory cache clear.
+        target.step()
+        
+        # ELF reader test goals:
+        # 1. Verify correct data is read without accessing the target memory.
+        # 2. Test null interval failure.
+        #
+        print("\n------ Test 2: ELF reader ------")
+        
+        # Set the elf on the target, which will add a context to read from the elf.
+        target.elf = temp_test_elf_name
+        ctx = target.get_target_context()
+        
+        print("Check that ElfReaderContext was created")
+        if isinstance(ctx, ElfReaderContext):
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        # Program the test binary.
+        print("Programming test binary to boot memory")
+        FileProgrammer(session).program(binary_file, base_address=boot_region.start)
+
+        with mock.patch.object(target.selected_core, 'read_memory_block32') as read_block32_mock:
+            test_len = min(4096, test_binary_data_length)
+            print("Reading %d bytes of test binary from context." % test_len)
+            data = ctx.read_memory_block32(boot_region.start, test_len // 4)
+            data = conversion.u32le_list_to_byte_list(data)
+            if same(data, test_binary_data[:test_len]):
+                print("PASSED: expected data returned")
+                test_pass_count += 1
+            else:
+                print("FAILED: unexpected data")
+            test_count += 1
+
+            # Verify the target memory wasn't accessed.
+            try:
+                read_block32_mock.assert_not_called()
+            except AsssertionError:
+                print("FAILED: target memory was accessed")
+            else:
+                print("PASSED: target memory was not accessed")
                 test_pass_count += 1
             test_count += 1
 
@@ -126,6 +188,7 @@ def debug_context_test(board_id):
         else:
             print("DEBUG CONTEXT TEST FAILED")
 
+        # Clean up.
         target.reset()
 
         result.passed = test_count == test_pass_count
