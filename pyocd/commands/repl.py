@@ -50,7 +50,6 @@ class PyocdRepl(object):
 
     def __init__(self, command_context):
         self.context = command_context
-        self.last_command = ''
         
         # Enable readline history.
         self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
@@ -95,7 +94,6 @@ class PyocdRepl(object):
             line = line.strip()
             if line:
                 self.context.process_command_line(line)
-                self.last_command = line
         except KeyboardInterrupt:
             print()
         except ValueError:

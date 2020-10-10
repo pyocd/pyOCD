@@ -993,13 +993,6 @@ class GDBServer(threading.Thread):
             return None
         return symValue
 
-    def handle_remote_command_compatibility(self, cmd):
-        """! @brief Handle certain monitor commands for OpenOCD compatibility."""
-        if cmd.startswith('arm semihosting'):
-            enable = ('enable' in cmd)
-            self.session.options['enable_semihosting'] = enable
-        return False, None
-
     def handle_remote_command(self, cmd):
         """! @brief Pass remote commands to the commander command processor."""
         # Convert the command line to a string.
