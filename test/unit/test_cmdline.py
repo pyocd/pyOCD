@@ -45,6 +45,17 @@ class TestSplitCommandLine(object):
         assert split_command_line('a\rb') == ['a', 'b']
         assert split_command_line('a\nb') == ['a', 'b']
         assert split_command_line('a   \tb') == ['a', 'b']
+    
+    @pytest.mark.parametrize(("input", "result"), [
+        (r'\h\e\l\l\o', ['hello']),
+        (r'"\"hello\""', ['"hello"']),
+        ('x "a\\"b" y', ['x', 'a"b', 'y']),
+        ('hello"there"', ['hellothere']),
+        (r"'raw\string'", [r'raw\string']),
+        ('"foo said \\"hi\\"" and \'C:\\baz\'', ['foo said "hi"', 'and', 'C:\\baz'])
+        ])
+    def test_em(self, input, result):
+        assert split_command_line(input) == result
 
 class TestConvertVectorCatch(object):
     def test_none_str(self):
