@@ -33,9 +33,7 @@ from test_util import (
     Test,
     TestResult,
     get_session_options,
-    get_target_test_params,
     binary_to_elf_file,
-    get_test_binary_path,
     PYOCD_DIR,
     )
 
