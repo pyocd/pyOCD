@@ -111,7 +111,7 @@ class PyOCDCommander(object):
             cmd = args[0].lower()
             
             # Handle certain commands without connecting.
-            needs_connect = (cmd not in ('list', 'help'))
+            needs_connect = (cmd not in ('list', 'help', 'exit'))
 
             # For others, connect first.
             if needs_connect and not did_connect:
