@@ -19,6 +19,8 @@ import os
 import sys
 import six
 import pprint
+from collections import namedtuple
+import subprocess
 
 from ..core import exceptions
 from ..utility.compatibility import get_terminal_size
@@ -105,6 +107,13 @@ class CommandSet(object):
         self._values.update(value_names)
         self._value_classes.update(value_classes)
         self._value_matcher.add_items(value_names.keys())
+
+CommandInvocation = namedtuple('CommandInvocation', ['cmd', 'args', 'handler'])
+"""! @brief Groups the command name with an iterable of args and a handler function.
+
+The handler is a callable that will evaluate the command. It accepts a single argument of the
+CommandInvocation instance.
+"""
 
 class CommandExecutionContext(object):
     """! @brief Manages command execution.
@@ -268,32 +277,52 @@ class CommandExecutionContext(object):
 
     def process_command_line(self, line):
         """! @brief Run a command line consisting of one or more semicolon-separated commands."""
-        for cmd in line.split(';'):
-            self.process_command(cmd.strip())
+        for invoc in self.parse_command_line(line):
+            invoc.handler(invoc)
 
-    def process_command(self, cmd):
-        """! @brief Execute a single command."""
+    def parse_command_line(self, line):
+        """! @brief Generator yielding CommandInvocations for commands separated by semicolons."""
+        for cmd in self._split_commands(line):
+            invoc = self.parse_command(cmd)
+            if invoc is not None:
+                yield invoc
+
+    def _split_commands(self, line):
+        """! @brief Generator yielding commands separated by semicolons."""
+        result = ''
+        i = 0
+        while i < len(line):
+            c = line[i]
+            # Don't split on escaped semicolons.
+            if (c == '\\') and (i < len(line) - 1) and (line[i + 1] == ';'):
+                i += 1
+                result += ';'
+            elif c == ';':
+                yield result
+                result = ''
+            else:
+                result += c
+            i += 1
+        if result:
+            yield result
+
+    def parse_command(self, cmdline):
+        """! @brief Create a CommandInvocation from a single command."""
+        cmdline = cmdline.strip()
+        
         # Check for Python or shell command lines.
-        firstChar = (cmd.strip())[0]
-        if firstChar in '$!':
-            cmd = cmd[1:].strip()
-            if firstChar == '$':
-                self.handle_python(cmd)
-            elif firstChar == '!':
-                os.system(cmd)
-            return
+        first_char = cmdline[0]
+        if first_char in '$!':
+            cmdline = cmdline[1:]
+            if first_char == '$':
+                return CommandInvocation(cmdline, None, self.handle_python)
+            elif first_char == '!':
+                return CommandInvocation(cmdline, None, self.handle_system)
 
-        args = split_command_line(cmd)
+        # Split command into words.
+        args = split_command_line(cmdline)
         cmd = args[0].lower()
         args = args[1:]
-
-        # Must have an attached session to run commands, except for certain commands.
-        assert (self.session is not None) or (cmd in ('list', 'help'))
-
-        # Handle register name as command.
-        if (self.target is not None) and (cmd in self.target.core_registers.by_name):
-            self.handle_reg([cmd])
-            return
 
         # Look up shorted unambiguous match for the command name.
         matched_command = self._command_set.command_matcher.find_one(cmd)
@@ -307,12 +336,19 @@ class CommandExecutionContext(object):
             else:
                 raise exceptions.CommandError("unrecognized command '%s'" % cmd)
             return
+        
+        return CommandInvocation(matched_command, args, self.execute_command)
+
+    def execute_command(self, invocation):
+        """! @brief Execute a single command."""
+        # Must have an attached session to run commands, except for certain commands.
+        assert (self.session is not None) or (cmd in ('list', 'help', 'exit'))
 
         # Run command.
-        cmd_class = self._command_set.commands[matched_command]
+        cmd_class = self._command_set.commands[invocation.cmd]
         cmd_object = cmd_class(self)
-        cmd_object.check_arg_count(args)
-        cmd_object.parse(args)
+        cmd_object.check_arg_count(invocation.args)
+        cmd_object.parse(invocation.args)
         cmd_object.execute()
 
     def _build_python_namespace(self):
@@ -330,14 +366,14 @@ class CommandExecutionContext(object):
                 'pyocd': pyocd,
             }
 
-    def handle_python(self, cmd):
+    def handle_python(self, invocation):
         """! @brief Evaluate a python expression."""
         try:
             # Lazily build the python environment.
             if self._python_namespace is None:
                 self._build_python_namespace()
             
-            result = eval(cmd, globals(), self._python_namespace)
+            result = eval(invocation.cmd, globals(), self._python_namespace)
             if result is not None:
                 if isinstance(result, six.integer_types):
                     self.writei("0x%08x (%d)", result, result)
@@ -349,3 +385,11 @@ class CommandExecutionContext(object):
             if self.session.log_tracebacks:
                 LOG.error("Exception while executing expression: %s", e, exc_info=True)
             raise exceptions.CommandError("exception while executing expression: %s" % e)
+    
+    def handle_system(self, invocation):
+        """! @brief Evaluate a system call command."""
+        try:
+            output = subprocess.check_output(invocation.cmd, stderr=subprocess.STDOUT, shell=True)
+            self.write(six.ensure_str(output), end='')
+        except subprocess.CalledProcessError as err:
+            six.raise_from(exceptions.CommandError(str(err)), err)

@@ -32,6 +32,13 @@ from ..core import (session, exceptions)
 
 LOG = logging.getLogger(__name__)
 
+class ToolExitException(Exception):
+    """! @brief Special exception indicating the tool should exit.
+    
+    This exception is only raised by the `exit` command.
+    """
+    pass
+
 class PyocdRepl(object):
     """! @brief Read-Eval-Print-Loop for pyOCD commander."""
     
@@ -43,7 +50,6 @@ class PyocdRepl(object):
 
     def __init__(self, command_context):
         self.context = command_context
-        self.last_command = ''
         
         # Enable readline history.
         self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
@@ -79,6 +85,8 @@ class PyocdRepl(object):
             # Windows exits with a Ctrl-Z+Return, so there is no need for this.
             if os.name != "nt":
                 print()
+        except ToolExitException:
+            pass
     
     def run_one_command(self, line):
         """! @brief Execute a single command line and handle exceptions."""
@@ -86,7 +94,6 @@ class PyocdRepl(object):
             line = line.strip()
             if line:
                 self.context.process_command_line(line)
-                self.last_command = line
         except KeyboardInterrupt:
             print()
         except ValueError:
@@ -99,7 +106,11 @@ class PyocdRepl(object):
                 traceback.print_exc()
         except exceptions.CommandError as e:
             print("Error:", e)
+        except ToolExitException:
+            # Catch and reraise this exception so it isn't caught by the catchall below.
+            raise
         except Exception as e:
+            # Catch most other exceptions so they don't cause the REPL to exit.
             print("Error:", e)
             if session.Session.get_current().log_tracebacks:
                 traceback.print_exc()
