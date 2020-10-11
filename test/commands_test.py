@@ -98,7 +98,6 @@ def commands_test(board_id):
         context.attach_session(session)
         
         COMMANDS_TO_TEST = [
-#                 "list",
                 "status",
                 "reset",
                 "reset halt",
@@ -118,13 +117,13 @@ def commands_test(board_id):
                 "write32 0x%08x 0x11223344 0x55667788" % ram_base,
                 "write16 0x%08x 0xabcd" % (ram_base + 8),
                 "write8 0x%08x 0 1 2 3 4 5 6" % (ram_base + 10),
-                "savemem 0x%08x 128 %s" % (boot_start_addr, temp_bin_file),
-                "loadmem 0x%08x %s" % (ram_base, temp_bin_file),
-                "loadmem 0x%08x %s" % (boot_start_addr, binary_file),
-                "load %s" % temp_test_hex_name,
-                "load %s 0x%08x" % (binary_file, boot_start_addr),
-                "compare 0x%08x %s" % (ram_base, temp_bin_file),
-                "compare 0x%08x 32 %s" % (ram_base, temp_bin_file),
+                "savemem 0x%08x 128 '%s'" % (boot_start_addr, temp_bin_file),
+                "loadmem 0x%08x '%s'" % (ram_base, temp_bin_file),
+                "loadmem 0x%08x '%s'" % (boot_start_addr, binary_file),
+                "load '%s'" % temp_test_hex_name,
+                "load '%s' 0x%08x" % (binary_file, boot_start_addr),
+                "compare 0x%08x '%s'" % (ram_base, temp_bin_file),
+                "compare 0x%08x 32 '%s'" % (ram_base, temp_bin_file),
                 "fill 0x%08x 128 0xa5" % ram_base,
                 "fill 16 0x%08x 64 0x55aa" % (ram_base + 64),
                 "find 0x%08x 128 0xaa 0x55" % ram_base, # find that will pass
@@ -184,8 +183,17 @@ def commands_test(board_id):
                 "set step-into-interrupts 1",
                 "set log info",
                 "set frequency %d" % test_params['test_clock'],
+                
+                # Semicolon-separated commands.
+                'rw 0x%08x ; rw 0x%08x' % (ram_base, ram_base + 4),
+                
+                # Python and system commands.
+                '$2+ 2',
+                '!echo hello',
+                '!echo hi \; echo there', # using escaped semicolon in a sytem command
 
                 # Commands not tested:
+#                 "list",
 #                 "erase", # chip erase
 #                 "unlock",
 #                 "exit",

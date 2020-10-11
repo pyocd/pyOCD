@@ -22,20 +22,13 @@ import traceback
 from ..core.helpers import ConnectHelper
 from ..core import (exceptions, session)
 from ..utility.cmdline import convert_session_options
-from ..commands.repl import PyocdRepl
+from ..commands.repl import (PyocdRepl, ToolExitException)
 from ..commands.execution_context import CommandExecutionContext
 
 LOG = logging.getLogger(__name__)
 
 ## Default SWD clock in Hz.
 DEFAULT_CLOCK_FREQ_HZ = 1000000
-
-class ToolExitException(Exception):
-    """! @brief Special exception indicating the tool should exit.
-    
-    This exception is only raised by the `exit` command.
-    """
-    pass
 
 class PyOCDCommander(object):
     """! @brief Manages the commander interface.
@@ -118,7 +111,7 @@ class PyOCDCommander(object):
             cmd = args[0].lower()
             
             # Handle certain commands without connecting.
-            needs_connect = (cmd not in ('list', 'help'))
+            needs_connect = (cmd not in ('list', 'help', 'exit'))
 
             # For others, connect first.
             if needs_connect and not did_connect:

@@ -87,7 +87,7 @@ class ExitCommand(CommandBase):
             }
     
     def execute(self):
-        from .commander import ToolExitException
+        from .repl import ToolExitException
         raise ToolExitException()
 
 class StatusCommand(CommandBase):
