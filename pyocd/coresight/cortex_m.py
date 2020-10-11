@@ -539,6 +539,7 @@ class CortexM(Target, CoreSightCoreComponent):
         # Get the step timeout. A timeout of 0 means no timeout, so we have to pass None to the Timeout class.
         step_timeout = self.session.options.get('cpu.step.instruction.timeout') or None
 
+        exit_step_loop = False
         while True:
             # Single step using current C_MASKINTS setting
             self.write32(CortexM.DHCSR, dhcsr_step)
@@ -550,14 +551,15 @@ class CortexM(Target, CoreSightCoreComponent):
             # for Privileged code in the case of UDE.
             with timeout.Timeout(step_timeout) as tmo:
                 while tmo.check():
-                    if (self.read32(CortexM.DHCSR) & CortexM.C_HALT) != 0:
-                        break
                     # Invoke the callback if provided. If it returns True, then exit the loop.
                     if (hook_cb is not None) and hook_cb():
+                        exit_step_loop = True
+                        break
+                    if (self.read32(CortexM.DHCSR) & CortexM.C_HALT) != 0:
                         break
 
             # Range is empty, 'range step' will degenerate to 'step'
-            if start == end:
+            if (start == end) or exit_step_loop:
                 break
 
             # Read program counter and compare to [start, end)
