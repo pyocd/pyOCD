@@ -1,0 +1,9 @@
+path_classifiers:
+  docs:
+    - scripts/generate_command_help.py
+  test:
+    # Mark all code under the src/ directory as test related.
+    # Really, the crc analyzer is not for test, but LGTL can't build embedded.
+    - src
+    - exclude: src/analyzer
+
