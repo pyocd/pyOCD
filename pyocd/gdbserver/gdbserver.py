@@ -418,7 +418,7 @@ class GDBServer(threading.Thread):
                 reply = handler(msg[msgStart:])
             self.lock.release()
 
-            detach = 1 if msg[1:2] in self.DETACH_COMMANDS else 0
+            detach = msg[1:2] in self.DETACH_COMMANDS
             return reply, detach
 
         except Exception as e:
@@ -441,7 +441,6 @@ class GDBServer(threading.Thread):
         if not self.persist:
             self.board.target.set_vector_catch(Target.VectorCatch.NONE)
             self.board.target.resume()
-        return self.create_rsp_packet(b"")
     
     def restart(self, data):
         self.target.reset_and_halt()
