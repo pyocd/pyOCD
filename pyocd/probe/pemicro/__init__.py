@@ -15,4 +15,5 @@
 # limitations under the License.
 """The PEMicro support Python package by NXP."""
 
+from .pemicro_const import *
 from .pemicro import *
