@@ -174,25 +174,21 @@ class CmsisPack(object):
 
     def _extract_memories(self):
         def filter(map, elem):
-            # 'name' takes precedence over 'id'.
-            if 'name' in elem.attrib:
-                name = elem.attrib['name']
-            elif 'id' in elem.attrib:
-                name = elem.attrib['id']
-            else:
-                # Neither option for memory name was specified, so use the address range.
-                try:
-                    start = int(elem.attrib['start'], base=0)
-                    size = int(elem.attrib['size'], base=0)
-                except (KeyError, ValueError):
-                    LOG.warning("memory region missing address")
-                    return
-                
-                # Use the start and size for a name.
-                name = "%08x:%08x" % (start, size)
+            # According to https://www.keil.com/pack/doc/CMSIS/Pack/html/pdsc_family_pg.html#element_memory,
+            # only 'start' and 'size' (and 'Pname' for devices with multiple processors)
+            # are required attributes so we can only rely on those to identify memory regions.
+            try:
+                start = int(elem.attrib['start'], base=0)
+                size = int(elem.attrib['size'], base=0)
+            except (KeyError, ValueError):
+                LOG.warning("memory region missing address")
+                return
+            
+            # Use the start and size for a name.
+            memregion = "%08x:%08x" % (start, size)
 
             pname = elem.attrib.get('Pname', None)
-            info = (name, pname)
+            info = (pname, memregion)
         
             map[info] = elem
         
