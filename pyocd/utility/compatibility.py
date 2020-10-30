@@ -16,6 +16,7 @@
 
 import sys
 import functools
+import six
 
 PY3 = sys.version_info[0] == 3
 
@@ -59,6 +60,17 @@ else:
             return v.encode('utf-8')
         else:
             return v
+
+if PY3:
+    def byte_list_to_bytes(data):
+        """! @brief Convert a sequence of integers (bytes) to a bytes object."""
+        # This bizarre construction
+        return bytes(data)
+else:
+    def byte_list_to_bytes(data):
+        """! @brief Convert a sequence of integers (bytes) to a bytes object."""
+        # This bizarre construction
+        return bytes(bytearray(data))
 
 # Make FileNotFoundError available to Python 2.x.
 try:

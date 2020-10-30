@@ -33,7 +33,7 @@ def mockcore():
 def mockcore_no_fpu():
     return MockCore(has_fpu=False)
 
-# Ignore semihosting test that currently crashes on Travis
+# Ignore any tests that are currently causing issues.
 collect_ignore = [
-    "test_semihosting.py",
+    # None right now.
     ]
