@@ -22,7 +22,7 @@ import time
 import datetime
 import six
 
-import pyocd
+from ..coresight.cortex_m import CortexM
 from ..core import (exceptions, session)
 from ..utility.compatibility import byte_list_to_bytes
 
@@ -413,8 +413,7 @@ class SemihostAgent(object):
           debugging breakpoint.
         """
         # Nothing to do if this is not a bkpt.
-        if (self.context.read32(pyocd.coresight.cortex_m.CortexM.DFSR) &
-                pyocd.coresight.cortex_m.CortexM.DFSR_BKPT) == 0:
+        if (self.context.read32(CortexM.DFSR) & CortexM.DFSR_BKPT) == 0:
             return False
 
         pc = self.context.read_core_register('pc')
