@@ -297,7 +297,9 @@ class GDBServerTool(object):
                         gdb = GDBServer(session,
                             core=core_number,
                             server_listening_callback=self.server_listening)
+                        session.gdbservers[core_number] = gdb
                         gdbs.append(gdb)
+                        gdb.start()
                     gdb = gdbs[0]
                     while gdb.is_alive():
                         gdb.join(timeout=0.5)
