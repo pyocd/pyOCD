@@ -453,6 +453,10 @@ class _Command(object):
 
 class DAPAccessCMSISDAP(DAPAccessIntf):
     """! @brief An implementation of the DAPAccessIntf layer for DAPLink boards
+    
+    @internal
+    All methods that use the CMSISDAPProtocol instance must be locked and must flush the command queue
+    prior to using methods of that object. Otherwise the command responses may be processed out of order.
     """
 
     # ------------------------------------------- #
@@ -728,6 +732,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     
     @locked
     def swo_configure(self, enabled, rate):
+        self.flush()
+
         # Don't send any commands if the SWO commands aren't supported.
         if not self._has_swo_uart:
             return False
@@ -761,6 +767,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._swo_disable()
             return False
     
+    # Doesn't need @locked because it is only called from swo_configure().
     def _swo_disable(self):
         try:
             self._protocol.swo_mode(DAPSWOMode.OFF)
@@ -772,6 +779,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     
     @locked
     def swo_control(self, start):
+        self.flush()
+
         # Don't send any commands if the SWO commands aren't supported.
         if not self._has_swo_uart:
             return False
@@ -792,15 +801,19 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def get_swo_status(self):
         return self._protocol.swo_status()
     
-    @locked
     def swo_read(self, count=None):
+        # The separate SWO EP can be read without locking.
         if self._interface.has_swo_ep:
             return self._interface.read_swo()
         else:
             if count is None:
                 count = self._packet_size
-            status, count, data = self._protocol.swo_data(count)
-            return bytearray(data)
+            # Must lock and flush the command queue since we're using the SWO read command that shares
+            # the command EP.
+            with self._lock:
+                self.flush()
+                status, count, data = self._protocol.swo_data(count)
+                return bytearray(data)
 
     def write_reg(self, reg_id, value, dap_index=0):
         assert reg_id in self.REG
