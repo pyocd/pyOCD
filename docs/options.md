@@ -53,6 +53,14 @@ Whether to use deferred transfers in the CMSIS-DAP probe backend. By disabling d
 all writes take effect immediately. However, performance is negatively affected.
 </td></tr>
 
+<tr><td>cmsis_dap.limit_packets</td>
+<td>bool</td>
+<td>False</td>
+<td>
+Restrict CMSIS-DAP backend to using a single in-flight command at a time. This is useful on some systems
+where USB is problematic, in particular virtual machines.
+</td></tr>
+
 <tr><td>commander.history_length</td>
 <td>int</td>
 <td>1000</td>

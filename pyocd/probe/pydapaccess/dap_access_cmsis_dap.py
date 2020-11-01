@@ -589,7 +589,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._interface.open()
         self._protocol = CMSISDAPProtocol(self._interface)
 
-        if DAPSettings.limit_packets:
+        if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
             self._packet_count = 1
             LOG.debug("Limiting packet count to %d", self._packet_count)
         else:
