@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,10 @@ import logging
 import time
 import datetime
 import six
-import pyocd
+
+from ..coresight.cortex_m import CortexM
 from ..core import (exceptions, session)
+from ..utility.compatibility import byte_list_to_bytes
 
 LOG = logging.getLogger(__name__)
 
@@ -215,8 +217,10 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         data = self.agent._get_string(ptr, length)
         try:
             f = self.open_files[fd]
-            if 'b' not in f.mode:
-                data = six.text_type(data)
+            if 'b' in f.mode:
+                data = six.ensure_binary(data)
+            else:
+                data = six.ensure_str(data)
             f.write(data)
             f.flush()
             return 0
@@ -409,8 +413,7 @@ class SemihostAgent(object):
           debugging breakpoint.
         """
         # Nothing to do if this is not a bkpt.
-        if (self.context.read32(pyocd.coresight.cortex_m.CortexM.DFSR) &
-                pyocd.coresight.cortex_m.CortexM.DFSR_BKPT) == 0:
+        if (self.context.read32(CortexM.DFSR) & CortexM.DFSR_BKPT) == 0:
             return False
 
         pc = self.context.read_core_register('pc')
@@ -473,9 +476,9 @@ class SemihostAgent(object):
     def _get_string(self, ptr, length=None):
         if length is not None:
             data = self.context.read_memory_block8(ptr, length)
-            return six.ensure_str(bytes(bytearray(data)), encoding="ascii", errors="ignore")
+            return six.ensure_str(byte_list_to_bytes(data))
 
-        target_str = six.ensure_str(bytes(bytearray('')), encoding="ascii", errors="ignore")
+        target_str = ''
         # TODO - use memory map to make sure we don't try to read off the end of memory
         # Limit string size in case it isn't terminated.
         while len(target_str) < MAX_STRING_LENGTH:
@@ -486,14 +489,14 @@ class SemihostAgent(object):
 
                 # Found a null terminator, append data up to but not including the null
                 # and then exit the loop.
-                target_str += six.ensure_str(bytes(bytearray(data[:terminator])), encoding="ascii", errors="ignore")
+                target_str += six.ensure_str(byte_list_to_bytes(data[:terminator]))
                 break
             except exceptions.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:
                 # No null terminator was found. Append all of data.
-                target_str += six.ensure_str(bytes(bytearray(data)), encoding="ascii", errors="ignore")
+                target_str += six.ensure_str(byte_list_to_bytes(data))
                 ptr += 32
         return target_str
 
