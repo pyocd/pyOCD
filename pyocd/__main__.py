@@ -145,7 +145,7 @@ class PyOCDTool(object):
         commonOptionsNoLogging.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
         commonOptionsNoLogging.add_argument("-da", "--daparg", dest="daparg", nargs='+',
-            help="Send setting to DAPAccess layer.")
+            help="(Deprecated) Send setting to DAPAccess layer.")
         commonOptionsNoLogging.add_argument("--pack", metavar="PATH", action="append",
             help="Path to a CMSIS Device Family Pack.")
         
