@@ -68,7 +68,8 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
     @param data The data to print as hex. Can be a `bytes`, `bytearray`, or list of integers.
     @param start_address Address of the first byte of the data. Defaults to 0. If set to None,
         then the address column is not printed.
-    @param width Controls grouping of the hex bytes in the output as described above.
+    @param width Controls grouping of the hex bytes in the output as described above. Must be one of
+        (8, 16, 32, 64).
     @param output Optional file where the output will be written. If not provided, sys.stdout is
         used.
     @param print_ascii Whether to include the printable ASCII column. Defaults to True.
@@ -81,6 +82,8 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
         line_width = 8
     elif width == 32:
         line_width = 4
+    elif width == 64:
+        line_width = 2
     i = 0
     while i < len(data):
         if start_address is not None:
@@ -98,6 +101,8 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                 output.write("%04x " % d)
             elif width == 32:
                 output.write("%08x " % d)
+            elif width == 64:
+                output.write("%016x " % d)
             if i % line_width == 0:
                 break
         
@@ -109,11 +114,8 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                 d = data[n]
                 if width == 8:
                     d = [d]
-                elif width == 16:
-                    d = conversion.u16le_list_to_byte_list([d])
-                    d.reverse()
-                elif width == 32:
-                    d = conversion.u32le_list_to_byte_list([d])
+                else:
+                    d = conversion.nbit_le_list_to_byte_list([d], width)
                     d.reverse()
                 s += "".join((chr(b) if (chr(b) in _PRINTABLE) else '.') for b in d)
             output.write("   " + s + "|")

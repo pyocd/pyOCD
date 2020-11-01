@@ -400,13 +400,9 @@ class ReadCommandBase(CommandBase):
 
         if self.width == 8:
             data = self.context.selected_ap.read_memory_block8(self.addr, self.count)
-            byteData = data
-        elif self.width == 16:
-            byteData = self.context.selected_ap.read_memory_block8(self.addr, self.count)
-            data = conversion.byte_list_to_u16le_list(byteData)
-        elif self.width == 32:
-            byteData = self.context.selected_ap.read_memory_block8(self.addr, self.count)
-            data = conversion.byte_list_to_u32le_list(byteData)
+        else:
+            byte_data = self.context.selected_ap.read_memory_block8(self.addr, self.count)
+            data = conversion.byte_list_to_nbit_le_list(byte_data, self.width)
 
         # Print hex dump of output.
         self.context.write(dump_hex_data_to_str(data, start_address=self.addr, width=self.width), end='')
@@ -432,10 +428,10 @@ class Read16Command(ReadCommandBase):
             'nargs': [1, 2],
             'usage': "ADDR [LEN]",
             'width': 16,
-            'help': "Read 16-bit halfwords.",
-            'extra_help': "Optional length parameter is the number of bytes to read. It must be "
-                           "divisible by 2. If the length is not provided, one halfword is read. "
-                           "The address may be unaligned.",
+            'help': "Read 16-bit halfwords",
+            'extra_help': "Optional length parameter is the number of bytes (not half-words) to read. It "
+                           "must be divisible by 2. If the length is not provided, one halfword is read. "
+                           "The address may be unaligned."
             }
 
 class Read32Command(ReadCommandBase):
@@ -446,10 +442,24 @@ class Read32Command(ReadCommandBase):
             'nargs': [1, 2],
             'usage': "ADDR [LEN]",
             'width': 32,
-            'help': "Read 32-bit words.",
-            'extra_help': "Optional length parameter is the number of bytes to read. It must be "
+            'help': "Read 32-bit words",
+            'extra_help': "Optional length parameter is the number of bytes (not words) to read. It must be "
                            "divisible by 4. If the length is not provided, one word is read. "
                            "The address may be unaligned.",
+            }
+
+class Read64Command(ReadCommandBase):
+    INFO = {
+            'names': ['read64', 'r64', 'rd'],
+            'group': 'standard',
+            'category': 'memory',
+            'nargs': [1, 2],
+            'usage': "ADDR [LEN]",
+            'width': 64,
+            'help': "Read 64-bit words",
+            'extra_help': "Optional length parameter is the number of bytes (not double-words!) to read. "
+                           "It must be divisible by 8. If the length is not provided, one word is read. "
+                           "The address may be unaligned."
             }
 
 def is_flash_write(context, addr, width, data):
@@ -458,12 +468,7 @@ def is_flash_write(context, addr, width, data):
     if (region is None) or (not region.is_flash):
         return False
 
-    if width == 8:
-        l = len(data)
-    elif width == 16:
-        l = len(data) * 2
-    elif width == 32:
-        l = len(data) * 4
+    l = len(data) * (width // 8)
 
     return region.contains_range(addr, length=l)
 
@@ -478,12 +483,8 @@ class WriteCommandBase(CommandBase):
         self.data = [self._convert_value(d) for d in args[1:]]
 
     def execute(self):
-        if self.width == 8:
-            pass
-        elif self.width == 16:
-            self.data = conversion.u16le_list_to_byte_list(self.data)
-        elif self.width == 32:
-            self.data = conversion.u32le_list_to_byte_list(self.data)
+        if self.width != 8:
+            self.data = conversion.nbit_le_list_to_byte_list(self.data, self.width)
 
         if is_flash_write(self.context, self.addr, self.width, self.data):
             # Look up flash region.
@@ -544,6 +545,21 @@ class Write32Command(WriteCommandBase):
                           "little-endian. The address may be unaligned. Can write to both RAM and flash. "
                           "Flash writes are subject to minimum write size and alignment, and the flash "
                           "page must have been previously erased.",
+            }
+
+class Write64Command(WriteCommandBase):
+    INFO = {
+            'names': ['write64', 'w64', 'wd'],
+            'group': 'standard',
+            'category': 'memory',
+            'nargs': '*',
+            'usage': "ADDR DATA...",
+            'width': 64,
+            'help': "Write 64-bit double-words to memory",
+            'extra_help': "The data arguments are 64-bit words in big-endian format and are written as "
+                          "little-endian. The address may be unaligned. Can write to both RAM and flash. "
+                          "Flash writes are subject to minimum write size and alignment, and the flash "
+                          "page must have been previously erased."
             }
 
 class SavememCommand(CommandBase):

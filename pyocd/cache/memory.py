@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -224,13 +224,12 @@ class MemoryCache(object):
         return regions[0].is_cacheable
 
     def read_memory(self, addr, transfer_size=32, now=True):
-        # TODO use more optimal underlying read_memory call
+        # TODO use more optimal underlying read_memory calls
         if transfer_size == 8:
             data = self.read_memory_block8(addr, 1)[0]
-        elif transfer_size == 16:
-            data = conversion.byte_list_to_u16le_list(self.read_memory_block8(addr, 2))[0]
-        elif transfer_size == 32:
-            data = conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, 4))[0]
+        else:
+            data = conversion.byte_list_to_nbit_le_list(self.read_memory_block8(addr, transfer_size // 8),
+                    transfer_size)[0]
 
         if now:
             return data
@@ -264,10 +263,8 @@ class MemoryCache(object):
     def write_memory(self, addr, value, transfer_size=32):
         if transfer_size == 8:
             return self.write_memory_block8(addr, [value])
-        elif transfer_size == 16:
-            return self.write_memory_block8(addr, conversion.u16le_list_to_byte_list([value]))
-        elif transfer_size == 32:
-            return self.write_memory_block8(addr, conversion.u32le_list_to_byte_list([value]))
+        else:
+            return self.write_memory_block8(addr, conversion.nbit_le_list_to_byte_list([value], transfer_size))
 
     def write_memory_block8(self, addr, value):
         if len(value) <= 0:

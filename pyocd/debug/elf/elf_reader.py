@@ -56,12 +56,8 @@ class ElfReaderContext(DebugContext):
             data = section.data[addr:addr + length]
             if transfer_size == 8:
                 return data[0]
-            elif transfer_size == 16:
-                return conversion.byte_list_to_u16le_list(data)[0]
-            elif transfer_size == 32:
-                return conversion.byte_list_to_u32le_list(data)[0]
             else:
-                raise ValueError("invalid transfer_size (%d)" % transfer_size)
+                return conversion.byte_list_to_nbit_le_list(data, transfer_size)[0]
 
         if now:
             return read_memory_cb()

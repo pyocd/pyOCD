@@ -71,12 +71,50 @@ def bfx(value, msb, lsb):
     mask = bitmask((msb, lsb))
     return (value & mask) >> lsb
 
+def bfxw(value, lsb, width):
+    """! @brief Extract a value from a bitfield given the LSb and width."""
+    mask = bitmask((lsb + width, lsb))
+    return (value & mask) >> lsb
+
 def bfi(value, msb, lsb, field):
     """! @brief Change a bitfield value."""
     mask = bitmask((msb, lsb))
     value &= ~mask
     value |= (field << lsb) & mask
     return value
+
+class Bitfield(object):
+    """! @brief Represents a bitfield of a register."""
+
+    def __init__(self, msb, lsb=None, name=None):
+        self._msb = msb
+        self._lsb = lsb if (lsb is not None) else msb
+        self._name = name
+        assert self._msb >= self._lsb
+    
+    @property
+    def width(self):
+        return self._msb - self._lsb + 1
+    
+    def get(self, value):
+        """! @brief Extract the bitfield value from a register value.
+        @param self The Bitfield object.
+        @param value Integer register value.
+        @return Integer value of the bitfield extracted from `value`.
+        """
+        return bfx(value, self._msb, self._lsb)
+    
+    def set(self, register_value, field_value):
+        """! @brief Modified the bitfield in a register value.
+        @param self The Bitfield object.
+        @param register_value Integer register value.
+        @param field_value New value for the bitfield. Must not be shifted into place already.
+        @return Integer register value with the bitfield updated to `field_value`.
+        """
+        return bfi(register_value, self._msb, self._lsb, field_value)
+    
+    def __repr__(self):
+        return "<{}@{:x} name={} {}:{}>".format(self.__class__.__name__, id(self), self._name, self._msb, self._lsb)
 
 def msb(n):
     """! @brief Return the bit number of the highest set bit."""

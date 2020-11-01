@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,10 @@ class MemoryInterface(object):
         """! @brief Read an aligned block of 32-bit words."""
         raise NotImplementedError()
   
+    def write64(self, addr, value):
+        """! @brief Shorthand to write a 64-bit word."""
+        self.write_memory(addr, value, 64)
+  
     def write32(self, addr, value):
         """! @brief Shorthand to write a 32-bit word."""
         self.write_memory(addr, value, 32)
@@ -50,6 +54,10 @@ class MemoryInterface(object):
     def write8(self, addr, value):
         """! @brief Shorthand to write a byte."""
         self.write_memory(addr, value, 8)
+
+    def read64(self, addr, now=True):
+        """! @brief Shorthand to read a 64-bit word."""
+        return self.read_memory(addr, 64, now)
 
     def read32(self, addr, now=True):
         """! @brief Shorthand to read a 32-bit word."""

@@ -119,6 +119,8 @@ class MockCore(CoreSightCoreComponent):
             return 0x1234
         elif transfer_size == 32:
             return 0x12345678
+        elif transfer_size == 64:
+            return 0x1234567812345678
 
     def read_memory_block8(self, addr, size):
         for r, m in self.regions:
