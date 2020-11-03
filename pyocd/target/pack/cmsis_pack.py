@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
 # Copyright (c) 2020 Men Shiyun
+# Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -214,8 +215,8 @@ class CmsisPack(object):
                 prev_start, prev_size = get_start_and_size(prev_elem)
                 # Overlap: start or end between previous start and previous end
                 end = start+size
-                if ((start >= prev_start and start <= prev_start+prev_size) or
-                        (end >= prev_start and end <= prev_start+prev_size)):
+                prev_end = prev_start+prev_size
+                if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
                     if not self._warned_overlapping_memory_regions:
                         LOG.warning("Overlapping memory regions in file "+str(self._pack_file)+","
                                     " deleting outer region. Further warnings will be suppressed"
