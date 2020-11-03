@@ -271,15 +271,26 @@ class MatchCmsisDapv1Interface(object):
             # Must have either 1 or 2 endpoints.
             if interface.bNumEndpoints not in (1, 2):
                 return False
-        
-            # Endpoint 0 must be interrupt in.
-            if not check_ep(interface, 0, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR):
-                return False
-        
-            # Endpoint 1 is optional. If present it must be interrupt out.
-            if (interface.bNumEndpoints == 2) \
-                and not check_ep(interface, 1, usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_INTR):
-                return False
+
+            endpoint_attrs = [
+                (usb.util.endpoint_direction(ep.bEndpointAddress),
+                 usb.util.endpoint_type(ep.bmAttributes))
+                 for ep in interface
+            ]
+
+            # Possible combinations of endpoints
+            endpoint_attrs_allowed = [
+                # One interrupt endpoint IN
+                [(usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR)],
+                # Two interrupt endpoints, first one IN, second one OUT
+                [(usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR),
+                 (usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_INTR)],
+                # Two interrupt endpoints, first one OUT, second one IN
+                [(usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_INTR),
+                 (usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR)],
+            ]
+            if endpoint_attrs not in endpoint_attrs_allowed:
+                return false
         
             # All checks passed, this is a CMSIS-DAPv2 interface!
             return True
