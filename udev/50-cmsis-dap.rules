@@ -7,3 +7,5 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="c251", ATTR{idProduct}=="2750", MODE:="666"
 # 1fc9:0090 NXP LPC-LinkII
 SUBSYSTEM=="usb", ATTR{idVendor}=="1fc9", ATTR{idProduct}=="0090", MODE:="666"
 
+# 03eb:2141 Atmel-ICE CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2141", MODE:="666"
