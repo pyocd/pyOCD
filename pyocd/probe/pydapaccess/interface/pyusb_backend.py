@@ -279,7 +279,7 @@ class MatchCmsisDapv1Interface(object):
             ]
 
             # Possible combinations of endpoints
-            endpoint_attrs_allowed = [
+            ENDPOINT_ATTRS_ALLOWED = [
                 # One interrupt endpoint IN
                 [(usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR)],
                 # Two interrupt endpoints, first one IN, second one OUT
@@ -289,8 +289,8 @@ class MatchCmsisDapv1Interface(object):
                 [(usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_INTR),
                  (usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_INTR)],
             ]
-            if endpoint_attrs not in endpoint_attrs_allowed:
-                return false
+            if endpoint_attrs not in ENDPOINT_ATTRS_ALLOWED:
+                return False
         
             # All checks passed, this is a CMSIS-DAPv2 interface!
             return True
