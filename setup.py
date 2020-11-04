@@ -84,6 +84,7 @@ setup(
         'pywinusb>=0.4.0;platform_system=="Windows"',
         'pyyaml>=5.1,<6.0',
         'six>=1.0,<2.0',
+        'pypemicro',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",

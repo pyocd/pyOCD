@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import six
-from .pemicro import PyPemicro, PEMicroException, PEMicroTransferException, PEMicroInterfaces
+from pypemicro import PyPemicro, PEMicroException, PEMicroTransferException, PEMicroInterfaces
 import logging
 from time import sleep
 
