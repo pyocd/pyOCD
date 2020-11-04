@@ -8,12 +8,16 @@ discouraged.
 
 The following debug probes are supported:
 
+- Cypress KitProg1/KitProg2 in CMSIS-DAP mode
+- Cypress KitProg3
+- Cypress MiniProg4
 - DAPLink
 - STLinkV2
 - STLinkV2-1
 - STLinkV3
 - Keil ULINKplus
 - NXP LPC-LinkII
+- NXP MCU-Link
 
 
 To install, copy the rules files in this directory to `/etc/udev/rules.d/` on Ubuntu:
@@ -38,9 +42,9 @@ $ sudo udevadm control --reload
 $ sudo udevadm trigger
 ```
 
-By default, the rules provide open access to the debug probes for all users. If you share your Linux
-system with other users, or just don't like the idea of write permission for everybody, you can
-replace `MODE:="0666"` with `OWNER:="yourusername"` to create the device owned by you, or with
-`GROUP:="somegroupname"` and mange access using standard Unix groups.
+By default, the rules provide open access to the debug probes for all users (0666 permissions).
+If you share your Linux system with other users, or just don't like the idea of write permission
+for everybody, you can replace `MODE:="0666"` with `OWNER:="yourusername"` to create the device
+owned by you, or with `GROUP:="somegroupname"` and mange access using standard Unix groups.
 
 _Note: STLink rules provided courtesy of STMicroelectronics._

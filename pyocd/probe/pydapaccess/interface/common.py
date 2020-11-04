@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,16 +30,39 @@ CMSIS_DAP_USB_CLASSES = [
 
 CMSIS_DAP_HID_USAGE_PAGE = 0xff00
 
-# Various known USB VID/PID values.
-ARM_DAPLINK_ID = (0x0d28, 0x0204)
-KEIL_ULINKPLUS_ID = (0xc251, 0x2750)
-NXP_LPCLINK2_ID = (0x1fc9, 0x0090)
+# Known USB VID/PID pairs.
+ARM_DAPLINK_ID = (0x0d28, 0x0204) # Arm DAPLink firmware
+ATMEL_ICE_ID = (0x03eb, 0x2141) # Atmel-ICE
+CYPRESS_KITPROG1_2_ID = (0x04b4, 0xf138) # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
+CYPRESS_MINIPROG4_BULK_ID = (0x04b4, 0xf151) # Cypress MiniProg4 bulk
+CYPRESS_MINIPROG4_HID_ID = (0x04b4, 0xf152) # Cypress MiniProg4 HID
+CYPRESS_KITPROG3_HID_ID = (0x04b4, 0xf154) # Cypress KitProg3 HID
+CYPRESS_KITPROG3_BULKD_ID = (0x04b4, 0xf155) # Cypress KitProg3 bulk
+CYPRESS_KITPROG3_BULK_2_UART_ID = (0x04b4, 0xf166) # Cypress KitProg3 bulk with 2x UART
+KEIL_ULINKPLUS_ID = (0xc251, 0x2750) # Keil ULINKplus
+NXP_LPCLINK2_ID = (0x1fc9, 0x0090) # NXP LPC-LinkII
+NXP_MCULINK_ID = (0x1fc9, 0x0143) # NXP MCU-Link
 
 ## List of VID/PID pairs for known CMSIS-DAP USB devices.
 KNOWN_CMSIS_DAP_IDS = [
     ARM_DAPLINK_ID,
+    ATMEL_ICE_ID,
+    CYPRESS_KITPROG1_2_ID,
+    CYPRESS_MINIPROG4_BULK_ID,
+    CYPRESS_MINIPROG4_HID_ID,
+    CYPRESS_KITPROG3_HID_ID,
+    CYPRESS_KITPROG3_BULKD_ID,
+    CYPRESS_KITPROG3_BULK_2_UART_ID,
     KEIL_ULINKPLUS_ID,
     NXP_LPCLINK2_ID,
+    NXP_MCULINK_ID,
+    ]
+
+## List of VID/PID pairs for CMSIS-DAP probes that have multiple HID interfaces that must be
+# filtered by usage page. Currently these are only NXP probes.
+CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE = [
+    NXP_LPCLINK2_ID,
+    NXP_MCULINK_ID,
     ]
 
 def is_known_cmsis_dap_vid_pid(vid, pid):
@@ -75,7 +98,7 @@ def filter_device_by_usage_page(vid, pid, usage_page):
     @retval True Skip the device.
     @retval False The device is valid.
     """
-    return ((vid, pid) == NXP_LPCLINK2_ID) \
+    return ((vid, pid) in CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE) \
         and (usage_page != CMSIS_DAP_HID_USAGE_PAGE)
 
 def check_ep(interface, ep_index, ep_dir, ep_type):
