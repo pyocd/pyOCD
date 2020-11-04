@@ -29,6 +29,7 @@ from pyocd.debug import semihost
 @pytest.fixture(scope='module')
 def tgt(request):
     board = None
+    session = None
     try:
         session = ConnectHelper.session_with_chosen_probe(blocking=False, return_first=True)
     except Exception as error:
