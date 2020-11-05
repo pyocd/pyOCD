@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
 # Copyright (c) 2020 Men Shiyun
