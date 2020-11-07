@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
 # Copyright (c) 2020 Men Shiyun
+# Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,6 +87,10 @@ class CmsisPack(object):
             except BadZipFile as err:
                 six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
                     file_or_path, err)), err)
+        
+        # Remember if we have already warned about overlapping memory regions
+        # so we can limit these to one warning per DFP
+        self._warned_overlapping_memory_regions = False
         
         # Find the .pdsc file.
         for name in self._pack_file.namelist():
@@ -173,27 +179,52 @@ class CmsisPack(object):
         return list(map.values())
 
     def _extract_memories(self):
+        def get_start_and_size(elem):
+            try:
+                start = int(elem.attrib['start'], base=0)
+                size = int(elem.attrib['size'], base=0)
+            except (KeyError, ValueError):
+                LOG.warning("memory region missing address")
+                raise
+            return (start, size)
         def filter(map, elem):
-            # 'name' takes precedence over 'id'.
-            if 'name' in elem.attrib:
+            # Inner memory regions are allowed to override outer memory
+            # regions. If this is not done properly via name/id, we must make
+            # sure not to report overlapping memory regions to gdb since it
+            # will ignore those completely, see:
+            # https://github.com/pyocd/pyOCD/issues/980
+            start, size = get_start_and_size(elem)
+            if 'name' in elem.attrib: # 'name' takes precedence over 'id'.
                 name = elem.attrib['name']
             elif 'id' in elem.attrib:
                 name = elem.attrib['id']
             else:
                 # Neither option for memory name was specified, so use the address range.
-                try:
-                    start = int(elem.attrib['start'], base=0)
-                    size = int(elem.attrib['size'], base=0)
-                except (KeyError, ValueError):
-                    LOG.warning("memory region missing address")
-                    return
-                
                 # Use the start and size for a name.
                 name = "%08x:%08x" % (start, size)
 
             pname = elem.attrib.get('Pname', None)
             info = (name, pname)
         
+            if info in map:
+                del map[info]
+            for k in list(map.keys()):
+                prev_pname = k[1]
+                if prev_pname != pname:
+                    continue
+                prev_elem = map[k]
+                prev_start, prev_size = get_start_and_size(prev_elem)
+                # Overlap: start or end between previous start and previous end
+                end = start+size
+                prev_end = prev_start+prev_size
+                if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
+                    if not self._warned_overlapping_memory_regions:
+                        LOG.warning("Overlapping memory regions in file "+str(self._pack_file)+","
+                                    " deleting outer region. Further warnings will be suppressed"
+                                    " for this file.")
+                        self._warned_overlapping_memory_regions = True
+                    del map[k]
+
             map[info] = elem
         
         return self._extract_items('memories', filter)
