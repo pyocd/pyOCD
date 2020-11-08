@@ -35,6 +35,13 @@ class PyOCDCommander(object):
     
     Responsible for connecting the execution context, REPL, and commands, and handles connection.
     
+    Exit codes:
+    - 0 = no errors
+    - 1 = command error
+    - 2 = transfer error
+    - 3 = failed to create session (probe might not exist)
+    - 4 = failed to open probe
+    
     @todo Replace use of args from argparse with something cleaner.
     """
     
@@ -169,7 +176,9 @@ class PyOCDCommander(object):
             self.exit_code = 3
             return False
         
-        self._post_connect()
+        if not self._post_connect():
+            self.exit_code = 4
+            return False
         
         result = self.context.attach_session(self.session)
         if not result:
