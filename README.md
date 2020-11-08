@@ -63,14 +63,14 @@ Requirements
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID),
-    such as:
-    - An on-board debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID), such as:
+    - An on-board or standalone debug probe using [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware.
     - NXP LPC-LinkII
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v2 (WinUSB),
-    such as:
+    - NXP MCU-Link
+    - Atmel-ICE
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v2 (WinUSB), such as:
     - [DAPLink](https://os.mbed.com/handbook/DAPLink) firmware version 0254 or newer.
-    - Cypress KitProg3
+    - Cypress KitProg3 or MiniProg4
     - Keil ULINKplus
   - SEGGER J-Link (experimental)
   - STLinkV2 or STLinkV3, either on-board or the standalone versions.
