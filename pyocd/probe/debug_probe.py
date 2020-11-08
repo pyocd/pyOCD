@@ -63,10 +63,14 @@ class DebugProbe(object):
     def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         """! @brief Returns a list of DebugProbe instances.
         
+        To filter the list of returned probes, the `unique_id` parameter may be set to a string with a full or
+        partial unique ID (canonically the serial number). Alternatively, the probe class may simply return all
+        available probes and let the caller handle filtering.
+        
         @param cls The class instance.
-        @param unique_id Optional unique ID value on which probes are being filtered. May be
-            used by the probe to optimize retreiving the probe list.
-        @param is_explicit Whether the probe type was explicitly specified in the unique ID. This
+        @param unique_id String. Optional partial unique ID value used to filter available probes. May be used by the
+            probe to optimize retreiving the probe list; there is no requirement to filter the results.
+        @param is_explicit Boolean. Whether the probe type was explicitly specified in the unique ID. This
             can be used, for instance, to specially interpret the unique ID as an IP address or
             domain name when the probe class was specifically requested but not for general lists
             of available probes.
@@ -78,12 +82,11 @@ class DebugProbe(object):
     def get_probe_with_id(cls, unique_id, is_explicit=False):
         """! @brief Returns a DebugProbe instance for a probe with the given unique ID.
         
-        If no probe is connected with a matching unique ID, then None will be returned.
+        If no probe is connected with a fully matching unique ID, then None will be returned.
         
         @param cls The class instance.
-        @param unique_id Optional unique ID value on which probes are being filtered. May be
-            used by the probe to optimize retreiving the probe list.
-        @param is_explicit Whether the probe type was explicitly specified in the unique ID.
+        @param unique_id Unique ID string to match against probes' full unique ID. No partial matches are allowed.
+        @param is_explicit Boolean. Whether the probe type was explicitly specified in the unique ID.
         @return DebugProbe instance, or None
         """
         raise NotImplementedError()
