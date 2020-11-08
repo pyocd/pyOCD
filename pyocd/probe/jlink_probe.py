@@ -54,6 +54,10 @@ class JLinkProbe(DebugProbe):
                     )
         except TypeError:
             return None
+
+    @classmethod
+    def _format_serial_number(cls, serial_number):
+        return "{:d}".format(serial_number)
     
     @classmethod
     def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
@@ -61,7 +65,7 @@ class JLinkProbe(DebugProbe):
             jlink = cls._get_jlink()
             if jlink is None:
                 return []
-            return [cls(str(info.SerialNumber)) for info in jlink.connected_emulators()]
+            return [cls(cls._format_serial_number(info.SerialNumber)) for info in jlink.connected_emulators()]
         except JLinkException as exc:
             six.raise_from(cls._convert_exception(exc), exc)
     
@@ -72,35 +76,52 @@ class JLinkProbe(DebugProbe):
             if jlink is None:
                 return None
             for info in jlink.connected_emulators():
-                if str(info.SerialNumber) == unique_id:
-                    return cls(str(info.SerialNumber))
+                sn = cls._format_serial_number(info.SerialNumber)
+                if sn == unique_id:
+                    return cls(sn)
+            else:
+                return None
+        except JLinkException as exc:
+            six.raise_from(cls._convert_exception(exc), exc)
+
+    @classmethod
+    def _get_probe_info(cls, serial_number, jlink):
+        """! @brief Look up and return a JLinkConnectInfo for the probe with matching serial number.
+        @param cls The class object.
+        @param serial_number String serial number. Must be the full serial number.
+        @return JLinkConnectInfo object or None if there was no match.
+        """
+        try:
+            for info in jlink.connected_emulators():
+                if cls._format_serial_number(info.SerialNumber) == serial_number:
+                    return info
             else:
                 return None
         except JLinkException as exc:
             six.raise_from(cls._convert_exception(exc), exc)
 
     def __init__(self, serial_number):
+        """! @brief Constructor.
+        @param self The object.
+        @param serial_number String. The J-Link's serial number.
+        """
         super(JLinkProbe, self).__init__()
         self._link = self._get_jlink()
         if self._link is None:
             raise exceptions.ProbeError("unable to open JLink DLL")
 
+        info = self._get_probe_info(serial_number, self._link)
+        if info is None:
+            raise exceptions.ProbeError("could not find JLink probe with serial number '{}'".format(serial_number))
+
         self._serial_number = serial_number
+        self._serial_number_int = int(serial_number, base=10)
         self._supported_protocols = None
         self._protocol = None
         self._default_protocol = None
         self._is_open = False
         self._dp_select = -1
-        self._product_name = None
-        self._oem = None
-        
-        # Get some strings by temporarily opening.
-        try:
-            self.open()
-            self._product_name = self._link.product_name
-            self._oem = self._link.oem
-        finally:
-            self.close()
+        self._product_name = six.ensure_str(info.acProduct)
         
     @property
     def description(self):
@@ -108,7 +129,7 @@ class JLinkProbe(DebugProbe):
     
     @property
     def vendor_name(self):
-        return self._oem or "Segger"
+        return "Segger"
     
     @property
     def product_name(self):
@@ -137,7 +158,7 @@ class JLinkProbe(DebugProbe):
     
     def open(self):
         try:
-            self._link.open(self._serial_number)
+            self._link.open(self._serial_number_int)
             self._is_open = True
         
             # Get available wire protocols.
@@ -147,7 +168,9 @@ class JLinkProbe(DebugProbe):
                 self._supported_protocols.append(DebugProbe.Protocol.JTAG)
             if ifaces & (1 << pylink.enums.JLinkInterfaces.SWD):
                 self._supported_protocols.append(DebugProbe.Protocol.SWD)
-            assert len(self._supported_protocols) > 1
+            if not len(self._supported_protocols) >= 2: # default + 1
+                raise exceptions.ProbeError("J-Link probe {} does not support any known wire protocols".format(
+                        self.unique_id))
             
             # Select default protocol, preferring SWD over JTAG.
             if DebugProbe.Protocol.SWD in self._supported_protocols:
