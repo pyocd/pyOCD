@@ -312,7 +312,7 @@ class _Command(object):
                     buf[pos] = (write_list[write_pos] >> (8 * 3)) & 0xff
                     pos += 1
                     write_pos += 1
-        return buf
+        return buf[:pos]
 
     def _check_response(self, response):
         """! @brief Check the response status byte from CMSIS-DAP transfer commands.
@@ -402,7 +402,7 @@ class _Command(object):
                     buf[pos] = (write_list[write_pos] >> (8 * 3)) & 0xff
                     pos += 1
                     write_pos += 1
-        return buf
+        return buf[:pos]
 
     def _decode_transfer_block_data(self, data):
         """! @brief Take a byte array and extract the data from it
