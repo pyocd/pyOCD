@@ -66,7 +66,7 @@ setup(
     long_description_content_type='text/markdown',
     author="Chris Reed, Martin Kojtal, Russ Butler",
     author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
-    url='https://github.com/mbedmicro/pyOCD',
+    url='https://github.com/pyocd/pyOCD',
     license="Apache 2.0",
     # Allow installation on 2.7.9+, and 3.4+ even though we officially only support 3.6+.
     python_requires=">=2.7.9, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
@@ -96,6 +96,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Debuggers",
         "Topic :: Software Development :: Embedded Systems",
     ],
