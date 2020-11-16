@@ -121,7 +121,7 @@ BOARD_ID_TO_INFO = {
     "0760": BoardInfo(  "NUCLEO-L073RZ",        "stm32l073rztx",    None,                   ),
     "0764": BoardInfo(  "DISCO-L475VG-IOT01A",  "stm32l475xg",      "stm32l475vg_iot01a.bin",),
     "0765": BoardInfo(  "NUCLEO-L476RG",        "stm32l476rgtx",    "NUCLEO_L476RG.bin",    ),
-    "0770": BoardInfo(  "NUCLEO-L432KC",        "stm32l432kcux",    None,                   ),
+    "0770": BoardInfo(  "NUCLEO-L432KC",        "stm32l432kcux",    "NUCLEO_L432KC.bin",    ),
     "0774": BoardInfo(  "DISCO-L4R9I",          "stm32l4r9aiix",    None,                   ),
     "0775": BoardInfo(  "NUCLEO-F303K8",        "stm32f303k8tx",    None,                   ),
     "0776": BoardInfo(  "NUCLEO-L4R5ZI",        "stm32l4r5zitx",    None,                   ),
