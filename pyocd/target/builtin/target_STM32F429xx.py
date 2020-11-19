@@ -78,7 +78,7 @@ class STM32F429xG(CoreSightTarget):
                                                         page_size=0x1000,
                                                         erase_all_weight=CHIP_ERASE_WEIGHT,
                                                         algo=FLASH_ALGO),
-        FlashRegion( start=0x08020000, length=0x60000,  sector_size=0x20000,
+        FlashRegion( start=0x08020000, length=0xe0000,  sector_size=0x20000,
                                                         page_size=0x1000,
                                                         erase_all_weight=CHIP_ERASE_WEIGHT,
                                                         algo=FLASH_ALGO),
