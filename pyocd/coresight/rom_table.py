@@ -154,7 +154,14 @@ class CoreSightComponentID(object):
                 self.name = info.name
                 self.factory = info.factory
             else:
-                self.name = '???'
+                # Try just the archid with no partno or devtype as backup.
+                key = (self.designer, self.component_class, None, None, self.archid)
+                info = COMPONENT_MAP.get(key, None)
+                if info is not None:
+                    self.name = info.name
+                    self.factory = info.factory
+                else:
+                    self.name = '???'
 
         self.valid = True
 
