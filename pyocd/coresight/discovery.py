@@ -261,7 +261,7 @@ class ADIv6Discovery(CoreSightDiscovery):
             self.target.add_child(component)
             component.init()
         except exceptions.Error as e:
-            LOG.error("Exception creating root component: %s", cmpid.address, e,
+            LOG.error("Exception creating root component at address 0x%08x: %s", cmpid.address, e,
                     exc_info=self.session.log_tracebacks)
     
     def _find_components_on_aps(self):
