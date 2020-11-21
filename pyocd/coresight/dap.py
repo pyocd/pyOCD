@@ -245,6 +245,12 @@ class DPConnector:
 class DebugPort:
     """! @brief Represents the Arm Debug Interface (ADI) Debug Port (DP)."""
 
+    ## Sleep for 50 ms between connection tests and reconnect attempts after a reset.
+    _RESET_RECOVERY_SLEEP_INTERVAL = 0.05
+
+    ## Number of times to try to read DP registers after hw reset before attempting reconnect.
+    _RESET_RECOVERY_ATTEMPTS_BEFORE_RECONNECT = 1
+    
     def __init__(self, probe, target):
         """! @brief Constructor.
         @param self The DebugPort object.
@@ -268,6 +274,7 @@ class DebugPort:
         self._probe_supports_apv2_addresses = False
         self._have_probe_capabilities = False
         self._did_check_version = False
+        self._log_dp_info = True
         
         # DPv3 attributes
         self._is_dpv3 = False
@@ -382,7 +389,8 @@ class DebugPort:
 
         # Report on DP version.
         self.dpidr = connector.idr
-        LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
+        LOG.log(logging.INFO if self._log_dp_info else logging.DEBUG,
+            "DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
             " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
         
     def _check_version(self):
@@ -498,6 +506,40 @@ class DebugPort:
         """
         self._invalidate_cache()
     
+    def post_reset_recovery(self):
+        """! @brief Wait for the target to recover from reset, with auto-reconnect if needed."""
+        # Check if we can access DP registers. If this times out, then reconnect the DP and retry.
+        with Timeout(self.session.options.get('reset.dap_recover.timeout'),
+                self._RESET_RECOVERY_SLEEP_INTERVAL) as time_out:
+            attempt = 0
+            while time_out.check():
+                try:
+                    # Try to read CTRL/STAT. If the power-up bits request are reset, then the DP
+                    # connection was not lost and we can just return.
+                    value = self.read_reg(DP_CTRL_STAT)
+                    if (value & (CSYSPWRUPREQ | CDBGPWRUPREQ)) == (CSYSPWRUPREQ | CDBGPWRUPREQ):
+                        return
+                except exceptions.TransferError:
+                    # Ignore errors caused by flushing.
+                    try:
+                        self.flush()
+                    except exceptions.TransferError:
+                        pass
+
+                if attempt == self._RESET_RECOVERY_ATTEMPTS_BEFORE_RECONNECT:
+                    LOG.info("DAP is not accessible after reset; attempting reconnect")
+                elif attempt > self._RESET_RECOVERY_ATTEMPTS_BEFORE_RECONNECT:
+                    # Try reconnect.
+                    try:
+                        self._log_dp_info = False
+                        self.connect()
+                    finally:
+                        self._log_dp_info = True
+
+                attempt += 1
+            else:
+                LOG.error("DAP is not accessible after reset followed by attempted reconnect")
+
     def reset(self):
         """! @brief Hardware reset.
         
@@ -507,6 +549,7 @@ class DebugPort:
         """
         self.session.notify(Target.Event.PRE_RESET, self)
         self.probe.reset()
+        self.post_reset_recovery()
         self.session.notify(Target.Event.POST_RESET, self)
 
     def assert_reset(self, asserted):
