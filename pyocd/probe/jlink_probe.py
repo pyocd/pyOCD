@@ -372,7 +372,13 @@ class JLinkProbe(DebugProbe):
     @staticmethod
     def _convert_exception(exc):
         if isinstance(exc, JLinkException):
-            return exceptions.ProbeError(str(exc))
+            # J-Link returns this unhelpful error when it's really a transfer fault. The JLinkWriteException
+            # and JLinkReadException exceptions checked below seem to only be returned for the higher level
+            # read/write APIs.
+            if str(exc) == "Unspecified error.":
+                return exceptions.TransferFaultError(str(exc))
+            else:
+                return exceptions.ProbeError(str(exc))
         elif isinstance(exc, (JLinkWriteException, JLinkReadException)):
             return exceptions.TransferFaultError(str(exc))
         else:
