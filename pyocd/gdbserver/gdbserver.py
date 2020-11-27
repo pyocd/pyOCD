@@ -340,9 +340,9 @@ class GDBServer(threading.Thread):
                 if self.detach_event.isSet():
                     continue
 
-                LOG.info("One client connected!")
+                LOG.info("Client connected to port %d!", self.port)
                 self._run_connection()
-                LOG.info("Client disconnected!")
+                LOG.info("Client disconnected from port %d!", self.port)
                 self._cleanup_for_next_connection()
 
             except Exception as e:
