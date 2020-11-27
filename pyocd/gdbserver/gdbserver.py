@@ -261,7 +261,10 @@ class GDBServer(threading.Thread):
         """! @brief Initialize the remote command processor infrastructure."""
         # Create command execution context. The output stream will default to stdout
         # but we'll change it to a fresh StringIO prior to running each command.
+        #
+        # Note we also modify the selected_core property so it is initially set to the gdbserver's core.
         self._command_context = CommandExecutionContext()
+        self._command_context.selected_core = self.target
         self._command_context.attach_session(self.session)
         
         # Add the gdbserver command group.
