@@ -102,7 +102,14 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, session, core=None, server_listening_callback=None):
+
+    ## Notification event for the gdbserver beginnning to listen on its RSP port.
+    GDBSERVER_START_LISTENING_EVENT = 'gdbserver-start-listening'
+    
+    ## Timer delay for sending the notification that the server is listening.
+    START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
+    
+    def __init__(self, session, core=None):
         super(GDBServer, self).__init__()
         self.session = session
         self.board = session.board
@@ -140,7 +147,6 @@ class GDBServer(threading.Thread):
                 'report_core_number',
                 ])
 
-        self.server_listening_callback = server_listening_callback
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -313,9 +319,13 @@ class GDBServer(threading.Thread):
             try:
                 self.detach_event.clear()
 
-                # Inform callback that the server is running.
-                if self.server_listening_callback:
-                    self.server_listening_callback(self)
+                # Notify listeners that the server is running after a short delay.
+                #
+                # This timer prevents a race condition where the notification is sent before the server is
+                # actually listening. It's not a 100% guarantee, though.
+                notify_timer = threading.Timer(self.START_LISTENING_NOTIFY_DELAY, self.session.notify,
+                        args=(self.GDBSERVER_START_LISTENING_EVENT, self))
+                notify_timer.start()
 
                 while not self.shutdown_event.isSet() and not self.detach_event.isSet():
                     connected = self.abstract_socket.connect()

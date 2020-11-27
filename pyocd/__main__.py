@@ -674,7 +674,7 @@ class PyOCDTool(object):
             except IndexError:
                 pass
 
-    def server_listening(self, server):
+    def _gdbserver_listening_cb(self, note):
         """! @brief Callback invoked when the gdbserver starts listening on its port."""
         if self.echo_msg is not None:
             print(self.echo_msg, file=sys.stderr)
@@ -770,9 +770,8 @@ class PyOCDTool(object):
                     # Don't create a server if this core is not listed by the user.
                     if core_number not in core_list:
                         continue
-                    gdb = GDBServer(session,
-                        core=core_number,
-                        server_listening_callback=self.server_listening)
+                    gdb = GDBServer(session, core=core_number)
+                    session.subscribe(self._gdbserver_listening_cb, GDBServer.GDBSERVER_START_LISTENING_EVENT, gdb)
                     session.gdbservers[core_number] = gdb
                     gdbs.append(gdb)
                     gdb.start()
