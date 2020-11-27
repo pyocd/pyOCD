@@ -40,9 +40,9 @@ class ThreadsCommand(CommandBase):
     
     def execute(self):
         # Get the gdbserver for the selected core.
-        core_number = self.context.target.selected_core.core_number
+        core_number = self.context.selected_core.core_number
         try:
-            gdbserver = self.context.session.gdbservers[core_numb
+            gdbserver = self.context.session.gdbservers[core_number]
         except KeyError:
             raise exceptions.CommandError("no gdbserver for core #%i" % core_number)
 

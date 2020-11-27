@@ -96,7 +96,7 @@ class CoresValue(ValueBase):
             for i, core in self.context.target.cores.items():
                 self.context.writei("Core %d type:  %s%s", i,
                         coresight.core_ids.CORE_TYPE_NAME[core.core_type],
-                        " (selected)" if (self.context.target.selected_core.core_number == i) else "")
+                        " (selected)" if (self.context.selected_core.core_number == i) else "")
 
 class MemoryMapValue(ValueBase):
     INFO = {
@@ -111,7 +111,7 @@ class MemoryMapValue(ValueBase):
         pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page"])
         pt.align = 'l'
         pt.border = False
-        for region in self.context.target.get_memory_map():
+        for region in self.context.selected_core.get_memory_map():
             pt.add_row([
                 region.name,
                 region.type.name.capitalize(),
@@ -205,14 +205,14 @@ class FaultValue(ValueBase):
                 if showAll or bit != 0:
                     self.context.writei("    %s = 0x%x", name, bit)
         
-        cfsr = self.context.target.read32(CFSR)
+        cfsr = self.context.selected_core.read32(CFSR)
         mmfsr = cfsr & 0xff
         bfsr = (cfsr >> 8) & 0xff
         ufsr = (cfsr >> 16) & 0xffff
-        hfsr = self.context.target.read32(HFSR)
-        dfsr = self.context.target.read32(DFSR)
-        mmfar = self.context.target.read32(MMFAR)
-        bfar = self.context.target.read32(BFAR)
+        hfsr = self.context.selected_core.read32(HFSR)
+        dfsr = self.context.selected_core.read32(DFSR)
+        mmfar = self.context.selected_core.read32(MMFAR)
+        bfar = self.context.selected_core.read32(BFAR)
         
         print_fields('MMFSR', mmfsr, MMFSR_fields, showAll)
         if showAll or mmfsr & (1 << 7): # MMFARVALID
@@ -393,7 +393,7 @@ class RegisterGroupsValue(ValueBase):
             }
 
     def display(self, args):
-        for g in sorted(self.context.target.core_registers.groups):
+        for g in sorted(self.context.selected_core.core_registers.groups):
             self.context.write(g)
 
 class VectorCatchValue(ValueBase):
@@ -409,7 +409,7 @@ class VectorCatchValue(ValueBase):
             }
 
     def display(self, args):
-        catch = self.context.target.get_vector_catch()
+        catch = self.context.selected_core.get_vector_catch()
 
         self.context.write("Vector catch:")
         for mask in sorted(VC_NAMES_MAP.keys()):
@@ -422,7 +422,7 @@ class VectorCatchValue(ValueBase):
             raise exceptions.CommandError("missing vector catch setting")
     
         try:
-            self.context.target.set_vector_catch(convert_vector_catch(args[0]))
+            self.context.selected_core.set_vector_catch(convert_vector_catch(args[0]))
         except ValueError as e:
             self.context.write(e)
 

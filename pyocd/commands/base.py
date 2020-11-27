@@ -133,8 +133,8 @@ class CommandBase(object):
                     offset = int(offset.strip(), base=0)
 
             value = None
-            if arg.lower() in self.context.target.core_registers.by_name:
-                value = self.context.target.read_core_register(arg.lower())
+            if arg.lower() in self.context.selected_core.core_registers.by_name:
+                value = self.context.selected_core.read_core_register(arg.lower())
                 self.context.writei("%s = 0x%08x", arg.lower(), value)
             else:
                 subargs = arg.lower().split('.')
@@ -155,7 +155,8 @@ class CommandBase(object):
                 value = int(arg, base=0)
 
             if deref:
-                value = conversion.byte_list_to_u32le_list(self.context.target.read_memory_block8(value + offset, 4))[0]
+                value = conversion.byte_list_to_u32le_list(
+                        self.context.selected_core.read_memory_block8(value + offset, 4))[0]
                 self.context.writei("[%s,%d] = 0x%08x", arg, offset, value)
 
             return value

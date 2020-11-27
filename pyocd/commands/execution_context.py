@@ -138,6 +138,7 @@ class CommandExecutionContext(object):
 
         # State attributes.
         self._session = None
+        self._selected_core = None
         self._selected_ap_address = None
         self._peripherals = {}
         self._loaded_peripherals = False
@@ -192,7 +193,7 @@ class CommandExecutionContext(object):
     def attach_session(self, session):
         """! @brief Associate a session with the command context.
         
-        Various data for the context are initialized. This includes  selecting the initially selected MEM-AP,
+        Various data for the context are initialized. This includes selecting the initially selected core and MEM-AP,
         and getting an ELF file that was set on the target.
         
         @param self This object.
@@ -207,8 +208,13 @@ class CommandExecutionContext(object):
         # Select the first core's MEM-AP by default.
         if not self._no_init:
             try:
-                if self.target.selected_core is not None:
-                    self.selected_ap_address = self.target.selected_core.ap.address
+                # Selected core defaults to the target's default selected core.
+                if self.selected_core is None:
+                    self.selected_core = self.target.selected_core
+            
+                # Get the AP for the selected core.
+                if self.selected_core is not None:
+                    self.selected_ap_address = self.selected_core.ap.address
             except IndexError:
                 pass
             
@@ -262,6 +268,15 @@ class CommandExecutionContext(object):
     @output_stream.setter
     def output_stream(self, stream):
         self._output = stream
+    
+    @property
+    def selected_core(self):
+        """! @brief The Target instance for the selected core."""
+        return self._selected_core
+    
+    @selected_core.setter
+    def selected_core(self, value):
+        self._selected_core = value
     
     @property
     def selected_ap_address(self):
