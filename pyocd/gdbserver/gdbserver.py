@@ -311,9 +311,6 @@ class GDBServer(threading.Thread):
 
     def run(self):
         LOG.info('GDB server started on port %d (core %d)', self.port, self.core)
-        
-        # Make sure the target is halted. Otherwise gdb gets easily confused.
-        self.target.halt()
 
         while True:
             try:
@@ -339,6 +336,9 @@ class GDBServer(threading.Thread):
 
                 if self.detach_event.isSet():
                     continue
+        
+                # Make sure the target is halted. Otherwise gdb gets easily confused.
+                self.target.halt()
 
                 LOG.info("Client connected to port %d!", self.port)
                 self._run_connection()
