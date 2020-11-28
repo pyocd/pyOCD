@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2020 Patrick Huesmann
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,6 +28,7 @@ from ..coresight.tpiu import TPIU
 from ..core.target import Target
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
+from ..utility.server import StreamServer
 
 LOG = logging.getLogger(__name__)
 
@@ -155,6 +157,10 @@ class SWVReader(threading.Thread):
         if self._lock:
             self._lock.acquire()
 
+        tpiu_port = self._session.options.get('tpiu_port')
+        tpiu_server = StreamServer(tpiu_port, name="TPIU", is_read_only=True) \
+                      if tpiu_port else None
+
         # Stop SWO first in case the probe already had it started. Ignore if this fails.
         try:
             self._session.probe.swo_stop()
@@ -165,6 +171,8 @@ class SWVReader(threading.Thread):
         while not self._shutdown_event.is_set():
             data = self._session.probe.swo_read()
             if data:
+                if tpiu_server:
+                    tpiu_server.write(data)
                 self._parser.parse(data)
         
             if self._lock:
@@ -177,6 +185,9 @@ class SWVReader(threading.Thread):
             
         self._session.probe.swo_stop()
 
+        if tpiu_server:
+            tpiu_server.stop()
+    
         if self._lock:
             self._lock.release()
     
