@@ -114,9 +114,9 @@ class StatusCommand(CommandBase):
 
 class RegisterCommandBase(CommandBase):
     def dump_register_group(self, group_name):
-        regs = natsort(self.context.target.core_registers.iter_matching(
+        regs = natsort(self.context.selected_core.core_registers.iter_matching(
                 lambda r: r.group == group_name), key=lambda r: r.name)
-        reg_values = self.context.target.read_core_registers_raw(r.name for r in regs)
+        reg_values = self.context.selected_core.read_core_registers_raw(r.name for r in regs)
         
         col_printer = ColumnFormatter()
         for info, value in zip(regs, reg_values):
@@ -126,11 +126,11 @@ class RegisterCommandBase(CommandBase):
         col_printer.write()
 
     def dump_registers(self, show_all=False, show_group=None):
-        if not self.context.target.is_halted():
+        if not self.context.selected_core.is_halted():
             self.context.write("Core is not halted; cannot read core registers")
             return
 
-        all_groups = sorted(self.context.target.core_registers.groups)
+        all_groups = sorted(self.context.selected_core.core_registers.groups)
         if show_all:
             groups_to_show = all_groups
         elif show_group:
@@ -147,7 +147,7 @@ class RegisterCommandBase(CommandBase):
     def _dump_peripheral_register(self, periph, reg, show_fields):
         size = reg.size or 32
         addr = periph.base_address + reg.address_offset
-        value = self.context.target.read_memory(addr, size)
+        value = self.context.selected_ap.read_memory(addr, size)
         value_str = format_hex_width(value, size)
         self.context.writei("%s.%s @ %08x = %s", periph.name, reg.name, addr, value_str)
 
@@ -217,19 +217,19 @@ class RegCommand(RegisterCommandBase):
             return
         
         # Check register names first.
-        if self.reg in self.context.target.core_registers.by_name:
-            if not self.context.target.is_halted():
+        if self.reg in self.context.selected_core.core_registers.by_name:
+            if not self.context.selected_core.is_halted():
                 self.context.write("Core is not halted; cannot read core registers")
                 return
 
-            info = self.context.target.core_registers.by_name[self.reg]
-            value = self.context.target.read_core_register(self.reg)
+            info = self.context.selected_core.core_registers.by_name[self.reg]
+            value = self.context.selected_core.read_core_register(self.reg)
             value_str = self._format_core_register(info, value)
             self.context.writei("%s = %s", self.reg, value_str)
             return
         
         # Now look for matching group name.
-        matcher = UniquePrefixMatcher(self.context.target.core_registers.groups)
+        matcher = UniquePrefixMatcher(self.context.selected_core.core_registers.groups)
         group_matches = matcher.find_all(self.reg)
         if len(group_matches) == 1:
             self.dump_registers(show_group=group_matches[0])
@@ -277,8 +277,8 @@ class WriteRegCommand(RegisterCommandBase):
         self.value = args[idx + 1]
 
     def execute(self):
-        if self.reg in self.context.target.core_registers.by_name:
-            if not self.context.target.is_halted():
+        if self.reg in self.context.selected_core.core_registers.by_name:
+            if not self.context.selected_core.is_halted():
                 self.context.write("Core is not halted; cannot write core registers")
                 return
 
@@ -286,7 +286,7 @@ class WriteRegCommand(RegisterCommandBase):
                 value = float(self.value)
             else:
                 value = self._convert_value(self.value)
-            self.context.target.write_core_register(self.reg, value)
+            self.context.selected_core.write_core_register(self.reg, value)
             self.context.target.flush()
         else:
             value = self._convert_value(self.value)
@@ -301,18 +301,18 @@ class WriteRegCommand(RegisterCommandBase):
                     addr = p.base_address + r.address_offset
                     if len(subargs) == 2:
                         self.context.writei("writing 0x%x to 0x%x:%d (%s)", value, addr, r.size, r.name)
-                        self.context.target.write_memory(addr, value, r.size)
+                        self.context.selected_ap.write_memory(addr, value, r.size)
                     elif len(subargs) == 3:
                         f = [x for x in r.fields if x.name.lower() == subargs[2]]
                         if len(f):
                             f = f[0]
                             msb = f.bit_offset + f.bit_width - 1
                             lsb = f.bit_offset
-                            originalValue = self.context.target.read_memory(addr, r.size)
+                            originalValue = self.context.selected_ap.read_memory(addr, r.size)
                             value = bfi(originalValue, msb, lsb, value)
                             self.context.writei("writing 0x%x to 0x%x[%d:%d]:%d (%s.%s)",
                                     value, addr, msb, lsb, r.size, r.name, f.name)
-                            self.context.target.write_memory(addr, value, r.size)
+                            self.context.selected_ap.write_memory(addr, value, r.size)
                     else:
                         raise exceptions.CommandError("too many dots")
                     self.context.target.flush()
@@ -341,16 +341,16 @@ class ResetCommand(CommandBase):
     def execute(self):
         if self.do_halt:
             self.context.write("Resetting target with halt")
-            self.context.target.reset_and_halt()
+            self.context.selected_core.reset_and_halt()
 
-            status = self.context.target.get_state()
+            status = self.context.selected_core.get_state()
             if status != Target.State.HALTED:
                 self.context.writei("Failed to halt device on reset (state is %s)", status.name)
             else:
                 self.context.write("Successfully halted device on reset")
         else:
             self.context.write("Resetting target")
-            self.context.target.reset()
+            self.context.selected_core.reset()
 
 class DisassembleCommand(CommandBase):
     INFO = {
@@ -382,7 +382,7 @@ class DisassembleCommand(CommandBase):
         self.addr &= ~1
 
         # Print disasm of data.
-        data = self.context.target.read_memory_block8(self.addr, self.count)
+        data = self.context.selected_ap.read_memory_block8(self.addr, self.count)
         print_disasm(self.context, bytes(bytearray(data)), self.addr)
 
 class ReadCommandBase(CommandBase):
@@ -915,8 +915,8 @@ class ContinueCommand(CommandBase):
             }
     
     def execute(self):
-        self.context.target.resume()
-        status = self.context.target.get_state()
+        self.context.selected_core.resume()
+        status = self.context.selected_core.get_state()
         if status == Target.State.RUNNING:
             self.context.write("Successfully resumed device")
         elif status == Target.State.SLEEPING:
@@ -947,16 +947,16 @@ class StepCommand(CommandBase):
             self.count = 1
     
     def execute(self):
-        if not self.context.target.is_halted():
+        if not self.context.selected_core.is_halted():
             self.context.write("Core is not halted; cannot step")
             return
 
         for i in range(self.count):
-            self.context.target.step(disable_interrupts=not self.context.session.options['step_into_interrupt'])
-            addr = self.context.target.read_core_register('pc')
+            self.context.selected_core.step(disable_interrupts=not self.context.session.options['step_into_interrupt'])
+            addr = self.context.selected_core.read_core_register('pc')
             if IS_CAPSTONE_AVAILABLE:
                 addr &= ~1
-                data = self.context.target.read_memory_block8(addr, 4)
+                data = self.context.selected_ap.read_memory_block8(addr, 4)
                 print_disasm(self.context, bytes(bytearray(data)), addr, max_instructions=1)
             else:
                 self.context.writei("PC = 0x%08x", addr)
@@ -972,9 +972,9 @@ class HaltCommand(CommandBase):
             }
     
     def execute(self):
-        self.context.target.halt()
+        self.context.selected_core.halt()
 
-        status = self.context.target.get_state()
+        status = self.context.selected_core.get_state()
         if status != Target.State.HALTED:
             self.context.writei("Failed to halt device; target state is %s", status.name.capitalize())
             return 1
@@ -995,8 +995,8 @@ class BreakpointCommand(CommandBase):
         self.addr = self._convert_value(args[0])
 
     def execute(self):
-        if self.context.target.set_breakpoint(self.addr):
-            self.context.target.selected_core.bp_manager.flush()
+        if self.context.selected_core.set_breakpoint(self.addr):
+            self.context.selected_core.bp_manager.flush()
             self.context.writei("Set breakpoint at 0x%08x", self.addr)
         else:
             self.context.writei("Failed to set breakpoint at 0x%08x", self.addr)
@@ -1016,9 +1016,9 @@ class RemoveBreakpointCommand(CommandBase):
 
     def execute(self):
         try:
-            type = self.context.target.get_breakpoint_type(self.addr)
-            self.context.target.remove_breakpoint(self.addr)
-            self.context.target.selected_core.bp_manager.flush()
+            type = self.context.selected_core.get_breakpoint_type(self.addr)
+            self.context.selected_core.remove_breakpoint(self.addr)
+            self.context.selected_core.bp_manager.flush()
             self.context.writei("Removed breakpoint at 0x%08x", self.addr)
         except Exception:
             self.context.writei("Failed to remove breakpoint at 0x%08x", self.addr)
@@ -1034,9 +1034,9 @@ class ListBreakpointsCommand(CommandBase):
             }
     
     def execute(self):
-        availableBpCount = self.context.target.selected_core.available_breakpoint_count
+        availableBpCount = self.context.selected_core.available_breakpoint_count
         self.context.writei("%d hardware breakpoints available", availableBpCount)
-        bps = self.context.target.selected_core.bp_manager.get_breakpoints()
+        bps = self.context.selected_core.bp_manager.get_breakpoints()
         if not len(bps):
             self.context.write("No breakpoints installed")
         else:
@@ -1070,9 +1070,9 @@ class WatchpointCommand(CommandBase):
             self.sz = 4
 
     def execute(self):
-        if self.context.target.selected_core.dwt is None:
+        if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
-        if self.context.target.set_watchpoint(self.addr, self.sz, self.wptype):
+        if self.context.selected_core.set_watchpoint(self.addr, self.sz, self.wptype):
             self.context.writei("Set watchpoint at 0x%08x", self.addr)
         else:
             self.context.writei("Failed to set watchpoint at 0x%08x", self.addr)
@@ -1091,10 +1091,10 @@ class RemoveWatchpointCommand(CommandBase):
         self.addr = self._convert_value(args[0])
 
     def execute(self):
-        if self.context.target.selected_core.dwt is None:
+        if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
         try:
-            self.context.target.remove_watchpoint(self.addr)
+            self.context.selected_core.remove_watchpoint(self.addr)
             self.context.writei("Removed watchpoint at 0x%08x", self.addr)
         except Exception:
             self.context.writei("Failed to remove watchpoint at 0x%08x", self.addr)
@@ -1110,11 +1110,11 @@ class ListWatchpointsCommand(CommandBase):
             }
     
     def execute(self):
-        if self.context.target.selected_core.dwt is None:
+        if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
-        availableWpCount = self.context.target.selected_core.dwt.watchpoint_count
+        availableWpCount = self.context.selected_core.dwt.watchpoint_count
         self.context.writei("%d hardware watchpoints available", availableWpCount)
-        wps = self.context.target.selected_core.dwt.get_watchpoints()
+        wps = self.context.selected_core.dwt.get_watchpoints()
         if not len(wps):
             self.context.write("No watchpoints installed")
         else:
@@ -1122,7 +1122,7 @@ class ListWatchpointsCommand(CommandBase):
                 # TODO fix requirement to access WATCH_TYPE_TO_FUNCT
                 self.context.writei("%d: 0x%08x, %d bytes, %s",
                     i, wp.addr, wp.size, 
-                    WATCHPOINT_FUNCTION_NAME_MAP[self.context.target.selected_core.dwt.WATCH_TYPE_TO_FUNCT[wp.func]])
+                    WATCHPOINT_FUNCTION_NAME_MAP[self.context.selected_core.dwt.WATCH_TYPE_TO_FUNCT[wp.func]])
 
 class SelectCoreCommand(CommandBase):
     INFO = {
@@ -1137,20 +1137,20 @@ class SelectCoreCommand(CommandBase):
     def parse(self, args):
         if len(args) == 0:
             self.show_core = True
-            self.core = None
+            self.core_num = None
         else:
             self.show_core = False
-            self.core = int(args[0], base=0)
+            self.core_num = int(args[0], base=0)
 
     def execute(self):
         if self.show_core:
-            self.context.writei("Core %d is selected", self.context.target.selected_core.core_number)
+            self.context.writei("Core %d is selected", self.context.selected_core.core_number)
             return
-        original_core_ap = core_ap = self.context.target.selected_core.ap
-        self.context.target.selected_core = self.core
-        core_ap = self.context.target.selected_core.ap
+        original_core_ap = core_ap = self.context.selected_core.ap
+        self.context.selected_core = self.context.session.target.cores[self.core_num]
+        core_ap = self.context.selected_core.ap
         self.context.selected_ap_address = core_ap.address
-        self.context.writef("Selected core {} ({})", self.core, core_ap.short_description)
+        self.context.writef("Selected core {} ({})", self.core_num, core_ap.short_description)
 
 class ReadDpCommand(CommandBase):
     INFO = {
@@ -1299,7 +1299,7 @@ class WhereCommand(CommandBase):
         if len(args) >= 1:
             self.addr = self._convert_value(args[0])
         else:
-            self.addr = self.context.target.read_core_register('pc')
+            self.addr = self.context.selected_core.read_core_register('pc')
         self.addr &= ~0x1 # remove thumb bit
 
     def execute(self):
@@ -1372,7 +1372,7 @@ class GdbserverCommand(CommandBase):
             raise exceptions.CommandError("invalid action")
 
     def execute(self):
-        core_number = self.context.target.selected_core.core_number
+        core_number = self.context.selected_core.core_number
         if self.action == 'start':
             if core_number not in self.context.session.gdbservers:
                 # Persist the gdbserver

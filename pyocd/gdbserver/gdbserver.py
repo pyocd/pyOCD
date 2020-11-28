@@ -40,6 +40,7 @@ from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
 from . import signals
+from . import gdbserver_commands
 from .packet_io import (
     CTRL_C,
     checksum,
@@ -101,7 +102,14 @@ class GDBServer(threading.Thread):
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
-    def __init__(self, session, core=None, server_listening_callback=None):
+
+    ## Notification event for the gdbserver beginnning to listen on its RSP port.
+    GDBSERVER_START_LISTENING_EVENT = 'gdbserver-start-listening'
+    
+    ## Timer delay for sending the notification that the server is listening.
+    START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
+    
+    def __init__(self, session, core=None):
         super(GDBServer, self).__init__()
         self.session = session
         self.board = session.board
@@ -139,7 +147,6 @@ class GDBServer(threading.Thread):
                 'report_core_number',
                 ])
 
-        self.server_listening_callback = server_listening_callback
         self.packet_size = 2048
         self.packet_io = None
         self.gdb_features = []
@@ -260,7 +267,10 @@ class GDBServer(threading.Thread):
         """! @brief Initialize the remote command processor infrastructure."""
         # Create command execution context. The output stream will default to stdout
         # but we'll change it to a fresh StringIO prior to running each command.
+        #
+        # Note we also modify the selected_core property so it is initially set to the gdbserver's core.
         self._command_context = CommandExecutionContext()
+        self._command_context.selected_core = self.target
         self._command_context.attach_session(self.session)
         
         # Add the gdbserver command group.
@@ -301,17 +311,18 @@ class GDBServer(threading.Thread):
 
     def run(self):
         LOG.info('GDB server started on port %d (core %d)', self.port, self.core)
-        
-        # Make sure the target is halted. Otherwise gdb gets easily confused.
-        self.target.halt()
 
         while True:
             try:
                 self.detach_event.clear()
 
-                # Inform callback that the server is running.
-                if self.server_listening_callback:
-                    self.server_listening_callback(self)
+                # Notify listeners that the server is running after a short delay.
+                #
+                # This timer prevents a race condition where the notification is sent before the server is
+                # actually listening. It's not a 100% guarantee, though.
+                notify_timer = threading.Timer(self.START_LISTENING_NOTIFY_DELAY, self.session.notify,
+                        args=(self.GDBSERVER_START_LISTENING_EVENT, self))
+                notify_timer.start()
 
                 while not self.shutdown_event.isSet() and not self.detach_event.isSet():
                     connected = self.abstract_socket.connect()
@@ -325,10 +336,13 @@ class GDBServer(threading.Thread):
 
                 if self.detach_event.isSet():
                     continue
+        
+                # Make sure the target is halted. Otherwise gdb gets easily confused.
+                self.target.halt()
 
-                LOG.info("One client connected!")
+                LOG.info("Client connected to port %d!", self.port)
                 self._run_connection()
-                LOG.info("Client disconnected!")
+                LOG.info("Client disconnected from port %d!", self.port)
                 self._cleanup_for_next_connection()
 
             except Exception as e:
@@ -1204,65 +1218,3 @@ class GDBServer(threading.Thread):
         elif notification.event == 'report_core_number':
             self.report_core = notification.data.new_value
 
-class ThreadsCommand(CommandBase):
-    INFO = {
-            'names': ['threads'],
-            'group': 'gdbserver',
-            'category': 'threads',
-            'nargs': 1,
-            'usage': "{flush,enable,disable,status}",
-            'help': "Control thread awareness.",
-            }
-    
-    def parse(self, args):
-        self.action = args[0]
-        if self.action not in ('flush', 'enable', 'disable', 'status'):
-            raise exceptions.CommandError("invalid action")
-    
-    def execute(self):
-        # Get the gdbserver for the selected core.
-        core_number = self.context.target.selected_core.core_number
-        try:
-            gdbserver = self.context.session.gdbservers[core_number]
-        except KeyError:
-            raise exceptions.CommandError("no gdbserver for core #%i" % core_number)
-
-        if gdbserver.thread_provider is None:
-            self.context.write("Threads are unavailable")
-            return
-
-        if self.action == 'flush':
-            gdbserver.thread_provider.invalidate()
-            self.context.write("Threads flushed")
-        elif self.action == 'enable':
-            gdbserver.thread_provider.read_from_target = True
-            self.context.write("Threads enabled")
-        elif self.action == 'disable':
-            gdbserver.thread_provider.read_from_target = False
-            self.context.write("Threads disabled")
-        elif self.action == 'status':
-            self.context.write("Threads are " +
-                    ("enabled" if gdbserver.thread_provider.read_from_target else "disabled"))
-
-class ArmSemihostingCommand(CommandBase):
-    INFO = {
-            'names': ['arm'],
-            'group': 'gdbserver',
-            'category': 'semihosting',
-            'nargs': 2,
-            'usage': "semihosting {enable,disable}",
-            'help': "Enable or disable semihosting.",
-            'extra_help': "Provided for compatibility with OpenOCD. The same functionality can be achieved "
-                            "by setting the 'enable_semihosting' session option.",
-            }
-    
-    def parse(self, args):
-        if args[0] != 'semihosting':
-            raise exceptions.CommandError("invalid action")
-        if args[1] not in ('enable', 'disable'):
-            raise exceptions.CommandError("invalid action")
-        self.action = args[1]
-    
-    def execute(self):
-        enable = (self.action == 'enable')
-        self.context.session.options['enable_semihosting'] = enable
