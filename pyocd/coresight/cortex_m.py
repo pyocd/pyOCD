@@ -706,7 +706,7 @@ class CortexM(Target, CoreSightCoreComponent):
         """! @brief Perform a reset of the specified type."""
         assert isinstance(reset_type, Target.ResetType)
         if reset_type is Target.ResetType.HW:
-            self.session.probe.reset()
+            self.session.target.dp.reset()
         elif reset_type is Target.ResetType.SW_EMULATED:
             self._perform_emulated_reset()
         else:

@@ -243,7 +243,13 @@ class NresetValue(ValueBase):
             raise exceptions.CommandError("missing reset state")
         state = int(args[0], base=0)
         self.context.writef("nRESET = {}", state)
-        self.context.probe.assert_reset((state == 0))
+        
+        # Use the probe to assert reset if the DP doesn't exist for some reason, otherwise
+        # use the DP so reset notifications are sent.
+        if self.context.target.dp is None:
+            self.context.probe.assert_reset((state == 0))
+        else:
+            self.context.target.dp.assert_reset((state == 0))
 
 class SessionOptionValue(ValueBase):
     INFO = {

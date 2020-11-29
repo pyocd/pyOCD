@@ -105,10 +105,10 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'pre-reset':
             LOG.info("Performing connect pre-reset")
-            self.session.probe.reset()
+            self.dp.reset()
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
-            self.session.probe.assert_reset(True)
+            self.dp.assert_reset(True)
     
     def perform_halt_on_connect(self):
         """! @brief Halt cores.
@@ -139,7 +139,7 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'under-reset':
             LOG.info("Deasserting reset post connect")
-            self.session.probe.assert_reset(False)
+            self.dp.assert_reset(False)
 
             LOG.debug("Clearing reset catch")
             # Apply to all cores.

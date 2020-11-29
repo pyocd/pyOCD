@@ -36,7 +36,7 @@ class CortexM_PSoC6(CortexM):
         self.session.notify(Target.Event.PRE_RESET, self)
         self._run_token += 1
         if reset_type is Target.ResetType.HW:
-            self.session.probe.reset()
+            self._ap.dp.reset()
             sleep(0.5)
             self._ap.dp.init()
             self._ap.dp.power_up_debug()
@@ -191,7 +191,7 @@ class CortexM_PSoC64(CortexM):
         self._run_token += 1
 
         if reset_type is Target.ResetType.HW:
-            self.session.probe.reset()
+            self._ap.dp.reset()
             self.reinit_dap()
             self.fpb.enable()
 

@@ -211,7 +211,11 @@ class SoCTarget(Target, GraphNode):
     def reset(self, reset_type=None):
         # Perform a hardware reset if there is not a core.
         if self.selected_core is None:
-            self.session.probe.reset()
+            # Use the probe to reset if the DP doesn't exist yet.
+            if self.dp is None:
+                self.session.probe.reset()
+            else:
+                self.dp.reset()
             return
         self.selected_core.reset(reset_type)
 
