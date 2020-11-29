@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2020 Patrick Huesmann
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,6 +28,7 @@ from ..coresight.tpiu import TPIU
 from ..core.target import Target
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
+from ..utility.server import StreamServer
 
 LOG = logging.getLogger(__name__)
 
@@ -155,6 +157,12 @@ class SWVReader(threading.Thread):
         if self._lock:
             self._lock.acquire()
 
+        swv_raw_server = StreamServer(
+                            self._session.options.get('swv_raw_port'),
+                            name="SWV raw",
+                            is_read_only=True) \
+                         if self._session.options.get('swv_raw_enable') else None
+
         # Stop SWO first in case the probe already had it started. Ignore if this fails.
         try:
             self._session.probe.swo_stop()
@@ -165,6 +173,8 @@ class SWVReader(threading.Thread):
         while not self._shutdown_event.is_set():
             data = self._session.probe.swo_read()
             if data:
+                if swv_raw_server:
+                    swv_raw_server.write(data)
                 self._parser.parse(data)
         
             if self._lock:
@@ -177,6 +187,9 @@ class SWVReader(threading.Thread):
             
         self._session.probe.swo_stop()
 
+        if swv_raw_server:
+            swv_raw_server.stop()
+    
         if self._lock:
             self._lock.release()
     
