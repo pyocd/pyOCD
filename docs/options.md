@@ -404,6 +404,20 @@ Frequency in Hertz of the target's system clock. Used to compute the SWO baud ra
 divider.
 </td></tr>
 
+<tr><td>swv_raw_enable</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable flag for the raw SWV stream server.
+</td></tr>
+
+<tr><td>swv_raw_port</td>
+<td>int</td>
+<td>3443</td>
+<td>
+TCP port number for the raw SWV stream server.
+</td></tr>
+
 <tr><td>telnet_port</td>
 <td>int</td>
 <td>4444</td>
