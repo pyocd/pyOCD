@@ -157,9 +157,11 @@ class SWVReader(threading.Thread):
         if self._lock:
             self._lock.acquire()
 
-        tpiu_port = self._session.options.get('tpiu_port')
-        tpiu_server = StreamServer(tpiu_port, name="TPIU", is_read_only=True) \
-                      if tpiu_port else None
+        swv_raw_server = StreamServer(
+                            self._session.options.get('swv_raw_port'),
+                            name="SWV raw",
+                            is_read_only=True) \
+                         if self._session.options.get('swv_raw_enable') else None
 
         # Stop SWO first in case the probe already had it started. Ignore if this fails.
         try:
@@ -171,8 +173,8 @@ class SWVReader(threading.Thread):
         while not self._shutdown_event.is_set():
             data = self._session.probe.swo_read()
             if data:
-                if tpiu_server:
-                    tpiu_server.write(data)
+                if swv_raw_server:
+                    swv_raw_server.write(data)
                 self._parser.parse(data)
         
             if self._lock:
@@ -185,8 +187,8 @@ class SWVReader(threading.Thread):
             
         self._session.probe.swo_stop()
 
-        if tpiu_server:
-            tpiu_server.stop()
+        if swv_raw_server:
+            swv_raw_server.stop()
     
         if self._lock:
             self._lock.release()

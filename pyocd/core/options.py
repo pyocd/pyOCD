@@ -137,8 +137,10 @@ BUILTIN_OPTIONS = [
     OptionInfo('swv_system_clock', int, None,
         "Frequency in Hertz of the target's system clock. Used to compute the SWO baud rate "
         "divider. No default."),
-    OptionInfo('tpiu_port', int, 3443,
-        "TCP port number for the raw TPIU stream server."),
+    OptionInfo('swv_raw_enable', bool, True,
+        "Enable flag for the raw SWV stream server."),
+    OptionInfo('swv_raw_port', int, 3443,
+        "TCP port number for the raw SWV stream server."),
     OptionInfo('telnet_port', int, 4444,
         "Base TCP port number for the semihosting telnet server."),
     OptionInfo('vector_catch', str, 'h',
