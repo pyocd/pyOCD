@@ -24,6 +24,7 @@ from .debug_probe import DebugProbe
 from ..core import (exceptions, memory_interface)
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
+from ..core.target import Target
 
 LOG = logging.getLogger(__name__)
 
@@ -177,6 +178,9 @@ class JLinkProbe(DebugProbe):
                 self._default_protocol = DebugProbe.Protocol.SWD
             else:
                 self._default_protocol = DebugProbe.Protocol.JTAG
+        
+            # Subscribe to reset events.
+            self.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
     
@@ -184,6 +188,9 @@ class JLinkProbe(DebugProbe):
         try:
             self._link.close()
             self._is_open = False
+        
+            # Unsubscribe from reset events.
+            self.session.unsubscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -358,6 +365,9 @@ class JLinkProbe(DebugProbe):
     def _invalidate_cached_registers(self):
         # Invalidate cached DP SELECT register.
         self._dp_select = -1
+
+    def _reset_did_occur(self, notification):
+        self._invalidate_cached_registers()
 
     @staticmethod
     def _convert_exception(exc):

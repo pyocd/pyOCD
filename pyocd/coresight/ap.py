@@ -20,6 +20,7 @@ from functools import total_ordering
 from enum import Enum
 
 from ..core import (exceptions, memory_interface)
+from ..core.target import Target
 from ..utility.concurrency import locked
 
 LOG = logging.getLogger(__name__)
@@ -413,10 +414,6 @@ class AccessPort(object):
     def write_reg(self, addr, data):
         self.dp.write_ap(self.address.address + addr, data)
     
-    def reset_did_occur(self):
-        """! @brief Invoked by the DebugPort to inform APs that a reset was performed."""
-        pass
-    
     def lock(self):
         """! @brief Lock the AP from access by other threads."""
         self.dp.probe.lock()
@@ -523,6 +520,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.read_memory = self._read_memory
             self.write_memory_block32 = self._write_memory_block32
             self.read_memory_block32 = self._read_memory_block32
+        
+        # Subscribe to reset events.
+        self.dp.probe.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
 
     @property
     def supported_transfer_sizes(self):
@@ -837,13 +837,17 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         except exceptions.ProbeError:
             # Invalidate cached CSW on exception.
             if ap_regaddr == self._reg_offset + MEM_AP_CSW:
-                self._cached_csw = -1
+                self._invalidate_cache()
             raise
     
-    def reset_did_occur(self):
-        """! @copydoc AccessPort.reset_did_occur()"""
-        # TODO use notifications to invalidate CSW cache.
+    def _invalidate_cache(self):
+        """! @brief Invalidate cached registers associated with this AP."""
         self._cached_csw = -1
+    
+    def _reset_did_occur(self, notification):
+        """! @brief Handles reset notifications to invalidate CSW cache."""
+        # We clear the cache on all resets just to be safe.
+        self._invalidate_cache()
 
     @locked
     def _write_memory(self, addr, data, transfer_size=32):
@@ -1045,7 +1049,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     def _handle_error(self, error, num):
         self.dp._handle_error(error, num)
-        self._cached_csw = -1
+        self._invalidate_cache()
 
 class AHB_AP(MEM_AP):
     """! @brief AHB-AP access port subclass.

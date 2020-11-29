@@ -20,6 +20,7 @@ from collections import namedtuple
 from enum import Enum
 
 from ..core import (exceptions, memory_interface)
+from ..core.target import Target
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
 from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APSEL_APBANKSEL, APREG_MASK, AccessPort)
@@ -204,6 +205,7 @@ class DebugPort(object):
     def __init__(self, probe, target):
         self._probe = probe
         self.target = target
+        self._session = target.session
         self.valid_aps = None
         self.dpidr = None
         self.aps = {}
@@ -221,10 +223,17 @@ class DebugPort(object):
         self._errmode = None
         self._base_addr = None
         self._apacc_mem_interface = None
+        
+        # Subscribe to reset events.
+        self._probe.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
 
     @property
     def probe(self):
         return self._probe
+    
+    @property
+    def session(self):
+        return self._session
     
     @property
     def adi_version(self):
@@ -404,23 +413,64 @@ class DebugPort(object):
         
         return True
 
-    def reset(self):
+    def _invalidate_cache(self):
+        """! @brief Invalidate cached DP registers."""
         self._cached_dp_select = None
-        for ap in self.aps.values():
-            ap.reset_did_occur()
+    
+    def _reset_did_occur(self, notification):
+        """! @brief Handles reset notifications to invalidate register cache.
+        
+        The cache is cleared on all resets just to be safe. On most devices, warm resets do not reset
+        debug logic, but it does happen on some devices.
+        """
+        self._invalidate_cache()
+    
+    def reset(self):
+        """! @brief Hardware reset.
+        
+        Pre- and post-reset notifications are sent.
+        
+        This method can be called before the DebugPort is connected.
+        """
+        self.session.notify(Target.Event.PRE_RESET, self)
         self.probe.reset()
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def assert_reset(self, asserted):
-        self._cached_dp_select = None
-        if asserted:
-            for ap in self.aps.values():
-                ap.reset_did_occur()
+        """! @brief Assert or deassert the hardware reset signal.
+        
+        A pre-reset notification is sent before asserting reset, whereas a post-reset notification is sent
+        after deasserting reset.
+        
+        This method can be called before the DebugPort is connected.
+        
+        @param self This object.
+        @param asserted True if nRESET is to be driven low; False will drive nRESET high.
+        """
+        is_asserted = self.is_reset_asserted()
+        if asserted and not is_asserted:
+            self.session.notify(Target.Event.PRE_RESET, self)
+
         self.probe.assert_reset(asserted)
 
+        if not asserted and is_asserted:
+            self.session.notify(Target.Event.POST_RESET, self)
+
     def is_reset_asserted(self):
+        """! @brief Returns the current state of the nRESET signal.
+        
+        This method can be called before the DebugPort is initalized.
+
+        @retval True Reset is asserted; nRESET is low.
+        @retval False Reset is not asserted; nRESET is high.
+        """
         return self.probe.is_reset_asserted()
 
     def set_clock(self, frequency):
+        """! @brief Change the wire protocol's clock frequency.
+        @param self This object.
+        @param frequency New wire protocol frequency in Hertz.
+        """
         self.probe.set_clock(frequency)
 
     def _write_dp_select(self, mask, value):
@@ -677,7 +727,7 @@ class DebugPort(object):
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
-        self._cached_dp_select = None
+        self._invalidate_cache()
         mode = self.probe.wire_protocol
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
