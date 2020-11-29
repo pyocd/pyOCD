@@ -81,6 +81,10 @@ class PyOCDCommander(object):
                             status, self.session.board.unique_id))
                     except exceptions.TransferFaultError:
                         pass
+                else:
+                    # Say what we're connected to, but without status.
+                    print("Connected to %s [no init mode]: %s" % (self.context.target.part_number,
+                        self.session.board.unique_id))
 
                 # Run the REPL interface.
                 console = PyocdRepl(self.context)
