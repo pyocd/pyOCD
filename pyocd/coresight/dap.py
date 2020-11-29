@@ -268,24 +268,24 @@ class DebugPort(object):
         """! @brief Unlock the DP."""
         self.probe.unlock()
 
-    def init(self, protocol=None):
+    def connect(self, protocol=None):
         """! @brief Connect to the target.
         
         This method causes the debug probe to connect using the selected wire protocol. The probe
         must have already been opened prior to this call.
         
-        Unlike init_sequence(), this method is intended to be used when manually constructing a
-        DebugPort instance. It simply calls init_sequence() and invokes the returned call sequence.
+        Unlike create_connect_sequence(), this method is intended to be used when manually constructing a
+        DebugPort instance. It simply calls create_connect_sequence() and invokes the returned call sequence.
         
         @param self
         @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
             "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
         """
         self._protocol = protocol
-        self.init_sequence().invoke()
+        self.create_connect_sequence().invoke()
 
-    def init_sequence(self):
-        """! @brief Init task to connect to the target.
+    def create_connect_sequence(self):
+        """! @brief Returns call sequence to connect to the target.
         
         Returns a @ref pyocd.utility.sequence.CallSequence CallSequence that will connect to the
         DP, power up debug and the system, check the DP version to identify whether the target uses
@@ -294,6 +294,7 @@ class DebugPort(object):
         The probe must have already been opened prior to this method being called.
         
         @param self
+        @return @ref pyocd.utility.sequence.CallSequence CallSequence
         """
         return CallSequence(
             ('get_probe_capabilities', self._get_probe_capabilities),
