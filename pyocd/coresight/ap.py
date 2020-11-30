@@ -522,7 +522,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.read_memory_block32 = self._read_memory_block32
         
         # Subscribe to reset events.
-        self.dp.probe.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
+        self.dp.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
 
     @property
     def supported_transfer_sizes(self):
@@ -707,7 +707,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                     self.rom_table.init()
         except exceptions.TransferError as error:
             LOG.error("Transfer error while reading %s ROM table: %s", self.short_description, error,
-                exc_info=self.dp.target.session.log_tracebacks)
+                exc_info=self.dp.session.log_tracebacks)
 
     @property
     def implemented_hprot_mask(self):

@@ -116,6 +116,10 @@ class DPConnector(object):
         self._probe = probe
         self._session = probe.session
         self._idr = None
+        
+        # Make sure we have a session, since we get the session from the probe and probes have their session set
+        # after creation.
+        assert self._session is not None, "DPConnector requires the probe to have a session"
     
     @property
     def idr(self):
@@ -225,7 +229,7 @@ class DebugPort(object):
         self._apacc_mem_interface = None
         
         # Subscribe to reset events.
-        self._probe.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
+        self._session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
 
     @property
     def probe(self):
