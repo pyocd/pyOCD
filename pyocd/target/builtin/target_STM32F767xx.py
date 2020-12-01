@@ -124,7 +124,7 @@ class STM32F767xx(CoreSightTarget):
         super(STM32F767xx, self).__init__(session, self.MEMORY_MAP)
 
     def assert_reset_for_connect(self):
-        self.dp.probe.assert_reset(1)
+        self.dp.assert_reset(1)
 
     def safe_reset_and_halt(self):
         assert self.dp.is_reset_asserted()
@@ -143,7 +143,7 @@ class STM32F767xx(CoreSightTarget):
         # Prevent disabling bus clock/power in low power modes.
         ap.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
 
-        self.dp.probe.assert_reset(0)
+        self.dp.assert_reset(0)
         time.sleep(0.01)
 
         # Restore DEMCR original value.

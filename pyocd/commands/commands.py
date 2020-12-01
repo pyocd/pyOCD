@@ -29,7 +29,10 @@ from ..flash.eraser import FlashEraser
 from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import conversion
-from ..utility.cmdline import UniquePrefixMatcher
+from ..utility.cmdline import (
+    UniquePrefixMatcher,
+    convert_reset_type,
+    )
 from ..utility.hex import (
     format_hex_width,
     dump_hex_data_to_str,
@@ -328,20 +331,29 @@ class ResetCommand(CommandBase):
             'names': ['reset'],
             'group': 'standard',
             'category': 'device',
-            'nargs': [0, 1],
-            'usage': "[halt|-halt|-h]",
-            'help': "Reset the target.",
+            'nargs': [0, 1, 2],
+            'usage': "[halt|-halt|-h] [TYPE]",
+            'help': "Reset the target, optionally specifying the reset type.",
+            'extra_help': "The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', "
+                          "'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', "
+                          "or 'emulated'.",
+
             }
     
     def parse(self, args):
         self.do_halt = False
-        if len(args) == 1:
+        self.reset_type = None
+        if len(args) >= 1:
             self.do_halt = (args[0] in ('-h', '--halt', 'halt'))
+            if self.do_halt:
+                args.pop(0)
+        if len(args) == 1:
+            self.reset_type = convert_reset_type(args[0])
 
     def execute(self):
         if self.do_halt:
             self.context.write("Resetting target with halt")
-            self.context.selected_core.reset_and_halt()
+            self.context.selected_core.reset_and_halt(self.reset_type)
 
             status = self.context.selected_core.get_state()
             if status != Target.State.HALTED:
@@ -350,7 +362,7 @@ class ResetCommand(CommandBase):
                 self.context.write("Successfully halted device on reset")
         else:
             self.context.write("Resetting target")
-            self.context.selected_core.reset()
+            self.context.selected_core.reset(self.reset_type)
 
 class DisassembleCommand(CommandBase):
     INFO = {
@@ -428,7 +440,7 @@ class Read16Command(ReadCommandBase):
             'nargs': [1, 2],
             'usage': "ADDR [LEN]",
             'width': 16,
-            'help': "Read 16-bit halfwords",
+            'help': "Read 16-bit halfwords.",
             'extra_help': "Optional length parameter is the number of bytes (not half-words) to read. It "
                            "must be divisible by 2. If the length is not provided, one halfword is read. "
                            "The address may be unaligned."
@@ -442,7 +454,7 @@ class Read32Command(ReadCommandBase):
             'nargs': [1, 2],
             'usage': "ADDR [LEN]",
             'width': 32,
-            'help': "Read 32-bit words",
+            'help': "Read 32-bit words.",
             'extra_help': "Optional length parameter is the number of bytes (not words) to read. It must be "
                            "divisible by 4. If the length is not provided, one word is read. "
                            "The address may be unaligned.",
@@ -450,13 +462,13 @@ class Read32Command(ReadCommandBase):
 
 class Read64Command(ReadCommandBase):
     INFO = {
-            'names': ['read64', 'r64', 'rd'],
+            'names': ['read64', 'rd'],
             'group': 'standard',
             'category': 'memory',
             'nargs': [1, 2],
             'usage': "ADDR [LEN]",
             'width': 64,
-            'help': "Read 64-bit words",
+            'help': "Read 64-bit words.",
             'extra_help': "Optional length parameter is the number of bytes (not double-words!) to read. "
                            "It must be divisible by 8. If the length is not provided, one word is read. "
                            "The address may be unaligned."
@@ -549,13 +561,13 @@ class Write32Command(WriteCommandBase):
 
 class Write64Command(WriteCommandBase):
     INFO = {
-            'names': ['write64', 'w64', 'wd'],
+            'names': ['write64', 'wd'],
             'group': 'standard',
             'category': 'memory',
             'nargs': '*',
             'usage': "ADDR DATA...",
             'width': 64,
-            'help': "Write 64-bit double-words to memory",
+            'help': "Write 64-bit double-words to memory.",
             'extra_help': "The data arguments are 64-bit words in big-endian format and are written as "
                           "little-endian. The address may be unaligned. Can write to both RAM and flash. "
                           "Flash writes are subject to minimum write size and alignment, and the flash "

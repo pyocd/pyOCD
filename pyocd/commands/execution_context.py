@@ -202,7 +202,7 @@ class CommandExecutionContext(object):
         @retval False An error occurred when opening the session or initing the context state.
         """
         assert self._session is None
-        assert session.is_open
+        assert session.is_open or self._no_init
         self._session = session
 
         # Select the first core's MEM-AP by default.

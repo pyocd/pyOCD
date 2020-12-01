@@ -196,9 +196,9 @@ Write DP register.
 <tr><td>
 <a href="#reset"><tt>reset</tt></a>
 </td><td>
-[halt|-halt|-h]
+[halt|-halt|-h] [TYPE]
 </td><td>
-Reset the target.
+Reset the target, optionally specifying the reset type.
 </td></tr>
 
 <tr><td>
@@ -298,6 +298,15 @@ Read 32-bit words.
 </td></tr>
 
 <tr><td>
+<a href="#read64"><tt>read64</tt></a>,
+<a href="#read64"><tt>rd</tt></a>
+</td><td>
+ADDR [LEN]
+</td><td>
+Read 64-bit words.
+</td></tr>
+
+<tr><td>
 <a href="#read8"><tt>read8</tt></a>,
 <a href="#read8"><tt>rb</tt></a>
 </td><td>
@@ -330,6 +339,15 @@ Write 16-bit halfwords to memory.
 ADDR DATA+
 </td><td>
 Write 32-bit words to memory.
+</td></tr>
+
+<tr><td>
+<a href="#write64"><tt>write64</tt></a>,
+<a href="#write64"><tt>wd</tt></a>
+</td><td>
+ADDR DATA...
+</td><td>
+Write 64-bit double-words to memory.
 </td></tr>
 
 <tr><td>
@@ -749,8 +767,8 @@ Write DP register.
 
 ##### `reset`
 
-**Usage**: [halt|-halt|-h] \
-Reset the target.
+**Usage**: [halt|-halt|-h] [TYPE] \
+Reset the target, optionally specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', or 'emulated'.
 
 
 ##### `unlock`
@@ -818,14 +836,21 @@ Load a binary file to an address in memory (RAM or flash). This command is depre
 
 **Aliases**: `rh` \
 **Usage**: ADDR [LEN] \
-Read 16-bit halfwords. Optional length parameter is the number of bytes to read. It must be divisible by 2. If the length is not provided, one halfword is read. The address may be unaligned.
+Read 16-bit halfwords. Optional length parameter is the number of bytes (not half-words) to read. It must be divisible by 2. If the length is not provided, one halfword is read. The address may be unaligned.
 
 
 ##### `read32`
 
 **Aliases**: `rw` \
 **Usage**: ADDR [LEN] \
-Read 32-bit words. Optional length parameter is the number of bytes to read. It must be divisible by 4. If the length is not provided, one word is read. The address may be unaligned.
+Read 32-bit words. Optional length parameter is the number of bytes (not words) to read. It must be divisible by 4. If the length is not provided, one word is read. The address may be unaligned.
+
+
+##### `read64`
+
+**Aliases**: `rd` \
+**Usage**: ADDR [LEN] \
+Read 64-bit words. Optional length parameter is the number of bytes (not double-words!) to read. It must be divisible by 8. If the length is not provided, one word is read. The address may be unaligned.
 
 
 ##### `read8`
@@ -853,6 +878,13 @@ Write 16-bit halfwords to memory. The data arguments are 16-bit halfwords in big
 **Aliases**: `ww` \
 **Usage**: ADDR DATA+ \
 Write 32-bit words to memory. The data arguments are 32-bit words in big-endian format and are written as little-endian. The address may be unaligned. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
+
+
+##### `write64`
+
+**Aliases**: `wd` \
+**Usage**: ADDR DATA... \
+Write 64-bit double-words to memory. The data arguments are 64-bit words in big-endian format and are written as little-endian. The address may be unaligned. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
 
 
 ##### `write8`

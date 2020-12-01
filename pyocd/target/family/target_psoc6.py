@@ -33,10 +33,11 @@ class CortexM_PSoC6(CortexM):
     VTBASE_CM4 = None
 
     def reset(self, reset_type=None):
-        self.session.notify(Target.Event.PRE_RESET, self)
+        if reset_type is not Target.ResetType.HW:
+            self.session.notify(Target.Event.PRE_RESET, self)
         self._run_token += 1
         if reset_type is Target.ResetType.HW:
-            self.session.probe.reset()
+            self._ap.dp.reset()
             sleep(0.5)
             self._ap.dp.init()
             self._ap.dp.power_up_debug()
@@ -69,7 +70,8 @@ class CortexM_PSoC6(CortexM):
 
                     sleep(0.01)
 
-        self.session.notify(Target.Event.POST_RESET, self)
+        if reset_type is not Target.ResetType.HW:
+            self.session.notify(Target.Event.POST_RESET, self)
 
     def wait_halted(self):
         with Timeout(5.0) as t_o:
@@ -186,12 +188,13 @@ class CortexM_PSoC64(CortexM):
         self._skip_reset_and_halt = value
 
     def reset(self, reset_type=None):
-        self.session.notify(Target.Event.PRE_RESET, self)
+        if reset_type is not Target.ResetType.HW:
+            self.session.notify(Target.Event.PRE_RESET, self)
 
         self._run_token += 1
 
         if reset_type is Target.ResetType.HW:
-            self.session.probe.reset()
+            self._ap.dp.reset()
             self.reinit_dap()
             self.fpb.enable()
 
@@ -219,7 +222,8 @@ class CortexM_PSoC64(CortexM):
                 except exceptions.TransferError:
                     pass
 
-        self.session.notify(Target.Event.POST_RESET, self)
+        if reset_type is not Target.ResetType.HW:
+            self.session.notify(Target.Event.POST_RESET, self)
 
     def wait_halted(self):
         with Timeout(5.0) as t_o:
