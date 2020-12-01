@@ -1,4 +1,5 @@
 # pyOCD debugger
+# Copyright (c) 2020 NXP
 # Copyright (c) 2006-2018 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -117,8 +118,10 @@ class Kinetis(CoreSightTarget):
             canAccess = False
         else:
             try:
-                for attempt in range(ACCESS_TEST_ATTEMPTS):
-                    self.aps[0].read32(CortexM.DHCSR)
+                # Ensure to use AP#0 as a MEM_AP
+                if isinstance(self.aps[0], ap.MEM_AP):
+                    for attempt in range(ACCESS_TEST_ATTEMPTS):
+                        self.aps[0].read32(CortexM.DHCSR)
             except exceptions.TransferError:
                 LOG.debug("Access test failed with fault")
                 canAccess = False
@@ -157,7 +160,7 @@ class Kinetis(CoreSightTarget):
 
                 # Assert that halt on connect was forced above. Reset will stay asserted
                 # until halt on connect is executed.
-#                 assert self._force_halt_on_connect
+                # assert self._force_halt_on_connect
 
                 isLocked = False
             else:
