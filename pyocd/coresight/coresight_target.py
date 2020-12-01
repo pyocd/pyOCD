@@ -228,5 +228,15 @@ class CoreSightTarget(SoCTarget):
             else:
                 self._irq_table = {}
         return self._irq_table
-    
-        
+
+    # Override this method from SoCTarget so we can use the DP for hardware resets when there isn't a
+    # valid core (instead of the probe), so reset notifications will be sent. We can't use the DP in
+    # SoCTarget because it is only created by this class.
+    def reset(self, reset_type=None, halt=False):
+        # Perform a hardware reset if there is not a core.
+        if self.selected_core is None:
+            # Use the probe to reset if the DP doesn't exist yet.
+            self.dp.reset()
+            return
+        self.selected_core.reset(reset_type, halt)
+
