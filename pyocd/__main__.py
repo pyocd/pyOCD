@@ -774,7 +774,10 @@ class PyOCDTool(object):
                     if core_number not in core_list:
                         continue
                     gdb = GDBServer(session, core=core_number)
-                    session.subscribe(self._gdbserver_listening_cb, GDBServer.GDBSERVER_START_LISTENING_EVENT, gdb)
+                    # Only subscribe to the server for the first core, so echo messages aren't printed
+                    # multiple times.
+                    if not gdbs:
+                        session.subscribe(self._gdbserver_listening_cb, GDBServer.GDBSERVER_START_LISTENING_EVENT, gdb)
                     session.gdbservers[core_number] = gdb
                     gdbs.append(gdb)
                     gdb.start()
