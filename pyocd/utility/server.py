@@ -56,8 +56,9 @@ class StreamServer(threading.Thread):
         self._is_read_only = is_read_only
         self._abstract_socket = None
         self._abstract_socket = ListenerSocket(port, 4096)
-        if serve_local_only:
-            self._abstract_socket.host = 'localhost'
+        if not serve_local_only:
+            # We really should be binding to explicit interfaces, not all available.
+            self._abstract_socket.host = ''
         self._abstract_socket.init()
         self._port = self._abstract_socket.port
         self._buffer = bytearray()

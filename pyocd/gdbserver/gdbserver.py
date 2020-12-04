@@ -167,8 +167,9 @@ class GDBServer(threading.Thread):
         self.first_run_after_reset_or_flash = True
 
         self.abstract_socket = ListenerSocket(self.port, self.packet_size)
-        if self.serve_local_only:
-            self.abstract_socket.host = 'localhost'
+        if not self.serve_local_only:
+            # We really should be binding to explicit interfaces, not all available.
+            self.abstract_socket.host = ''
         self.abstract_socket.init()
         # Read back bound port in case auto-assigned (port 0)
         self.port = self.abstract_socket.port

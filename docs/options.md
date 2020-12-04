@@ -254,6 +254,15 @@ Whether to resume a halted target when disconnecting.
 Controls whether all 256 ADIv5 AP addresses will be probed.
 </td></tr>
 
+<tr><td>serve_local_only</td>
+<td>bool</td>
+<td>True</td>
+<td>
+When this option is True, the GDB server, probe server, semihosting telnet, and raw SWV server are only served
+on localhost, making them inaccessible across the network. Set to False to enable connecting to these ports
+from any machine on the network.
+</td></tr>
+
 <tr><td>smart_flash</td>
 <td>bool</td>
 <td>True</td>
@@ -370,15 +379,6 @@ semihosting will print to the console.
 <td>
 Whether to use GDB syscalls for semihosting file access operations, or to have pyOCD perform the
 operations. This is most useful if GDB is running on a remote system.
-</td></tr>
-
-<tr><td>serve_local_only</td>
-<td>bool</td>
-<td>True</td>
-<td>
-When this option is True, the GDB server and semihosting telnet ports are only served on localhost,
-making them inaccessible across the network. If False, you can connect to these ports from any
-machine that is on the same network.
 </td></tr>
 
 <tr><td>step_into_interrupt</td>

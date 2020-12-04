@@ -91,6 +91,9 @@ BUILTIN_OPTIONS = [
         "Whether to run target on disconnect."),
     OptionInfo('scan_all_aps', bool, False,
         "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
+    OptionInfo('serve_local_only', bool, True,
+        "When this option is True, the GDB server, probe server, and semihosting telnet, and raw SWV "
+        "server are only served on localhost. Set to False to enable remote connections."),
     OptionInfo('smart_flash', bool, True,
         "If set to True, the flash loader will attempt to not program pages whose contents are not "
         "going to change by scanning target flash memory. A value of False will force all pages to "
@@ -127,9 +130,6 @@ BUILTIN_OPTIONS = [
         "semihosting will print to the console."),
     OptionInfo('semihost_use_syscalls', bool, False,
         "Whether to use GDB syscalls for semihosting file access operations."),
-    OptionInfo('serve_local_only', bool, True,
-        "When this option is True, the GDB server and semihosting telnet ports are only served on "
-        "localhost."),
     OptionInfo('step_into_interrupt', bool, False,
         "Enable interrupts when performing step operations."),
     OptionInfo('swv_clock', int, 1000000,

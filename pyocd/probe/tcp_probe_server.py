@@ -39,7 +39,7 @@ class DebugProbeServer(threading.Thread):
     can be terminated by calling the stop() method, which will also kill the server thread.
     """
     
-    def __init__(self, session, probe, port=None, serve_local_only=True):
+    def __init__(self, session, probe, port=None, serve_local_only=None):
         """! @brief Constructor.
         
         @param self The object.
@@ -52,8 +52,8 @@ class DebugProbeServer(threading.Thread):
             @ref pyocd.probe.shared_probe_proxy.SharedDebugProbeProxy "SharedDebugProbeProxy"
             then a new proxy is created to allow the probe to be shared by multiple connections.
         @param port The TCP port number. Defaults to the 'probeserver.port' option if not provided.
-        @param serve_local_only Boolean. Whether to restrict the server to be accessible only from
-            localhost.
+        @param serve_local_only Optional Boolean. Whether to restrict the server to be accessible only from
+            localhost. If not specified (set to None), then the 'serve_local_only' session option is used.
         """
         super(DebugProbeServer, self).__init__()
         
@@ -77,6 +77,10 @@ class DebugProbeServer(threading.Thread):
             self._port = session.options.get('probeserver.port')
         else:
             self._port = port
+        
+        # Default to the serve_local_only session option.
+        if serve_local_only is None:
+            serve_local_only = session.options.get('serve_local_only')
         
         host = 'localhost' if serve_local_only else ''
         address = (host, self._port)
