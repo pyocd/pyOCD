@@ -43,6 +43,8 @@ class SWJSequenceSender(object):
             self._switch_to_swd()
         elif protocol == DebugProbe.Protocol.JTAG:
             self._switch_to_jtag()
+        else:
+            assert False, "unhandled protocol %s in SWJSequenceSender" % protocol
 
     def _switch_to_swd(self):
         """! @brief Send SWJ sequence to select SWD."""

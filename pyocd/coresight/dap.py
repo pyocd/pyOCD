@@ -162,6 +162,7 @@ class DPConnector(object):
             else:
                 self._connect_probe(protocol)
 
+            protocol = self._probe.wire_protocol
             self._connect_dp(protocol)
         finally:
             self._probe.unlock()
