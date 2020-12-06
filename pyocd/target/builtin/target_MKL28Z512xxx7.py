@@ -1,4 +1,5 @@
 # pyOCD debugger
+# Copyright (c) 2020 NXP
 # Copyright (c) 2006-2013,2018 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -205,8 +206,11 @@ class KL28x(Kinetis):
     def create_kl28_aps(self):
         """! @brief Set the fixed list of valid AP numbers for KL28."""
         self.dp.valid_aps = [0, 1, 2]
-        
+
     def detect_dual_core(self):
+        if not isinstance(self.aps[0], ap.MEM_AP):
+            return
+
         # Check if this is the dual core part.
         sdid = self.aps[0].read_memory(SIM_SDID)
         keyattr = (sdid & SIM_SDID_KEYATTR_MASK) >> SIM_SDID_KEYATTR_SHIFT
@@ -217,6 +221,8 @@ class KL28x(Kinetis):
             self.memory_map = self.DUAL_MAP
 
     def post_connect_hook(self):
+        if not isinstance(self.aps[0], ap.MEM_AP):
+            return
         # Disable ROM vector table remapping.
         self.aps[0].write32(RCM_MR, RCM_MR_BOOTROM_MASK)
 
