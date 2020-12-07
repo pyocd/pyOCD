@@ -39,8 +39,7 @@ class CortexM_PSoC6(CortexM):
         if reset_type is Target.ResetType.HW:
             self._ap.dp.reset()
             sleep(0.5)
-            self._ap.dp.init()
-            self._ap.dp.power_up_debug()
+            self._ap.dp.connect()
             self.fpb.enable()
         else:
             if reset_type is Target.ResetType.SW_VECTRESET:
@@ -63,8 +62,7 @@ class CortexM_PSoC6(CortexM):
                 except exceptions.TransferError:
                     self.flush()
                     try:
-                        self._ap.dp.init()
-                        self._ap.dp.power_up_debug()
+                        self._ap.dp.connect()
                     except exceptions.TransferError:
                         self.flush()
 
@@ -213,8 +211,7 @@ class CortexM_PSoC64(CortexM):
         with Timeout(5.0) as t_o:
             while t_o.check():
                 try:
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
+                    self._ap.dp.connect()
                     dhcsr_reg = self.read32(CortexM.DHCSR)
                     if (dhcsr_reg & CortexM.S_RESET_ST) == 0:
                         break
@@ -241,8 +238,7 @@ class CortexM_PSoC64(CortexM):
         with Timeout(2.0) as t_o:
             while t_o.check():
                 try:
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
+                    self._ap.dp.connect()
                     self.flush()
                     break
                 except exceptions.TransferError:
@@ -255,8 +251,7 @@ class CortexM_PSoC64(CortexM):
         with Timeout(self.acquire_timeout) as t_o:
             while t_o.check():
                 try:
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
+                    self._ap.dp.connect()
                     # self.write32(self.IPC2_DATA_ADDR, 0)
                     self.write32(self.TEST_MODE_ADDR, self.TEST_MODE_VALUE)
                     self.flush()
@@ -315,8 +310,7 @@ class CortexM_PSoC64(CortexM):
         with Timeout(self.acquire_timeout) as t_o:
             while t_o.check():
                 try:
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
+                    self._ap.dp.connect()
                     self.halt()
                     self.wait_halted()
                     self.write_core_register('xpsr', CortexM.XPSR_THUMB)
@@ -384,8 +378,7 @@ class SYS_AP_PSoC64(GenericMemAPTarget):
         with Timeout(self._acquire_timeout) as t_o:
             while t_o.check():
                 try:
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
+                    self._ap.dp.connect()
                     break
                 except exceptions.TransferError:
                     pass

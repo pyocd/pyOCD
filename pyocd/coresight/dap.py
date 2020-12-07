@@ -126,6 +126,15 @@ class DPConnector(object):
         """! @brief DPIDR instance containing values read from the DP IDR register."""
         return self._idr
     
+    def _get_protocol(self, protocol):
+        # Convert protocol from setting if not passed as parameter.
+        if protocol is None:
+            protocol_name = self._session.options.get('dap_protocol').strip().lower()
+            protocol = DebugProbe.PROTOCOL_NAME_MAP[protocol_name]
+            if protocol not in self._probe.supported_wire_protocols:
+                raise exceptions.DebugError("requested wire protocol %s not supported by the debug probe" % protocol.name)
+        return protocol
+    
     def connect(self, protocol=None):
         """! @brief Establish a connection to the DP.
         
@@ -138,27 +147,52 @@ class DPConnector(object):
         @exception DebugError
         @exception TransferError
         """
-        protocol_name = self._session.options.get('dap_protocol').strip().lower()
-        send_swj = self._session.options.get('dap_swj_enable') \
-                and (DebugProbe.Capability.SWJ_SEQUENCE in self._probe.capabilities)
-        use_dormant = self._session.options.get('dap_swj_use_dormant')
+        try:
+            self._probe.lock()
 
-        # Convert protocol from setting if not passed as parameter.
-        if protocol is None:
-            protocol = DebugProbe.PROTOCOL_NAME_MAP[protocol_name]
-            if protocol not in self._probe.supported_wire_protocols:
-                raise exceptions.DebugError("requested wire protocol %s not supported by the debug probe" % protocol.name)
-        if protocol != DebugProbe.Protocol.DEFAULT:
+            # Determine the requested wire protocol.
+            protocol = self._get_protocol(protocol)
+
+            # If this is not None then the probe is already connected.
+            current_wire_protocol = self._probe.wire_protocol
+            already_connected = current_wire_protocol is not None
+        
+            if already_connected:
+                self._check_protocol(current_wire_protocol, protocol)
+            else:
+                self._connect_probe(protocol)
+
+            protocol = self._probe.wire_protocol
+            self._connect_dp(protocol)
+        finally:
+            self._probe.unlock()
+    
+    def _check_protocol(self, current_wire_protocol, protocol):
+        # Warn about mismatched current and requested wire protocols.
+        if (protocol is not current_wire_protocol) and (protocol is not DebugProbe.Protocol.DEFAULT):
+            LOG.warning("Cannot use %s; already connected with %s", protocol.name, current_wire_protocol.name)
+        else:
+            LOG.debug("Already connected with %s", current_wire_protocol.name)
+
+    def _connect_probe(self, protocol):
+        # Debug log with the selected protocol.
+        if protocol is not DebugProbe.Protocol.DEFAULT:
             LOG.debug("Using %s wire protocol", protocol.name)
-            
+        
         # Connect using the selected protocol.
         self._probe.connect(protocol)
 
         # Log the actual protocol if selected was default.
-        if protocol == DebugProbe.Protocol.DEFAULT:
+        if protocol is DebugProbe.Protocol.DEFAULT:
             protocol = self._probe.wire_protocol
             LOG.debug("Default wire protocol selected; using %s", protocol.name)
         
+    def _connect_dp(self, protocol):
+        # Get SWJ settings.
+        use_dormant = self._session.options.get('dap_swj_use_dormant')
+        send_swj = self._session.options.get('dap_swj_enable') \
+                and (DebugProbe.Capability.SWJ_SEQUENCE in self._probe.capabilities)
+
         # Create object to send SWJ sequences.
         swj = SWJSequenceSender(self._probe, use_dormant)
         
@@ -207,6 +241,13 @@ class DebugPort(object):
     """! @brief Represents the Arm Debug Interface (ADI) Debug Port (DP)."""
     
     def __init__(self, probe, target):
+        """! @brief Constructor.
+        @param self The DebugPort object.
+        @param probe The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" object. The probe is assumed to not
+            have been opened yet.
+        @param target An instance of @ref pyocd.core.soc_target.SoCTarget "SoCTarget". Assumed to not have been
+            fully initialized.
+        """
         self._probe = probe
         self.target = target
         self._session = target.session
@@ -219,6 +260,8 @@ class DebugPort(object):
         self._probe_managed_ap_select = False
         self._probe_managed_dpbanksel = False
         self._probe_supports_dpbanksel = False
+        self._have_probe_capabilities = False
+        self._did_check_version = False
         
         # DPv3 attributes
         self._is_dpv3 = False
@@ -268,24 +311,24 @@ class DebugPort(object):
         """! @brief Unlock the DP."""
         self.probe.unlock()
 
-    def init(self, protocol=None):
+    def connect(self, protocol=None):
         """! @brief Connect to the target.
         
         This method causes the debug probe to connect using the selected wire protocol. The probe
         must have already been opened prior to this call.
         
-        Unlike init_sequence(), this method is intended to be used when manually constructing a
-        DebugPort instance. It simply calls init_sequence() and invokes the returned call sequence.
+        Unlike create_connect_sequence(), this method is intended to be used when manually constructing a
+        DebugPort instance. It simply calls create_connect_sequence() and invokes the returned call sequence.
         
         @param self
         @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
             "DebugProbe.Protocol" enums. If not provided, will default to the `protocol` setting.
         """
         self._protocol = protocol
-        self.init_sequence().invoke()
+        self.create_connect_sequence().invoke()
 
-    def init_sequence(self):
-        """! @brief Init task to connect to the target.
+    def create_connect_sequence(self):
+        """! @brief Returns call sequence to connect to the target.
         
         Returns a @ref pyocd.utility.sequence.CallSequence CallSequence that will connect to the
         DP, power up debug and the system, check the DP version to identify whether the target uses
@@ -294,14 +337,28 @@ class DebugPort(object):
         The probe must have already been opened prior to this method being called.
         
         @param self
+        @return @ref pyocd.utility.sequence.CallSequence CallSequence
         """
-        return CallSequence(
-            ('get_probe_capabilities', self._get_probe_capabilities),
+        seq = [
+            ('lock_probe',          self.probe.lock),
+            ]
+        if not self._have_probe_capabilities:
+            seq += [
+                ('get_probe_capabilities', self._get_probe_capabilities),
+                ]
+        seq += [
             ('connect',             self._connect),
             ('clear_sticky_err',    self.clear_sticky_err),
             ('power_up_debug',      self.power_up_debug),
-            ('check_version',       self._check_version),
-            )
+            ]
+        if not self._did_check_version:
+            seq += [
+                ('check_version',       self._check_version),
+                ]
+        seq += [
+            ('unlock_probe',        self.probe.unlock),
+            ]
+        return CallSequence(*seq)
 
     def _get_probe_capabilities(self):
         """! @brief Examine the probe's capabilities."""
@@ -309,6 +366,7 @@ class DebugPort(object):
         self._probe_managed_ap_select = (DebugProbe.Capability.MANAGED_AP_SELECTION in caps)
         self._probe_managed_dpbanksel = (DebugProbe.Capability.MANAGED_DPBANKSEL in caps)
         self._probe_supports_dpbanksel = (DebugProbe.Capability.BANKED_DP_REGISTERS in caps)
+        self._have_probe_capabilities = True
 
     def _connect(self):
         # Attempt to connect.
@@ -346,6 +404,8 @@ class DebugPort(object):
                 LOG.debug("DP BASEPTR = 0x%08x", self._base_addr)
             else:
                 LOG.warning("DPv3 has no valid base address")
+
+        self._did_check_version = True
 
     def flush(self):
         try:

@@ -1253,8 +1253,7 @@ class InitDpCommand(CommandBase):
             }
 
     def execute(self):
-        self.context.target.dp.init()
-        self.context.target.dp.power_up_debug()
+        self.context.target.dp.connect()
 
 class MakeApCommand(CommandBase):
     INFO = {

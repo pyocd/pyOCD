@@ -33,7 +33,6 @@ class SharedDebugProbeProxy(object):
         self._probe = probe
         self._open_count = 0
         self._connect_count = 0
-        self._active_protocol = None
 
     @property
     def session(self):
@@ -73,9 +72,7 @@ class SharedDebugProbeProxy(object):
         self._connect_count -= 1
 
     def swj_sequence(self, length, bits):
-        # Only the first connected client can perform SWJ sequences.
-        if self._connect_count == 1:
-            self._probe.swj_sequence(length, bits)
+        self._probe.swj_sequence(length, bits)
     
     def __getattr__(self, name):
         """! @brief Redirect to underlying probe object methods."""

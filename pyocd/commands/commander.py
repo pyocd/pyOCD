@@ -21,6 +21,7 @@ import traceback
 
 from ..core.helpers import ConnectHelper
 from ..core import (exceptions, session)
+from ..probe.shared_probe_proxy import SharedDebugProbeProxy
 from ..utility.cmdline import convert_session_options
 from ..commands.repl import (PyocdRepl, ToolExitException)
 from ..commands.execution_context import CommandExecutionContext
@@ -160,14 +161,24 @@ class PyOCDCommander(object):
             connect_mode = 'attach'
         
         # Connect to board.
-        self.session = ConnectHelper.session_with_chosen_probe(
+        probe = ConnectHelper.choose_probe(
                         blocking=(not self.args.no_wait),
+                        unique_id=self.args.unique_id,
+                        )
+        if probe is None:
+            self.exit_code = 3
+            return False
+        
+        # Create a proxy so the probe can be shared between the session and a possible probe server.
+        probe_proxy = SharedDebugProbeProxy(probe)
+        
+        # Create the session.
+        self.session = session.Session(probe_proxy,
                         project_dir=self.args.project_dir,
                         config_file=self.args.config,
                         user_script=self.args.script,
                         no_config=self.args.no_config,
                         pack=self.args.pack,
-                        unique_id=self.args.unique_id,
                         target_override=self.args.target_override,
                         connect_mode=connect_mode,
                         frequency=self.args.frequency,
@@ -175,10 +186,8 @@ class PyOCDCommander(object):
                         option_defaults=dict(
                             auto_unlock=False,
                             resume_on_disconnect=False,
-                            ))
-        if self.session is None:
-            self.exit_code = 3
-            return False
+                            )
+                        )
         
         if not self._post_connect():
             self.exit_code = 4

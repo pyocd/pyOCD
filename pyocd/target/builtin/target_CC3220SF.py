@@ -99,8 +99,7 @@ class Flash_cc3220sf(Flash):
         time.sleep(1.3)
 
         # reconnect to the board
-        self.target.dp.init()
-        self.target.dp.power_up_debug()
+        self.target.dp.connect()
 
         self.target.halt()
         self.target.reset_and_halt()

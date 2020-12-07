@@ -75,7 +75,7 @@ class CoreSightTarget(SoCTarget):
         seq = CallSequence(
             ('load_svd',            self.load_svd),
             ('pre_connect',         self.pre_connect),
-            ('dp_init',             self.dp.init_sequence),
+            ('dp_init',             self.dp.create_connect_sequence),
             ('create_discoverer',   self.create_discoverer),
             ('discovery',           lambda : self._discoverer.discover()),
             ('check_for_cores',     self.check_for_cores),

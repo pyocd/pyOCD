@@ -232,8 +232,7 @@ class CortexM_S5JS100(CortexM):
                     sleep(0.1)
                 except exceptions.TransferError:
                     self.flush()
-                    self._ap.dp.init()
-                    self._ap.dp.power_up_debug()
+                    self._ap.dp.connect()
                     sleep(0.01)
             else:
                 raise exceptions.TimeoutError("Timeout waiting for reset")
@@ -271,8 +270,7 @@ class CortexM_S5JS100(CortexM):
             # LOG.info("s5js100.get_state dhcsr 0x%x", dhcsr)
         except exceptions.TransferError:
             # LOG.info("s5js100.get_state read fail dhcsr..try more")
-            self._ap.dp.init()
-            self._ap.dp.power_up_debug()
+            self._ap.dp.connect()
             dhcsr = self.read_memory(CortexM.DHCSR)
             # LOG.info("fail s5js100.get_state dhcsr 0x%x", dhcsr)
 

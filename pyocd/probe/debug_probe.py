@@ -142,7 +142,8 @@ class DebugProbe(object):
         """! @brief Currently selected wire protocol.
         
         If the probe is not open and connected, i.e., open() and connect() have not been called,
-        then this property will be None.
+        then this property will be None. If a value other than None is returned, then the probe
+        has been connected successfully.
         """
         raise NotImplementedError()
     
@@ -188,6 +189,8 @@ class DebugProbe(object):
         
         This lock is recursive, so locking multiple times from a single thread is acceptable as long
         as the thread unlocks the same number of times.
+        
+        This method does not return until the calling thread has ownership of the lock.
         """
         self._lock.acquire()
     
