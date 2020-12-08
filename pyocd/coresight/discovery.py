@@ -51,9 +51,13 @@ class CoreSightDiscovery(object):
         raise NotImplementedError()
 
     def _create_component(self, cmpid):
-        LOG.debug("Creating %s component", cmpid.name)
-        cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
-        cmp.init()
+        try:
+            LOG.debug("Creating %s component", cmpid.name)
+            cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
+            cmp.init()
+        except exceptions.Error as err:
+            LOG.error("Error attempting to create component %s: %s", cmpid.name, err,
+                    exc_info=self.session.log_tracebacks)
 
     def _create_cores(self):
         self._apply_to_all_components(self._create_component,
