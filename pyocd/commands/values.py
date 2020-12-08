@@ -99,6 +99,24 @@ class CoresValue(ValueBase):
                         " (selected)" if ((self.context.selected_core is not None) \
                                             and (self.context.selected_core.core_number == i)) else "")
 
+class APsValue(ValueBase):
+    INFO = {
+            'names': ['aps'],
+            'group': 'standard',
+            'category': 'target',
+            'access': 'r',
+            'help': "List discovered Access Ports.",
+            }
+
+    def display(self, args):
+        if self.context.target.is_locked():
+            self.context.write("Target is locked")
+        else:
+            self.context.writei("%d APs:", len(self.context.target.aps))
+            for addr, ap in sorted(self.context.target.aps.items(), key=lambda x: x[0]):
+                self.context.writei("%s: %s%s", addr, ap.type_name,
+                        " (selected)" if (self.context.selected_ap_address == addr) else "")
+
 class MemoryMapValue(ValueBase):
     INFO = {
             'names': ['map'],
