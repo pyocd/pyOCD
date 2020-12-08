@@ -1268,7 +1268,7 @@ class MakeApCommand(CommandBase):
     # TODO support ADIv6 AP addresses
     def parse(self, args):
         self.apsel = self._convert_value(args[0])
-        self.ap_addr = coresight.ap.APv1Address(apsel)
+        self.ap_addr = coresight.ap.APv1Address(self.apsel)
 
     def execute(self):
         if self.ap_addr in self.context.target.aps:
@@ -1463,14 +1463,19 @@ class ShowCommand(CommandBase):
         self.args = args[1:]
 
     def execute(self):
+        # Look up value class by name.
         try:
             value_class = self.context.command_set.values[self.name]
-            if 'r' not in value_class.INFO['access']:
-                raise exceptions.CommandError("value '%s' is not readable" % self.name)
-            value_object = value_class(self.context)
-            value_object.display(self.args)
         except KeyError:
             raise exceptions.CommandError("unknown value name '%s'" % self.name)
+
+        # Check readability.
+        if 'r' not in value_class.INFO['access']:
+            raise exceptions.CommandError("value '%s' is not readable" % self.name)
+        
+        # Execute show operation.
+        value_object = value_class(self.context)
+        value_object.display(self.args)
 
     @classmethod
     def format_help(cls, context, max_width=72):
@@ -1504,14 +1509,19 @@ class SetCommand(CommandBase):
         self.args = args[1:]
 
     def execute(self):
+        # Look up value class by name.
         try:
             value_class = self.context.command_set.values[self.name]
-            if 'w' not in value_class.INFO['access']:
-                raise exceptions.CommandError("value '%s' is not modifiable" % self.name)
-            value_object = value_class(self.context)
-            value_object.modify(self.args)
         except KeyError:
             raise exceptions.CommandError("unknown value name '%s'" % self.name)
+
+        # Check writability.
+        if 'w' not in value_class.INFO['access']:
+            raise exceptions.CommandError("value '%s' is not modifiable" % self.name)
+        
+        # Execute set operation.
+        value_object = value_class(self.context)
+        value_object.modify(self.args)
 
     @classmethod
     def format_help(cls, context, max_width=72):
@@ -1563,7 +1573,7 @@ Prefix line with ! to execute a shell command."""
                         ", ".join("'%s'" % c for c in matched_commands))
                 return
             elif len(matched_commands) == 0:
-                raise exceptions.CommandError("Error: unrecognized command '%s'", cmd_name)
+                raise exceptions.CommandError("Error: unrecognized command '%s'" % cmd_name)
             cmd_name = matched_commands[0]
             cmd_class = self.context.command_set.commands[cmd_name]
 
@@ -1577,7 +1587,7 @@ Prefix line with ! to execute a shell command."""
                                 ", ".join("'%s'" % c for c in matched_values))
                         return
                     elif len(matched_values) == 0:
-                        raise exceptions.CommandError("Error: unrecognized value '%s'", value_name)
+                        raise exceptions.CommandError("Error: unrecognized value '%s'" % value_name)
                     value_name = matched_values[0]
                     cmd_class = self.context.command_set.values[value_name]
                     self.context.write(cmd_class.format_help(self.context, self.term_width))

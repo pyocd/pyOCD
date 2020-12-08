@@ -23,6 +23,7 @@ from collections import namedtuple
 import subprocess
 
 from ..core import exceptions
+from ..coresight.ap import MEM_AP
 from ..utility.compatibility import get_terminal_size
 from ..utility.cmdline import (
     split_command_line,
@@ -288,7 +289,10 @@ class CommandExecutionContext(object):
     
     @property
     def selected_ap(self):
-        return self.target.aps[self.selected_ap_address]
+        if self.selected_ap_address is None:
+            return None
+        else:
+            return self.target.aps[self.selected_ap_address]
 
     def process_command_line(self, line):
         """! @brief Run a command line consisting of one or more semicolon-separated commands."""
