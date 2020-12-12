@@ -10,7 +10,7 @@ API to enable low-level target control. A common use for the Python API is to ru
 tests.
 
 Upwards of 70 popular MCUs are supported built-in. In addition, through the use of CMSIS-Packs,
-nearly every Cortex-M device on the market is supported.
+[nearly every Cortex-M device](https://www.keil.com/dd2/pack/) on the market is supported.
 
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
@@ -22,6 +22,7 @@ The `pyocd` command line tool gives you total control over your device with thes
     that provide additional target device support.
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `server`: Share a debug probe with a TCP/IP server.
+- `reset`: Hardware or software reset of a device.
 - `list`: Show connected devices.
 
 The API and tools provide these features:
@@ -143,12 +144,10 @@ How to install libusb depends on your OS:
 
 - macOS: use Homebrew: `brew install libusb`
 - Linux: should already be installed.
-- Windows: download libusb from [libusb.info](https://libusb.info/) and place the DLL in your Python
+- Windows: download libusb from [libusb.info](https://libusb.info/) and place the .dll file in your Python
   installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
-  your Python installation. *Note: due to a
-  [known issue](https://github.com/mbedmicro/pyOCD/issues/684), the current recommendation is to use
-  [libusb version 1.0.21](https://github.com/libusb/libusb/releases/tag/v1.0.21) on Windows instead
-  of the most recent version.*
+  your Python installation. The latest release is [available on GitHub](https://github.com/libusb/libusb/releases);
+  download the .7z archive under Assets. Use the library from the VS2019 folder in the archive.
 
 ### udev rules on Linux
 
@@ -227,7 +226,8 @@ Contributions
 -------------
 
 We welcome contributions to pyOCD in any area. Please see the [contribution
-guidelines](CONTRIBUTING.md) for detailed requirements for contributions.
+guidelines](CONTRIBUTING.md) for detailed requirements for contributions. In order foster a healthy
+and safe community, we expect contributors to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
 To report bugs, please [create an issue](https://github.com/mbedmicro/pyOCD/issues/new) in the
 GitHub project.
