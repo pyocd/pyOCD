@@ -96,7 +96,26 @@ class CoresValue(ValueBase):
             for i, core in self.context.target.cores.items():
                 self.context.writei("Core %d type:  %s%s", i,
                         coresight.core_ids.CORE_TYPE_NAME[core.core_type],
-                        " (selected)" if (self.context.selected_core.core_number == i) else "")
+                        " (selected)" if ((self.context.selected_core is not None) \
+                                            and (self.context.selected_core.core_number == i)) else "")
+
+class APsValue(ValueBase):
+    INFO = {
+            'names': ['aps'],
+            'group': 'standard',
+            'category': 'target',
+            'access': 'r',
+            'help': "List discovered Access Ports.",
+            }
+
+    def display(self, args):
+        if self.context.target.is_locked():
+            self.context.write("Target is locked")
+        else:
+            self.context.writei("%d APs:", len(self.context.target.aps))
+            for addr, ap in sorted(self.context.target.aps.items(), key=lambda x: x[0]):
+                self.context.writei("%s: %s%s", addr, ap.type_name,
+                        " (selected)" if (self.context.selected_ap_address == addr) else "")
 
 class MemoryMapValue(ValueBase):
     INFO = {
@@ -108,6 +127,10 @@ class MemoryMapValue(ValueBase):
             }
 
     def display(self, args):
+        if self.context.selected_core is None:
+            self.context.write("No core is selected")
+            return
+
         pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page"])
         pt.align = 'l'
         pt.border = False
@@ -205,6 +228,10 @@ class FaultValue(ValueBase):
                 if showAll or bit != 0:
                     self.context.writei("    %s = 0x%x", name, bit)
         
+        if self.context.selected_core is None:
+            self.context.write("No core is selected")
+            return
+
         cfsr = self.context.selected_core.read32(CFSR)
         mmfsr = cfsr & 0xff
         bfsr = (cfsr >> 8) & 0xff
@@ -292,6 +319,9 @@ class MemApValue(ValueBase):
             }
 
     def display(self, args):
+        if self.context.selected_ap is None:
+            self.context.write("No MEM-AP is selected")
+            return
         self.context.writef("{} is selected", self.context.selected_ap.short_description)
 
     def modify(self, args):
@@ -322,6 +352,9 @@ class HnonsecValue(ValueBase):
             }
 
     def display(self, args):
+        if self.context.selected_ap is None:
+            self.context.write("No MEM-AP is selected")
+            return
         self.context.writef("{} HNONSEC = {} ({})",
             self.context.selected_ap.short_description,
             self.context.selected_ap.hnonsec,
@@ -330,6 +363,9 @@ class HnonsecValue(ValueBase):
     def modify(self, args):
         if len(args) == 0:
             raise exceptions.CommandError("missing argument")
+        if self.context.selected_ap is None:
+            self.context.write("No MEM-AP is selected")
+            return
         value = int(args[0], base=0)
         self.context.selected_ap.hnonsec = value
 
@@ -343,6 +379,9 @@ class HprotValue(ValueBase):
             }
 
     def display(self, args):
+        if self.context.selected_ap is None:
+            self.context.write("No MEM-AP is selected")
+            return
         hprot = self.context.selected_ap.hprot
         self.context.writef("{} HPROT = {:#x}",
             self.context.selected_ap.short_description,
@@ -359,6 +398,9 @@ class HprotValue(ValueBase):
     def modify(self, args):
         if len(args) == 0:
             raise exceptions.CommandError("missing argument")
+        if self.context.selected_ap is None:
+            self.context.write("No MEM-AP is selected")
+            return
         value = int(args[0], base=0)
         self.context.selected_ap.hprot = value
 
@@ -399,6 +441,9 @@ class RegisterGroupsValue(ValueBase):
             }
 
     def display(self, args):
+        if self.context.selected_core is None:
+            self.context.write("No core is selected")
+            return
         for g in sorted(self.context.selected_core.core_registers.groups):
             self.context.write(g)
 
@@ -415,6 +460,10 @@ class VectorCatchValue(ValueBase):
             }
 
     def display(self, args):
+        if self.context.selected_core is None:
+            self.context.write("No core is selected")
+            return
+
         catch = self.context.selected_core.get_vector_catch()
 
         self.context.write("Vector catch:")
@@ -426,6 +475,10 @@ class VectorCatchValue(ValueBase):
     def modify(self, args):
         if len(args) == 0:
             raise exceptions.CommandError("missing vector catch setting")
+
+        if self.context.selected_core is None:
+            self.context.write("No core is selected")
+            return
     
         try:
             self.context.selected_core.set_vector_catch(convert_vector_catch(args[0]))

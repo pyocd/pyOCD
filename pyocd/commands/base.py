@@ -125,6 +125,8 @@ class CommandBase(object):
         try:
             deref = (arg[0] == '[')
             if deref:
+                if not self.context.selected_core:
+                    raise ToolError("cannot dereference when memory is not accessible")
                 arg = arg[1:-1]
                 offset = 0
                 if ',' in arg:
@@ -133,7 +135,7 @@ class CommandBase(object):
                     offset = int(offset.strip(), base=0)
 
             value = None
-            if arg.lower() in self.context.selected_core.core_registers.by_name:
+            if (self.context.selected_core) and (arg.lower() in self.context.selected_core.core_registers.by_name):
                 value = self.context.selected_core.read_core_register(arg.lower())
                 self.context.writei("%s = 0x%08x", arg.lower(), value)
             else:
