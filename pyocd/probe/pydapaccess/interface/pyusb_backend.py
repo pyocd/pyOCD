@@ -169,9 +169,9 @@ class PyUSB(Interface):
             new_board = PyUSB()
             new_board.vid = board.idVendor
             new_board.pid = board.idProduct
-            new_board.product_name = board.product
-            new_board.vendor_name = board.manufacturer
-            new_board.serial_number = board.serial_number
+            new_board.product_name = board.product or ""
+            new_board.vendor_name = board.manufacturer or ""
+            new_board.serial_number = board.serial_number or ""
             boards.append(new_board)
 
         return boards
@@ -356,6 +356,8 @@ class FindDap(object):
         if cmsis_dap_interface is None:
             return False
         if self._serial is not None:
+            if self._serial == "" and dev.serial_number is None:
+                return True
             if self._serial != dev.serial_number:
                 return False
         return True
