@@ -22,6 +22,7 @@ import sys
 import logging
 import itertools
 from struct import unpack
+import faulthandler
 
 try:
     from intelhex import IntelHex
@@ -129,6 +130,9 @@ def ranges(i):
 
 
 def main():
+    # Use faulthandler to traceback segfaults.
+    faulthandler.enable()
+
     args = parser.parse_args()
     setup_logging(args)
     DAPAccess.set_args(args.daparg)

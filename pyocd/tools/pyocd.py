@@ -19,6 +19,7 @@ from __future__ import print_function
 import argparse
 import logging
 import sys
+import faulthandler
 
 from .. import __version__
 from ..probe.pydapaccess import DAPAccess
@@ -64,6 +65,9 @@ class PyOCDTool(object):
         logging.basicConfig(level=level)
 
     def run(self):
+        # Use faulthandler to traceback segfaults.
+        faulthandler.enable()
+
         # Read command-line arguments.
         self.args = self.get_args()
         
