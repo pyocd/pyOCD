@@ -319,7 +319,7 @@ class WriteRegCommand(RegisterCommandBase):
                     else:
                         raise exceptions.CommandError("too many dots")
                     self.context.target.flush()
-                    if do_readback:
+                    if self.do_readback:
                         self._dump_peripheral_register(p, r, True)
                 else:
                     raise exceptions.CommandError("invalid register '%s' for %s" % (subargs[1], p.name))
