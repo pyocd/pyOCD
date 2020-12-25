@@ -24,7 +24,7 @@ class ListenerSocket(object):
         self.listener = None
         self.conn = None
         self.port = port
-        self.host = ''
+        self.host = 'localhost'
 
     def init(self):
         if self.listener is None:

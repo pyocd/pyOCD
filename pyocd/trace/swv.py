@@ -159,6 +159,7 @@ class SWVReader(threading.Thread):
 
         swv_raw_server = StreamServer(
                             self._session.options.get('swv_raw_port'),
+                            serve_local_only=self._session.options.get('serve_local_only'),
                             name="SWV raw",
                             is_read_only=True) \
                          if self._session.options.get('swv_raw_enable') else None

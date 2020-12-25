@@ -348,10 +348,13 @@ class PyOCDTool(object):
             help="Send setting to DAPAccess layer.")
         serverParser.add_argument("-p", "--port", dest="port_number", type=int, default=None,
             help="Set the server's port number (default 5555).")
-        serverParser.add_argument("--local-only", dest="serve_local_only", default=False, action="store_true",
-            help="Allow remote TCP/IP connections (default is yes).")
+        serverParser.add_argument("--allow-remote", dest="serve_local_only", default=None, action="store_false",
+            help="Allow remote TCP/IP connections (default is no).")
+        serverParser.add_argument("--local-only", default=False, action="store_true",
+            help="Ignored and deprecated. Server is local only by default. Use --alow-remote to enable remote "
+                 "connections.")
         serverParser.add_argument("-u", "--uid", dest="unique_id",
-            help="Serve only the specified probe. Can be used multiple times.")
+            help="Serve the specified probe.")
         serverParser.set_defaults(verbose=0, quiet=0)
         
         self._parser = parser
@@ -882,7 +885,9 @@ class PyOCDTool(object):
         # probe, we don't set it in the session because we don't want the board, target, etc objects
         # to be created.
         session_options = convert_session_options(self._args.options)
-        session = Session(probe=None, options=session_options)
+        session = Session(probe=None,
+                serve_local_only=self._args.serve_local_only,
+                options=session_options)
         
         # The ultimate intent is to serve all available probes by default. For now we just serve
         # a single probe.
