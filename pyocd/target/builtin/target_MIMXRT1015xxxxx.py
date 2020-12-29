@@ -728,15 +728,14 @@ class MIMXRT1015xxxxx(IMXRT):
 
     VENDOR = "NXP"
 
-    # Note: itcm, dtcm, and ocram share a single 128 KB block of RAM that can be configurably
-    # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
-    # each of these RAMs allocate the maximum possible of 128 KB, but that is the maximum and
-    # will not actually be available in all regions simultaneously.
+    # Note: by default there are 64 KB ITCM, 64 KB DTCM and 128 KB OCRAM available for MIMXRT1015.
+    # And it also has 256 KB FlexRAM that can be enabled and configured by GPR17, customers can 
+    # allocate this 256 KB FlexRAM to ITCM/DTCM/OCRAM, but the FlexRAM is not available by default.
     MEMORY_MAP = MemoryMap(
-        RamRegion(name="itcm",      start=0x00000000, length=0x8000), # 32 KB
+        RamRegion(name="itcm",      start=0x00000000, length=0x10000), # 64 KB
         RomRegion(name="romcp",     start=0x00200000, length=0x18000), # 96 KB
-        RamRegion(name="dtcm",      start=0x20000000, length=0x8000), # 32 KB
-        RamRegion(name="ocram",     start=0x20200000, length=0x10000), # 64 KB
+        RamRegion(name="dtcm",      start=0x20000000, length=0x10000), # 64 KB
+        RamRegion(name="ocram",     start=0x20200000, length=0x20000), # 128 KB
         FlashRegion(name="flexspi", start=0x60000000, end=0x60ffffff, blocksize=0x1000, is_boot_memory=True,
             algo=FLASH_ALGO_QUADSPI, page_size=0x100),
         )
