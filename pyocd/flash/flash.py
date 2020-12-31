@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019 Arm Limited
+# Copyright (c) 2013-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +24,8 @@ from enum import Enum
 from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 # Program to compute the CRC of sectors.  This works on cortex-m processors.
 # Code is relocatable and only needs to be on a 4 byte boundary.
@@ -231,6 +233,8 @@ class Flash(object):
 
         # Setup target for running the flash algo.
         if not self._did_prepare_target:
+            TRACE.debug("algo init and load to %#010x", self.flash_algo['load_address'])
+            
             if reset:
                 self.target.reset_and_halt(Target.ResetType.SW)
             self.prepare_target()
@@ -242,10 +246,12 @@ class Flash(object):
 
         # update core register to execute the init subroutine
         if self._is_api_valid('pc_init'):
+            TRACE.debug("algo call init(addr=%d, clock=%d, op=%d)", address, clock, operation.value)
             result = self._call_function_and_wait(self.flash_algo['pc_init'],
                                               r0=address, r1=clock, r2=operation.value, init=True)
 
             # check the return code
+            TRACE.debug("init result = %d", result)
             if result != 0:
                 raise FlashFailure('init error: %i' % result, result_code=result)
         
@@ -274,11 +280,14 @@ class Flash(object):
             return
         
         if self._is_api_valid('pc_unInit'):
+            TRACE.debug("call uninit(%d)", self._active_operation.value)
+
             # update core register to execute the uninit subroutine
             result = self._call_function_and_wait(self.flash_algo['pc_unInit'],
                                                     r0=self._active_operation.value)
             
             # check the return code
+            TRACE.debug("uninit result = %d", result)
             if result != 0:
                 raise FlashFailure('uninit error: %i' % result, result_code=result)
             
@@ -315,6 +324,7 @@ class Flash(object):
         self.target.write_memory_block32(self.begin_data, data)
 
         # update core register to execute the subroutine
+        TRACE.debug("call compute crc(%x, %x)", self.begin_data, len(data))
         result = self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data))
 
         # Read back the CRCs for each section
@@ -331,9 +341,11 @@ class Flash(object):
         assert self.is_erase_all_supported
 
         # update core register to execute the erase_all subroutine
+        TRACE.debug("call erase_all")
         result = self._call_function_and_wait(self.flash_algo['pc_eraseAll'])
 
         # check the return code
+        TRACE.debug("erase_all result = %d", result)
         if result != 0:
             raise FlashEraseFailure('erase_all error: %i' % result, result_code=result)
 
@@ -346,9 +358,11 @@ class Flash(object):
         assert self._active_operation == self.Operation.ERASE
 
         # update core register to execute the erase_sector subroutine
+        TRACE.debug("call erase_sector(%x)", address)
         result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address)
 
         # check the return code
+        TRACE.debug("erase_sector result = %d", result)
         if result != 0:
             raise FlashEraseFailure('erase_sector(0x%x) error: %i' % (address, result), address, result)
 
@@ -367,9 +381,11 @@ class Flash(object):
         self.target.write_memory_block8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
+        TRACE.debug("call program_page(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
         result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
 
         # check the return code
+        TRACE.debug("program_page result = %d", result)
         if result != 0:
             raise FlashProgramFailure('program_page(0x%x) error: %i' % (address, result), address, result)
 
@@ -381,6 +397,8 @@ class Flash(object):
         assert self._active_operation == self.Operation.PROGRAM
 
         # update core register to execute the program_page subroutine
+        TRACE.debug("start_program_page_with_buffer(addr=%x, len=%x, data=%x)", address, self.region.page_size,
+                self.page_buffers[buffer_number])
         result = self._call_function(self.flash_algo['pc_program_page'], address, self.region.page_size, self.page_buffers[buffer_number])
 
     def load_page_buffer(self, buffer_number, address, bytes):
@@ -427,6 +445,7 @@ class Flash(object):
         self.target.write_memory_block8(self.begin_data, bytes)
 
         # update core register to execute the program_page subroutine
+        TRACE.debug("call program_phrase(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
         result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
 
         # check the return code
