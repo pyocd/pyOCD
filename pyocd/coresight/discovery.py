@@ -51,9 +51,13 @@ class CoreSightDiscovery(object):
         raise NotImplementedError()
 
     def _create_component(self, cmpid):
-        LOG.debug("Creating %s component", cmpid.name)
-        cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
-        cmp.init()
+        try:
+            LOG.debug("Creating %s component", cmpid.name)
+            cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
+            cmp.init()
+        except exceptions.Error as err:
+            LOG.error("Error attempting to create component %s: %s", cmpid.name, err,
+                    exc_info=self.session.log_tracebacks)
 
     def _create_cores(self):
         self._apply_to_all_components(self._create_component,
@@ -127,7 +131,7 @@ class ADIv5Discovery(CoreSightDiscovery):
                     invalid_count = 0
                 elif not self.session.options.get('scan_all_aps'):
                     invalid_count += 1
-                    if invalid_count == 2:
+                    if invalid_count == self.session.options.get('adi.v5.max_invalid_ap_count'):
                         break
             except exceptions.Error as e:
                 LOG.error("Exception while probing AP#%d: %s", apsel, e,

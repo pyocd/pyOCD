@@ -528,6 +528,39 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def supported_transfer_sizes(self):
         """! @brief Tuple of transfer sizes supported by this AP."""
         return self._transfer_sizes
+    
+    @property
+    def is_enabled(self):
+        """! @brief Whether any memory transfers are allowed by this AP.
+        
+        Memory transfers may be disabled by an input signal to the AP. This is often done when debug security
+        is enabled on the device, to disallow debugger access to internal memory.
+        """
+        return self.is_enabled_for(Target.SecurityState.NONSECURE)
+    
+    def is_enabled_for(self, security_state):
+        """! @brief Checks whether memory transfers are allowed by this AP for the given security state.
+        
+        Memory transfers may be disabled by an input signal to the AP. This is often done when debug security
+        is enabled on the device, to disallow debugger access to internal memory.
+        
+        @param self The AP instance.
+        @param security_state One of the @ref pyocd.core.target.Target.SecurityState "SecurityState" enums.
+        @return Boolean indicating whether memory transfers can be performed in the requested security state. You
+            may change the security state used for transfers with the hnonsec property and hnonsec_lock() method.
+        """
+        assert isinstance(security_state, Target.SecurityState)
+        
+        # Call to superclass to read CSW. We want to bypass our CSW cache since the enable signal can change
+        # asynchronously.
+        csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
+        if security_state is Target.SecurityState.NONSECURE:
+            # Nonsecure transfers are always allowed when security transfers are enabled.
+            return (csw & (CSW_DEVICEEN | CSW_SDEVICEEN)) != 0
+        elif security_state is Target.SecurityState.SECURE:
+            return (csw & CSW_SDEVICEEN) != 0
+        else:
+            assert False, "unsupported security state"
 
     @locked
     def init(self):
@@ -694,6 +727,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def find_components(self):
         try:
             if self.has_rom_table:
+                if not self.is_enabled:
+                    LOG.warning("Skipping CoreSight discovery for %s because it is disabled", self.short_description)
+                    return
+                
                 # Import locally to work around circular import.
                 from .rom_table import (CoreSightComponentID, ROMTable)
                 

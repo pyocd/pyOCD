@@ -85,6 +85,12 @@ class CallSequence(object):
         """! @brief Remove all tasks from the sequence."""
         self._calls = OrderedDict()
     
+    def copy(self):
+        """! @brief Duplicate the sequence."""
+        new_seq = CallSequence()
+        new_seq._calls = self._calls.copy()
+        return new_seq
+    
     def remove_task(self, name):
         """! @brief Remove a task with the given name.
         @exception KeyError Raised if no task with the specified name exists.

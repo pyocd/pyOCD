@@ -22,6 +22,9 @@ OptionInfo = namedtuple('OptionInfo', 'name type default help')
 ## @brief Definitions of the builtin options.
 BUILTIN_OPTIONS = [
     # Common options
+    OptionInfo('adi.v5.max_invalid_ap_count', int, 3,
+        "If this number of invalid APs is found in a row, then AP scanning will stop. The 'scan_all_aps' option "
+        "takes precedence over this option if set."),
     OptionInfo('allow_no_cores', bool, False,
         "Prevents raising an error if no core were found after CoreSight discovery."),
     OptionInfo('auto_unlock', bool, True,
