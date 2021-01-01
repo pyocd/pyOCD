@@ -127,7 +127,7 @@ class ADIv5Discovery(CoreSightDiscovery):
                     invalid_count = 0
                 elif not self.session.options.get('scan_all_aps'):
                     invalid_count += 1
-                    if invalid_count == 2:
+                    if invalid_count == self.session.options.get('adi.v5.max_invalid_ap_count'):
                         break
             except exceptions.Error as e:
                 LOG.error("Exception while probing AP#%d: %s", apsel, e,

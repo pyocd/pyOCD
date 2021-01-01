@@ -14,6 +14,14 @@ processed. The consequence of this is that these options cannot be set in a YAML
 
 <tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
 
+<tr><td>adi.v5.max_invalid_ap_count</td>
+<td>int</td>
+<td>3</td>
+<td>
+If this number of invalid APs is found in a row, then AP scanning will stop. The 'scan_all_aps' option
+takes precedence over this option if set.
+</td></tr>
+
 <tr><td>allow_no_cores</td>
 <td>bool</td>
 <td>False</td>
