@@ -52,7 +52,8 @@ News
 - _**Important note**: Python 2 support is deprecated and is planned to be dropped from an upcoming release._
 Existing releases of pyOCD will, of course, continue to work with Python 2. If this is a major problem for you
 moving forward, please create a [new issue](https://github.com/mbedmicro/pyOCD/issues/new/choose) describing
-your concerns.
+your concerns. As of 1 January 2021, there has been no negative feedback about dropping Python 2, so this will
+likely happen sooner rather than later.
 
 
 Requirements
@@ -102,8 +103,11 @@ The latest stable version of pyOCD may be installed via [pip](https://pip.pypa.i
 as follows:
 
 ```
-$ pip install -U pyocd
+$ python3 -mpip install -U pyocd
 ```
+
+_Note: depending on your system, you may need to use `python` instead of `python3`. The same applies if
+you are using Python 2.7 (but please see the note above about deprecation of Python 2 support in pyocd)._
 
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/) as well as
 [on GitHub](https://github.com/mbedmicro/pyOCD/releases).
@@ -112,22 +116,23 @@ To install the latest prerelease version from the HEAD of the master branch, you
 the following:
 
 ```
-$ pip install --pre -U git+https://github.com/mbedmicro/pyOCD.git
+$ python3 -mpip install --pre -U git+https://github.com/mbedmicro/pyOCD.git
 ```
 
 You can also install directly from the source by cloning the git repository and running:
 
 ```
-$ python setup.py install
+$ python3 setup.py install
 ```
 
 Note that, depending on your operating system, you may run into permissions issues running these commands.
 You have a few options here:
 
-1. Under Linux, run with `sudo -H` to install pyOCD and dependencies globally. (Installing with sudo
-   should never be required for macOS.)
-2. Specify the `--user` option to install local to your user.
-3. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
+1. Under Linux, run with `sudo -H` to install pyOCD and dependencies globally. On macOS, installing with sudo
+    should never be required, although sometimes permissions can become modified such that installing without
+    using sudo fails.
+3. Specify the `--user` option to install local to your user account.
+4. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
    local to a specific project working set.
 
 For notes about installing and using on non-x86 systems such as Raspberry Pi, see the
