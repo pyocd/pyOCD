@@ -197,7 +197,7 @@ class APAddressBase(object):
     @property
     def ap_version(self):
         """! @brief Version of the AP, as an APVersion enum."""
-        raise NotImplemented()
+        raise NotImplementedError()
     
     @property
     def nominal_address(self):
@@ -212,12 +212,12 @@ class APAddressBase(object):
         
         This value can be passed to the DebugPort's read_ap() or write_ap() methods. Offsets of
         registers can be added to this value to create register addresses."""
-        raise NotImplemented()
+        raise NotImplementedError()
     
     @property
     def idr_address(self):
         """! @brief Address of the IDR register."""
-        raise NotImplemented()
+        raise NotImplementedError()
     
     def __hash__(self):
         return hash(self.nominal_address)

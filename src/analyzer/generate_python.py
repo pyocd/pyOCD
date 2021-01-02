@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2015 Arm Limited
+# Copyright (c) 2006-2015,2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,6 @@ with open(INPUT_FILENAME, "rb") as f:
 words = len(data) // 4
 if len(data) % 4 != 0:
     print("Warning: input length not word aligned")
-str = "<L%i" % words
 print("Data length %i" % len(data))
 data = unpack("<%iL" % words, data)
 

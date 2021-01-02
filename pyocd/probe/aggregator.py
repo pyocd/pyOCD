@@ -78,8 +78,7 @@ class DebugProbeAggregator(object):
             probe = cls.get_probe_with_id(unique_id, is_explicit)
             if probe is not None:
                 return probe
-        else:
-            return None
+        return None
 
 # Load plugins when this module is loaded.
 load_plugin_classes_of_type('pyocd.probe', PROBE_CLASSES, DebugProbe)

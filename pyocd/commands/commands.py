@@ -21,7 +21,7 @@ import textwrap
 
 from .. import coresight
 from ..core.helpers import ConnectHelper
-from ..core import (exceptions, session)
+from ..core import exceptions
 from ..probe.tcp_probe_server import DebugProbeServer
 from ..core.target import Target
 from ..flash.loader import FlashLoader
@@ -44,7 +44,6 @@ from ..utility.mask import (
     msb,
     bfx,
     bfi,
-    round_up_div,
     )
 from .base import CommandBase
 
@@ -1028,7 +1027,6 @@ class RemoveBreakpointCommand(CommandBase):
 
     def execute(self):
         try:
-            type = self.context.selected_core.get_breakpoint_type(self.addr)
             self.context.selected_core.remove_breakpoint(self.addr)
             self.context.selected_core.bp_manager.flush()
             self.context.writei("Removed breakpoint at 0x%08x", self.addr)
@@ -1158,7 +1156,6 @@ class SelectCoreCommand(CommandBase):
         if self.show_core:
             self.context.writei("Core %d is selected", self.context.selected_core.core_number)
             return
-        original_core_ap = core_ap = self.context.selected_core.ap
         self.context.selected_core = self.context.session.target.cores[self.core_num]
         core_ap = self.context.selected_core.ap
         self.context.selected_ap_address = core_ap.address
@@ -1625,7 +1622,6 @@ def print_disasm(context, code, start_addr, max_instructions=None):
         pc = -1
     md = capstone.Cs(capstone.CS_ARCH_ARM, capstone.CS_MODE_THUMB)
 
-    addrLine = 0
     text = ''
     n = 0
     for i in md.disasm(code, start_addr):

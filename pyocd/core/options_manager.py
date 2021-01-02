@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -116,8 +116,7 @@ class OptionsManager(Notifier):
         for layer in self._layers:
             if key in layer:
                 return True
-        else:
-            return False
+        return False
 
     def get_default(self, key):
         """! @brief Return the default value for the specified option."""

@@ -289,7 +289,6 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             try:
                 request = None
                 request_dict = None
-                request_id = -1
                 self._current_request_id = -1
                 
                 # Read request line.
@@ -312,7 +311,6 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 if 'id' not in request_dict:
                     self._send_error_response(message="missing request ID")
                     continue
-                request_id = request_dict['id']
                 self._current_request_id = request_dict['id']
                 
                 if 'request' not in request_dict:

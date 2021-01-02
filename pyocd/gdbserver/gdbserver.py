@@ -21,12 +21,10 @@ from time import (sleep, time)
 import sys
 import six
 from xml.etree.ElementTree import (Element, SubElement, tostring)
-import io
 
 from ..core import exceptions
 from ..core.target import Target
 from ..flash.loader import FlashLoader
-from ..flash.eraser import FlashEraser
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.progress import print_progress
@@ -276,10 +274,6 @@ class GDBServer(threading.Thread):
         
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
-
-    def restart(self):
-        if self.is_alive():
-            self.detach_event.set()
 
     def stop(self):
         if self.is_alive():

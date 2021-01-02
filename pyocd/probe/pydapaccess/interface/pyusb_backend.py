@@ -30,7 +30,6 @@ from .common import (
     check_ep,
     )
 from ..dap_access_api import DAPAccessIntf
-from ... import common
 
 LOG = logging.getLogger(__name__)
 
@@ -106,7 +105,6 @@ class PyUSB(Interface):
         except (NotImplementedError, usb.core.USBError) as e:
             # Some implementations don't don't have kernel attach/detach
             LOG.warning("USB Kernel Driver Detach Failed ([%s] %s). Attached driver may interfere with pyOCD operations.", e.errno, e.strerror)
-            pass
 
         # Explicitly claim the interface
         try:

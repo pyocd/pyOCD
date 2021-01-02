@@ -249,9 +249,8 @@ class MemoryRegion(MemoryRangeBase):
                 **self._attributes
                 )
 
-    def __hash__(self):
-        # Need to redefine __hash__ since we redefine __eq__.
-        return super(MemoryRegion, self).__hash__()
+    # Need to redefine __hash__ since we redefine __eq__.
+    __hash__ = MemoryRangeBase.__hash__
     
     def __eq__(self, other):
         # Include type and attributes in equality comparison.
@@ -410,6 +409,14 @@ class FlashRegion(MemoryRegion):
         # Reference the shared FLM.
         clone._flm = self._flm
         return clone
+
+    # Need to redefine __hash__ since we redefine __eq__.
+    __hash__ = MemoryRegion.__hash__
+    
+    def __eq__(self, other):
+        # Include flash algo, class, and flm in equality test.
+        return super(FlashRegion, self).__eq__(other) and self.algo == other.algo and \
+                self.flash_class == other.flash_class and self.flm == other.flm
 
     def __repr__(self):
         return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access, self.blocksize)

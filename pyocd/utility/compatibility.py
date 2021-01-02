@@ -80,9 +80,9 @@ except NameError:
 
 # zipfile from Python 2 has a misspelled BadZipFile exception class.
 try:
-    from zipfile import BadZipFile
+    from zipfile import BadZipFile # lgtm[py/unused-import]
 except ImportError:
-    from zipfile import BadZipfile as BadZipFile
+    from zipfile import BadZipfile as BadZipFile # lgtm[py/unused-import]
 
 try:
     from shutil import get_terminal_size

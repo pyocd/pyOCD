@@ -16,10 +16,9 @@
 
 import logging
 import prettytable
-import textwrap
 
 from .. import coresight
-from ..core import (exceptions, session)
+from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
@@ -531,11 +530,9 @@ class LogLevelValue(ValueBase):
     def modify(self, args):
         if len(args) < 1:
             raise exceptions.CommandError("no log level provided")
-            return 1
         level_name = args[0].lower()
         if level_name not in self.LEVELS:
             raise exceptions.CommandError("log level must be one of {%s}" % ','.join(self.LEVELS.keys()))
-            return 1
         level = self.LEVELS[level_name]
         if len(args) == 1:
             logging.getLogger().setLevel(level)
@@ -571,12 +568,10 @@ class ClockFrequencyValue(ValueBase):
     def modify(self, args):
         if len(args) < 1:
             raise exceptions.CommandError("no clock frequency provided")
-            return 1
         try:
             freq_Hz = convert_frequency(args[0])
         except:
             raise exceptions.CommandError("invalid frequency")
-            return 1
         self.context.probe.set_clock(freq_Hz)
         if self.context.probe.wire_protocol == DebugProbe.Protocol.SWD:
             swd_jtag = 'SWD'

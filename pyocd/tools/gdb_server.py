@@ -173,7 +173,7 @@ class GDBServerTool(object):
             except IndexError:
                 pass
 
-    def server_listening(self, server):
+    def server_listening(self, note):
         if self.echo_msg is not None:
             print(self.echo_msg, file=sys.stderr)
             sys.stderr.flush()
@@ -294,9 +294,11 @@ class GDBServerTool(object):
                         if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                             continue
                             
-                        gdb = GDBServer(session,
-                            core=core_number,
-                            server_listening_callback=self.server_listening)
+                        gdb = GDBServer(session, core=core_number)
+                        # Only subscribe to the server for the first core, so echo messages aren't printed
+                        # multiple times.
+                        if not gdbs:
+                            session.subscribe(self.server_listening, GDBServer.GDBSERVER_START_LISTENING_EVENT, gdb)
                         session.gdbservers[core_number] = gdb
                         gdbs.append(gdb)
                         gdb.start()
