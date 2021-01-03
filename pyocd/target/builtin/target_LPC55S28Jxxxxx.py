@@ -18,6 +18,7 @@ from ..family.target_lpc5500 import LPC5500Family
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
+# Note: the DFP has both S and NS flash algos, but they are exactly the same except for the address range.
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
@@ -107,7 +108,8 @@ class LPC55S28(LPC5500Family):
 
     MEMORY_MAP = MemoryMap(
         FlashRegion(name='nsflash',     start=0x00000000, length=0x00080000, access='rx',
-            blocksize=0x200,
+            page_size=0x200,
+            sector_size=0x8000,
             is_boot_memory=True,
             are_erased_sectors_readable=False,
             algo=FLASH_ALGO),
@@ -115,7 +117,8 @@ class LPC55S28(LPC5500Family):
         RamRegion(  name='nscoderam',   start=0x04000000, length=0x00008000, access='rwx',
             default=False),
         FlashRegion(name='sflash',      start=0x10000000, length=0x00080000, access='rx',
-            blocksize=0x200,
+            page_size=0x200,
+            sector_size=0x8000,
             is_boot_memory=True,
             are_erased_sectors_readable=False,
             algo=FLASH_ALGO,
