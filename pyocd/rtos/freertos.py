@@ -99,7 +99,7 @@ class FreeRTOSThreadContext(DebugContext):
                  1: 40, # r1
                  2: 44, # r2
                  3: 48, # r3
-                 12: 42, # r12
+                 12: 52, # r12
                  14: 56, # lr
                  15: 60, # pc
                  16: 64, # xpsr
