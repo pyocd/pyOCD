@@ -64,7 +64,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 class STM32F412xE(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000, sector_size=0x4000,
                         page_size=0x1000,
@@ -73,7 +73,7 @@ class STM32F412xE(CoreSightTarget):
         FlashRegion( start=0x08010000, length=0x10000, sector_size=0x10000,
                         page_size=0x1000,
                         algo=FLASH_ALGO),
-        FlashRegion( start=0x08020000, length=0x20000, sector_size=0x20000,
+        FlashRegion( start=0x08020000, length=0x60000, sector_size=0x20000,
                         page_size=0x1000,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x40000)
@@ -91,7 +91,7 @@ class STM32F412xE(CoreSightTarget):
 class STM32F412xG(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000, sector_size=0x4000,
                         page_size=0x1000,
@@ -114,4 +114,3 @@ class STM32F412xG(CoreSightTarget):
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
         self.write32(DBGMCU.APB1_FZ, DBGMCU.APB1_FZ_VALUE)
         self.write32(DBGMCU.APB2_FZ, DBGMCU.APB2_FZ_VALUE)
-
