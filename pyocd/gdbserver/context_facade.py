@@ -150,7 +150,7 @@ class GDBDebugContextFacade(object):
             LOG.debug("GDB: write reg %s: 0x%X", reg.name, value)
             self._context.write_core_register_raw(reg.name, value)
         else:
-            LOG.warining("GDB: attempt to set invalid register (regnum %d)", gdb_regnum)
+            LOG.warning("GDB: attempt to set invalid register (regnum %d)", gdb_regnum)
 
     def gdb_get_register(self, gdb_regnum):
         """! @brief Set single core register.
