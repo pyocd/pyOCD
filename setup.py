@@ -123,6 +123,7 @@ setup(
             'freertos = pyocd.rtos.freertos:FreeRTOSPlugin',
             'zephyr = pyocd.rtos.zephyr:ZephyrPlugin',
             'rtx5 = pyocd.rtos.rtx5:RTX5Plugin',
+            'threadx = pyocd.rtos.threadx:ThreadXPlugin',
         ],
     },
     packages=find_packages(),
