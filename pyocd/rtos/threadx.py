@@ -419,8 +419,6 @@ class ThreadXThreadProvider(ThreadProvider):
     def _build_thread_list(self):
         # Read the number of threads.
         threadCount = self._target_context.read32(self._created_cnt)
-        # Read the current thread.
-        currentThread = self._target_context.read32(self._current_ptr)
 
         # Build up list of all the threads
         allThreads = TargetList(self._target_context, self._created_ptr)
