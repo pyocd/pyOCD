@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
-
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread,
                      EXC_RETURN_EXT_FRAME_MASK)
@@ -31,7 +29,7 @@ import logging
 TX_THREAD_ID = 0x54485244  # 'THRD'
 THREAD_ID_OFFSET = 0
 THREAD_STACK_POINTER_OFFSET = 8
-# All the following offset may be meesed up if thread extensions are defined.
+# All the following offset may be messed up if thread extensions are defined.
 # They should be read somehow from the elf.
 THREAD_NAME_OFFSET = 40
 THREAD_PRIORITY_OFFSET = 44
@@ -177,9 +175,14 @@ class ThreadXThreadContext(DebugContext):
         super(ThreadXThreadContext, self).__init__(parent)
         self._thread = thread
         self._has_fpu = self.core.has_fpu
-        self.nofpu_register_offsets = self.NOFPU_REGISTER_OFFSETS
-        if self.core.architecture == CoreArchitecture.ARMv6M:
-            self.nofpu_register_offsets.update(self.NOFPU_REGISTER_OFFSETS_V6M)
+        if self.core.architecture != CoreArchitecture.ARMv6M:
+            # Use the default offsets for this istance
+            self._nofpu_register_offsets = self.NOFPU_REGISTER_OFFSETS
+        else:
+            # Use a copy with the Cortex-M0 specific offsets for this istance
+            self._nofpu_register_offsets = self.NOFPU_REGISTER_OFFSETS.copy()
+            self._nofpu_register_offsets.update(
+                self.NOFPU_REGISTER_OFFSETS_V6M)
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [index_for_reg(reg) for reg in reg_list]
@@ -205,7 +208,7 @@ class ThreadXThreadContext(DebugContext):
         # Determine which register offset table to use and the offsets past the saved state.
         hwStacked = 0x20
         swStacked = 0x24
-        table = self.NOFPU_REGISTER_OFFSETS
+        table = self._nofpu_register_offsets
         if self._has_fpu:
             try:
                 if inException and self.core.is_vector_catch():
@@ -257,23 +260,28 @@ class ThreadXThreadContext(DebugContext):
 class ThreadXThread(TargetThread):
     """! @brief A ThreadX task."""
 
-    class ThreadState(Enum):
-        Ready = 0
-        Completed = 1
-        Terminated = 2
-        Suspended = 3
-        Sleep = 4
-        Queue = 5
-        Semaphore = 6
-        EventFlag = 7
-        BlockMemory = 8
-        ByteMemory = 9
-        IoDriver = 10
-        File = 11
-        TcpIp = 12
-        Mutex = 13
-        PriorityChange = 14
-        Unknown = 99
+    STATE_NAMES = {
+        0: "Ready",
+        1: "Completed",
+        2: "Terminated",
+        3: "Suspended",
+        4: "Sleep",
+        5: "Queue",
+        6: "Semaphore",
+        7: "EventFlag",
+        8: "BlockMemory",
+        9: "ByteMemory",
+        10: "IoDriver",
+        11: "File",
+        12: "TcpIp",
+        13: "Mutex",
+        14: "PriorityChange",
+        99: "Unknown"
+    }
+
+    READY = 0
+    PRIORITYCHANGE = 14
+    UNKNOWN = 99
 
     def __init__(self, targetContext, provider, base):
         super(ThreadXThread, self).__init__()
@@ -307,8 +315,8 @@ class ThreadXThread(TargetThread):
                 self._base + THREAD_PRIORITY_OFFSET)
             self._state = self._target_context.read32(
                 self._base + THREAD_STATE_OFFSET)
-            if not self.ThreadState.Ready.value <= self._state <= self.ThreadState.PriorityChange.value:
-                self._state = self.ThreadState.Unknown.value
+            if not self.READY <= self._state <= self.PRIORITYCHANGE:
+                self._state = self.UNKNOWN
         except exceptions.TransferError:
             LOG.debug("Transfer error while reading thread info")
 
@@ -335,7 +343,7 @@ class ThreadXThread(TargetThread):
     @property
     def description(self):
         # return "%s; Priority %d" % (self.STATE_NAMES[self.state], self.priority)
-        return "%s; Priority %d" % (self.ThreadState(self.state).name, self.priority)
+        return "%s; Priority %d" % (self.STATE_NAMES[self.state], self.priority)
 
     @property
     def is_current(self):
@@ -353,18 +361,17 @@ class ThreadXThread(TargetThread):
 
 
 class ThreadXThreadProvider(ThreadProvider):
-    """! @brief Thread provider for ThreadX."""
+    """! @brief Thread provider for ThreadX.
+
+        To successfully initialize, the following ThreadX symbols are needed:
+            _tx_thread_created_ptr:     pointer to list of created processes
+            _tx_thread_created_count:   count of created processes
+            _tx_thread_current_ptr:     current thread
+            _tx_thread_system_state:    ThreadX state: initializing, run, interrupt
+    """
 
     # Scheduler not yet up
     TX_INITIALIZE_IN_PROGRESS = 0xF0F0F0F0
-
-    '''
-    Required ThreadX symbols:
-        _tx_thread_created_ptr:     pointer to list of created processes
-        _tx_thread_created_count:   count of created processes
-        _tx_thread_current_ptr:     current thread
-        _tx_thread_system_state:    ThreadX state: initializing, run, interrupt
-    '''
 
     def __init__(self, target):
         super(ThreadXThreadProvider, self).__init__(target)
@@ -441,8 +448,8 @@ class ThreadXThreadProvider(ThreadProvider):
 
         # Is the number of threads correct?
         if len(newThreads) != threadCount:
-            LOG.warning("ThreadX: thread count mismatch, expected: {0}, found: {1}".format(
-                threadCount, len(newThreads)))
+            LOG.warning("ThreadX: thread count mismatch, %d expected, %d found",
+                        threadCount, len(newThreads))
 
         # Create fake handler mode thread.
         if self._target_context.read_core_register('ipsr') > 0:
@@ -466,9 +473,15 @@ class ThreadXThreadProvider(ThreadProvider):
 
     @property
     def is_enabled(self):
+        # The _tx_thread_system_state global is used to determine whether
+        # the kernel is running. Before the kernel starts, it'll contain
+        # TX_INITIALIZE_IN_PROGRESS and possibly TX_INITIALIZE_IN_PROGRESS+1.
+        # On cortex-m ports it should otherwise be 0.
+        # As it's used in other ports to indicate the interrupt nesting level, it's
+        # safer to compare it with TX_INITIALIZE_IN_PROGRESS.
         if self._system_state is None:
             return False
-        return self._target_context.read32(self._system_state) < ThreadXThreadProvider.TX_INITIALIZE_IN_PROGRESS
+        return self._target_context.read32(self._system_state) < self.TX_INITIALIZE_IN_PROGRESS
 
     @property
     def current_thread(self):
@@ -498,6 +511,7 @@ class ThreadXThreadProvider(ThreadProvider):
         if not self.is_enabled:
             return None
         return self._target_context.read32(self._current_ptr)
+
 
 class ThreadXPlugin(Plugin):
     """! @brief Plugin class for ThreadX."""
