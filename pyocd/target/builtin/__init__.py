@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019 Arm Limited
+# Copyright (c) 2013-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,6 +110,7 @@ from . import target_HC32L19x
 from . import target_HC32L07x
 from . import target_MPS3_AN522
 from . import target_MPS3_AN540
+from . import target_RP2040
 
 ## @brief Dictionary of all builtin targets.
 BUILTIN_TARGETS = {
@@ -243,4 +244,7 @@ BUILTIN_TARGETS = {
           'hc32l072' : target_HC32L07x.HC32L072,
           'hc32l073' : target_HC32L07x.HC32L073,
           'hc32f072' : target_HC32L07x.HC32F072,
+          'rp2040' : target_RP2040.RP2040Core0,
+          'rp2040_core0' : target_RP2040.RP2040Core0,
+          'rp2040_core1' : target_RP2040.RP2040Core1,
          }
