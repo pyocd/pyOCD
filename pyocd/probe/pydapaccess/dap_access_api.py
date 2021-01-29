@@ -94,6 +94,17 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     @property
+    def protocol_version(self):
+        """! @brief CMSIS-DAP protocol version.
+        
+        The version is represented as 3-tuple with elements, in order, of major version,
+        minor version, and patch version.
+
+        Not valid (returns None) until the device is opened.
+        """
+        raise NotImplementedError()
+
+    @property
     def vendor_name(self):
         raise NotImplementedError()
 

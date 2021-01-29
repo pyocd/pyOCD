@@ -73,6 +73,16 @@ INTEGER_INFOS = [
     DAPAccessIntf.ID.MAX_PACKET_SIZE
     ]
 
+class CMSISDAPVersion:
+    """! @brief Known CMSIS-DAP versions.
+
+    The tuple fields are major, minor, patch.
+    """
+    V1_0_0 = (1, 0, 0)
+    V1_1_0 = (1, 1, 0)
+    V1_2_0 = (1, 2, 0)
+    V2_0_0 = (2, 0, 0)
+
 DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
 DAP_JTAG_PORT = 2
