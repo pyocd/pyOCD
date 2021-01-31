@@ -53,6 +53,7 @@ from debug_context_test import DebugContextTest
 from concurrency_test import ConcurrencyTest
 from commands_test import CommandsTest
 from commander_test import CommanderTest
+from probeserver_test import ProbeserverTest
 
 XML_RESULTS_TEMPLATE = "test_results{}.xml"
 LOG_FILE_TEMPLATE = "automated_test_result{}.txt"
@@ -76,6 +77,7 @@ all_tests = [
              GdbTest(),
              CommandsTest(),
              CommanderTest(),
+             ProbeserverTest(),
              ]
 
 # Actual list used at runtime, filted by command line args.
