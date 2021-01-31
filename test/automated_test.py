@@ -226,9 +226,8 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         for test in test_list:
             print("{} #{}: starting {}...".format(board.name, n, test.name), file=originalStdout)
             
-            # Set a unique port for the GdbTest.
-            if isinstance(test, GdbTest):
-                test.n = n
+            # Set the test number on the test object. Used to get a unique port for the GdbTest.
+            test.n = n
             
             # Create a StringIO object to record the test's output, an IOTee to copy
             # output to both the log file and StringIO, then set the log handler and

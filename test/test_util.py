@@ -138,6 +138,21 @@ def run_in_parallel(function, args_list):
         if result is not True:
             raise Exception("Running in thread failed")
 
+def wait_with_deadline(process, timeout):
+    try:
+        from subprocess import TimeoutExpired
+        try:
+            process.wait(timeout=timeout)
+        except TimeoutExpired as e:
+            LOG.error('Timeout while waiting for process %s to exit: %s', process, e)
+            process.kill()
+            return False
+    except ImportError:
+        # Python 2.7 doesn't support deadline for wait.
+        # Let's wait without deadline, as Python 2.7 support is close to end anyway.
+        process.wait()
+    return True
+
 class IOTee(object):
     def __init__(self, *args):
         self.outputs = list(args)
@@ -226,6 +241,7 @@ class Test(object):
     def __init__(self, name, function):
         self.name = name
         self.test_function = function
+        self.n = 0
 
     def run(self, board):
         """

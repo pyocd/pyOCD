@@ -53,6 +53,7 @@ from test_util import (
     TEST_DIR,
     TEST_OUTPUT_DIR,
     ensure_output_dir,
+    wait_with_deadline,
     )
 
 # TODO, c1728p9 - run script several times with
@@ -65,21 +66,6 @@ TEST_TIMEOUT_SECONDS = 60.0 * 5
 
 GDB_SCRIPT_PATH = os.path.join(TEST_DIR, "gdb_test_script.py")
 
-def wait_with_deadline(process):
-    try:
-        from subprocess import TimeoutExpired
-        try:
-            process.wait(timeout=TEST_TIMEOUT_SECONDS)
-        except TimeoutExpired as e:
-            LOG.error('Timeout while waiting for process %s to exit: %s', process, e)
-            process.kill()
-            return False
-    except ImportError:
-        # Python 2.7 doesn't support deadline for wait.
-        # Let's wait without deadline, as Python 2.7 support is close to end anyway.
-        process.wait()
-    return True
-
 class GdbTestResult(TestResult):
     def __init__(self):
         super(self.__class__, self).__init__(None, None, None)
@@ -89,10 +75,6 @@ class GdbTestResult(TestResult):
 class GdbTest(Test):
     def __init__(self):
         super(self.__class__, self).__init__("Gdb Test", test_gdb)
-        self.n = 0
-
-    def print_perf_info(self, result_list, output_file=None):
-        pass
 
     def run(self, board):
         try:
@@ -185,7 +167,7 @@ def test_gdb(board_id=None, n=0):
         server_thread.daemon = True
         server_thread.start()
         LOG.info('Waiting for gdb to finish...')
-        did_complete = wait_with_deadline(gdb_program)
+        did_complete = wait_with_deadline(gdb_program, TEST_TIMEOUT_SECONDS)
         LOG.info('Waiting for server to finish...')
         server_thread.join(timeout=TEST_TIMEOUT_SECONDS)
         if not did_complete:
