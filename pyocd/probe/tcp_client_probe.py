@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -197,7 +197,7 @@ class TCPClientProbe(DebugProbe):
     _PROPERTY_CONVERTERS = {
             'capabilities':                 lambda value: [DebugProbe.Capability[v] for v in value],
             'supported_wire_protocols':     lambda value: [DebugProbe.Protocol[v] for v in value],
-            'wire_protocol':                lambda value: DebugProbe.Protocol[value],
+            'wire_protocol':                lambda value: DebugProbe.Protocol[value] if (value is not None) else None,
         }
 
     def _read_property(self, name, default=None):
