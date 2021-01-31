@@ -255,6 +255,9 @@ class TCPClientProbe(DebugProbe):
     def swd_sequence(self, sequences):
         return self._perform_request('swd_sequence', sequences)
 
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        return self._perform_request('jtag_sequence', cycles, tms, read_tdo, tdi)
+
     def set_clock(self, frequency):
         self._perform_request('set_clock', frequency)
 
