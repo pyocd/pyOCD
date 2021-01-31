@@ -121,8 +121,9 @@ setup(
         'pyocd.rtos': [
             'argon = pyocd.rtos.argon:ArgonPlugin',
             'freertos = pyocd.rtos.freertos:FreeRTOSPlugin',
-            'zephyr = pyocd.rtos.zephyr:ZephyrPlugin',
             'rtx5 = pyocd.rtos.rtx5:RTX5Plugin',
+            'threadx = pyocd.rtos.threadx:ThreadXPlugin',
+            'zephyr = pyocd.rtos.zephyr:ZephyrPlugin',
         ],
     },
     packages=find_packages(),
