@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -459,6 +459,6 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     _PROPERTY_CONVERTERS = {
             'capabilities':                 lambda value: [v.name for v in value],
             'supported_wire_protocols':     lambda value: [v.name for v in value],
-            'wire_protocol':                lambda value: value.name,
+            'wire_protocol':                lambda value: value.name if (value is not None) else None,
         }
 
