@@ -52,6 +52,7 @@ from . import target_MK20DX128xxx5
 from . import target_K32W042S1M2xxx
 from . import target_K32L2B
 from . import target_lpc800
+from . import target_LPC845
 from . import target_LPC11U24FBD64_401
 from . import target_LPC1768
 from . import target_LPC4330
@@ -144,6 +145,7 @@ BUILTIN_TARGETS = {
           'k32w042s': target_K32W042S1M2xxx.K32W042S,
           'k32l2b3': target_K32L2B.K32L2B3,
           'lpc800': target_lpc800.LPC800,
+          'lpc845': target_LPC845.LPC845,
           'lpc11u24': target_LPC11U24FBD64_401.LPC11U24,
           'lpc1768': target_LPC1768.LPC1768,
           'lpc4330': target_LPC4330.LPC4330,
