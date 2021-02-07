@@ -21,6 +21,8 @@ import six
 from time import sleep
 import platform
 import errno
+from hashlib import sha1
+from base64 import b32encode
 
 from .interface import Interface
 from .common import (
@@ -169,9 +171,17 @@ class PyUSB(Interface):
             new_board = PyUSB()
             new_board.vid = board.idVendor
             new_board.pid = board.idProduct
-            new_board.product_name = board.product or ""
-            new_board.vendor_name = board.manufacturer or ""
-            new_board.serial_number = board.serial_number or ""
+            new_board.product_name = board.product or hex(board.idProduct)
+            new_board.vendor_name = board.manufacturer or hex(board.idVendor)
+            if board.serial_number:
+                new_board.serial_number = board.serial_number
+            else:
+                s = new_board.vendor_name + ',' + new_board.product_name
+                if board.bus:
+                    s += ',' + str(board.bus)
+                if board.address:
+                    s += ',' + str(board.address)
+                new_board.serial_number = b32encode(sha1(s.encode()).digest()).decode('ascii')[:16]
             boards.append(new_board)
 
         return boards
