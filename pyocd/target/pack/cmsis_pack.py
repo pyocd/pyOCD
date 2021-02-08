@@ -255,11 +255,11 @@ class CmsisPackDescription(object):
                 prev_elem = map[k]
                 prev_start, prev_size = get_start_and_size(prev_elem)
                 # Overlap: start or end between previous start and previous end
-                end = start+size
-                prev_end = prev_start+prev_size
+                end = start + size - 1
+                prev_end = prev_start + prev_size - 1
                 if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
                     if not self._warned_overlapping_memory_regions:
-                        LOG.warning("Overlapping memory regions in file "+str(self.pack.filename)+","
+                        LOG.warning("Overlapping memory regions in file " + str(self.pack.filename) + ","
                                     " deleting outer region. Further warnings will be suppressed"
                                     " for this file.")
                         self._warned_overlapping_memory_regions = True
