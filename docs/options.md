@@ -492,3 +492,21 @@ the J-Link logs, but this is harmless. J-Link does not support a "none" or "unkn
 </td></tr>
 
 </table>
+
+## Picoprobe options
+
+These session options are available when the Picoprobe debug probe plugin is active.
+
+<table>
+
+<tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
+
+<tr><td>picoprobe.safeswd</td>
+<td>bool</td>
+<td>False</td>
+<td>
+Use safer but slower SWD transfer function with Picoprobe.
+Default is False, so possible WAIT or FAULT SWD acknowldeges and protocol errors will not be caught immediately.
+</td></tr>
+
+</table>
