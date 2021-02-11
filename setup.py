@@ -80,7 +80,7 @@ setup(
         'naturalsort>=1.5,<2.0',
         'prettytable',
         'pyelftools',
-        'pylink-square',
+        'pylink-square>=0.8.2',
         'pyusb>=1.0.0b2,<2.0',
         'pywinusb>=0.4.0;platform_system=="Windows"',
         'pyyaml>=5.1,<6.0',
