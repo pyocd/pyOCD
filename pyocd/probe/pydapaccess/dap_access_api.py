@@ -117,6 +117,14 @@ class DAPAccessIntf(object):
         """! @brief A tuple of USB VID and PID, in that order."""
         raise NotImplementedError()
 
+    @property
+    def has_swd_sequence(self):
+        """! @brief Boolean indicating whether the DAP_SWD_Sequence command is supported.
+        
+        This property is only valid after the probe is opened. Until then, the value will be None.
+        """
+        raise NotImplementedError()
+
     # ------------------------------------------- #
     #          Host control functions
     # ------------------------------------------- #
@@ -173,6 +181,24 @@ class DAPAccessIntf(object):
         @param bits Integer with the bit values, sent LSB first.
         """
         raise NotImplementedError()
+
+    def swd_sequence(self, sequences):
+        """! @brief Send a sequences of bits on the SWDIO signal.
+        
+        This method sends the DAP_SWD_Sequence CMSIS-DAP command.
+        
+        Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members:
+        - 0: int: number of TCK cycles from 1-64
+        - 1: int: the SWDIO bit values to transfer. The presence of this tuple member indicates the sequence is
+            an output sequence; the absence means that the specified number of TCK cycles of SWDIO data will be
+            read and returned.
+        
+        @param self
+        @param sequences A sequence of sequence description tuples as described above.
+        
+        @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
+            sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
+        """
 
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
         """! @brief Send JTAG sequence.

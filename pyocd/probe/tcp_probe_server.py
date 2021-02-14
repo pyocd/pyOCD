@@ -227,6 +227,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 'connect':              (self._request__connect,            1   ), # 'connect', protocol:str
                 'disconnect':           (self._probe.disconnect,            0   ), # 'disconnect'
                 'swj_sequence':         (self._probe.swj_sequence,          2   ), # 'swj_sequence', length:int, bits:int
+                'swd_sequence':         (self._probe.swd_sequence,          1   ), # 'swd_sequence', sequences:List[Union[Tuple[int], Tuple[int, int]]] -> Tuple[int, List[bytes]]
                 'set_clock':            (self._probe.set_clock,             1   ), # 'set_clock', freq:int
                 'reset':                (self._probe.reset,                 0   ), # 'reset'
                 'assert_reset':         (self._probe.assert_reset,          1   ), # 'assert_reset', asserted:bool

@@ -177,6 +177,8 @@ class CMSISDAPProbe(DebugProbe):
                 self.Capability.BANKED_DP_REGISTERS,
                 self.Capability.APv2_ADDRESSES,
                 }
+            if self._link.has_swd_sequence:
+                self._caps.add(self.Capability.SWD_SEQUENCE)
             if self._link.has_swo():
                 self._caps.add(self.Capability.SWO)
         except DAPAccess.Error as exc:
@@ -211,6 +213,12 @@ class CMSISDAPProbe(DebugProbe):
     def swj_sequence(self, length, bits):
         try:
             self._link.swj_sequence(length, bits)
+        except DAPAccess.Error as exc:
+            six.raise_from(self._convert_exception(exc), exc)
+
+    def swd_sequence(self, sequences):
+        try:
+            self._link.swd_sequence(sequences)
         except DAPAccess.Error as exc:
             six.raise_from(self._convert_exception(exc), exc)
 

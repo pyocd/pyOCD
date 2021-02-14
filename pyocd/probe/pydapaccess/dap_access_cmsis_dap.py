@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2020 Arm Limited
+# Copyright (c) 2006-2013,2018-2021 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -580,6 +580,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def vidpid(self):
         """! @brief A tuple of USB VID and PID, in that order."""
         return self._vidpid
+
+    @property
+    def has_swd_sequence(self):
+        return self._cmsis_dap_version >= CMSISDAPVersion.V1_2_0
     
     def lock(self):
         """! @brief Lock the interface."""
@@ -753,6 +757,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def swj_sequence(self, length, bits):
         self.flush()
         self._protocol.swj_sequence(length, bits)
+
+    @locked
+    def swd_sequence(self, sequences):
+        self.flush()
+        self._protocol.swd_sequence(sequences)
 
     @locked
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
