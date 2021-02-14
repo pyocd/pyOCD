@@ -1,6 +1,7 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2021 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
+# Copyright (c) 2021 mentha
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +29,7 @@ from .common import (
     filter_device_by_class,
     is_known_cmsis_dap_vid_pid,
     check_ep,
+    generate_device_unique_id,
     )
 from ..dap_access_api import DAPAccessIntf
 
@@ -167,9 +169,9 @@ class PyUSB(Interface):
             new_board = PyUSB()
             new_board.vid = board.idVendor
             new_board.pid = board.idProduct
-            new_board.product_name = board.product
-            new_board.vendor_name = board.manufacturer
-            new_board.serial_number = board.serial_number
+            new_board.product_name = board.product or hex(board.idProduct)
+            new_board.vendor_name = board.manufacturer or hex(board.idVendor)
+            new_board.serial_number = board.serial_number or generate_device_unique_id(board)
             boards.append(new_board)
 
         return boards
@@ -354,6 +356,8 @@ class FindDap(object):
         if cmsis_dap_interface is None:
             return False
         if self._serial is not None:
+            if self._serial == "" and dev.serial_number is None:
+                return True
             if self._serial != dev.serial_number:
                 return False
         return True

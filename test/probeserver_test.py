@@ -78,7 +78,7 @@ class ProbeserverTest(Test):
         try:
             result = self.test_function(board.unique_id, self.n)
         except Exception as e:
-            result = GdbTestResult()
+            result = ProbeserverTestResult()
             result.passed = False
             print("Exception %s when testing board %s" %
                   (e, board.unique_id))
