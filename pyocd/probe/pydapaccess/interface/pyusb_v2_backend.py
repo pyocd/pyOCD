@@ -320,7 +320,7 @@ class HasCmsisDapv2Interface(object):
                 and common.should_show_libusb_device_error((dev.idVendor, dev.idProduct)):
                 msg = ("%s while trying to interrogate a USB device "
                    "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
-                   "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help." %
+                   "See <https://github.com/pyocd/pyOCD/tree/master/udev> for help." %
                    (error, dev.idVendor, dev.idProduct))
                 # If we recognize this device as one that should be CMSIS-DAP, we can raise
                 # the level of the log message since it's almost certainly a permissions issue.

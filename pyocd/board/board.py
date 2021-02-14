@@ -63,7 +63,7 @@ class Board(GraphNode):
             six.raise_from(exceptions.TargetSupportError(
                 "Target type '%s' not recognized. Use 'pyocd list --targets' to see currently "
                 "available target types. "
-                "See <https://github.com/mbedmicro/pyOCD/blob/master/docs/target_support.md> "
+                "See <https://github.com/pyocd/pyOCD/blob/master/docs/target_support.md> "
                 "for how to install additional target support." % self._target_type), exc)
         
         # Tell the user what target type is selected.

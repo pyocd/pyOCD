@@ -80,7 +80,7 @@ class STLinkUSBInterface(object):
                 # a permissions issue.
                 LOG.warning("%s while trying to get the STLink USB device configuration "
                    "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
-                   "See <https://github.com/mbedmicro/pyOCD/tree/master/udev> for help.",
+                   "See <https://github.com/pyocd/pyOCD/tree/master/udev> for help.",
                    error, dev.idVendor, dev.idProduct)
             return False
         except (IndexError, NotImplementedError, ValueError) as error:

@@ -110,13 +110,13 @@ _Note: depending on your system, you may need to use `python` instead of `python
 you are using Python 2.7 (but please see the note above about deprecation of Python 2 support in pyocd)._
 
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/) as well as
-[on GitHub](https://github.com/mbedmicro/pyOCD/releases).
+[on GitHub](https://github.com/pyocd/pyOCD/releases).
 
 To install the latest prerelease version from the HEAD of the master branch, you can do
 the following:
 
 ```
-$ python3 -mpip install --pre -U git+https://github.com/mbedmicro/pyOCD.git
+$ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git
 ```
 
 You can also install directly from the source by cloning the git repository and running:
@@ -161,8 +161,8 @@ probes from user space. Otherwise you will need to run pyOCD as root, using sudo
 highly discouraged. (You should _never_ run pyOCD as root on any OS.)
 
 To help with this, example udev rules files are included with pyOCD in the
-[udev](https://github.com/mbedmicro/pyOCD/tree/master/udev) folder. The
-[readme](https://github.com/mbedmicro/pyOCD/tree/master/udev/README.md) in this folder has detailed
+[udev](https://github.com/pyocd/pyOCD/tree/master/udev) folder. The
+[readme](https://github.com/pyocd/pyOCD/tree/master/udev/README.md) in this folder has detailed
 instructions.
 
 ### Target support
@@ -234,7 +234,7 @@ We welcome contributions to pyOCD in any area. Please see the [contribution
 guidelines](CONTRIBUTING.md) for detailed requirements for contributions. In order foster a healthy
 and safe community, we expect contributors to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
-To report bugs, please [create an issue](https://github.com/mbedmicro/pyOCD/issues/new) in the
+To report bugs, please [create an issue](https://github.com/pyocd/pyOCD/issues/new) in the
 GitHub project.
 
 

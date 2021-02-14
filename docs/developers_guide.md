@@ -25,7 +25,7 @@ Install the necessary tools listed below. Skip any step where a compatible tool 
 **Step 1.** Get the sources and create a virtual environment
 
 ```
-$ git clone https://github.com/mbedmicro/pyOCD
+$ git clone https://github.com/pyocd/pyOCD
 $ cd pyOCD
 $ virtualenv venv
 ```
@@ -84,7 +84,7 @@ $ python ./automated_test.py
 **Step 5.** Pull request
 
 Once you are satisfied with your changes and all automated tests pass, please create a
-[new pull request](https://github.com/mbedmicro/pyOCD/pull/new/master) on GitHub to share your work.
+[new pull request](https://github.com/pyocd/pyOCD/pull/new/master) on GitHub to share your work.
 
 Pull requests should be made once a changeset is [rebased onto Master](https://www.atlassian.com/git/tutorials/merging-vs-rebasing/workflow-walkthrough).
 

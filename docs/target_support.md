@@ -109,7 +109,7 @@ Alternatively, you can manually download packs and tell pyOCD which pack files t
 information about a device. Sometimes memory regions will be missing, attributes of a memory region
 or flash algorithm might be wrong, or the flash algorithm itself might be buggy. If you encounter an
 issue with a pack, you can report the issue on the [pyOCD GitHub
-site](https://www.github.com/mbedmicro/pyOCD/issues) to let other users know about the problem. You
+site](https://www.github.com/pyocd/pyOCD/issues) to let other users know about the problem. You
 should also report the issue to the pack vendor so it can be fixed.
 
 
