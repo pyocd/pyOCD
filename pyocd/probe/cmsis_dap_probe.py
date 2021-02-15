@@ -94,10 +94,25 @@ class CMSISDAPProbe(DebugProbe):
         self._caps = set()
     
     @property
+    def board_id(self):
+        """! @brief Unique identifier for the board.
+        
+        Only board IDs for DAPLink firmware are supported. We can't assume other
+        CMSIS-DAP firmware is using the same serial number format, so we cannot reliably
+        extract the board ID.
+        
+        @return Either a 4-character board ID string, or None if the probe doesn't have a board ID.
+        """
+        if self._link.vidpid == self.DAPLINK_VIDPID:
+            return self.unique_id[0:4]
+        else:
+            return None
+
+    @property
     def description(self):
         try:
-            board_id = self.unique_id[0:4]
-            board_info = BOARD_ID_TO_INFO[board_id]
+            # self.board_id may be None.
+            board_info = BOARD_ID_TO_INFO[self.board_id]
         except KeyError:
             return self.vendor_name + " " + self.product_name
         else:
@@ -138,8 +153,8 @@ class CMSISDAPProbe(DebugProbe):
         # Only support associated Mbed boards for DAPLink firmware. We can't assume other
         # CMSIS-DAP firmware is using the same serial number format, so we cannot reliably
         # extract the board ID.
-        if self._link.vidpid == self.DAPLINK_VIDPID:
-            return MbedBoard(self.session, board_id=self.unique_id[0:4])
+        if self.board_id is not None:
+            return MbedBoard(self.session, board_id=self.board_id)
         else:
             return None
     
