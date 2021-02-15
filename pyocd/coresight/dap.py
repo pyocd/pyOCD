@@ -598,6 +598,8 @@ class DebugPort(object):
             return False
 
     def read_dp(self, addr, now=True):
+        if (addr & DPADDR_MASK) % 4 != 0:
+            raise ValueError("DP address must be word aligned")
         num = self.next_access_number
         
         # Update DPBANKSEL if required.
@@ -636,6 +638,8 @@ class DebugPort(object):
             return read_dp_cb
 
     def write_dp(self, addr, data):
+        if (addr & DPADDR_MASK) % 4 != 0:
+            raise ValueError("DP address must be word aligned")
         num = self.next_access_number
         
         # Update DPBANKSEL if required.
