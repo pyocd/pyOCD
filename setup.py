@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2012-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -108,8 +109,6 @@ setup(
 
             # Keep deprecated tools for compatibility.
             'pyocd-gdbserver = pyocd.tools.gdb_server:main',
-            'pyocd-flashtool = pyocd.tools.flash_tool:main',
-            'pyocd-tool = pyocd.tools.pyocd:main',
         ],
         'pyocd.probe': [
             'cmsisdap = pyocd.probe.cmsis_dap_probe:CMSISDAPProbePlugin',
