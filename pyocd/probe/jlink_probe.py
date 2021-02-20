@@ -121,7 +121,6 @@ class JLinkProbe(DebugProbe):
         self._protocol = None
         self._default_protocol = None
         self._is_open = False
-        self._dp_select = -1
         self._product_name = six.ensure_str(info.acProduct)
         
     @property
@@ -155,7 +154,11 @@ class JLinkProbe(DebugProbe):
     
     @property
     def capabilities(self):
-        return {self.Capability.SWO}
+        return {
+                self.Capability.SWO,
+                self.Capability.BANKED_DP_REGISTERS,
+                self.Capability.APv2_ADDRESSES,
+                }
     
     def open(self):
         try:
@@ -178,9 +181,6 @@ class JLinkProbe(DebugProbe):
                 self._default_protocol = DebugProbe.Protocol.SWD
             else:
                 self._default_protocol = DebugProbe.Protocol.JTAG
-        
-            # Subscribe to reset events.
-            self.session.subscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
     
@@ -188,9 +188,6 @@ class JLinkProbe(DebugProbe):
         try:
             self._link.close()
             self._is_open = False
-        
-            # Unsubscribe from reset events.
-            self.session.unsubscribe(self._reset_did_occur, (Target.Event.PRE_RESET, Target.Event.POST_RESET))
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
 
@@ -258,8 +255,6 @@ class JLinkProbe(DebugProbe):
 
     def reset(self):
         try:
-            self._invalidate_cached_registers()
-
             self._link.set_reset_pin_low()
             sleep(self.session.options.get('reset.hold_time'))
             self._link.set_reset_pin_high()
@@ -269,7 +264,6 @@ class JLinkProbe(DebugProbe):
 
     def assert_reset(self, asserted):
         try:
-            self._invalidate_cached_registers()
             if asserted:
                 self._link.set_reset_pin_low()
             else:
@@ -300,12 +294,6 @@ class JLinkProbe(DebugProbe):
             return value if now else read_reg_cb
 
     def write_dp(self, addr, data):
-        # Skip writing DP SELECT register if its value is not changing.
-        if addr == self.DP_SELECT:
-            if data == self._dp_select:
-                return
-            self._dp_select = data
-
         try:
             ack = self._link.coresight_write(addr // 4, data, ap=False)
         except JLinkException as exc:
@@ -314,7 +302,6 @@ class JLinkProbe(DebugProbe):
     def read_ap(self, addr, now=True):
         assert type(addr) in (six.integer_types)
         try:
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
             value = self._link.coresight_read((addr & self.A32) // 4, ap=True)
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
@@ -327,7 +314,6 @@ class JLinkProbe(DebugProbe):
     def write_ap(self, addr, data):
         assert type(addr) in (six.integer_types)
         try:
-            self.write_dp(self.DP_SELECT, addr & self.APSEL_APBANKSEL)
             ack = self._link.coresight_write((addr & self.A32) // 4, data, ap=True)
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
@@ -361,13 +347,6 @@ class JLinkProbe(DebugProbe):
             return self._jlink.swo_read(0, self._jlink.swo_num_bytes(), True)
         except JLinkException as exc:
             six.raise_from(self._convert_exception(exc), exc)
-
-    def _invalidate_cached_registers(self):
-        # Invalidate cached DP SELECT register.
-        self._dp_select = -1
-
-    def _reset_did_occur(self, notification):
-        self._invalidate_cached_registers()
 
     @staticmethod
     def _convert_exception(exc):
