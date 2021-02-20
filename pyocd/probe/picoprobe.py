@@ -274,7 +274,9 @@ class Picoprobe(DebugProbe):
 
     @ classmethod
     def get_probe_with_id(cls, unique_id, is_explicit=False):
-        pass
+        for dev in PicoLink.enumerate_picoprobes():
+            if dev.get_unique_id() == unique_id:
+                return cls(dev)
 
     def __init__(self, picolink):
         super(Picoprobe, self).__init__()
