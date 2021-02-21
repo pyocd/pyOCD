@@ -224,15 +224,11 @@ class PicoLink(object):
 class Picoprobe(DebugProbe):
     """! @brief Wraps a Picolink link as a DebugProbe. """
 
-    # Address of useful DP registers.
-    SELECT = 0x8
+    # Address of read buffer register in DP.
     RDBUFF = 0xC
 
-    # Bitmasks for AP register address fields.
+    # Bitmasks for AP/DP register address field.
     A32 = 0x0000000c
-    APBANKSEL = 0x000000f0
-    APSEL = 0xff000000
-    APSEL_APBANKSEL = APSEL | APBANKSEL
 
     # SWD command format
     SWD_CMD_START = (1 << 0)    # always set
@@ -284,7 +280,6 @@ class Picoprobe(DebugProbe):
         self._is_connected = False
         self._is_open = False
         self._unique_id = self._link.get_unique_id()
-        self._select = -1
         self._reset = False
 
     @ property
@@ -323,7 +318,6 @@ class Picoprobe(DebugProbe):
     def open(self):
         self._link.open()
         self._is_open = True
-        self._select = -1
 
     def close(self):
         self._link.close()
@@ -362,7 +356,6 @@ class Picoprobe(DebugProbe):
 
     def disconnect(self):
         self._is_connected = False
-        self._select = -1
 
     def set_clock(self, frequency):
         self._link.set_swd_frequency(frequency // 1000)
@@ -374,7 +367,6 @@ class Picoprobe(DebugProbe):
         sleep(self.session.options.get('reset.post_delay'))
 
     def assert_reset(self, asserted):
-        self._select = -1
         self._link.assert_target_reset(asserted)
         self._reset = asserted
 
@@ -395,12 +387,6 @@ class Picoprobe(DebugProbe):
         return val if now else read_dp_result_callback
 
     def write_dp(self, addr, value):
-        # Check whether we need to write a new SELECT value
-        if addr == self.SELECT:
-            if value == self._select:
-                return
-            else:
-                self._select = value
         self._write_reg(addr, self.DP, value)
 
     def read_ap(self, addr, now=True):
@@ -414,12 +400,6 @@ class Picoprobe(DebugProbe):
         self.write_ap_multiple(addr, (value,))
 
     def _safe_read_ap_multiple(self, addr, count=1, now=True):
-        # Extract the APSEL and APBANKSEL fields
-        sel = addr & self.APSEL_APBANKSEL
-        # Write it to SELECT register on DP
-        # It would appear that a write to SELECT is always done first,
-        # so this is possibly not needed. Oh well, it's cached anyway.
-        self.write_dp(self.SELECT, sel)
         # Send a read request for the AP, discard the stale result
         self._read_reg(addr, self.AP)
         # Read count - 1 new values
@@ -433,22 +413,11 @@ class Picoprobe(DebugProbe):
         return results if now else read_ap_multiple_result_callback
 
     def _safe_write_ap_multiple(self, addr, values):
-        # Extract the APSEL and APBANKSEL fields
-        sel = addr & self.APSEL_APBANKSEL
-        # Write it to SELECT register on DP
-        # It would appear that a write to SELECT is always done, so
-        # this is possibly not needed. Oh well, it's cached anyway.
-        self.write_dp(self.SELECT, sel)
-        # Send a read request for the AP
+        # Send repeated read request for the AP
         for v in values:
             self._write_reg(addr, self.AP, v)
 
     def _bulk_read_ap_multiple(self, addr, count=1, now=True):
-        # Extract the APSEL and APBANKSEL fields
-        sel = addr & self.APSEL_APBANKSEL
-        # Write it to SELECT register on DP
-        self.write_dp(self.SELECT, sel)
-
         # Start queueing - queue a max of 256 AP reads not to exceed Picoprobe buffers
         # Theoretical maximum for the Picoprobe internal 8 kB buffer is ~454
         # Raising the chunk size brings no great benefit, though.
@@ -492,10 +461,6 @@ class Picoprobe(DebugProbe):
         return results if now else read_ap_multiple_result_callback
 
     def _bulk_write_ap_multiple(self, addr, values):
-        # Extract the APSEL and APBANKSEL fields
-        sel = addr & self.APSEL_APBANKSEL
-        # Write it to SELECT register on DP
-        self.write_dp(self.SELECT, sel)
         acks = []
         left = len(values)
         done = 0
