@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Federico Zuccardi Merli
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +24,7 @@ from .debug_probe import DebugProbe
 from ..core import exceptions
 from ..core.options import OptionInfo
 from ..core.plugin import Plugin
-
+from ..utility.mask import parity32_high
 
 class PicoLink(object):
     """! @brief Wrapper to handle picoprobe USB.
@@ -488,9 +489,9 @@ class Picoprobe(DebugProbe):
         self._check_swd_acks(reads[0::2])
 
         # Skip first read and zero parity if no errors
-        results = [(v & 0x1FFFFFFFF) ^ self._parity32(v) for v in reads[3::2]]
+        results = [(v & 0x1FFFFFFFF) ^ parity32_high(v) for v in reads[3::2]]
 
-        # Paritu check
+        # Parity check
         if any(v & self.PARITY_BIT for v in results):
             raise exceptions.ProbeError('Bad parity in SWD read')
 
@@ -511,7 +512,7 @@ class Picoprobe(DebugProbe):
                 # Queue write command
                 self._swd_command(self.WRITE, self.AP, addr)
                 # Prepare the write buffer
-                value |= self._parity32(value)
+                value |= parity32_high(value)
                 # Send the value: 32 (data) + 1 (parity) bits (no Trn needed)
                 # Insert also 3 bits of idle
                 self._link.q_write_bits(value, 32 + 1 + 3)
@@ -545,7 +546,7 @@ class Picoprobe(DebugProbe):
         # Remove the Trn bit
         par = reg & self.PARITY_BIT
         # Check for correct parity value
-        if par != self._parity32(val):
+        if par != parity32_high(val):
             raise exceptions.ProbeError('Bad parity in SWD read')
 
         return val
@@ -558,7 +559,7 @@ class Picoprobe(DebugProbe):
         self._read_check_swd_ack()
 
         # Prepare the write buffer
-        value |= self._parity32(value)
+        value |= parity32_high(value)
 
         # Send the value: 32 (data) + 1 (parity) bits (no Trn needed)
         # Insert also 3 bits of idle
@@ -568,7 +569,7 @@ class Picoprobe(DebugProbe):
     def _swd_command(self, RnW, APnDP, addr):
         """! @brief Builds and queues an SWD command byte plus an ACK read"""
         cmd = (APnDP << 1) + (RnW << 2) + ((addr << 1) & self.SWD_CMD_A32)
-        cmd |= self._parity32(cmd) >> (32 - 5)
+        cmd |= parity32_high(cmd) >> (32 - 5)
         cmd |= self.SWD_CMD_START | self.SWD_CMD_STOP | self.SWD_CMD_PARK
 
         # Write the command to the probe
@@ -598,14 +599,6 @@ class Picoprobe(DebugProbe):
             except KeyError:
                 e = self.ACK_EXCEPTIONS[self.ACK_ALL]
             raise e
-
-    @ staticmethod
-    def _parity32(n):
-        n ^= n >> 16
-        n ^= n >> 8
-        n ^= n >> 4
-        n &= 0xf
-        return (0xD32C0000 << n) & Picoprobe.PARITY_BIT
 
     def _change_options(self, notification):
         # Only this option, ATM
