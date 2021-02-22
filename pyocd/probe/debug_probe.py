@@ -45,9 +45,16 @@ class DebugProbe(object):
         SWO = 1
 
         ## @brief Whether the probe can access banked DP registers.
+        #
+        # Currently only used to verify that the probe supports banked DP registers when the #MANAGED_DPBANKSEL
+        # capability is present.
         BANKED_DP_REGISTERS = 2
         
         ## @brief Whether the probe can access APv2 registers.
+        #
+        # This capability is currently only used to verify that a probe with the #MANAGED_AP_SELECTION capability
+        # can support the wider AP addresses used in version 2 APs. For probes without #MANAGED_AP_SELECTION,
+        # DP_SELECT is written directly by the DAP layer when selecting an AP.
         APv2_ADDRESSES = 3
         
         ## @brief Whether the probe automatically handles AP selection in the DP.

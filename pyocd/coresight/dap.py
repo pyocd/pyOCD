@@ -260,6 +260,7 @@ class DebugPort(object):
         self._probe_managed_ap_select = False
         self._probe_managed_dpbanksel = False
         self._probe_supports_dpbanksel = False
+        self._probe_supports_apv2_addresses = False
         self._have_probe_capabilities = False
         self._did_check_version = False
         
@@ -366,6 +367,7 @@ class DebugPort(object):
         self._probe_managed_ap_select = (DebugProbe.Capability.MANAGED_AP_SELECTION in caps)
         self._probe_managed_dpbanksel = (DebugProbe.Capability.MANAGED_DPBANKSEL in caps)
         self._probe_supports_dpbanksel = (DebugProbe.Capability.BANKED_DP_REGISTERS in caps)
+        self._probe_supports_apv2_addresses = (DebugProbe.Capability.APv2_ADDRESSES in caps)
         self._have_probe_capabilities = True
 
     def _connect(self):
@@ -381,6 +383,10 @@ class DebugPort(object):
     def _check_version(self):
         self._is_dpv3 = (self.dpidr.version == 3)
         if self._is_dpv3:
+            # Check that the probe will be able to access ADIv6 APs.
+            if self._probe_managed_ap_select and not self._probe_supports_apv2_addresses:
+                raise exceptions.ProbeError("connected to ADIv6 target with probe that does not support APv2 addresses")
+            
             idr1 = self.read_reg(DP_IDR1)
             
             self._addr_size = idr1 & DPIDR1_ASIZE_MASK
@@ -598,6 +604,8 @@ class DebugPort(object):
             return False
 
     def read_dp(self, addr, now=True):
+        if (addr & DPADDR_MASK) % 4 != 0:
+            raise ValueError("DP address must be word aligned")
         num = self.next_access_number
         
         # Update DPBANKSEL if required.
@@ -636,6 +644,8 @@ class DebugPort(object):
             return read_dp_cb
 
     def write_dp(self, addr, data):
+        if (addr & DPADDR_MASK) % 4 != 0:
+            raise ValueError("DP address must be word aligned")
         num = self.next_access_number
         
         # Update DPBANKSEL if required.
