@@ -72,7 +72,12 @@ class PicoLink(object):
     # ------------------------------------------- #
     def open(self):
         # Only one configuration considered
-        self._dev.set_configuration()
+        try:
+            # Will throw if no configuration is active (returning None is for wimps)
+            self._dev.get_active_configuration()
+        except core.USBError:
+            # Will throw on Linux if a configuration is already active.
+            self._dev.set_configuration()
         # Search the Vendor Specific interface in first configuration
         for i in self._dev[0]:
             if i.bInterfaceClass == PicoLink.CLASS:
