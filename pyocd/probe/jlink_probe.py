@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +17,14 @@
 
 import six
 import logging
-import pylink
 from time import sleep
+import pylink
 from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadException)
 
 from .debug_probe import DebugProbe
 from ..core import (exceptions, memory_interface)
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
-from ..core.target import Target
 
 LOG = logging.getLogger(__name__)
 
