@@ -20,20 +20,24 @@ from array import array
 from time import sleep
 from usb import core, util
 
+import platform
+import errno
+import logging
+
 from .debug_probe import DebugProbe
 from ..core import exceptions
 from ..core.options import OptionInfo
 from ..core.plugin import Plugin
 from ..utility.mask import parity32_high
 
+LOG = logging.getLogger(__name__)
+
+
 class PicoLink(object):
     """! @brief Wrapper to handle picoprobe USB.
 
     Just to hide details of USB and Picoprobe command layer
     """
-
-    VID = 0x2E8A
-    PID = 0x0004
 
     CLASS = 0xFF    # Vendor Specific
 
@@ -55,7 +59,7 @@ class PicoLink(object):
         self._probe_id = dev.serial_number
         self._vend = dev.manufacturer
         self._prod = dev.product
-        # USB intefrface and endpoints
+        # USB interface and endpoints, will be assigned in open()
         self._if = None
         self._wr_ep = None
         self._rd_ep = None
@@ -71,13 +75,8 @@ class PicoLink(object):
     #          Picoprobe Access functions
     # ------------------------------------------- #
     def open(self):
-        # Only one configuration considered
-        try:
-            # Will throw if no configuration is active (returning None is for wimps)
-            self._dev.get_active_configuration()
-        except core.USBError:
-            # Will throw on Linux if a configuration is already active.
-            self._dev.set_configuration()
+        # If we get here, the device should be accessible, and with a valid configuration
+        # so, check for 'Picoprobeness'
         # Search the Vendor Specific interface in first configuration
         for i in self._dev[0]:
             if i.bInterfaceClass == PicoLink.CLASS:
@@ -102,9 +101,13 @@ class PicoLink(object):
         self._rd_ep = None
 
     @classmethod
-    def enumerate_picoprobes(cls):
+    def enumerate_picoprobes(cls, uid=None):
         """! @brief Find and return all Picoprobes """
-        return [PicoLink(probe) for probe in core.find(idVendor=PicoLink.VID, idProduct=PicoLink.PID, find_all=True)]
+        # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
+        if uid is None:
+            return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
+        else:
+            return PicoLink(core.find(custom_match=FindPicoprobe(uid)))
 
     def q_read_bits(self, bits):
         """! @brief Queue a read request for 'bits' bits to the probe """
@@ -227,6 +230,63 @@ class PicoLink(object):
         self._clear_queue()
 
 
+class FindPicoprobe(object):
+    """! @brief Custom matcher for Picoprobe to be used in core.find() """
+
+    VID_PID_CLASS = (0x2E8A, 0x0004, 0x00)  # Match for a Picoprobe
+
+    def __init__(self, serial=None):
+        """! @brief Create a new FindPicoprobe object with an optional serial number"""
+        self._serial = serial
+
+    def __call__(self, dev):
+        """! @brief Return True if this is a Picoprobe device, False otherwise"""
+
+        # Check if vid, pid and the device class are valid ones for Picoprobe.
+        if (dev.idVendor, dev.idProduct, dev.bDeviceClass) != self.VID_PID_CLASS:
+            return False
+
+        # Make sure the device has an active configuration
+        try:
+            # This can fail on Linux if the configuration is already active.
+            dev.set_configuration()
+        except:
+            # But do no act on possible errors, they'll be caught in the next try: clause
+            pass
+
+        try:
+            # This raises when no configuration is set
+            dev.get_active_configuration()
+
+            # Now read the serial. This will raise if there are access problems.
+            serial = dev.serial_number
+
+        except core.USBError as error:
+            if error.errno == errno.EACCES and platform.system() == "Linux":
+                msg = ("%s while trying to interrogate a USB device "
+                       "(VID=%04x PID=%04x). This can probably be remedied with a udev rule. "
+                       "See <https://github.com/pyocd/pyOCD/tree/master/udev> for help." %
+                       (error, dev.idVendor, dev.idProduct))
+                LOG.warning(msg)
+            else:
+                LOG.warning("Error accessing USB device (VID=%04x PID=%04x): %s",
+                            dev.idVendor, dev.idProduct, error)
+            return False
+        except (IndexError, NotImplementedError, ValueError, UnicodeDecodeError) as error:
+            LOG.debug("Error accessing USB device (VID=%04x PID=%04x): %s",
+                      dev.idVendor, dev.idProduct, error)
+            return False
+
+        # Check the passed serial number
+        if self._serial is not None:
+            # Picoprobe serial will be "123456" (older FW) or an actual unique serial from the flash.
+            if self._serial == "" and serial is None:
+                return True
+            if self._serial != serial:
+                return False
+        return True
+
+
 class Picoprobe(DebugProbe):
     """! @brief Wraps a Picolink link as a DebugProbe. """
 
@@ -276,9 +336,9 @@ class Picoprobe(DebugProbe):
 
     @ classmethod
     def get_probe_with_id(cls, unique_id, is_explicit=False):
-        for dev in PicoLink.enumerate_picoprobes():
-            if dev.get_unique_id() == unique_id:
-                return cls(dev)
+        probe = PicoLink.enumerate_picoprobes(unique_id)
+        if probe is not None:
+            return cls(probe)
 
     def __init__(self, picolink):
         super(Picoprobe, self).__init__()
@@ -397,7 +457,7 @@ class Picoprobe(DebugProbe):
         else:
             reads = self._link.get_bits()
             # Is there a status definition, no check in caller?
-            return (0, [v.to_bytes(l,'little') for v,l in zip(reads,reads_lengths)])
+            return (0, [v.to_bytes(l, 'little') for v, l in zip(reads, reads_lengths)])
 
     def disconnect(self):
         self._is_connected = False
