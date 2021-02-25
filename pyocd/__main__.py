@@ -134,7 +134,7 @@ class PyOCDTool(object):
         # Define common options for all subcommands, excluding --verbose and --quiet.
         commonOptionsNoLoggingParser = argparse.ArgumentParser(description='common', add_help=False)
         commonOptionsNoLogging = commonOptionsNoLoggingParser.add_argument_group("configuration")
-        commonOptionsNoLogging.add_argument('-j', '--dir', metavar="PATH", dest="project_dir",
+        commonOptionsNoLogging.add_argument('-j', '--project', '--dir', metavar="PATH", dest="project_dir",
             help="Set the project directory. Defaults to the directory where pyocd was run.")
         commonOptionsNoLogging.add_argument('--config', metavar="PATH",
             help="Specify YAML configuration file. Default is pyocd.yaml or pyocd.yml.")
