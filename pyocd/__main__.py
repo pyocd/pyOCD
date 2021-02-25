@@ -3,6 +3,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
 # Copyright (c) 2020 Cypress Semiconductor Corporation
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -822,6 +823,7 @@ class PyOCDTool(object):
         if self._args.update:
             LOG.info("Updating pack index...")
             cache.cache_descriptors()
+            print()
         
         if self._args.show:
             packs = pack_target.ManagedPacks.get_installed_packs(cache)
@@ -881,6 +883,7 @@ class PyOCDTool(object):
                     print("    " + str(pack))
                 if not self._args.no_download:
                     cache.download_pack_list(packs)
+                print()
 
     def do_server(self):
         """! @brief Handle 'server' subcommand."""

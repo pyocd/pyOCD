@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,10 +89,6 @@ class CmsisPack(object):
                 six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
                     file_or_path, err)), err)
         
-        # Remember if we have already warned about overlapping memory regions
-        # so we can limit these to one warning per DFP
-        self._warned_overlapping_memory_regions = False
-        
         # Find the .pdsc file.
         for name in self._pack_file.namelist():
             if name.endswith('.pdsc'):
@@ -100,21 +97,64 @@ class CmsisPack(object):
         else:
             raise MalformedCmsisPackError("CMSIS-Pack '{}' is missing a .pdsc file".format(file_or_path))
         
-        # Convert PDSC into an ElementTree.
         with self._pack_file.open(self._pdscName) as pdscFile:
-            self._pdsc = ElementTree(file=pdscFile)
+            self._pdsc = CmsisPackDescription(self, pdscFile)
+    
+    @property
+    def filename(self):
+        """! @brief Accessor for the filename or path of the .pack file."""
+        return self._pack_file.filename
+    
+    @property
+    def pdsc(self):
+        """! @brief Accessor for the CmsisPackDescription instance for the pack's PDSC file."""
+        return self._pdsc
+    
+    @property
+    def devices(self):
+        """! @brief A list of CmsisPackDevice objects for every part number defined in the pack."""
+        return self._pdsc.devices
+    
+    def get_file(self, filename):
+        """! @brief Return file-like object for a file within the pack.
+        
+        @param self
+        @param filename Relative path within the pack. May use forward or back slashes.
+        @return A BytesIO object is returned that contains all of the data from the file
+            in the pack. This is done to isolate the returned file from how the pack was
+            opened (due to particularities of the ZipFile implementation).
+        """
+        filename = filename.replace('\\', '/')
+        return io.BytesIO(self._pack_file.read(filename))
+
+class CmsisPackDescription(object):
+    def __init__(self, pack, pdsc_file):
+        """! @brief Constructor.
+        
+        @param self This object.
+        @param pack Reference to the CmsisPack instance.
+        @param pdsc_file A file-like object for the .pdsc contained in _pack_.
+        """
+        self._pack = pack
+        
+        # Convert PDSC into an ElementTree.
+        self._pdsc = ElementTree(file=pdsc_file)
 
         self._state_stack = []
         self._devices = []
+        
+        # Remember if we have already warned about overlapping memory regions
+        # so we can limit these to one warning per DFP
+        self._warned_overlapping_memory_regions = False
         
         # Extract devices.
         for family in self._pdsc.iter('family'):
             self._parse_devices(family)
     
     @property
-    def pdsc(self):
-        """! @brief Accessor for the ElementTree instance for the pack's PDSC file."""
-        return self._pdsc
+    def pack(self):
+        """! @brief Reference to the containing CmsisPack object."""
+        return self._pack
     
     @property
     def devices(self):
@@ -149,7 +189,7 @@ class CmsisPack(object):
                                         debugs=self._extract_debugs()
                                         )
             
-            dev = CmsisPackDevice(self, deviceInfo)
+            dev = CmsisPackDevice(self.pack, deviceInfo)
             self._devices.append(dev)
 
         # Recursively process subelements.
@@ -215,11 +255,11 @@ class CmsisPack(object):
                 prev_elem = map[k]
                 prev_start, prev_size = get_start_and_size(prev_elem)
                 # Overlap: start or end between previous start and previous end
-                end = start+size
-                prev_end = prev_start+prev_size
+                end = start + size - 1
+                prev_end = prev_start + prev_size - 1
                 if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
                     if not self._warned_overlapping_memory_regions:
-                        LOG.warning("Overlapping memory regions in file "+str(self._pack_file)+","
+                        LOG.warning("Overlapping memory regions in file " + str(self.pack.filename) + ","
                                     " deleting outer region. Further warnings will be suppressed"
                                     " for this file.")
                         self._warned_overlapping_memory_regions = True
@@ -263,18 +303,6 @@ class CmsisPack(object):
                 map['*'] = elem
         
         return self._extract_items('debugs', filter)
-    
-    def get_file(self, filename):
-        """! @brief Return file-like object for a file within the pack.
-        
-        @param self
-        @param filename Relative path within the pack. May use forward or back slashes.
-        @return A BytesIO object is returned that contains all of the data from the file
-            in the pack. This is done to isolate the returned file from how the pack was
-            opened (due to particularities of the ZipFile implementation).
-        """
-        filename = filename.replace('\\', '/')
-        return io.BytesIO(self._pack_file.read(filename))
 
 def _get_bool_attribute(elem, name, default=False):
     """! @brief Extract an XML attribute with a boolean value.
