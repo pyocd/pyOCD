@@ -250,7 +250,7 @@ class FindPicoprobe(object):
         try:
             # This can fail on Linux if the configuration is already active.
             dev.set_configuration()
-        except:
+        except Exception:
             # But do no act on possible errors, they'll be caught in the next try: clause
             pass
 

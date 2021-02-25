@@ -18,10 +18,10 @@ import logging
 
 from ...core import exceptions
 from ...coresight.coresight_target import CoreSightTarget
-from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, DeviceRegion, MemoryMap)
+from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 from ...probe.swj import SWJSequenceSender
 from ...probe.debug_probe import DebugProbe
-from ...utility import (conversion, mask)
+from ...utility import mask
 
 LOG = logging.getLogger(__name__)
 

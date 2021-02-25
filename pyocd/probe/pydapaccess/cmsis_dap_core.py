@@ -16,7 +16,6 @@
 
 import array
 from .dap_access_api import DAPAccessIntf
-from ...utility import compatibility
 
 class Command:
     DAP_INFO = 0x00
