@@ -65,6 +65,12 @@ class DebugProbe(object):
         
         ## @brief whether the probe automatically handles access of banked DAP registers.
         MANAGED_DPBANKSEL = 5
+
+        ## @brief Whether the probe supports the swd_sequence() API.
+        SWD_SEQUENCE = 6
+
+        ## @brief Whether the probe supports the jtag_sequence() API.
+        JTAG_SEQUENCE = 7
     
     @classmethod
     def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
@@ -228,6 +234,37 @@ class DebugProbe(object):
         @param bits Integer of the bit values to send on SWDIO/TMS. The LSB is transmitted first.
         """
         pass
+
+    def swd_sequence(self, sequences):
+        """! @brief Send a sequences of bits on the SWDIO signal.
+        
+        Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members in this order:
+        - 0: int: number of TCK cycles from 1-64
+        - 1: int: the SWDIO bit values to transfer. The presence of this tuple member indicates the sequence is
+            an output sequence; the absence means that the specified number of TCK cycles of SWDIO data will be
+            read and returned.
+        
+        @param self
+        @param sequences A sequence of sequence description tuples as described above.
+        
+        @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
+            sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
+        """
+        raise NotImplementedError()
+
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        """! @brief Send JTAG sequence.
+        
+        @param self
+        @param cycles Number of TCK cycles, from 1-64.
+        @param tms Fixed TMS value. Either 0 or 1.
+        @param read_tdo Boolean indicating whether TDO should be read.
+        @param tdi Integer with the TDI bit values to be transferred each TCK cycle. The LSB is
+            sent first.
+        
+        @return Either an integer with TDI bit values, or None, if _read_tdo_ was false.
+        """
+        raise NotImplementedError()
 
     def set_clock(self, frequency):
         """! @brief Set the frequency for JTAG and SWD in Hz.

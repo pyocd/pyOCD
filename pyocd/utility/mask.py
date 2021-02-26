@@ -150,3 +150,18 @@ def round_up_div(value, divisor):
     """! @brief Return value divided by the divisor, rounding up to the nearest multiple of the divisor."""
     return (value + divisor - 1) // divisor
 
+def parity32_high(n):
+    """! @brief Compute parity over a 32-bit value.
+
+    This function is intended to be used for computing parity over a 32-bit value transferred in an Arm
+    ADI AP/DP register transfer. The result is returned in bit 32, ready to be OR'd into the register
+    value to form the 33-bit data + parity for the AP/DP register transfer.
+
+    @param n 32-bit integer.
+    @return Integer with 1-bit parity placed at bit 32. The lower 32 bits are 0.
+    """
+    n ^= n >> 16
+    n ^= n >> 8
+    n ^= n >> 4
+    n &= 0xf
+    return (0xD32C0000 << n) & (1 << 32)

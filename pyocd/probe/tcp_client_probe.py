@@ -252,6 +252,12 @@ class TCPClientProbe(DebugProbe):
     def swj_sequence(self, length, bits):
         self._perform_request('swj_sequence', length, bits)
 
+    def swd_sequence(self, sequences):
+        return self._perform_request('swd_sequence', sequences)
+
+    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+        return self._perform_request('jtag_sequence', cycles, tms, read_tdo, tdi)
+
     def set_clock(self, frequency):
         self._perform_request('set_clock', frequency)
 

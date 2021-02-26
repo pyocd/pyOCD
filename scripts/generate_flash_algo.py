@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # pyOCD debugger
-# Copyright (c) 2011-2020 Arm Limited
+# Copyright (c) 2011-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,14 +26,14 @@ from pyocd.target.pack.flash_algo import PackFlashAlgo
 
 # TODO
 # FIXED LENGTH - remove and these (shrink offset to 4 for bkpt only)
-BLOB_HEADER = '0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,'
-HEADER_SIZE = 0x20
+BLOB_HEADER = '0xe00abe00,' #, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,'
+HEADER_SIZE = 4 #0x20
 
 STACK_SIZE = 0x200
 
 PYOCD_TEMPLATE = \
 """# pyOCD debugger
-# Copyright (c) 2017-2020 Arm Limited
+# Copyright (c) 2017-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,7 +48,7 @@ PYOCD_TEMPLATE = \
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FLASH_ALGO_{{name|upper}} = {
+FLASH_ALGO = {
     'load_address' : {{'0x%08x' % entry}},
 
     # Flash algorithm as a hex string
@@ -90,6 +90,7 @@ FLASH_ALGO_{{name|upper}} = {
     {%- endfor %}
     )
 }
+
 """
 
 def str_to_num(val):
@@ -119,7 +120,7 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
         if fmt == "hex":
             blob = binascii.b2a_hex(self.algo_data)
             line_list = []
-            for i in xrange(0, len(blob), group_size):
+            for i in range(0, len(blob), group_size):
                 line_list.append('"' + blob[i:i + group_size] + '"')
             return ("\n" + padding).join(line_list)
         elif fmt == "c":
@@ -166,7 +167,7 @@ def main():
     parser.add_argument("elf_path", help="Elf, axf, or flm to extract "
                         "flash algo from")
     parser.add_argument("--blob_start", default=0x20000000, type=str_to_num, help="Starting "
-                        "address of the flash blob. Used only for DAPLink.")
+                        "address of the flash blob.")
     args = parser.parse_args()
 
     with open(args.elf_path, "rb") as file_handle:
