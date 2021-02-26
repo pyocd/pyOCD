@@ -1,5 +1,6 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 import re
 from collections import namedtuple
 
+from . import target_imxrt
 from . import target_kinetis
 from . import target_lpc5500
 from . import target_nRF52
@@ -29,11 +31,12 @@ FamilyInfo = namedtuple("FamilyInfo", "vendor matches klass")
 # The vendor name must be an exact match to the 'Dvendor' attribute of the CMSIS-Pack family
 # element.
 #
-# At least one of the regexes must match the entirety of either the CMSIS-Pack 'Dfamily' or
-# 'DsubFamily' (if present) attributes, or the 'Dname' part number. The comparisons are performed in
-# order from specific to general, starting with the part number.
+# The regexe must match the entirety of one the CMSIS-Pack attributes 'Dfamily','DsubFamily' (if
+# present), or the 'Dname' or 'Dvariant' part numbers. The comparisons are performed in order from
+# specific to general, starting with the part number.
 FAMILIES = [
-    FamilyInfo("NXP",                   re.compile(r'LPC55S?[0-9]{2}.*'),   target_lpc5500.LPC5500Family  ),
-    FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),    target_kinetis.Kinetis  ),
-    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),   target_nRF52.NRF52      ),
+    FamilyInfo("NXP",                   re.compile(r'LPC55S?[0-9]{2}.*'),   target_lpc5500.LPC5500Family    ),
+    FamilyInfo("NXP",                   re.compile(r'MIMXRT[0-9]{4}.*'),    target_imxrt.IMXRT              ),
+    FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),        target_kinetis.Kinetis          ),
+    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),       target_nRF52.NRF52              ),
     ]
