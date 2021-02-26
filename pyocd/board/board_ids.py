@@ -239,6 +239,7 @@ BOARD_ID_TO_INFO = {
     "9014": BoardInfo(  "Seeed 96Boards Nitrogen", "nrf52",         "l1_nrf52-dk.bin",      ),
     "9900": BoardInfo(  "micro:bit",            "nrf51",            "l1_microbit.bin",      ),
     "9901": BoardInfo(  "micro:bit",            "nrf51",            "l1_microbit.bin",      ),
+    "A127": BoardInfo(  "Artemis_DK",           "ama3b1kk",         "l1_artemis_dk.bin",    ),
     "C004": BoardInfo(  "tinyK20",              "k20d50m",          "l1_k20d50m.bin",       ),
     "C006": BoardInfo(  "VBLUno51",             "nrf51",            "l1_nrf51.bin",         ),
 }
