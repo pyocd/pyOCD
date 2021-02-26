@@ -29,6 +29,7 @@ import fnmatch
 import re
 import prettytable
 from time import sleep
+import faulthandler
 
 from . import __version__
 from .core.session import Session
@@ -379,6 +380,9 @@ class PyOCDTool(object):
 
     def run(self, args=None):
         """! @brief Main entry point for command line processing."""
+        # Use faulthandler to traceback segfaults.
+        faulthandler.enable()
+
         try:
             self._args = self.build_parser().parse_args(args)
             

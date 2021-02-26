@@ -23,6 +23,7 @@ import logging
 import argparse
 import json
 import pkg_resources
+import faulthandler
 
 from .. import __version__
 from .. import target
@@ -253,6 +254,9 @@ class GDBServerTool(object):
                 print(t)
 
     def run(self, args=None):
+        # Use faulthandler to traceback segfaults.
+        faulthandler.enable()
+
         self.args = self.build_parser().parse_args(args)
         self.gdb_server_settings = self.get_gdb_server_settings(self.args)
         self.setup_logging(self.args)
