@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2012-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -71,20 +72,22 @@ setup(
     # Allow installation on 2.7.9+, and 3.4+ even though we officially only support 3.6+.
     python_requires=">=2.7.9, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
     install_requires = [
-        'cmsis-pack-manager>=0.2.7',
-        'colorama',
+        'capstone>=4.0,<5.0',
+        'cmsis-pack-manager>=0.2.10',
+        'colorama<1.0',
         'enum34>=1.0,<2.0;python_version<"3.4"',
-        'hidapi;platform_system=="Darwin"',
+        'hidapi;platform_system!="Linux"', # Use hidapi on macOS and Windows
         'intelhex>=2.0,<3.0',
         'intervaltree>=3.0.2,<4.0',
         'naturalsort>=1.5,<2.0',
-        'prettytable',
-        'pyelftools',
-        'pylink-square>=0.8.2',
-        'pyusb>=1.0.0b2,<2.0',
-        'pywinusb>=0.4.0;platform_system=="Windows"',
+        'prettytable>=1.0,<2.0;python_version<"3.0"',
+        'prettytable>=2.0,<3.0;python_version>="3.0"',
+        'pyelftools<1.0',
+        'pylink-square>=0.8.2,<1.0',
+        'pyocd_pemicro>=1.0.0.post2;python_version>="3.6"', # Only supports python 3.6+
+        'pyusb>=1.1.0,<2.0',
         'pyyaml>=5.1,<6.0',
-        'six>=1.0,<2.0',
+        'six>=1.15.0,<2.0',
         ],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -100,17 +103,12 @@ setup(
         "Topic :: Software Development :: Debuggers",
         "Topic :: Software Development :: Embedded Systems",
     ],
-    extras_require={
-        'dissassembler': ['capstone'],
-    },
     entry_points={
         'console_scripts': [
             'pyocd = pyocd.__main__:main',
 
             # Keep deprecated tools for compatibility.
             'pyocd-gdbserver = pyocd.tools.gdb_server:main',
-            'pyocd-flashtool = pyocd.tools.flash_tool:main',
-            'pyocd-tool = pyocd.tools.pyocd:main',
         ],
         'pyocd.probe': [
             'cmsisdap = pyocd.probe.cmsis_dap_probe:CMSISDAPProbePlugin',
