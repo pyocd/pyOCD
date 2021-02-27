@@ -2,17 +2,16 @@ pyOCD Developers' Guide
 =======================
 
 PyOCD developers are recommended to setup a working environment using
-[virtualenv](https://virtualenv.pypa.io/en/latest/). After cloning
-the code, you can setup a virtualenv and install the pyOCD
-dependencies for the current platform by following the detailed steps below.
+[virtualenv](https://virtualenv.pypa.io/en/latest/). After cloning the
+code, you can setup a virtualenv and install the pyOCD dependencies for
+the current platform by following the detailed steps below.
 
 ## Setup
 
 Install the necessary tools listed below. Skip any step where a compatible tool already exists.
 
-* [Install Python](https://www.python.org/downloads/). It is recommended that you install both
-    Python 3.7.0 or above and Python 2.7.15 or above, in order to test under both versions. Add to
-    PATH.
+* [Install Python](https://www.python.org/downloads/). It is recommended that you install Python 3.8.0 or above.
+    Add to PATH.
     *  Note that on Windows, the 32-bit Python 2.7 must be installed for the Python-enabled gdb to
         work properly and for the `test/gdb_test.py` functional test to pass.
 * [Install Git](https://git-scm.com/downloads). Add to PATH.
@@ -28,13 +27,6 @@ Install the necessary tools listed below. Skip any step where a compatible tool 
 $ git clone https://github.com/pyocd/pyOCD
 $ cd pyOCD
 $ virtualenv venv
-```
-
-You may wish to create two virtual environments, for both Python 2.7 and 3.x.
-
-```
-$ python2 -mvirtualenv venv2
-$ python3 -mvirtualenv venv3
 ```
 
 **Step 2.** Activate virtual environment
@@ -86,5 +78,5 @@ $ python ./automated_test.py
 Once you are satisfied with your changes and all automated tests pass, please create a
 [new pull request](https://github.com/pyocd/pyOCD/pull/new/master) on GitHub to share your work.
 
-Pull requests should be made once a changeset is [rebased onto Master](https://www.atlassian.com/git/tutorials/merging-vs-rebasing/workflow-walkthrough).
+Pull requests should be made once a changeset is [rebased onto master](https://www.atlassian.com/git/tutorials/merging-vs-rebasing/workflow-walkthrough).
 

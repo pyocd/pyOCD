@@ -3,7 +3,7 @@ Configuring Logging
 
 ## Overview
 
-pyOCD uses the standard Python [logging](https://docs.python.org/2.7/library/logging.html) package
+pyOCD uses the standard Python [logging](https://docs.python.org/3.8/library/logging.html) package
 for all its logging.
 
 There are multiple log levels, in order from least to most verbose:
@@ -88,9 +88,9 @@ for all of pyOCD.
 ### Full control
 
 The full schema for the logging configuration dictionary is documented in the
-[logging.config module documentation](https://docs.python.org/2.7/library/logging.config.html#logging-config-dictschema).
+[logging.config module documentation](https://docs.python.org/3.8/library/logging.config.html#logging-config-dictschema).
 The logging module's
-[advanced tutorial](https://docs.python.org/2.7/howto/logging.html#logging-advanced-tutorial)
+[advanced tutorial](https://docs.python.org/3.8/howto/logging.html#logging-advanced-tutorial)
 has a good introduction to the features and log output flow, so you can better understand the
 configuration schema.
 
