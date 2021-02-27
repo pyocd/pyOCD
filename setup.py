@@ -33,7 +33,7 @@ if sys.version_info[0] > 2:
     open_args['encoding'] = 'utf-8'
 
 readme_path = os.path.join(SCRIPT_DIR, "README.md")
-with open(readme_path, **open_args) as f:
+with open(readme_path, mode='r', encoding='utf-8') as f:
     readme = f.read()
 
 # Build zip of SVD files.
@@ -65,26 +65,23 @@ setup(
     description="Cortex-M debugger for Python",
     long_description=readme,
     long_description_content_type='text/markdown',
-    author="Chris Reed, Martin Kojtal, Russ Butler",
-    author_email="chris.reed@arm.com, martin.kojtal@arm.com, russ.butler@arm.com",
+    author="Chris Reed, Martin Kojtal",
+    author_email="chris.reed@arm.com, martin.kojtal@arm.com",
     url='https://github.com/pyocd/pyOCD',
     license="Apache 2.0",
-    # Allow installation on 2.7.9+, and 3.4+ even though we officially only support 3.6+.
-    python_requires=">=2.7.9, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
+    python_requires=">=3.6.0",
     install_requires = [
         'capstone>=4.0,<5.0',
         'cmsis-pack-manager>=0.2.10',
         'colorama<1.0',
-        'enum34>=1.0,<2.0;python_version<"3.4"',
         'hidapi;platform_system!="Linux"', # Use hidapi on macOS and Windows
         'intelhex>=2.0,<3.0',
         'intervaltree>=3.0.2,<4.0',
         'naturalsort>=1.5,<2.0',
-        'prettytable>=1.0,<2.0;python_version<"3.0"',
         'prettytable>=2.0,<3.0;python_version>="3.0"',
         'pyelftools<1.0',
         'pylink-square>=0.8.2,<1.0',
-        'pyocd_pemicro>=1.0.0.post2;python_version>="3.6"', # Only supports python 3.6+
+        'pyocd_pemicro>=1.0.0.post2', # Only supports python 3.6+
         'pyusb>=1.1.0,<2.0',
         'pyyaml>=5.1,<6.0',
         'six>=1.15.0,<2.0',
@@ -93,8 +90,6 @@ setup(
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
@@ -131,9 +126,4 @@ setup(
         'pyocd': ['debug/svd/svd_data.zip'],
     },
     zip_safe=True,
-    options={
-        'bdist_wheel': {
-            'universal': True,
-        },
-    },
 )
