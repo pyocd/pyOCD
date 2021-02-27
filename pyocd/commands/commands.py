@@ -20,6 +20,7 @@ import os
 from natsort import natsort
 import textwrap
 from time import sleep
+from shutil import get_terminal_size
 
 from .. import coresight
 from ..core.helpers import ConnectHelper
@@ -40,7 +41,6 @@ from ..utility.hex import (
     dump_hex_data_to_str,
     )
 from ..utility.progress import print_progress
-from ..utility.compatibility import get_terminal_size
 from ..utility.columns import ColumnFormatter
 from ..utility.mask import (
     msb,

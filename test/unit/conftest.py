@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +17,7 @@
 
 import pytest
 import logging
-
-# unittest.mock is available from Python 3.3.
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 from .mockcore import MockCore
 

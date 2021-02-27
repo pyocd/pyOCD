@@ -18,11 +18,9 @@ import pytest
 import six
 
 from pyocd.utility.compatibility import (
-    PY3,
     iter_single_bytes,
     to_bytes_safe,
     to_str_safe,
-    get_terminal_size,
 )
 
 class TestCompatibility(object):
@@ -34,28 +32,10 @@ class TestCompatibility(object):
         assert next(i) == b'4'
     
     def test_to_bytes_safe(self):
-        if PY3:
-            assert to_bytes_safe(b"hello") == b"hello"
-            assert to_bytes_safe("string") == b"string"
-        else:
-            assert to_bytes_safe(b"hello") == b"hello"
-            assert to_bytes_safe("string") == b"string"
-            assert to_bytes_safe(u"unicode") == b"unicode"
+        assert to_bytes_safe(b"hello") == b"hello"
+        assert to_bytes_safe("string") == b"string"
     
     def test_to_str_safe(self):
-        if PY3:
-            assert to_str_safe(b"bytes") == "bytes"
-            assert to_str_safe("string") == "string"
-            assert to_str_safe('System Administrator\u2019s Mouse') == 'System Administrator\u2019s Mouse'
-        else:
-            assert to_str_safe(b"bytes") == "bytes"
-            assert to_str_safe("string") == "string"
-            assert to_str_safe(u"string") == "string"
-            assert to_str_safe(u'System Administrator\u2019s Mouse') == 'System Administrator\xe2\x80\x99s Mouse'
-
-    def test_get_terminal_size(self):
-        tsz = get_terminal_size()
-        assert isinstance(tsz, tuple)
-        assert len(tsz) == 2
-        assert isinstance(tsz[0], int)
-        assert isinstance(tsz[1], int)
+        assert to_str_safe(b"bytes") == "bytes"
+        assert to_str_safe("string") == "string"
+        assert to_str_safe('System Administrator\u2019s Mouse') == 'System Administrator\u2019s Mouse'

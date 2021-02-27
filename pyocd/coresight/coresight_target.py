@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +17,7 @@
 
 import logging
 import six
+from inspect import getfullargspec
 
 from ..core.target import Target
 from ..core.memory_map import MemoryType
@@ -25,12 +27,6 @@ from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
 from ..target.pack.flash_algo import PackFlashAlgo
-
-# inspect.getargspec is deprecated in Python 3.
-try:
-    from inspect import getfullargspec as getargspec
-except ImportError:
-    from inspect import getargspec
 
 LOG = logging.getLogger(__name__)
 
@@ -192,7 +188,7 @@ class CoreSightTarget(SoCTarget):
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
             # algo is built-in.
             klass = region.flash_class
-            argspec = getargspec(klass.__init__)
+            argspec = getfullargspec(klass.__init__)
             if 'flash_algo' in argspec.args:
                 if region.algo is not None:
                     obj = klass(self, region.algo)

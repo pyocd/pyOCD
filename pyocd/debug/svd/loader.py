@@ -18,12 +18,9 @@ import threading
 import logging
 import pkg_resources
 import zipfile
+from zipfile import BadZipFile
 
 from .parser import SVDParser
-from ...utility.compatibility import (
-    FileNotFoundError,
-    BadZipFile,
-    )
 
 LOG = logging.getLogger(__name__)
 

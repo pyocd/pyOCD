@@ -21,6 +21,7 @@
 from __future__ import print_function
 from xml.etree.ElementTree import ElementTree
 import zipfile
+from zipfile import BadZipFile
 from collections import namedtuple
 import logging
 import io
@@ -33,7 +34,6 @@ from ... import core
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
-from ...utility.compatibility import BadZipFile
 
 LOG = logging.getLogger(__name__)
 

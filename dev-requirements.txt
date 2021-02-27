@@ -1,4 +1,4 @@
-# install pyOCD itself (and dependencies) as editable
+# install pyOCD itself as editable, plus test dependencies
 --editable .
 
 pytest>=3.4
@@ -8,4 +8,3 @@ elapsedtimer
 flake8
 pylint
 tox
-mock;python_version<"3.3"
