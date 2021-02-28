@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -411,7 +412,7 @@ def run_test():
                 pass
 
         # Test watchpoints
-        access_addr = long(gdb.parse_and_eval("&watchpoint_write_buffer[1]"))
+        access_addr = int(gdb.parse_and_eval("&watchpoint_write_buffer[1]"))
         bkpt_sizes = [1, 2, 4]
         bkpt_accesses = ["read", "write", "read_write"]
         # use "range(-4, 8, 1)" for extended testing

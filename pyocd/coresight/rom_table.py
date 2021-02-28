@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,7 @@
 # limitations under the License.
 
 import logging
+from time import sleep
 
 from ..core import exceptions
 from .component import CoreSightComponent

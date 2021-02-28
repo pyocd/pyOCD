@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +20,7 @@ import logging
 
 from ..utility import conversion
 from .metrics import CacheMetrics
+from ..core.exceptions import TransferFaultError
 
 LOG = logging.getLogger(__name__)
 

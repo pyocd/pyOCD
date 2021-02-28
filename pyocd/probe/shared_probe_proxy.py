@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 import logging
 
 from .debug_probe import DebugProbe
+from ..core import exceptions
 
 LOG = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ class SharedDebugProbeProxy(object):
         if self._connect_count == 0:
             self._probe.connect(protocol)
         elif protocol not in (DebugProbe.Protocol.DEFAULT, self._probe.wire_protocol):
-            raise exception.ProbeError("probe already connected using %s protocol" % self._probe.wire_protocol.name)
+            raise exceptions.ProbeError("probe already connected using %s protocol" % self._probe.wire_protocol.name)
         self._connect_count += 1
 
     def disconnect(self):

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -126,7 +127,7 @@ class CommandBase(object):
             deref = (arg[0] == '[')
             if deref:
                 if not self.context.selected_core:
-                    raise ToolError("cannot dereference when memory is not accessible")
+                    raise exceptions.CommandError("cannot dereference when memory is not accessible")
                 arg = arg[1:-1]
                 offset = 0
                 if ',' in arg:

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -505,7 +506,7 @@ class CortexM(Target, CoreSightCoreComponent):
         # not, then C_HALT is UNKNOWN.
         dhcsr = self.read32(CortexM.DHCSR)
         if not (dhcsr & CortexM.C_DEBUGEN):
-            raise exception.DebugError('cannot step: debug not enabled')
+            raise exceptions.DebugError('cannot step: debug not enabled')
         if not (dhcsr & CortexM.C_HALT):
             LOG.error('cannot step: core not halted')
             return

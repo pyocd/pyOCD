@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -144,7 +145,7 @@ def wait_with_deadline(process, timeout):
         try:
             process.wait(timeout=timeout)
         except TimeoutExpired as e:
-            LOG.error('Timeout while waiting for process %s to exit: %s', process, e)
+            print('Timeout while waiting for process %s to exit: %s' % (process, e))
             process.kill()
             return False
     except ImportError:

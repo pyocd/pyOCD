@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +19,7 @@ import logging
 import os
 from natsort import natsort
 import textwrap
+from time import sleep
 
 from .. import coresight
 from ..core.helpers import ConnectHelper
@@ -1075,7 +1077,7 @@ class WatchpointCommand(CommandBase):
         if len(args) > 2:
             self.sz = self._convert_value(args[2])
             if self.sz not in (1, 2, 4):
-                raise exceptions.CommandError("unsupported watchpoint size (%d)" % sz)
+                raise exceptions.CommandError("unsupported watchpoint size (%d)" % self.sz)
         else:
             self.sz = 4
 

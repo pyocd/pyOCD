@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2015,2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
+from ...flash.flash import Flash
 
 FLASH_ALGO = { 'load_address' : 0x10000000,
                'instructions' : [
