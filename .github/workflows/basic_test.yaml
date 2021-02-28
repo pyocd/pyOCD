@@ -1,0 +1,70 @@
+# pyocd workflow for:
+# - checking code with flake8
+# - running unit tests
+
+name: basic test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # This requires pip 20.1+. The current ubuntu-latest as of 28 Feb 2021 has pip 21.0.1 by default
+    # for all Python versions 3.6-3.9.
+    - name: Get pip cache dir
+      id: pip-cache
+      run: |
+        echo "::set-output name=dir::$(pip cache dir)"
+
+    - name: Setup pip cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt', '**/setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade setuptools pip wheel
+        pip install -r dev-requirements.txt
+
+    - name: Setup flake8 annotations
+      # This commit is v1. Using exact commit for security.
+      uses: rbialon/flake8-annotations@f8c29dc2e054df26e0171b0005e99454f7db57a0
+
+    # Stop the build if there are Python syntax errors or undefined names.
+    - name: Lint with flake8
+      run: |
+        flake8 pyocd test --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Test with pytest
+      run: |
+        pytest --junitxml=test-results-${{ matrix.python-version }}.xml --cov=pyocd --cov-report=xml
+
+    - name: Test build
+      run: |
+        python setup.py sdist bdist_wheel
+
+    - name: Upload pytest test results
+      uses: actions/upload-artifact@v2
+      with:
+        name: pytest-results-${{ matrix.python-version }}
+        path: |
+          test-results-${{ matrix.python-version }}.xml
+          coverage.xml
+      # Use always() to always run this step to publish test results when there are test failures
+      if: ${{ always() }}
