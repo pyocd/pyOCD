@@ -40,7 +40,7 @@ if PY3:
             return v
 else:
     def to_bytes_safe(v):
-        if type(v) is unicode:
+        if type(v) is unicode: # noqa
             return v.encode('utf-8')
         else:
             return v
@@ -56,7 +56,7 @@ if PY3:
             return v.decode('utf-8')
 else:
     def to_str_safe(v):
-        if type(v) is unicode:
+        if type(v) is unicode: # noqa
             return v.encode('utf-8')
         else:
             return v
