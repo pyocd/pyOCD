@@ -1,5 +1,6 @@
 # pyOCD debugger
-# Copyright (c) 2017 Arm Limited
+# Copyright (c) 2017-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -102,6 +103,7 @@ BOARD_ID_TO_INFO = {
     "0462": BoardInfo(  "MTB USI WM-BN-BM-22",  "stm32f412xg",      "mtb_usi_wm-bn-bm-22.bin",),
     "0602": BoardInfo(  "EV_COG_AD3029LZ",      "aducm3029",        None                    ),
     "0603": BoardInfo(  "EV_COG_AD4050LZ",      "aducm4050",        None                    ),
+    "0604": BoardInfo(  "SDK-K1",               "stm32f469ni",      None,                   ),
     "0700": BoardInfo(  "NUCLEO-F103RB",        "stm32f103rb",      "ST-Nucleo-F103RB.bin", ),
     "0705": BoardInfo(  "NUCLEO-F302R8",        "stm32f302r8tx",    None,                   ),
     "0710": BoardInfo(  "NUCLEO-L152RE",        "stm32l152re",      "NUCLEO_L152RE.bin",    ),
@@ -153,6 +155,7 @@ BOARD_ID_TO_INFO = {
     "0822": BoardInfo(  "DISCO-L496AG",         "stm32l496agix",    None,                   ),
     "0823": BoardInfo(  "NUCLEO-L496ZG",        "stm32l496zgtx",    None,                   ),
     "0824": BoardInfo(  "LPCXpresso824-MAX",    "lpc824",           "l1_lpc824.bin",        ),
+    "0825": BoardInfo(  "DISCO-F412ZG",         "stm32f412xg",      "nucleo_f412zg.bin",    ),
     "0826": BoardInfo(  "NUCLEO-F412ZG",        "stm32f412xg",      "nucleo_f412zg.bin",    ),
     "0827": BoardInfo(  "NUCLEO-L486RG",        "stm32l486rgtx",    None,                   ),
     "0828": BoardInfo(  "NUCLEO-L496ZG-P",      "stm32l496zgtx",    None,                   ),
@@ -163,9 +166,22 @@ BOARD_ID_TO_INFO = {
     "0836": BoardInfo(  "NUCLEO-H743ZI2",       "stm32h743zitx",    None,                   ),
     "0839": BoardInfo(  "NUCLEO-WB55RG",        "stm32wb55rgvx",    None,                   ),
     "0840": BoardInfo(  "B96B-F446VE",          "stm32f446vetx",    None,                   ),
+    "0841": BoardInfo(  "NUCLEO-G474RE",        "stm32g474retx",    None,                   ),
+    "0842": BoardInfo(  "NUCLEO-H753ZI",        "stm32h753zitx",    None,                   ),
+    "0843": BoardInfo(  "NUCLEO-H745ZI-Q",      "stm32h745zitx",    None,                   ),
+    "0847": BoardInfo(  "DISCO-H745I",          "stm32h745zihx",    None,                   ),
+    "0849": BoardInfo(  "NUCLEO-G070RB",        "stm32g070rbtx",    None,                   ),
+    "0850": BoardInfo(  "NUCLEO-G431RB",        "stm32g431rbtx",    None,                   ),
+    "0851": BoardInfo(  "NUCLEO-G431KB",        "stm32g431kbtx",    None,                   ),
+    "0852": BoardInfo(  "NUCLEO-G031K8",        "stm32g031K8tx",    None,                   ),
+    "0853": BoardInfo(  "NUCLEO-F301K8",        "stm32f301k8tx",    None,                   ),
     "0854": BoardInfo(  "NUCLEO-L552ZE-Q",      "stm32l552zetxq",   None,                   ),
     "0855": BoardInfo(  "DISCO-L562QE",         "stm32l562qeixq",   None,                   ),
+    "0860": BoardInfo(  "NUCLEO-H7A3ZI-Q",      "stm32h7a3zitxq",   None,                   ),
+    "0866": BoardInfo(  "NUCLEO-WL55JC",        "stm32wl55jcix",    None,                   ),
     "0879": BoardInfo(  "NUCLEO-F756ZG",        "stm32f756zgtx",    None,                   ),
+    "0882": BoardInfo(  "NUCLEO-G491RE",        "stm32g491retx",    None,                   ),
+    "0885": BoardInfo(  "B-L4S5I-IOT01A",       "stm32l4s5vitx",    None,                   ),
     "1010": BoardInfo(  "mbed NXP LPC1768",     "lpc1768",          "l1_lpc1768.bin",       ),
     "1017": BoardInfo(  "mbed HRM1017",         "nrf51",            "l1_nrf51.bin",         ),
     "1018": BoardInfo(  "Switch-Science-mbed-LPC824", "lpc824",     "l1_lpc824.bin",        ),
@@ -222,6 +238,7 @@ BOARD_ID_TO_INFO = {
     "2600": BoardInfo(  "ep_agora",             "nrf52840",         None,                   ),
     "3300": BoardInfo(  "CC3220SF_LaunchXL",    "cc3220sf",         "l1_cc3220sf.bin",      ),
     "3701": BoardInfo(  "Samsung_S5JS100",      "s5js100",          "s5js100.bin",          ),
+    "4100": BoardInfo(  "NAMote72",             "stm32l152rc",      None,                   ),
     "4337": BoardInfo(  "LPC4337",              "lpc4337",          None,                   ),
     "4600": BoardInfo(  "Realtek RTL8195AM",    "rtl8195am",        "l1_rtl8195am.bin",     ),
     "5002": BoardInfo(  "Arm V2M-MPS3",         "cortex_m",         None,                   ),
