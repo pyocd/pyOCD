@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -174,7 +175,7 @@ def debug_context_test(board_id):
             # Verify the target memory wasn't accessed.
             try:
                 read_block32_mock.assert_not_called()
-            except AsssertionError:
+            except AssertionError:
                 print("FAILED: target memory was accessed")
             else:
                 print("PASSED: target memory was not accessed")

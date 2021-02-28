@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -360,7 +361,7 @@ class CommandExecutionContext(object):
     def execute_command(self, invocation):
         """! @brief Execute a single command."""
         # Must have an attached session to run commands, except for certain commands.
-        assert (self.session is not None) or (cmd in ('list', 'help', 'exit'))
+        assert (self.session is not None) or (invocation.cmd in ('list', 'help', 'exit'))
 
         # Run command.
         cmd_class = self._command_set.commands[invocation.cmd]

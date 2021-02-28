@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,8 +43,6 @@ class ListGenerator(object):
             all_mbeds = []
             status = 1
             error = str(e)
-            if not self.args.output_json:
-                raise
 
         boards = []
         obj = {

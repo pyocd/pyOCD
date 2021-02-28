@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -257,7 +258,7 @@ class SDC600(CoreSightComponent):
             raise LinkError()
         # Catch reserved flags.
         elif (0xA2 <= value <= 0xA5) or (0xB0 <= value <= 0xBF):
-            raise UnexpectedFlagError("received reserved flag value ({:#04x})".format(flag))
+            raise UnexpectedFlagError("received reserved flag value ({:#04x})".format(value))
 
     def _expect_flag(self, flag, to_):
         """! @brief Read a byte and compare to expected value.

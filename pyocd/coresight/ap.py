@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -909,7 +910,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             data = data << ((addr & 0x02) << 3)
         elif transfer_size > 32:
             # Split the value into a tuple of 32-bit words, least-significant first.
-            data = (((v >> (32 * i)) & 0xffffffff) for i in range(transfer_size // 32))
+            data = (((data >> (32 * i)) & 0xffffffff) for i in range(transfer_size // 32))
 
         try:
             self.write_reg(self._reg_offset + MEM_AP_TAR, addr)

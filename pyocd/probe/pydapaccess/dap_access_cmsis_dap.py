@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018-2021 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -766,7 +767,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @locked
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
         self.flush()
-        return self._protocol.jtag_sequence(cycles, length, read_tdo, tdi)
+        return self._protocol.jtag_sequence(cycles, tms, read_tdo, tdi)
 
     @locked
     def disconnect(self):
