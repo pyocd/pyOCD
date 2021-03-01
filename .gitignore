@@ -38,6 +38,7 @@ pip-log.txt
 .coverage
 .tox
 nosetests.xml
+coverage.xml
 
 # Translations
 *.mo

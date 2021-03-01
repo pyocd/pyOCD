@@ -231,7 +231,7 @@ class CMSISDAPProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
     def swd_sequence(self, sequences):
-        TRACE.debug("trace: swd_sequence(sequence=%r)", sequence)
+        TRACE.debug("trace: swd_sequence(sequences=%r)", sequences)
         
         try:
             self._link.swd_sequence(sequences)

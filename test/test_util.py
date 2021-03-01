@@ -179,7 +179,7 @@ class RecordingLogHandler(logging.Handler):
     def emit(self, record):
         try:
             message = self.format(record)
-            if isPy2 and isinstance(message, unicode):
+            if isPy2 and isinstance(message, unicode): # noqa
                 message = message.encode('UTF-8')
             self.stream.write(six.u(message + "\n"))
         except:
