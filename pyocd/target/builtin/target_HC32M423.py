@@ -71,7 +71,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 }
 
 
-class HC32M423(CoreSightTarget):
+class HC32M423xA(CoreSightTarget):
 
     VENDOR = "HDSC"
 
@@ -83,7 +83,7 @@ class HC32M423(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(HC32M423, self).__init__(session, self.MEMORY_MAP)
+        super(HC32M423xA, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("HC32M423.svd")
 
     def post_connect_hook(self):
