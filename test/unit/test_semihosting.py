@@ -26,7 +26,6 @@ from pyocd.core.exceptions import TimeoutError
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.debug import semihost
-from pyocd.utility.compatibility import byte_list_to_bytes
 
 @pytest.fixture(scope='module')
 def tgt(request):
@@ -249,7 +248,7 @@ class SemihostRequestBuilder:
         result = self.ctx.read_core_register('r0')
 
         # Read data put into read buffer.
-        data = byte_list_to_bytes(self.tgt.read_memory_block8(argsptr + 12, length - result))
+        data = bytes(self.tgt.read_memory_block8(argsptr + 12, length - result))
 
         return result, data
 

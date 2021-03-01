@@ -33,7 +33,6 @@ from ... import core
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
-from ...utility.compatibility import BadZipFile
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +84,7 @@ class CmsisPack(object):
         else:
             try:
                 self._pack_file = zipfile.ZipFile(file_or_path, 'r')
-            except BadZipFile as err:
+            except zipfile.BadZipFile as err:
                 six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
                     file_or_path, err)), err)
         

@@ -26,7 +26,7 @@ class TestTimeout:
             while to.check():
                 sleep(0.01)
                 cnt += 1
-                if cnt == 4:
+                if cnt == 2:
                     break
             else:
                 assert False

@@ -27,8 +27,6 @@ import tempfile
 import threading
 from pyocd.utility.compatibility import to_str_safe
 
-isPy2 = (sys.version_info[0] == 2)
-
 OBJCOPY = "arm-none-eabi-objcopy"
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -162,8 +160,6 @@ class IOTee(object):
         self.outputs.append(output)
 
     def write(self, message):
-        if isPy2 and isinstance(message, str):
-            message = message.decode('UTF-8')
         for out in self.outputs:
             out.write(message)
 
@@ -179,8 +175,6 @@ class RecordingLogHandler(logging.Handler):
     def emit(self, record):
         try:
             message = self.format(record)
-            if isPy2 and isinstance(message, unicode): # noqa
-                message = message.encode('UTF-8')
             self.stream.write(six.u(message + "\n"))
         except:
             self.handleError(record)

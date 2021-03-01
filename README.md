@@ -46,21 +46,18 @@ Configuration and customization is supported through [config files](docs/configu
 News
 ----
 
+- Python 2 support has been dropped! Version [0.29](/pyocd/pyOCD/releases/tag/v0.29.0) is the last version to support
+    Python 2. If there is a critical issue on 0.29 that is a blocker for you and you cannot move to Python 2, please
+    raise [an issue](https://github.com/pyocd/pyOCD/issues/new/choose).
+
 - PyOCD has moved to [its own organization](https://github.com/pyocd/) on GitHub! You will continue to see
     further changes to increase communication and make pyOCD a more independent and open project.
-
-- _**Important note**: Python 2 support is deprecated and is planned to be dropped from an upcoming release._
-Existing releases of pyOCD will, of course, continue to work with Python 2. If this is a major problem for you
-moving forward, please create a [new issue](https://github.com/mbedmicro/pyOCD/issues/new/choose) describing
-your concerns. As of 1 January 2021, there has been no negative feedback about dropping Python 2, so this will
-likely happen sooner rather than later.
 
 
 Requirements
 ------------
 
-- Python 3.6.0 or later. Currently Python 2.7.9 or later also works, but see note above about Python 2 support
-    being deprecated.
+- Python 3.6.0 or later.
 - macOS, Linux, or Windows 7 or newer
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
@@ -106,8 +103,7 @@ as follows:
 $ python3 -mpip install -U pyocd
 ```
 
-_Note: depending on your system, you may need to use `python` instead of `python3`. The same applies if
-you are using Python 2.7 (but please see the note above about deprecation of Python 2 support in pyocd)._
+_Note: depending on your system, you may need to use `python` instead of `python3`._
 
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/) as well as
 [on GitHub](https://github.com/pyocd/pyOCD/releases).
@@ -244,4 +240,4 @@ License
 PyOCD is licensed with the permissive Apache 2.0 license. See the [LICENSE](LICENSE) file for the
 full text of the license.
 
-Copyright © 2006-2020 Arm Ltd and others (see individual source files)
+Copyright © 2006-2021 The PyOCD authors

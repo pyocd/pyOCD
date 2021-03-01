@@ -24,7 +24,6 @@ from ..family import FAMILIES
 from .. import TARGET
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
-from ...utility.compatibility import FileNotFoundError
 
 try:
     import cmsis_pack_manager

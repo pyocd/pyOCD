@@ -16,8 +16,7 @@
 
 import sys
 import logging
-
-from .compatibility import get_terminal_size
+from shutil import get_terminal_size
 
 LOG = logging.getLogger(__name__)
 

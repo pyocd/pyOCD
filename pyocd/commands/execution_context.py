@@ -22,10 +22,10 @@ import six
 import pprint
 from collections import namedtuple
 import subprocess
+from shutil import get_terminal_size
 
 from ..core import exceptions
 from ..coresight.ap import MEM_AP
-from ..utility.compatibility import get_terminal_size
 from ..utility.cmdline import (
     split_command_line,
     UniquePrefixMatcher,

@@ -25,7 +25,6 @@ import errno
 from .loader import FlashLoader
 from ..core import exceptions
 from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
-from ..utility.compatibility import FileNotFoundError
 
 LOG = logging.getLogger(__name__)
 

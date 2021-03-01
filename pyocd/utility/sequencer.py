@@ -16,13 +16,7 @@
 
 import logging
 from collections import OrderedDict
-
-# Collection ABCs accessible directly from collections are deprecated and will be removed in
-# Python 3.9.
-try:
-    from collections.abc import Callable
-except ImportError:
-    from collections import Callable
+from collections.abc import Callable
 
 LOG = logging.getLogger(__name__)
 

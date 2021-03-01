@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,12 +21,7 @@ import six
 import yaml
 import os
 import weakref
-
-# inspect.getargspec is deprecated in Python 3.
-try:
-    from inspect import getfullargspec as getargspec
-except ImportError:
-    from inspect import getargspec
+from inspect import getfullargspec
 
 from . import exceptions
 from .options_manager import OptionsManager
@@ -496,7 +492,7 @@ class UserScriptFunctionProxy(object):
 
     def __init__(self, fn):
         self._fn = fn
-        self._spec = getargspec(fn)
+        self._spec = getfullargspec(fn)
     
     def __call__(self, **kwargs):
         args = {}

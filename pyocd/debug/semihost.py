@@ -24,7 +24,6 @@ import six
 
 from ..coresight.cortex_m import CortexM
 from ..core import (exceptions, session)
-from ..utility.compatibility import byte_list_to_bytes
 
 LOG = logging.getLogger(__name__)
 
@@ -476,7 +475,7 @@ class SemihostAgent(object):
     def _get_string(self, ptr, length=None):
         if length is not None:
             data = self.context.read_memory_block8(ptr, length)
-            return six.ensure_str(byte_list_to_bytes(data))
+            return bytes(data).decode()
 
         target_str = ''
         # TODO - use memory map to make sure we don't try to read off the end of memory
@@ -489,14 +488,14 @@ class SemihostAgent(object):
 
                 # Found a null terminator, append data up to but not including the null
                 # and then exit the loop.
-                target_str += six.ensure_str(byte_list_to_bytes(data[:terminator]))
+                target_str += bytes(data[:terminator]).decode()
                 break
             except exceptions.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:
                 # No null terminator was found. Append all of data.
-                target_str += six.ensure_str(byte_list_to_bytes(data))
+                target_str += bytes(data).decode()
                 ptr += 32
         return target_str
 
