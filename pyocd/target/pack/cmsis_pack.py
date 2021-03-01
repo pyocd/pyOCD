@@ -21,7 +21,6 @@
 from __future__ import print_function
 from xml.etree.ElementTree import ElementTree
 import zipfile
-from zipfile import BadZipFile
 from collections import namedtuple
 import logging
 import io
@@ -85,7 +84,7 @@ class CmsisPack(object):
         else:
             try:
                 self._pack_file = zipfile.ZipFile(file_or_path, 'r')
-            except BadZipFile as err:
+            except zipfile.BadZipFile as err:
                 six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
                     file_or_path, err)), err)
         
