@@ -245,7 +245,6 @@ class JLinkProbe(DebugProbe):
             six.raise_from(self._convert_exception(exc), exc)
 
         self._protocol = None
-        self._invalidate_cached_registers()
 
     def set_clock(self, frequency):
         try:
