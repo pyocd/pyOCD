@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2021 Huada Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -152,7 +152,32 @@ FLASH_ALGO_OTP = {
 }
 
 
-class HC32F46x(CoreSightTarget):
+class HC32F460xC(CoreSightTarget):
+
+    VENDOR = "HDSC"
+
+    MEMORY_MAP = MemoryMap(
+        FlashRegion( start=0x00000000, length=0x40000, page_size=0x200, sector_size=0x2000,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x03000C00, length=0x3FC, sector_size=0x3FC,
+                        is_boot_memory=False,
+                        is_default=False,
+                        algo=FLASH_ALGO_OTP),
+        RamRegion(   start=0x1FFF8000, length=0x2F000),
+        RamRegion(   start=0x200F0000, length=0x1000)
+        )
+
+    def __init__(self, session):
+        super(HC32F460xC, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("HC32F460.svd")
+
+    def post_connect_hook(self):
+        self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
+        self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
+
+
+class HC32F460xE(CoreSightTarget):
 
     VENDOR = "HDSC"
 
@@ -169,9 +194,10 @@ class HC32F46x(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(HC32F46x, self).__init__(session, self.MEMORY_MAP)
-        self._svd_location = SVDFile.from_builtin("HC32F46x.svd")
+        super(HC32F460xE, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("HC32F460.svd")
 
     def post_connect_hook(self):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
+
