@@ -100,9 +100,10 @@ from . import target_LPC55S28Jxxxxx
 from . import target_M251
 from . import target_M261
 from . import target_M480
-from . import target_HC32F46x
+from . import target_HC32F460
 from . import target_HC32F4A0
 from . import target_HC32M423
+from . import target_HC32F160
 from . import target_HC32x120
 from . import target_HC32L110
 from . import target_HC32L13x
@@ -224,13 +225,16 @@ BUILTIN_TARGETS = {
           'm252kg6ae' : target_M251.M252KG6AE,
           'm263kiaae' : target_M261.M263KIAAE,
           'm487jidae' : target_M480.M487JIDAE,
-          'hc32f46x' : target_HC32F46x.HC32F46x,
+          'hc32f460xc' : target_HC32F460.HC32F460xC,
+          'hc32f460xe' : target_HC32F460.HC32F460xE,
           'hc32f4a0xg' : target_HC32F4A0.HC32F4A0xG,
           'hc32f4a0xi' : target_HC32F4A0.HC32F4A0xI,
+          'hc32m423xa' : target_HC32M423.HC32M423xA,
           'hc32f120x6' : target_HC32x120.HC32F120x6TA,
           'hc32f120x8' : target_HC32x120.HC32F120x8TA,
           'hc32m120' : target_HC32x120.HC32M120,
-          'hc32m423' : target_HC32M423.HC32M423,
+          'hc32f160xa' : target_HC32F160.HC32F160xA,
+          'hc32f160xc' : target_HC32F160.HC32F160xC,
           'hc32l110' : target_HC32L110.HC32L110,
           'hc32f003' : target_HC32L110.HC32F003,
           'hc32f005' : target_HC32L110.HC32F005,

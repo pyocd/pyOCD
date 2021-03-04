@@ -1,0 +1,178 @@
+# pyOCD debugger
+# Copyright (c) 2021 Huada Semiconductor Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from ...coresight.coresight_target import CoreSightTarget
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
+
+
+class DBGMCU:
+    MCUSTPCTL = 0x40015004
+    MCUSTPCTL_VALUE = 0x09
+
+
+FLASH_ALGO = { 'load_address' : 0x20000000,
+               'instructions' : [
+    0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
+    0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0xf000b510, 0xbd10f80f, 0x4604b510, 0xf0004620,
+    0xbd10f839, 0x49022000, 0x1e4060c8, 0x47706008, 0x40000800, 0x20012100, 0x60d04a14, 0x68c04610,
+    0x325122ff, 0x4a114310, 0x200060d0, 0xe0056000, 0x480f1c49, 0xd3014281, 0x47702001, 0x6900480b,
+    0x320122ff, 0x42904010, 0xe005d1f2, 0x69404807, 0x43102210, 0x61504a05, 0x69004804, 0x40102210,
+    0xd1f32800, 0x60d04a01, 0xe7e6bf00, 0x40000800, 0x00061a80, 0x22004601, 0x4b152001, 0x461860d8,
+    0x23ff68c0, 0x43183341, 0x60d84b11, 0x60082000, 0x1c52e005, 0x4282480f, 0x2001d301, 0x480c4770,
+    0x23ff6900, 0x40183301, 0xd1f24298, 0x4808e005, 0x23106940, 0x4b064318, 0x48056158, 0x23106900,
+    0x28004018, 0x4b02d1f3, 0xbf0060d8, 0x0000e7e6, 0x40000800, 0x00061a80, 0x302420ff, 0x60084902,
+    0x60084802, 0x00004770, 0x40000800, 0x00003210, 0xb081b5f7, 0x20004615, 0x462c9000, 0x4e3d2001,
+    0x463060f0, 0x26ff68c0, 0x43303631, 0x60f04e39, 0x23009a01, 0x6820e024, 0x20006010, 0xe0099000,
+    0x1c409800, 0x4e349000, 0x42b09800, 0x2001d302, 0xbdf0b004, 0x6900482f, 0x40302610, 0xd1ef2810,
+    0x482ce005, 0x26106940, 0x4e2a4330, 0x48296170, 0x26106900, 0x28104030, 0x1d24d0f3, 0x1c5b1d12,
+    0x42980888, 0x0788d8d7, 0x28000f80, 0x4626d02b, 0xe0232300, 0x70107830, 0x90002000, 0x9800e008,
+    0x90001c40, 0x98004f1c, 0xd30142b8, 0xe7cf2001, 0x69004818, 0x40382710, 0xd1f02810, 0x4815e005,
+    0x27106940, 0x4f134338, 0x48126178, 0x27106900, 0x28104038, 0x1c76d0f3, 0x1c5b1c52, 0x0f800788,
+    0xd8d74298, 0x2000bf00, 0x60f04e0a, 0xe0089000, 0x1c409800, 0x4e089000, 0x42b09800, 0x2001d301,
+    0x4804e7a6, 0x26ff6900, 0x40303601, 0xd1ef42b0, 0xe79d2000, 0x40000800, 0x00009c40, 0x4604b570,
+    0x4616460d, 0xff68f7ff, 0xbd702000, 0x4604b570, 0x4616460d, 0x46294632, 0xf7ff4620, 0xbd70ff69,
+    0x4604b510, 0xfeeef7ff, 0xbd102000, 0x4603b5f8, 0x2100460c, 0x20002600, 0x461e9000, 0xe0062500,
+    0x6817ce01, 0xd00042b8, 0x1d12e004, 0x08a01c6d, 0xd8f542a8, 0x9600bf00, 0xe0082100, 0x78079800,
+    0x90001c40, 0x42875c50, 0xe004d000, 0x07a01c49, 0x42880f80, 0xbf00d8f2, 0x18c000a8, 0xbdf81840,
+    0x00000000
+    ],
+
+    # Relative function addresses
+    'pc_init': 0x2000023d,
+    'pc_unInit': 0x20000261,
+    'pc_program_page': 0x2000024d,
+    'pc_erase_sector': 0x20000039,
+    'pc_eraseAll': 0x20000031,
+
+    'static_base' : 0x20000000 + 0x00000020 + 0x000002a0,
+    'begin_stack' : 0x20000500,
+    'begin_data' : 0x20000000 + 0x1000,
+    'page_size' : 0x200,
+    'analyzer_supported' : False,
+    'analyzer_address' : 0x00000000,
+    'page_buffers' : [0x20001000, 0x20001200],   # Enable double buffering
+    'min_program_length' : 0x200,
+
+    # Flash information
+    'flash_start': 0x0,
+    'flash_size': 0x40000,
+    'sector_sizes': (
+        (0x0, 0x200),
+    )
+}
+
+
+FLASH_ALGO_NVR = {
+    'load_address' : 0x20000000,
+
+    # Flash algorithm as a hex string
+    'instructions': [
+    0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
+    0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0xf000b510, 0xbd10f80f, 0x4604b510, 0xf0004620,
+    0xbd10f85b, 0x49022000, 0x1e4060c8, 0x47706008, 0x40000800, 0x20012100, 0x60d04a23, 0x68c04610,
+    0x324122ff, 0x4a204310, 0x200060d0, 0x60104a1f, 0x1c49e005, 0x4281481e, 0x2001d301, 0x481a4770,
+    0x22ff6900, 0x40103201, 0xd1f24290, 0x4816e005, 0x22106940, 0x4a144310, 0x48136150, 0x22106900,
+    0x28004010, 0x4a13d1f3, 0xe0056010, 0x48101c49, 0xd3014281, 0xe7e12001, 0x6900480b, 0x320122ff,
+    0x42904010, 0xe005d1f2, 0x69404807, 0x43102210, 0x61504a05, 0x69004804, 0x40102210, 0xd1f32800,
+    0x60d04a01, 0xe7c9bf00, 0x40000800, 0x01000800, 0x00061a80, 0x01000a00, 0x22004601, 0x4b152001,
+    0x461860d8, 0x23ff68c0, 0x43183341, 0x60d84b11, 0x60082000, 0x1c52e005, 0x4282480f, 0x2001d301,
+    0x480c4770, 0x23ff6900, 0x40183301, 0xd1f24298, 0x4808e005, 0x23106940, 0x4b064318, 0x48056158,
+    0x23106900, 0x28004018, 0x4b02d1f3, 0xbf0060d8, 0x0000e7e6, 0x40000800, 0x00061a80, 0x302420ff,
+    0x60084902, 0x60084802, 0x00004770, 0x40000800, 0x00003210, 0xb081b5f7, 0x20004615, 0x462c9000,
+    0x4e3d2001, 0x463060f0, 0x26ff68c0, 0x43303631, 0x60f04e39, 0x23009a01, 0x6820e024, 0x20006010,
+    0xe0099000, 0x1c409800, 0x4e349000, 0x42b09800, 0x2001d302, 0xbdf0b004, 0x6900482f, 0x40302610,
+    0xd1ef2810, 0x482ce005, 0x26106940, 0x4e2a4330, 0x48296170, 0x26106900, 0x28104030, 0x1d24d0f3,
+    0x1c5b1d12, 0x42980888, 0x0788d8d7, 0x28000f80, 0x4626d02b, 0xe0232300, 0x70107830, 0x90002000,
+    0x9800e008, 0x90001c40, 0x98004f1c, 0xd30142b8, 0xe7cf2001, 0x69004818, 0x40382710, 0xd1f02810,
+    0x4815e005, 0x27106940, 0x4f134338, 0x48126178, 0x27106900, 0x28104038, 0x1c76d0f3, 0x1c5b1c52,
+    0x0f800788, 0xd8d74298, 0x2000bf00, 0x60f04e0a, 0xe0089000, 0x1c409800, 0x4e089000, 0x42b09800,
+    0x2001d301, 0x4804e7a6, 0x26ff6900, 0x40303601, 0xd1ef42b0, 0xe79d2000, 0x40000800, 0x00009c40,
+    0x4604b570, 0x4616460d, 0xff68f7ff, 0xbd702000, 0x4604b570, 0x4616460d, 0x46294632, 0xf7ff4620,
+    0xbd70ff69, 0x4604b510, 0xfeccf7ff, 0xbd102000, 0x4603b5f8, 0x2100460c, 0x20002600, 0x461e9000,
+    0xe0062500, 0x6817ce01, 0xd00042b8, 0x1d12e004, 0x08a01c6d, 0xd8f542a8, 0x9600bf00, 0xe0082100,
+    0x78079800, 0x90001c40, 0x42875c50, 0xe004d000, 0x07a01c49, 0x42880f80, 0xbf00d8f2, 0x18c000a8,
+    0xbdf81840, 0x00000000
+    ],
+
+    # Relative function addresses
+    'pc_init': 0x20000281,
+    'pc_unInit': 0x200002a5,
+    'pc_program_page': 0x20000291,
+    'pc_erase_sector': 0x20000039,
+    'pc_eraseAll': 0x20000031,
+
+    'static_base' : 0x20000000 + 0x00000020 + 0x000002e4,
+    'begin_stack' : 0x20000600,
+    'begin_data' : 0x20000000 + 0x1000,
+    'page_size' : 0x200,
+    'analyzer_supported' : False,
+    'analyzer_address' : 0x00000000,
+    'page_buffers' : [0x20001000, 0x20001200],   # Enable double buffering
+    'min_program_length' : 0x200,
+
+    # Flash information
+    'flash_start': 0x1000800,
+    'flash_size': 0x400,
+    'sector_sizes': (
+        (0x1000800, 0x200),
+    )
+}
+
+
+class HC32F160xA(CoreSightTarget):
+
+    VENDOR = "HDSC"
+
+    MEMORY_MAP = MemoryMap(
+        FlashRegion( start=0x00000000, length=0x20000, page_size=0x200, sector_size=0x200,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x01000800, length=0x400, page_size=0x200, sector_size=0x200,
+                        is_boot_memory=False,
+                        is_default=False,
+                        algo=FLASH_ALGO_NVR),
+        RamRegion(   start=0x20000000, length=0x8000)
+        )
+
+    def __init__(self, session):
+        super(HC32F160xA, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("HC32F160.svd")
+
+    def post_connect_hook(self):
+        self.write32(DBGMCU.MCUSTPCTL, DBGMCU.MCUSTPCTL_VALUE)
+
+class HC32F160xC(CoreSightTarget):
+
+    VENDOR = "HDSC"
+
+    MEMORY_MAP = MemoryMap(
+        FlashRegion( start=0x00000000, length=0x40000, page_size=0x200, sector_size=0x200,
+                        is_boot_memory=True,
+                        algo=FLASH_ALGO),
+        FlashRegion( start=0x01000800, length=0x400, page_size=0x200, sector_size=0x200,
+                        is_boot_memory=False,
+                        is_default=False,
+                        algo=FLASH_ALGO_NVR),
+        RamRegion(   start=0x20000000, length=0x8000)
+        )
+
+    def __init__(self, session):
+        super(HC32F160xC, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("HC32F160.svd")
+
+    def post_connect_hook(self):
+        self.write32(DBGMCU.MCUSTPCTL, DBGMCU.MCUSTPCTL_VALUE)
