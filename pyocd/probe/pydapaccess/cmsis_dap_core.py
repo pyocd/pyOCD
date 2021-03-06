@@ -68,6 +68,7 @@ class Pin:
 # Info IDs that return integer values.
 INTEGER_INFOS = [
     DAPAccessIntf.ID.CAPABILITIES,
+    DAPAccessIntf.ID.TEST_DOMAIN_TIMER,
     DAPAccessIntf.ID.SWO_BUFFER_SIZE,
     DAPAccessIntf.ID.MAX_PACKET_COUNT,
     DAPAccessIntf.ID.MAX_PACKET_SIZE
@@ -140,6 +141,17 @@ class CMSISDAPProtocol(object):
         self.interface = interface
 
     def dap_info(self, id_):
+        """! @brief Sends the DAP_Info command to read info from the CMSIS-DAP probe.
+        @param self This object.
+        @param id_ One of the @ref pyocd.probe.pydapaccess.dap_access_api.DAPAcessIntf.ID "DAPAcessIntf.ID" constants.
+        @return The `id_` parameter determines the return value data type. For those IDs defined as integer values
+            in the DAP_Info command documentation, an int is returned. Otherwise either a string is returned, or
+            None if the returned info value length is 0.
+        @exception DAPAccessIntf.DeviceError Raised under these conditions:
+            - Response packet is for a different command.
+            - An int-type info was requested, but the returned value length is not 1, 2, or 4.
+            - A string-type info was requested, but the returned value length is greater than the response packet size minus response header and terminating null byte on the string.
+        """
         assert type(id_) is DAPAccessIntf.ID
             
         cmd = []
@@ -152,20 +164,25 @@ class CMSISDAPProtocol(object):
             # Response is to a different command
             raise DAPAccessIntf.DeviceError("expected DAP_INFO")
 
-        if resp[1] == 0:
-            return
+        resp_len = resp[1]
 
         # Integer values
         if id_ in INTEGER_INFOS:
-            if resp[1] == 1:
+            if resp_len == 1:
                 return resp[2]
-            if resp[1] == 2:
+            elif resp_len == 2:
                 return (resp[3] << 8) | resp[2]
-            if resp[1] == 4:
+            elif resp_len == 4:
                 return (resp[5] << 24) | (resp[4] << 16) | (resp[3] << 8) | resp[2]
+            else:
+                raise DAPAccessIntf.DeviceError("invalid DAP_INFO response length for %s" % id_.name)
 
         # String values. They are sent as C strings with a terminating null char, so we strip it out.
-        return bytearray(resp[2:2 + resp[1] - 1]).decode('ascii')
+        if resp_len == 0:
+            return None
+        if resp_len > (len(resp) - 2):
+            raise DAPAccessIntf.DeviceError("invalid DAP_INFO response length for %s" % id_.name)
+        return bytearray(resp[2:2 + resp_len - 1]).decode('utf-8', 'replace')
 
     def set_led(self, type, enabled):
         cmd = []

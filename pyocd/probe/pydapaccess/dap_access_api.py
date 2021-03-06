@@ -46,6 +46,7 @@ class DAPAccessIntf(object):
         DEVICE_VENDOR = 5
         DEVICE_NAME = 6
         CAPABILITIES = 0xf0
+        TEST_DOMAIN_TIMER = 0xf1
         SWO_BUFFER_SIZE = 0xfd
         MAX_PACKET_COUNT = 0xfe
         MAX_PACKET_SIZE = 0xff
