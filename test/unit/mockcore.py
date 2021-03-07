@@ -21,6 +21,7 @@ from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
 from pyocd.coresight.component import CoreSightCoreComponent
 from pyocd.core.core_registers import CoreRegistersIndex
+from pyocd.core.memory_interface import MemoryInterface
 from pyocd.coresight.cortex_m_core_registers import (
     CortexMCoreRegisterInfo,
     CoreRegisterGroups,
@@ -33,7 +34,7 @@ from pyocd.utility import mask
 CFBP_INDEX = index_for_reg('cfbp')
 XPSR_INDEX = index_for_reg('xpsr')
 
-class MockCore(CoreSightCoreComponent):
+class MockCore(CoreSightCoreComponent, MemoryInterface):
     def __init__(self, has_fpu=True):
         self.run_token = 1
         self.flash_region = memory_map.FlashRegion(start=0, length=1*1024, blocksize=1024, name='flash')
@@ -113,14 +114,9 @@ class MockCore(CoreSightCoreComponent):
                     raise KeyError("register %s not available in this CPU", info.name)
 
     def read_memory(self, addr, transfer_size=32, now=True):
-        if transfer_size == 8:
-            return 0x12
-        elif transfer_size == 16:
-            return 0x1234
-        elif transfer_size == 32:
-            return 0x12345678
-        elif transfer_size == 64:
-            return 0x1234567812345678
+        assert now is True
+        bytes_data = self.read_memory_block8(addr, transfer_size // 8)
+        return conversion.byte_list_to_nbit_le_list(bytes_data, transfer_size)[0]
 
     def read_memory_block8(self, addr, size):
         for r, m in self.regions:
@@ -133,7 +129,8 @@ class MockCore(CoreSightCoreComponent):
         return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size*4))
 
     def write_memory(self, addr, value, transfer_size=32):
-        return True
+        bytes_data = conversion.nbit_le_list_to_byte_list([value], transfer_size)
+        return self.write_memory_block8(addr, bytes_data)
 
     def write_memory_block8(self, addr, value):
         for r, m in self.regions:
