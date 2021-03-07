@@ -164,6 +164,13 @@ def print_board_header(outputFile, board, n, includeDividers=True, includeLeadin
     if includeDividers:
         print(divider + "\n", file=outputFile)
 
+def print_test_header(output_file, board, test):
+    header = f"Test: {test.name} | {board.name} #{test.n}"
+    divider = "-" * 80
+    print("\n" + divider, file=output_file)
+    print(header, file=output_file)
+    print(divider, file=output_file)
+
 def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     """! @brief Run all tests on a given board.
     
@@ -230,6 +237,11 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
             
             # Set the test number on the test object. Used to get a unique port for the GdbTest.
             test.n = n
+
+            # Print header and divider at the start of every test into the log files.
+            print_test_header(log_file, board, test)
+            if commonLogFile is not None:
+                print_test_header(commonLogFile, board, test)
             
             # Create a StringIO object to record the test's output, an IOTee to copy
             # output to both the log file and StringIO, then set the log handler and
