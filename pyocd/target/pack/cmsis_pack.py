@@ -258,7 +258,8 @@ class CmsisPackDescription(object):
                 prev_end = prev_start + prev_size - 1
                 if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
                     if not self._warned_overlapping_memory_regions:
-                        LOG.warning("Overlapping memory regions in file " + str(self.pack.filename) + ","
+                        filename = self.pack.filename if self.pack else "unknown"
+                        LOG.warning("Overlapping memory regions in file " + str(filename) + ","
                                     " deleting outer region. Further warnings will be suppressed"
                                     " for this file.")
                         self._warned_overlapping_memory_regions = True
