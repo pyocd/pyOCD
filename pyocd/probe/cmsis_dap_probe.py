@@ -205,7 +205,7 @@ class CMSISDAPProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        TRACE.debug("trace: connect(%s)", protocol.name)
+        TRACE.debug("trace: connect(%s)", protocol.name if (protocol is not None) else "None")
         
         # Convert protocol to port enum.
         if protocol is not None:
