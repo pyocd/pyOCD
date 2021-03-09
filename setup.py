@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import os
 from setuptools import setup, find_packages
 import zipfile
@@ -25,13 +24,7 @@ import zipfile
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 os.chdir(SCRIPT_DIR)
 
-# Read the readme file using UTF-8 encoding.
-open_args = { 'mode': 'r' }
-if sys.version_info[0] > 2:
-    # Python 3.x version requires explicitly setting the encoding.
-    # Python 2.x version of open() doesn't support the encoding parameter.
-    open_args['encoding'] = 'utf-8'
-
+# Get the readme content.
 readme_path = os.path.join(SCRIPT_DIR, "README.md")
 with open(readme_path, mode='r', encoding='utf-8') as f:
     readme = f.read()
@@ -78,7 +71,7 @@ setup(
         'intelhex>=2.0,<3.0',
         'intervaltree>=3.0.2,<4.0',
         'naturalsort>=1.5,<2.0',
-        'prettytable>=2.0,<3.0;python_version>="3.0"',
+        'prettytable>=2.0,<3.0',
         'pyelftools<1.0',
         'pylink-square>=0.8.2,<1.0',
         'pyocd_pemicro>=1.0.0.post2', # Only supports python 3.6+
