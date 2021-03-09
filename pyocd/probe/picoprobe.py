@@ -23,6 +23,7 @@ from usb import core, util
 import platform
 import errno
 import logging
+from typing import List
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
@@ -101,13 +102,10 @@ class PicoLink(object):
         self._rd_ep = None
 
     @classmethod
-    def enumerate_picoprobes(cls, uid=None):
+    def enumerate_picoprobes(cls, uid=None) -> List["PicoLink"]:
         """! @brief Find and return all Picoprobes """
         # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
-        if uid is None:
-            return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
-        else:
-            return PicoLink(core.find(custom_match=FindPicoprobe(uid)))
+        return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
 
     def q_read_bits(self, bits):
         """! @brief Queue a read request for 'bits' bits to the probe """
@@ -336,9 +334,9 @@ class Picoprobe(DebugProbe):
 
     @ classmethod
     def get_probe_with_id(cls, unique_id, is_explicit=False):
-        probe = PicoLink.enumerate_picoprobes(unique_id)
-        if probe is not None:
-            return cls(probe)
+        probes = PicoLink.enumerate_picoprobes(unique_id)
+        if probes:
+            return cls(probes[0])
 
     def __init__(self, picolink):
         super(Picoprobe, self).__init__()
