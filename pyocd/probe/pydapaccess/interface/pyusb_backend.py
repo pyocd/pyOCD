@@ -39,8 +39,6 @@ try:
     import usb.core
     import usb.util
 except:
-    if platform.system() == "Linux":
-        LOG.error("PyUSB is required for CMSIS-DAP support on Linux")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True

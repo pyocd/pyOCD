@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import platform
 import six
 
 from .interface import Interface
@@ -28,8 +28,6 @@ LOG = logging.getLogger(__name__)
 try:
     import hid
 except:
-    if platform.system() == 'Darwin':
-        LOG.error("hidapi is required for CMSIS-DAP support on macOS")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
