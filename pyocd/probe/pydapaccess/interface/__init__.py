@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +17,7 @@
 
 import os
 import logging
+import platform
 from ..dap_access_api import DAPAccessIntf
 from .hidapi_backend import HidApiUSB
 from .pyusb_backend import PyUSB
@@ -40,8 +42,9 @@ if USB_BACKEND and ((USB_BACKEND not in INTERFACE) or (not INTERFACE[USB_BACKEND
     USB_BACKEND = ""
 
 # Select backend based on OS and availability.
+system = platform.system()
 if not USB_BACKEND:
-    if os.name == "nt":
+    if system == "Windows":
         # Prefer hidapi over pyWinUSB for Windows, since pyWinUSB has known bug(s)
         if HidApiUSB.isAvailable:
             USB_BACKEND = "hidapiusb"
@@ -49,12 +52,12 @@ if not USB_BACKEND:
             USB_BACKEND = "pywinusb"
         else:
             raise DAPAccessIntf.DeviceError("No USB backend found")
-    elif os.name == "posix":
-        # Select hidapi for OS X and pyUSB for Linux.
-        if os.uname()[0] == 'Darwin':
-            USB_BACKEND = "hidapiusb"
-        else:
-            USB_BACKEND = "pyusb"
+    # Default to hidapi for OS X.
+    elif system == "Darwin":
+        USB_BACKEND = "hidapiusb"
+    # Default to pyUSB for Linux.
+    elif system == "Linux":
+        USB_BACKEND = "pyusb"
     else:
         raise DAPAccessIntf.DeviceError("No USB backend found")
 

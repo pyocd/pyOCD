@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import platform
 import collections
 from time import sleep
 import six
@@ -32,8 +32,6 @@ LOG = logging.getLogger(__name__)
 try:
     import pywinusb.hid as hid
 except:
-    if platform.system() == "Windows":
-        LOG.error("PyWinUSB is required on a Windows Machine")
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
