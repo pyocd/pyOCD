@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
+# Copyright (c) Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -187,9 +188,10 @@ class PyUSBv2(Interface):
             new_board = PyUSBv2()
             new_board.vid = board.idVendor
             new_board.pid = board.idProduct
-            new_board.product_name = board.product or hex(board.idProduct)
-            new_board.vendor_name = board.manufacturer or hex(board.idVendor)
-            new_board.serial_number = board.serial_number or generate_device_unique_id(board)
+            new_board.product_name = board.product or f"{board.idProduct:#06x}"
+            new_board.vendor_name = board.manufacturer or f"{board.idVendor:#06x}"
+            new_board.serial_number = board.serial_number \
+                    or generate_device_unique_id(board.idProduct, board.idVendor, board.bus, board.address)
             boards.append(new_board)
 
         return boards

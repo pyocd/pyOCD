@@ -21,7 +21,10 @@ from time import sleep
 import six
 
 from .interface import Interface
-from .common import filter_device_by_usage_page
+from .common import (
+    filter_device_by_usage_page,
+    generate_device_unique_id,
+    )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
 
@@ -120,9 +123,10 @@ class PyWinUSB(Interface):
                 new_board = PyWinUSB()
                 new_board.report = report[0]
                 new_board.packet_size = len(new_board.report.get_raw_data()) - 1
-                new_board.vendor_name = dev.vendor_name
-                new_board.product_name = dev.product_name
-                new_board.serial_number = dev.serial_number
+                new_board.vendor_name = dev.vendor_name or f"{dev.vendor_id:#06x}"
+                new_board.product_name = dev.product_name or f"{dev.product_id:#06x}"
+                new_board.serial_number = dev.serial_number \
+                        or generate_device_unique_id(dev.vendor_id, dev.product_id, dev.device_path)
                 new_board.vid = dev.vendor_id
                 new_board.pid = dev.product_id
                 new_board.device = dev
