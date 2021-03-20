@@ -103,7 +103,7 @@ class PyWinUSB(Interface):
         # find devices with good vid/pid
         all_mbed_devices = []
         for d in all_devices:
-            if (d.product_name.find("CMSIS-DAP") >= 0):
+            if ("CMSIS-DAP" in d.product_name):
                 all_mbed_devices.append(d)
 
         boards = []
@@ -130,11 +130,11 @@ class PyWinUSB(Interface):
                 new_board.vid = dev.vendor_id
                 new_board.pid = dev.product_id
                 new_board.device = dev
-                dev.close()
                 boards.append(new_board)
             except Exception as e:
                 if (str(e) != "Failure to get HID pre parsed data"):
                     LOG.error("Receiving Exception: %s", e)
+            finally:
                 dev.close()
 
         return boards

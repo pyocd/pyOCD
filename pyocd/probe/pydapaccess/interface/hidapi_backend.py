@@ -62,16 +62,17 @@ class HidApiUSB(Interface):
 
         devices = hid.enumerate()
 
-        if not devices:
-            return []
-
         boards = []
 
         for deviceInfo in devices:
             product_name = to_str_safe(deviceInfo['product_string'])
-            if (product_name.find("CMSIS-DAP") < 0):
-                # Skip non cmsis-dap devices
-                continue
+            if ("CMSIS-DAP" not in product_name):
+                # Check the device path as a backup. Even though we can't get the interface name from
+                # hidapi, it may appear in the path. At least, it does on macOS.
+                device_path = to_str_safe(deviceInfo['path'])
+                if "CMSIS-DAP" not in device_path:
+                    # Skip non cmsis-dap devices
+                    continue
             
             vid = deviceInfo['vendor_id']
             pid = deviceInfo['product_id']
