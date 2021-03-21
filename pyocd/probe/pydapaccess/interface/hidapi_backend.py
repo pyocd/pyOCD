@@ -19,7 +19,10 @@ import logging
 import six
 
 from .interface import Interface
-from .common import filter_device_by_usage_page
+from .common import (
+    filter_device_by_usage_page,
+    generate_device_unique_id,
+    )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
 
@@ -59,16 +62,17 @@ class HidApiUSB(Interface):
 
         devices = hid.enumerate()
 
-        if not devices:
-            return []
-
         boards = []
 
         for deviceInfo in devices:
             product_name = to_str_safe(deviceInfo['product_string'])
-            if (product_name.find("CMSIS-DAP") < 0):
-                # Skip non cmsis-dap devices
-                continue
+            if ("CMSIS-DAP" not in product_name):
+                # Check the device path as a backup. Even though we can't get the interface name from
+                # hidapi, it may appear in the path. At least, it does on macOS.
+                device_path = to_str_safe(deviceInfo['path'])
+                if "CMSIS-DAP" not in device_path:
+                    # Skip non cmsis-dap devices
+                    continue
             
             vid = deviceInfo['vendor_id']
             pid = deviceInfo['product_id']
@@ -85,11 +89,12 @@ class HidApiUSB(Interface):
 
             # Create the USB interface object for this device.
             new_board = HidApiUSB()
-            new_board.vendor_name = deviceInfo['manufacturer_string']
-            new_board.product_name = deviceInfo['product_string']
-            new_board.serial_number = deviceInfo['serial_number']
             new_board.vid = vid
             new_board.pid = pid
+            new_board.vendor_name = deviceInfo['manufacturer_string'] or f"{vid:#06x}"
+            new_board.product_name = deviceInfo['product_string'] or f"{pid:#06x}"
+            new_board.serial_number = deviceInfo['serial_number'] \
+                    or generate_device_unique_id(vid, pid, six.ensure_str(deviceInfo['path']))
             new_board.device_info = deviceInfo
             new_board.device = dev
             boards.append(new_board)

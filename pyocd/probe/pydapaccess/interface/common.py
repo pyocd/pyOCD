@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +19,7 @@
 import usb.util
 from hashlib import sha1
 from base64 import b32encode
+from typing import (List, Union)
 
 # USB class codes.
 USB_CLASS_COMPOSITE = 0x00
@@ -110,17 +112,21 @@ def check_ep(interface, ep_index, ep_dir, ep_type):
     return (usb.util.endpoint_direction(ep.bEndpointAddress) == ep_dir) \
         and (usb.util.endpoint_type(ep.bmAttributes) == ep_type)
 
-def generate_device_unique_id(dev):
-    """! @brief Generate a semi-stable unique ID from a pyusb device.
+def generate_device_unique_id(vid: int, pid: int, *locations: List[Union[int, str]]) -> str:
+    """! @brief Generate a semi-stable unique ID from USB device properties.
     
     This function is intended to be used in cases where a device does not provide a serial number
     string. pyocd still needs a valid unique ID so the device can be selected from amongst multiple
     connected devices. The algorithm used here generates an ID that is stable for a given device as
     long as it is connected to the same USB port.
     
-    @param dev pyusb device object.
-    @return 16-character string.
+    @param vid Vendor ID.
+    @param pid Product ID.
+    @param locations Additional parameters are expected to be int or string values that represent
+        parts of the bus location to which the device is connected. At least one location parameter
+        must be provided.
+    @return Unique ID string generated from parameeters.
     """
-    s = "{:4x},{:4x},{:s},{:s}".format(dev.idProduct, dev.idVendor, dev.bus, dev.address)
-    return b32encode(sha1(s.encode()).digest()).decode('ascii')[:16]
+    s = f"{vid:4x},{pid:4x}," + ",".join(str(locations))
+    return b32encode(sha1(s.encode()).digest()).decode('ascii')
 
