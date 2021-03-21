@@ -96,7 +96,7 @@ Controls how pyOCD connects to the target. One of 'halt', 'pre-reset', 'under-re
 <td>float</td>
 <td>0.0</td>
 <td>
-<p>Timeout in seconds for instruction step operations. The default of 0 means no timeout.<p>
+<p>Timeout in seconds for instruction step operations. The default of 0 means no timeout.</p>
 <p>Note that stepping may take a very long time for to return in cases such as stepping over a branch
 into the Secure world where the debugger doesn't have secure debug access, or similar for Privileged
 code in the case of UDE.</p>
@@ -379,7 +379,7 @@ Name of the RTOS plugin to use. If not set, all RTOS plugins are given a chance 
 <td>
 If set to 'telnet' then the semihosting telnet server will be started. If set to 'console' then
 semihosting will print to the console.
-<td></tr>
+</td></tr>
 
 <tr><td>semihost_use_syscalls</td>
 <td>bool</td>

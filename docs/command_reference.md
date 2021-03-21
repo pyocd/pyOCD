@@ -27,7 +27,7 @@ All commands
 
 <tr><th>Command</th><th>Arguments</th><th>Description</th></tr>
 
-<tr><td colspan="3"><b>Breakpoints</b></tr>
+<tr><td colspan="3"><b>Breakpoints</b></td></tr>
 
 <tr><td>
 <a href="#break"><tt>break</tt></a>
@@ -75,7 +75,7 @@ ADDR [r|w|rw] [1|2|4]
 Set a watchpoint address, and optional access type (default rw) and size (4).
 </td></tr>
 
-<tr><td colspan="3"><b>Bringup</b></tr>
+<tr><td colspan="3"><b>Bringup</b></td></tr>
 
 <tr><td>
 <a href="#initdp"><tt>initdp</tt></a>
@@ -99,7 +99,7 @@ Creates a new AP object for the given APSEL.
 Reinitialize the target object.
 </td></tr>
 
-<tr><td colspan="3"><b>Commander</b></tr>
+<tr><td colspan="3"><b>Commander</b></td></tr>
 
 <tr><td>
 <a href="#exit"><tt>exit</tt></a>,
@@ -116,7 +116,7 @@ Quit pyocd commander.
 Show available targets.
 </td></tr>
 
-<tr><td colspan="3"><b>Core</b></tr>
+<tr><td colspan="3"><b>Core</b></td></tr>
 
 <tr><td>
 <a href="#continue"><tt>continue</tt></a>,
@@ -153,7 +153,7 @@ Halt the target.
 Step one or more instructions.
 </td></tr>
 
-<tr><td colspan="3"><b>Dap</b></tr>
+<tr><td colspan="3"><b>Dap</b></td></tr>
 
 <tr><td>
 <a href="#readap"><tt>readap</tt></a>,
@@ -191,7 +191,7 @@ ADDR DATA
 Write DP register.
 </td></tr>
 
-<tr><td colspan="3"><b>Device</b></tr>
+<tr><td colspan="3"><b>Device</b></td></tr>
 
 <tr><td>
 <a href="#reset"><tt>reset</tt></a>
@@ -208,7 +208,7 @@ Reset the target, optionally specifying the reset type.
 Unlock security on the target.
 </td></tr>
 
-<tr><td colspan="3"><b>General</b></tr>
+<tr><td colspan="3"><b>General</b></td></tr>
 
 <tr><td>
 <a href="#help"><tt>help</tt></a>,
@@ -219,7 +219,7 @@ Unlock security on the target.
 Show help for commands.
 </td></tr>
 
-<tr><td colspan="3"><b>Memory</b></tr>
+<tr><td colspan="3"><b>Memory</b></td></tr>
 
 <tr><td>
 <a href="#compare"><tt>compare</tt></a>,
@@ -359,7 +359,7 @@ ADDR DATA+
 Write 8-bit bytes to memory.
 </td></tr>
 
-<tr><td colspan="3"><b>Registers</b></tr>
+<tr><td colspan="3"><b>Registers</b></td></tr>
 
 <tr><td>
 <a href="#reg"><tt>reg</tt></a>
@@ -377,7 +377,7 @@ Print core or peripheral register(s).
 Set the value of a core or peripheral register.
 </td></tr>
 
-<tr><td colspan="3"><b>Semihosting</b></tr>
+<tr><td colspan="3"><b>Semihosting</b></td></tr>
 
 <tr><td>
 <a href="#arm"><tt>arm</tt></a>
@@ -387,7 +387,7 @@ semihosting {enable,disable}
 Enable or disable semihosting.
 </td></tr>
 
-<tr><td colspan="3"><b>Servers</b></tr>
+<tr><td colspan="3"><b>Servers</b></td></tr>
 
 <tr><td>
 <a href="#gdbserver"><tt>gdbserver</tt></a>
@@ -405,7 +405,7 @@ Control the gdbserver for the selected core.
 Control the debug probe server.
 </td></tr>
 
-<tr><td colspan="3"><b>Symbols</b></tr>
+<tr><td colspan="3"><b>Symbols</b></td></tr>
 
 <tr><td>
 <a href="#symbol"><tt>symbol</tt></a>
@@ -423,7 +423,7 @@ Show a symbol's value.
 Show symbol, file, and line for address.
 </td></tr>
 
-<tr><td colspan="3"><b>Target</b></tr>
+<tr><td colspan="3"><b>Target</b></td></tr>
 
 <tr><td>
 <a href="#status"><tt>status</tt></a>,
@@ -433,7 +433,7 @@ Show symbol, file, and line for address.
 Show the target's current state.
 </td></tr>
 
-<tr><td colspan="3"><b>Threads</b></tr>
+<tr><td colspan="3"><b>Threads</b></td></tr>
 
 <tr><td>
 <a href="#threads"><tt>threads</tt></a>
@@ -443,7 +443,7 @@ Show the target's current state.
 Control thread awareness.
 </td></tr>
 
-<tr><td colspan="3"><b>Values</b></tr>
+<tr><td colspan="3"><b>Values</b></td></tr>
 
 <tr><td>
 <a href="#set"><tt>set</tt></a>

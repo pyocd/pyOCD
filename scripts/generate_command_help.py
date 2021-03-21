@@ -80,7 +80,7 @@ def gen_cmd_groups(commands):
     categories = build_categories(commands)
     
     for group in sorted(categories.keys()):
-        print(f"""<tr><td colspan="3"><b>{group.capitalize()}</b></tr>
+        print(f"""<tr><td colspan="3"><b>{group.capitalize()}</b></td></tr>
 """)
         
         group_cmds = sorted(categories[group], key=lambda c: c.INFO['names'][0])
