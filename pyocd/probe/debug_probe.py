@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +19,40 @@ from enum import Enum
 import threading
 
 class DebugProbe(object):
-    """! @brief Abstract debug probe class."""
+    """! @brief Abstract debug probe class.
+    
+    Subclasses of this abstract class are drivers for different debug probe interfaces, either hardware such as a
+    USB based probe, or software such as connecting with a simulator.
+    
+    The constructor is private. To create an instance, use either of get_all_connected_probes() or get_probe_with_id().
+    Normally, the @ref pyocd.probe.aggregator.DebugProbeAggregator "DebugProbeAggregator" class is used instead of
+    directly calling methods on a specific probe class.
+    
+    Use an instance as follows:
+    
+    1. Call open().
+    2. Optionally inspect the `supported_wire_protocols` property and select a protocol to use.
+    3. Call connect(), passing the chosen wire protocol.
+    4. Use by instance by calling other methods.
+    5. Call disconnect().
+    6. Call close().
+    
+    Most methods are required to be overridden by a subclass, with a few exceptions.
+    
+    These methods are completely optional:
+    
+    - create_associated_board()
+    - flush()
+    - get_memory_interface_for_ap()
+    
+    These methods must be implemented depending on the probe capabilities, as returned from the `capabilities` property.
+    
+    - swj_sequence(): Capability.SWJ_SEQUENCE; if not provided it is assumed the probe automatically enables SWD or JTAG
+        on the target based on the protocol passed into connect().
+    - swd_sequence(): Capability.SWD_SEQUENCE
+    - jtag_sequence(): Capability.JTAG_SEQUENCE
+    - swo_*(): Capability.SWO
+    """
 
     class Protocol(Enum):
         """! @brief Debug wire protocols."""
