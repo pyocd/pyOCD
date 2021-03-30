@@ -98,6 +98,7 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0x907, 0x21, 0)      : CmpInfo('ETB',             None,       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('CSTF',            None,       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',            None,       TPIU.factory        ),
+    (ARM_ID, CORESIGHT_CLASS, 0x914, 0x11, 0)      : CmpInfo('SWO',             'CS-400',   TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x923, 0x11, 0)      : CmpInfo('TPIU',            'M3',       TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x924, 0x13, 0)      : CmpInfo('ETM',             'M3',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x925, 0x13, 0)      : CmpInfo('ETM',             'M4',       None                ),
