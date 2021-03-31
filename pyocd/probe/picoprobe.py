@@ -26,6 +26,7 @@ import logging
 from typing import List
 
 from .debug_probe import DebugProbe
+from .common import show_no_libusb_warning
 from ..core import exceptions
 from ..core.options import OptionInfo
 from ..core.plugin import Plugin
@@ -104,8 +105,12 @@ class PicoLink(object):
     @classmethod
     def enumerate_picoprobes(cls, uid=None) -> List["PicoLink"]:
         """! @brief Find and return all Picoprobes """
-        # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
-        return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
+        try:
+            # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
+            return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
+        except core.NoBackendError:
+            show_no_libusb_warning()
+            return []
 
     def q_read_bits(self, bits):
         """! @brief Queue a read request for 'bits' bits to the probe """
