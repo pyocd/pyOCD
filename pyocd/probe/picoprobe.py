@@ -104,8 +104,13 @@ class PicoLink(object):
     @classmethod
     def enumerate_picoprobes(cls, uid=None) -> List["PicoLink"]:
         """! @brief Find and return all Picoprobes """
-        # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
-        return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
+        try:
+            # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
+            return [PicoLink(probe) for probe in core.find(find_all=True, custom_match=FindPicoprobe(uid))]
+        except core.NoBackendError:
+            LOG.debug(" No usb backend found")
+            return []
+
 
     def q_read_bits(self, bits):
         """! @brief Queue a read request for 'bits' bits to the probe """
