@@ -124,22 +124,22 @@ index is downloaded, pyOCD can very quickly locate the DFP that provides support
 MCU part number. To learn more about the index, see the [CMSIS-Pack index
 files](http://arm-software.github.io/CMSIS_5/Pack/html/packIndexFile.html) documentation.
 
-The two most useful options for the `pack` subcommand are `--find` and `--install`. The options
-accept a glob-style pattern that is matched against MCU part numbers in the index. If the index
-has not been downloaded yet, that will be done first. `--find` will print out which DFPs provide
-support for matching part numbers. `--install` performs the same match, but downloads and installs
-the matching DFPs. The patterns are matched case-insensitively and as a starts-with comparison.
+The two most useful subcommands of the `pack` subcommand are `find` and `install`. The options accept a glob-style
+pattern that is matched against MCU part numbers in the index. If the index has not been downloaded yet, that will be
+done first, or you can run `pyocd pack update` yourself. The `find` subcommand will print out a list of matching part
+numbers and the names of the containing DFPs. `install` performs the same match, but downloads and installs the matching
+DFPs. The part number patterns are matched case-insensitively and as a contains comparison.
 
 For instance, if you know the specific part number of the device you are using, say STM32L073, you
 can run this command to install support:
 
-    $ pyocd pack --install stm32l073
+    $ pyocd pack install stm32l073
 
-This will download the index if required, then download the STM32L0xx_DFP pack.
+This will download the index if required, then download the STM32L0xx_DFP pack. The
 
 As another example, to find which pack(s) support the NXP MK26F family, you could run:
 
-    $ pyocd pack --find mk26
+    $ pyocd pack find k26
 
 This will print a table similar to:
 
@@ -152,6 +152,8 @@ This will print a table similar to:
 
 Once a DFP is installed, the `pyocd list --targets` command will show the new targets in its output,
 and you can immediately begin using the target support with the other `pyocd` subcommands.
+
+To get a list of all installed packs, use the `pack show` subcommand.
 
 
 #### Manual pack usage
