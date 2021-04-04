@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 import logging
 import shlex
 import six
+from typing import (Any, Dict, Iterable, List, Sequence, Union, Optional, Tuple)
 
 from ..core.target import Target
 from ..core.options import OPTIONS_INFO
@@ -24,7 +26,7 @@ from ..utility.compatibility import to_str_safe
 
 LOG = logging.getLogger(__name__)
 
-def split_command_line(cmd_line):
+def split_command_line(cmd_line: Union[str, List[str]]) -> List[str]:
     """! @brief Split command line by whitespace, supporting quoted strings."""
     result = []
     if isinstance(cmd_line, six.string_types):
@@ -50,7 +52,7 @@ VECTOR_CATCH_CHAR_MAP = {
         'n': Target.VectorCatch.NONE,
     }
 
-def convert_vector_catch(value):
+def convert_vector_catch(value: str) -> int:
     """! @brief Convert a vector catch string to a mask.
     
     @exception ValueError Raised if an invalid vector catch character is encountered.
@@ -71,7 +73,7 @@ def convert_vector_catch(value):
         # Reraise an error with a more helpful message.
         raise ValueError("invalid vector catch option '{}'".format(e.args[0]))
 
-def convert_session_options(option_list):
+def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
     """! @brief Convert a list of session option settings to a dictionary."""
     options = {}
     if option_list is not None:
@@ -133,7 +135,7 @@ RESET_TYPE_MAP = {
         'emulated': Target.ResetType.SW_EMULATED,
     }
 
-def convert_reset_type(value):
+def convert_reset_type(value: str) -> Target.ResetType:
     """! @brief Convert a reset_type session option value to the Target.ResetType enum.
     @param value The value of the reset_type session option.
     @exception ValueError Raised if an unknown reset_type value is passed.
@@ -143,7 +145,7 @@ def convert_reset_type(value):
         raise ValueError("unexpected value for reset_type option ('%s')" % value)
     return RESET_TYPE_MAP[value]
 
-def convert_frequency(value):
+def convert_frequency(value: str) -> int:
     """! @brief Applies scale suffix to frequency value string.
     @param value String with a float and possible 'k' or 'm' suffix (case-insensitive). "Hz" may
         also follow. No space is allowed between the float and suffix. Leading and trailing
@@ -155,33 +157,33 @@ def convert_frequency(value):
         value = value[:-2]
     suffix = value[-1]
     if suffix in ('k', 'm'):
-        value = float(value[:-1])
+        fvalue = float(value[:-1])
         if suffix == 'k':
-            value *= 1000
+            fvalue *= 1000
         elif suffix == 'm':
-            value *= 1000000
-        return int(value)
+            fvalue *= 1000000
+        return int(fvalue)
     else:
         return int(float(value))
 
-class UniquePrefixMatcher(object):
+class UniquePrefixMatcher():
     """! @brief Manages detection of shortest unique prefix match of a set of strings."""
     
-    def __init__(self, items=None):
+    def __init__(self, items: Optional[Sequence[str]] = None):
         """! @brief Constructor.
         @param self This object.
         @param items Optional sequence of strings.
         """
         self._items = set(items) if (items is not None) else set()
     
-    def add_items(self, items):
+    def add_items(self, items: Sequence[str]) -> None:
         """! @brief Add some items to be matched.
         @param self This object.
         @param items Sequence of strings.
         """
         self._items.update(items)
     
-    def find_all(self, prefix):
+    def find_all(self, prefix: str) -> Tuple[str, ...]:
         """! @brief Return all items matching the given prefix.
         @param self This object.
         @param prefix String that is compared as a prefix against the items passed to the constructor.
@@ -196,7 +198,7 @@ class UniquePrefixMatcher(object):
             return (prefix,)
         return tuple(i for i in self._items if i.startswith(prefix))
     
-    def find_one(self, prefix):
+    def find_one(self, prefix: str) -> Optional[str]:
         """! @brief Return the item matching the given prefix, or None.
         @param self This object.
         @param prefix String that is compared as a prefix against the items passed to the constructor.
