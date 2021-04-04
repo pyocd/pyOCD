@@ -29,7 +29,6 @@ import six
 import struct
 
 from .flash_algo import PackFlashAlgo
-from ... import core
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
@@ -430,7 +429,10 @@ class CmsisPackDevice(object):
         if self._default_ram is None:
             LOG.warning("CMSIS-Pack device %s has no default RAM defined, cannot program flash" % self.part_number)
             return
-        
+
+        # Can't import at top level due to import loops.
+        from ...core.session import Session
+
         regions_to_delete = [] # List of regions to delete.
         regions_to_add = [] # List of FlashRegion objects to add.
 
@@ -454,7 +456,8 @@ class CmsisPackDevice(object):
             packAlgo = PackFlashAlgo(algoData)
             
             # Log details of this flash algo if the debug option is enabled.
-            current_session = core.session.Session.get_current()
+            
+            current_session = Session.get_current()
             if current_session and current_session.options.get("debug.log_flm_info"):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
             
