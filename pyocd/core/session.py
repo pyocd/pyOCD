@@ -194,7 +194,11 @@ class Session(Notifier):
                     with open(configPath, 'r') as configFile:
                         LOG.debug("Loading config from: %s", configPath)
                         config = yaml.safe_load(configFile)
-                        if not isinstance(config, dict):
+                        # Allow an empty config file.
+                        if config is None:
+                            return {}
+                        # But fail if someone tries to put something other than a dict at the top.
+                        elif not isinstance(config, dict):
                             raise exceptions.Error("configuration file %s does not contain a top-level dictionary"
                                     % configPath)
                         return config

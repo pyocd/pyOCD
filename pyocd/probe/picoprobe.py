@@ -687,7 +687,7 @@ class PicoprobePlugin(Plugin):
 
     @ property
     def name(self):
-        return "Picoprobe"
+        return "picoprobe"
 
     @ property
     def description(self):
