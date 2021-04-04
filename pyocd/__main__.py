@@ -22,6 +22,7 @@ import sys
 import logging
 import argparse
 import colorama
+import fnmatch
 from typing import (Any, Optional, Sequence)
 
 from . import __version__
@@ -65,6 +66,15 @@ class PyOCDTool(SubcommandBase):
         ServerSubcommand,
         ]
     
+    ## @brief Logging level names.
+    LOG_LEVEL_NAMES = {
+            'debug': logging.DEBUG,
+            'info': logging.INFO,
+            'warning': logging.WARNING,
+            'error': logging.ERROR,
+            'critical': logging.CRITICAL,
+            }
+
     def __init__(self):
         # Start with an empty namespace.
         super().__init__(argparse.Namespace())
@@ -74,7 +84,7 @@ class PyOCDTool(SubcommandBase):
         """! @brief Construct the command line parser with all subcommands and options."""
         # Create top level argument parser.
         parser = argparse.ArgumentParser(description=self.HELP)
-        parser.set_defaults(command_class=self, quiet=0, verbose=0)
+        parser.set_defaults(command_class=self, quiet=0, verbose=0, log_level=[])
 
         parser.add_argument('-V', '--version', action='version', version=__version__)
         parser.add_argument('--help-options', action='store_true',
@@ -88,9 +98,29 @@ class PyOCDTool(SubcommandBase):
         """! @brief Configure the logging module.
         
         The quiet and verbose argument counts are used to set the log verbosity level.
+        
+        Log level for specific loggers are also configured here.
         """
         level = max(1, self._args.command_class.DEFAULT_LOG_LEVEL + self._get_log_level_delta())
         logging.basicConfig(level=level, format=LOG_FORMAT)
+        
+        # Handle settings for individual loggers from --log-level arguments.
+        for logger_setting in self._args.log_level:
+            try:
+                loggers, level_name = logger_setting.split('=')[:2]
+                level = self.LOG_LEVEL_NAMES[level_name.strip().lower()]
+                for logger_pattern in loggers.split(','):
+                    matching_loggers = fnmatch.filter(logging.root.manager.loggerDict.keys(), logger_pattern.strip()) # type:ignore
+                    LOG.debug('setting log level %s for %s', level_name, matching_loggers)
+                    for logger in matching_loggers:
+                        log = logging.getLogger(logger)
+                        log.setLevel(level)
+                        log.disabled = False
+            except (ValueError, KeyError):
+                raise exceptions.CommandError(f"invalid --log-level argument '{logger_setting}'")
+            except AttributeError:
+                LOG.warning("Failed to set logger levels; logging module may have changed.")
+                break
 
     def invoke(self) -> int:
         """! @brief Show help when pyocd is run with no subcommand."""

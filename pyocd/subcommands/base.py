@@ -39,10 +39,15 @@ class SubcommandBase:
         
         # Define logging related options.
         LOGGING = argparse.ArgumentParser(description='logging', add_help=False)
-        LOGGING.add_argument('-v', '--verbose', action='count', default=0,
-            help="More logging. Can be specified multiple times.")
-        LOGGING.add_argument('-q', '--quiet', action='count', default=0,
-            help="Less logging. Can be specified multiple times.")
+        LOGGING_GROUP = LOGGING.add_argument_group("logging")
+        LOGGING_GROUP.add_argument('-v', '--verbose', action='count', default=0,
+            help="Increase logging level. Can be specified multiple times.")
+        LOGGING_GROUP.add_argument('-q', '--quiet', action='count', default=0,
+            help="Decrease logging level. Can be specified multiple times.")
+        LOGGING_GROUP.add_argument('-L', '--log-level', action='append', metavar="LOGGERS=LEVEL", default=[],
+            help="Set log level of loggers matching any of the comma-separated list of logger name glob-style "
+            "patterns. Log level must be one of 'critical', 'error', 'warning', 'info', or 'debug'. Can be "
+            "specified multiple times. Example: -L*.trace,pyocd.core.*=debug")
     
         # Define config related options for all subcommands.
         CONFIG = argparse.ArgumentParser(description='common', add_help=False)
