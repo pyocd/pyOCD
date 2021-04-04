@@ -3,8 +3,16 @@ Configuring Logging
 
 ## Overview
 
-pyOCD uses the standard Python [logging](https://docs.python.org/3.8/library/logging.html) package
-for all its logging.
+pyOCD provides extensive control over log output. It uses the standard Python
+[logging](https://docs.python.org/3.8/library/logging.html) package for all its logging. There are several ways
+to set log levels, both globally and with precise control.
+
+- Verbosity controls
+- Logger-level control
+- Advanced configuration
+
+
+## Log levels
 
 There are multiple log levels, in order from least to most verbose:
 - CRITICAL
@@ -38,6 +46,73 @@ logging verbosity level. For example, a single `--verbose` moves `pyocd flash` f
 level of WARNING to INFO.
 
 
+## Loggers
+
+Each module in pyOCD uses its own module-specific logger with a name matching the dotted module
+name, for instance `pyocd.coresight.fpb`. This lets you control verbosity at the module level. Even
+more advanced configurations, such as routing a particular module's log output to a separate file,
+are also possible.
+
+The best way to see which loggers are available is simply to look at the pyOCD source code to see
+its package structure.
+
+
+### Trace loggers
+
+Certain modules define additional sub-module loggers that output debug trace logs. These loggers always have the
+suffix ".trace" and are set to critical log level by default.
+
+Currently defined trace loggers:
+
+Trace logger                                            | Trace output
+--------------------------------------------------------|----------------------------------------------
+`pyocd.coresight.ap.trace`                              | AP memory transfers
+`pyocd.coresight.dap.trace`                             | AP and DP register accesses
+`pyocd.debug.semihost.trace`                            | Semihost file operations
+`pyocd.flash.flash.trace`                               | Flash algorithm operations
+`pyocd.probe.cmsis_dap_probe.trace`                     | CMSIS-DAP probe API calls
+`pyocd.probe.jlink_probe.trace`                         | Log output from JLink library
+`pyocd.probe.pydapaccess.dap_access_cmsis_dap.trace`    | CMSIS-DAP packet building
+`pyocd.probe.stlink.usb.trace`                          | STLink USB transfers
+`pyocd.probe.tcp_client_probe.trace`                    | Remote probe client requests and responses
+`pyocd.probe.tcp_probe_server.trace`                    | Remote probe server requests and responses
+`pyocd.utility.notification.trace`                      | Sent notifications 
+
+
+## Logger-level control
+
+The `--log-level` / `-L` command line argument makes it easy to control logging at the level of individual loggers
+or groups of loggers. The argument accepts a comma-separated list of logger names followed by an "=" sign and a
+log level name (case-insensitive).
+
+The logger names are actually glob-style patterns, as supported by many command line shells. This allows use of these
+wildcards:
+
+Pattern     | Meaning
+------------|-----------------------------------
+`*`         | matches everything
+`?`         | matches any single character
+`[seq]`     | matches any character in seq
+`[!seq]`    | matches any character not in seq
+`[*]`       | match literal "*"
+`[?]`       | match literal "?"
+
+The `--log-level` argument can be used more than once on a command line. The arguments are processed in the order they
+appear, so later arguments can refine log level settings made by earlier arguments.
+
+Setting the log level of parent loggers affects the level of all child loggers.
+
+Examples:
+
+- `-L 'pyocd.probe.*=debug'`: set all pyOCD debug probe modules to debug log level
+- `-L pyocd.core.session,pyocd.core.options=info`: set two modules to info log level
+- `-L '*.trace=debug -L *.jlink=warning'`: enable all trace loggers, but set JLink and its trace logger to warnings
+    only
+
+Note that you may need to place the value used with `--log-level` in quotes to prevent the shell from attempting to
+expand wildcards as file names.
+
+
 ## Advanced control
 
 Fine-grained control of pyOCD log output is available through logging configuration. The logging
@@ -49,17 +124,6 @@ Usually it is easiest to include the configuration directly in a `pyocd.yaml` co
 [configuration documentation](configuration.md) for more on config files. The file path is most
 useful when passing the `logging` option via the command line, since you can't provide a dictionary
 this way.
-
-
-### Loggers
-
-Each module in pyOCD uses its own module-specific logger with a name matching the dotted module
-name, for instance `pyocd.coresight.fpb`. This lets you control verbosity at the module level. Even
-more advanced configurations, such as routing a particular module's log output to a separate file,
-are also possible.
-
-The best way to see which loggers are available is simply to look at the pyOCD source code to see
-its package structure.
 
 
 ### Controlling module log levels
