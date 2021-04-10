@@ -211,6 +211,7 @@ BOARD_ID_TO_INFO = {
     "1304": BoardInfo(  "NuMaker-PFM-M487",     "m487jidae",        None,                   ),
     "1309": BoardInfo(  "NuMaker-M252KG",       "m252kg6ae",        None,                   ),
     "1310": BoardInfo(  "NuMaker-IoT-M263A",    "m263kiaae",        None,                   ),
+    "1312": BoardInfo(  "NuMaker-M2354",        "m2354kjfae",       None,                   ),
     "1549": BoardInfo(  "LPC1549",              "lpc1549jbd100",    None,                   ),
     "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
     "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
