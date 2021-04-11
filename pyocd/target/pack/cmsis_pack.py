@@ -19,7 +19,7 @@
 # limitations under the License.
 
 from __future__ import print_function
-from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 from collections import namedtuple
 import logging
@@ -48,6 +48,16 @@ class _DeviceInfo(object):
         self.memories = kwargs.get('memories', [])
         self.algos = kwargs.get('algos', [])
         self.debugs = kwargs.get('debugs', [])
+
+def _get_part_number_from_element(element: Element) -> str:
+    """! @brief Extract the part number from a device or variant XML element."""
+    assert element.tag in ("device", "variant")
+    if element.tag == "device":
+        return element.attrib['Dname']
+    elif element.tag == "variant":
+        return element.attrib['Dvariant']
+    else:
+        raise ValueError("element is neither device nor variant")
 
 class CmsisPack(object):
     """! @brief Wraps a CMSIS Device Family Pack.
@@ -249,19 +259,22 @@ class CmsisPackDescription(object):
                 del map[info]
             for k in list(map.keys()):
                 prev_pname = k[1]
-                if prev_pname != pname:
-                    continue
+                # Previously, we would not check for overlaps if the pname was different. But because pyocd
+                # currently only supports one memory map for the whole device, we have to ignore the pname for
+                # now.
                 prev_elem = map[k]
                 prev_start, prev_size = get_start_and_size(prev_elem)
                 # Overlap: start or end between previous start and previous end
                 end = start + size - 1
                 prev_end = prev_start + prev_size - 1
                 if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
-                    if not self._warned_overlapping_memory_regions:
+                    # Only report warnings for overlapping regions from the same processor. Allow regions for different
+                    # processors to override each other, since we don't yet support maps for each processor.
+                    if (pname == prev_pname) and not self._warned_overlapping_memory_regions:
                         filename = self.pack.filename if self.pack else "unknown"
-                        LOG.warning("Overlapping memory regions in file " + str(filename) + ","
-                                    " deleting outer region. Further warnings will be suppressed"
-                                    " for this file.")
+                        LOG.warning("Overlapping memory regions in file %s (%s); deleting outer region. "
+                                    "Further warnings will be suppressed for this file.",
+                                    filename, _get_part_number_from_element(self._state_stack[-1].element))
                         self._warned_overlapping_memory_regions = True
                     del map[k]
 
@@ -344,12 +357,7 @@ class CmsisPackDevice(object):
         """
         self._pack = pack
         self._info = device_info
-        
-        if device_info.element.tag == "device":
-            self._part = device_info.element.attrib['Dname']
-        elif device_info.element.tag == "variant":
-            self._part = device_info.element.attrib['Dvariant']
-        
+        self._part = _get_part_number_from_element(device_info.element)
         self._regions = []
         self._saw_startup = False
         self._default_ram = None
