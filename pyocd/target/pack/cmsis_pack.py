@@ -27,6 +27,7 @@ import io
 import itertools
 import six
 import struct
+from typing import Optional
 
 from .flash_algo import PackFlashAlgo
 from ...core import exceptions
@@ -448,15 +449,17 @@ class CmsisPackDevice(object):
                 # Must be a mask ROM or non-programmable flash.
                 continue
 
+            # Load flash algo from .FLM file.
+            packAlgo = self._load_flash_algo(algo.attrib['name'])
+            if packAlgo is None:
+                LOG.warning("Failed to convert ROM region to flash region because flash algorithm '%s' could not be "
+                            " found (%s)", algo.attrib['name'], self.part_number)
+                continue
+            
             # The ROM region will be replaced with one or more flash regions.
             regions_to_delete.append(region)
 
-            # Load flash algo from .FLM file.
-            algoData = self.pack.get_file(algo.attrib['name'])
-            packAlgo = PackFlashAlgo(algoData)
-            
             # Log details of this flash algo if the debug option is enabled.
-            
             current_session = Session.get_current()
             if current_session and current_session.options.get("debug.log_flm_info"):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
@@ -539,6 +542,17 @@ class CmsisPackDevice(object):
             # Check if the region indicated by start..size fits within the algo.
             if (algoStart <= region.start <= algoEnd) and (algoStart <= region.end <= algoEnd):
                 return algo
+        return None
+    
+    def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
+        """! @brief Return the PackFlashAlgo instance for the given flash algo filename."""
+        if self.pack is not None:
+            try:
+                algo_data = self.pack.get_file(filename)
+                return PackFlashAlgo(algo_data)
+            except FileNotFoundError:
+                pass
+        # Return default value.
         return None
 
     @property
