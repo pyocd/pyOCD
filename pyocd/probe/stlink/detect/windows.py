@@ -1,4 +1,5 @@
 # Copyright (c) 2018-2019, Arm Limited and affiliates.
+# Copyright (c) 2021 Chris Reed.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,11 +24,17 @@ from .base import StlinkDetectBase
 
 LOG = logging.getLogger(__name__)
 
-if sys.version_info[0] < 3:
-    import _winreg as winreg
-else:
-    import winreg
-
+try:
+    if sys.version_info[0] < 3:
+        import _winreg as winreg
+    else:
+        import winreg
+except ImportError:
+    # Only allow the exception to propagate on Windows. This module should never be imported
+    # in the first place on other OSes, allowing imports is simply for easier testing.
+    import platform
+    if platform.system() == "Windows":
+        raise
 
 MAX_COMPOSITE_DEVICE_SUBDEVICES = 5
 MBED_STORAGE_DEVICE_VENDOR_STRINGS = [

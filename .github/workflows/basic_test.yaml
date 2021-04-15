@@ -55,6 +55,10 @@ jobs:
       run: |
         pytest --junitxml=test-results-${{ matrix.python-version }}.xml --cov=pyocd --cov-report=xml
 
+    - name: Test importing all modules
+      run: |
+        python test/import_all.py
+
     - name: Test build
       run: |
         python setup.py sdist bdist_wheel
