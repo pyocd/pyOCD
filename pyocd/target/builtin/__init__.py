@@ -95,6 +95,7 @@ from .cypress import target_CY8C64x5
 from . import target_musca_a1
 from . import target_musca_b1
 from . import target_musca_s1
+from . import target_LPC5526Jxxxxx
 from . import target_LPC55S69Jxxxxx
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
@@ -215,6 +216,7 @@ BUILTIN_TARGETS = {
           'musca_a1' : target_musca_a1.MuscaA1,
           'musca_b1' : target_musca_b1.MuscaB1,
           'musca_s1' : target_musca_s1.MuscaS1,
+          'lpc5526'  : target_LPC5526Jxxxxx.LPC5526,
           'lpc55s69' : target_LPC55S69Jxxxxx.LPC55S69,
           'lpc55s28' : target_LPC55S28Jxxxxx.LPC55S28,
           'cy8c64xx_cm0_full_flash' : target_CY8C64xx.cy8c64xx_cm0_full_flash,
