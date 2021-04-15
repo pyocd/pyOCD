@@ -95,6 +95,7 @@ from .cypress import target_CY8C64x5
 from . import target_musca_a1
 from . import target_musca_b1
 from . import target_musca_s1
+from . import target_LPC5526Jxxxxx
 from . import target_LPC55S69Jxxxxx
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
