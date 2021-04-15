@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import argparse
-from typing import List
+from typing import (List, Set)
 import logging
 import re
 import fnmatch
@@ -45,7 +45,7 @@ class PackSubcommandBase(SubcommandBase):
         verbosity = self._args.verbose - self._args.quiet
         return cmsis_pack_manager.Cache(verbosity < 0, False)
 
-    def _get_matches(self, cache: "cmsis_pack_manager.Cache") -> set[str]:
+    def _get_matches(self, cache: "cmsis_pack_manager.Cache") -> Set[str]:
         if not cache.index:
             LOG.info("No pack index present, downloading now...")
             cache.cache_descriptors()
