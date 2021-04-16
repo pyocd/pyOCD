@@ -133,13 +133,13 @@ DFPs. The part number patterns are matched case-insensitively and as a contains 
 For instance, if you know the specific part number of the device you are using, say STM32L073, you
 can run this command to install support:
 
-    $ pyocd pack install stm32l073
+    $ pyocd pack --install stm32l073
 
 This will download the index if required, then download the STM32L0xx_DFP pack. The
 
 As another example, to find which pack(s) support the NXP MK26F family, you could run:
 
-    $ pyocd pack find k26
+    $ pyocd pack --find k26
 
 This will print a table similar to:
 
