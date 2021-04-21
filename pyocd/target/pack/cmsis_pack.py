@@ -19,7 +19,7 @@
 # limitations under the License.
 
 from __future__ import print_function
-from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 from collections import namedtuple
 import logging
@@ -27,9 +27,9 @@ import io
 import itertools
 import six
 import struct
+from typing import Optional
 
 from .flash_algo import PackFlashAlgo
-from ... import core
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
@@ -48,6 +48,16 @@ class _DeviceInfo(object):
         self.memories = kwargs.get('memories', [])
         self.algos = kwargs.get('algos', [])
         self.debugs = kwargs.get('debugs', [])
+
+def _get_part_number_from_element(element: Element) -> str:
+    """! @brief Extract the part number from a device or variant XML element."""
+    assert element.tag in ("device", "variant")
+    if element.tag == "device":
+        return element.attrib['Dname']
+    elif element.tag == "variant":
+        return element.attrib['Dvariant']
+    else:
+        raise ValueError("element is neither device nor variant")
 
 class CmsisPack(object):
     """! @brief Wraps a CMSIS Device Family Pack.
@@ -249,18 +259,22 @@ class CmsisPackDescription(object):
                 del map[info]
             for k in list(map.keys()):
                 prev_pname = k[1]
-                if prev_pname != pname:
-                    continue
+                # Previously, we would not check for overlaps if the pname was different. But because pyocd
+                # currently only supports one memory map for the whole device, we have to ignore the pname for
+                # now.
                 prev_elem = map[k]
                 prev_start, prev_size = get_start_and_size(prev_elem)
                 # Overlap: start or end between previous start and previous end
                 end = start + size - 1
                 prev_end = prev_start + prev_size - 1
                 if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
-                    if not self._warned_overlapping_memory_regions:
-                        LOG.warning("Overlapping memory regions in file " + str(self.pack.filename) + ","
-                                    " deleting outer region. Further warnings will be suppressed"
-                                    " for this file.")
+                    # Only report warnings for overlapping regions from the same processor. Allow regions for different
+                    # processors to override each other, since we don't yet support maps for each processor.
+                    if (pname == prev_pname) and not self._warned_overlapping_memory_regions:
+                        filename = self.pack.filename if self.pack else "unknown"
+                        LOG.warning("Overlapping memory regions in file %s (%s); deleting outer region. "
+                                    "Further warnings will be suppressed for this file.",
+                                    filename, _get_part_number_from_element(self._state_stack[-1].element))
                         self._warned_overlapping_memory_regions = True
                     del map[k]
 
@@ -343,12 +357,7 @@ class CmsisPackDevice(object):
         """
         self._pack = pack
         self._info = device_info
-        
-        if device_info.element.tag == "device":
-            self._part = device_info.element.attrib['Dname']
-        elif device_info.element.tag == "variant":
-            self._part = device_info.element.attrib['Dvariant']
-        
+        self._part = _get_part_number_from_element(device_info.element)
         self._regions = []
         self._saw_startup = False
         self._default_ram = None
@@ -430,7 +439,10 @@ class CmsisPackDevice(object):
         if self._default_ram is None:
             LOG.warning("CMSIS-Pack device %s has no default RAM defined, cannot program flash" % self.part_number)
             return
-        
+
+        # Can't import at top level due to import loops.
+        from ...core.session import Session
+
         regions_to_delete = [] # List of regions to delete.
         regions_to_add = [] # List of FlashRegion objects to add.
 
@@ -446,15 +458,18 @@ class CmsisPackDevice(object):
                 # Must be a mask ROM or non-programmable flash.
                 continue
 
+            # Load flash algo from .FLM file.
+            packAlgo = self._load_flash_algo(algo.attrib['name'])
+            if packAlgo is None:
+                LOG.warning("Failed to convert ROM region to flash region because flash algorithm '%s' could not be "
+                            " found (%s)", algo.attrib['name'], self.part_number)
+                continue
+            
             # The ROM region will be replaced with one or more flash regions.
             regions_to_delete.append(region)
 
-            # Load flash algo from .FLM file.
-            algoData = self.pack.get_file(algo.attrib['name'])
-            packAlgo = PackFlashAlgo(algoData)
-            
             # Log details of this flash algo if the debug option is enabled.
-            current_session = core.session.Session.get_current()
+            current_session = Session.get_current()
             if current_session and current_session.options.get("debug.log_flm_info"):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
             
@@ -536,6 +551,17 @@ class CmsisPackDevice(object):
             # Check if the region indicated by start..size fits within the algo.
             if (algoStart <= region.start <= algoEnd) and (algoStart <= region.end <= algoEnd):
                 return algo
+        return None
+    
+    def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
+        """! @brief Return the PackFlashAlgo instance for the given flash algo filename."""
+        if self.pack is not None:
+            try:
+                algo_data = self.pack.get_file(filename)
+                return PackFlashAlgo(algo_data)
+            except FileNotFoundError:
+                pass
+        # Return default value.
         return None
 
     @property

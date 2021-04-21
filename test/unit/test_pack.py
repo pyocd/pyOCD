@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,17 +21,21 @@ import cmsis_pack_manager
 import os
 import zipfile
 from xml.etree import ElementTree
+from pathlib import Path
 
 from pyocd.target.pack import (cmsis_pack, flash_algo, pack_target)
 from pyocd.target import TARGET
 from pyocd.core import (memory_map, target)
 
 K64F = "MK64FN1M0VDC12"
+NRF5340 = "nRF5340_xxAA"
+STM32L4R5 = "STM32L4R5AGIx"
 
-TEST_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-K64F_PACK_NAME = "NXP.MK64F12_DFP.11.0.0.pack"
-K64F_PACK_PATH = os.path.join(TEST_DATA_DIR, K64F_PACK_NAME)
+TEST_DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "packs"
+K64F_PACK_PATH = TEST_DATA_DIR / "NXP.MK64F12_DFP.11.0.0.pack"
 K64F_1M0_FLM = "arm/MK_P1M0.FLM"
+NRF_PDSC_PATH = TEST_DATA_DIR / "NordicSemiconductor.nRF_DeviceFamilyPack.8.38.0.pdsc"
+STM32L4_PDSC_PATH = TEST_DATA_DIR / "Keil.STM32L4xx_DFP.2.5.0.pdsc"
 
 @pytest.fixture(scope='module')
 def pack_ref():
@@ -70,6 +75,34 @@ def k64f1m0(k64pack):
 def k64algo(k64pack):
     flm = k64pack.get_file(K64F_1M0_FLM)
     return flash_algo.PackFlashAlgo(flm)
+
+# Replacement for CmsisPackDevice._load_flash_algo() that loads the FLM from the test data dir
+# instead of the (unset) CmsisPack object.
+def load_test_flm(filename):
+    p = TEST_DATA_DIR / Path(filename).name
+    return flash_algo.PackFlashAlgo(p.open('rb'))
+
+@pytest.fixture(scope='function')
+def nrfpdsc():
+    return cmsis_pack.CmsisPackDescription(None, NRF_PDSC_PATH)
+
+# Fixture to provide nRF5340 CmsisPackDevice modified to load FLM from test data dir.
+@pytest.fixture(scope='function')
+def nrf5340(monkeypatch, nrfpdsc):
+    dev = [d for d in nrfpdsc.devices if d.part_number == NRF5340].pop()
+    monkeypatch.setattr(dev, '_load_flash_algo', load_test_flm)
+    return dev
+
+@pytest.fixture(scope='function')
+def stm32l4pdsc():
+    return cmsis_pack.CmsisPackDescription(None, STM32L4_PDSC_PATH)
+
+# Fixture to provide STM32L4R5 CmsisPackDevice modified to load FLM from test data dir.
+@pytest.fixture(scope='function')
+def stm32l4r5(monkeypatch, stm32l4pdsc):
+    dev = [d for d in stm32l4pdsc.devices if d.part_number == STM32L4R5].pop()
+    monkeypatch.setattr(dev, '_load_flash_algo', load_test_flm)
+    return dev
 
 # Tests for managed packs. Currently disabled as they fail on most systems.
 class Disabled_TestPack(object):
@@ -158,3 +191,15 @@ class TestFLM(object):
         assert d['pc_erase_sector'] == ram.start + STACK_SIZE + 0xcb
         assert d['pc_program_page'] == ram.start + STACK_SIZE + 0xdf
         
+def has_overlapping_regions(memmap):
+    return any((len(memmap.get_intersecting_regions(r.start, r.end)) > 1) for r in memmap.regions)
+
+class TestNRF():
+    def test_regions(self, nrf5340):
+        memmap = nrf5340.memory_map
+        assert not has_overlapping_regions(memmap)
+        
+class TestSTM32L4():
+    def test_regions(self, stm32l4r5):
+        memmap = stm32l4r5.memory_map
+        assert not has_overlapping_regions(memmap)

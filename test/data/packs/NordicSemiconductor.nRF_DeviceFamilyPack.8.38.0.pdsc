@@ -1,0 +1,1241 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" schemaVersion="1.3" xs:noNamespaceSchemaLocation="PACK.xsd">
+  <name>nRF_DeviceFamilyPack</name>
+  <description>Nordic Semiconductor nRF ARM devices Device Family Pack with BSD license.</description>
+  <vendor>NordicSemiconductor</vendor>
+  <url>http://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/</url>
+  <license>License/license.txt</license>
+  <releases>
+    <release version="8.38.0" date="2020-12-17">
+      Update nrf5340 svd and header files.    
+      nRF5340 serial interrupt names have been modified, they are now called SERIAL0, SERIAL1 etc. instead of
+      SPIM0_SPIS0_TWIM0_TWIS0_UARTE0, SPIM1_SPIS1_TWIM1_TWIS1_UARTE1.    
+      Add nrf5340_application_name_change.h and nrf5340_network_name_change.h that introduces redirects for deprecated interrupt names.    
+      In nrf5340_application_peripherals.h add macro CLOCK_FEATURE_HFCLK_DIVIDE_PRESENT
+        to indicate support for variable clock frequency.    
+      In nrf53_erratas.h, add function nrf53_errata_122.    
+    </release>
+    <release version="8.37.0" date="2020-11-02">
+      Update errata functions.    
+      Add handling for new nRF53 approtect mechanism in system_init() functions.    
+      Add function nrf53_errata_121().    
+    </release>
+    <release version="8.36.1" date="2020-10-02">
+      In nrf.h, fixed bug where in some circumstances, certain macros for nRF5340 would not be set.    
+    </release>
+    <release version="8.36.0" date="2020-09-23">    
+      In compiler_abstraction.h, removed __LINT__ compiler guard around NRF_STATIC_ASSERT. Define NRF_STATIC_ASSERT before including compiler_abstraction.h to get equivalent behavior.    
+      In CMake package, fix issue where CMSIS library detection in example project didn't work.    
+      Made system_nrf52.c the common system.c file of the nRF52 family.        
+      Fix wrong values for EASYDMA_MAXCNT values in nrf52820_peripherals.h    
+      Fixed issue where compiler_abstractions.h did not compile in c++ mode in some compilers due to a missing C symbol.    
+      For each errata, added macro NRFXX_ERRATA_XX_PRESENT NRFXX_ERRATA_XX_ENABLE_WORKAROUND    
+    </release>
+    <release version="8.35.0" date="2020-08-14">
+      Updated SVDConv used to generate nrf*.h files.        
+      In nrf52805_peripherals.h, corrected SPI_COUNT, SPIM_COUNT, SPIS_COUNT from 2 to 1.    
+      Added default behaviour to errata checks.    
+      Updated nRF52 errata functions    
+      Added errata functions nrf52_errata_232, nrf52_errata_248, nrf53_errata_91, and nrf53_errata_113, nrf53_errata_119            
+      Update POWER_FEATURE_RAM_REGISTERS_COUNT and BPROT_REGIONS_NUM in nrf52832_peripherals.h. They are now correct also when compiling for nRF52832_xxab.    
+      Remove host compiler guards in nrf.h and nrf_peripherals.h.    
+      In compiler_abstraction.h, added macros NRF_STRING_CONCATENATE and NRF_STATIC_ASSERT.    
+      In compiler_abstraction.h, added macros NRF_MDK_VERSION_ASSERT_AT_LEAST and NRF_MDK_VERSION_ASSERT_EXACT.    
+       In nrf_erratas.h, add assertion that the MDK is at least v8.34.0, so it has the required macros used in nrf_erratas.h    
+      In common linker script files (nrf*_common.ld), align __etext segment to a 32 bit boundary.    
+      Fix issue where some header files were missing white space in license section.    
+      In nRF52805 removed nonexistent event RADIO.EVENTS_MHRMATCH from header files and svd.    
+    </release>
+    <release version="8.34.1" date="2020-05-25">
+      Single-core devices were missing from list of supported devices. Issue was introduced in 8.33.0.    
+    </release>
+    <release version="8.34.0" date="2020-05-22">
+      Added RADIO_TXPOWER_TXPOWER_Max macro to *_peripherals.h    
+      In nrf52840, added event RADIO-&gt;EVENTS_SYNC    
+      Update nRF5340 svd and header files.    
+      Add errata functions nrf52_errata_223, nrf52_errata_233, nrf52_errata_236, nrf52_errata_237, nrf53_errata_86, nrf53_errata_87, nrf53_errata_109, nrf53_errata_114, nrf53_errata_115, nrf53_errata_116.    
+    </release>
+    <release version="8.33.0" date="2020-04-01">
+      In nrf52820_peripherals.h, removed POWER_FEATURE_VDDH_DCDC_PRESENT macro    
+      In nrf52810_to_nrf52811.h, fix use of invalid name in name remapping of TWIM0_TWIS0_IRQHandler    
+      nRF52 series devices with no FPU were listed as not having DSP capabilities. They are now listed with DSP.        
+      Add errata functions nrf53_errata_31, nrf53_errata_34, nrf53_errata_36, nrf53_errata_52, nrf53_errata_76, nrf53_errata_77, nrf53_errata_85, nrf53_errata_93, nrf53_errata_103, nrf53_errata_105, nrf53_errata_106, and nrf53_errata_110.    
+    </release>
+    <release version="8.32.3" date="2020-07-09">
+      Updated nrf52_erratas.h    
+    </release>
+    <release version="8.32.2" date="2020-07-02">
+      Add errata function nrf52_errata_211.    
+    </release>
+    <release version="8.32.1" date="2020-03-04">
+      In bitfield headers, fix license header showing replacement tag {year} instead of current year. Introduced in 8.32.0.    
+      In device system headers, some files had the wrong header guard name. Introduced in 8.32.0, fixed.    
+    </release>
+    <release version="8.32.0" date="2020-03-02">
+      Set default SWD settings per family.    
+      Set access port for devices with more than one core.    
+      Added device nRF52820    
+      Update license header current year to 2020    
+      Add errata functions nrf53_errata2, nrf91_errata32, and nrf91_errata33.    
+    </release>
+    <release version="8.31.0" date="2020-02-25">
+      In nRF52 series device header files, set macro DSP_PRESENT to 1 if it was not already 1. DSP is a mandatory feature in Cortex-M4.                
+      For nrf5340_xxaa_application and nrf5340_xxaa_network, define macro NRF5340_XXAA if not already defined.    
+      For nrf5340_xxaa_application, define macro NRF_APPLICATION if not already defined.    
+      For nrf5340_xxaa_network, define macro NRF_NETWORK if not already defined.    
+      In system_nrf5340_application.c add workaround for errata 97    
+      In nrf5340_application_peripherals.h and nrf5340_network_peripherals.h, corrected IPC_GPMEM_NUM from 4 to 2.    
+      Update nrf52_erratas.h.    
+      Update nrf53_erratas.h.    
+      In nrf5340_application_peripherals.h and nrf5340_network_peripherals.h, updated implemented number of pins on P1 from 12 to 16    
+      Update svd files and related header files for nRF5340 application.    
+      Update svd files and related header files for nRF5340 network.    
+      In compiler_abstractions.h update gcc_current_sp to use only inline assembly. Function did not work as intended in Clang before this change.    
+    </release>
+    <release version="8.30.2" date="2020-01-17">
+      In nrf5340_application_peripherals.h, updated QDEC_COUNT.    
+      In nrf*_peripherals.h, P0_FEATURE_PINS_PRESENT macro has undefined behaviour when P0_PIN_NUM is 32. Fixed.    
+      In nrf5340_application_peripherals.h, added PWM3_EASYDMA_MAXCNT_SIZE, PWM3_CH_NUM and updated PWM_COUNT    
+      In system_nrf5340_application.c, fixed incorrect initialization of SystemCoreClock variable.    
+      In nrf9160_peripherals.h, removed erroneously added OSCILLATORS_PRESENT and OSCILLATORS_COUNT macros.    
+      In system_nrf5340_application.c and system_nrf5340_network.c, updated upper index for TRIMCNF array in FICR trim value loading loop.    
+    </release>
+    <release version="8.30.1" date="2019-12-16">
+      In nrf5340_peripherals.h, added OSCILLATORS_PRESENT and OSCILLATORS_COUNT macros    
+      In nrf5340_peripherals.h, added macros to reflect new serial boxes.    
+      In nrf9160_peripherals.h, added OSCILLATORS_PRESENT and OSCILLATORS_COUNT macros    
+    </release>
+    <release version="8.30.0" date="2019-12-06">
+       Update svd files and related header files nrf5340_application.svd    
+       Update svd files and related header files nrf5340_network.svd            
+        Replaced device specific errata files with family specific ones.    
+      Update *_erratas.h with new errata handlers.    
+        In system*.c files, renamed errata_* to "family"_errata_*    
+        In GCC startup files, mark section .isr_vector as "ax".    
+        In system_nrf5340_application.c, update workarounds for errata 64.    
+        In system_nrf5340_application.c, add workaround for errata 69.    
+        In system_nrf51.c, add call to SystemCoreClockUpdate() at end of SystemInit() to align with other families.    
+       For devices supporting IEEE 802.15.4 added RADIO_FEATURE_IEEE_802_15_4_PRESENT macro    
+       In nrf5340_application_peripherals.h, Added USBREG_PRESENT and USBREG_COUNT    
+       In nrf9160_peripherals.h, updated value of *_EASYDMA_MAXCNT_SIZE macros    
+        In peripherals.h, add P#_FEATURE_PINS_PRESENT. P#_FEATURE_PINS_PRESENT is a bitfield where the available pins in P# are set high.    
+       Update svd files and related header files for nrf52833.svd    
+    </release>
+    <release version="8.29.0" date="2019-10-23">
+       PDSC &lt;components&gt; elements didn't have descriptions. Fixed.    
+      Add new header nrf_erratas.h. includes functions to check if an errata affects the device you're running on.    
+      In compiler_abstractions.h, add macro __UNUSED. __UNUSED marks an object as unused for the compiler, see GCC's __attribute__((unused)) for example.    
+      In system_nrf*.c files, use nrf_erratas.h to check for erratas where possible.    
+      Flashing algorithm didn't recognize nRF52833. Fixed    
+      Update supported devices for flashing algorithm.    
+        Add code ram as new section in applicable processors                
+        For nRF9160, add workaround for errata 31.    
+    </release>
+    <release version="8.28.0" date="2019-10-03">
+      In nrf9160_peripherals.h, Added IPC_CONF_NUM macro    
+      In nrf9160_peripherals.h, Added SAADC_CH_NUM macro    
+      In system_nrf52810.c, remove ENABLE_SWO and ENABLE_TRACE features. Tracing not supported in nRF52810.    
+      In device peripherals headers, add NVMC_PRESENT, NVMC_COUNT, and NVMC_FEATURE_CACHE_PRESENT where applicable.    
+      In system_nrf52810.c, when developing in nRF52832, make sure NFC pins are mapped as GPIO.    
+      In system_nrf52811.c, when developing in nRF52840, make sure NFC pins are mapped as GPIO.    
+    </release>
+    <release version="8.27.1" date="2019-10-17">
+      Fix programming algorithm for nRF52833    
+    </release>
+    <release version="8.27.0" date="2019-08-30">
+      Add new device nRF52833    
+      Define VDDH_DCDC in nRF52840_peripherals    
+    </release>
+    <release version="8.26.1" date="2019-08-28">Revert deletion of nrf51xxx_peripherals headers    Revert addition of SPIM_PRESENT in nrf51_peripherals.h    
+    </release>
+    <release version="8.26.0" date="2019-08-20">
+      IDE support files are now automatically generated    
+      nRF51 series now has separate Iar algorthm, Iar debugger and Iar linker files for all devices instead of common 51xxx files    
+      Fixed errors in nrf52805_peripherals header file    
+      Updated comments in system_nrfxxx.c files with link to infocenter    
+      In system_nrf9160.c, fixed ENABLE_TRACE sequence.    
+      Fixed bug where nrf51_to_nrf52810 had become nrf51_to_nrf52.        
+    </release>
+    <release version="8.25.1" date="2019-07-15">
+      In system_nrf**.h , fix licence headers not containing a license. Introduced in MDK 8.25.0.    
+      In nrf52810_name_change.h, add missing trailing newline.    
+    </release>
+    <release version="8.25.0" date="2019-06-13">    
+      Add support for device nRF52805    
+      Use forward-slash, not backslash when specifying paths in Keil PDSC files.    
+      Clean up conditions and components section of PDSC files.    
+      Update svd files and related header files nrf52810.svd, nrf2811.svd, nrf52840.svd, nrf9160.svd    
+      Add workarounds for errata 185 and 217 for device nRF52810    
+      Remove unneccessary workaround for errata 108 for device nRF52811    
+      Add workaround for errata 217 for device nRF52811    
+      Update workarounds for errata 15 and 20 for device nRF9160    
+      For nRF9160, when fixing UICR reset values, make sure to not do a flash-to-flash operation    
+    </release>
+    <release version="8.24.1" date="2019-02-06">
+      In system_nrf52811.c, add support for running nRF52811 code on an nRF52840 DK when macro DEVELOP_IN_NRF52840 is defined.    
+      In system_nrf9160.c, add workaround for errata 20.    
+      In system_nrf9160.c, fix issue where some errata fixes could be optimized away.    
+      Fixed issue in Keil programming algorithms where UICR was never erased when a sector erase was requested.    
+      Fixed issue in Keil programming algorithms where nRF9160 flashing algorithms were not visible.    
+      Fixed issue in Keil programming algorithms where nrf51xxx_sde flashing algorithm was not visible.    
+    </release>
+    <release version="8.24.0" date="2019-02-01">    
+      Fix issue where Keil programming algorithms failed to identify the device it ran on in nRF91 and nRF52 family devices.    
+      Fix issue where when running nRF52810 code with DEVELOP_IN_NRF52832, some nRF52810 erratas were wrongly applied to nRF52832 devices.    
+      In system_nrf52840.c, system_nrf52811.c, system_nrf52810.c, add a note explaining why some errata_x() functions always return true.    
+      In system_nrf52810.c, add errata checks for nRF52810_xxAB.    
+      In system_nrf9160.c, add support for ENABLE_SWO and ENABLE_TRACE macros to enable trace when compiling for secure code.    
+      Update nrf52811 headers.    
+    </release>
+    <release version="8.23.2" date="2019-01-18">
+      No change, updated to follow MDK versioning.            
+    </release>
+    <release version="8.23.1" date="2019-01-17">
+      Updated support for nRF52840_xxAA.    
+    </release>
+    <release version="8.23.0" date="2019-01-11">
+      Updated support for nRF52840_xxAA.    
+      Updated support for nRF52811_xxAA.    
+      Updated support for nRF52810_xxAA.            
+    </release>
+    <release version="8.22.0" date="2019-01-04">
+      Added nrf52811 device.    
+      Updated support for nRF52840_xxAA.    
+      Updated support for nRF52810_xxAA.    
+      Updated support for nRF9160_xxAA.    
+    </release>
+    <release version="8.21.1" date="2018-12-03">
+      No change, updated to follow MDK versioning.    
+    </release>
+    <release version="8.21.0" date="2018-11-28">
+      Updated nrf52xxx.flm.    
+      Updated nrf52xxx_sde.flm.    
+      Added nRF91 family.    
+      Updated nrf52xxx_uicr.flm.    
+      Updated nrf51xxx.flm.    
+      Added nrf51xxx_sde.flm, equivalent in function to nrf51xxx_ecb flash loader.            
+    </release>
+    <release version="8.19.0" date="2018-10-19">
+      For nRF52 family, define macro __VTOR_PRESENT with value 1    
+      For nRF52 family, define macro __DSP_PRESENT with value 0    
+      For nRF51 family, define macro __VTOR_PRESENT with value 0    
+      For nRF51 family, define macro __DSP_PRESENT with value 0    
+    </release>
+    <release version="8.18.0" date="2018-10-18">
+      No change, updated to follow MDK versioning.    
+    </release>
+    <release version="8.17.1" date="2018-06-14">
+      Revert change where gcc startup files was changed to have non-capitalized file extensions.    
+    </release>
+    <release version="8.17.0" date="2018-04-27">
+      For nRF52810, Add support for NVMC-&gt;ERASEPAGEPARTIAL feature.    
+    </release>
+    <release version="8.16.0" date="2018-02-27">
+      For nRF52840, remove register UICR-&gt;DCDCDRIVE0.    
+      For nRF52840, update enumerator value RADIO-&gt;TXPOWER-&gt;neg30dBm from 0xD8 to 0xFF to solve value overlap with neg40dBm.    
+      For nRF52840, add peripheral CC_HOST_RGF.    
+    </release>
+    <release version="8.15.4" date="2018-01-23">
+      Updated headers.    
+      Corrected SVD error in USBD.    
+    </release>
+    <release version="8.15.3" date="2018-01-15">
+      Updated headers.    
+      Given support for next version of nRF52840 devices.    
+      Corrected SVD problems in serial interface debugging.    
+    </release>
+    <release version="8.15.2" date="2017-12-14">
+      Fixed false positive detection of nRF52832_xxAA_Rev2 on nRF52832_xxAA_Rev1 devices.    
+      Support nRF52832_xxAA_Rev2 on nRF52810 with DEVELOP_ON_NRF52832.    
+      Corrected name error for property SPIS0_EASYDMA_MAXCNT_SIZE in nrf51_peripherals headers.    
+    </release>
+    <release version="8.15.1" date="2017-11-23">
+      Updated header files.    
+      Updated nrf52 startup code for nRF52832_xxAA_Rev2.    
+      Updated nrf52840 startup code for nRF52832_xxAA_EngB.    
+    </release>
+    <release version="8.15.0" date="2017-10-03">
+      Updated header files.    
+    </release>
+    <release version="8.14.1" date="2017-06-06">
+      Updated nrf52810 header files.    
+    </release>
+    <release version="8.14.0" date="2017-05-12">
+      Updated nrf52832_peripherals.h file.    
+      Updated nrf52840 startup and header files.    
+      Added support for nRF52810_xxAA device.    
+    </release>
+    <release version="8.13.0" date="2017-03-24">
+      Added device nRF52832_xxAB.    
+      Added device nRF51801_xxAB.    
+    </release>
+    <release version="8.12.0" date="2017-02-22">
+      Fixed capabilities of device nRF52840_xxAA.    
+      Corrected operating conditions and package information of different devices.    
+      Added file startup_config.h and software component StartupConfig.    
+    </release>
+    <release version="8.11.1" date="2016-11-18">
+      Updated support for nRF52840_xxAA.    
+      Other minor changes.    
+    </release>
+    <release version="8.11.0" date="2016-11-09">
+      Added support for nRF51824 device.    
+      Added support for nRF52840 device.    
+    </release>
+    <release version="8.9.0" date="2016-09-30">
+      Added workaround for Errata 108.    
+      Updated nrf52xxx.flm.    
+      Updated nrf52xxx_sde.flm.    
+      Updated nrf51 and nrf52 header files.    
+    </release>
+    <release version="8.7.1" date="2016-07-15">
+      Added GCC linker files to pack.    
+    </release>
+    <release version="8.6.1" date="2016-05-24">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.6.0" date="2016-04-09">
+      Added new algorithm for nRF52 devices.    
+    </release>
+    <release version="8.5.0" date="2016-02-23">
+      Corrected url.    
+      Added nRF51802_xxAA device.    
+    </release>
+    <release version="8.4.1" date="2016-02-19">
+      Updated release version to correct wrong date.    
+    </release>
+    <release version="8.4.0" date="2016-02-17">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.3.2" date="2015-12-16">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.3.1" date="2015-11-13">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.3.0" date="2015-11-09">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.2.0" date="2015-10-13">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.1.0" date="2015-10-09">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="8.0.5" date="2015-09-15">
+      Adapted pack to CMSIS 4.3 release.    
+    </release>
+    <release version="8.0.4" date="2015-09-09">
+      Fixed description of several devices.    
+      Added missing interrupts in the interrupt vector in iar_startup_nrf52.s and gcc_startup_nrf52.S files.    
+    </release>
+    <release version="8.0.3" date="2015-06-15">
+      Updated file system_nrf52.c.    
+    </release>
+    <release version="8.0.2" date="2015-06-12">
+      Updated file system_nrf52.c.    
+    </release>
+    <release version="8.0.1" date="2015-06-08">
+      Polished NRF52 description.    
+    </release>
+    <release version="8.0.0" date="2015-05-27">
+      Added NRF52 devices.    
+      Polished NRF51 descriptions and added for NRF52 devices.    
+    </release>
+    <release version="7.2.1" date="2015-04-29">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="7.2.0" date="2015-03-30">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="7.1.1" date="2015-02-13">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="7.1.0" date="2015-01-23">
+      Updated due to change of files.    
+      Eliminated UICR component.    
+    </release>
+    <release version="7.0.0">
+      Test.    
+    </release>
+    <release version="6.2.1" date="2014-11-20">
+      Updated release version to adapt to MDK version.    
+    </release>
+    <release version="6.2.0" date="2014-11-15">
+      Updated release version to adapt to MDK version.    
+      New release due to change of header files.    
+    </release>
+    <release version="1.1.4" date="2014-10-31">
+      Changed URL.    
+      Added SPIM to SVD and header files.    
+    </release>
+    <release version="1.1.3" date="2014-10-24">
+      New release due to change of *_startup_nrf51.s files.    
+    </release>
+    <release version="1.1.2" date="2014-10-06">
+      New release due to change of files.    
+    </release>
+    <release version="1.1.1" date="2014-06-30">
+      Updated nrf51xxx.flm    
+      Added nrf51xxx_ecb.flm    
+    </release>
+    <release version="1.1.0" date="2014-06-12">
+      Added device nRF51822_xxAC.    
+      Added device nRF51422_xxAC.    
+      Eliminated deprecated tag giving problems with Keil 5.11.    
+    </release>
+    <release version="1.0.4" date="2014-05-28">
+      Minor changes in SVD only affecting the debug experience in keil.    
+    </release>
+    <release version="1.0.3" date="2014-02-21">
+      Added new device nRF51422_xxAB.    
+    </release>
+    <release version="1.0.2" date="2014-01-13">
+      Changed the license of the product.    
+      Changed features of the product.    
+    </release>
+    <release version="1.0.1" date="2013-12-17">
+      Changed the condition for the series.    
+    </release>
+    <release version="1.0.0" date="2013-12-12">
+      First release.    
+      Eliminated features until format is stable.        
+    </release>
+    <release version="0.0.2" date="2013-12-03">
+      Renamed Pack.    
+      Added License.    
+      Added features.    
+      Added descriptions.    
+      Added uicr_config.h component.    
+    </release>
+    <release version="0.0.1" date="2013-11-27">
+      First release of nRF ARM devices Device Family Pack for testing purposes.    
+    </release>
+  </releases>
+  <keywords>
+    <keyword>DeviceFamilyPack</keyword>
+    <keyword>Nordic</keyword>
+    <keyword>Nordic Semiconductor</keyword>
+    <keyword>nRF51</keyword>
+    <keyword>nRF52</keyword>
+    <keyword>nRF53</keyword>
+    <keyword>nRF91</keyword>
+    <keyword>nRF51422</keyword>
+    <keyword>nRF51801</keyword>
+    <keyword>nRF51802</keyword>
+    <keyword>nRF51822</keyword>
+    <keyword>nRF51824</keyword>
+    <keyword>nRF52805</keyword>
+    <keyword>nRF52810</keyword>
+    <keyword>nRF52811</keyword>
+    <keyword>nRF52820</keyword>
+    <keyword>nRF52832</keyword>
+    <keyword>nRF52833</keyword>
+    <keyword>nRF52840</keyword>
+    <keyword>nRF5340</keyword>
+    <keyword>nRF9160</keyword>
+    <keyword>LTE</keyword>
+    <keyword>BLE</keyword>
+    <keyword>ANT</keyword>
+  </keywords>
+  <devices>
+    <family Dfamily="nRF51 Series" Dvendor="Nordic Semiconductor:54">
+      <processor Dcore="Cortex-M0" DcoreVersion="r3p1" Dendian="Little-endian" Dclock="16000000" Dmpu="NO_MPU" Dtz="NO_TZ" Ddsp="NO_DSP" Dfpu="NO_FPU"/>
+      <debugconfig default="swd" swj="false"/>
+      <algorithm start="0x00000000" size="0x00200000" RAMstart="0x20000000" RAMsize="0x4000" default="1" name="Flash/nrf51xxx.flm"/>
+      <algorithm start="0x00000000" size="0x00200000" RAMstart="0x20000000" RAMsize="0x4000" default="0" name="Flash/nrf51xxx_sde.flm"/>
+      <algorithm start="0x00000000" size="0x00200000" RAMstart="0x20000000" RAMsize="0x4000" default="0" name="Flash/nrf51xxx_ecb.flm"/>
+      <description>
+    The Nordic Semiconductor nRF51 Series family of microcontrollers are a powerful, highly flexible multi-protocol SoC
+    ideally suited for Bluetooth Low Energy (BLE), ANT+ and 2.4GHz ultra low-power wireless applications.
+    The nRF51 Series devices are built around a 32-bit ARM Cortex-M0 CPU. The embedded 2.4GHz transceiver supports Bluetooth Low Energy,
+    ANT and proprietary 2.4GHz operation, where the 2.4GHz mode is on-air-compatible with the nRF24L and nRF24AP Series products from Nordic Semiconductor.
+    nRF51 Series devices also incorporate a rich selection of analog and digital peripherals that can interact without CPU intervention
+    through the Programmable Peripheral Interface (PPI) system. A flexible 31-pin GPIO (32-pin in chipscale packages) mapping scheme allows I/O
+    like serial interfaces, PWM and quadrature decoder to be mapped to any device pin as dictated by PCB requirements.
+    This enables complete design flexibility associated with pin-out location and function.
+    nRF51 Series devices require only a single power supply and gives the user the option of using on chip linear regulators giving a supply range of 1.8-3.6V,
+    a direct 1.8V mode and an on-chip DCDC buck converter giving a supply range of 2.1-3.6V.
+    The use of the DC-DC converter can be dynamically controlled during run time and enables the nRF51 Series devices to operate at radio peak currents
+    below 10 mA @ 3V supply (TX @ 0 dBm and RX).</description>
+      <feature type="RNG" name="True Random Number Generator" n="1"/>
+      <feature type="WDT" name="Watchdog Timer" n="1"/>
+      <feature type="TempSens" name="Temperature Sensor" n="1"/>
+      <feature type="Timer" name="Timer/Counter" m="32" n="1"/>
+      <feature type="Timer" name="Timer/Counter" m="16" n="2"/>
+      <feature type="RTC" name="RTC with 3 Capture/Compare registers" n="32768"/>
+      <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+      <feature type="Crypto" name="AES Electronic Codebook Encryption Peripheral " n="128"/>
+      <feature type="Crypto" name="AES CCM Mode Encryption Peripheral "/>
+      <feature type="Crypto" name="Accelerated Address Resolver Peripheral "/>
+      <feature type="SPI" name="SPI Master" m="4000000" n="2"/>
+      <feature type="SPI" name="SPI Slave" m="2000000" n="1"/>
+      <feature type="ComOther" name="I2C compatible Master Two-Wire Interface" n="2"/>
+      <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="1"/>
+      <feature type="ComOther" name="Quadrature Decoder" n="1"/>
+      <feature type="ADC" name="Incremental ADC" m="10" n="8"/>
+      <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+      <feature type="IOs" name="General Purpose IOs" n="32"/>
+      <feature type="IOs" name="Analog IOs" n="8"/>
+      <feature type="XTAL" m="32000000" n="16000000"/>
+      <feature type="IntRC" n="16000000"/>
+      <feature type="XTAL" n="32768"/>
+      <feature type="IntRC" name="Internal RC oscillator and Synthesized oscillator" n="32768"/>
+      <feature type="PowerOther" name="Power Fail Comparator" n="1"/>
+      <device Dname="nRF51422_xxAA">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51422_XXAA"/>
+        <description>nRF51422 is a microcontroller from the NRF51 Series family of microcontrollers ideally fitted for the S210 ANT protocol stack, S310 combined ANT protocol stack and Bluetooth Low Energy Peripehral protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="56"/>
+        <feature type="CSP" n="62"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+      <device Dname="nRF51422_xxAB">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51422_XXAB"/>
+        <description>nRF51422 is a microcontroller from the NRF51 Series family of microcontrollers ideally fitted for the S210 ANT protocol stack, S310 combined ANT protocol stack and Bluetooth Low Energy Peripehral protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="56"/>
+        <feature type="CSP" n="62"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00020000" default="1"/>
+        <feature type="Memory" n="131072" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+      <device Dname="nRF51422_xxAC">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51422_XXAC"/>
+        <description>nRF51422 is a microcontroller from the NRF51 Series family of microcontrollers ideally fitted for the S210 ANT protocol stack, S310 combined ANT protocol stack and Bluetooth Low Energy Peripehral protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="56"/>
+        <feature type="CSP" n="62"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00008000" default="1"/>
+        <feature type="Memory" n="32768" name="RAM"/>
+      </device>
+      <device Dname="nRF51801_xxAB">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51801_XXAB"/>
+        <description>nRF51801 is a microcontroller from the NRF51 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00030000" default="1"/>
+        <feature type="Memory" n="196608" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+      <device Dname="nRF51802_xxAA">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51802_XXAA"/>
+        <description>nRF51802 is a microcontroller from the NRF51 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+      <device Dname="nRF51822_xxAA">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51822_XXAA"/>
+        <description>nRF51822_xxAA is a microcontroller from the NRF51 Series family of microcontrollers with 256kB of Flash and 16kB of RAM ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="56"/>
+        <feature type="CSP" n="62"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+      <device Dname="nRF51822_xxAB">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51822_XXAB"/>
+        <description>nRF51822_xxAA is a microcontroller from the NRF51 Series family of microcontrollers with 256kB of Flash and 16kB of RAM ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="56"/>
+        <feature type="CSP" n="62"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00020000" default="1"/>
+        <feature type="Memory" n="131072" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+      <device Dname="nRF51822_xxAC">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51822_XXAC"/>
+        <description>nRF51822_xxAA is a microcontroller from the NRF51 Series family of microcontrollers with 256kB of Flash and 16kB of RAM ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="75" n="-25"/>
+        <feature type="VCC" m="3.6" n="1.8"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="56"/>
+        <feature type="CSP" n="62"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00008000" default="1"/>
+        <feature type="Memory" n="32768" name="RAM"/>
+      </device>
+      <device Dname="nRF51824_xxAA">
+        <debug svd="SVD/nrf51.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF51824_XXAA"/>
+        <description>nRF51824 is an automotive grade microcontroller from the NRF51 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF51 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE) and proprietary protocols" n="1"/>
+        <feature type="Temp" m="105" n="-40"/>
+        <feature type="VCC" m="3.6" n="1.9"/>
+        <feature type="QFN" n="48"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00004000" default="1"/>
+        <feature type="Memory" n="16384" name="RAM"/>
+      </device>
+    </family>
+    <family Dfamily="nRF52 Series" Dvendor="Nordic Semiconductor:54">
+      <debugconfig default="swd" swj="false"/>
+      <algorithm start="0x00000000" size="0x00200000" RAMstart="0x20000000" RAMsize="0x4000" default="1" name="Flash/nrf52xxx.flm"/>
+      <algorithm start="0x10001000" size="0x1000" RAMstart="0x20000000" RAMsize="0x4000" default="1" name="Flash/nrf52xxx_uicr.flm"/>
+      <algorithm start="0x00000000" size="0x00200000" RAMstart="0x20000000" RAMsize="0x4000" default="0" name="Flash/nrf52xxx_sde.flm"/>
+      <description>The Nordic Semiconductor nRF52 Series family of microcontrollers are a powerful, highly flexible multi-protocol SoC ideally suited for Bluetooth Low Energy (BLE) and 2.4GHz ultra low-power wireless applications. The nRF52 Series devices are built around a 32-bit ARM Cortex-M4F CPU. The embedded 2.4GHz transceiver supports Bluetooth Low Energy and proprietary 2.4GHz operation, where the 2.4GHz mode is on-air-compatible with the nRF24L, nRF24AP and nRF51 Series products from Nordic Semiconductor. nRF52 Series devices also incorporate a rich selection of analog and digital peripherals that can interact without CPU intervention through the Programmable Peripheral Interface (PPI) system. A flexible 32-pin GPIO mapping scheme allows I/O like serial interfaces, PWM, quadrature decoder and other peripherals to be mapped to any device pin as dictated by PCB requirements. This enables complete design flexibility associated with pin-out location and function. nRF52 Series devices require only a single power supply.</description>
+      <feature type="RNG" name="True Random Number Generator" n="1"/>
+      <feature type="WDT" name="Watchdog Timer" n="1"/>
+      <feature type="TempSens" name="Temperature Sensor" n="1"/>
+      <feature type="RTC" name="RTC with 3 Capture/Compare registers" n="32768"/>
+      <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+      <feature type="Crypto" name="AES Electronic Codebook Encryption Peripheral " n="128"/>
+      <feature type="Crypto" name="AES CCM Mode Encryption Peripheral "/>
+      <feature type="Crypto" name="Accelerated Address Resolver Peripheral "/>
+      <feature type="ComOther" name="Quadrature Decoder" n="1"/>
+      <feature type="ComOther" name="Pulse Density Modulation Interface" n="1"/>
+      <feature type="ADC" name="Succesive Approximation ADC" m="10" n="8"/>
+      <feature type="AnalogOther" name="Analog Comparator" n="1"/>
+      <feature type="IOs" name="Analog IOs" n="8"/>
+      <feature type="Temp" m="85" n="-40"/>
+      <feature type="XTAL" n="32000000"/>
+      <feature type="IntRC" n="64000000"/>
+      <feature type="XTAL" n="32768"/>
+      <feature type="IntRC" name="Internal RC oscillator and Synthesized oscillator" n="32768"/>
+      <feature type="PowerOther" name="Power Fail Comparator" n="1"/>
+      <device Dname="nRF52805_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="NO_FPU"/>
+        <debug svd="SVD/nrf52805.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52805_XXAA"/>
+        <description>nRF52805 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="3"/>
+        <feature type="SPI" m="4000000" n="1"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="32"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="4"/>
+        <feature type="VCC" m="3.6" n="1.7"/>
+        <feature type="QFN" n="48"/>
+        <feature type="QFN" n="32"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00030000" default="1"/>
+        <feature type="Memory" n="196608" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00006000" default="1"/>
+        <feature type="Memory" n="24576" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00006000" default="1"/>
+        <feature type="Memory" n="24576" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52810_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="NO_FPU"/>
+        <debug svd="SVD/nrf52810.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52810_XXAA"/>
+        <description>nRF52810 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="3"/>
+        <feature type="SPI" m="4000000" n="1"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="32"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="4"/>
+        <feature type="VCC" m="3.6" n="1.7"/>
+        <feature type="QFN" n="48"/>
+        <feature type="QFN" n="32"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00030000" default="1"/>
+        <feature type="Memory" n="196608" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00006000" default="1"/>
+        <feature type="Memory" n="24576" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00006000" default="1"/>
+        <feature type="Memory" n="24576" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52811_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="NO_FPU"/>
+        <debug svd="SVD/nrf52811.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52811_XXAA"/>
+        <description>nRF52811 is a microcontroller from the NRF52 Series family of microcontrollers with ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack, IEEE 802.15.4 protocol stacks and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT, IEEE 802.15.4 and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="3"/>
+        <feature type="SPI" m="4000000" n="2"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="32"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="4"/>
+        <feature type="VCC" m="3.6" n="1.7"/>
+        <feature type="QFN" n="48"/>
+        <feature type="QFN" n="32"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00030000" default="1"/>
+        <feature type="Memory" n="196608" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00006000" default="1"/>
+        <feature type="Memory" n="24576" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00006000" default="1"/>
+        <feature type="Memory" n="24576" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52820_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="NO_FPU"/>
+        <debug svd="SVD/nrf52820.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52820_XXAA"/>
+        <description>nRF52820 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack, IEEE 802.15.4 protocol stacks and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT, IEEE 802.15.4 and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="2"/>
+        <feature type="USBD" name="Full-Speed USB Device" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="4"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+        <feature type="SPI" m="4000000" n="2"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="19"/>
+        <feature type="VCC" m="5.5" n="1.7"/>
+        <feature type="QFN" n="40"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00008000" default="1"/>
+        <feature type="Memory" n="32768" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00008000" default="1"/>
+        <feature type="Memory" n="32768" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52832_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="SP_FPU"/>
+        <debug svd="SVD/nrf52.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52832_XXAA"/>
+        <description>nRF52832 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="5"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+        <feature type="SPI" m="4000000" n="3"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="32"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="12"/>
+        <feature type="ComOther" name="Near Field Communication Tag" n="1"/>
+        <feature type="VCC" m="3.6" n="1.7"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="50"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00080000" default="1"/>
+        <feature type="Memory" n="524288" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00010000" default="1"/>
+        <feature type="Memory" n="65536" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00010000" default="1"/>
+        <feature type="Memory" n="65536" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52832_xxAB">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="SP_FPU"/>
+        <debug svd="SVD/nrf52.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52832_XXAB"/>
+        <description>nRF52832 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="5"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+        <feature type="SPI" m="4000000" n="3"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="32"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="12"/>
+        <feature type="ComOther" name="Near Field Communication Tag" n="1"/>
+        <feature type="VCC" m="3.6" n="1.7"/>
+        <feature type="QFN" n="48"/>
+        <feature type="CSP" n="50"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00008000" default="1"/>
+        <feature type="Memory" n="32768" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00008000" default="1"/>
+        <feature type="Memory" n="32768" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52833_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="SP_FPU"/>
+        <debug svd="SVD/nrf52833.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52833_XXAA"/>
+        <description>nRF52833 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack, IEEE 802.15.4 protocol stacks and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT, IEEE 802.15.4 and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="2"/>
+        <feature type="USBD" name="Full-Speed USB Device" n="1"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="5"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+        <feature type="SPI" m="4000000" n="3"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="42"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="16"/>
+        <feature type="ComOther" name="Near Field Communication Tag" n="1"/>
+        <feature type="Temp" m="105" n="-40"/>
+        <feature type="VCC" m="5.5" n="1.7"/>
+        <feature type="QFN" n="73"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00080000" default="1"/>
+        <feature type="Memory" n="524288" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00020000" default="1"/>
+        <feature type="Memory" n="131072" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00020000" default="1"/>
+        <feature type="Memory" n="131072" name="CodeRAM"/>
+      </device>
+      <device Dname="nRF52840_xxAA">
+        <processor Dcore="Cortex-M4" DcoreVersion="r0p1" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="DSP" Dfpu="SP_FPU"/>
+        <debug svd="SVD/nrf52840.svd"/>
+        <compile header="Device/Include/nrf.h" define="NRF52840_XXAA"/>
+        <description>nRF52840 is a microcontroller from the NRF52 Series family of microcontrollers ideally fitted for the S110 Bluetooth Low Energy Peripheral protocol stack, S120 Bluetooth Low Energy Central protocol stack, S130 Bluetooth Low Energy Multi-role protocol stack, IEEE 802.15.4 protocol stacks and proprietary 2.4GHz protocol stacks, including Gazell, all available free of charge in the nRF52 Software Development Kit.</description>
+        <feature type="ComOther" name="2.4 GHz RF transceiver for Bluetooth Low energy (BLE), ANT, IEEE 802.15.4 and proprietary protocols" n="1"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="2"/>
+        <feature type="USBD" name="Full-Speed USB Device" n="1"/>
+        <feature type="ExtBus" name="Quad SPI for external flash memory device with Execute In Place capability." n="16"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="5"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+        <feature type="SPI" m="4000000" n="3"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="48"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="16"/>
+        <feature type="ComOther" name="Near Field Communication Tag" n="1"/>
+        <feature type="VCC" m="5.5" n="1.7"/>
+        <feature type="QFN" n="73"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00100000" default="1"/>
+        <feature type="Memory" n="1048576" name="Flash"/>
+        <memory id="IROM2" start="0x12000000" size="0x08000000" default="1"/>
+        <feature type="Memory" n="134217728" name="ExtFlash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="RAM"/>
+        <memory id="IRAM2" start="0x00800000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="CodeRAM"/>
+      </device>
+    </family>
+    <family Dfamily="nRF53 Series" Dvendor="Nordic Semiconductor:54">
+      <debugconfig default="swd" swj="false"/>
+      <description>
+      The Nordic Semiconductor nRF53 Series family of microcontrollers are powerful, highly flexible multi-protocol SoCs
+      ideally suited for Bluetooth Low Energy (BLE) and 2.4GHz ultra low-power wireless applications.
+  </description>
+      <feature type="WDT" name="Watchdog Timer" n="1"/>
+      <feature type="RTC" name="RTC with 4 Capture/Compare registers" n="32768"/>
+      <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+      <feature type="Crypto" name="AES Electronic Codebook Encryption Peripheral " n="128"/>
+      <feature type="Crypto" name="AES CCM Mode Encryption Peripheral "/>
+      <feature type="Crypto" name="Accelerated Address Resolver Peripheral "/>
+      <feature type="ComOther" name="Pulse Density Modulation Interface" n="1"/>
+      <feature type="ADC" name="Succesive Approximation ADC" m="10" n="8"/>
+      <feature type="AnalogOther" name="Analog Comparator" n="1"/>
+      <feature type="IOs" name="Analog IOs" n="8"/>
+      <feature type="Temp" m="125" n="-40"/>
+      <feature type="XTAL" n="32000000"/>
+      <feature type="IntRC" n="64000000"/>
+      <feature type="XTAL" n="32768"/>
+      <feature type="IntRC" name="Internal RC oscillator and Synthesized oscillator" n="32768"/>
+      <feature type="PowerOther" name="Power Fail Comparator" n="1"/>
+      <device Dname="nRF5340_xxAA">
+        <processor Pname="Network" Dcore="Cortex-M33" DcoreVersion="r0p4" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="NO_TZ" Ddsp="NO_DSP" Dfpu="NO_FPU"/>
+        <processor Pname="Application" Dcore="Cortex-M33" DcoreVersion="r0p4" Dendian="Little-endian" Dclock="128000000" Dmpu="MPU" Dtz="TZ" Ddsp="DSP" Dfpu="SP_FPU"/>
+        <algorithm start="0x00000000" size="0x200000" RAMstart="0x20000000" RAMsize="0x4000" default="1" name="Flash/nrf53xx_application.flm" Pname="Application"/>
+        <algorithm start="0x00FF8000" size="0x1000" RAMstart="0x20000000" RAMsize="0x4000" default="0" name="Flash/nrf53xx_application_uicr.flm" Pname="Application"/>
+        <debug svd="SVD/nrf5340_application.svd" Pname="Application" __ap="0"/>
+        <compile header="Device/Include/nrf.h" define="NRF5340_XXAA NRF_APPLICATION" Pname="Application"/>
+        <description>The nRF5340 is an ultra-low power multi-MCU System on Chip (SoC) integrating an ARM® Cortex®-M33 processor with advanced security features,
+                    a range of peripherals, as well as a multiprotocol 2.4 GHz transceiver. It is the ultimate SoC for any short range wireless personal area network
+                    or IPv6-enabled automation application.</description>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="4" Pname="Application"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="3" Pname="Application"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768" Pname="Application"/>
+        <feature type="SPI" m="4000000" n="3" Pname="Application"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2" Pname="Application"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1" Pname="Application"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1" Pname="Application"/>
+        <feature type="IOs" name="General Purpose IOs" n="32" Pname="Application"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="16" Pname="Application"/>
+        <feature type="VCC" m="5.5" n="1.7" Pname="Application"/>
+        <feature type="QFN" n="73" Pname="Application"/>
+        <memory id="IROM1" startup="true" Pname="Application" start="0x00000000" size="0x00100000" default="1"/>
+        <feature type="Memory" n="1048576" name="Flash" Pname="Application"/>
+        <memory id="IROM2" Pname="Application" start="0x10000000" size="0x08000000" default="1"/>
+        <feature type="Memory" n="134217728" name="ExtFlash" Pname="Application"/>
+        <memory id="IRAM1" Pname="Application" start="0x20000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="RAM0" Pname="Application"/>
+        <memory id="IRAM2" Pname="Application" start="0x20040000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="RAM1" Pname="Application"/>
+        <algorithm start="0x01000000" size="0x40000" RAMstart="0x21000000" RAMsize="0x4000" default="1" name="Flash/nrf53xx_network.flm" Pname="Network"/>
+        <algorithm start="0x01FF8000" size="0x1000" RAMstart="0x21000000" RAMsize="0x4000" default="0" name="Flash/nrf53xx_network_uicr.flm" Pname="Network"/>
+        <debug svd="SVD/nrf5340_network.svd" Pname="Network" __ap="1"/>
+        <compile header="Device/Include/nrf.h" define="NRF5340_XXAA NRF_NETWORK" Pname="Network"/>
+        <feature type="SPI" m="4000000" n="3" Pname="Network"/>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="2" Pname="Network"/>
+        <feature type="USBD" name="Full-Speed USB Device" n="1" Pname="Network"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="5" Pname="Network"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768" Pname="Network"/>
+        <feature type="SPI" m="4000000" n="3" Pname="Network"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2" Pname="Network"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1" Pname="Network"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1" Pname="Network"/>
+        <feature type="IOs" name="General Purpose IOs" n="48" Pname="Network"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="16" Pname="Network"/>
+        <feature type="VCC" m="5.5" n="1.7" Pname="Network"/>
+        <feature type="QFN" n="73" Pname="Network"/>
+        <memory id="IROM1" startup="true" Pname="Network" start="0x01000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="Flash" Pname="Network"/>
+        <memory id="IROM2" Pname="Network" start="0x10000000" size="0x08000000" default="1"/>
+        <feature type="Memory" n="134217728" name="ExtFlash" Pname="Network"/>
+        <memory id="IRAM1" Pname="Network" start="0x21000000" size="0x00010000" default="1"/>
+        <feature type="Memory" n="65536" name="RAM" Pname="Network"/>
+        <memory id="IRAM2" Pname="Network" start="0x20000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="APP_RAM0" Pname="Network"/>
+        <memory id="IRAM3" Pname="Network" start="0x20040000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="APP_RAM1" Pname="Network"/>
+      </device>
+    </family>
+    <family Dfamily="nRF91 Series" Dvendor="Nordic Semiconductor:54">
+      <debugconfig default="swd" swj="false"/>
+      <algorithm start="0x00000000" size="0x00200000" RAMstart="0x20000000" RAMsize="0x4000" default="1" name="Flash/nrf91xx.flm"/>
+      <algorithm start="0x00FF8000" size="0x1000" RAMstart="0x20000000" RAMsize="0x4000" default="1" name="Flash/nrf91xx_uicr.flm"/>
+      <description>The Nordic Semiconductor nRF91 Series family of microcontrollers are a powerful, highly flexible multi-protocol SoC ideally suited for LTE applications. The nRF91 Series devices are built around a 32-bit ARM Cortex-M4F CPU. nRF91 Series devices also incorporate a rich selection of analog and digital peripherals that can interact without CPU intervention through the Distributed Programmable Peripheral Interconnect (DPPI) system. A flexible 32-pin GPIO mapping scheme allows I/O like serial interfaces, PWM, quadrature decoder and other peripherals to be mapped to any device pin as dictated by PCB requirements. This enables complete design flexibility associated with pin-out location and function. nRF91 Series devices require only a single power supply.</description>
+      <feature type="WDT" name="Watchdog Timer" n="1"/>
+      <feature type="RTC" name="RTC with 4 Capture/Compare registers" n="32768"/>
+      <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+      <feature type="Crypto" name="AES Electronic Codebook Encryption Peripheral " n="128"/>
+      <feature type="Crypto" name="AES CCM Mode Encryption Peripheral "/>
+      <feature type="Crypto" name="Accelerated Address Resolver Peripheral "/>
+      <feature type="ComOther" name="Pulse Density Modulation Interface" n="1"/>
+      <feature type="ADC" name="Succesive Approximation ADC" m="10" n="8"/>
+      <feature type="AnalogOther" name="Analog Comparator" n="1"/>
+      <feature type="IOs" name="Analog IOs" n="8"/>
+      <feature type="Temp" m="125" n="-40"/>
+      <feature type="XTAL" n="32000000"/>
+      <feature type="IntRC" n="64000000"/>
+      <feature type="XTAL" n="32768"/>
+      <feature type="IntRC" name="Internal RC oscillator and Synthesized oscillator" n="32768"/>
+      <feature type="PowerOther" name="Power Fail Comparator" n="1"/>
+      <device Dname="nRF9160_xxAA">
+        <processor Dcore="Cortex-M33" DcoreVersion="r0p2" Dendian="Little-endian" Dclock="64000000" Dmpu="MPU" Dtz="TZ" Ddsp="DSP" Dfpu="SP_FPU"/>
+        <debug svd="SVD/nrf9160.svd" __ap="0"/>
+        <compile header="Device/Include/nrf.h" define="NRF9160_XXAA"/>
+        <description>nRF9160 is a LTE device.</description>
+        <feature type="UART" name="Universal Asynchronous Receiver/Transmitter" m="1000000" n="4"/>
+        <feature type="Timer" name="Timer/Counter" m="32" n="3"/>
+        <feature type="RTC" name="RTC with 4 Capture/Compare registers " n="32768"/>
+        <feature type="SPI" m="4000000" n="3"/>
+        <feature type="ComOther" name="I2C compatible Two-Wire Interface" n="2"/>
+        <feature type="I2S" name="Pulse Density Modulation Interface" n="1"/>
+        <feature type="AnalogOther" name="Low Power Comparator" n="1"/>
+        <feature type="IOs" name="General Purpose IOs" n="32"/>
+        <feature type="PWM" name="Pulse Width Modulation" m="14" n="16"/>
+        <feature type="VCC" m="5.5" n="1.7"/>
+        <feature type="QFN" n="73"/>
+        <feature type="Memory" name="Flash" n="1048576"/>
+        <feature type="Memory" name="RAM" n="262144"/>
+        <memory id="IROM1" startup="true" start="0x00000000" size="0x00100000" default="1"/>
+        <feature type="Memory" n="1048576" name="Flash"/>
+        <memory id="IRAM1" start="0x20000000" size="0x00040000" default="1"/>
+        <feature type="Memory" n="262144" name="RAM"/>
+      </device>
+    </family>
+  </devices>
+  <taxonomy>
+    <description Cclass="Device" Cgroup="StartupConfig">Stack and Heap configuration</description>
+    <description Cclass="Device" Cgroup="Startup">System Startup and header files</description>
+  </taxonomy>
+  <conditions>
+    <condition id="CMSIS-Core">
+      <description>True if the component Device Startup is selected</description>
+      <require Cclass="Device" Cgroup="Startup"/>
+    </condition>
+    <condition id="ARM Compiler">
+      <require Tcompiler="ARMCC"/>
+    </condition>
+    <condition id="IAR Compiler">
+      <require Tcompiler="IAR"/>
+    </condition>
+    <condition id="GCC Compiler">
+      <require Tcompiler="GCC"/>
+    </condition>
+    <condition id="nRF51422 Device and CMSIS">
+      <description>Nordic Semiconductor nRF51422 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51422_xxAA"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51422_xxAB"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51422_xxAC"/>
+    </condition>
+    <condition id="nRF51801 Device and CMSIS">
+      <description>Nordic Semiconductor nRF51801 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51801_xxAB"/>
+    </condition>
+    <condition id="nRF51802 Device and CMSIS">
+      <description>Nordic Semiconductor nRF51802 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51802_xxAA"/>
+    </condition>
+    <condition id="nRF51822 Device and CMSIS">
+      <description>Nordic Semiconductor nRF51822 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51822_xxAA"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51822_xxAB"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51822_xxAC"/>
+    </condition>
+    <condition id="nRF51824 Device and CMSIS">
+      <description>Nordic Semiconductor nRF51824 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF51824_xxAA"/>
+    </condition>
+    <condition id="nRF52805 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52805 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52805_xxAA"/>
+    </condition>
+    <condition id="nRF52810 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52810 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52810_xxAA"/>
+    </condition>
+    <condition id="nRF52811 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52811 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52811_xxAA"/>
+    </condition>
+    <condition id="nRF52820 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52820 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52820_xxAA"/>
+    </condition>
+    <condition id="nRF52832 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52832 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52832_xxAA"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52832_xxAB"/>
+    </condition>
+    <condition id="nRF52833 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52833 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52833_xxAA"/>
+    </condition>
+    <condition id="nRF52840 Device and CMSIS">
+      <description>Nordic Semiconductor nRF52840 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF52840_xxAA"/>
+    </condition>
+    <condition id="nRF5340 Device application core and CMSIS">
+      <description>Nordic Semiconductor nRF5340 device Application core and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF5340_xxAA" Pname="Application"/>
+    </condition>
+    <condition id="nRF5340 Device network core and CMSIS">
+      <description>Nordic Semiconductor nRF5340 device Network core and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF5340_xxAA" Pname="Network"/>
+    </condition>
+    <condition id="nRF9160 Device and CMSIS">
+      <description>Nordic Semiconductor nRF9160 device and CMSIS</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="nRF9160_xxAA"/>
+    </condition>
+    <condition id="Startup">
+      <description>Startup Component selected.</description>
+      <require condition="CMSIS-Core"/>
+      <accept Dvendor="Nordic Semiconductor:54" Dname="*"/>
+    </condition>
+  </conditions>
+  <components>
+    <component Cclass="Device" Cversion="8.38.0" condition="Startup" Cgroup="StartupConfig">
+      <description>Startup</description>
+      <files>
+        <file category="header" name="Device/Source/startup_config.h" attr="config"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF51422 Device and CMSIS">
+      <description>nRF51422 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf51.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf51.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf51.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf51.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf51.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF51801 Device and CMSIS">
+      <description>nRF51801 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf51.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf51.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf51.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf51.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf51.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF51802 Device and CMSIS">
+      <description>nRF51802 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf51.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf51.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf51.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf51.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf51.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF51822 Device and CMSIS">
+      <description>nRF51822 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf51.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf51.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf51.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf51.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf51.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF51824 Device and CMSIS">
+      <description>nRF51824 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf51.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf51.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf51.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf51.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf51.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52805 Device and CMSIS">
+      <description>nRF52805 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52805.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52805.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52805.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52805.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52810 Device and CMSIS">
+      <description>nRF52810 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52810.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52810.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52810.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52810.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52811 Device and CMSIS">
+      <description>nRF52811 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52811.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52811.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52811.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52811.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52820 Device and CMSIS">
+      <description>nRF52820 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52820.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52820.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52820.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52820.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52832 Device and CMSIS">
+      <description>nRF52832 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52833 Device and CMSIS">
+      <description>nRF52833 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52833.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52833.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52833.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52833.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF52840 Device and CMSIS">
+      <description>nRF52840 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf52840.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf52840.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf52840.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf52.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf52840.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF5340 Device application core and CMSIS">
+      <description>nRF5340 Device application core and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf5340_application.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf5340_application.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf5340_application.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf5340_application.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf5340_application.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF5340 Device network core and CMSIS">
+      <description>nRF5340 Device network core and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf5340_network.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf5340_network.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf5340_network.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf5340_network.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf5340_network.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+    <component Cclass="Device" Cversion="8.38.0" Cgroup="Startup" condition="nRF9160 Device and CMSIS">
+      <description>nRF9160 Device and CMSIS</description>
+      <files>
+        <file category="source" attr="config" name="Device/Source/arm/arm_startup_nrf9160.s" condition="ARM Compiler"/>
+        <file category="source" attr="config" name="Device/Source/iar/iar_startup_nrf9160.s" condition="IAR Compiler"/>
+        <file category="source" attr="config" name="Device/Source/gcc/gcc_startup_nrf9160.S" condition="GCC Compiler"/>
+        <file category="source" name="Device/Source/system_nrf9160.c" attr="config"/>
+        <file category="header" name="Device/Include/system_nrf9160.h"/>
+        <file category="header" name="Device/Include/system_nrf.h"/>
+      </files>
+    </component>
+  </components>
+</package>
