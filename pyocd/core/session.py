@@ -27,7 +27,6 @@ from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List,
 
 from . import exceptions
 from .options_manager import OptionsManager
-from ..board.board import Board
 from ..utility.notification import Notifier
 
 if TYPE_CHECKING:
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from ..probe.debug_probe import DebugProbe
     from ..probe.tcp_probe_server import DebugProbeServer
     from ..gdbserver.gdbserver import GDBServer
+    from ..board.board import Board
 
 LOG = logging.getLogger(__name__)
 
@@ -142,6 +142,9 @@ class Session(Notifier):
             defaults for option if they are not set through any other method.
         @param kwargs Session options passed as keyword arguments.
         """
+        # Importing Board here eases circular import issues, and it's only needed here anyway.
+        from ..board.board import Board
+
         super().__init__()
 
         Session._current_session = weakref.ref(self)
@@ -312,7 +315,7 @@ class Session(Notifier):
         return self._probe
 
     @property
-    def board(self) -> Optional[Board]:
+    def board(self) -> Optional["Board"]:
         """@brief The @ref pyocd.board.board.Board "Board" object."""
         return self._board
 
