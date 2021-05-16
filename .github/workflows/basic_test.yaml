@@ -40,7 +40,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade setuptools pip wheel
-        pip install -r dev-requirements.txt
+        pip install -e .[test]
 
     - name: Setup flake8 annotations
       # This commit is v1. Using exact commit for security.
