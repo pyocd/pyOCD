@@ -444,8 +444,6 @@ class DebugPort(object):
                     break
             else:
                 return False
-
-        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
         
         return True
 
