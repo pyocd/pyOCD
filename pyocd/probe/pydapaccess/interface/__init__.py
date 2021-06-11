@@ -58,6 +58,8 @@ if not USB_BACKEND:
     # Default to pyUSB for Linux.
     elif system == "Linux":
         USB_BACKEND = "pyusb"
+    elif "BSD" in system:
+        USB_BACKEND = "pyusb"
     else:
         raise DAPAccessIntf.DeviceError("No USB backend found")
 
