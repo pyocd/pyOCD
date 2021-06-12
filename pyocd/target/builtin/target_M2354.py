@@ -15,13 +15,12 @@
 # limitations under the License.
 
 from ...coresight.coresight_target import CoreSightTarget
-from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, MemoryType)
 from ...debug.svd.loader import SVDFile
 
 SCS_DHCSR       = 0xE000EDF0
 SCS_DHCSR_S_SDE = 0x00100000
 SCU_SRAMNSSET   = 0x4002F024
-SCU_FNSADDR     = 0x4002F028
 
 def flash_algo(load_address):
     return {
@@ -117,62 +116,44 @@ def flash_algo(load_address):
 class M2354KJFAE(CoreSightTarget):
     VENDOR = "Nuvoton"
 
-    MEMORY_MAP = MemoryMap()
+    MEMORY_MAP = MemoryMap(
+        FlashRegion(name='aprom',      start=0x00000000, length=0x100000, sector_size=0x0800,
+                                                                          page_size=0x0800,
+                                                                          is_boot_memory=True,
+                                                                          algo=flash_algo(0x20000000)),
+        FlashRegion(name='aprom_ns',   start=0x10000000, length=0x100000, sector_size=0x0800,
+                                                                          page_size=0x0800,
+                                                                          is_boot_memory=True,
+                                                                          algo=flash_algo(0x20000000)),
+        FlashRegion(name='ldrom',      start=0x00100000, length=0x4000,   sector_size=0x0800,
+                                                                          page_size=0x0800,
+                                                                          algo=flash_algo(0x20000000)),
+        FlashRegion(name='data_flash', start=0x00110000, length=0x2000,   sector_size=0x0800,
+                                                                          page_size=0x0800,
+                                                                          algo=flash_algo(0x20000000)),
+        RamRegion(  name='sram',       start=0x20000000, length=0x40000),
+        RamRegion(  name='sram_ns',    start=0x30000000, length=0x40000)
+        )
 
     def __init__(self, link):
         super(M2354KJFAE, self).__init__(link, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("M2354_v1.svd")
 
-    def create_flash(self):
-        dhcsr      = self.read32(SCS_DHCSR)
-        s_sde      = 1 if (dhcsr & SCS_DHCSR_S_SDE) else 0
+    def post_connect_hook(self):
+        dhcsr = self.read32(SCS_DHCSR)
 
-        fnsaddr    = self.read32(SCU_FNSADDR   if s_sde else (0x10000000+SCU_FNSADDR))
-        sramnsnset = self.read32(SCU_SRAMNSSET if s_sde else (0x10000000+SCU_SRAMNSSET))
-        snsaddr    = 0x20040000
+        if (dhcsr & SCS_DHCSR_S_SDE) == 0:
+            sramnsnset = self.read32(0x10000000 + SCU_SRAMNSSET)
+            snsaddr    = 0x20040000
 
-        for i in range(16):
-            if sramnsnset & (1 << i):
-                snsaddr = 0x20000000 + (0x4000 * i)
-                break
+            for i in range(16):
+                if sramnsnset & (1 << i):
+                    snsaddr = 0x20000000 + (0x4000 * i)
+                    break
 
-        if s_sde and (fnsaddr > 0):
-            self.memory_map.add_regions(
-                FlashRegion(name='aprom',      start=0x00000000,         length=fnsaddr,
-                                                                         sector_size=0x0800,
-                                                                         page_size=0x0800,
-                                                                         is_boot_memory=True,
-                                                                         algo=flash_algo(0x20000000))
-                )
-
-        if fnsaddr < 0x00100000:
-            self.memory_map.add_regions(
-                FlashRegion(name='aprom_ns',   start=0x10000000+fnsaddr, length=0x00100000-fnsaddr,
-                                                                         sector_size=0x0800,
-                                                                         page_size=0x0800,
-                                                                         algo=flash_algo(0x20000000 if s_sde else (0x10000000+snsaddr)))
-                )
-
-        if s_sde:
-            self.memory_map.add_regions(
-                FlashRegion(name='ldrom',      start=0x00100000,         length=0x4000,
-                                                                         sector_size=0x0800,
-                                                                         page_size=0x0800,
-                                                                         algo=flash_algo(0x20000000)),
-                FlashRegion(name='data_flash', start=0x00110000,         length=0x2000,
-                                                                         sector_size=0x0800,
-                                                                         page_size=0x0800,
-                                                                         algo=flash_algo(0x20000000))
-                )
-
-        if s_sde and (snsaddr > 0x20000000):
-            self.memory_map.add_regions(
-                RamRegion(  name='sram',       start=0x20000000,         length=snsaddr-0x20000000)
-                )
-
-        if snsaddr < 0x20040000:
-            self.memory_map.add_regions(
-                RamRegion(  name='sram_ns',    start=0x10000000+snsaddr, length=0x20040000-snsaddr)
-                )
-
-        super(M2354KJFAE, self).create_flash()
+            for region in self.memory_map.clone():
+                if (region.start & 0x10000000) > 0:
+                    if region.type == MemoryType.FLASH:
+                        self.memory_map[region.name].algo = flash_algo(0x10000000 + snsaddr)
+                else:
+                    self.memory_map.remove_region(self.memory_map[region.name])
