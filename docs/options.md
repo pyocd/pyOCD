@@ -396,6 +396,15 @@ Whether to enable SWV printf output over the semihosting console. Requires the <
 option to be set. The SWO baud rate can be controlled with the <tt>swv_clock</tt> option.
 </td></tr>
 
+<tr><td>debug.status_fault_retry_timeout</td>
+<td>float</td>
+<td>1</td>
+<td>
+Duration in seconds that a failed target status check will be retried before an error is raised. Only
+applies while the target is running after a resume operation in the debugger and pyOCD is waiting for
+it to halt again.
+</td></tr>
+
 <tr><td>gdbserver_port</td>
 <td>int</td>
 <td>3333</td>

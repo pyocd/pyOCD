@@ -133,6 +133,10 @@ BUILTIN_OPTIONS = [
         "Whether to enable SWV printf output over the semihosting console. Requires the "
         "swv_system_clock option to be set. The SWO baud rate can be controlled with the "
         "swv_clock option."),
+    OptionInfo('debug.status_fault_retry_timeout', float, 1.0,
+        "Duration in seconds that a failed target status check will be retried before an error is raised. "
+        "Only applies while the target is running after a resume operation in the debugger and pyOCD is waiting "
+        "for it to halt again."),
     OptionInfo('gdbserver_port', int, 3333,
         "Base TCP port for the gdbserver."),
     OptionInfo('persist', bool, False,
