@@ -23,6 +23,7 @@ import sys
 import six
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
+from typing import (Dict, Optional)
 
 from ..core import exceptions
 from ..core.target import Target
@@ -318,17 +319,17 @@ class GDBServer(threading.Thread):
                         args=(self.GDBSERVER_START_LISTENING_EVENT, self))
                 notify_timer.start()
 
-                while not self.shutdown_event.isSet() and not self.detach_event.isSet():
+                while not self.shutdown_event.is_set() and not self.detach_event.is_set():
                     connected = self.abstract_socket.connect()
                     if connected != None:
                         self.packet_io = GDBServerPacketIOThread(self.abstract_socket)
                         break
 
-                if self.shutdown_event.isSet():
+                if self.shutdown_event.is_set():
                     self._cleanup()
                     return
 
-                if self.detach_event.isSet():
+                if self.detach_event.is_set():
                     continue
         
                 # Make sure the target is halted. Otherwise gdb gets easily confused.
@@ -345,14 +346,14 @@ class GDBServer(threading.Thread):
     def _run_connection(self):
         while True:
             try:
-                if self.shutdown_event.isSet():
+                if self.shutdown_event.is_set():
                     self._cleanup()
                     return
 
-                if self.detach_event.isSet():
+                if self.detach_event.is_set():
                     break
 
-                if self.packet_io.interrupt_event.isSet():
+                if self.packet_io.interrupt_event.is_set():
                     if self.non_stop:
                         self.target.halt()
                         self.is_target_running = False
@@ -376,18 +377,18 @@ class GDBServer(threading.Thread):
                 except ConnectionClosedException:
                     break
 
-                if self.shutdown_event.isSet():
+                if self.shutdown_event.is_set():
                     self._cleanup()
                     return
 
-                if self.detach_event.isSet():
+                if self.detach_event.is_set():
                     break
 
                 if self.non_stop and packet is None:
                     sleep(0.1)
                     continue
 
-                if len(packet) != 0:
+                if packet is not None and len(packet) != 0:
                     # decode and prepare resp
                     resp, detach = self.handle_message(packet)
 
@@ -572,6 +573,8 @@ class GDBServer(threading.Thread):
         # Csig[;addr]
         elif data[0:1] in (b'C', b'S'):
             addr = int(data[1:].split(b';')[1], base=16)
+        else:
+            raise exceptions.DebugError("invalid step address received from gdb")
         return addr
 
     def resume(self, data):
@@ -587,7 +590,7 @@ class GDBServer(threading.Thread):
         val = b''
 
         while True:
-            if self.shutdown_event.isSet():
+            if self.shutdown_event.is_set():
                 self.packet_io.interrupt_event.clear()
                 return self.create_rsp_packet(val)
 
@@ -686,14 +689,16 @@ class GDBServer(threading.Thread):
         if not ops:
             return self.create_rsp_packet(b"OK")
 
+        # Maps the thread unique ID to an action char (byte).
+        thread_actions: Dict[int, Optional[bytes]] = {}
+
         if self.is_threading_enabled():
-            thread_actions = {}
             threads = self.thread_provider.get_threads()
             for k in threads:
                 thread_actions[k.unique_id] = None
             currentThread = self.thread_provider.get_current_thread_id()
         else:
-            thread_actions = { 1 : None } # our only thread
+            thread_actions[1] = None # our only thread
             currentThread = 1
         default_action = None
 
@@ -745,7 +750,7 @@ class GDBServer(threading.Thread):
             self.is_target_running = False
             self.send_stop_notification(forceSignal=0)
         else:
-            LOG.error("Unsupported v_cont action '%s'" % thread_actions[1:2])
+            LOG.error("Unsupported v_cont action '%s'" % thread_actions[1])
 
     def flash_op(self, data):
         ops = data.split(b':')[0]
