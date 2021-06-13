@@ -17,8 +17,16 @@
 
 from enum import Enum
 import threading
+from typing import (Callable, Collection, Optional, overload, Sequence, Set, TYPE_CHECKING, Tuple, Union)
+from typing_extensions import Literal
 
-class DebugProbe(object):
+if TYPE_CHECKING:
+    from ..core.session import Session
+    from ..core.memory_interface import MemoryInterface
+    from ..board.board import Board
+    from ..coresight.ap import APAddressBase
+
+class DebugProbe:
     """! @brief Abstract debug probe class.
 
     Subclasses of this abstract class are drivers for different debug probe interfaces, either hardware such as a
@@ -107,7 +115,7 @@ class DebugProbe(object):
         JTAG_SEQUENCE = 7
 
     @classmethod
-    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
+    def get_all_connected_probes(cls, unique_id: str = None, is_explicit: bool = False) -> Sequence["DebugProbe"]:
         """! @brief Returns a list of DebugProbe instances.
 
         To filter the list of returned probes, the `unique_id` parameter may be set to a string with a full or
@@ -126,7 +134,7 @@ class DebugProbe(object):
         raise NotImplementedError()
 
     @classmethod
-    def get_probe_with_id(cls, unique_id, is_explicit=False):
+    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional["DebugProbe"]:
         """! @brief Returns a DebugProbe instance for a probe with the given unique ID.
 
         If no probe is connected with a fully matching unique ID, then None will be returned.
@@ -138,37 +146,37 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def __init__(self):
+    def __init__(self) -> None:
         """! @brief Constructor."""
-        self._session = None
+        self._session: Optional["Session"] = None
         self._lock = threading.RLock()
 
     @property
-    def session(self):
+    def session(self) -> Optional["Session"]:
         """! @brief Session associated with this probe."""
         return self._session
 
     @session.setter
-    def session(self, the_session):
+    def session(self, the_session: "Session") -> None:
         self._session = the_session
 
     @property
-    def description(self):
+    def description(self) -> str:
         """! @brief Combined description of the debug probe and/or associated board."""
         return self.vendor_name + " " + self.product_name
 
     @property
-    def vendor_name(self):
+    def vendor_name(self) -> str:
         """! @brief Name of the debug probe's manufacturer."""
         raise NotImplementedError()
 
     @property
-    def product_name(self):
+    def product_name(self) -> str:
         """! @brief Name of the debug probe."""
         raise NotImplementedError()
 
     @property
-    def supported_wire_protocols(self):
+    def supported_wire_protocols(self) -> Collection[Protocol]:
         """! @brief List of DebugProbe.Protocol supported by the probe.
 
         Only one of the values returned from this property may be passed to connect().
@@ -176,7 +184,7 @@ class DebugProbe(object):
         raise NotImplementedError()
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         """! @brief The unique ID of this device.
 
         This property will be valid before open() is called. This value can be passed to
@@ -185,7 +193,7 @@ class DebugProbe(object):
         raise NotImplementedError()
 
     @property
-    def wire_protocol(self):
+    def wire_protocol(self) -> Optional[Protocol]:
         """! @brief Currently selected wire protocol.
 
         If the probe is not open and connected, i.e., open() and connect() have not been called,
@@ -195,7 +203,7 @@ class DebugProbe(object):
         raise NotImplementedError()
 
     @property
-    def is_open(self):
+    def is_open(self) -> bool:
         """! @brief Whether the probe is currently open.
 
         To open the probe, call the open() method.
@@ -203,14 +211,14 @@ class DebugProbe(object):
         raise NotImplementedError()
 
     @property
-    def capabilities(self):
+    def capabilities(self) -> Set[Capability]:
         """! @brief A set of DebugProbe.Capability enums indicating the probe's features.
 
         This value should not be trusted until after the probe is opened.
         """
         raise NotImplementedError()
 
-    def create_associated_board(self):
+    def create_associated_board(self) -> Optional["Board"]:
         """! @brief Create a board instance representing the board of which the probe is a component.
 
         If the probe is part of a board, then this method will create a Board instance that
@@ -223,15 +231,15 @@ class DebugProbe(object):
         """
         return None
 
-    def open(self):
+    def open(self) -> None:
         """! @brief Open the USB interface to the probe for sending commands."""
         raise NotImplementedError()
 
-    def close(self):
+    def close(self) -> None:
         """! @brief Close the probe's USB interface."""
         raise NotImplementedError()
 
-    def lock(self):
+    def lock(self) -> None:
         """! @brief Lock the probe from access by other threads.
 
         This lock is recursive, so locking multiple times from a single thread is acceptable as long
@@ -241,7 +249,7 @@ class DebugProbe(object):
         """
         self._lock.acquire()
 
-    def unlock(self):
+    def unlock(self) -> None:
         """! @brief Unlock the probe.
 
         Only when the thread unlocks the probe the same number of times it has called lock() will
@@ -252,15 +260,15 @@ class DebugProbe(object):
     ## @name Target control
     ##@{
 
-    def connect(self, protocol=None):
+    def connect(self, protocol: Optional[Protocol] = None) -> None:
         """! @brief Initialize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """! @brief Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
 
-    def swj_sequence(self, length, bits):
+    def swj_sequence(self, length: int, bits: int) -> None:
         """! @brief Transfer some number of bits on SWDIO/TMS.
 
         @param self
@@ -269,7 +277,7 @@ class DebugProbe(object):
         """
         pass
 
-    def swd_sequence(self, sequences):
+    def swd_sequence(self, sequences: Sequence[Union[Tuple[int], Tuple[int, int]]]) -> Tuple[int, Sequence[bytes]]:
         """! @brief Send a sequences of bits on the SWDIO signal.
 
         Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members in this order:
@@ -286,7 +294,7 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def jtag_sequence(self, cycles, tms, read_tdo, tdi):
+    def jtag_sequence(self, cycles: int, tms: int, read_tdo: bool, tdi: int) -> Optional[int]:
         """! @brief Send JTAG sequence.
 
         @param self
@@ -300,18 +308,18 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def set_clock(self, frequency):
+    def set_clock(self, frequency: float) -> None:
         """! @brief Set the frequency for JTAG and SWD in Hz.
 
         This function is safe to call before connect is called.
         """
         raise NotImplementedError()
 
-    def reset(self):
+    def reset(self) -> None:
         """! @brief Perform a hardware reset of the target."""
         raise NotImplementedError()
 
-    def assert_reset(self, asserted):
+    def assert_reset(self, asserted: bool) -> None:
         """! @brief Assert or de-assert target's nRESET signal.
 
         Because nRESET is negative logic and usually open drain, passing True will drive it low, and
@@ -319,7 +327,7 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def is_reset_asserted(self):
+    def is_reset_asserted(self) -> bool:
         """! @brief Returns True if nRESET is asserted or False if de-asserted.
 
         If the debug probe cannot actively read the reset signal, the value returned will be the
@@ -327,7 +335,7 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def flush(self):
+    def flush(self) -> None:
         """! @brief Write out all unsent commands.
 
         This API may be a no-op for certain debug probe types.
@@ -339,7 +347,23 @@ class DebugProbe(object):
     ## @name DAP access
     ##@{
 
-    def read_dp(self, addr, now=True):
+    @overload
+    def read_dp(self, addr: int) -> int:
+        ...
+
+    @overload
+    def read_dp(self, addr: int, now: Literal[True] = True) -> int:
+        ...
+
+    @overload
+    def read_dp(self, addr: int, now: Literal[False]) -> Callable[[], int]:
+        ...
+
+    @overload
+    def read_dp(self, addr: int, now: bool) -> Union[int, Callable[[], int]]:
+        ...
+
+    def read_dp(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
         """! @brief Read a DP register.
 
         @param self
@@ -350,7 +374,7 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def write_dp(self, addr, data):
+    def write_dp(self, addr: int, data: int) -> None:
         """! @brief Write a DP register.
 
         @param self
@@ -359,23 +383,56 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def read_ap(self, addr, now=True):
+    @overload
+    def read_ap(self, addr: int) -> int:
+        ...
+
+    @overload
+    def read_ap(self, addr: int, now: Literal[True] = True) -> int:
+        ...
+
+    @overload
+    def read_ap(self, addr: int, now: Literal[False]) -> Callable[[], int]:
+        ...
+
+    @overload
+    def read_ap(self, addr: int, now: bool) -> Union[int, Callable[[], int]]:
+        ...
+
+    def read_ap(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
         """! @brief Read an AP register."""
         raise NotImplementedError()
 
-    def write_ap(self, addr, data):
+    def write_ap(self, addr: int, data) -> None:
         """! @brief Write an AP register."""
         raise NotImplementedError()
 
-    def read_ap_multiple(self, addr, count=1, now=True):
+    @overload
+    def read_ap_multiple(self, addr: int, count: int = 1) -> Sequence[int]:
+        ...
+
+    @overload
+    def read_ap_multiple(self, addr: int, count: int, now: Literal[True] = True) -> Sequence[int]:
+        ...
+
+    @overload
+    def read_ap_multiple(self, addr: int, count: int, now: Literal[False]) -> Callable[[], Sequence[int]]:
+        ...
+
+    @overload
+    def read_ap_multiple(self, addr: int, count: int, now: bool) -> Union[Sequence[int], Callable[[], Sequence[int]]]:
+        ...
+
+    def read_ap_multiple(self, addr: int, count: int = 1, now: bool = True) \
+             -> Union[Sequence[int], Callable[[], Sequence[int]]]:
         """! @brief Read one AP register multiple times."""
         raise NotImplementedError()
 
-    def write_ap_multiple(self, addr, values):
+    def write_ap_multiple(self, addr: int, values) -> None:
         """! @brief Write one AP register multiple times."""
         raise NotImplementedError()
 
-    def get_memory_interface_for_ap(self, ap_address):
+    def get_memory_interface_for_ap(self, ap_address: "APAddressBase") -> Optional["MemoryInterface"]:
         """! @brief Returns a @ref pyocd.core.memory_interface.MemoryInterface "MemoryInterface" for
             the specified AP.
 
@@ -385,7 +442,7 @@ class DebugProbe(object):
         does not provide an accelerated memory interface, None will be returned.
 
         @param self The debug probe.
-        @param ap_address An instance of @ref pyocd.coresight.ap.APAddress "APAddress".
+        @param ap_address An instance of @ref pyocd.coresight.ap.APAddressBase "APAddressBase".
         """
         return None
 
@@ -394,7 +451,7 @@ class DebugProbe(object):
     ## @name SWO
     ##@{
 
-    def swo_start(self, baudrate):
+    def swo_start(self, baudrate: float) -> None:
         """! @brief Start receiving SWO data at the given baudrate.
 
         Once SWO reception has started, the swo_read() method must be called at regular intervals
@@ -403,11 +460,11 @@ class DebugProbe(object):
         """
         raise NotImplementedError()
 
-    def swo_stop(self):
+    def swo_stop(self) -> None:
         """! @brief Stop receiving SWO data."""
         raise NotImplementedError()
 
-    def swo_read(self):
+    def swo_read(self) -> bytearray:
         """! @brief Read buffered SWO data from the target.
 
         @eturn Bytearray of the received data. May be 0 bytes in length if no SWO data is buffered

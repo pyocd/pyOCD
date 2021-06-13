@@ -279,7 +279,7 @@ class STLink(object):
             response = self._device.transfer(cmd, readSize=52)
             self._check_status(response[0:2])
 
-            freqs = conversion.byte_list_to_u32le_list(response[4:52])
+            freqs = list(conversion.byte_list_to_u32le_list(response[4:52]))
             currentFreq = freqs.pop(0)
             freqCount = freqs.pop(0)
             return currentFreq, freqs[:freqCount]

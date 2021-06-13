@@ -15,11 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class BoardInfo(object):
-    def __init__(self, name, target, binary):
-        self.name = name
-        self.target = target
-        self.binary = binary
+from typing import (NamedTuple, Optional)
+
+class BoardInfo(NamedTuple):
+    name: str
+    target: str
+    binary: Optional[str] = None
+    vendor: Optional[str] = None
 
 BOARD_ID_TO_INFO = {
   # Note: please keep board list sorted by ID!
