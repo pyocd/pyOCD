@@ -12,6 +12,10 @@ By contributing to pyOCD you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 Contributed source code must follow [PEP8](https://www.python.org/dev/peps/pep-0008/) style
 conventions.
 
+Significant new code must use type annotations. However, until the bulk of pyOCD code is converted to have type
+annotations, static type checking isn't actual performed by CI. Also, it is perfectly ok to fix bugs without annotating
+the errant module.
+
 Other formatting requirements:
 - 4 space indents, no tabs are allowed.
 - No trailing whitespace.
@@ -30,9 +34,10 @@ Before you submit your changes, please ensure that:
 - Changes have been tested locally to the extent possible. (Obviously, we don't expect you to have as many
   test boards as we do.)
 
-Please create a pull request in GitHub with your contribution. Before creating the pull request,
-please ensure that all tests pass. We also run the tests on a wide range of boards for every pull
-request using our CI setup. Changes must pass all required pull request checks before they can be accepted.
+Please [create a new pull request](https://github.com/pyocd/pyOCD/pull/new/develop) on GitHub with your contribution.
+The new pull request should target the `develop` branch. Before creating the pull request, please ensure that all tests
+pass. We also run the tests on a wide range of boards for every pull request using our CI setup. Changes must pass all
+required pull request checks before they can be accepted.
 
 The [developers' guide](docs/developers_guide.md) describes how to create your development
 environment. The [automated tests guide](docs/automated_tests.md) provides information about the
@@ -41,7 +46,7 @@ available types of tests and describes how to run the tests.
 
 ## License
 
-By creating a pull request on GitHub, you agree to the [Developer Certificate of
+By creating a pull request on GitHub asking to merge your content into pyOCD, you agree to the [Developer Certificate of
 Origin](https://developercertificate.org), stating that you have the right to grant license to your contribution under
 the Apache 2.0 license.
 
@@ -50,6 +55,8 @@ in the license header at the top of the contributed source file(s). If you are d
 should use your employer's copyright. If a file is newly added by you, it must contain the standard license header with
 your copyright. Please note that we do not list changes in each source file by copyright owner, as this becomes a burden
 to maintain.
+
+PyOCD follows the "inbound = outbound" licensing policy. This is [the default](https://docs.github.com/en/github/site-policy/github-terms-of-service#6-contributions-under-repository-license) for the GitHub Terms of Service.
 
 Contributing source code that is already licensed using a license other than Apache 2.0 is possible, but each
 case must be considered individually. If you are the owner of the source code, then you have the right to

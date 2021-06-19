@@ -13,7 +13,7 @@ See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recen
 
 pyOCD is an open source Python package for programming and debugging Arm Cortex-M microcontrollers
 using multiple supported types of USB debug probes. It is fully cross-platform, with support for
-Linux, macOS, and Windows.
+Linux, macOS, Windows, and FreeBSD.
 
 A command line tool is provided that covers most use cases, or you can make use of the Python
 API to enable low-level target control. A common use for the Python API is to run and control CI
@@ -57,7 +57,7 @@ Requirements
 ------------
 
 - Python 3.6.0 or later.†
-- macOS, Linux, or Windows 7 or newer
+- macOS, Linux, Windows 7 or newer, or FreeBSD
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
@@ -108,11 +108,11 @@ _Note: depending on your system, you may need to use `python` instead of `python
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/) as well as
 [on GitHub](https://github.com/pyocd/pyOCD/releases).
 
-To install the latest prerelease version from the HEAD of the master branch, you can do
+To install the latest prerelease version from the HEAD of the `develop` branch, you can do
 the following:
 
 ```
-$ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git
+$ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git@develop
 ```
 
 You can also install directly from the source by cloning the git repository and running:
@@ -144,7 +144,7 @@ automatically via pip dependency management.
 How to install libusb depends on your OS:
 
 - macOS: use Homebrew: `brew install libusb`
-- Linux: should already be installed.
+- Linux and BSD: should already be installed.
 - Windows: download libusb from [libusb.info](https://libusb.info/) and place the .dll file in your Python
   installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
   your Python installation. The latest release is [available on GitHub](https://github.com/libusb/libusb/releases);
@@ -157,8 +157,8 @@ probes from user space. Otherwise you will need to run pyOCD as root, using sudo
 highly discouraged. (You should _never_ run pyOCD as root on any OS.)
 
 To help with this, example udev rules files are included with pyOCD in the
-[udev](https://github.com/pyocd/pyOCD/tree/master/udev) folder. The
-[readme](https://github.com/pyocd/pyOCD/tree/master/udev/README.md) in this folder has detailed
+[udev](https://github.com/pyocd/pyOCD/tree/main/udev) folder. The
+[readme](https://github.com/pyocd/pyOCD/tree/main/udev/README.md) in this folder has detailed
 instructions.
 
 ### Target support
@@ -216,22 +216,21 @@ Eclipse adding `http://embsysregview.sourceforge.net/update` as a software updat
 under the "Help -> Install New Software..." menu item.
 
 
-Development setup
------------------
+Contributions
+-------------
+
+Join the pyOCD community! We welcome contributions in any area. Please see the [contribution
+guidelines](CONTRIBUTING.md) for detailed requirements. In order foster a healthy
+and safe environment, we expect contributors and all members of the community to follow the
+[code of conduct](CODE_OF_CONDUCT.md).
+
+To report bugs, please [create an issue](https://github.com/pyocd/pyOCD/issues/new) in the
+GitHub project.
 
 Please see the [Developers' Guide](docs/developers_guide.md) for instructions on how to set up a
 development environment for pyOCD.
 
-
-Contributions
--------------
-
-We welcome contributions to pyOCD in any area. Please see the [contribution
-guidelines](CONTRIBUTING.md) for detailed requirements for contributions. In order foster a healthy
-and safe community, we expect contributors to follow the [code of conduct](CODE_OF_CONDUCT.md).
-
-To report bugs, please [create an issue](https://github.com/pyocd/pyOCD/issues/new) in the
-GitHub project.
+New pull requests should be [created](https://github.com/pyocd/pyOCD/pull/new/develop) against the `develop` branch.
 
 
 License
