@@ -1,6 +1,16 @@
 pyOCD
 =====
 
+<table><tr><td>
+
+### News
+
+- Branch configuration changes: the default branch `master` has been renamed to `main`, and a `develop` branch has been added to be used for active development. New pull requests should generally target `develop`. See [this discussion](https://github.com/pyocd/pyOCD/discussions/1169) for more information about this change.
+
+See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
+
+</td></tr></table>
+
 pyOCD is an open source Python package for programming and debugging Arm Cortex-M microcontrollers
 using multiple supported types of USB debug probes. It is fully cross-platform, with support for
 Linux, macOS, and Windows.
@@ -43,21 +53,10 @@ Configuration and customization is supported through [config files](docs/configu
 [user scripts](docs/user_scripts.md), and the Python API.
 
 
-News
-----
-
-- Python 2 support has been dropped! Version [0.29](/pyocd/pyOCD/releases/tag/v0.29.0) is the last version to support
-    Python 2. If there is a critical issue on 0.29 that is a blocker for you and you cannot move to Python 2, please
-    raise [an issue](https://github.com/pyocd/pyOCD/issues/new/choose).
-
-- PyOCD has moved to [its own organization](https://github.com/pyocd/) on GitHub! You will continue to see
-    further changes to increase communication and make pyOCD a more independent and open project.
-
-
 Requirements
 ------------
 
-- Python 3.6.0 or later.
+- Python 3.6.0 or later.†
 - macOS, Linux, or Windows 7 or newer
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
@@ -74,6 +73,7 @@ Requirements
   - SEGGER J-Link (experimental)
   - STLinkV2 or STLinkV3, either on-board or the standalone versions.
 
+† Version [0.29](https://github.com/pyocd/pyOCD/releases/tag/v0.29.0) is the last version to support Python 2.
 
 Status
 ------
