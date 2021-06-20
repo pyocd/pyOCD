@@ -3,12 +3,14 @@ Terminology
 
 These are the key terms used by pyOCD and its documentation.
 
-- **ADI**: Arm Debug Interface, an Arm architecture standard for how JTAG and SWD interface with CoreSight.
+- **ADI**: Arm Debug Interface, an Arm architecture specification for how JTAG and SWD interface with CoreSight.
     It defines the DAP structure and registers.
 - **AP**: Access Port, part of the DAP, connected to the DP, that allows the debugger to perform operations
     on the chip and cores. There are multiple types of AP that serve different purposes (see MEM-AP). Some MCU
     vendors implement proprietary APs in their chips.
-- **CoreSight**: A standard Arm architecture for debug subsystems. It defines a standardised way
+- **Commander**: Refers to the `pyocd commander` subcommand that presents an interactive interface for exploring
+    the connected target.
+- **CoreSight**: An Arm architecture specification for debug subsystems. It defines a standardised way
     to discover the debug resources provided by a device.
 - **DAP**: Debug Access Port, the debugging module that is accessed via the JTAG or SWD port. Composed of a
     DP and one or more APs.
@@ -30,6 +32,8 @@ These are the key terms used by pyOCD and its documentation.
     writes within the chip. Concrete MEM-APs have names that represent the kind of bus fabric with which they
     interface, such as AHB-AP or AXI-AP.
 - **probe server**: Server that shares a debug probe over TCP/IP.
+- **REPL**: Read-Eval-Print-Loop. An interactive type of command interface used by pyOCD Commander, as well as
+    Python and other similar tools.
 - **session**: Represents a connection to a debug probe and the runtime object graph.
 - **session option**: A named setting that controls some feature of pyOCD. Options are associated with
     a session, and each session can have different values for a given option.. They can be set from the
