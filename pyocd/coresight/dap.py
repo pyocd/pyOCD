@@ -688,6 +688,7 @@ class DebugPort(object):
     def write_ap(self, addr, data):
         assert isinstance(addr, int)
         num = self.next_access_number
+        did_lock = False
 
         try:
             did_lock = self._select_ap(addr)
@@ -705,6 +706,7 @@ class DebugPort(object):
     def read_ap(self, addr, now=True):
         assert isinstance(addr, int)
         num = self.next_access_number
+        did_lock = False
 
         try:
             did_lock = self._select_ap(addr)
@@ -742,7 +744,8 @@ class DebugPort(object):
     def write_ap_multiple(self, addr, values):
         assert isinstance(addr, int)
         num = self.next_access_number
-        
+        did_lock = False
+
         try:
             did_lock = self._select_ap(addr)
             TRACE.debug("write_ap_multiple:%06d (addr=0x%08x) = (%i values)", num, addr, len(values))
@@ -757,6 +760,7 @@ class DebugPort(object):
     def read_ap_multiple(self, addr, count=1, now=True):
         assert isinstance(addr, int)
         num = self.next_access_number
+        did_lock = False
         
         try:
             did_lock = self._select_ap(addr)

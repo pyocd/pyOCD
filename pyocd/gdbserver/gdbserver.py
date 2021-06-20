@@ -575,7 +575,7 @@ class GDBServer(threading.Thread):
         return addr
 
     def resume(self, data):
-        addr = self._get_resume_step_addr(data)
+#         addr = self._get_resume_step_addr(data)
         self.target.resume()
         LOG.debug("target resumed")
 
@@ -630,7 +630,7 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(val)
 
     def step(self, data, start=0, end=0):
-        addr = self._get_resume_step_addr(data)
+        #addr = self._get_resume_step_addr(data)
         LOG.debug("GDB step: %s (start=0x%x, end=0x%x)", data, start, end)
         
         # Use the step hook to check for an interrupt event.

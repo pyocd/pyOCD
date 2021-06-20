@@ -54,7 +54,6 @@ class StlinkDetectBase(object):
           'mount_point', TargetID name etc.
         Function returns mbed list with platform names if possible
         """
-        platform_count = {}
         candidates = list(self.find_candidates())
         result = []
         for device in candidates:

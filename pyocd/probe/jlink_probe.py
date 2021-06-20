@@ -294,7 +294,7 @@ class JLinkProbe(DebugProbe):
 
     def write_dp(self, addr, data):
         try:
-            ack = self._link.coresight_write(addr // 4, data, ap=False)
+            self._link.coresight_write(addr // 4, data, ap=False)
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
@@ -313,7 +313,7 @@ class JLinkProbe(DebugProbe):
     def write_ap(self, addr, data):
         assert isinstance(addr, int)
         try:
-            ack = self._link.coresight_write((addr & self.A32) // 4, data, ap=True)
+            self._link.coresight_write((addr & self.A32) // 4, data, ap=True)
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 

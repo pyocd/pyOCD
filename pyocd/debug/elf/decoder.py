@@ -85,7 +85,8 @@ class ElfSymbolDecoder(object):
             self.symbol_tree.addi(sym_value, sym_value+sym_size, syminfo)
 
     def _process_arm_type_symbols(self):
-        type_symbols = self._get_arm_type_symbol_iter()
+        pass
+#         type_symbols = self._get_arm_type_symbol_iter()
 #         map(print, imap(lambda x:"%s : 0x%x" % (x.name, x['st_value']), type_symbols))
 
     def _get_arm_type_symbol_iter(self):

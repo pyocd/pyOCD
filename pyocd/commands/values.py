@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -178,7 +179,7 @@ class FaultValue(ValueBase):
         DFSR = 0xe000ed30
         MMFAR = 0xe000ed34
         BFAR = 0xe000ed38
-        AFSR = 0xe000ed3c
+#         AFSR = 0xe000ed3c
         
         MMFSR_fields = [
                 ('IACCVIOL', 0),

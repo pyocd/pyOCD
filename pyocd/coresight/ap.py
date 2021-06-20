@@ -947,7 +947,6 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         num = self.dp.next_access_number
         TRACE.debug("read_mem:%06d (ap=0x%x; addr=0x%08x, size=%d) {",
             num, self.address.nominal_address, addr, transfer_size)
-        res = None
         try:
             self.write_reg(self._reg_offset + MEM_AP_CSW, self._csw | TRANSFER_SIZE[transfer_size])
             self.write_reg(self._reg_offset + MEM_AP_TAR, addr)
@@ -969,6 +968,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
 
         def read_mem_cb():
+            res = None
             try:
                 res = result_cb()
                 if transfer_size == 8:

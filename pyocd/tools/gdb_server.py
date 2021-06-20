@@ -184,10 +184,10 @@ class GDBServerTool(object):
         if not self.args.output_json:
             ConnectHelper.list_connected_probes()
         else:
+            status = 0
+            error = ""
             try:
                 all_mbeds = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
-                status = 0
-                error = ""
             except Exception as e:
                 all_mbeds = []
                 status = 1

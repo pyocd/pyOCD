@@ -164,7 +164,7 @@ class Kinetis(CoreSightTarget):
                 # until halt on connect is executed.
                 # assert self._force_halt_on_connect
 
-                isLocked = False
+#                 isLocked = False
             else:
                 LOG.warning("%s in secure state: not automatically unlocking", self.part_number)
         else:

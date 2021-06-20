@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -184,8 +185,9 @@ class SWOParser(object):
                     self._send_event(events.TraceTimestamp(tc, timestamp))
                 # Global timestamp.
                 elif hdr in (0b10010100, 0b10110100):
-                    t = (hdr >> 5) & 0x1
                     # TODO handle global timestamp
+                    # t = (hdr >> 5) & 0x1
+                    pass
                 # Extension.
                 elif (hdr & 0x8) == 0x8:
                     sh = (hdr >> 2) & 0x1

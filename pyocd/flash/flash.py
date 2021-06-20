@@ -325,7 +325,7 @@ class Flash(object):
 
         # update core register to execute the subroutine
         TRACE.debug("call compute crc(%x, %x)", self.begin_data, len(data))
-        result = self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data))
+        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data))
 
         # Read back the CRCs for each section
         data = self.target.read_memory_block32(self.begin_data, len(data))
@@ -399,7 +399,7 @@ class Flash(object):
         # update core register to execute the program_page subroutine
         TRACE.debug("start_program_page_with_buffer(addr=%x, len=%x, data=%x)", address, self.region.page_size,
                 self.page_buffers[buffer_number])
-        result = self._call_function(self.flash_algo['pc_program_page'], address, self.region.page_size, self.page_buffers[buffer_number])
+        self._call_function(self.flash_algo['pc_program_page'], address, self.region.page_size, self.page_buffers[buffer_number])
 
     def load_page_buffer(self, buffer_number, address, bytes):
         """!
@@ -559,14 +559,14 @@ class Flash(object):
             expected_fp = self.flash_algo['static_base']
             expected_sp = self.flash_algo['begin_stack']
             expected_pc = self.flash_algo['load_address']
-            expected_flash_algo = self.flash_algo['instructions']
-            if self.use_analyzer:
-                expected_analyzer = analyzer
             final_ipsr = self.target.read_core_register('ipsr')
             final_fp = self.target.read_core_register('r9')
             final_sp = self.target.read_core_register('sp')
             final_pc = self.target.read_core_register('pc')
             #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+            #expected_flash_algo = self.flash_algo['instructions']
+            #if self.use_analyzer:
+            #    expected_analyzer = analyzer
             #final_flash_algo = self.target.read_memory_block32(self.flash_algo['load_address'], len(self.flash_algo['instructions']))
             #if self.use_analyzer:
             #    final_analyzer = self.target.read_memory_block32(self.flash_algo['analyzer_address'], len(analyzer))

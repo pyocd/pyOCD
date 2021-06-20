@@ -175,9 +175,6 @@ def main():
 
         print(algo.flash_info)
 
-        template_dir = os.path.dirname(os.path.realpath(__file__))
-        output_dir = os.path.dirname(args.elf_path)
-
         # Allocate stack after algo and its rw data, rounded up.
         SP = args.blob_start + HEADER_SIZE + algo.rw_start + algo.rw_size + STACK_SIZE
         SP = (SP + 0x100 - 1) // 0x100 * 0x100

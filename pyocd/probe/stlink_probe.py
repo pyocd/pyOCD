@@ -175,7 +175,7 @@ class StlinkProbe(DebugProbe):
         return result if now else read_dp_result_callback
 
     def write_dp(self, addr, data):
-        result = self._link.write_dap_register(STLink.DP_PORT, addr, data)
+        self._link.write_dap_register(STLink.DP_PORT, addr, data)
 
     def read_ap(self, addr, now=True):
         apsel = (addr & APSEL) >> APSEL_SHIFT
@@ -188,7 +188,7 @@ class StlinkProbe(DebugProbe):
 
     def write_ap(self, addr, data):
         apsel = (addr & APSEL) >> APSEL_SHIFT
-        result = self._link.write_dap_register(apsel, addr & 0xffff, data)
+        self._link.write_dap_register(apsel, addr & 0xffff, data)
 
     def read_ap_multiple(self, addr, count=1, now=True):
         results = [self.read_ap(addr, now=True) for n in range(count)]
