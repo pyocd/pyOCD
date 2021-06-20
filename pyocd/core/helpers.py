@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-from .session import Session
-from ..probe.aggregator import DebugProbeAggregator
 from time import sleep
 import colorama
 import prettytable
+
+from .session import Session
+from ..probe.aggregator import DebugProbeAggregator
 
 # Init colorama here since this is currently the only module that uses it.
 colorama.init()
