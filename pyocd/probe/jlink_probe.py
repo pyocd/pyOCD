@@ -80,8 +80,7 @@ class JLinkProbe(DebugProbe):
                 sn = cls._format_serial_number(info.SerialNumber)
                 if sn == unique_id:
                     return cls(sn)
-            else:
-                return None
+            return None
         except JLinkException as exc:
             raise cls._convert_exception(exc) from exc
 
@@ -96,8 +95,7 @@ class JLinkProbe(DebugProbe):
             for info in jlink.connected_emulators():
                 if cls._format_serial_number(info.SerialNumber) == serial_number:
                     return info
-            else:
-                return None
+            return None
         except JLinkException as exc:
             raise cls._convert_exception(exc) from exc
 

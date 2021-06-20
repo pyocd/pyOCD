@@ -56,6 +56,7 @@ class TCPClientProbe(DebugProbe):
         StatusCode.TRANSFER_FAULT: exceptions.TransferFaultError,
         }
     
+    @classmethod
     def _extract_address(cls, unique_id):
         parts = unique_id.split(':', 1)
         if len(parts) == 1:

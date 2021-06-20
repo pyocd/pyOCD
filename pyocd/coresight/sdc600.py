@@ -401,7 +401,7 @@ class SDC600(CoreSightComponent):
         """
         with Timeout(timeout) as to_:
             if phase == self.LinkPhase.PHASE1:
-                assert self._current_link_phase == None
+                assert self._current_link_phase is None
 
                 # Close link phase 1 first, to put it in a known state.
                 self.close_link(self.LinkPhase.PHASE1)

@@ -128,8 +128,7 @@ class OptionsManager(Notifier):
         for layer in self._layers:
             if key in layer:
                 return layer[key]
-        else:
-            return self.get_default(key)
+        return self.get_default(key)
     
     def set(self, key, value):
         """! @brief Set an option in the current highest priority layer."""
