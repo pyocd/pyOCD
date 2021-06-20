@@ -2,6 +2,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2018 Arm Limited
 # Copyright (c) 2020 Cypress Semiconductor Corporation
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,16 +22,13 @@ import os
 import logging
 import argparse
 import json
-import pkg_resources
 
 from .. import __version__
 from .. import target
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..gdbserver import GDBServer
-from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch,
-                                convert_session_options)
-from ..probe.cmsis_dap_probe import CMSISDAPProbe
+from ..utility.cmdline import (split_command_line, convert_session_options)
 from ..probe.pydapaccess import DAPAccess
 from ..core.session import Session
 from ..coresight.generic_mem_ap import GenericMemAPTarget

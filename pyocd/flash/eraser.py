@@ -19,8 +19,6 @@ import logging
 from enum import Enum
 
 from ..core.memory_map import MemoryType
-from ..core import exceptions
-from ..utility.progress import print_progress
 
 LOG = logging.getLogger(__name__)
 

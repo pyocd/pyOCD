@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +19,6 @@ import logging
 
 from .cortex_m import CortexM
 from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
-from ..core import exceptions
 from ..core.target import Target
 from .cortex_m_core_registers import CoreRegisterGroups
 

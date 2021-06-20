@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2020 NXP
 # Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,15 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...coresight import ap
-from ...coresight.cortex_m import CortexM
 from ...debug.svd.loader import SVDFile
-import logging
-import os.path
-from time import (time, sleep)
 
 LOG = logging.getLogger(__name__)
 

@@ -16,18 +16,17 @@
 # limitations under the License.
 
 import logging
-from time import (time, sleep)
+from time import sleep
 
 from ..core.target import Target
 from ..core import exceptions
 from ..core.core_registers import CoreRegistersIndex
 from ..core.memory_map import (MemoryMap, RamRegion, DeviceRegion)
-from ..utility import (cmdline, conversion, timeout)
-from ..utility.notification import Notification
+from ..utility import (cmdline, timeout)
 from .component import CoreSightCoreComponent
 from .fpb import FPB
 from .dwt import DWT
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension )
+from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
 from .cortex_m_core_registers import (
     CortexMCoreRegisterInfo,
     CoreRegisterGroups,

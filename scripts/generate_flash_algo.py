@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # pyOCD debugger
 # Copyright (c) 2011-2021 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +21,6 @@ import os
 import argparse
 import struct
 import binascii
-import logging
 import jinja2
 from pyocd.target.pack.flash_algo import PackFlashAlgo
 

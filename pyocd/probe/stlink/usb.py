@@ -15,16 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...core import exceptions
-from .. import common
 import usb.core
 import usb.util
 import logging
-import threading
 from collections import namedtuple
 import platform
 import errno
 from binascii import hexlify
+
+from ...core import exceptions
+from .. import common
 
 LOG = logging.getLogger(__name__)
 

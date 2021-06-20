@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import six
 from time import sleep
 
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
-from ..core import exceptions
 from ..core.plugin import Plugin
 from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT)
 from .stlink.usb import STLinkUSBInterface

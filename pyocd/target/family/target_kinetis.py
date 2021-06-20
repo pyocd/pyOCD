@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2020 NXP
 # Copyright (c) 2006-2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,14 +16,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...coresight import (dap, ap)
+import logging
+from time import sleep
+
+from ...coresight import ap
 from ...coresight.cortex_m import CortexM
 from ...core import exceptions
 from ...core.target import Target
 from ...coresight.coresight_target import CoreSightTarget
 from ...utility.timeout import Timeout
-import logging
-from time import sleep
 
 MDM_STATUS = 0x00000000
 MDM_CTRL = 0x00000004

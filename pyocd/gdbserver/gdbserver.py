@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@
 import logging
 import threading
 from struct import unpack
-from time import (sleep, time)
+from time import sleep
 import sys
 import six
 import io
@@ -28,7 +29,6 @@ from ..core.target import Target
 from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
-from ..utility.progress import print_progress
 from ..utility.compatibility import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..trace.swv import SWVReader
@@ -39,16 +39,14 @@ from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
 from . import signals
-from . import gdbserver_commands
+from . import gdbserver_commands # lgtm[py/unused-import]
 from .packet_io import (
-    CTRL_C,
     checksum,
     ConnectionClosedException,
     GDBServerPacketIOThread,
     )
 from ..commands.execution_context import CommandExecutionContext
 from ..commands.commander import ToolExitException
-from ..commands.base import CommandBase
 
 LOG = logging.getLogger(__name__)
 

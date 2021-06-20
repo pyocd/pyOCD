@@ -20,11 +20,8 @@
 
 from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
-from collections import namedtuple
 import logging
 import io
-import itertools
-import struct
 from typing import Optional
 
 from .flash_algo import PackFlashAlgo

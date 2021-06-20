@@ -18,7 +18,6 @@
 import logging
 import threading
 import socket
-import sys
 import six
 import queue
 

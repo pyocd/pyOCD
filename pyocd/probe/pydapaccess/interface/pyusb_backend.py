@@ -28,7 +28,6 @@ from .common import (
     USB_CLASS_HID,
     filter_device_by_class,
     is_known_cmsis_dap_vid_pid,
-    check_ep,
     generate_device_unique_id,
     )
 from ..dap_access_api import DAPAccessIntf

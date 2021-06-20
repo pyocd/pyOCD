@@ -16,13 +16,11 @@
 # limitations under the License.
 
 import logging
-from time import sleep
 from enum import Enum
 
 from .component import CoreSightComponent
 from ..core import exceptions
 from ..utility.timeout import Timeout
-from ..utility.hex import dump_hex_data
 
 LOG = logging.getLogger(__name__)
 

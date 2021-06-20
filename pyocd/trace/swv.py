@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,6 @@
 
 import logging
 import threading
-import sys
 from time import sleep
 
 from .sink import TraceEventSink

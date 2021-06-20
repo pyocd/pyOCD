@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from ...coresight.coresight_target import CoreSightTarget
-from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
-from ...coresight import ap
-from ...coresight.cortex_m import CortexM
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
 SYSCON_DEVICE_ID0 = 0x400000FF8

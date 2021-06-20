@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2013-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from enum import Enum
+
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
 from ..utility.mask import msb
-import logging
-from struct import unpack
-from time import time
-from enum import Enum
 from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)

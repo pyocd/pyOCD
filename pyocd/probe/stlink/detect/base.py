@@ -1,4 +1,5 @@
 # Copyright (c) 2018-2019, Arm Limited and affiliates.
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +18,8 @@ import re
 from abc import ABCMeta, abstractmethod
 from io import open
 from os import listdir
-from os.path import expanduser, isfile, join, exists, isdir
+from os.path import join, exists, isdir
 import logging
-import functools
 import six
 
 LOG = logging.getLogger(__name__)

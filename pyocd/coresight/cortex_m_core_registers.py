@@ -16,10 +16,8 @@
 # limitations under the License.
 
 import logging
-from copy import copy
 
 from ..core.core_registers import CoreRegisterInfo
-from ..utility import conversion
 
 LOG = logging.getLogger(__name__)
 

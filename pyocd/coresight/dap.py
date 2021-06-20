@@ -23,7 +23,7 @@ from ..core import (exceptions, memory_interface)
 from ..core.target import Target
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
-from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APSEL_APBANKSEL, APREG_MASK, AccessPort)
+from .ap import APSEL_APBANKSEL
 from ..utility.sequencer import CallSequence
 from ..utility.timeout import Timeout
 

@@ -18,12 +18,10 @@
 import logging
 import threading
 import json
-import base64
 import socket
 from socketserver import (ThreadingTCPServer, StreamRequestHandler)
 
 from .shared_probe_proxy import SharedDebugProbeProxy
-from ..core.session import Session
 from ..core import exceptions
 from .debug_probe import DebugProbe
 from ..coresight.ap import (APVersion, APv1Address, APv2Address)

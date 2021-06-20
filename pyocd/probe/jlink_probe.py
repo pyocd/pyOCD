@@ -22,7 +22,7 @@ import pylink
 from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadException)
 
 from .debug_probe import DebugProbe
-from ..core import (exceptions, memory_interface)
+from ..core import exceptions
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
 

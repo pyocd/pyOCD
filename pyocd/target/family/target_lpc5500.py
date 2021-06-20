@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (C) 2020 Ted Tawara
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +23,8 @@ from ...utility.sequencer import CallSequence
 from ...core import exceptions
 from ...core.target import Target
 from ...coresight.coresight_target import CoreSightTarget
-from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...coresight.cortex_m import CortexM
 from ...coresight.cortex_m_v8m import CortexM_v8M
-from ...debug.svd.loader import SVDFile
 from ...utility import timeout
 
 FPB_CTRL                = 0xE0002000

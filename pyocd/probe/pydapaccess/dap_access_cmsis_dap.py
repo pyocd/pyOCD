@@ -19,7 +19,6 @@
 
 import re
 import logging
-import time
 import collections
 import threading
 from .dap_settings import DAPSettings
@@ -34,7 +33,6 @@ from .cmsis_dap_core import (
     DAPSWOTransport,
     DAPSWOMode,
     DAPSWOControl,
-    DAPSWOStatus,
     DAPTransferResponse,
     CMSISDAPVersion,
     )
@@ -1048,7 +1046,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         # Build physical packet by adding it to command
         cmd = self._crnt_cmd
-        is_read = transfer_request & READ
         size_to_transfer = transfer_count
         trans_data_pos = 0
         while size_to_transfer > 0:
