@@ -623,7 +623,7 @@ class GDBServer(threading.Thread):
             except exceptions.Error as e:
                 try:
                     self.target.halt()
-                except:
+                except exceptions.Error:
                     pass
                 LOG.warning('Exception while target was running: %s', e, exc_info=self.session.log_tracebacks)
                 val = ('S%02x' % self.target_facade.get_signal_value()).encode()

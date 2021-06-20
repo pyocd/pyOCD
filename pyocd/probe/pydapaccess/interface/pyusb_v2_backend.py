@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 try:
     import usb.core
     import usb.util
-except:
+except ImportError:
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True

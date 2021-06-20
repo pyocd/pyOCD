@@ -474,17 +474,17 @@ class Session(Notifier):
             try:
                 self.board.uninit()
                 self._inited = False
-            except:
+            except exceptions.Error:
                 LOG.error("exception during board uninit:", exc_info=self.log_tracebacks)
         
         if self._probe.is_open:
             try:
                 self._probe.disconnect()
-            except:
+            except exceptions.Error:
                 LOG.error("probe exception during disconnect:", exc_info=self.log_tracebacks)
             try:
                 self._probe.close()
-            except:
+            except exceptions.Error:
                 LOG.error("probe exception during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy(object):

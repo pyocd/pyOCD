@@ -33,7 +33,7 @@ LOG = logging.getLogger(__name__)
 
 try:
     import pywinusb.hid as hid
-except:
+except ImportError:
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
