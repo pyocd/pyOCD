@@ -359,7 +359,7 @@ class Class1ROMTable(ROMTable):
                 except exceptions.TransferError as err:
                     LOG.error("Error attempting to probe CoreSight component referenced by "
                             "ROM table entry #%d: %s", entryNumber, err,
-                            exc_info=self.session.get_current().log_tracebacks)
+                            exc_info=self.ap.dp.session.get_current().log_tracebacks)
 
                 entryAddress += 4
                 entryNumber += 1
@@ -548,7 +548,7 @@ class Class9ROMTable(ROMTable):
                     except exceptions.TransferError as err:
                         LOG.error("Error attempting to probe CoreSight component referenced by "
                                 "ROM table entry #%d: %s", entryNumber, err,
-                                exc_info=self.session.get_current().log_tracebacks)
+                                exc_info=self.ap.dp.session.get_current().log_tracebacks)
 
                 entryAddress += 4 * entrySizeMultiplier
                 entryNumber += 1
