@@ -20,6 +20,7 @@ from struct import unpack
 from time import (sleep, time)
 import sys
 import six
+import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core import exceptions
@@ -1008,7 +1009,7 @@ class GDBServer(threading.Thread):
         LOG.debug('Remote command: %s', cmd)
 
         # Create a new stream to collect the command output.
-        stream = six.StringIO()
+        stream = io.StringIO()
         self._command_context.output_stream = stream
         
         # TODO run this in a separate thread so we can cancel the command with ^C from gdb?

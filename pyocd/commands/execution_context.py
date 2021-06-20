@@ -162,7 +162,7 @@ class CommandExecutionContext(object):
         if self._output is None:
             return
         end = kwargs.pop('end', "\n")
-        if not isinstance(message, six.string_types):
+        if not isinstance(message, str):
             message = str(message)
         self._output.write(message + end)
     
@@ -175,7 +175,7 @@ class CommandExecutionContext(object):
         @param self This object.
         @param fmt Format string using printf-style "%" formatters.
         """
-        assert isinstance(fmt, six.string_types)
+        assert isinstance(fmt, str)
         message = fmt % args
         self.write(message, **kwargs)
     
@@ -188,7 +188,7 @@ class CommandExecutionContext(object):
         @param self This object.
         @param fmt Format string using the format() mini-language.
         """
-        assert isinstance(fmt, six.string_types)
+        assert isinstance(fmt, str)
         message = fmt.format(*args, **kwargs)
         self.write(message, **kwargs)
 
@@ -394,7 +394,7 @@ class CommandExecutionContext(object):
             
             result = eval(invocation.cmd, globals(), self._python_namespace)
             if result is not None:
-                if isinstance(result, six.integer_types):
+                if isinstance(result, str):
                     self.writei("0x%08x (%d)", result, result)
                 else:
                     w, h = get_terminal_size()
@@ -411,4 +411,4 @@ class CommandExecutionContext(object):
             output = subprocess.check_output(invocation.cmd, stderr=subprocess.STDOUT, shell=True)
             self.write(six.ensure_str(output), end='')
         except subprocess.CalledProcessError as err:
-            six.raise_from(exceptions.CommandError(str(err)), err)
+            raise exceptions.CommandError(str(err)) from err

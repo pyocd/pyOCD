@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +17,6 @@
 
 import logging
 from enum import Enum
-import six
 
 from ..core.memory_map import MemoryType
 from ..core import exceptions
@@ -152,7 +152,7 @@ class FlashEraser(object):
             flash.cleanup()
 
     def _convert_spec(self, spec):
-        if isinstance(spec, six.string_types):
+        if isinstance(spec, str):
             # Convert spec from string to range.
             if '-' in spec:
                 a, b = spec.split('-')

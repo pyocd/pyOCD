@@ -25,7 +25,6 @@ from collections import namedtuple
 import logging
 import io
 import itertools
-import six
 import struct
 from typing import Optional
 
@@ -95,8 +94,7 @@ class CmsisPack(object):
             try:
                 self._pack_file = zipfile.ZipFile(file_or_path, 'r')
             except zipfile.BadZipFile as err:
-                six.raise_from(MalformedCmsisPackError("Failed to open CMSIS-Pack '{}': {}".format(
-                    file_or_path, err)), err)
+                raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
         
         # Find the .pdsc file.
         for name in self._pack_file.namelist():
@@ -104,7 +102,7 @@ class CmsisPack(object):
                 self._pdscName = name
                 break
         else:
-            raise MalformedCmsisPackError("CMSIS-Pack '{}' is missing a .pdsc file".format(file_or_path))
+            raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
         
         with self._pack_file.open(self._pdscName) as pdscFile:
             self._pdsc = CmsisPackDescription(self, pdscFile)

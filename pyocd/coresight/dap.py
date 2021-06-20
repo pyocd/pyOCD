@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import six
 from collections import namedtuple
 from enum import Enum
 
@@ -686,7 +686,7 @@ class DebugPort(object):
         return True
 
     def write_ap(self, addr, data):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
 
         try:
@@ -703,7 +703,7 @@ class DebugPort(object):
         return True
 
     def read_ap(self, addr, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
 
         try:
@@ -740,7 +740,7 @@ class DebugPort(object):
             return read_ap_cb
 
     def write_ap_multiple(self, addr, values):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
         
         try:
@@ -755,7 +755,7 @@ class DebugPort(object):
                 self.unlock()
 
     def read_ap_multiple(self, addr, count=1, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
         
         try:

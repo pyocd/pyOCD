@@ -19,7 +19,6 @@ from .session import Session
 from ..probe.aggregator import DebugProbeAggregator
 from time import sleep
 import colorama
-import six
 import prettytable
 
 # Init colorama here since this is currently the only module that uses it.
@@ -168,7 +167,7 @@ class ConnectHelper(object):
             while True:
                 print(colorama.Style.RESET_ALL)
                 print("Enter the number of the debug probe or 'q' to quit", end='')
-                line = six.moves.input("> ")
+                line = input("> ")
                 valid = False
                 if line.strip().lower() == 'q':
                     return None

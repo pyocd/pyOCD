@@ -18,7 +18,6 @@ import struct
 import binascii
 from itertools import tee
 import six
-from six.moves import zip
 
 from .mask import align_up
 

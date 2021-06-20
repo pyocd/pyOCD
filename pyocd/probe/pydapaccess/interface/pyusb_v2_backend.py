@@ -18,7 +18,6 @@
 
 import logging
 import threading
-import six
 from time import sleep
 import errno
 import platform
@@ -107,7 +106,7 @@ class PyUSBv2(Interface):
         try:
             usb.util.claim_interface(dev, interface_number)
         except usb.core.USBError as exc:
-            raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
+            raise DAPAccessIntf.DeviceError("Unable to open device") from exc
 
         # Update all class variables if we made it here
         self.ep_out = ep_out

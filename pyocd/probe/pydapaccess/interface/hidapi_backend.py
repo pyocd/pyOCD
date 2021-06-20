@@ -51,7 +51,7 @@ class HidApiUSB(Interface):
         try:
             self.device.open_path(self.device_info['path'])
         except IOError as exc:
-            raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device: " + str(exc)), exc)
+            raise DAPAccessIntf.DeviceError("Unable to open device: " + str(exc)) from exc
 
     @staticmethod
     def get_all_connected_interfaces():

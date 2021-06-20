@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,6 @@
 from __future__ import print_function
 import logging
 import os
-import six
 import traceback
 import atexit
 
@@ -75,7 +75,7 @@ class PyocdRepl(object):
         try:
             while True:
                 try:
-                    line = six.moves.input(self.PROMPT)
+                    line = input(self.PROMPT)
                     self.run_one_command(line)
                 except KeyboardInterrupt:
                     print()
