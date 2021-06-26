@@ -59,6 +59,7 @@ from . import target_LPC1768
 from . import target_LPC4330
 from . import target_nRF51822_xxAA
 from . import target_nRF52832_xxAA
+from . import target_nRF52833_xxAA
 from . import target_nRF52840_xxAA
 from . import target_STM32F103RC
 from . import target_STM32F051T8
@@ -172,7 +173,10 @@ BUILTIN_TARGETS = {
           'mimxrt1170_cm7': target_MIMXRT1176xxxxx.MIMXRT1176xxxxx_CM7,
           'mimxrt1170_cm4': target_MIMXRT1176xxxxx.MIMXRT1176xxxxx_CM4,
           'nrf51': target_nRF51822_xxAA.NRF51,
+          'nrf51822': target_nRF51822_xxAA.NRF51,
           'nrf52': target_nRF52832_xxAA.NRF52832,
+          'nrf52832': target_nRF52832_xxAA.NRF52832,
+          'nrf52833': target_nRF52833_xxAA.NRF52833,
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
