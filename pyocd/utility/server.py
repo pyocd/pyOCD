@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
 import logging
 import threading
 import socket
+
 from .sockets import ListenerSocket
 from .compatibility import to_bytes_safe
 

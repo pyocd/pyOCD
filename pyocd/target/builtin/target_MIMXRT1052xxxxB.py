@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2017 NXP
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +17,6 @@
 # limitations under the License.
 
 import logging
-from ...flash.flash import Flash
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ..family.target_imxrt import IMXRT

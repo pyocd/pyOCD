@@ -22,7 +22,7 @@ import pylink
 from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadException)
 
 from .debug_probe import DebugProbe
-from ..core import (exceptions, memory_interface)
+from ..core import exceptions
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
 
@@ -68,7 +68,7 @@ class JLinkProbe(DebugProbe):
                 return []
             return [cls(cls._format_serial_number(info.SerialNumber)) for info in jlink.connected_emulators()]
         except JLinkException as exc:
-            six.raise_from(cls._convert_exception(exc), exc)
+            raise cls._convert_exception(exc) from exc
     
     @classmethod
     def get_probe_with_id(cls, unique_id, is_explicit=False):
@@ -80,10 +80,9 @@ class JLinkProbe(DebugProbe):
                 sn = cls._format_serial_number(info.SerialNumber)
                 if sn == unique_id:
                     return cls(sn)
-            else:
-                return None
+            return None
         except JLinkException as exc:
-            six.raise_from(cls._convert_exception(exc), exc)
+            raise cls._convert_exception(exc) from exc
 
     @classmethod
     def _get_probe_info(cls, serial_number, jlink):
@@ -96,10 +95,9 @@ class JLinkProbe(DebugProbe):
             for info in jlink.connected_emulators():
                 if cls._format_serial_number(info.SerialNumber) == serial_number:
                     return info
-            else:
-                return None
+            return None
         except JLinkException as exc:
-            six.raise_from(cls._convert_exception(exc), exc)
+            raise cls._convert_exception(exc) from exc
 
     def __init__(self, serial_number):
         """! @brief Constructor.
@@ -182,14 +180,14 @@ class JLinkProbe(DebugProbe):
             else:
                 self._default_protocol = DebugProbe.Protocol.JTAG
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
     
     def close(self):
         try:
             self._link.close()
             self._is_open = False
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     # ------------------------------------------- #
     #          Target control functions
@@ -219,7 +217,7 @@ class JLinkProbe(DebugProbe):
             self._link.coresight_configure()
             self._protocol = protocol
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def swj_sequence(self, length, bits):
         for chunk in range((length + 31) // 32):
@@ -242,7 +240,7 @@ class JLinkProbe(DebugProbe):
             if self.session.options.get('jlink.power'):
                 self._link.power_off()
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
         self._protocol = None
 
@@ -250,7 +248,7 @@ class JLinkProbe(DebugProbe):
         try:
             self._link.set_speed(frequency // 1000)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def reset(self):
         try:
@@ -259,7 +257,7 @@ class JLinkProbe(DebugProbe):
             self._link.set_reset_pin_high()
             sleep(self.session.options.get('reset.post_delay'))
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def assert_reset(self, asserted):
         try:
@@ -268,14 +266,14 @@ class JLinkProbe(DebugProbe):
             else:
                 self._link.set_reset_pin_high()
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
     
     def is_reset_asserted(self):
         try:
             status = self._link.hardware_status()
             return status.tres == 0
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     # ------------------------------------------- #
     #          DAP Access functions
@@ -285,7 +283,7 @@ class JLinkProbe(DebugProbe):
         try:
             value = self._link.coresight_read(addr // 4, ap=False)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
         else:
             def read_reg_cb():
                 return value
@@ -294,16 +292,16 @@ class JLinkProbe(DebugProbe):
 
     def write_dp(self, addr, data):
         try:
-            ack = self._link.coresight_write(addr // 4, data, ap=False)
+            self._link.coresight_write(addr // 4, data, ap=False)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def read_ap(self, addr, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         try:
             value = self._link.coresight_read((addr & self.A32) // 4, ap=True)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
         else:
             def read_reg_cb():
                 return value
@@ -311,11 +309,11 @@ class JLinkProbe(DebugProbe):
             return value if now else read_reg_cb
 
     def write_ap(self, addr, data):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         try:
-            ack = self._link.coresight_write((addr & self.A32) // 4, data, ap=True)
+            self._link.coresight_write((addr & self.A32) // 4, data, ap=True)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def read_ap_multiple(self, addr, count=1, now=True):
         results = [self.read_ap(addr, now=True) for n in range(count)]
@@ -333,19 +331,19 @@ class JLinkProbe(DebugProbe):
         try:
             self._jlink.swo_start(baudrate)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def swo_stop(self):
         try:
             self._jlink.swo_stop()
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def swo_read(self):
         try:
             return self._jlink.swo_read(0, self._jlink.swo_num_bytes(), True)
         except JLinkException as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     @staticmethod
     def _convert_exception(exc):

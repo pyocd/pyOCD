@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import six
 from copy import copy
 
 from ..utility import conversion
@@ -59,13 +59,13 @@ class CoreRegisterInfo(object):
         @exception KeyError
         """
         try:
-            if isinstance(reg, six.string_types):
+            if isinstance(reg, str):
                 reg = reg.lower()
                 return cls._NAME_MAP[reg]
             else:
                 return cls._INDEX_MAP[reg]
         except KeyError as err:
-            six.raise_from(KeyError('unknown core register %s' % reg), err)
+            raise KeyError('unknown core register %s' % reg) from err
 
     def __init__(self, name, index, bitsize, reg_type, reg_group, reg_num=None, feature=None):
         """! @brief Constructor."""

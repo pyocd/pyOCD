@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016,2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,6 @@ from ..utility.mask import (align_up, round_up_div)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.memory_map import MemoryType
-from ..core.core_registers import CoreRegisterInfo
 from . import signals
 
 LOG = logging.getLogger(__name__)

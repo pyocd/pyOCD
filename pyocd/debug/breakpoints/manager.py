@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -127,7 +128,7 @@ class BreakpointManager(object):
                 free_hw_bp_count += 1
         for bp in added:
             likely_bp_type = self._select_breakpoint_type(bp, False)
-            if bp.type == Target.BreakpointType.HW:
+            if likely_bp_type == Target.BreakpointType.HW:
                 free_hw_bp_count -= 1
         
         return free_hw_bp_count > self.MIN_HW_BREAKPOINTS

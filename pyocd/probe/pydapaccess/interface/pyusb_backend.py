@@ -19,7 +19,6 @@
 
 import logging
 import threading
-import six
 from time import sleep
 import platform
 import errno
@@ -29,7 +28,6 @@ from .common import (
     USB_CLASS_HID,
     filter_device_by_class,
     is_known_cmsis_dap_vid_pid,
-    check_ep,
     generate_device_unique_id,
     )
 from ..dap_access_api import DAPAccessIntf
@@ -39,7 +37,7 @@ LOG = logging.getLogger(__name__)
 try:
     import usb.core
     import usb.util
-except:
+except ImportError:
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
@@ -111,7 +109,7 @@ class PyUSB(Interface):
         try:
             usb.util.claim_interface(dev, interface_number)
         except usb.core.USBError as exc:
-            raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device"), exc)
+            raise DAPAccessIntf.DeviceError("Unable to open device") from exc
 
         # Update all class variables if we made it here
         self.ep_out = ep_out

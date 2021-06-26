@@ -18,7 +18,6 @@
 import logging
 import collections
 from time import sleep
-import six
 
 from .interface import Interface
 from .common import (
@@ -34,7 +33,7 @@ LOG = logging.getLogger(__name__)
 
 try:
     import pywinusb.hid as hid
-except:
+except ImportError:
     IS_AVAILABLE = False
 else:
     IS_AVAILABLE = True
@@ -85,14 +84,13 @@ class PyWinUSB(Interface):
                     # If the device could not be opened in read only mode
                     # Then it either has been disconnected or is in use
                     # by another thread/process
-                    raise six.raise_from(DAPAccessIntf.DeviceError("Unable to open device %s"
-                            % self.serial_number), exc)
+                    raise DAPAccessIntf.DeviceError(f"Unable to open device {self.serial_number}") from exc
 
             else:
                 # If this timeout has elapsed then another process
                 # has locked this device in shared mode. This should
                 # not happen.
-                raise DAPAccessIntf.DeviceError("timed out attempting to open device %s" % self.serial_number)
+                raise DAPAccessIntf.DeviceError(f"Timed out attempting to open device {self.serial_number}")
 
     @staticmethod
     def get_all_connected_interfaces():

@@ -1,6 +1,7 @@
 #
 # Copyright 2015 Paul Osborne <osbpau@gmail.com>
 # Copyright (c) 2019 Arm Ltd
+# Copyright (c) 2021 Chris Reed
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +16,7 @@
 # limitations under the License.
 #
 from xml.etree import ElementTree as ET
-
-import six
+import re
 
 from .model import SVDDevice
 from .model import SVDPeripheral
@@ -27,7 +27,6 @@ from .model import SVDRegisterCluster, SVDRegisterClusterArray
 from .model import SVDField
 from .model import SVDEnumeratedValue
 from .model import SVDCpu
-import re
 
 
 def _get_text(node, tag, default=None):

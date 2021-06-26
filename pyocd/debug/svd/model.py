@@ -1,5 +1,6 @@
 #
 # Copyright 2015 Paul Osborne <osbpau@gmail.com>
+# Copyright (c) 2021 Chris Reed
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +15,6 @@
 # limitations under the License.
 #
 import json
-import six
 
 # Sentinel value for lookup where None might be a valid value
 NOT_PRESENT = object()
@@ -52,7 +52,7 @@ class SVDJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, SVDElement):
             eldict = {}
-            for k, v in six.iteritems(obj.__dict__):
+            for k, v in obj.__dict__.items():
                 if k in TO_DICT_SKIP_KEYS:
                     continue
                 if k.startswith("_"):
@@ -202,7 +202,7 @@ class SVDRegisterArray(SVDElement):
 
     @property
     def registers(self):
-        for i in six.moves.range(self.dim):
+        for i in range(self.dim):
             reg = SVDRegister(
                 name=self.name % self.dim_indices[i],
                 fields=self._fields,
@@ -419,7 +419,7 @@ class SVDRegisterClusterArray(SVDElement):
 
     @property
     def registers(self):
-        for i in six.moves.range(self.dim):
+        for i in range(self.dim):
             for reg in self._register:
                 yield self.updated_register(reg, self, i)
             for cluster in self._cluster:
@@ -453,7 +453,7 @@ class SVDInterrupt(SVDElement):
     def __init__(self, name, value, description):
         SVDElement.__init__(self)
         self.name = name
-        self.value = _check_type(value, six.integer_types)
+        self.value = _check_type(value, int)
         self.description = description
 
 
@@ -553,8 +553,8 @@ class SVDDevice(SVDElement):
         self.version = version
         self.description = description
         self.cpu = cpu
-        self.address_unit_bits = _check_type(address_unit_bits, six.integer_types)
-        self.width = _check_type(width, six.integer_types)
+        self.address_unit_bits = _check_type(address_unit_bits, int)
+        self.width = _check_type(width, int)
         self.peripherals = peripherals
         self.size = size  # Defines the default bit-width of any register contained in the device (implicit inheritance).
         self.access = access  # Defines the default access rights for all registers.

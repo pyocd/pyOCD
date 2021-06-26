@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +20,10 @@ import logging
 import itertools
 from elftools.elf.elffile import ELFFile
 from intelhex import IntelHex
-import six
 import errno
 
 from .loader import FlashLoader
 from ..core import exceptions
-from ..debug.elf.elf import (ELFBinaryFile, SH_FLAGS)
 
 LOG = logging.getLogger(__name__)
 
@@ -110,7 +109,7 @@ class FileProgrammer(object):
         @exception ValueError Invalid argument value, for instance providing a file object but
             not setting file_format.
         """
-        isPath = isinstance(file_or_path, six.string_types)
+        isPath = isinstance(file_or_path, str)
         
         # Check for valid path first.
         if isPath and not os.path.isfile(file_or_path):

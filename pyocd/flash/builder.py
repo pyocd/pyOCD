@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..core.target import Target
-from ..core.exceptions import (FlashFailure, FlashProgramFailure)
-from ..utility.notification import Notification
-from ..utility.mask import same
 import logging
-from struct import unpack
 from time import time
 from binascii import crc32
+
+from ..core.target import Target
+from ..core.exceptions import (FlashFailure, FlashProgramFailure)
+from ..utility.mask import same
 
 # Number of bytes in a page to read to quickly determine if the page has the same data
 PAGE_ESTIMATE_SIZE = 32

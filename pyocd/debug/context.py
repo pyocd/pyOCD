@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +16,8 @@
 # limitations under the License.
 
 from ..core.memory_interface import MemoryInterface
-from pyocd.coresight.component import CoreSightCoreComponent
+from ..coresight.component import CoreSightCoreComponent
 from ..coresight.cortex_m_core_registers import CortexMCoreRegisterInfo
-from ..utility import conversion
 
 class DebugContext(MemoryInterface):
     """! @brief Viewport for inspecting the system being debugged.

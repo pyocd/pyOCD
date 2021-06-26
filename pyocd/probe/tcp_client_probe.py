@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020-2021 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,8 +17,6 @@
 
 import logging
 import json
-import six
-import base64
 import threading
 
 from .debug_probe import DebugProbe
@@ -25,7 +24,6 @@ from ..core import exceptions
 from ..core.memory_interface import MemoryInterface
 from ..core.plugin import Plugin
 from ..utility.sockets import ClientSocket
-from ..utility.concurrency import locked
 
 LOG = logging.getLogger(__name__)
 
@@ -58,6 +56,7 @@ class TCPClientProbe(DebugProbe):
         StatusCode.TRANSFER_FAULT: exceptions.TransferFaultError,
         }
     
+    @classmethod
     def _extract_address(cls, unique_id):
         parts = unique_id.split(':', 1)
         if len(parts) == 1:

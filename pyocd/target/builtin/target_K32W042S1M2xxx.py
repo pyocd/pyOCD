@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,19 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from time import sleep
+
 from ..family.target_kinetis import Kinetis
-from ...flash.flash import Flash
 from ...core import exceptions
 from ...core.target import Target
-from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-from ...coresight import ap
 from ...coresight.cortex_m import CortexM
 from ...utility.timeout import Timeout
-import logging
-import os.path
-from time import sleep
 
 SMC0_MR = 0x40020040
 SMC1_MR = 0x41020040

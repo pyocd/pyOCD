@@ -19,9 +19,7 @@
 
 import re
 import logging
-import time
 import collections
-import six
 import threading
 from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
@@ -35,7 +33,6 @@ from .cmsis_dap_core import (
     DAPSWOTransport,
     DAPSWOMode,
     DAPSWOControl,
-    DAPSWOStatus,
     DAPTransferResponse,
     CMSISDAPVersion,
     )
@@ -96,9 +93,9 @@ class _Transfer(object):
                  transfer_request, transfer_data):
         # Writes should not need a transfer object
         # since they don't have any response data
-        assert isinstance(dap_index, six.integer_types)
-        assert isinstance(transfer_count, six.integer_types)
-        assert isinstance(transfer_request, six.integer_types)
+        assert isinstance(dap_index, int)
+        assert isinstance(transfer_count, int)
+        assert isinstance(transfer_request, int)
         assert transfer_request & READ
         self.daplink = daplink
         self.dap_index = dap_index
@@ -482,7 +479,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @staticmethod
     def get_device(device_id):
-        assert isinstance(device_id, six.string_types)
+        assert isinstance(device_id, str)
         iface = DAPAccessCMSISDAP._lookup_interface_for_unique_id(device_id)
         if iface is not None:
             return DAPAccessCMSISDAP(device_id, iface)
@@ -529,7 +526,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     #          CMSIS-DAP and Other Functions
     # ------------------------------------------- #
     def __init__(self, unique_id, interface=None):
-        assert isinstance(unique_id, six.string_types) or (unique_id is None and interface is not None)
+        assert isinstance(unique_id, str) or (unique_id is None and interface is not None)
         super(DAPAccessCMSISDAP, self).__init__()
 
         # Search for a matching interface if one wasn't provided.
@@ -864,8 +861,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def write_reg(self, reg_id, value, dap_index=0):
         assert reg_id in self.REG
-        assert isinstance(value, six.integer_types)
-        assert isinstance(dap_index, six.integer_types)
+        assert isinstance(value, int)
+        assert isinstance(dap_index, int)
 
         request = WRITE
         if reg_id.value < 4:
@@ -877,7 +874,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def read_reg(self, reg_id, dap_index=0, now=True):
         assert reg_id in self.REG
-        assert isinstance(dap_index, six.integer_types)
+        assert isinstance(dap_index, int)
         assert isinstance(now, bool)
 
         request = READ
@@ -901,10 +898,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             return read_reg_cb
 
     def reg_write_repeat(self, num_repeats, reg_id, data_array, dap_index=0):
-        assert isinstance(num_repeats, six.integer_types)
+        assert isinstance(num_repeats, int)
         assert num_repeats == len(data_array)
         assert reg_id in self.REG
-        assert isinstance(dap_index, six.integer_types)
+        assert isinstance(dap_index, int)
 
         request = WRITE
         if reg_id.value < 4:
@@ -916,9 +913,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def reg_read_repeat(self, num_repeats, reg_id, dap_index=0,
                         now=True):
-        assert isinstance(num_repeats, six.integer_types)
+        assert isinstance(num_repeats, int)
         assert reg_id in self.REG
-        assert isinstance(dap_index, six.integer_types)
+        assert isinstance(dap_index, int)
         assert isinstance(now, bool)
 
         request = READ
@@ -1036,8 +1033,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         """! @brief Write one or more commands
         """
         assert dap_index == 0  # dap index currently unsupported
-        assert isinstance(transfer_count, six.integer_types)
-        assert isinstance(transfer_request, six.integer_types)
+        assert isinstance(transfer_count, int)
+        assert isinstance(transfer_request, int)
         assert transfer_data is None or len(transfer_data) > 0
 
         # Create transfer and add to transfer list
@@ -1049,7 +1046,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         # Build physical packet by adding it to command
         cmd = self._crnt_cmd
-        is_read = transfer_request & READ
         size_to_transfer = transfer_count
         trans_data_pos = 0
         while size_to_transfer > 0:

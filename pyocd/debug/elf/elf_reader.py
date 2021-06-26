@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from intervaltree import IntervalTree
+
 from ..context import DebugContext
 from ...utility import conversion
-import logging
-from intervaltree import (Interval, IntervalTree)
 
 LOG = logging.getLogger(__name__)
 

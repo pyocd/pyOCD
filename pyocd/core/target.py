@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 # limitations under the License.
 
 from enum import Enum
-import copy
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap

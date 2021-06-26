@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +18,8 @@
 import logging
 import threading
 import socket
-import sys
 import six
-from six.moves import queue
+import queue
 
 CTRL_C = b'\x03'
 

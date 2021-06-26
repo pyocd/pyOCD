@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # pyOCD debugger
 # Copyright (c) 2011-2021 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +21,6 @@ import os
 import argparse
 import struct
 import binascii
-import logging
 import jinja2
 from pyocd.target.pack.flash_algo import PackFlashAlgo
 
@@ -174,9 +174,6 @@ def main():
         algo = PackFlashAlgoGenerator(file_handle)
 
         print(algo.flash_info)
-
-        template_dir = os.path.dirname(os.path.realpath(__file__))
-        output_dir = os.path.dirname(args.elf_path)
 
         # Allocate stack after algo and its rw data, rounded up.
         SP = args.blob_start + HEADER_SIZE + algo.rw_start + algo.rw_size + STACK_SIZE
