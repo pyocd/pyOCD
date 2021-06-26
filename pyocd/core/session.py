@@ -149,7 +149,7 @@ class Session(Notifier):
         
         # Init project directory.
         if self.options.get('project_dir') is None:
-            self._project_dir = os.environ('PYOCD_PROJECT_DIR') or os.getcwd()
+            self._project_dir = os.environ.get('PYOCD_PROJECT_DIR') or os.getcwd()
         else:
             self._project_dir = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
