@@ -655,7 +655,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._read_protocol_version()
 
         # Read the firmware version if the protocol supports it.
-        if self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0:
+        # THe PRODUCT_FW_VERSION ID was added in versions 1.3.0 (HID) and 2.1.0 (bulk).
+        if (self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0) or (self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0
+                and self._cmsis_dap_version < CMSISDAPVersion.V2_0_0):
             self._fw_version = self._protocol.dap_info(self.ID.PRODUCT_FW_VERSION)
         
         # Log probe's firmware version.
