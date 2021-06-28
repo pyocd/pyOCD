@@ -220,7 +220,7 @@ Contributions
 -------------
 
 Join the pyOCD community! We welcome contributions in any area. Please see the [contribution
-guidelines](CONTRIBUTING.md) for detailed requirements. In order foster a healthy
+guidelines](CONTRIBUTING.md) for detailed requirements. In order to foster a healthy
 and safe environment, we expect contributors and all members of the community to follow the
 [code of conduct](CODE_OF_CONDUCT.md).
 
@@ -239,4 +239,4 @@ License
 PyOCD is licensed with the permissive Apache 2.0 license. See the [LICENSE](LICENSE) file for the
 full text of the license.
 
-Copyright © 2006-2021 The PyOCD authors
+Copyright © 2006-2021 PyOCD Authors
