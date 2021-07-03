@@ -328,21 +328,30 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         The bus must be accessible when this method is called.
         """
-        if not self.call_delegate('will_start_debug_core', core=self):
-            self._read_core_type()
-            self._check_for_fpu()
-            self._build_registers()
-            self.sw_bp.init()
+        self.call_delegate('will_start_debug_core', core=self)
+
+        # Examine this CPU.
+        self._read_core_type()
+        self._check_for_fpu()
+        self._build_registers()
+
+        # Enable debug
+        if not self.call_delegate('start_debug_core', core=self):
+            self.write32(self.DHCSR, self.DBGKEY | self.C_DEBUGEN)
+
+        self.sw_bp.init()
 
         self.call_delegate('did_start_debug_core', core=self)
 
     def disconnect(self, resume: bool = True) -> None:
-        if not self.call_delegate('will_stop_debug_core', core=self):
-            # Remove breakpoints and watchpoints.
-            self.bp_manager.remove_all_breakpoints()
-            if self.dwt is not None:
-                self.dwt.remove_all_watchpoints()
+        self.call_delegate('will_stop_debug_core', core=self)
 
+        # Remove breakpoints and watchpoints.
+        self.bp_manager.remove_all_breakpoints()
+        if self.dwt is not None:
+            self.dwt.remove_all_watchpoints()
+
+        if not self.call_delegate('stop_debug_core', core=self):
             # Disable other debug blocks.
             self.write32(CortexM.DEMCR, 0)
 
