@@ -109,7 +109,7 @@ class CoreSightTarget(SoCTarget):
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
-        self.dp.power_down_debug()
+        self.dp.disconnect()
         self.call_delegate('did_disconnect', target=self, resume=resume)
             
     def create_discoverer(self):
