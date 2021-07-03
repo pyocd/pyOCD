@@ -129,7 +129,6 @@ class SoCTarget(Target, GraphNode):
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
-        self.dp.power_down_debug()
         self.call_delegate('did_disconnect', target=self, resume=resume)
 
     @property
@@ -206,7 +205,7 @@ class SoCTarget(Target, GraphNode):
         return self.selected_core.remove_watchpoint(addr, size, type)
 
     def reset(self, reset_type=None):
-        # Perform a hardware reset if there is not a core.
+        # Use the probe to reset to perform a hardware reset if there is not a core.
         if self.selected_core is None:
             # Use the probe to reset. (We can't use the DP here because that's a class layering violation;
             # the DP is only created by the CoreSightTarget subclass.)
