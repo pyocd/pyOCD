@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 # limitations under the License.
 
 import logging
-from typing import (Any, Dict, Iterable, List, Optional, Tuple, Union, cast)
+from typing import (Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast)
 
 from ..core.target import Target
 from ..core.options import OPTIONS_INFO
@@ -128,6 +128,26 @@ def convert_vector_catch(vcvalue: Union[str, bytes]) -> int:
         # Reraise an error with a more helpful message.
         raise ValueError("invalid vector catch option '{}'".format(e.args[0]))
 
+def _convert_string_list_option(value: Optional[str]) -> List[str]:
+    """@brief Convert a comma-separated list of strings.
+
+    A None value results in an empty list.
+
+    No special support for quoted values is provided, so a comma in between quotes is treated
+    the same as a comma elsewhere.
+    """
+    if value is None:
+        return []
+    return [
+        i.strip()
+        for i in value.split(',')
+    ]
+
+## Map with special converter routines for session options that need them.
+_OPTION_CONVERTERS: Dict[str, Callable[[Optional[str]], Any]] = {
+    'pack.debug_sequences.disabled_sequences': _convert_string_list_option,
+}
+
 def convert_one_session_option(name: str, value: Optional[str]) -> Tuple[str, Any]:
     """@brief Convert one session option's value from a string.
 
@@ -156,6 +176,10 @@ def convert_one_session_option(name: str, value: Optional[str]) -> Tuple[str, An
     if had_no_prefix and (info.type is not bool):
         LOG.warning("'no-' prefix used on non-boolean session option '%s'", name)
         return name, None
+
+    # Check for a special converter function.
+    if name in _OPTION_CONVERTERS:
+        return name, _OPTION_CONVERTERS[name](value)
 
     # Default result; unset option value.
     result = None
