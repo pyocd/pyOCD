@@ -25,6 +25,7 @@ from . import target_MIMXRT1062xxxxA
 from . import target_MIMXRT1064xxxxA
 from . import target_MIMXRT1176xxxxx
 from . import target_MKE15Z256xxx7
+from . import target_MKE17Z256xxx7
 from . import target_MKE18F256xxx16
 from . import target_MKL02Z32xxx4
 from . import target_MKL05Z32xxx4
@@ -122,6 +123,7 @@ BUILTIN_TARGETS = {
           'cortex_m': CoreSightTarget,
           'kinetis': target_kinetis.Kinetis,
           'ke15z7': target_MKE15Z256xxx7.KE15Z7,
+          'ke17z7': target_MKE17Z256xxx7.KE17Z7,
           'ke18f16': target_MKE18F256xxx16.KE18F16,
           'kl02z': target_MKL02Z32xxx4.KL02Z,
           'kl05z': target_MKL05Z32xxx4.KL05Z,
