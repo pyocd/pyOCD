@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import six
 from time import sleep
 
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
-from ..core import exceptions
 from ..core.plugin import Plugin
 from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT)
 from .stlink.usb import STLinkUSBInterface
@@ -176,7 +175,7 @@ class StlinkProbe(DebugProbe):
         return result if now else read_dp_result_callback
 
     def write_dp(self, addr, data):
-        result = self._link.write_dap_register(STLink.DP_PORT, addr, data)
+        self._link.write_dap_register(STLink.DP_PORT, addr, data)
 
     def read_ap(self, addr, now=True):
         apsel = (addr & APSEL) >> APSEL_SHIFT
@@ -189,7 +188,7 @@ class StlinkProbe(DebugProbe):
 
     def write_ap(self, addr, data):
         apsel = (addr & APSEL) >> APSEL_SHIFT
-        result = self._link.write_dap_register(apsel, addr & 0xffff, data)
+        self._link.write_dap_register(apsel, addr & 0xffff, data)
 
     def read_ap_multiple(self, addr, count=1, now=True):
         results = [self.read_ap(addr, now=True) for n in range(count)]

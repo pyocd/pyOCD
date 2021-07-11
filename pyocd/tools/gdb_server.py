@@ -2,6 +2,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2018 Arm Limited
 # Copyright (c) 2020 Cypress Semiconductor Corporation
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,22 +17,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
 import sys
 import os
 import logging
 import argparse
 import json
-import pkg_resources
 
 from .. import __version__
 from .. import target
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..gdbserver import GDBServer
-from ..utility.cmdline import (split_command_line, VECTOR_CATCH_CHAR_MAP, convert_vector_catch,
-                                convert_session_options)
-from ..probe.cmsis_dap_probe import CMSISDAPProbe
+from ..utility.cmdline import (split_command_line, convert_session_options)
 from ..probe.pydapaccess import DAPAccess
 from ..core.session import Session
 from ..coresight.generic_mem_ap import GenericMemAPTarget
@@ -187,10 +184,10 @@ class GDBServerTool(object):
         if not self.args.output_json:
             ConnectHelper.list_connected_probes()
         else:
+            status = 0
+            error = ""
             try:
                 all_mbeds = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
-                status = 0
-                error = ""
             except Exception as e:
                 all_mbeds = []
                 status = 1

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import six
 from time import sleep
 import logging
 
@@ -77,7 +77,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             return [cls(dev) for dev in DAPAccess.get_connected_devices()]
         except DAPAccess.Error as exc:
-            six.raise_from(cls._convert_exception(exc), exc)
+            raise cls._convert_exception(exc) from exc
     
     @classmethod
     def get_probe_with_id(cls, unique_id, is_explicit=False):
@@ -88,7 +88,7 @@ class CMSISDAPProbe(DebugProbe):
             else:
                 return None
         except DAPAccess.Error as exc:
-            six.raise_from(cls._convert_exception(exc), exc)
+            raise cls._convert_exception(exc) from exc
 
     def __init__(self, device):
         super(CMSISDAPProbe, self).__init__()
@@ -190,7 +190,7 @@ class CMSISDAPProbe(DebugProbe):
             if self._link.has_swo():
                 self._caps.add(self.Capability.SWO)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
     
     def close(self):
         try:
@@ -199,7 +199,7 @@ class CMSISDAPProbe(DebugProbe):
             self._link.close()
             self._is_open = False
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     # ------------------------------------------- #
     #          Target control functions
@@ -216,7 +216,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.connect(port)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
         
         # Read the current mode and save it.
         actualMode = self._link.get_swj_mode()
@@ -228,7 +228,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.swj_sequence(length, bits)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def swd_sequence(self, sequences):
         TRACE.debug("trace: swd_sequence(sequences=%r)", sequences)
@@ -236,7 +236,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.swd_sequence(sequences)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
         TRACE.debug("trace: jtag_sequence(cycles=%i, tms=%x, read_tdo=%s, tdi=%x)", cycles, tms, read_tdo, tdi)
@@ -244,7 +244,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.jtag_sequence(cycles, tms, read_tdo, tdi)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def disconnect(self):
         TRACE.debug("trace: disconnect")
@@ -253,7 +253,7 @@ class CMSISDAPProbe(DebugProbe):
             self._link.disconnect()
             self._protocol = None
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def set_clock(self, frequency):
         TRACE.debug("trace: set_clock(freq=%i)", frequency)
@@ -261,7 +261,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.set_clock(frequency)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def reset(self):
         TRACE.debug("trace: reset")
@@ -272,7 +272,7 @@ class CMSISDAPProbe(DebugProbe):
             self._link.assert_reset(False)
             sleep(self.session.options.get('reset.post_delay'))
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def assert_reset(self, asserted):
         TRACE.debug("trace: assert_reset(%s)", asserted)
@@ -280,7 +280,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.assert_reset(asserted)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
     
     def is_reset_asserted(self):
         try:
@@ -288,7 +288,7 @@ class CMSISDAPProbe(DebugProbe):
             TRACE.debug("trace: is_reset_asserted -> %s", result)
             return result
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def flush(self):
         TRACE.debug("trace: flush")
@@ -297,7 +297,7 @@ class CMSISDAPProbe(DebugProbe):
             self._link.flush()
         except DAPAccess.Error as exc:
             TRACE.debug("trace: error from flush: %r", exc)
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     # ------------------------------------------- #
     #          DAP Access functions
@@ -312,7 +312,7 @@ class CMSISDAPProbe(DebugProbe):
             result = self._link.read_reg(reg_id, now=now)
         except DAPAccess.Error as error:
             TRACE.debug("trace: read_dp(addr=%#010x) -> error(%s)", addr, error)
-            six.raise_from(self._convert_exception(error), error)
+            raise self._convert_exception(error) from error
 
         # Read callback returned for async reads.
         def read_dp_result_callback():
@@ -322,7 +322,7 @@ class CMSISDAPProbe(DebugProbe):
                 return value
             except DAPAccess.Error as error:
                 TRACE.debug("trace: ... read_dp(addr=%#010x) -> error(%s)", addr, error)
-                six.raise_from(self._convert_exception(error), error)
+                raise self._convert_exception(error) from error
 
         if now:
             TRACE.debug("trace: read_dp(addr=%#010x) -> %#010x", addr, result)
@@ -339,12 +339,12 @@ class CMSISDAPProbe(DebugProbe):
             TRACE.debug("trace: write_dp(addr=%#010x, data=%#010x)", addr, data)
         except DAPAccess.Error as error:
             TRACE.debug("trace: write_dp(addr=%#010x, data=%#010x) -> error(%s)", addr, data, error)
-            six.raise_from(self._convert_exception(error), error)
+            raise self._convert_exception(error) from error
 
         return True
 
     def read_ap(self, addr, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
 
         try:
@@ -352,7 +352,7 @@ class CMSISDAPProbe(DebugProbe):
                 TRACE.debug("trace: read_ap(addr=%#010x) -> ...", addr)
             result = self._link.read_reg(ap_reg, now=now)
         except DAPAccess.Error as error:
-            six.raise_from(self._convert_exception(error), error)
+            raise self._convert_exception(error) from error
 
         # Read callback returned for async reads.
         def read_ap_result_callback():
@@ -362,7 +362,7 @@ class CMSISDAPProbe(DebugProbe):
                 return value
             except DAPAccess.Error as error:
                 TRACE.debug("trace: ... read_ap(addr=%#010x) -> error(%s)", addr, error)
-                six.raise_from(self._convert_exception(error), error)
+                raise self._convert_exception(error) from error
 
         if now:
             TRACE.debug("trace: read_ap(addr=%#010x) -> %#010x", addr, result)
@@ -371,7 +371,7 @@ class CMSISDAPProbe(DebugProbe):
             return read_ap_result_callback
 
     def write_ap(self, addr, data):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
 
         try:
@@ -380,12 +380,12 @@ class CMSISDAPProbe(DebugProbe):
             TRACE.debug("trace: write_ap(addr=%#010x, data=%#010x)", addr, data)
         except DAPAccess.Error as error:
             TRACE.debug("trace: write_ap(addr=%#010x, data=%#010x) -> error(%s)", addr, data, error)
-            six.raise_from(self._convert_exception(error), error)
+            raise self._convert_exception(error) from error
 
         return True
 
     def read_ap_multiple(self, addr, count=1, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
         
         try:
@@ -393,7 +393,7 @@ class CMSISDAPProbe(DebugProbe):
                 TRACE.debug("trace: read_ap_multi(addr=%#010x, count=%i) -> ...", addr, count)
             result = self._link.reg_read_repeat(count, ap_reg, dap_index=0, now=now)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
         # Need to wrap the deferred callback to convert exceptions.
         def read_ap_repeat_callback():
@@ -405,7 +405,7 @@ class CMSISDAPProbe(DebugProbe):
             except DAPAccess.Error as exc:
                 TRACE.debug("trace: ... read_ap_multi(addr=%#010x, count=%i) -> error(%s)",
                     addr, count, exc)
-                six.raise_from(self._convert_exception(exc), exc)
+                raise self._convert_exception(exc) from exc
 
         if now:
             TRACE.debug("trace: read_ap_multi(addr=%#010x, count=%i) -> [%s]", addr, count,
@@ -415,7 +415,7 @@ class CMSISDAPProbe(DebugProbe):
             return read_ap_repeat_callback
 
     def write_ap_multiple(self, addr, values):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         ap_reg = self.REG_ADDR_TO_ID_MAP[self.AP, (addr & self.A32)]
         
         try:
@@ -425,7 +425,7 @@ class CMSISDAPProbe(DebugProbe):
         except DAPAccess.Error as exc:
             TRACE.debug("trace: write_ap_multi(addr=%#010x, (%i)[%s]) -> error(%s)", addr, len(values),
                     ", ".join(["%#010x" % v for v in values]), exc)
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
     
     # ------------------------------------------- #
     #          SWO functions
@@ -438,7 +438,7 @@ class CMSISDAPProbe(DebugProbe):
             self._link.swo_configure(True, baudrate)
             self._link.swo_control(True)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def swo_stop(self):
         TRACE.debug("trace: swo_stop")
@@ -446,7 +446,7 @@ class CMSISDAPProbe(DebugProbe):
         try:
             self._link.swo_configure(False, 0)
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     def swo_read(self):
         try:
@@ -454,7 +454,7 @@ class CMSISDAPProbe(DebugProbe):
             TRACE.debug("trace: swo_read -> %i bytes", len(data))
             return data
         except DAPAccess.Error as exc:
-            six.raise_from(self._convert_exception(exc), exc)
+            raise self._convert_exception(exc) from exc
 
     @staticmethod
     def _convert_exception(exc):

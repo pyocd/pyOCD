@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from ..core import exceptions
 from ..target import TARGET
 from ..target.pack import pack_target
 from ..utility.graph import GraphNode
-import logging
-import six
 
 LOG = logging.getLogger(__name__)
 
@@ -60,11 +61,11 @@ class Board(GraphNode):
         try:
             self.target = TARGET[self._target_type](session)
         except KeyError as exc:
-            six.raise_from(exceptions.TargetSupportError(
-                "Target type '%s' not recognized. Use 'pyocd list --targets' to see currently "
+            raise exceptions.TargetSupportError(
+                f"Target type {self._target_type} not recognized. Use 'pyocd list --targets' to see currently "
                 "available target types. "
                 "See <https://github.com/pyocd/pyOCD/blob/master/docs/target_support.md> "
-                "for how to install additional target support." % self._target_type), exc)
+                "for how to install additional target support.") from exc
         
         # Tell the user what target type is selected.
         LOG.info("Target type is %s", self._target_type)
@@ -97,7 +98,7 @@ class Board(GraphNode):
                 resume = self.session.options.get('resume_on_disconnect')
                 self.target.disconnect(resume)
                 self._inited = False
-            except:
+            except exceptions.Error:
                 LOG.error("link exception during target disconnect:", exc_info=self._session.log_tracebacks)
 
     @property

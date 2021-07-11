@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import six
 from collections import namedtuple
 from enum import Enum
 
@@ -23,7 +23,7 @@ from ..core import (exceptions, memory_interface)
 from ..core.target import Target
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
-from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APSEL_APBANKSEL, APREG_MASK, AccessPort)
+from .ap import APSEL_APBANKSEL
 from ..utility.sequencer import CallSequence
 from ..utility.timeout import Timeout
 
@@ -444,8 +444,6 @@ class DebugPort(object):
                     break
             else:
                 return False
-
-        self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
         
         return True
 
@@ -688,8 +686,9 @@ class DebugPort(object):
         return True
 
     def write_ap(self, addr, data):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
+        did_lock = False
 
         try:
             did_lock = self._select_ap(addr)
@@ -705,8 +704,9 @@ class DebugPort(object):
         return True
 
     def read_ap(self, addr, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
+        did_lock = False
 
         try:
             did_lock = self._select_ap(addr)
@@ -742,9 +742,10 @@ class DebugPort(object):
             return read_ap_cb
 
     def write_ap_multiple(self, addr, values):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
-        
+        did_lock = False
+
         try:
             did_lock = self._select_ap(addr)
             TRACE.debug("write_ap_multiple:%06d (addr=0x%08x) = (%i values)", num, addr, len(values))
@@ -757,8 +758,9 @@ class DebugPort(object):
                 self.unlock()
 
     def read_ap_multiple(self, addr, count=1, now=True):
-        assert type(addr) in (six.integer_types)
+        assert isinstance(addr, int)
         num = self.next_access_number
+        did_lock = False
         
         try:
             did_lock = self._select_ap(addr)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # pyOCD debugger
 # Copyright (c) 2011-2021 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +21,6 @@ import os
 import argparse
 import struct
 import binascii
-import logging
 import jinja2
 from pyocd.target.pack.flash_algo import PackFlashAlgo
 
@@ -94,7 +94,7 @@ FLASH_ALGO = {
 """
 
 def str_to_num(val):
-    return int(val,0)  #convert string to number and automatically handle hex conversion
+    return int(val, 0)  #convert string to number and automatically handle hex conversion
 
 class PackFlashAlgoGenerator(PackFlashAlgo):
     """
@@ -137,7 +137,7 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
         else:
             raise Exception("Unsupported format %s" % fmt)
 
-    def process_template(self, template_text, output_path, data_dict=None):
+    def process_template(self, template_text, data_dict=None):
         """
         Generate output from the supplied template
 
@@ -145,7 +145,6 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
         the template via "algo".
 
         :param template_path: Relative or absolute file path to the template
-        :param output_path: Relative or absolute file path to create
         :param data_dict: Additional data to use when generating
         """
         if data_dict is None:
@@ -157,45 +156,55 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
         data_dict["algo"] = self
 
         template = jinja2.Template(template_text)
-        target_text = template.render(data_dict)
-
-        with open(output_path, "w") as file_handle:
-            file_handle.write(target_text)
+        return template.render(data_dict)
 
 def main():
     parser = argparse.ArgumentParser(description="Blob generator")
-    parser.add_argument("elf_path", help="Elf, axf, or flm to extract "
-                        "flash algo from")
-    parser.add_argument("--blob_start", default=0x20000000, type=str_to_num, help="Starting "
-                        "address of the flash blob.")
+    parser.add_argument("elf_path", help="Elf, axf, or flm to extract flash algo from")
+    parser.add_argument("--blob-start", default=0x20000000, type=str_to_num, help="Starting "
+                        "address of the flash blob in target RAM.")
+    parser.add_argument("--stack-size", default=STACK_SIZE, type=str_to_num, help="Stack size for the algo "
+                        f"(default {STACK_SIZE}).")
+    parser.add_argument("-i", "--info-only", action="store_true", help="Only print information about the flash "
+                        "algo, do not generate a blob.")
+    parser.add_argument("-o", "--output", default="pyocd_blob.py", help="Path of output file "
+                        "(default 'pyocd_blob.py').")
+    parser.add_argument("-t", "--template", help="Path to Jinja template file (default is an internal "
+                        "template for pyocd).")
     args = parser.parse_args()
+    
+    if args.template:
+        with open(args.template, "r") as tmpl_file:
+            tmpl = tmpl_file.read()
+    else:
+        tmpl = PYOCD_TEMPLATE
 
     with open(args.elf_path, "rb") as file_handle:
         algo = PackFlashAlgoGenerator(file_handle)
 
         print(algo.flash_info)
 
-        template_dir = os.path.dirname(os.path.realpath(__file__))
-        output_dir = os.path.dirname(args.elf_path)
+        if args.info_only:
+            return
 
-        # Allocate stack after algo and its rw data, rounded up.
-        SP = args.blob_start + HEADER_SIZE + algo.rw_start + algo.rw_size + STACK_SIZE
-        SP = (SP + 0x100 - 1) // 0x100 * 0x100
+        # Allocate stack after algo and its rw data, with top and bottom rounded to 8 bytes.
+        stack_base = args.blob_start + HEADER_SIZE + algo.rw_start + algo.rw_size
+        stack_base = (stack_base + 7) // 8 * 8
+        sp = stack_base + args.stack_size
+        sp = (sp + 7) // 8 * 8
 
         data_dict = {
             'name': os.path.splitext(os.path.split(args.elf_path)[-1])[0],
             'prog_header': BLOB_HEADER,
             'header_size': HEADER_SIZE,
             'entry': args.blob_start,
-            'stack_pointer': SP,
+            'stack_pointer': sp,
         }
 
-        tmpl_name_list = [
-            (PYOCD_TEMPLATE, "pyocd_blob.py"),
-        ]
-
-        for tmpl, name in tmpl_name_list:
-            algo.process_template(tmpl, name, data_dict)
+        text = algo.process_template(tmpl, data_dict)
+        
+        with open(args.output, "w") as file_handle:
+            file_handle.write(text)
 
 
 if __name__ == '__main__':

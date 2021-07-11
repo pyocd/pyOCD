@@ -16,13 +16,11 @@
 # limitations under the License.
 
 import logging
-from time import sleep
 from enum import Enum
 
 from .component import CoreSightComponent
 from ..core import exceptions
 from ..utility.timeout import Timeout
-from ..utility.hex import dump_hex_data
 
 LOG = logging.getLogger(__name__)
 
@@ -403,7 +401,7 @@ class SDC600(CoreSightComponent):
         """
         with Timeout(timeout) as to_:
             if phase == self.LinkPhase.PHASE1:
-                assert self._current_link_phase == None
+                assert self._current_link_phase is None
 
                 # Close link phase 1 first, to put it in a known state.
                 self.close_link(self.LinkPhase.PHASE1)

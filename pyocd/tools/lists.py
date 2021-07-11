@@ -35,10 +35,10 @@ class ListGenerator(object):
         Output version history:
         - 1.0, initial version
         """
+        status = 0
+        error = ""
         try:
             all_mbeds = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
-            status = 0
-            error = ""
         except Exception as e:
             all_mbeds = []
             status = 1

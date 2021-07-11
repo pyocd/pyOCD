@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .provider import (TargetThread, ThreadProvider)
-from ..core import exceptions
 import logging
+
+from .provider import TargetThread
+from ..core import exceptions
 
 LOG = logging.getLogger(__name__)
 

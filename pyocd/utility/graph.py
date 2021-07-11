@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,14 +23,11 @@ class GraphNode(object):
     Supports indexing and iteration over children.
     """
 
-    def __init__(self, children=None):
+    def __init__(self):
         """! @brief Constructor."""
         super(GraphNode, self).__init__()
         self._parent = None
         self._children = []
-        if children is not None:
-            for c in children:
-                self.add_child(c)
     
     @property
     def parent(self):
@@ -115,7 +113,7 @@ class GraphNode(object):
         """! @brief Similar to __repr__ by used for dump_to_str()."""
         return str(self)
     
-    def dump_to_str(node):
+    def dump_to_str(self):
         """! @brief Returns a string describing the object graph."""
     
         def _dump(node, level):
@@ -124,7 +122,7 @@ class GraphNode(object):
                 result += _dump(child, level + 1)
             return result
     
-        return _dump(node, 0)
+        return _dump(self, 0)
     
     def dump(self):
         """! @brief Pretty print the object graph to stdout."""

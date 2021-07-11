@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ...flash.flash import Flash
-from ...core import exceptions
-from ...coresight.coresight_target import CoreSightTarget
-from ...coresight.cortex_m import CortexM
-from ...coresight import (ap, dap)
-from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 import logging
 import time
+
+from ...flash.flash import Flash
+from ...coresight.coresight_target import CoreSightTarget
+from ...core.memory_map import (RomRegion, FlashRegion, RamRegion, MemoryMap)
 
 LOG = logging.getLogger(__name__)
 

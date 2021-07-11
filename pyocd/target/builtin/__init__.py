@@ -25,6 +25,7 @@ from . import target_MIMXRT1062xxxxA
 from . import target_MIMXRT1064xxxxA
 from . import target_MIMXRT1176xxxxx
 from . import target_MKE15Z256xxx7
+from . import target_MKE17Z256xxx7
 from . import target_MKE18F256xxx16
 from . import target_MKL02Z32xxx4
 from . import target_MKL05Z32xxx4
@@ -58,6 +59,7 @@ from . import target_LPC1768
 from . import target_LPC4330
 from . import target_nRF51822_xxAA
 from . import target_nRF52832_xxAA
+from . import target_nRF52833_xxAA
 from . import target_nRF52840_xxAA
 from . import target_STM32F103RC
 from . import target_STM32F051T8
@@ -97,6 +99,7 @@ from . import target_musca_b1
 from . import target_musca_s1
 from . import target_LPC5526Jxxxxx
 from . import target_LPC55S69Jxxxxx
+from . import target_LPC55S36
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
 from . import target_M261
@@ -122,6 +125,7 @@ BUILTIN_TARGETS = {
           'cortex_m': CoreSightTarget,
           'kinetis': target_kinetis.Kinetis,
           'ke15z7': target_MKE15Z256xxx7.KE15Z7,
+          'ke17z7': target_MKE17Z256xxx7.KE17Z7,
           'ke18f16': target_MKE18F256xxx16.KE18F16,
           'kl02z': target_MKL02Z32xxx4.KL02Z,
           'kl05z': target_MKL05Z32xxx4.KL05Z,
@@ -169,7 +173,10 @@ BUILTIN_TARGETS = {
           'mimxrt1170_cm7': target_MIMXRT1176xxxxx.MIMXRT1176xxxxx_CM7,
           'mimxrt1170_cm4': target_MIMXRT1176xxxxx.MIMXRT1176xxxxx_CM4,
           'nrf51': target_nRF51822_xxAA.NRF51,
+          'nrf51822': target_nRF51822_xxAA.NRF51,
           'nrf52': target_nRF52832_xxAA.NRF52832,
+          'nrf52832': target_nRF52832_xxAA.NRF52832,
+          'nrf52833': target_nRF52833_xxAA.NRF52833,
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
@@ -218,6 +225,7 @@ BUILTIN_TARGETS = {
           'musca_s1' : target_musca_s1.MuscaS1,
           'lpc5526'  : target_LPC5526Jxxxxx.LPC5526,
           'lpc55s69' : target_LPC55S69Jxxxxx.LPC55S69,
+          'lpc55s36' : target_LPC55S36.LPC55S36,
           'lpc55s28' : target_LPC55S28Jxxxxx.LPC55S28,
           'cy8c64xx_cm0_full_flash' : target_CY8C64xx.cy8c64xx_cm0_full_flash,
           'cy8c64xx_cm4_full_flash' : target_CY8C64xx.cy8c64xx_cm4_full_flash,

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import os
 from elftools.elf.elffile import ELFFile
 from elftools.dwarf.constants import DW_LNE_set_address
@@ -85,7 +85,8 @@ class ElfSymbolDecoder(object):
             self.symbol_tree.addi(sym_value, sym_value+sym_size, syminfo)
 
     def _process_arm_type_symbols(self):
-        type_symbols = self._get_arm_type_symbol_iter()
+        pass
+#         type_symbols = self._get_arm_type_symbol_iter()
 #         map(print, imap(lambda x:"%s : 0x%x" % (x.name, x['st_value']), type_symbols))
 
     def _get_arm_type_symbol_iter(self):

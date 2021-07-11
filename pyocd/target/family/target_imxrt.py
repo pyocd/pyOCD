@@ -110,28 +110,26 @@ class CortexM7_IMXRT(CortexM):
             LOG.debug("vectable_addr: %x", vectable_addr)
             vectable = None
             imageentry = None
+
             if vectable_addr:
                 try:
                     # Read user Image Vector Table address
                     vectable = self.read_memory(vectable_addr)
-                except exceptions.TransferFaultError:
-                    pass
-
-                if vectable and vectable != 0xFFFFFFFF:
-                    try:
+                    if vectable and vectable != 0xFFFFFFFF:
                         # Read user image entry point and clear Thumb bit
                         imageentry = self.read_memory(vectable + 4) & (~0x00000001)
-                    except exceptions.TransferFaultError:
-                        pass
-                    if imageentry and imageentry != 0xFFFFFFFF:
-                        LOG.debug("vectable: %s, imageentry: %s" % (vectable, imageentry))
-                        # Program FPB Comparator 0 to user image entry point
-                        self.write_memory(CortexM7_IMXRT.FPB_COMP0, (imageentry | 1))
-                        # Enable FPB (FPB_CTRL = FPB_KEY|FPB_ENABLE)
-                        self.write_memory(CortexM7_IMXRT.FPB_CTRL, 0x00000003)
-                        LOG.debug("enable fpb")
-                        self.did_normal_reset_catch = False
-                        return
+                except (AssertionError, exceptions.TransferFaultError):
+                    pass
+
+                if imageentry and imageentry != 0xFFFFFFFF:
+                    LOG.debug("vectable: %s, imageentry: %s" % (vectable, imageentry))
+                    # Program FPB Comparator 0 to user image entry point
+                    self.write_memory(CortexM7_IMXRT.FPB_COMP0, (imageentry | 1))
+                    # Enable FPB (FPB_CTRL = FPB_KEY|FPB_ENABLE)
+                    self.write_memory(CortexM7_IMXRT.FPB_CTRL, 0x00000003)
+                    LOG.debug("enable fpb")
+                    self.did_normal_reset_catch = False
+                    return
 
         # normal reset catch
         LOG.debug("normal_set_reset_catch")

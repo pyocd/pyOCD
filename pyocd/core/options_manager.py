@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +16,6 @@
 # limitations under the License.
 
 import logging
-import six
-import yaml
-import os
 from functools import partial
 from collections import namedtuple
 
@@ -130,8 +128,7 @@ class OptionsManager(Notifier):
         for layer in self._layers:
             if key in layer:
                 return layer[key]
-        else:
-            return self.get_default(key)
+        return self.get_default(key)
     
     def set(self, key, value):
         """! @brief Set an option in the current highest priority layer."""

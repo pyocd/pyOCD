@@ -10,7 +10,7 @@ multiple ways to set these options.
 
 - Many of the most commonly used session options have dedicated command line arguments.
 - Options can be placed in a YAML config file.
-- Arbitrary options can be set individually with the `-Ooption=value` command line argument.
+- Arbitrary options can be set individually with the <tt>-O<i>option</i>=<i>value</i></tt> command line argument.
 - If you are using the Python API, you may pass any option values directly
     to the `ConnectHelper` methods or `Session` constructor as keyword arguments. You can also
     pass a dictionary for the `options` parameter of these methods.
@@ -27,13 +27,17 @@ The priorities of the different session option sources, from highest to lowest:
 ## Project directory
 
 To help pyOCD automatically find configuration files and other resources, it has the concept of
-the project directory. By default this is simply the working directory where you ran the `pyocd`
-tool. You can set the project directory explicitly with the `-j` or `--dir` command line
-arguments. This can be helpful if you are running pyOCD from another tool or application.
+the project directory.
 
 When pyOCD looks for files such as the config file or a user script, it first expands '~'
 references to the home directory. Then it checks whether the filename is absolute, and if so, it
 uses the filename as-is. Otherwise, it looks for the file in the project directory.
+
+By default, the project directory is simply the working directory where you ran the `pyocd` tool.
+You can change the project directory to another location with the `-j`, `--project`, or `--dir` command line
+arguments. This can be helpful if you are running pyOCD from another tool or application. The project
+directory can also be set using the `PYOCD_PROJECT_DIR` environment variable. Command line arguments
+have precedence over the environment variable.
 
 ## Config file
 
@@ -44,7 +48,8 @@ The easiest way to use a config file is to place a `pyocd.yaml` file in the proj
 An alternate `.yml` extension and
 optional dot prefix on the config file name are allowed. Alternatively, you can use the
 `--config` command line option, for instance `--config=myconfig.yaml`. Finally, you can set the
-`config_file` option.
+`config_file` option. If there is a need to prevent reading a config file, use the `--no-config`
+argument.
 
 The top level of the YAML file is a dictionary. The keys in the top-level dictionary must be names
 of session options, or the key `probes`. Session options are set to the value corresponding to the

@@ -17,7 +17,6 @@
 
 import logging
 import textwrap
-import six
 
 from ..core import exceptions
 from ..utility import conversion
@@ -55,8 +54,7 @@ class CommandMeta(type):
             ALL_COMMANDS.setdefault(info['group'], set()).add(new_type)
         return new_type
 
-@six.add_metaclass(CommandMeta)
-class CommandBase(object):
+class CommandBase(metaclass=CommandMeta):
     """! @brief Base class for a command.
     
     Each command class must have an `INFO` attribute with the following keys:
@@ -164,7 +162,7 @@ class CommandBase(object):
 
             return value
         except ValueError as err:
-            raise six.raise_from(exceptions.CommandError("invalid argument '{}'".format(arg)), None)
+            raise exceptions.CommandError("invalid argument '{}'".format(arg)) from None
 
     @classmethod
     def format_help(cls, context, max_width=72):

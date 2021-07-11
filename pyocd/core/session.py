@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) Chris Reed
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@
 
 import logging
 import logging.config
-import six
 import yaml
 import os
 import weakref
@@ -149,7 +148,7 @@ class Session(Notifier):
         
         # Init project directory.
         if self.options.get('project_dir') is None:
-            self._project_dir = os.getcwd()
+            self._project_dir = os.environ.get('PYOCD_PROJECT_DIR') or os.getcwd()
         else:
             self._project_dir = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
@@ -240,7 +239,7 @@ class Session(Notifier):
         config = self.options.get('logging')
         
         # Allow logging setting to refer to another file.
-        if isinstance(config, six.string_types):
+        if isinstance(config, str):
             loggingConfigPath = self.find_user_file(None, [config])
             
             if loggingConfigPath is not None:
@@ -423,7 +422,7 @@ class Session(Notifier):
                 # functions or classes. A single namespace is shared for both globals and
                 # locals so that script-level definitions are available within the
                 # script functions.
-                six.exec_(scriptCode, self._user_script_namespace, self._user_script_namespace)
+                exec(scriptCode, self._user_script_namespace, self._user_script_namespace)
                 
                 # Create the proxy for the user script. It becomes the delegate unless
                 # another delegate was already set.
@@ -475,17 +474,17 @@ class Session(Notifier):
             try:
                 self.board.uninit()
                 self._inited = False
-            except:
+            except exceptions.Error:
                 LOG.error("exception during board uninit:", exc_info=self.log_tracebacks)
         
         if self._probe.is_open:
             try:
                 self._probe.disconnect()
-            except:
+            except exceptions.Error:
                 LOG.error("probe exception during disconnect:", exc_info=self.log_tracebacks)
             try:
                 self._probe.close()
-            except:
+            except exceptions.Error:
                 LOG.error("probe exception during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy(object):

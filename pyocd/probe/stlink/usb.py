@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,18 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from ...core import exceptions
-from .. import common
 import usb.core
 import usb.util
 import logging
-import six
-import threading
 from collections import namedtuple
 import platform
 import errno
 from binascii import hexlify
+
+from ...core import exceptions
+from .. import common
 
 LOG = logging.getLogger(__name__)
 
@@ -231,7 +230,7 @@ class STLinkUSBInterface(object):
                 TRACE.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
                 return data
         except usb.core.USBError as exc:
-            six.raise_from(exceptions.ProbeError("USB Error: %s" % exc), exc)
+            raise exceptions.ProbeError("USB Error: %s" % exc) from exc
         return None
 
     def read_swv(self, size, timeout=1000):

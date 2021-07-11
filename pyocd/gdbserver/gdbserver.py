@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +18,10 @@
 import logging
 import threading
 from struct import unpack
-from time import (sleep, time)
+from time import sleep
 import sys
 import six
+import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 
 from ..core import exceptions
@@ -27,7 +29,6 @@ from ..core.target import Target
 from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
-from ..utility.progress import print_progress
 from ..utility.compatibility import (iter_single_bytes, to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..trace.swv import SWVReader
@@ -38,16 +39,14 @@ from .context_facade import GDBDebugContextFacade
 from .symbols import GDBSymbolProvider
 from ..rtos import RTOS
 from . import signals
-from . import gdbserver_commands
+from . import gdbserver_commands # lgtm[py/unused-import]
 from .packet_io import (
-    CTRL_C,
     checksum,
     ConnectionClosedException,
     GDBServerPacketIOThread,
     )
 from ..commands.execution_context import CommandExecutionContext
 from ..commands.commander import ToolExitException
-from ..commands.base import CommandBase
 
 LOG = logging.getLogger(__name__)
 
@@ -576,7 +575,7 @@ class GDBServer(threading.Thread):
         return addr
 
     def resume(self, data):
-        addr = self._get_resume_step_addr(data)
+#         addr = self._get_resume_step_addr(data)
         self.target.resume()
         LOG.debug("target resumed")
 
@@ -622,7 +621,7 @@ class GDBServer(threading.Thread):
             except exceptions.Error as e:
                 try:
                     self.target.halt()
-                except:
+                except exceptions.Error:
                     pass
                 LOG.warning('Exception while target was running: %s', e, exc_info=self.session.log_tracebacks)
                 val = ('S%02x' % self.target_facade.get_signal_value()).encode()
@@ -631,7 +630,7 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(val)
 
     def step(self, data, start=0, end=0):
-        addr = self._get_resume_step_addr(data)
+        #addr = self._get_resume_step_addr(data)
         LOG.debug("GDB step: %s (start=0x%x, end=0x%x)", data, start, end)
         
         # Use the step hook to check for an interrupt event.
@@ -1008,7 +1007,7 @@ class GDBServer(threading.Thread):
         LOG.debug('Remote command: %s', cmd)
 
         # Create a new stream to collect the command output.
-        stream = six.StringIO()
+        stream = io.StringIO()
         self._command_context.output_stream = stream
         
         # TODO run this in a separate thread so we can cancel the command with ^C from gdb?

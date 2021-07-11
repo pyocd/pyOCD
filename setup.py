@@ -75,7 +75,7 @@ setup(
         'pyelftools<1.0',
         'pylink-square>=0.8.2,<1.0',
         'pyocd_pemicro>=1.0.0.post2', # Only supports python 3.6+
-        'pyusb>=1.1.0,<2.0',
+        'pyusb>=1.2.1,<2.0',
         'pyyaml>=5.1,<6.0',
         'six>=1.15.0,<2.0',
         ],

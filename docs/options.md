@@ -90,6 +90,13 @@ working directory.
 <td>'halt'</td>
 <td>
 Controls how pyOCD connects to the target. One of 'halt', 'pre-reset', 'under-reset', 'attach'.
+<ul>
+<li>'halt': immediately halt all accessible cores upon connect.</li>
+<li>'pre-reset': perform a hardware reset prior to connect and halt.</li>
+<li>'under-reset': assert hardware reset during the connect sequence, then deassert after the cores are halted.
+    This connect mode is often necessary to gain control of a target that is in a deep low power mode.</li>
+<li>'attach': connect to a running target without halting cores.</li>
+</ul>
 </td></tr>
 
 <tr><td>cpu.step.instruction.timeout</td>

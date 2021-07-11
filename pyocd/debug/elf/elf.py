@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,12 +14,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
-from ...core.memory_map import (MemoryRange, MemoryMap)
-from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder)
+
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import SH_FLAGS
-import six
+
+from ...core.memory_map import (MemoryRange, MemoryMap)
+from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder)
 
 class ELFSection(MemoryRange):
     """! @brief Memory range for a section of an ELF file.
@@ -109,7 +110,7 @@ class ELFBinaryFile(object):
     
     def __init__(self, elf, memory_map=None):
         self._owns_file = False
-        if isinstance(elf, six.string_types):
+        if isinstance(elf, str):
             self._file = open(elf, 'rb')
             self._owns_file = True
         else:

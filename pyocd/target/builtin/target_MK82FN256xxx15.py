@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2009-2015,2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +17,7 @@
 
 from ..family.target_kinetis import Kinetis
 from ..family.flash_kinetis import Flash_Kinetis
-from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
 FLASH_ALGO = {

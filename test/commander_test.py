@@ -21,6 +21,7 @@ import traceback
 import logging
 import six
 import os
+from collections import UserDict
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
@@ -81,7 +82,7 @@ def commander_test(board_id):
     print("\n------ Testing commander ------\n")
     
     # Set up commander args.
-    args = six.moves.UserDict()
+    args = UserDict()
     args.no_init = False
     args.frequency = 1000000
     args.options = {} #get_session_options()

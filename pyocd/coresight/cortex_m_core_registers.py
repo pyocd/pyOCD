@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +16,8 @@
 # limitations under the License.
 
 import logging
-import six
-from copy import copy
 
 from ..core.core_registers import CoreRegisterInfo
-from ..utility import conversion
 
 LOG = logging.getLogger(__name__)
 
@@ -50,11 +48,11 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
         @return Internal register number.
         @exception KeyError
         """
-        if isinstance(reg, six.string_types):
+        if isinstance(reg, str):
             try:
                 reg = cls._NAME_MAP[reg.lower()].index
             except KeyError as err:
-                six.raise_from(KeyError('unknown core register name %s' % reg), err)
+                raise KeyError('unknown core register name %s' % reg) from err
         return reg
 
     @property
