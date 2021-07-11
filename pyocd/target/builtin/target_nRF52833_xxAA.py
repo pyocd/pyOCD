@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
-from ...debug.svd.loader import SVDFile
 from ..family.target_nRF52 import NRF52
 
 # Note: generated from nrf52xxx.flm from NordicSemiconductor.nRF_DeviceFamilyPack.8.38.0.pack
