@@ -27,7 +27,7 @@ from typing import Optional
 from .flash_algo import PackFlashAlgo
 from ...core import exceptions
 from ...core.target import Target
-from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
+from ...core.memory_map import (MemoryMap, MemoryRegion, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion, RamRegion)
 
 LOG = logging.getLogger(__name__)
 
@@ -421,6 +421,13 @@ class CmsisPackDevice(object):
                 LOG.debug("ignoring error parsing memories for CMSIS-Pack devices %s: %s",
                     self.part_number, str(err))
     
+    def _get_containing_region(self, addr: int) -> Optional[MemoryRegion]:
+        """@brief Return the memory region containing the given address."""
+        for region in self._regions:
+            if region.contains_address(addr):
+                return region
+        return None
+
     def _build_flash_regions(self):
         """! @brief Converts ROM memory regions to flash regions.
         
@@ -447,16 +454,16 @@ class CmsisPackDevice(object):
                 continue
             
             # Look for matching flash algo.
-            algo = self._find_matching_algo(region)
-            if algo is None:
+            algo_element = self._find_matching_algo(region)
+            if algo_element is None:
                 # Must be a mask ROM or non-programmable flash.
                 continue
 
             # Load flash algo from .FLM file.
-            packAlgo = self._load_flash_algo(algo.attrib['name'])
+            packAlgo = self._load_flash_algo(algo_element.attrib['name'])
             if packAlgo is None:
                 LOG.warning("Failed to convert ROM region to flash region because flash algorithm '%s' could not be "
-                            " found (%s)", algo.attrib['name'], self.part_number)
+                            " found (%s)", algo_element.attrib['name'], self.part_number)
                 continue
             
             # The ROM region will be replaced with one or more flash regions.
@@ -473,9 +480,34 @@ class CmsisPackDevice(object):
             if page_size <= 32:
                 page_size = min(s[1] for s in packAlgo.sector_sizes)
             
+            # Select the RAM to use for the algo. 
+            try:
+                # See if an explicit RAM range was specified for the algo.
+                ram_start = int(algo_element.attrib['RAMstart'], base=0)
+
+                # The region size comes either from the RAMsize attribute, the containing region's bounds, or
+                # a large, arbitrary value.
+                if 'RAMsize' in algo_element.attrib:
+                    ram_size = int(algo_element.attrib['RAMsize'], base=0)
+                else:
+                    containing_region = self._get_containing_region(ram_start)
+                    if containing_region is not None:
+                        ram_size = containing_region.length - (ram_start - containing_region.start)
+                    else:
+                        # No size specified, and the RAMstart attribute is outside of a known region,
+                        # so just use a relatively large arbitrary size. Because the algo is packed at the
+                        # start of the provided region, this won't be a problem unless the DFP is
+                        # actually erroneous.
+                        ram_size = 128 * 1024
+                    
+                ram_for_algo = RamRegion(start=ram_start, length=ram_size)
+            except KeyError:
+                # No RAM addresses were given, so go with the RAM marked default.
+                ram_for_algo = self._default_ram
+
             # Construct the pyOCD algo using the largest sector size. We can share the same
             # algo for all sector sizes.
-            algo = packAlgo.get_pyocd_flash_algo(page_size, self._default_ram)
+            algo = packAlgo.get_pyocd_flash_algo(page_size, ram_for_algo)
 
             # Create a separate flash region for each sector size range. The sector_sizes attribute
             # is a list of bi-tuples of (start-address, sector-size), sorted by start address.
