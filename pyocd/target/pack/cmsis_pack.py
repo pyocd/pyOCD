@@ -22,7 +22,7 @@ from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 import logging
 import io
-from typing import Optional
+from typing import (Any, Dict, Iterator, Optional)
 
 from .flash_algo import PackFlashAlgo
 from ...core import exceptions
@@ -509,56 +509,9 @@ class CmsisPackDevice(object):
             # algo for all sector sizes.
             algo = packAlgo.get_pyocd_flash_algo(page_size, ram_for_algo)
 
-            # Create a separate flash region for each sector size range. The sector_sizes attribute
-            # is a list of bi-tuples of (start-address, sector-size), sorted by start address.
-            for j, sectorInfo in enumerate(packAlgo.sector_sizes):
-                # Unpack this sector range's start address and sector size.
-                offset, sector_size = sectorInfo
-                start = region.start + offset
-                
-                # Determine the end address of the this sector range. For the last range, the end
-                # is just the end of the entire region. Otherwise it's the start of the next
-                # range - 1.
-                if j + 1 >= len(packAlgo.sector_sizes):
-                    end = region.end
-                else:
-                    end = region.start + packAlgo.sector_sizes[j + 1][0] - 1
-                
-                # Skip wrong start and end addresses
-                if end < start:
-                    continue
-                
-                # Limit page size.
-                if page_size > sector_size:
-                    region_page_size = sector_size
-                    LOG.warning("Page size (%d) is larger than sector size (%d) for flash region %s; "
-                                "reducing page size to %d", page_size, sector_size, region.name,
-                                region_page_size)
-                else:
-                    region_page_size = page_size
-                
-                # If we don't have a boot memory yet, pick the first flash.
-                if not self._saw_startup:
-                    isBoot = True
-                    self._saw_startup = True
-                else:
-                    isBoot = region.is_boot_memory
-                
-                # Construct the flash region.
-                rangeRegion = FlashRegion(name=region.name,
-                                access=region.access,
-                                start=start,
-                                end=end,
-                                sector_size=sector_size,
-                                page_size=region_page_size,
-                                flm=packAlgo,
-                                algo=algo,
-                                erased_byte_value=packAlgo.flash_info.value_empty,
-                                is_default=region.is_default,
-                                is_boot_memory=isBoot,
-                                is_testable=region.is_testable,
-                                alias=region.alias)
-                regions_to_add.append(rangeRegion)
+            # Create a separate flash region for each sector size range.
+            regions_to_add += list(self._split_flash_region_by_sector_size(
+                                            region, page_size, algo, packAlgo)) # type: ignore
         
         # Now update the regions list.
         for region in regions_to_delete:
@@ -566,6 +519,59 @@ class CmsisPackDevice(object):
         for region in regions_to_add:
             self._regions.append(region)
     
+    def _split_flash_region_by_sector_size(self,
+            region: MemoryRegion,
+            page_size: int,
+            algo: Dict[str, Any],
+            pack_algo: PackFlashAlgo) -> Iterator[FlashRegion]:
+        """@brief Yield separate flash regions for each sector size range."""
+        # The sector_sizes attribute is a list of bi-tuples of (start-address, sector-size), sorted by start address.
+        for j, (offset, sector_size) in enumerate(pack_algo.sector_sizes):
+            start = region.start + offset
+            
+            # Determine the end address of the this sector range. For the last range, the end
+            # is just the end of the entire region. Otherwise it's the start of the next
+            # range - 1.
+            if j + 1 >= len(pack_algo.sector_sizes):
+                end = region.end
+            else:
+                end = region.start + pack_algo.sector_sizes[j + 1][0] - 1
+            
+            # Skip wrong start and end addresses
+            if end < start:
+                continue
+            
+            # Limit page size.
+            if page_size > sector_size:
+                region_page_size = sector_size
+                LOG.warning("Page size (%d) is larger than sector size (%d) for flash region %s; "
+                            "reducing page size to %d", page_size, sector_size, region.name,
+                            region_page_size)
+            else:
+                region_page_size = page_size
+            
+            # If we don't have a boot memory yet, pick the first flash.
+            if not self._saw_startup:
+                is_boot = True
+                self._saw_startup = True
+            else:
+                is_boot = region.is_boot_memory
+            
+            # Construct the flash region.
+            yield FlashRegion(name=region.name,
+                            access=region.access,
+                            start=start,
+                            end=end,
+                            sector_size=sector_size,
+                            page_size=region_page_size,
+                            flm=pack_algo,
+                            algo=algo,
+                            erased_byte_value=pack_algo.flash_info.value_empty,
+                            is_default=region.is_default,
+                            is_boot_memory=is_boot,
+                            is_testable=region.is_testable,
+                            alias=region.alias)
+
     def _find_matching_algo(self, region):
         """! @brief Searches for a flash algo covering the regions's address range.'"""
         for algo in self._info.algos:
