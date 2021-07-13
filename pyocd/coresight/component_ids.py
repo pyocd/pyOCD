@@ -15,9 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import namedtuple
+from typing import (Callable, Optional, NamedTuple, Union, TYPE_CHECKING)
 
-from .ap import AccessPort
+from .ap import (APAddressBase, AccessPort)
 from .cortex_m import CortexM
 from .cortex_m_v8m import CortexM_v8M
 from .fpb import FPB
@@ -26,6 +26,12 @@ from .itm import ITM
 from .tpiu import TPIU
 from .gpr import GPR
 from .sdc600 import SDC600
+
+if TYPE_CHECKING:
+    from .component import CoreSightComponent
+    from .rom_table import CoreSightComponentID
+    from ..core.memory_interface import MemoryInterface
+    from .dap import DebugPort
 
 # Component classes.
 ROM_TABLE_CLASS = 0x1
@@ -63,8 +69,16 @@ FSL_ID = 0x00e
 #  0x15 = CPU debug
 #  0x16 = PMU
 
-## Pairs a component name with a factory method.
-CmpInfo = namedtuple('CmpInfo', 'name product factory')
+# Two factory signatures are supported. The discovery classes ensure the right one is called by
+# filtering APs as appropriate.
+ComponentFactory = Callable[["MemoryInterface", "CoreSightComponentID", int], "CoreSightComponent"]
+APFactory = Callable[["DebugPort", APAddressBase, Optional["CoreSightComponentID"]], AccessPort]
+
+class CmpInfo(NamedTuple):
+    """! @brief Combines a component and product name with a factory method."""
+    name: str
+    product: Optional[str]
+    factory: Optional[Union[ComponentFactory, APFactory]]
 
 ## Map from (designer, class, part, devtype, archid) to component name, product name, and factory.
 COMPONENT_MAP = {
