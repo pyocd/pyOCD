@@ -16,15 +16,18 @@
 # limitations under the License.
 
 import re
-from collections import namedtuple
+from typing import (Any, NamedTuple, Pattern)
 
 from . import target_imxrt
 from . import target_kinetis
 from . import target_lpc5500
 from . import target_nRF52
 
-## @brief Container for family matching information.
-FamilyInfo = namedtuple("FamilyInfo", "vendor matches klass")
+class FamilyInfo(NamedTuple):
+    """@brief Container for family matching information."""
+    vendor: str
+    matches: Pattern[str]
+    klass: Any
 
 ## @brief Lookup table to convert from CMSIS-Pack family names to a family class.
 #
