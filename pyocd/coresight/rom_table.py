@@ -104,6 +104,7 @@ class CoreSightComponentID(object):
         self.devtype = 0
         self.devid = [0, 0, 0]
         self.name = ''
+        self.product_name = None
         self.factory = None
         self.valid = False
 
@@ -152,18 +153,16 @@ class CoreSightComponentID(object):
         else:
             key = (self.designer, self.component_class, self.part, self.devtype, self.archid)
             info = COMPONENT_MAP.get(key, None)
-            if info is not None:
-                self.name = info.name
-                self.factory = info.factory
-            else:
+            if info is None:
                 # Try just the archid with no partno or devtype as backup.
                 key = (self.designer, self.component_class, None, None, self.archid)
                 info = COMPONENT_MAP.get(key, None)
-                if info is not None:
-                    self.name = info.name
-                    self.factory = info.factory
-                else:
-                    self.name = '???'
+            if info is not None:
+                self.name = info.name
+                self.product_name = info.product
+                self.factory = info.factory
+            else:
+                self.name = '???'
 
         self.valid = True
 
@@ -175,19 +174,22 @@ class CoreSightComponentID(object):
         return result
 
     def __repr__(self):
+        name = self.name
+        if self.product_name:
+            name += " " + self.product_name
         if not self.valid:
-            return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, self.name, self.cidr, self.pidr)
+            return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, name, self.cidr, self.pidr)
         if self.power_id is not None:
             pwrid = " pwrid=%d" % self.power_id
         else:
             pwrid = ""
         if self.component_class == self.CORESIGHT_CLASS:
             return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x%s>" % (
-                self.address, self.name, self.component_class, self.designer, self.part,
+                self.address, name, self.component_class, self.designer, self.part,
                 self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2], pwrid)
         else:
             return "<%08x:%s class=%d designer=%03x part=%03x%s>" % (
-                self.address, self.name,self.component_class, self.designer, self.part, pwrid)
+                self.address, name,self.component_class, self.designer, self.part, pwrid)
 
 
 class ROMTable(CoreSightComponent):
