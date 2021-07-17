@@ -24,23 +24,23 @@ specified probe.
 
 The probe is selected via the usual connection-related command line arguments,
 such as `--uid`. Also as usual, a console menu will be printed to allow you to choose a probe to
-serve if multiple are available an a unique ID is not specified.
+serve if multiple are available and a unique ID is not specified.
 
 The probe server's default port number is 5555. You can change the port by passing the `--port`
 argument. The port the server uses will appear in the log when the server starts running.
 
-By default, the server allows remote connections. That is, other devices on the network can connect
-to the server. If the server is connected to the wider Internet, then any node on the Internet can
-connect to the server, so take appropriate caution. You may want to ensure that your network's
-firewall blocks the port being used (default 5555). If you don't need remote access to the server,
-for example if you are only connecting from other processes running on the same computer as the
-server, then you can use the `--local-only` argument to restrict access to local connections
-(localhost).
+By default, the server disallows remote connections. That is, other devices on the network are not allowed to connect to
+the server. This is fine if you don't need remote access to the server, for example if you are only connecting from
+other processes running on the same computer as the server. It's also a secure default.
 
-Example command line to start the server and allow only localhost connections:
+To allow remote clients to connect, pass the `--allow-remote` argument. Be aware that if the server is exposed on the
+Internet, then any other node on the Internet can connect to it, so please take appropriate protective measures. You
+may want to ensure that your network's firewall blocks the port being used (default 5555). 
+
+Example command line to start the server and allow remote connections:
 
 ```
-$ pyocd server --local-only
+$ pyocd server --allow-remote
 ```
 
 This command does not specify a unique ID for a probe, so it will show the console probe selection
@@ -55,9 +55,10 @@ behaviour should be exactly as if the probe were being controlled directly. Of c
 be additional latency depending on network performance. For localhost-served probes, the connection
 is nearly transparent.
 
-The remote probe is selected by specifying a unique ID with a prefix of "remote:", followed by the
-server IP address or domain name. For instance, to connect to a probe being served on the same
-computer, pass `--uid=remote:localhost` on the command line.
+The remote probe is selected by specifying a unique ID with a prefix of "remote:", followed by the server IP address or
+domain name. The port can be included by appending another colon and the port number. For instance, to connect to a
+probe being served on the same computer, pass `--uid=remote:localhost` on the command line. With a custom port, this
+would be `--uid=remote:localhost:1234`.
 
 **Important:** Currently you must always specify the target type for the remote device, even in
 cases where the target type is automatically detected when you use the probe directly. To do this,
