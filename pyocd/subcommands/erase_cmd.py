@@ -21,7 +21,10 @@ import logging
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..flash.eraser import FlashEraser
-from ..utility.cmdline import convert_session_options
+from ..utility.cmdline import (
+    convert_session_options,
+    flatten_args,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -89,7 +92,7 @@ class EraseSubcommand(SubcommandBase):
             mode = self._args.erase_mode or FlashEraser.Mode.SECTOR
             eraser = FlashEraser(session, mode)
             
-            addresses = self.flatten_args(self._args.addresses)
+            addresses = flatten_args(self._args.addresses)
             eraser.erase(addresses)
 
         return 0

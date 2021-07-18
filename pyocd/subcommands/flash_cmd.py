@@ -21,13 +21,12 @@ import logging
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..flash.file_programmer import FileProgrammer
-from ..utility.cmdline import convert_session_options
+from ..utility.cmdline import (
+    convert_session_options,
+    int_base_0,
+)
 
 LOG = logging.getLogger(__name__)
-
-def int_base_0(x):
-    """! @brief Converts a string to an int with support for base prefixes."""
-    return int(x, base=0)
 
 class FlashSubcommand(SubcommandBase):
     """! @brief `pyocd flash` subcommand."""

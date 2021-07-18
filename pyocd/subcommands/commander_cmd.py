@@ -20,7 +20,10 @@ from typing import List
 
 from .base import SubcommandBase
 from ..commands.commander import PyOCDCommander
-from ..utility.cmdline import split_command_line
+from ..utility.cmdline import (
+    flatten_args,
+    split_command_line,
+)
 
 class CommanderSubcommand(SubcommandBase):
     """! @brief `pyocd commander` subcommand."""
@@ -52,7 +55,7 @@ class CommanderSubcommand(SubcommandBase):
         if self._args.commands is not None:
             cmds = []
             for cmd in self._args.commands:
-                cmds.append(self.flatten_args(split_command_line(arg) for arg in cmd))
+                cmds.append(flatten_args(split_command_line(arg) for arg in cmd))
         else:
             cmds = None
 
