@@ -15,12 +15,15 @@
 # limitations under the License.
 
 import logging
+from typing import (Callable, Union)
 
 from .builder import (FlashBuilder, get_page_count, get_sector_count)
 from ..core import exceptions
 from ..utility.progress import print_progress
 
 LOG = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[Union[int, float]], None]
 
 class FlashLoader(object):
     """! @brief Handles high level programming of raw binary data to flash.

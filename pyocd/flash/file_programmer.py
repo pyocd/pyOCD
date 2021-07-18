@@ -21,13 +21,20 @@ import itertools
 from elftools.elf.elffile import ELFFile
 from intelhex import IntelHex
 import errno
+from typing import (Any, Callable, Dict, IO, List, Optional, Tuple, TYPE_CHECKING, Union)
 
-from .loader import FlashLoader
+from .loader import (
+    FlashLoader,
+    ProgressCallback,
+)
 from ..core import exceptions
+
+if TYPE_CHECKING:
+    from ..core.session import Session
 
 LOG = logging.getLogger(__name__)
 
-def ranges(i):
+def ranges(i: List[int]) -> List[Tuple[int, int]]:
     """!
     Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
     Yields 2-tuples of the start and end address for each contiguous range.
@@ -52,8 +59,14 @@ class FileProgrammer(object):
     - Intel Hex (.hex)
     - ELF (.elf or .axf)
     """
-    def __init__(self, session, progress=None, chip_erase=None, smart_flash=None,
-        trust_crc=None, keep_unwritten=None):
+    def __init__(self,
+            session: "Session",
+            progress: Optional[ProgressCallback] = None,
+            chip_erase: Optional[bool] = None,
+            smart_flash: Optional[bool] = None,
+            trust_crc: Optional[bool] = None,
+            keep_unwritten: Optional[bool] = None
+        ):
         """! @brief Constructor.
         
         @param self
@@ -82,14 +95,14 @@ class FileProgrammer(object):
         self._progress = progress
         self._loader = None
         
-        self._format_handlers = {
+        self._format_handlers: Dict[str, Callable[..., None]] = {
             'axf': self._program_elf,
             'bin': self._program_bin,
             'elf': self._program_elf,
             'hex': self._program_hex,
             }
     
-    def program(self, file_or_path, file_format=None, **kwargs):
+    def program(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any):
         """! @brief Program a file into flash.
         
         @param self
@@ -109,17 +122,17 @@ class FileProgrammer(object):
         @exception ValueError Invalid argument value, for instance providing a file object but
             not setting file_format.
         """
-        isPath = isinstance(file_or_path, str)
+        is_path = isinstance(file_or_path, str)
         
         # Check for valid path first.
-        if isPath and not os.path.isfile(file_or_path):
+        if is_path and not os.path.isfile(file_or_path): # type: ignore (type checker doesn't use is_path)
             raise FileNotFoundError(errno.ENOENT, "No such file: '{}'".format(file_or_path))
         
         # If no format provided, use the file's extension.
         if not file_format:
-            if isPath:
+            if is_path:
                 # Extract the extension from the path.
-                file_format = os.path.splitext(file_or_path)[1][1:]
+                file_format = os.path.splitext(file_or_path)[1][1:] # type: ignore (type checker doesn't use is_path)
                 
                 # Explicitly check for no extension.
                 if file_format == '':
@@ -129,7 +142,7 @@ class FileProgrammer(object):
                 raise ValueError("file object provided but no format is set")
         
         # Check the format is one we understand.
-        if file_format not in self._format_handlers:
+        if file_format is None or file_format not in self._format_handlers:
             raise ValueError("unknown file format '%s'" % file_format)
             
         self._loader = FlashLoader(self._session,
@@ -139,27 +152,31 @@ class FileProgrammer(object):
                                     trust_crc=self._trust_crc,
                                     keep_unwritten=self._keep_unwritten)
         
-        file_obj = None
+        # file_obj = None
+        # Open the file if a path was provided.
+        if is_path:
+            mode = 'rb'
+            if file_format == 'hex':
+                # hex file must be read as plain text file
+                mode = 'r'
+            assert isinstance(file_or_path, str)
+            file_obj = open(file_or_path, mode)
+        else:
+            assert not isinstance(file_or_path, str)
+            file_obj = file_or_path
         try:
-            # Open the file if a path was provided.
-            if isPath:
-                mode = 'rb'
-                if file_format == 'hex':
-                    # hex file must be read as plain text file
-                    mode = 'r'
-                file_obj = open(file_or_path, mode)
-            else:
-                file_obj = file_or_path
 
             # Pass to the format-specific programmer.
             self._format_handlers[file_format](file_obj, **kwargs)
             self._loader.commit()
         finally:
-            if isPath and file_obj is not None:
+            if is_path and file_obj is not None:
                 file_obj.close()
 
-    def _program_bin(self, file_obj, **kwargs):
+    def _program_bin(self, file_obj: IO[bytes], **kwargs: Any) -> None:
         """! @brief Binary file format loader"""
+        assert self._loader
+
         # If no base address is specified use the start of the boot memory.
         address = kwargs.get('base_address', None)
         if address is None:
@@ -167,14 +184,20 @@ class FileProgrammer(object):
             if boot_memory is None:
                 raise exceptions.TargetSupportError("No boot memory is defined for this device")
             address = boot_memory.start
+        assert isinstance(address, int)
         
-        file_obj.seek(kwargs.get('skip', 0), os.SEEK_SET)
+        skip_offset = kwargs.get('skip', 0)
+        if not isinstance(skip_offset, int):
+            raise TypeError("skip argument must be an integer")
+        file_obj.seek(skip_offset, os.SEEK_SET)
         data = list(bytearray(file_obj.read()))
         
         self._loader.add_data(address, data)
 
-    def _program_hex(self, file_obj, **kwargs):
+    def _program_hex(self, file_obj: IO[bytes], **kwargs: Any) -> None:
         """! Intel hex file format loader"""
+        assert self._loader
+
         hexfile = IntelHex(file_obj)
         addresses = hexfile.addresses()
         addresses.sort()
@@ -192,7 +215,9 @@ class FileProgrammer(object):
             except ValueError as e:
                 LOG.warning("Failed to add data chunk: %s", e)
 
-    def _program_elf(self, file_obj, **kwargs):
+    def _program_elf(self, file_obj: IO[bytes], **kwargs: Any) -> None:
+        assert self._loader
+
         elf = ELFFile(file_obj)
         for segment in elf.iter_segments():
             addr = segment['p_paddr']
