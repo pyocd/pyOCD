@@ -26,7 +26,7 @@ from ..utility.cmdline import convert_session_options
 LOG = logging.getLogger(__name__)
 
 class EraseSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd erase` subcommand."""
     
     NAMES = ['erase']
     HELP = "Erase entire device flash or specified sectors."

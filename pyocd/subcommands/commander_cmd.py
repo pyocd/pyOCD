@@ -23,7 +23,7 @@ from ..commands.commander import PyOCDCommander
 from ..utility.cmdline import split_command_line
 
 class CommanderSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd commander` subcommand."""
     
     NAMES = ['commander', 'cmd']
     HELP = "Interactive command console."

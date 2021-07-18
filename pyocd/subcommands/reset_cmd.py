@@ -30,7 +30,7 @@ from ..utility.cmdline import (
 LOG = logging.getLogger(__name__)
 
 class ResetSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd reset` subcommand."""
     
     NAMES = ['reset']
     HELP = "Reset a device."

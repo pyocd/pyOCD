@@ -30,7 +30,7 @@ def int_base_0(x):
     return int(x, base=0)
 
 class FlashSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd flash` subcommand."""
     
     NAMES = ['flash']
     HELP = "Program an image to device flash."
