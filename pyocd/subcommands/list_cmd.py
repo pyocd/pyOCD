@@ -56,9 +56,9 @@ class ListSubcommand(SubcommandBase):
             
         list_options = list_parser.add_argument_group('list options')
         list_options.add_argument('-n', '--name',
-            help="Restrict listing to items matching the given name. Applies to targets and boards.")
+            help="Restrict listing to items matching the given name substring. Applies to targets and boards.")
         list_options.add_argument('-r', '--vendor',
-            help="Restrict listing to items whose vendor matches the given name. Applies to targets.")
+            help="Restrict listing to items whose vendor matches the given name substring. Applies only to targets.")
         list_options.add_argument('-s', '--source', choices=('builtin', 'pack'),
             help="Restrict listing to targets from the specified source. Applies to targets.")
         list_options.add_argument('-H', '--no-header', action='store_true',

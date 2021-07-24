@@ -43,7 +43,8 @@ class ResetSubcommand(SubcommandBase):
 
         reset_options = reset_parser.add_argument_group("reset options")
         reset_options.add_argument("-m", "--method", default='hw', dest='reset_type', metavar="METHOD",
-            help="Reset method to use ('hw', 'sw', and others). Default is 'hw'.")
+            help="Reset method to use (default, hw, sw, sysresetreq, vectreset, emulated). "
+                 "'sw' is the default software reset for the target. Default is 'hw'.")
         
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, reset_parser]
     

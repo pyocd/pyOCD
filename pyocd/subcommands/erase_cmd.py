@@ -50,7 +50,7 @@ class EraseSubcommand(SubcommandBase):
         erase_options.add_argument("-c", "--chip", dest="erase_mode", action="store_const", const=FlashEraser.Mode.CHIP,
             help="Perform a chip erase.")
         erase_options.add_argument("-s", "--sector", dest="erase_mode", action="store_const", const=FlashEraser.Mode.SECTOR,
-            help="Erase the sectors listed as positional arguments.")
+            help="Erase the sectors listed as positional arguments. This is the default.")
         erase_options.add_argument("--mass", dest="erase_mode", action="store_const", const=FlashEraser.Mode.MASS,
             help="Perform a mass erase. On some devices this is different than a chip erase.")
         erase_options.add_argument("addresses", metavar="<sector-address>", action='append', nargs='*',
