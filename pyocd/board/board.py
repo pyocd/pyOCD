@@ -31,6 +31,10 @@ class Board(GraphNode):
     def __init__(self, session, target=None):
         super(Board, self).__init__()
         
+        # Use the session option if no target type was given to us.
+        if target is None:
+            target = session.options.get('target_override')
+        
         # As a last resort, default the target to 'cortex_m'.
         if target is None:
             target = 'cortex_m'
@@ -42,6 +46,12 @@ class Board(GraphNode):
                             " flash. To set the target type use the '--target' argument or "
                             "'target_override' option. Use 'pyocd list --targets' to see available "
                             "targets types.")
+
+        assert target is not None
+        
+        # Write the effective target type back to options if it's different.
+        if target != session.options.get('target_override'):
+            session.options['target_override'] = target
 
         self._session = session
         self._target_type = target.lower()

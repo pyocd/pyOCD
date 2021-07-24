@@ -180,8 +180,7 @@ class Session(Notifier):
         self._load_user_script()
         
         # Ask the probe if it has an associated board, and if not then we create a generic one.
-        self._board = probe.create_associated_board() \
-                        or Board(self, self.options.get('target_override'))
+        self._board = probe.create_associated_board() or Board(self)
     
     def _get_config(self):
         # Load config file if one was provided via options, and no_config option was not set.
