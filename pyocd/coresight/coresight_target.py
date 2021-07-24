@@ -16,8 +16,8 @@
 # limitations under the License.
 
 import logging
-import six
 from inspect import getfullargspec
+from pathlib import PurePath
 
 from ..core.target import Target
 from ..core.memory_map import MemoryType
@@ -155,27 +155,27 @@ class CoreSightTarget(SoCTarget):
             # If the region doesn't have an algo dict but does have an FLM file, try to load
             # the FLM and create the algo dict.
             if (region.algo is None) and (region.flm is not None):
-                if isinstance(region.flm, six.string_types):
-                    flmPath = self.session.find_user_file(None, [region.flm])
-                    if flmPath is not None:
-                        LOG.info("creating flash algo from: %s", flmPath)
-                        packAlgo = PackFlashAlgo(flmPath)
+                if isinstance(region.flm, (str, PurePath)):
+                    flm_path = self.session.find_user_file(None, [region.flm])
+                    if flm_path is not None:
+                        LOG.info("creating flash algo from: %s", flm_path)
+                        pack_algo = PackFlashAlgo(flm_path)
                     else:
                         LOG.warning("Failed to find FLM file: %s", region.flm)
                         break
                 elif isinstance(region.flm, PackFlashAlgo):
-                    packAlgo = region.flm
+                    pack_algo = region.flm
                 else:
                     LOG.warning("flash region flm attribute is unexpected type")
                     break
 
                 # Create the algo dict from the FLM.
                 if self.session.options.get("debug.log_flm_info"):
-                    LOG.debug("Flash algo info: %s", packAlgo.flash_info)
-                page_size = packAlgo.page_size
+                    LOG.debug("Flash algo info: %s", pack_algo.flash_info)
+                page_size = pack_algo.page_size
                 if page_size <= 32:
-                    page_size = min(s[1] for s in packAlgo.sector_sizes)
-                algo = packAlgo.get_pyocd_flash_algo(
+                    page_size = min(s[1] for s in pack_algo.sector_sizes)
+                algo = pack_algo.get_pyocd_flash_algo(
                         page_size,
                         self.memory_map.get_default_region_of_type(MemoryType.RAM))
                 
