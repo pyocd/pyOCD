@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from os import stat_result
 import pytest
 import copy
 import collections.abc
@@ -483,4 +484,13 @@ class TestMemoryMap:
     
     def test_abc(self):
         assert isinstance(MemoryMap(), collections.abc.Sequence)
+    
+    def test_name_uniquing(self, memmap):
+        memmap.add_region(RomRegion(0x01000000, length=0x8000, name="rom"))
+        assert memmap.get_first_matching_region(name="rom_1").start == 0x01000000
+    
+    def test_multiple_unnamed_regions(self):
+        map = MemoryMap(RomRegion(0x01000000, length=0x8000),
+                RamRegion(0x20000000, length=0x8000))
+        assert len(map) == 2
 

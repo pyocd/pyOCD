@@ -62,3 +62,30 @@ class UniquePrefixMatcher:
         return None
 
 
+_INT_SUFFIX_RE = re.compile(r'[0-9]+$')
+
+def uniquify_name(name: str, others: Sequence[str]) -> str:
+    """@brief Ensure the given name is unique amongst the other provided names.
+    
+    If the `name` parameter is not unique, an integer will be appended to it. If the name already ends in an
+    integer, that value will be incremented by 1.
+    
+    @param name The name to uniqify.
+    @param others Sequence of other names to compare against.
+    @return A string guaranteed to not be the same as any string contained in `others`.
+    """
+    while name in others:
+        # Look for an integer at the end.
+        matches = list(_INT_SUFFIX_RE.finditer(name))
+        if len(matches):
+            match = matches[0]
+            u_value = int(match.group())
+            name = name[:match.start()]
+        else:
+            name += "_"
+            u_value = 0
+
+        # Update the name with the trailing int incremented.
+        name += str(u_value + 1)
+    
+    return name

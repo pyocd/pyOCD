@@ -557,8 +557,13 @@ class CmsisPackDevice(object):
             else:
                 is_boot = region.is_boot_memory
             
+            # Construct region name. If there is more than one sector size, we need to make the region's name unique.
+            region_name = region.name
+            if len(pack_algo.sector_sizes) > 1:
+                region_name += f"_{sector_size:#x}"
+            
             # Construct the flash region.
-            yield FlashRegion(name=region.name,
+            yield FlashRegion(name=region_name,
                             access=region.access,
                             start=start,
                             end=end,

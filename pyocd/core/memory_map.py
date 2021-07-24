@@ -20,6 +20,8 @@ import collections.abc
 import copy
 from functools import total_ordering
 
+from ..utility.strings import uniquify_name
+
 class MemoryType(Enum):
     """! @brief Known types of memory."""
     OTHER = 0
@@ -546,8 +548,14 @@ class MemoryMap(collections.abc.Sequence):
         The region list is resorted after adding the provided region.
         
         @param self
-        @param new_region An instance of MemoryRegion to add.
+        @param new_region An instance of MemoryRegion to add. A new instance that is a copy of this argument
+            may be added to the memory map in order to guarantee unique region names.
         """
+        # Check for an existing region with the same name. Multiple unnamed regions are allowed.
+        existing_names = [r.name for r in self._regions if r]
+        if new_region.name and (new_region.name in existing_names):
+            new_region = new_region.clone_with_changes(name=uniquify_name(new_region.name, existing_names))
+        
         new_region.map = self
         self._regions.append(new_region)
         self._regions.sort()
