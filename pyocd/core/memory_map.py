@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,7 @@
 # limitations under the License.
 
 from enum import Enum
-import six
+import collections.abc
 import copy
 from functools import total_ordering
 
@@ -205,8 +206,8 @@ class MemoryRegion(MemoryRangeBase):
         return self._map
 
     @map.setter
-    def map(self, theMap):
-        self._map = theMap
+    def map(self, the_map):
+        self._map = the_map
         
     @property
     def type(self):
@@ -219,15 +220,15 @@ class MemoryRegion(MemoryRangeBase):
     @property
     def alias(self):
         # Resolve alias reference.
-        aliasValue = self._attributes['alias']
-        if isinstance(aliasValue, six.string_types):
-            referent = self._map.get_first_matching_region(name=aliasValue)
+        alias_value = self._attributes['alias']
+        if isinstance(alias_value, str) and self._map is not None:
+            referent = self._map.get_first_matching_region(name=alias_value)
             if referent is None:
-                raise ValueError("unable to resolve memory region alias reference '%s'" % aliasValue)
+                raise ValueError("unable to resolve memory region alias reference '%s'" % alias_value)
             self._attributes['alias'] = referent
             return referent
         else:
-            return aliasValue
+            return alias_value
         
     def __getattr__(self, name):
         try:
@@ -240,14 +241,23 @@ class MemoryRegion(MemoryRangeBase):
                 v = v(self)
             return v
 
+    def _get_attributes_for_clone(self):
+        """@brief Return a dict containing all the attributes of this region.
+        
+        This method must be overridden by subclasses to include in the returned dict any instance attributes
+        not present in the `_attributes` attribute.
+        """
+        return dict(start=self.start, length=self.length, **self._attributes)
+
+    def clone_with_changes(self, **modified_attrs):
+        """@brief Create a duplicate this region with some of its attributes modified."""
+        new_attrs = self._get_attributes_for_clone()
+        new_attrs.update(modified_attrs)
+        
+        return self.__class__(**new_attrs)
+
     def __copy__(self):
-        # Custom copy is required due to our __getattr__() method.
-        return self.__class__(
-                # type=self.type,
-                start=self.start,
-                length=self.length,
-                **self._attributes
-                )
+        return self.clone_with_changes()
 
     # Need to redefine __hash__ since we redefine __eq__.
     __hash__ = MemoryRangeBase.__hash__
@@ -290,6 +300,7 @@ class FlashRegion(MemoryRegion):
     
     Flash regions have a number of attributes in addition to those available in all region types.
     - `blocksize`: Erase sector size in bytes.
+    - `sector_size`: Alias for `blocksize`.
     - `page_size`: Program page size in bytes. If not set, this will default to the `blocksize`.
     - `phrase_size`: The minimum programming granularity in bytes. Defaults to the `page_size` if not set.
     - `erase_all_weight`: Time it takes to erase the entire region.
@@ -335,7 +346,7 @@ class FlashRegion(MemoryRegion):
         self._flm = attrs.get('flm', None)
         self._flash = None
         
-        if 'flash_class' in attrs:
+        if ('flash_class' in attrs) and (attrs['flash_class'] is not None):
             self._flash_class = attrs['flash_class']
             assert issubclass(self._flash_class, Flash)
         else:
@@ -348,6 +359,10 @@ class FlashRegion(MemoryRegion):
             pass
         try:
             del self._attributes['flash_class']
+        except KeyError:
+            pass
+        try:
+            del self._attributes['flm']
         except KeyError:
             pass
     
@@ -380,8 +395,8 @@ class FlashRegion(MemoryRegion):
         return self._flash
     
     @flash.setter
-    def flash(self, flashInstance):
-        self._flash = flashInstance
+    def flash(self, flash_instance):
+        self._flash = flash_instance
         
     def is_data_erased(self, d):
         """! @brief Helper method to check if a block of data is erased.
@@ -390,25 +405,21 @@ class FlashRegion(MemoryRegion):
         @retval True The contents of d all match the erased byte value for this flash region.
         @retval False At least one byte in d did not match the erased byte value.
         """
-        erasedByte = self.erased_byte_value
+        erased_byte = self.erased_byte_value
         for b in d:
-            if b != erasedByte:
+            if b != erased_byte:
                 return False
         return True
-    
-    def __copy__(self):
-        # Include the writable attributes in the copy.
-        clone = self.__class__(
-                # type=self.type,
-                start=self.start,
-                length=self.length,
+
+    def _get_attributes_for_clone(self):
+        """@brief Return a dict containing all the attributes of this region."""
+        d = super()._get_attributes_for_clone()
+        d.update(
                 algo=self._algo,
                 flash_class=self._flash_class,
-                **self._attributes
+                flm=self._flm,
                 )
-        # Reference the shared FLM.
-        clone._flm = self._flm
-        return clone
+        return d
 
     # Need to redefine __hash__ since we redefine __eq__.
     __hash__ = MemoryRegion.__hash__
@@ -419,7 +430,9 @@ class FlashRegion(MemoryRegion):
                 self.flash_class == other.flash_class and self.flm == other.flm
 
     def __repr__(self):
-        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s blocksize=0x%x>" % (self.__class__.__name__, id(self), self.name, self.type, self.start, self.end, self.length, self.access, self.blocksize)
+        return "<%s@0x%x name=%s type=%s start=0x%x end=0x%x length=0x%x access=%s blocksize=0x%x>" % (
+                self.__class__.__name__, id(self), self.name, self.type, self.start, self.end,
+                self.length, self.access, self.blocksize)
 
 class DeviceRegion(MemoryRegion):
     """! @brief Device or peripheral memory."""
@@ -445,7 +458,7 @@ MEMORY_TYPE_CLASS_MAP = {
         MemoryType.DEVICE:  DeviceRegion,
     }
 
-class MemoryMap(object):
+class MemoryMap(collections.abc.Sequence):
     """! @brief Memory map consisting of memory regions.
     
     The normal way to create a memory map is to instantiate regions directly in the call to the
@@ -467,6 +480,8 @@ class MemoryMap(object):
     The memory map can also be modified by adding and removing regions at runtime. Regardless of
     the order regions are added, the list of regions contained in the memory map is always
     maintained sorted by start address.
+
+    MemoryMap objects implement the collections.abc.Sequence interface.
     """
     
     def __init__(self, *more_regions):
@@ -665,12 +680,28 @@ class MemoryMap(object):
         """! @brief Enable iteration over the memory map."""
         return iter(self._regions)
     
+    def __reversed__(self):
+        """! @brief Reverse iteration over the memory map."""
+        return reversed(self._regions)
+    
     def __getitem__(self, key):
         """! @brief Return a region indexed by name or number."""
-        if isinstance(key, six.string_types):
+        if isinstance(key, str):
             return self.get_first_matching_region(name=key)
         else:
             return self._regions[key]
+    
+    def __len__(self):
+        """! @brief Return the number of regions."""
+        return len(self._regions)
+    
+    def __contains__(self, key):
+        if isinstance(key, int):
+            return self.is_valid_address(key)
+        elif isinstance(key, str):
+            return self.get_first_matching_region(name=key) is not None
+        else:
+            return key in self._regions
 
     def __repr__(self):
         return "<MemoryMap@0x%08x regions=%s>" % (id(self), repr(self._regions))
