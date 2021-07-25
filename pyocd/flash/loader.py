@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,37 +15,145 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 import logging
-from typing import (Callable, Union)
+from pyocd.core.target import Target
+from time import time
+from typing import (Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union)
 
-from .builder import (FlashBuilder, get_page_count, get_sector_count)
+from .builder import (
+    FlashBuilder,
+    MemoryBuilder,
+    ProgrammingInfo,
+    get_page_count,
+    get_sector_count,
+)
 from ..core import exceptions
 from ..utility.progress import print_progress
+
+if TYPE_CHECKING:
+    from ..core.session import Session
+    from ..core.memory_map import (
+        MemoryRegion,
+        MemoryMap,
+        RamRegion,
+    )
 
 LOG = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[Union[int, float]], None]
 
-class FlashLoader(object):
-    """! @brief Handles high level programming of raw binary data to flash.
+@dataclass
+class DataChunk:
+    addr: int
+    data: Union[bytes, bytearray]
+
+class RamBuilder(MemoryBuilder):
+    """@brief Memory builder for writing potentially discontiguous data to RAM."""
+
+    ## Maximum number of bytes to write at once. This is primarily done so progress is updated occasionally.
+    _MAX_WRITE_SIZE = 4096
+
+    def __init__(self, session: "Session", region: "RamRegion") -> None:
+        """@brief Constructor."""
+        super().__init__()
+        self._session = session
+        self._region = region
+        self._chunks: List[DataChunk] = []
+
+    def add_data(self, addr: int, data: Union[bytes, bytearray]) -> None:
+        # Make sure this address range is contained by our region.
+        if not self._region.contains_range(start=addr, length=len(data)):
+            raise ValueError(f"Attempt to add data ({addr:#010x}-{addr + len(data) - 1:#010x}) outside "
+                              "of RAM builder region {self._region}")
+
+        self._chunks.append(DataChunk(addr, bytearray(data)))
+        self._chunks.sort(key=lambda c: c.addr)
+        self._buffered_data_size += len(data)
+
+    def program(self, progress_cb: Optional[ProgressCallback] = None, **kwargs: Any) -> ProgrammingInfo:
+        target = self._session.target
+        assert isinstance(target, Target)
+
+        if progress_cb is not None:
+            progress_cb(0.0)
+
+        written_byte_count = 0
+        start_time = time()
+
+        for chunk in self._chunks:
+            chunk_size = len(chunk.data)
+            offset_within_chunk = 0
+            while offset_within_chunk < chunk_size:
+                write_size = min(self._MAX_WRITE_SIZE, chunk_size - offset_within_chunk)
+                target.write_memory_block8(
+                            chunk.addr + offset_within_chunk,
+                            chunk.data[offset_within_chunk:offset_within_chunk + write_size]
+                            )
+
+                offset_within_chunk += write_size
+                written_byte_count += write_size
+                if progress_cb is not None:
+                    progress_cb(written_byte_count / self._buffered_data_size)
+
+        # Make sure progress has reached 100%.
+        if progress_cb is not None:
+            progress_cb(1.0)
+
+        # Return some performance numbers.
+        return ProgrammingInfo(
+            program_time=time() - start_time,
+            total_byte_count=self.buffered_data_size,
+            program_byte_count=self.buffered_data_size,
+            )
+
+    @property
+    def region(self) -> "MemoryRegion":
+        return self._region
+
+
+class MemoryLoader:
+    """@brief Handles high level programming of raw binary data to memory.
     
     If you need file programming, either binary files or other formats, please see the
     FileProgrammer class.
     
-    This manager provides a simple interface to programming flash that may cross flash
+    This manager provides a simple interface to programming data that may cross memory
     region boundaries. To use it, create an instance and pass in the session object. Then call
     add_data() for each chunk of binary data you need to write. When all data is added, call the
-    commit() method to write everything to flash. You may reuse a single FlashLoader instance for
+    commit() method to write everything to memory. You may reuse a single MemoryLoader instance for
     multiple add-commit sequences.
     
     When programming across multiple regions, progress reports are combined so that only a
     one progress output is reported. Similarly, the programming performance report for each region
     is suppresed and a combined report is logged.
     
-    Internally, FlashBuilder is used to optimise programming within each memory region.
+    Internally, MemoryBuilder instances are used to buffer data to be written to different types of memory.
+    FlashBuilder is used to optimise programming within flash memory regions. RAM regions are programmed
+    using the much simpler RamBuilder.
     """
-    def __init__(self, session, progress=None, chip_erase=None, smart_flash=None,
-        trust_crc=None, keep_unwritten=None):
+
+    _session: "Session"
+    _map: "MemoryMap"
+    _progress: Optional[ProgressCallback]
+    _builders: Dict["MemoryRegion", MemoryBuilder]
+    _total_data_size: int
+    _progress_offset: float
+    _current_progress_fraction: float
+
+    _chip_erase: Optional[bool]
+    _smart_flash: Optional[bool]
+    _trust_crc: Optional[bool]
+    _keep_unwritten: Optional[bool]
+
+    def __init__(self,
+            session: "Session",
+            progress: Optional[ProgressCallback] = None,
+            chip_erase: Optional[bool] = None,
+            smart_flash: Optional[bool] = None,
+            trust_crc: Optional[bool] = None,
+            keep_unwritten: Optional[bool] = None
+        ):
         """! @brief Constructor.
         
         @param self
@@ -66,7 +175,9 @@ class FlashLoader(object):
             be read from memory and restored while programming.
         """
         self._session = session
-        self._map = session.board.target.memory_map
+        assert session.board
+        target = session.board.target
+        self._map = target.memory_map
 
         if progress is not None:
             self._progress = progress
@@ -89,21 +200,23 @@ class FlashLoader(object):
     
     def _reset_state(self):
         """! @brief Clear all state variables. """
+        # _builders is a dict that maps memory regions to either a FlashBuilder or, for writable memories,
+        # a bytearray.
         self._builders = {}
         self._total_data_size = 0
-        self._progress_offset = 0
-        self._current_progress_fraction = 0
+        self._progress_offset = 0.0
+        self._current_progress_fraction = 0.0
     
     def add_data(self, address, data):
         """! @brief Add a chunk of data to be programmed.
         
-        The data may cross flash memory region boundaries, as long as the regions are contiguous.
+        The data may cross memory region boundaries, as long as the regions are contiguous.
         
         @param self
         @param address Integer address for where the first byte of _data_ should be written.
         @param data A list of byte values to be programmed at the given address.
         
-        @return The FlashLoader instance is returned, to allow chaining further add_data()
+        @return The MemoryLoader instance is returned, to allow chaining further add_data()
             calls or a call to commit().
         
         @exception ValueError Raised when the address is not within a flash memory region.
@@ -112,37 +225,46 @@ class FlashLoader(object):
             not run successfully.
         """
         while len(data):
-            # Look up flash region.
+            # Look up the memory region for this address.
             region = self._map.get_region_for_address(address)
             if region is None:
                 raise ValueError("no memory region defined for address 0x%08x" % address)
-            if not region.is_flash:
-                raise ValueError("memory region at address 0x%08x is not flash" % address)
+
+            region_builder = self._builders.get(region, None)
+
+            # Create the builder for this region if we don't already have one. This also verifies
+            # that the region is of a type we can write to.
+            if region_builder is None:
+                if region.is_flash:
+                    if region.flash is None:
+                        raise exceptions.TargetSupportError(f"flash memory region at address {address:#010x} has no flash instance")
+                    region_builder = region.flash.get_flash_builder()
+                    region_builder.log_performance = False
+                elif region.is_writable:
+                    region_builder = RamBuilder(self._session, region)
+                else:
+                    raise ValueError(f"memory region at address {address:#010x} is not writable")
+                
+                # Save the new builder.
+                assert region_builder is not None
+                self._builders[region] = region_builder
         
-            # Get our builder instance.
-            if region in self._builders:
-                builder = self._builders[region]
-            else:
-                if region.flash is None:
-                    raise exceptions.TargetSupportError("flash memory region at address 0x%08x has no flash instance" % address)
-                builder = region.flash.get_flash_builder()
-                builder.log_performance = False
-                self._builders[region] = builder
-        
-            # Add as much data to the builder as is contained by this region.
-            programLength = min(len(data), region.end - address + 1)
-            assert programLength != 0
-            builder.add_data(address, data[:programLength])
+            # Take as much data as is contained by this region.
+            program_length = min(len(data), region.end - address + 1)
+            assert program_length != 0
+
+            # Add data to this region's builder.
+            region_builder.add_data(address, data[:program_length])
             
             # Advance.
-            data = data[programLength:]
-            address += programLength
-            self._total_data_size += programLength
+            data = data[program_length:]
+            address += program_length
+            self._total_data_size += program_length
         
         return self
     
     def commit(self):
-        """! @brief Write all collected data to flash.
+        """! @brief Write all collected data to memory.
         
         This routine ensures that chip erase is only used once if either the auto mode or chip
         erase mode are used. As an example, if two regions are to be written to and True was
@@ -158,7 +280,7 @@ class FlashLoader(object):
         perfList = []
         
         # Iterate over builders we've created and program the data.
-        for builder in sorted(self._builders.values(), key=lambda v: v.flash_start):
+        for builder in sorted(self._builders.values(), key=lambda v: v.region.start):
             # Determine this builder's portion of total progress.
             self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
             
@@ -230,3 +352,5 @@ class FlashLoader(object):
         mgr.add_data(address, data)
         mgr.commit()
 
+# Define deprecated class name.
+FlashLoader = MemoryLoader
