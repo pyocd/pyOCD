@@ -21,7 +21,6 @@ from time import sleep
 from ..core.target import Target
 from ..core import exceptions
 from ..core.core_registers import CoreRegistersIndex
-from ..core.memory_map import (MemoryMap, RamRegion, DeviceRegion)
 from ..utility import (cmdline, timeout)
 from .component import CoreSightCoreComponent
 from .fpb import FPB
@@ -190,11 +189,6 @@ class CortexM(Target, CoreSightCoreComponent):
         return core
 
     def __init__(self, session, ap, memory_map=None, core_num=0, cmpid=None, address=None):
-        # Supply a default memory map.
-        if (memory_map is None) or (memory_map.region_count == 0):
-            memory_map = self._create_default_cortex_m_memory_map()
-            LOG.debug("Using default memory map for core #%d (no memory map supplied)", core_num)
-        
         Target.__init__(self, session, memory_map)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
@@ -326,19 +320,6 @@ class CortexM(Target, CoreSightCoreComponent):
                 self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
         self.call_delegate('did_stop_debug_core', core=self)
-
-    def _create_default_cortex_m_memory_map(self):
-        """! @brief Create a MemoryMap for the Cortex-M system address map."""
-        return MemoryMap(
-                RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
-                RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
-                DeviceRegion(name="Peripheral", start=0x40000000, length=0x20000000, access='rw'),
-                RamRegion(name="RAM1",          start=0x60000000, length=0x20000000, access='rwx'),
-                RamRegion(name="RAM2",          start=0x80000000, length=0x20000000, access='rwx'),
-                DeviceRegion(name="Device1",    start=0xA0000000, length=0x20000000, access='rw'),
-                DeviceRegion(name="Device2",    start=0xC0000000, length=0x20000000, access='rw'),
-                DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
-                )
 
     def _build_registers(self):
         """! @brief Build set of core registers available on this code.

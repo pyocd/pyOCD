@@ -20,7 +20,7 @@ from inspect import getfullargspec
 from pathlib import PurePath
 
 from ..core.target import Target
-from ..core.memory_map import MemoryType
+from ..core.memory_map import (MemoryType, RamRegion, DeviceRegion, MemoryMap)
 from ..core.soc_target import SoCTarget
 from ..core import exceptions
 from . import (dap, discovery)
@@ -37,6 +37,11 @@ class CoreSightTarget(SoCTarget):
     """
     
     def __init__(self, session, memory_map=None):
+        # Supply a default memory map.
+        if (memory_map is None) or (memory_map.region_count == 0):
+            memory_map = self._create_default_cortex_m_memory_map()
+            LOG.debug("Using default Cortex-M memory map (no memory map supplied)")
+        
         super(CoreSightTarget, self).__init__(session, memory_map)
         self.dp = dap.DebugPort(session.probe, self)
         self._svd_load_thread = None
@@ -54,6 +59,19 @@ class CoreSightTarget(SoCTarget):
             LOG.debug("Waiting for SVD load to complete")
             self._svd_device = self._svd_load_thread.device
         return self._svd_device
+
+    def _create_default_cortex_m_memory_map(self):
+        """! @brief Create a MemoryMap for the Cortex-M system address map."""
+        return MemoryMap(
+                RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
+                RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
+                DeviceRegion(name="Peripheral", start=0x40000000, length=0x20000000, access='rw'),
+                RamRegion(name="RAM1",          start=0x60000000, length=0x20000000, access='rwx'),
+                RamRegion(name="RAM2",          start=0x80000000, length=0x20000000, access='rwx'),
+                DeviceRegion(name="Device1",    start=0xA0000000, length=0x20000000, access='rw'),
+                DeviceRegion(name="Device2",    start=0xC0000000, length=0x20000000, access='rw'),
+                DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
+                )
 
     def load_svd(self):
         def svd_load_completed_cb(svdDevice):
