@@ -17,7 +17,7 @@
 
 import os
 import pkg_resources
-import six
+
 from .. import __version__
 from ..core.session import Session
 from ..core.helpers import ConnectHelper
@@ -158,7 +158,7 @@ class ListGenerator(object):
                 }
             if t._svd_location is not None:
                 svdPath = t._svd_location.filename
-                if isinstance(svdPath, six.string_types) and os.path.exists(svdPath):
+                if isinstance(svdPath, str) and os.path.exists(svdPath):
                     d['svd_path'] = svdPath
             targets.append(d)
         
