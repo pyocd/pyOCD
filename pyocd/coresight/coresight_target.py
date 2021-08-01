@@ -214,10 +214,19 @@ class CoreSightTarget(SoCTarget):
                 raise exceptions.DebugError("No cores were discovered!")
     @property
     def irq_table(self):
-        if self._irq_table is None:
-            if self.svd_device is not None:
-                self._irq_table = {i.value : i.name for i in
-                    [i for p in self.svd_device.peripherals for i in p.interrupts]}
+        if (self._irq_table is None):
+            if (self.svd_device is not None) and (self.svd_device.peripherals is not None):
+                peripherals = [
+                        p for p in self.svd_device.peripherals
+                        if p.interrupts is not None
+                        ]
+                self._irq_table = {
+                        i.value : i.name
+                        for p in peripherals
+                            for i in p.interrupts
+                        }
+            else:
+                self._irq_table = {}
         return self._irq_table
     
         
