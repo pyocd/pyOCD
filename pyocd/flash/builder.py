@@ -242,11 +242,11 @@ class FlashBuilder(object):
         flash_addr = self.flash_operation_list[0].addr
         sector_info = self.flash.get_sector_info(flash_addr)
         if sector_info is None:
-            raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
+            raise FlashFailure("attempt to program invalid flash address", address=flash_addr)
         
         page_info = self.flash.get_page_info(flash_addr)
         if page_info is None:
-            raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
+            raise FlashFailure("attempt to program invalid flash address", address=flash_addr)
 
         current_sector = _FlashSector(sector_info)
         self.sector_list.append(current_sector)
@@ -276,7 +276,7 @@ class FlashBuilder(object):
                 if flash_addr >= current_sector.addr + current_sector.size:
                     sector_info = self.flash.get_sector_info(flash_addr)
                     if sector_info is None:
-                        raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
+                        raise FlashFailure("attempt to program invalid flash address", address=flash_addr)
                     current_sector = _FlashSector(sector_info)
                     self.sector_list.append(current_sector)
 
@@ -288,7 +288,7 @@ class FlashBuilder(object):
                     # Create the new page.
                     page_info = self.flash.get_page_info(flash_addr)
                     if page_info is None:
-                        raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % flash_addr)
+                        raise FlashFailure("attempt to program invalid flash address", address=flash_addr)
                     current_page = _FlashPage(page_info)
                     current_sector.add_page(current_page)
                     self.page_list.append(current_page)
@@ -331,7 +331,7 @@ class FlashBuilder(object):
             def add_page_with_existing_data():
                 page_info = self.flash.get_page_info(sector_page_addr)
                 if page_info is None:
-                    raise FlashFailure("Attempt to program flash at invalid address 0x%08x" % sector_page_addr)
+                    raise FlashFailure("attempt to program invalid flash address", address=sector_page_addr)
                 new_page = _FlashPage(page_info)
                 self._enable_read_access()
                 new_page.data = self.flash.target.read_memory_block8(new_page.addr, new_page.size)
@@ -733,8 +733,7 @@ class FlashBuilder(object):
             # Wait for the program to complete.
             result = self.flash.wait_for_completion()
             if result != 0:
-                raise FlashProgramFailure('program_page(0x%x) error: %i'
-                        % (current_addr, result), current_addr, result)
+                raise FlashProgramFailure('flash program page failure', address=current_addr, result_code=result)
 
             # Swap buffers.
             current_buf, next_buf = next_buf, current_buf
@@ -904,8 +903,7 @@ class FlashBuilder(object):
                 # Wait for the program to complete.
                 result = self.flash.wait_for_completion()
                 if result != 0:
-                    raise FlashProgramFailure('program_page(0x%x) error: %i'
-                            % (current_addr, result), current_addr, result)
+                    raise FlashProgramFailure('flash program page failure', address=current_addr, result_code=result)
                 
                 # Swap buffers.
                 current_buf, next_buf = next_buf, current_buf

@@ -253,7 +253,7 @@ class Flash(object):
             # check the return code
             TRACE.debug("init result = %d", result)
             if result != 0:
-                raise FlashFailure('init error: %i' % result, result_code=result)
+                raise FlashFailure('flash init failure', result_code=result)
         
         self._active_operation = operation
 
@@ -289,7 +289,7 @@ class Flash(object):
             # check the return code
             TRACE.debug("uninit result = %d", result)
             if result != 0:
-                raise FlashFailure('uninit error: %i' % result, result_code=result)
+                raise FlashFailure('flash uninit', result_code=result)
             
         self._active_operation = None
 
@@ -347,7 +347,7 @@ class Flash(object):
         # check the return code
         TRACE.debug("erase_all result = %d", result)
         if result != 0:
-            raise FlashEraseFailure('erase_all error: %i' % result, result_code=result)
+            raise FlashEraseFailure('flash erase all failure', result_code=result)
 
     def erase_sector(self, address):
         """!
@@ -364,7 +364,7 @@ class Flash(object):
         # check the return code
         TRACE.debug("erase_sector result = %d", result)
         if result != 0:
-            raise FlashEraseFailure('erase_sector(0x%x) error: %i' % (address, result), address, result)
+            raise FlashEraseFailure('flash erase sector failure', address=address, result_code=result)
 
     def program_page(self, address, bytes):
         """!
@@ -387,7 +387,7 @@ class Flash(object):
         # check the return code
         TRACE.debug("program_page result = %d", result)
         if result != 0:
-            raise FlashProgramFailure('program_page(0x%x) error: %i' % (address, result), address, result)
+            raise FlashProgramFailure('flash program page failure', address=address, result_code=result)
 
     def start_program_page_with_buffer(self, buffer_number, address):
         """!
@@ -434,9 +434,9 @@ class Flash(object):
 
         # Require write address and length to be aligned to min write size.
         if address % min_len:
-            raise FlashFailure("unaligned flash write address")
+            raise FlashFailure("flash program phrase failure: unaligned start address", address=address)
         if len(bytes) % min_len:
-            raise FlashFailure("phrase length is unaligned or too small")
+            raise FlashFailure("flash program phrase failure: phrase length is unaligned or too small", address=address)
 
         # prevent security settings from locking the device
         bytes = self.override_security_bits(address, bytes)
@@ -450,7 +450,7 @@ class Flash(object):
 
         # check the return code
         if result != 0:
-            raise FlashProgramFailure('program_phrase(0x%x) error: %i' % (address, result), address, result)
+            raise FlashProgramFailure('flash program phrase failure', address=address, result_code=result)
 
     def get_sector_info(self, addr):
         """!
