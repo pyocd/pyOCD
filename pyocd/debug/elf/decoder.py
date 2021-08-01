@@ -68,6 +68,9 @@ class ElfSymbolDecoder(object):
                 continue
 
             sym_value = symbol.entry['st_value']
+            # Clear T-bit on function symbols.
+            if sym_type == 'STT_FUNC':
+                sym_value &= ~1
             sym_size = symbol.entry['st_size']
 
             # Cannot put an empty interval into the tree, so ensure symbols have
