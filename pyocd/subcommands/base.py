@@ -45,8 +45,8 @@ class SubcommandBase:
         LOGGING_GROUP.add_argument('-q', '--quiet', action='count', default=0,
             help="Decrease logging level. Can be specified multiple times.")
         LOGGING_GROUP.add_argument('-L', '--log-level', action='append', metavar="LOGGERS=LEVEL", default=[],
-            help="Set log level of loggers matching any of the comma-separated list of logger name glob-style "
-            "patterns. Log level must be one of 'critical', 'error', 'warning', 'info', or 'debug'. Can be "
+            help="Set log level of loggers whose name matches any of the comma-separated list of glob-style "
+            "patterns. Log level must be one of (critical, error, warning, info, debug). Can be "
             "specified multiple times. Example: -L*.trace,pyocd.core.*=debug")
     
         # Define config related options for all subcommands.
@@ -55,17 +55,17 @@ class SubcommandBase:
         CONFIG_GROUP.add_argument('-j', '--project', '--dir', metavar="PATH", dest="project_dir",
             help="Set the project directory. Defaults to the directory where pyocd was run.")
         CONFIG_GROUP.add_argument('--config', metavar="PATH",
-            help="Specify YAML configuration file. Default is pyocd.yaml or pyocd.yml.")
+            help="Specify YAML configuration file. Defaults to pyocd.yaml or pyocd.yml in the project directory.")
         CONFIG_GROUP.add_argument("--no-config", action="store_true", default=None,
             help="Do not use a configuration file.")
         CONFIG_GROUP.add_argument('--script', metavar="PATH",
-            help="Use the specified user script. Defaults to pyocd_user.py.")
+            help="Use the specified user script. Defaults to pyocd_user.py in the project directory.")
         CONFIG_GROUP.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
         CONFIG_GROUP.add_argument("-da", "--daparg", dest="daparg", nargs='+',
             help="(Deprecated) Send setting to DAPAccess layer.")
         CONFIG_GROUP.add_argument("--pack", metavar="PATH", action="append",
-            help="Path to a CMSIS Device Family Pack.")
+            help="Path to the .pack file for a CMSIS Device Family Pack.")
     
         # Define common options for all subcommands, including logging options.
         COMMON = argparse.ArgumentParser(description='common',
@@ -75,12 +75,13 @@ class SubcommandBase:
         CONNECT = argparse.ArgumentParser(description='common', add_help=False)
         CONNECT_GROUP = CONNECT.add_argument_group("connection")
         CONNECT_GROUP.add_argument("-u", "--uid", "--probe", dest="unique_id",
-            help="Choose a probe by its unique ID or a substring thereof. Optionally prefixed with "
+            help="Select the debug probe by its full or partial unique ID. Optionally prefixed with "
             "'<probe-type>:' where <probe-type> is the name of a probe plugin.")
-        CONNECT_GROUP.add_argument("-b", "--board", dest="board_override", metavar="BOARD",
-            help="Set the board type (not yet implemented).")
+        # Reserved --board argument.
+        # CONNECT_GROUP.add_argument("-b", "--board", dest="board_override", metavar="BOARD",
+        #     help="Set the board type (not yet implemented).")
         CONNECT_GROUP.add_argument("-t", "--target", dest="target_override", metavar="TARGET",
-            help="Set the target type.")
+            help="Set the target type. See available target types with 'pyocd list --targets'.")
         CONNECT_GROUP.add_argument("-f", "--frequency", dest="frequency", default=None, type=convert_frequency,
             help="SWD/JTAG clock frequency in Hz. Accepts a float or int with optional case-"
                 "insensitive K/M suffix and optional Hz. Examples: \"1000\", \"2.5khz\", \"10m\".")

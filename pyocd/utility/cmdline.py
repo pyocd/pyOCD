@@ -17,8 +17,7 @@
 
 import logging
 import shlex
-import six
-from typing import (Any, Dict, Iterable, List, Sequence, Union, Optional, Tuple)
+from typing import (Any, Dict, Iterable, List, Union)
 
 from ..core.target import Target
 from ..core.options import OPTIONS_INFO
@@ -29,7 +28,7 @@ LOG = logging.getLogger(__name__)
 def split_command_line(cmd_line: Union[str, List[str]]) -> List[str]:
     """! @brief Split command line by whitespace, supporting quoted strings."""
     result = []
-    if isinstance(cmd_line, six.string_types):
+    if isinstance(cmd_line, str):
         args = [cmd_line]
     else:
         args = cmd_line
@@ -52,13 +51,13 @@ VECTOR_CATCH_CHAR_MAP = {
         'n': Target.VectorCatch.NONE,
     }
 
-def convert_vector_catch(value: str) -> int:
+def convert_vector_catch(vcvalue: Union[str, bytes]) -> int:
     """! @brief Convert a vector catch string to a mask.
     
     @exception ValueError Raised if an invalid vector catch character is encountered.
     """
     # Make case insensitive.
-    value = to_str_safe(value).lower()
+    value: str = to_str_safe(vcvalue).lower()
 
     # Handle special vector catch options.
     if value == 'all':
@@ -166,46 +165,3 @@ def convert_frequency(value: str) -> int:
     else:
         return int(float(value))
 
-class UniquePrefixMatcher():
-    """! @brief Manages detection of shortest unique prefix match of a set of strings."""
-    
-    def __init__(self, items: Optional[Sequence[str]] = None):
-        """! @brief Constructor.
-        @param self This object.
-        @param items Optional sequence of strings.
-        """
-        self._items = set(items) if (items is not None) else set()
-    
-    def add_items(self, items: Sequence[str]) -> None:
-        """! @brief Add some items to be matched.
-        @param self This object.
-        @param items Sequence of strings.
-        """
-        self._items.update(items)
-    
-    def find_all(self, prefix: str) -> Tuple[str, ...]:
-        """! @brief Return all items matching the given prefix.
-        @param self This object.
-        @param prefix String that is compared as a prefix against the items passed to the constructor.
-            Must not be the empty string.
-        @return List of all items where `prefix` is a valid prefix.
-        @exception ValueError Raised for an empty `prefix`.
-        """
-        if len(prefix) == 0:
-            raise ValueError("empty prefix")
-        # First look for an exact match.
-        if prefix in self._items:
-            return (prefix,)
-        return tuple(i for i in self._items if i.startswith(prefix))
-    
-    def find_one(self, prefix: str) -> Optional[str]:
-        """! @brief Return the item matching the given prefix, or None.
-        @param self This object.
-        @param prefix String that is compared as a prefix against the items passed to the constructor.
-        @return The full value of the matching item where `prefix` is a valid prefix.
-        @exception ValueError Raised for an empty `prefix`.
-        """
-        all_matches = self.find_all(prefix)
-        if len(all_matches) == 1:
-            return all_matches[0]
-        return None

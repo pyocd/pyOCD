@@ -26,10 +26,8 @@ from shutil import get_terminal_size
 
 from ..core import exceptions
 from ..coresight.ap import MEM_AP
-from ..utility.cmdline import (
-    split_command_line,
-    UniquePrefixMatcher,
-    )
+from ..utility.strings import UniquePrefixMatcher
+from ..utility.cmdline import split_command_line
 
 LOG = logging.getLogger(__name__)
 

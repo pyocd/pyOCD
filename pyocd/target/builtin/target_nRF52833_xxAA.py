@@ -16,6 +16,7 @@
 
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ..family.target_nRF52 import NRF52
+from ...debug.svd.loader import SVDFile
 
 # Note: generated from nrf52xxx.flm from NordicSemiconductor.nRF_DeviceFamilyPack.8.38.0.pack
 FLASH_ALGO_FLASH = {
@@ -202,3 +203,4 @@ class NRF52833(NRF52):
 
     def __init__(self, session):
         super().__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("nrf52833.svd")

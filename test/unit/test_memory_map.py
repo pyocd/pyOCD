@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from os import stat_result
 import pytest
-import logging
 import copy
+import collections.abc
+from pathlib import Path
 
 from pyocd.core.memory_map import (
     MemoryType,
@@ -31,9 +34,16 @@ from pyocd.core.memory_map import (
     DefaultFlashWeights
     )
 
+DATA_PATH = Path(__file__).resolve().parents[1] / "data"
+FLM_PATH = DATA_PATH / "packs" / "nrf53xx_application.flm"
+
 @pytest.fixture(scope='function')
 def flash():
     return FlashRegion(start=0, length=1*1024, blocksize=0x100, name='flash', is_boot_memory=True)
+
+@pytest.fixture(scope='function')
+def flash_with_flm():
+    return FlashRegion(start=0, length=1*1024, blocksize=0x100, name='flash', is_boot_memory=True, flm=FLM_PATH)
 
 @pytest.fixture(scope='function')
 def rom():
@@ -130,7 +140,7 @@ class TestHash:
         b = MemoryRange(0, 0x1000, region=rom)
         assert hash(a) != hash(b)
 
-    def test_range_eq(self, ram1, rom):
+    def test_range_eq_with_names(self, ram1):
         a = MemoryRange(0, 0x1000, region=ram1)
         b = MemoryRange(0, 0x1000, region=ram1)
         assert hash(a) == hash(b)
@@ -303,6 +313,27 @@ class TestMemoryRegion:
         flashcpy = copy.copy(flash)
         assert flashcpy == flash
     
+    def test_copy_flash_with_flm(self, flash_with_flm):
+        flashcpy = copy.copy(flash_with_flm)
+        assert flashcpy == flash_with_flm
+    
+    def test_copy_flash_with_assigned_flm(self, flash):
+        flash.flm = FLM_PATH
+        flashcpy = copy.copy(flash)
+        assert flashcpy == flash
+    
+    def test_clone_with_changes(self, flash, ram1):
+        flashcpy = flash.clone_with_changes(name='another flash')
+        assert flashcpy.name == 'another flash'
+        assert flashcpy.start == flash.start
+        assert flashcpy.length == flash.length
+
+        acopy = ram1.clone_with_changes(start=0x30000000, is_cacheable=False)
+        assert acopy.name == 'ram'
+        assert acopy.start == 0x30000000
+        assert acopy.length == ram1.length
+        assert acopy.end == 0x30000000 + ram1.length - 1
+    
     def test_eq(self, flash, ram1):
         assert flash != ram1
         
@@ -424,6 +455,42 @@ class TestMemoryMap:
         assert id(mapcpy.get_first_matching_region(type=MemoryType.RAM)) != \
             id(memmap.get_first_matching_region(type=MemoryType.RAM))
         assert mapcpy == memmap
-        
-
+    
+    def test_contains_int(self, memmap):
+        assert 0x200 in memmap
+        assert 0x20000100 in memmap
+        assert 0x20000614 in memmap
+        assert 0x1c000040 in memmap
+        assert 0x80000000 not in memmap
+        assert 0xffffffff not in memmap
+    
+    def test_contains_name(self, memmap):
+        assert 'rom' in memmap
+        assert 'flash' in memmap
+        assert 'funky' not in memmap
+        assert '' not in memmap
+    
+    def test_contains_region(self, memmap, flash):
+        assert flash in memmap
+    
+    def test_len(self, memmap):
+        assert len(memmap) == 4
+    
+    def test_iter(self, memmap):
+        assert [r.name for r in memmap] == ['flash', 'rom', 'ram', 'ram2']
+    
+    def test_reversed(self, memmap):
+        assert [r.name for r in reversed(memmap)] == ['ram2', 'ram', 'rom', 'flash']
+    
+    def test_abc(self):
+        assert isinstance(MemoryMap(), collections.abc.Sequence)
+    
+    def test_name_uniquing(self, memmap):
+        memmap.add_region(RomRegion(0x01000000, length=0x8000, name="rom"))
+        assert memmap.get_first_matching_region(name="rom_1").start == 0x01000000
+    
+    def test_multiple_unnamed_regions(self):
+        map = MemoryMap(RomRegion(0x01000000, length=0x8000),
+                RamRegion(0x20000000, length=0x8000))
+        assert len(map) == 2
 

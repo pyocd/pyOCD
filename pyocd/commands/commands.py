@@ -32,10 +32,8 @@ from ..flash.eraser import FlashEraser
 from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import conversion
-from ..utility.cmdline import (
-    UniquePrefixMatcher,
-    convert_reset_type,
-    )
+from ..utility.strings import UniquePrefixMatcher
+from ..utility.cmdline import convert_reset_type
 from ..utility.hex import (
     format_hex_width,
     dump_hex_data_to_str,

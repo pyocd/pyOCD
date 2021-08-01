@@ -84,3 +84,20 @@ class ArmSemihostingCommand(CommandBase):
     def execute(self):
         enable = (self.action == 'enable')
         self.context.session.options['enable_semihosting'] = enable
+
+class GdbserverMonitorInitCommand(CommandBase):
+    """@brief 'init' command for OpenOCD compatibility.
+    
+    Many default gdbserver configurations send an 'init' monitor command.
+    """
+    INFO = {
+            'names': ['init'],
+            'group': 'gdbserver',
+            'category': 'openocd_compatibility',
+            'nargs': 2,
+            'usage': "init",
+            'help': "Ignored; for OpenOCD compatibility.",
+            }
+    
+    def execute(self):
+        pass
