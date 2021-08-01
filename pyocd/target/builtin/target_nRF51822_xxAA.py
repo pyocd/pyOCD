@@ -15,10 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -65,15 +66,3 @@ class NRF51(CoreSightTarget):
     def __init__(self, session):
         super(NRF51, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("nrf51.svd")
-
-    def resetn(self):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        #Regular reset will kick NRF out of DBG mode
-        LOG.debug("target_nrf51.reset: enable reset pin")
-        self.write_memory(RESET, RESET_ENABLE)
-        #reset
-        LOG.debug("target_nrf51.reset: trigger nRST pin")
-        self.reset()

@@ -55,10 +55,4 @@ class NRF52840(NRF52):
 
     def __init__(self, session):
         super(NRF52840, self).__init__(session, self.MEMORY_MAP)
-
-    def resetn(self):
-        """
-        reset a core. After a call to this function, the core
-        is running
-        """
-        self.reset()
+        self._svd_location = SVDFile.from_builtin("nrf52840.svd")
