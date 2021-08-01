@@ -338,7 +338,7 @@ class AccessPort(object):
             name, klass, flags = AP_TYPE_MAP[key]
         except KeyError:
             # The AP ID doesn't match, but we can recognize unknown MEM-APs.
-            if apClass == AP_CLASS_MEM_AP:
+            if (apClass == AP_CLASS_MEM_AP) and (designer == AP_JEP106_ARM):
                 name = "MEM-AP"
                 klass = MEM_AP
             else:
