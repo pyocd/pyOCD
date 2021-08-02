@@ -67,6 +67,7 @@ setup(
         'capstone>=4.0,<5.0',
         'cmsis-pack-manager>=0.2.10',
         'colorama<1.0',
+        'dataclasses;python_version<"3.7"', # Need backport for Python 3.6
         'hidapi;platform_system!="Linux"', # Use hidapi on macOS and Windows
         'intelhex>=2.0,<3.0',
         'intervaltree>=3.0.2,<4.0',
