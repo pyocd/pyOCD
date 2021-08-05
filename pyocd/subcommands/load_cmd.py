@@ -61,7 +61,8 @@ class LoadSubcommand(SubcommandBase):
                  "all must be of this type.")
         parser_options.add_argument("--skip", metavar="BYTES", default=0, type=int_base_0,
             help="Skip programming the first N bytes. Binary files only.")
-        parser_options.add_argument("file", metavar="<file-path>", nargs="+",
+
+        parser.add_argument("file", metavar="<file-path>", nargs="+",
             help="File to write to memory.")
         
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, parser]
