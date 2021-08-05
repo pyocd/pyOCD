@@ -17,6 +17,7 @@
 import argparse
 from typing import List
 import logging
+from pathlib import Path
 
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
@@ -63,7 +64,8 @@ class LoadSubcommand(SubcommandBase):
             help="Skip programming the first N bytes. Binary files only.")
 
         parser.add_argument("file", metavar="<file-path>", nargs="+",
-            help="File to write to memory.")
+            help="File to write to memory. Binary files can have an optional base address appended to the file "
+                 "name as '@<address>', for instance 'app.bin@0x20000'.")
         
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, parser]
     
@@ -72,7 +74,9 @@ class LoadSubcommand(SubcommandBase):
         self._increase_logging(["pyocd.flash.loader", __name__])
         
         # Validate arguments.
-        
+        if (self._args.base_address is not None) and (len(self._args.file) > 1):
+            raise ValueError("--base-address cannot be set when loading more than one file; "
+                    "use a base address suffix instead")
         
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
@@ -94,9 +98,24 @@ class LoadSubcommand(SubcommandBase):
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc)
             for filename in self._args.file:
-                LOG.info("Loading %s", filename)
+                # Look for a base address suffix.
+                if "@" in filename:
+                    filename, suffix = filename.rsplit("@", 1)
+                    base_address = int_base_0(suffix)
+                else:
+                    base_address = self._args.base_address
+                
+                # Resolve our path.
+                file_path = Path(filename).expanduser().resolve()
+                filename = str(file_path)
+                
+                if base_address is None:
+                    LOG.info("Loading %s", filename)
+                else:
+                    LOG.info("Loading %s at %#010x", filename, base_address)
+
                 programmer.program(filename,
-                                base_address=self._args.base_address,
+                                base_address=base_address,
                                 skip=self._args.skip,
                                 file_format=self._args.format)
 
