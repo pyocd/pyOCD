@@ -242,6 +242,17 @@ class CoreSightTarget(SoCTarget):
                 LOG.error("No cores were discovered!")
             else:
                 raise exceptions.DebugError("No cores were discovered!")
+
+    def disconnect(self, resume: bool = True) -> None:
+        # Override this from SoCTarget so we can call power_down_debug() on the DP, which is
+        # created in this class and thus not (safely) accessible to SoCTarget.
+        self.session.notify(Target.Event.PRE_DISCONNECT, self)
+        self.call_delegate('will_disconnect', target=self, resume=resume)
+        for core in self.cores.values():
+            core.disconnect(resume)
+        self.dp.power_down_debug()
+        self.call_delegate('did_disconnect', target=self, resume=resume)
+
     @property
     def irq_table(self):
         if (self._irq_table is None):

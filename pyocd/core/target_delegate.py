@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
+# COpyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,17 +15,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class TargetDelegateInterface(object):
+from typing import (Optional, TYPE_CHECKING)
+
+if TYPE_CHECKING:
+    from .session import Session
+    from .soc_target import SoCTarget
+    from .target import Target
+    from ..board.board import Board
+    from ..utility.sequencer import CallSequence
+
+## @brief Return type for some delegate methods.
+#  
+# For certain delegate method, the delegate can reply with a boolean or None, where True means that
+# it handled the actions and no further action is to be performed, and False or None means to continue
+# processing.
+DelegateResult = Optional[bool]
+
+class TargetDelegateInterface:
     """! @brief Abstract class defining the delegate interface for targets.
 
     Note that delegates don't actually have to derive from this class due to Python's
-    dynamic method dispatching.
+    dynamic method dispatching. The primary purpose of this class is for documentation
+    and type checking.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: "Session") -> None:
         self._session = session
 
-    def will_connect(self, board):
+    def will_connect(self, board: "Board") -> None:
         """! @brief Pre-init hook for the board.
         @param self
         @param board A Board instance that is about to be initialized.
@@ -32,7 +50,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_connect(self, board):
+    def did_connect(self, board: "Board") -> None:
         """! @brief Post-initialization hook for the board.
         @param self
         @param board A Board instance.
@@ -40,25 +58,25 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def will_init_target(self, target, init_sequence):
+    def will_init_target(self, target: "SoCTarget", init_sequence: "CallSequence") -> None:
         """! @brief Hook to review and modify init call sequence prior to execution.
         @param self
-        @param target A CoreSightTarget object about to be initialized.
+        @param target An SoCTarget object about to be initialized.
         @param init_sequence The CallSequence that will be invoked. Because call sequences are
             mutable, this parameter can be modified before return to change the init calls.
         @return Ignored.
         """
         pass
 
-    def did_init_target(self, target):
+    def did_init_target(self, target: "SoCTarget") -> None:
         """! @brief Post-initialization hook.
         @param self
-        @param target A CoreSightTarget.
+        @param target An SoCTarget.
         @return Ignored.
         """
         pass
 
-    def will_start_debug_core(self, core):
+    def will_start_debug_core(self, core: "Target") -> DelegateResult:
         """! @brief Hook to enable debug for the given core.
         @param self
         @param core A CortexM object about to be initialized.
@@ -67,7 +85,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_start_debug_core(self, core):
+    def did_start_debug_core(self, core: "Target") -> None:
         """! @brief Post-initialization hook.
         @param self
         @param core A CortexM object.
@@ -75,7 +93,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def will_stop_debug_core(self, core):
+    def will_stop_debug_core(self, core: "Target") -> DelegateResult:
         """! @brief Pre-cleanup hook for the core.
         @param self
         @param core A CortexM object.
@@ -84,7 +102,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_stop_debug_core(self, core):
+    def did_stop_debug_core(self, core: "Target") -> None:
         """! @brief Post-cleanup hook for the core.
         @param self
         @param core A CortexM object.
@@ -92,7 +110,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def will_disconnect(self, target, resume):
+    def will_disconnect(self, target: "SoCTarget", resume: bool) -> None:
         """! @brief Pre-disconnect hook.
         @param self
         @param target Either a CoreSightTarget or CortexM object.
@@ -101,7 +119,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_disconnect(self, target, resume):
+    def did_disconnect(self, target: "SoCTarget", resume: bool) -> None:
         """! @brief Post-disconnect hook.
         @param self
         @param target Either a CoreSightTarget or CortexM object.
@@ -109,7 +127,7 @@ class TargetDelegateInterface(object):
         @return Ignored."""
         pass
 
-    def will_reset(self, core, reset_type):
+    def will_reset(self, core: "Target", reset_type: "Target.ResetType") -> DelegateResult:
         """! @brief Pre-reset hook.
         @param self
         @param core A CortexM instance.
@@ -119,7 +137,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_reset(self, core, reset_type):
+    def did_reset(self, core: "Target", reset_type: "Target.ResetType") -> None:
         """! @brief Post-reset hook.
         @param self
         @param core A CortexM instance.
@@ -128,7 +146,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def set_reset_catch(self, core, reset_type):
+    def set_reset_catch(self, core: "Target", reset_type: "Target.ResetType") -> DelegateResult:
         """! @brief Hook to prepare target for halting on reset.
         @param self
         @param core A CortexM instance.
@@ -138,7 +156,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def clear_reset_catch(self, core, reset_type):
+    def clear_reset_catch(self, core: "Target", reset_type: "Target.ResetType") -> None:
         """! @brief Hook to clean up target after a reset and halt.
         @param self
         @param core A CortexM instance.
@@ -147,7 +165,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def mass_erase(self, target):
+    def mass_erase(self, target: "SoCTarget") -> DelegateResult:
         """! @brief Hook to override mass erase.
         @param self
         @param target A CoreSightTarget object.
@@ -157,7 +175,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def trace_start(self, target, mode):
+    def trace_start(self, target: "SoCTarget", mode: int) -> None:
         """! @brief Hook to prepare for tracing the target.
         @param self
         @param target A CoreSightTarget object.
@@ -166,7 +184,7 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def trace_stop(self, target, mode):
+    def trace_stop(self, target: "SoCTarget", mode: int) -> None:
         """! @brief Hook to clean up after tracing the target.
         @param self
         @param target A CoreSightTarget object.

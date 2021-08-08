@@ -19,6 +19,7 @@ import logging
 from time import sleep
 
 from ..core.target import Target
+from ..core.core_target import CoreTarget
 from ..core import exceptions
 from ..core.core_registers import CoreRegistersIndex
 from ..utility import (cmdline, timeout)
@@ -35,7 +36,7 @@ from ..debug.breakpoints.software import SoftwareBreakpointProvider
 
 LOG = logging.getLogger(__name__)
 
-class CortexM(Target, CoreSightCoreComponent):
+class CortexM(CoreTarget, CoreSightCoreComponent):
     """! @brief CoreSight component for a v6-M or v7-M Cortex-M core.
 
     This class has basic functions to access a Cortex-M core:

@@ -16,8 +16,12 @@
 # limitations under the License.
 
 import logging
+from typing import TYPE_CHECKING, cast
 
 from ..core.core_registers import CoreRegisterInfo
+
+if TYPE_CHECKING:
+    from ..core.core_registers import CoreRegisterNameOrNumberType
 
 LOG = logging.getLogger(__name__)
 
@@ -32,7 +36,8 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
     For most registers, the index is the value written to the DCRSR register to read or write the
     core register. Other core registers not directly supported by DCRSR have special index values that
     are interpreted by the helper methods on this class and the core register read/write code in CortexM
-    and its subclasses.
+    and its subclasses. These artificial register index values and how they are interpreted are documented
+    in the register definitions in CoreRegisterGroups.
     """
 
     ## Map of register name to info.
@@ -42,7 +47,7 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
     _INDEX_MAP = {}
 
     @classmethod
-    def register_name_to_index(cls, reg):
+    def register_name_to_index(cls, reg: "CoreRegisterNameOrNumberType") -> int:
         """! @brief Convert a register name to integer register index.
         @param reg Either a register name or internal register number.
         @return Internal register number.
@@ -55,23 +60,32 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
                 raise KeyError('unknown core register name %s' % reg) from err
         return reg
 
+    @classmethod
+    def get(cls, reg: "CoreRegisterNameOrNumberType") -> "CortexMCoreRegisterInfo":
+        """! @brief Return the CoreRegisterInfo instance for a register.
+        @param reg Either a register name or internal register number.
+        @return CoreRegisterInfo
+        @exception KeyError
+        """
+        return cast(CortexMCoreRegisterInfo, super().get(reg))
+
     @property
-    def is_fpu_register(self):
+    def is_fpu_register(self) -> bool:
         """! @brief Returns true for FPSCR, SP, or DP registers."""
         return self.index == 33 or self.is_float_register
 
     @property
-    def is_cfbp_subregister(self):
+    def is_cfbp_subregister(self) -> bool:
         """! @brief Whether the register is one of those combined into CFBP by the DCSR."""
         return -4 <= self.index <= -1
 
     @property
-    def is_psr_subregister(self):
+    def is_psr_subregister(self) -> bool:
         """! @brief Whether the register is a combination of xPSR fields."""
         return 0x100 <= self.index <= 0x107
 
     @property
-    def psr_mask(self):
+    def psr_mask(self) -> int:
         """! @brief Generate a PSR mask based on bottom 3 bits of a MRS SYSm value"""
         mask = 0
         if (self.index & 1) != 0:
@@ -252,6 +266,6 @@ CortexMCoreRegisterInfo.add_to_map(CoreRegisterGroups.M_PROFILE_COMMON
             + CoreRegisterGroups.V81M_MVE_ONLY
             + CoreRegisterGroups.VFP_V5)
 
-def index_for_reg(name):
+def index_for_reg(name: str) -> int:
     """! @brief Utility to easily convert register name to index."""
     return CortexMCoreRegisterInfo.get(name).index
