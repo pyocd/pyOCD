@@ -49,12 +49,15 @@ class Board(GraphNode):
 
         assert target is not None
         
+        # Convert dashes to underscores in the target type, and convert to lower case.
+        target = target.replace('-', '_').lower()
+        
         # Write the effective target type back to options if it's different.
         if target != session.options.get('target_override'):
             session.options['target_override'] = target
 
         self._session = session
-        self._target_type = target.lower()
+        self._target_type = target
         self._test_binary = session.options.get('test_binary')
         self._delegate = None
         self._inited = False
