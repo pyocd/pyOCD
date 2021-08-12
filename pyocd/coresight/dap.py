@@ -16,8 +16,8 @@
 # limitations under the License.
 
 import logging
-from collections import namedtuple
 from enum import Enum
+from typing import NamedTuple
 
 from ..core import (exceptions, memory_interface)
 from ..core.target import Target
@@ -98,14 +98,19 @@ MASKLANE = 0x00000f00
 DP_POWER_REQUEST_TIMEOUT = 5.0
 
 ## @brief Class to hold fields from DP IDR register.
-DPIDR = namedtuple('DPIDR', 'idr partno version revision mindp')
+class DPIDR(NamedTuple):
+    idr: int
+    partno: int
+    version: int
+    revision: int
+    mindp: int
 
 class ADIVersion(Enum):
     """! @brief Supported versions of the Arm Debug Interface."""
     ADIv5 = 5
     ADIv6 = 6
 
-class DPConnector(object):
+class DPConnector:
     """! @brief Establishes a connection to the DP for a given wire protocol.
     
     This class will ask the probe to connect using a given wire protocol. Then it makes multiple
@@ -237,9 +242,9 @@ class DPConnector(object):
         is_mindp = (dpidr & DPIDR_MIN_MASK) != 0
         return DPIDR(dpidr, dp_partno, dp_version, dp_revision, is_mindp)
 
-class DebugPort(object):
+class DebugPort:
     """! @brief Represents the Arm Debug Interface (ADI) Debug Port (DP)."""
-    
+
     def __init__(self, probe, target):
         """! @brief Constructor.
         @param self The DebugPort object.
