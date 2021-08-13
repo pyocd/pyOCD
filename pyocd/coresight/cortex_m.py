@@ -716,12 +716,17 @@ class CortexM(Target, CoreSightCoreComponent):
             else:
                 raise exceptions.InternalError("unhandled reset type")
         
+            # Transfer errors are ignored on the AIRCR write for resets. On a few systems, the reset
+            # apparently happens so quickly that we can't even finish the SWD transaction.
             try:
                 self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
                 # Without a flush a transfer error can occur
                 self.flush()
             except exceptions.TransferError:
                 self.flush()
+            
+            # Post reset delay.
+            sleep(self.session.options.get('reset.post_delay'))
 
     def reset(self, reset_type=None):
         """! @brief Reset the core.
