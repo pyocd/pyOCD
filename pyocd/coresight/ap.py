@@ -388,7 +388,7 @@ class AccessPort(object):
     def init(self):
         # Read IDR if it wasn't given to us in the ctor.
         if self.idr is None:
-            self.idr = self.read_reg(AP_IDR)
+            self.idr = self.read_reg(self.address.idr_address)
         
         self.variant = (self.idr & AP_IDR_VARIANT_MASK) >> AP_IDR_VARIANT_SHIFT
         self.revision = (self.idr & AP_IDR_REVISION_MASK) >> AP_IDR_REVISION_SHIFT

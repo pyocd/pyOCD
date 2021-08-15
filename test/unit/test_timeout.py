@@ -64,4 +64,24 @@ class TestTimeout:
                 cnt += 1
         assert not timedout
         assert not to.did_time_out
+    
+    def test_timeout_reset(self):
+        cnt = 0
+        cnta = 0
+        with Timeout(0.05) as to:
+            cnta = 0
+            while cnta < 3:
+                cnt = 0
+                while to.check():
+                    sleep(0.01)
+                    if cnta > 1:
+                        break
+                    cnt += 1
+                else:
+                    assert to.did_time_out
+                    to.clear()
+                    to.start()
+                cnta += 1
+        assert cnta == 3 and cnt == 0
+        assert not to.did_time_out
 

@@ -16,8 +16,8 @@
 # limitations under the License.
 
 import logging
-from collections import namedtuple
 from enum import Enum
+from typing import NamedTuple
 
 from ..core import (exceptions, memory_interface)
 from ..core.target import Target
@@ -98,14 +98,19 @@ MASKLANE = 0x00000f00
 DP_POWER_REQUEST_TIMEOUT = 5.0
 
 ## @brief Class to hold fields from DP IDR register.
-DPIDR = namedtuple('DPIDR', 'idr partno version revision mindp')
+class DPIDR(NamedTuple):
+    idr: int
+    partno: int
+    version: int
+    revision: int
+    mindp: int
 
 class ADIVersion(Enum):
     """! @brief Supported versions of the Arm Debug Interface."""
     ADIv5 = 5
     ADIv6 = 6
 
-class DPConnector(object):
+class DPConnector:
     """! @brief Establishes a connection to the DP for a given wire protocol.
     
     This class will ask the probe to connect using a given wire protocol. Then it makes multiple
@@ -237,8 +242,14 @@ class DPConnector(object):
         is_mindp = (dpidr & DPIDR_MIN_MASK) != 0
         return DPIDR(dpidr, dp_partno, dp_version, dp_revision, is_mindp)
 
-class DebugPort(object):
+class DebugPort:
     """! @brief Represents the Arm Debug Interface (ADI) Debug Port (DP)."""
+
+    ## Sleep for 50 ms between connection tests and reconnect attempts after a reset.
+    _RESET_RECOVERY_SLEEP_INTERVAL = 0.05
+
+    ## Number of times to try to read DP registers after hw reset before attempting reconnect.
+    _RESET_RECOVERY_ATTEMPTS_BEFORE_RECONNECT = 1
     
     def __init__(self, probe, target):
         """! @brief Constructor.
@@ -263,6 +274,7 @@ class DebugPort(object):
         self._probe_supports_apv2_addresses = False
         self._have_probe_capabilities = False
         self._did_check_version = False
+        self._log_dp_info = True
         
         # DPv3 attributes
         self._is_dpv3 = False
@@ -377,7 +389,8 @@ class DebugPort(object):
 
         # Report on DP version.
         self.dpidr = connector.idr
-        LOG.info("DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
+        LOG.log(logging.INFO if self._log_dp_info else logging.DEBUG,
+            "DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
             " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
         
     def _check_version(self):
@@ -493,18 +506,64 @@ class DebugPort(object):
         """
         self._invalidate_cache()
     
-    def reset(self):
+    def post_reset_recovery(self):
+        """! @brief Wait for the target to recover from reset, with auto-reconnect if needed."""
+        # Check if we can access DP registers. If this times out, then reconnect the DP and retry.
+        with Timeout(self.session.options.get('reset.dap_recover.timeout'),
+                self._RESET_RECOVERY_SLEEP_INTERVAL) as time_out:
+            attempt = 0
+            while time_out.check():
+                try:
+                    # Try to read CTRL/STAT. If the power-up bits request are reset, then the DP
+                    # connection was not lost and we can just return.
+                    value = self.read_reg(DP_CTRL_STAT)
+                    if (value & (CSYSPWRUPREQ | CDBGPWRUPREQ)) == (CSYSPWRUPREQ | CDBGPWRUPREQ):
+                        return
+                except exceptions.TransferError:
+                    # Ignore errors caused by flushing.
+                    try:
+                        self.flush()
+                    except exceptions.TransferError:
+                        pass
+
+                if attempt == self._RESET_RECOVERY_ATTEMPTS_BEFORE_RECONNECT:
+                    LOG.info("DAP is not accessible after reset; attempting reconnect")
+                elif attempt > self._RESET_RECOVERY_ATTEMPTS_BEFORE_RECONNECT:
+                    # Try reconnect.
+                    try:
+                        self._log_dp_info = False
+                        self.connect()
+                    finally:
+                        self._log_dp_info = True
+
+                attempt += 1
+            else:
+                LOG.error("DAP is not accessible after reset followed by attempted reconnect")
+
+    def reset(self, *, send_notifications=True):
         """! @brief Hardware reset.
         
         Pre- and post-reset notifications are sent.
         
         This method can be called before the DebugPort is connected.
-        """
-        self.session.notify(Target.Event.PRE_RESET, self)
-        self.probe.reset()
-        self.session.notify(Target.Event.POST_RESET, self)
 
-    def assert_reset(self, asserted):
+        @param self This object.
+        @param send_notifications Optional keyword-only parameter used by higher-level reset methods so they can
+            manage the sending of reset notifications themselves, in order to provide more context in the notification.
+        
+        @todo Should automatic recovery from a disconnected DAP be provided for these low-level hardware resets
+            like is done for CortexM.reset()?
+        """
+        if send_notifications:
+            self.session.notify(Target.Event.PRE_RESET, self)
+
+        self.probe.reset()
+        self.post_reset_recovery()
+
+        if send_notifications:
+            self.session.notify(Target.Event.POST_RESET, self)
+
+    def assert_reset(self, asserted, *, send_notifications=True):
         """! @brief Assert or deassert the hardware reset signal.
         
         A pre-reset notification is sent before asserting reset, whereas a post-reset notification is sent
@@ -514,14 +573,18 @@ class DebugPort(object):
         
         @param self This object.
         @param asserted True if nRESET is to be driven low; False will drive nRESET high.
+        @param send_notifications Optional keyword-only parameter used by higher-level reset methods so they can
+            manage the sending of reset notifications themselves, in order to provide more context in the notification.
         """
-        is_asserted = self.is_reset_asserted()
-        if asserted and not is_asserted:
-            self.session.notify(Target.Event.PRE_RESET, self)
+        is_asserted = False
+        if send_notifications:
+            is_asserted = self.is_reset_asserted()
+            if asserted and not is_asserted:
+                self.session.notify(Target.Event.PRE_RESET, self)
 
         self.probe.assert_reset(asserted)
 
-        if not asserted and is_asserted:
+        if send_notifications and not asserted and is_asserted:
             self.session.notify(Target.Event.POST_RESET, self)
 
     def is_reset_asserted(self):
