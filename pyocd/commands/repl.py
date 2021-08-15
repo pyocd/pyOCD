@@ -20,12 +20,6 @@ import os
 import traceback
 import atexit
 
-# Attempt to import readline.
-try:
-    import readline
-except ImportError:
-    pass
-
 from ..core import (session, exceptions)
 
 LOG = logging.getLogger(__name__)
@@ -49,24 +43,32 @@ class PyocdRepl(object):
     def __init__(self, command_context):
         self.context = command_context
         
-        # Enable readline history.
-        self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
-                os.path.join(os.path.expanduser("~"), self.DEFAULT_HISTORY_FILE))
-        
-        # Read command history and set history length.
+        # Attempt to import readline. If we import readline from the module level, it may be imported
+        # when initing non-interactive subcommands such as gdbserver, and it causes the process to be
+        # stopped if started in the background (& suffix in sh).
         try:
-            readline.read_history_file(self._history_path)
-            
-            history_len = int(os.environ.get(self.PYOCD_HISTORY_LENGTH_ENV_VAR,
-                    session.Session.get_current().options.get('commander.history_length')))
-            readline.set_history_length(history_len)
-        except (NameError, IOError) as err:
-            pass
+            import readline
 
-        # Install exit handler to write out the command history.
-        try:
-            atexit.register(readline.write_history_file, self._history_path)
-        except (NameError, IOError) as err:
+            # Enable readline history.
+            self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
+                    os.path.join(os.path.expanduser("~"), self.DEFAULT_HISTORY_FILE))
+        
+            # Read command history and set history length.
+            try:
+                readline.read_history_file(self._history_path)
+            
+                history_len = int(os.environ.get(self.PYOCD_HISTORY_LENGTH_ENV_VAR,
+                        session.Session.get_current().options.get('commander.history_length')))
+                readline.set_history_length(history_len)
+            except (NameError, IOError) as err:
+                pass
+
+            # Install exit handler to write out the command history.
+            try:
+                atexit.register(readline.write_history_file, self._history_path)
+            except (NameError, IOError) as err:
+                pass
+        except ImportError:
             pass
 
     def run(self):
