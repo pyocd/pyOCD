@@ -18,7 +18,7 @@
 import usb.core
 import usb.util
 import logging
-from collections import namedtuple
+from typing import NamedTuple
 import platform
 import errno
 from binascii import hexlify
@@ -31,9 +31,14 @@ LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
-STLinkInfo = namedtuple('STLinkInfo', 'version_name out_ep in_ep swv_ep')
+class STLinkInfo(NamedTuple):
+    """@brief STLink USB interface numbers and version name."""
+    version_name: str
+    out_ep: int
+    in_ep: int
+    swv_ep: int
 
-class STLinkUSBInterface(object):
+class STLinkUSBInterface:
     """!@brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices."""
 
     ## Command packet size.
