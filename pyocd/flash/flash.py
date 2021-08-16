@@ -15,12 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 import logging
 from enum import Enum
 
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
-from ..utility.mask import msb
+from ..utility.mask import (align_down, msb)
 from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ TRACE.setLevel(logging.CRITICAL)
 # Usage requirements:
 # -In memory reserve 0x600 for code & table
 # -Make sure data buffer is big enough to hold 4 bytes for each page that could be checked (ie.  >= num pages * 4)
-analyzer = (
+_ANALYZER_CODE = (
     0x2780b5f0, 0x25004684, 0x4e2b2401, 0x447e4a2b, 0x0023007f, 0x425b402b, 0x40130868, 0x08584043,
     0x425b4023, 0x40584013, 0x40200843, 0x40104240, 0x08434058, 0x42404020, 0x40584010, 0x40200843,
     0x40104240, 0x08434058, 0x42404020, 0x40584010, 0x40200843, 0x40104240, 0x08584043, 0x425b4023,
@@ -43,44 +44,29 @@ analyzer = (
     0x00000042, 
     )
 
-class SectorInfo(object):
-    """! @brief Info about an erase sector."""
+@dataclass
+class SectorInfo:
+    """@brief Info about an erase sector."""
+    base_addr: int           # Start address of this sector
+    erase_weight: int        # Time it takes to erase a page
+    size: int                # Size of sector
 
-    def __init__(self):
-        self.base_addr = None           # Start address of this sector
-        self.erase_weight = None        # Time it takes to erase a page
-        self.size = None                # Size of sector
+@dataclass
+class PageInfo:
+    """@brief Info about a program page."""
+    base_addr: int           # Start address of this page
+    program_weight: int      # Time it takes to program a page (Not including data transfer time)
+    size: int                # Size of page
 
-    def __repr__(self):
-        return "<SectorInfo@0x%x base=0x%x size=0x%x erswt=%g>" \
-            % (id(self), self.base_addr, self.size, self.erase_weight)
+@dataclass
+class FlashInfo:
+    """@brief Info about the entire flash region."""
+    rom_start: int           # Starting address of ROM
+    erase_weight: int        # Time it takes to perform an erase all
+    crc_supported: int       # Is the function compute_crcs supported?
 
-class PageInfo(object):
-    """! @brief Info about a program page."""
-
-    def __init__(self):
-        self.base_addr = None           # Start address of this page
-        self.program_weight = None      # Time it takes to program a page (Not including data transfer time)
-        self.size = None                # Size of page
-
-    def __repr__(self):
-        return "<PageInfo@0x%x base=0x%x size=0x%x prgwt=%g>" \
-            % (id(self), self.base_addr, self.size, self.program_weight)
-
-class FlashInfo(object):
-    """! @brief Info about the entire flash region."""
-
-    def __init__(self):
-        self.rom_start = None           # Starting address of ROM
-        self.erase_weight = None        # Time it takes to perform an erase all
-        self.crc_supported = None       # Is the function compute_crcs supported?
-
-    def __repr__(self):
-        return "<FlashInfo@0x%x start=0x%x erswt=%g crc=%s>" \
-            % (id(self), self.rom_start, self.erase_weight, self.crc_supported)
-
-class Flash(object):
-    """!
+class Flash:
+    """
     @brief Low-level control of flash programming algorithms.
     
     Instances of this class are bound to a flash memory region
@@ -121,7 +107,7 @@ class Flash(object):
     All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
     class Operation(Enum):
-        """! @brief Operations passed to init(). """
+        """@brief Operations passed to init()."""
         ## Erase all or sector erase.
         ERASE = 1
         ## Program page or phrase.
@@ -175,6 +161,7 @@ class Flash(object):
 
     @property
     def minimum_program_length(self):
+        assert self.region is not None
         return self.min_program_length or self.region.phrase_size
 
     @property
@@ -307,7 +294,7 @@ class Flash(object):
         data = []
 
         # Load analyzer code into target RAM.
-        self.target.write_memory_block32(self.flash_algo['analyzer_address'], analyzer)
+        self.target.write_memory_block32(self.flash_algo['analyzer_address'], _ANALYZER_CODE)
 
         # Convert address, size pairs into commands
         # for the crc computation algorithm to preform
@@ -393,6 +380,7 @@ class Flash(object):
         """!
         @brief Start flashing one or more pages.
         """
+        assert self.region is not None
         assert buffer_number < len(self.page_buffers), "Invalid buffer number"
         assert self._active_operation == self.Operation.PROGRAM
 
@@ -426,11 +414,8 @@ class Flash(object):
         """
         assert self._active_operation == self.Operation.PROGRAM
 
-        # Get min programming length. If one was not specified, use the page size.
-        if self.min_program_length:
-            min_len = self.min_program_length
-        else:
-            min_len = self.region.page_size
+        # Get min programming length.
+        min_len = self.minimum_program_length
 
         # Require write address and length to be aligned to min write size.
         if address % min_len:
@@ -460,10 +445,11 @@ class Flash(object):
         if not self.region.contains_address(addr):
             return None
 
-        info = SectorInfo()
-        info.erase_weight = self.region.erase_sector_weight
-        info.size = self.region.sector_size
-        info.base_addr = addr - (addr % info.size)
+        info = SectorInfo(
+                erase_weight=self.region.erase_sector_weight,
+                size=self.region.sector_size,
+                base_addr=align_down(addr, self.region.sector_size),
+                )
         return info
 
     def get_page_info(self, addr):
@@ -474,10 +460,11 @@ class Flash(object):
         if not self.region.contains_address(addr):
             return None
 
-        info = PageInfo()
-        info.program_weight = self.region.program_page_weight
-        info.size = self.region.page_size
-        info.base_addr = addr - (addr % info.size)
+        info = PageInfo(
+                program_weight=self.region.program_page_weight,
+                size=self.region.page_size,
+                base_addr=align_down(addr, self.region.page_size)
+                )
         return info
 
     def get_flash_info(self):
@@ -488,10 +475,11 @@ class Flash(object):
         """
         assert self.region is not None
 
-        info = FlashInfo()
-        info.rom_start = self.region.start
-        info.erase_weight = self.region.erase_all_weight
-        info.crc_supported = self.use_analyzer
+        info = FlashInfo(
+                rom_start=self.region.start,
+                erase_weight=self.region.erase_all_weight,
+                crc_supported=self.use_analyzer,
+                )
         return info
 
     def get_flash_builder(self):
@@ -500,6 +488,8 @@ class Flash(object):
     def flash_block(self, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
         """!
         @brief Flash a block of data.
+
+        @note Deprecated. Will be removed in v1.0.
         """
         assert self.region is not None
         assert self.region.contains_range(start=addr, length=len(data))
