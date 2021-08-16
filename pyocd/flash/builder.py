@@ -741,6 +741,8 @@ class FlashBuilder(MemoryBuilder):
         progress_cb(0.0)
         progress = 0
 
+        program_timeout = self.flash.target.session.options.get('flash.timeout.program')
+
         self.flash.init(self.flash.Operation.ERASE)
         self.flash.erase_all()
         self.flash.uninit()
@@ -770,8 +772,10 @@ class FlashBuilder(MemoryBuilder):
                 self.flash.load_page_buffer(next_buf, page.addr, page.data)
 
             # Wait for the program to complete.
-            result = self.flash.wait_for_completion()
-            if result != 0:
+            result = self.flash.wait_for_completion(timeout=program_timeout)
+            if result == self.flash.TIMEOUT_ERROR:
+                raise FlashProgramFailure('flash program page timeout', address=current_addr, result_code=result)
+            elif result != 0:
                 raise FlashProgramFailure('flash program page failure', address=current_addr, result_code=result)
 
             # Swap buffers.
@@ -893,6 +897,8 @@ class FlashBuilder(MemoryBuilder):
 
         progress_cb(0.0)
 
+        program_timeout = self.flash.target.session.options.get('flash.timeout.program')
+
         # Fill in same flag for all pages. This is done up front so we're not trying
         # to read from flash while simultaneously programming it.
         progress = self._scan_pages_for_same(progress_cb)
@@ -940,8 +946,10 @@ class FlashBuilder(MemoryBuilder):
                     self.flash.load_page_buffer(next_buf, page.addr, page.data)
 
                 # Wait for the program to complete.
-                result = self.flash.wait_for_completion()
-                if result != 0:
+                result = self.flash.wait_for_completion(timeout=program_timeout)
+                if result == self.flash.TIMEOUT_ERROR:
+                    raise FlashProgramFailure('flash program page timeout', address=current_addr, result_code=result)
+                elif result != 0:
                     raise FlashProgramFailure('flash program page failure', address=current_addr, result_code=result)
                 
                 # Swap buffers.

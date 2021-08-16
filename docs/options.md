@@ -165,6 +165,41 @@ Setting this option to True will use CRC checks of existing flash sector
 contents to determine whether pages need to be programmed.
 </td></tr>
 
+<tr><td>flash.timeout.init</td>
+<td>float</td>
+<td>5.0</td>
+<td>
+Flash algorithm init and uninit timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.analyzer</td>
+<td>float</td>
+<td>30.0</td>
+<td>
+Flash CRC analyzer timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.erase_all</td>
+<td>float</td>
+<td>240.0</td>
+<td>
+Flash algorithm erase all timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.erase_sector</td>
+<td>float</td>
+<td>10.0</td>
+<td>
+Flash algorithm sector erase timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.program</td>
+<td>float</td>
+<td>10.0</td>
+<td>
+Flash algorithm programming timeout in seconds.
+</td></tr>
+
 <tr><td>frequency</td>
 <td>int</td>
 <td>1000000 (1 MHz)</td>

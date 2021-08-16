@@ -22,6 +22,7 @@ from enum import Enum
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
 from ..utility.mask import (align_down, msb)
+from ..utility.timeout import Timeout
 from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)
@@ -114,6 +115,12 @@ class Flash:
         PROGRAM = 2
         ## Currently unused, but defined as part of the flash algorithm specification.
         VERIFY = 3
+
+    ## Error value returned from wait_for_completion() on operation timeout.
+    # 
+    # The flash algo itself can never return a negative error code because the core register r0 is read
+    # as unsigned.
+    TIMEOUT_ERROR = -1
 
     def __init__(self, target, flash_algo):
         self.target = target
@@ -235,11 +242,14 @@ class Flash:
         if self._is_api_valid('pc_init'):
             TRACE.debug("algo call init(addr=%d, clock=%d, op=%d)", address, clock, operation.value)
             result = self._call_function_and_wait(self.flash_algo['pc_init'],
-                                              r0=address, r1=clock, r2=operation.value, init=True)
+                                              r0=address, r1=clock, r2=operation.value, init=True,
+                timeout=self.target.session.options.get('flash.timeout.init'))
 
             # check the return code
             TRACE.debug("init result = %d", result)
-            if result != 0:
+            if result == self.TIMEOUT_ERROR:
+                raise FlashFailure('flash init timed out')
+            elif result != 0:
                 raise FlashFailure('flash init failure', result_code=result)
         
         self._active_operation = operation
@@ -271,11 +281,14 @@ class Flash:
 
             # update core register to execute the uninit subroutine
             result = self._call_function_and_wait(self.flash_algo['pc_unInit'],
-                                                    r0=self._active_operation.value)
+                                                    r0=self._active_operation.value,
+                timeout=self.target.session.options.get('flash.timeout.init'))
             
             # check the return code
             TRACE.debug("uninit result = %d", result)
-            if result != 0:
+            if result == self.TIMEOUT_ERROR:
+                raise FlashFailure('flash uninit timed out')
+            elif result != 0:
                 raise FlashFailure('flash uninit', result_code=result)
             
         self._active_operation = None
@@ -312,7 +325,8 @@ class Flash:
 
         # update core register to execute the subroutine
         TRACE.debug("call compute crc(%x, %x)", self.begin_data, len(data))
-        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data))
+        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data),
+                timeout=self.target.session.options.get('flash.timeout.analyzer'))
 
         # Read back the CRCs for each section
         data = self.target.read_memory_block32(self.begin_data, len(data))
@@ -329,11 +343,14 @@ class Flash:
 
         # update core register to execute the erase_all subroutine
         TRACE.debug("call erase_all")
-        result = self._call_function_and_wait(self.flash_algo['pc_eraseAll'])
+        result = self._call_function_and_wait(self.flash_algo['pc_eraseAll'],
+                timeout=self.target.session.options.get('flash.timeout.erase_all'))
 
         # check the return code
         TRACE.debug("erase_all result = %d", result)
-        if result != 0:
+        if result == self.TIMEOUT_ERROR:
+            raise FlashEraseFailure('flash erase all timed out')
+        elif result != 0:
             raise FlashEraseFailure('flash erase all failure', result_code=result)
 
     def erase_sector(self, address):
@@ -346,11 +363,14 @@ class Flash:
 
         # update core register to execute the erase_sector subroutine
         TRACE.debug("call erase_sector(%x)", address)
-        result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address)
+        result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address,
+                timeout=self.target.session.options.get('flash.timeout.erase_sector'))
 
         # check the return code
         TRACE.debug("erase_sector result = %d", result)
-        if result != 0:
+        if result == self.TIMEOUT_ERROR:
+            raise FlashEraseFailure('flash erase sector timed out')
+        elif result != 0:
             raise FlashEraseFailure('flash erase sector failure', address=address, result_code=result)
 
     def program_page(self, address, bytes):
@@ -369,11 +389,14 @@ class Flash:
 
         # update core register to execute the program_page subroutine
         TRACE.debug("call program_page(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data,
+                timeout=self.target.session.options.get('flash.timeout.program'))
 
         # check the return code
         TRACE.debug("program_page result = %d", result)
-        if result != 0:
+        if result == self.TIMEOUT_ERROR:
+            raise FlashProgramFailure('flash program page timed out')
+        elif result != 0:
             raise FlashProgramFailure('flash program page failure', address=address, result_code=result)
 
     def start_program_page_with_buffer(self, buffer_number, address):
@@ -431,10 +454,13 @@ class Flash:
 
         # update core register to execute the program_page subroutine
         TRACE.debug("call program_phrase(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data,
+                timeout=self.target.session.options.get('flash.timeout.program'))
 
         # check the return code
-        if result != 0:
+        if result == self.TIMEOUT_ERROR:
+            raise FlashProgramFailure('flash program phrase timed out')
+        elif result != 0:
             raise FlashProgramFailure('flash program phrase failure', address=address, result_code=result)
 
     def get_sector_info(self, addr):
@@ -587,17 +613,23 @@ class Flash:
         """!
         @brief Wait until the breakpoint is hit.
         """
-        while self.target.get_state() == Target.State.RUNNING:
-            pass
+        with Timeout(timeout) as time_out:
+            while time_out.check():
+                if self.target.get_state() != Target.State.RUNNING:
+                    break
+            else:
+                # Operation timed out. 
+                self.target.halt()
+                return self.TIMEOUT_ERROR
 
         if self.flash_algo_debug:
             self._flash_algo_debug_check()
 
         return self.target.read_core_register('r0')
 
-    def _call_function_and_wait(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):
+    def _call_function_and_wait(self, pc, r0=None, r1=None, r2=None, r3=None, init=False, timeout=None):
         self._call_function(pc, r0, r1, r2, r3, init)
-        return self.wait_for_completion()
+        return self.wait_for_completion(timeout=timeout)
 
     def set_flash_algo_debug(self, enable):
         """!
