@@ -33,10 +33,10 @@ from .core import options
 from .subcommands.base import SubcommandBase
 from .subcommands.commander_cmd import CommanderSubcommand
 from .subcommands.erase_cmd import EraseSubcommand
-from .subcommands.flash_cmd import FlashSubcommand
 from .subcommands.gdbserver_cmd import GdbserverSubcommand
 from .subcommands.json_cmd import JsonSubcommand
 from .subcommands.list_cmd import ListSubcommand
+from .subcommands.load_cmd import LoadSubcommand
 from .subcommands.pack_cmd import PackSubcommand
 from .subcommands.reset_cmd import ResetSubcommand
 from .subcommands.server_cmd import ServerSubcommand
@@ -57,7 +57,7 @@ class PyOCDTool(SubcommandBase):
     SUBCOMMANDS = [
         CommanderSubcommand,
         EraseSubcommand,
-        FlashSubcommand,
+        LoadSubcommand,
         GdbserverSubcommand,
         JsonSubcommand,
         ListSubcommand,

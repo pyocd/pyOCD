@@ -165,3 +165,13 @@ def convert_frequency(value: str) -> int:
     else:
         return int(float(value))
 
+
+def int_base_0(x: str) -> int:
+    """! @brief Converts a string to an int with support for base prefixes."""
+    return int(x, base=0)
+
+
+def flatten_args(args: Iterable[Iterable[Any]]) -> List[Any]:
+    """! @brief Converts a list of lists to a single list."""
+    return [item for sublist in args for item in sublist]
+

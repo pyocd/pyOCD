@@ -17,7 +17,7 @@
 import argparse
 import logging
 import prettytable
-from typing import (Iterable, List, Any, Optional)
+from typing import (List, Optional)
 
 from ..utility.cmdline import convert_frequency
 
@@ -166,10 +166,5 @@ class SubcommandBase:
         pt.hrules = prettytable.HEADER
         pt.vrules = prettytable.NONE
         return pt
-
-    @staticmethod
-    def flatten_args(args: Iterable[Iterable[Any]]) -> List[Any]:
-        """! @brief Converts a list of lists to a single list."""
-        return [item for sublist in args for item in sublist]
     
 

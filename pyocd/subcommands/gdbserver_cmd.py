@@ -37,7 +37,7 @@ from ..utility.notification import Notification
 LOG = logging.getLogger(__name__)
 
 class GdbserverSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd gdbserver` subcommand."""
     
     NAMES = ['gdbserver', 'gdb']
     HELP = "Run the gdb remote server(s)."

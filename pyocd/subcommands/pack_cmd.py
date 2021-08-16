@@ -166,7 +166,7 @@ class PackFindSubcommand(PackSubcommandBase):
         display_options.add_argument('-H', '--no-header', action='store_true',
             help="Don't print a table header.")
         
-        parser.add_argument("patterns", metavar="PATTERN", nargs='+',
+        parser.add_argument("patterns", metavar="<pattern>", nargs='+',
             help="Glob-style pattern for matching a target part number.")
         
         return [cls.CommonOptions.LOGGING, parser]
@@ -228,7 +228,7 @@ class PackInstallSubcommand(PackSubcommandBase):
         download_options.add_argument("-n", "--no-download", action='store_true',
             help="Just list the pack(s) that would be downloaded, don't actually download anything.")
         
-        parser.add_argument("patterns", metavar="PATTERN", nargs="+",
+        parser.add_argument("patterns", metavar="<pattern>", nargs="+",
             help="Glob-style pattern for matching a target part number.")
         
         return [cls.CommonOptions.LOGGING, parser]

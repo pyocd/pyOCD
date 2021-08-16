@@ -16,11 +16,15 @@
 # limitations under the License.
 
 import logging
+import abc
+from dataclasses import dataclass
 from time import time
 from binascii import crc32
+from typing import (Any, Union)
 
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashProgramFailure)
+from ..core.memory_map import MemoryRegion
 from ..utility.mask import same
 
 # Number of bytes in a page to read to quickly determine if the page has the same data
@@ -29,38 +33,66 @@ DATA_TRANSFER_B_PER_S = 40 * 1000 # ~40KB/s, depends on clock speed, theoretical
 
 LOG = logging.getLogger(__name__)
 
-def get_page_count(count):
+def get_page_count(count: int) -> str:
     """! @brief Return string for page count with correct plurality."""
     if count == 1:
         return "1 page"
     else:
         return "{} pages".format(count)
 
-def get_sector_count(count):
+def get_sector_count(count: int) -> str:
     """! @brief Return string for sector count with correct plurality."""
     if count == 1:
         return "1 sector"
     else:
         return "{} sectors".format(count)
 
-class ProgrammingInfo(object):
-    def __init__(self):
-        self.program_type = None                # Type of programming performed - FLASH_SECTOR_ERASE or FLASH_CHIP_ERASE
-        self.program_time = None                # Total programming time
-        self.analyze_type = None                # Type of flash analysis performed - FLASH_ANALYSIS_CRC32 or FLASH_ANALYSIS_PARTIAL_PAGE_READ
-        self.analyze_time = None                # Time to analyze flash contents
-        self.total_byte_count = 0
-        self.program_byte_count = 0
-        self.program_page_count = 0
-        self.erase_byte_count = 0
-        self.erase_sector_count = 0
-        self.skipped_byte_count = 0
-        self.skipped_page_count = 0
+@dataclass
+class ProgrammingInfo:
+    program_type: Any = None                # Type of programming performed - FLASH_SECTOR_ERASE or FLASH_CHIP_ERASE
+    program_time: float = 0.0               # Total programming time
+    analyze_type: Any = None                # Type of flash analysis performed - FLASH_ANALYSIS_CRC32 or FLASH_ANALYSIS_PARTIAL_PAGE_READ
+    analyze_time: float = 0.0               # Time to analyze flash contents
+    total_byte_count: int = 0
+    program_byte_count: int = 0
+    program_page_count: int = 0
+    erase_byte_count: int = 0
+    erase_sector_count: int = 0
+    skipped_byte_count: int = 0
+    skipped_page_count: int = 0
+
+class MemoryBuilder(abc.ABC):
+    """@brief Abstract class for memory builders."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._buffered_data_size: int = 0
+    
+    @property
+    def buffered_data_size(self) -> int:
+        """@brief Total amount of memory buffered by this builder."""
+        return self._buffered_data_size
+
+    @property
+    @abc.abstractmethod
+    def region(self) -> MemoryRegion:
+        """@brief The memory region that can be written to by this builder."""
+        ...
+
+    @abc.abstractmethod
+    def add_data(self, addr: int, data: Union[bytes, bytearray]) -> None:
+        """@brief Add a chunk of data to the builder."""
+        ...
+
+    @abc.abstractmethod
+    def program(self, **kwargs: Any) -> ProgrammingInfo:
+        """@brief Commit the buffered data to the destination memory region."""
+        ...
 
 def _stub_progress(percent):
     pass
 
-class _FlashSector(object):
+class _FlashSector:
     """! @brief Info about an erase sector and all pages to be programmed within it."""
     def __init__(self, sector_info):
         self.addr = sector_info.base_addr
@@ -93,7 +125,7 @@ class _FlashSector(object):
         return "<_FlashSector@%x addr=%x size=%x wgt=%g pages=%s>" % (
             id(self), self.addr, self.size, self.erase_weight, self.page_list)
 
-class _FlashPage(object):
+class _FlashPage:
     """! @brief A page to be programmed and its data."""
     def __init__(self, page_info):
         self.addr = page_info.base_addr
@@ -101,8 +133,8 @@ class _FlashPage(object):
         self.data = []
         self.program_weight = page_info.program_weight
         self.erased = None # Whether the data all matches the erased value.
-        self.same = None
-        self.crc = None
+        self.same = False
+        self.crc = 0
         self.cached_estimate_data = None
 
     def get_program_weight(self):
@@ -118,13 +150,13 @@ class _FlashPage(object):
         return "<_FlashPage@%x addr=%x size=%x datalen=%x wgt=%g erased=%s same=%s>" % (
             id(self), self.addr, self.size, len(self.data), self.program_weight, self.erased, self.same)
 
-class _FlashOperation(object):
+class _FlashOperation:
     """! @brief Holds requested data to be programmed at a given address."""
     def __init__(self, addr, data):
         self.addr = addr
         self.data = data
 
-class FlashBuilder(object):
+class FlashBuilder(MemoryBuilder):
     """! @brief Manages programming flash within one flash memory region.
 
     The purpose of this class is to optimize flash programming within a single region to achieve
@@ -151,6 +183,7 @@ class FlashBuilder(object):
     FLASH_ANALYSIS_PARTIAL_PAGE_READ = "PAGE_READ"
 
     def __init__(self, flash):
+        super().__init__()
         self.flash = flash
         self.flash_start = flash.region.start
         self.flash_operation_list = []
@@ -159,7 +192,7 @@ class FlashBuilder(object):
         self.perf = ProgrammingInfo()
         self.enable_double_buffering = True
         self.log_performance = True
-        self.buffered_data_size = 0
+        self._buffered_data_size = 0
         self.program_byte_count = 0
         self.sector_erase_count = 0
         self.chip_erase_count = 0 # Number of pages to program using chip erase method.
@@ -167,6 +200,10 @@ class FlashBuilder(object):
         self.sector_erase_count = 0 # Number of pages to program using sector erase method.
         self.sector_erase_weight = 0 # Erase/program weight using sector erase method.
         self.algo_inited_for_read = False
+
+    @property
+    def region(self) -> MemoryRegion:
+        return self.flash.region
 
     def enable_double_buffer(self, enable):
         self.enable_double_buffering = enable
@@ -195,7 +232,7 @@ class FlashBuilder(object):
 
         # Add operation to list
         self.flash_operation_list.append(_FlashOperation(addr, data))
-        self.buffered_data_size += len(data)
+        self._buffered_data_size += len(data)
 
         # Keep list sorted
         self.flash_operation_list = sorted(self.flash_operation_list, key=lambda operation: operation.addr)
@@ -420,7 +457,7 @@ class FlashBuilder(object):
         # Convert the list of flash operations into flash sectors and pages
         self._build_sectors_and_pages(keep_unwritten)
         assert len(self.sector_list) != 0 and len(self.sector_list[0].page_list) != 0
-        self.flash_operation_list = None # Don't need this data in memory anymore.
+        self.flash_operation_list = [] # Don't need this data in memory anymore.
         
         # If smart flash was set to false then mark all pages
         # as requiring programming
@@ -451,6 +488,8 @@ class FlashBuilder(object):
         # If chip erase isn't True then analyze the flash
         if chip_erase is not True:
             sector_erase_count, page_program_time = self._compute_sector_erase_pages_and_weight(fast_verify)
+        else:
+            sector_erase_count, page_program_time = 0, 0
 
         # If chip erase hasn't been set then determine fastest method to program
         if chip_erase is None:

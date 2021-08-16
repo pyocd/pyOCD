@@ -25,15 +25,16 @@ from ..core.target import Target
 from ..utility.cmdline import (
     convert_session_options,
     convert_reset_type,
+    int_base_0,
     )
 
 LOG = logging.getLogger(__name__)
 
 class ResetSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd reset` subcommand."""
     
     NAMES = ['reset']
-    HELP = "Reset a device."
+    HELP = "Reset a target device."
     DEFAULT_LOG_LEVEL = logging.WARNING
     
     @classmethod
@@ -45,6 +46,11 @@ class ResetSubcommand(SubcommandBase):
         reset_options.add_argument("-m", "--method", default='hw', dest='reset_type', metavar="METHOD",
             help="Reset method to use (default, hw, sw, sysresetreq, vectreset, emulated). "
                  "'sw' is the default software reset for the target. Default is 'hw'.")
+        reset_options.add_argument("-c", "--core", default=0, type=int_base_0,
+            help="Core number used to perform software reset. Only applies to software reset methods."
+                 "Default is core 0.")
+        reset_options.add_argument("-l", "--halt", action="store_true",
+            help="Halt the core on the first instruction after reset. Defaults to disabled.")
         
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, reset_parser]
     
@@ -70,12 +76,12 @@ class ResetSubcommand(SubcommandBase):
                             connect_mode=self._args.connect_mode,
                             options=convert_session_options(self._args.options))
         if session is None:
-            LOG.error("No device available to reset")
+            LOG.error("No target device available to reset")
             sys.exit(1)
         try:
             # Handle hw reset specially using the probe, so we don't need a valid connection
-            # and can skip discovery.
-            is_hw_reset = the_reset_type == Target.ResetType.HW
+            # and can skip discovery. If we're halting we need a connection even if performing a hardware reset.
+            is_hw_reset = (the_reset_type == Target.ResetType.HW) and not self._args.halt
             
             # Only init the board if performing a sw reset.
             session.open(init_board=(not is_hw_reset))
@@ -84,7 +90,11 @@ class ResetSubcommand(SubcommandBase):
             if is_hw_reset:
                 session.probe.reset()
             else:
-                session.target.reset(reset_type=the_reset_type)
+                session.selected_core = self._args.core
+                if self._args.halt:
+                    session.target.reset_and_halt(reset_type=the_reset_type)
+                else:
+                    session.target.reset(reset_type=the_reset_type)
             LOG.info("Done.")
         finally:
             session.close()

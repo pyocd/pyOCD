@@ -28,7 +28,7 @@ from ..probe.tcp_probe_server import DebugProbeServer
 LOG = logging.getLogger(__name__)
 
 class ServerSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd server` subcommand."""
     
     NAMES = ['server']
     HELP = "Run debug probe server."

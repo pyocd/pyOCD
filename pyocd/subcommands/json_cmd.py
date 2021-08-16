@@ -29,7 +29,7 @@ from .. import __version__
 LOG = logging.getLogger(__name__)
 
 class JsonSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd json` subcommand."""
     
     NAMES = ['json']
     HELP = "Output information as JSON."

@@ -28,7 +28,7 @@ from ..utility.cmdline import convert_session_options
 LOG = logging.getLogger(__name__)
 
 class ListSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd list` subcommand."""
     
     NAMES = ['list']
     HELP = "List information about probes, targets, or boards."
