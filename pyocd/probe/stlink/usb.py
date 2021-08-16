@@ -56,7 +56,10 @@ class STLinkUSBInterface:
         0x3742: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # No MSD
         0x374e: STLinkInfo('V3',    0x01,   0x81,   0x82),
         0x374f: STLinkInfo('V3',    0x01,   0x81,   0x82),  # Bridge
-        0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP
+        0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP, No MSD
+        0x3754: STLinkInfo('V3',    0x01,   0x81,   0x82),  # No MSD
+        0x3755: STLinkInfo('V3',    0x01,   0x81,   0x82),
+        0x3757: STLinkInfo('V3',    0x01,   0x81,   0x82),
         }
     
     ## STLink devices only have one USB interface.
