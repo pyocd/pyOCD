@@ -504,9 +504,7 @@ class Flash:
         data_list = []
 
         if self.flash_algo_debug:
-            # Save vector catch state for use in wait_for_completion()
-            self._saved_vector_catch = self.target.get_vector_catch()
-            self.target.set_vector_catch(Target.VectorCatch.ALL)
+            self._flash_algo_debug_setup()
 
         reg_list.append('pc')
         data_list.append(pc)
@@ -535,7 +533,57 @@ class Flash:
         # resume target
         self.target.resume()
 
-    def wait_for_completion(self):
+    def _flash_algo_debug_setup(self):
+        # Save vector catch state for use in wait_for_completion()
+        self._saved_vector_catch = self.target.get_vector_catch()
+        self.target.set_vector_catch(Target.VectorCatch.ALL)
+
+    def _flash_algo_debug_check(self):
+        regs = self.target.read_core_registers_raw(list(range(19)) + [20])
+        LOG.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
+
+        expected_fp = self.flash_algo['static_base']
+        expected_sp = self.flash_algo['begin_stack']
+        expected_pc = self.flash_algo['load_address']
+        final_ipsr = self.target.read_core_register('ipsr')
+        final_fp = self.target.read_core_register('r9')
+        final_sp = self.target.read_core_register('sp')
+        final_pc = self.target.read_core_register('pc')
+        #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+        #expected_flash_algo = self.flash_algo['instructions']
+        #if self.use_analyzer:
+        #    expected_analyzer = analyzer
+        #final_flash_algo = self.target.read_memory_block32(self.flash_algo['load_address'], len(self.flash_algo['instructions']))
+        #if self.use_analyzer:
+        #    final_analyzer = self.target.read_memory_block32(self.flash_algo['analyzer_address'], len(analyzer))
+
+        error = False
+        if final_ipsr != 0:
+            LOG.error("IPSR should be 0 but is 0x%x", final_ipsr)
+            error = True
+        if final_fp != expected_fp:
+            # Frame pointer should not change
+            LOG.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
+            error = True
+        if final_sp != expected_sp:
+            # Stack pointer should return to original value after function call
+            LOG.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
+            error = True
+        if final_pc != expected_pc:
+            # PC should be pointing to breakpoint address
+            LOG.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
+            error = True
+        #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+        #if not _same(expected_flash_algo, final_flash_algo):
+        #    LOG.error("Flash algorithm overwritten!")
+        #    error = True
+        #if self.use_analyzer and not _same(expected_analyzer, final_analyzer):
+        #    LOG.error("Analyzer overwritten!")
+        #    error = True
+        assert error == False
+        self.target.set_vector_catch(self._saved_vector_catch)
+
+    def wait_for_completion(self, timeout=None):
         """!
         @brief Wait until the breakpoint is hit.
         """
@@ -543,49 +591,7 @@ class Flash:
             pass
 
         if self.flash_algo_debug:
-            regs = self.target.read_core_registers_raw(list(range(19)) + [20])
-            LOG.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
-
-            expected_fp = self.flash_algo['static_base']
-            expected_sp = self.flash_algo['begin_stack']
-            expected_pc = self.flash_algo['load_address']
-            final_ipsr = self.target.read_core_register('ipsr')
-            final_fp = self.target.read_core_register('r9')
-            final_sp = self.target.read_core_register('sp')
-            final_pc = self.target.read_core_register('pc')
-            #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
-            #expected_flash_algo = self.flash_algo['instructions']
-            #if self.use_analyzer:
-            #    expected_analyzer = analyzer
-            #final_flash_algo = self.target.read_memory_block32(self.flash_algo['load_address'], len(self.flash_algo['instructions']))
-            #if self.use_analyzer:
-            #    final_analyzer = self.target.read_memory_block32(self.flash_algo['analyzer_address'], len(analyzer))
-
-            error = False
-            if final_ipsr != 0:
-                LOG.error("IPSR should be 0 but is 0x%x", final_ipsr)
-                error = True
-            if final_fp != expected_fp:
-                # Frame pointer should not change
-                LOG.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
-                error = True
-            if final_sp != expected_sp:
-                # Stack pointer should return to original value after function call
-                LOG.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
-                error = True
-            if final_pc != expected_pc:
-                # PC should be pointing to breakpoint address
-                LOG.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
-                error = True
-            #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
-            #if not _same(expected_flash_algo, final_flash_algo):
-            #    LOG.error("Flash algorithm overwritten!")
-            #    error = True
-            #if self.use_analyzer and not _same(expected_analyzer, final_analyzer):
-            #    LOG.error("Analyzer overwritten!")
-            #    error = True
-            assert error == False
-            self.target.set_vector_catch(self._saved_vector_catch)
+            self._flash_algo_debug_check()
 
         return self.target.read_core_register('r0')
 
