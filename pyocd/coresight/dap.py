@@ -339,6 +339,13 @@ class DebugPort:
         """
         self._protocol = protocol
         self.create_connect_sequence().invoke()
+    
+    def disconnect(self):
+        """! @brief Disconnect from target.
+        
+        DP debug is powered down. See power_down_debug().
+        """
+        self.power_down_debug()
 
     def create_connect_sequence(self):
         """! @brief Returns call sequence to connect to the target.

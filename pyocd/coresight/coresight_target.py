@@ -99,6 +99,18 @@ class CoreSightTarget(SoCTarget):
             )
         
         return seq
+
+    def disconnect(self, resume=True):
+        """! @brief Disconnect from the target.
+        
+        Same as SoCTarget.disconnect(), except that it asks the DebugPort to power down.
+        """
+        self.session.notify(Target.Event.PRE_DISCONNECT, self)
+        self.call_delegate('will_disconnect', target=self, resume=resume)
+        for core in self.cores.values():
+            core.disconnect(resume)
+        self.dp.disconnect()
+        self.call_delegate('did_disconnect', target=self, resume=resume)
             
     def create_discoverer(self):
         """! @brief Init task to create the discovery object.
@@ -250,11 +262,11 @@ class CoreSightTarget(SoCTarget):
     # Override this method from SoCTarget so we can use the DP for hardware resets when there isn't a
     # valid core (instead of the probe), so reset notifications will be sent. We can't use the DP in
     # SoCTarget because it is only created by this class.
-    def reset(self, reset_type=None, halt=False):
-        # Perform a hardware reset if there is not a core.
-        if self.selected_core is None:
-            # Use the probe to reset if the DP doesn't exist yet.
+    def reset(self, reset_type=None):
+        # Use the DP to reset if there is not a core.
+        if (self.selected_core is None) and (self.dp is not None):
             self.dp.reset()
-            return
-        self.selected_core.reset(reset_type, halt)
-
+        else:
+            super().reset(reset_type)
+    
+        
