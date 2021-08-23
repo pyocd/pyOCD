@@ -25,7 +25,7 @@ from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
 from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2)
-from .interface.common import ARM_DAPLINK_ID
+from .interface.common import ARM_DAPLINK_ID, MICROCHIP_EDBG
 from .cmsis_dap_core import (
     Command,
     Pin,
@@ -601,6 +601,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # version number for DAP_INFO_FW_VER instead of the CMSIS-DAP version, due to a misunderstanding
         # based on unclear documentation.
         elif (self._vidpid == ARM_DAPLINK_ID) and (fw_version_str in ("0254", "0255", "0256")):
+            self._cmsis_dap_version = CMSISDAPVersion.V2_0_0
+        elif (self._vidpid == MICROCHIP_EDBG) and (fw_version_str == "03.25.01B6"):
             self._cmsis_dap_version = CMSISDAPVersion.V2_0_0
         else:
             # Convert the version to a single BCD value for easy comparison.

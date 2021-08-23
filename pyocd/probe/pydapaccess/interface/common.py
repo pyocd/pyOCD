@@ -36,6 +36,7 @@ CMSIS_DAP_USB_CLASSES = [
 CMSIS_DAP_HID_USAGE_PAGE = 0xff00
 
 # Known USB VID/PID pairs.
+MICROCHIP_EDBG = (0x03eb, 0x2111) # Microchip EDBG (as used on xplained pro boards)
 ARM_DAPLINK_ID = (0x0d28, 0x0204) # Arm DAPLink firmware
 ATMEL_ICE_ID = (0x03eb, 0x2141) # Atmel-ICE
 CYPRESS_KITPROG1_2_ID = (0x04b4, 0xf138) # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
