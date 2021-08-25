@@ -61,18 +61,18 @@ Requirements
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID), such as:
-    - An on-board or standalone debug probe using [DAPLink](https://github.com/ARMmbed/DAPLink) firmware.
+  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID) or v2 (WinUSB), including:
+    - Atmel EDBG/nEDBG
+    - Atmel-ICE
+    - Cypress KitProg3 or MiniProg4
+    - [DAPLink](https://github.com/ARMmbed/DAPLink) based debug probe, either on-board or standalone
+    - Keil ULINKplus
     - NXP LPC-LinkII
     - NXP MCU-Link
-    - Atmel-ICE
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v2 (WinUSB), such as:
-    - [DAPLink](https://github.com/ARMmbed/DAPLink) firmware version 0254 or newer.
-    - Cypress KitProg3 or MiniProg4
-    - Keil ULINKplus
+  - [PE Micro](https://pemicro.com/) Cyclone and Multilink
   - Raspberry Pi Picoprobe
   - SEGGER J-Link
-  - STLinkV2 or STLinkV3, either on-board or the standalone versions.
+  - STLinkV2 or STLinkV3, either on-board or the standalone versions
 
 † Version [0.29](https://github.com/pyocd/pyOCD/releases/tag/v0.29.0) is the last version to support Python 2.
 

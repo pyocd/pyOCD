@@ -9,6 +9,8 @@ discouraged.
 The following debug probes are supported:
 
 - Atmel-ICE CMSIS-DAP
+- Atmel EDBG CMSIS-DAP
+- Atmel nEDBG CMSIS_DAP
 - Cypress KitProg1/KitProg2 in CMSIS-DAP mode
 - Cypress KitProg3
 - Cypress MiniProg4
