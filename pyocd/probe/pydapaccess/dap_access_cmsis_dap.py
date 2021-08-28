@@ -26,7 +26,6 @@ from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
 from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2)
-from .interface.common import ARM_DAPLINK_ID
 from .cmsis_dap_core import (
     Command,
     Pin,
@@ -613,29 +612,43 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # Just in case we don't get a valid response, default to the lowest version (not including betas).
         if not protocol_version_str:
             self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
-        # Deal with DAPLink broken version number, where these versions of the firmware reported the DAPLink
-        # version number for DAP_INFO_FW_VER instead of the CMSIS-DAP version, due to a misunderstanding
-        # based on unclear documentation.
-        elif (self._vidpid == ARM_DAPLINK_ID) and (protocol_version_str in ("0254", "0255")):
-            self._cmsis_dap_version = CMSISDAPVersion.V2_0_0
-        else:
-            # Convert the version to a single BCD value for easy comparison.
-            # 1.2.3 will be converted to 0x10203, 1.10 to 0x11000, and so on.
-            #
-            # There are two version formats returned from the reference CMSIS-DAP code: 2-field and 3-field.
-            # The older versions return versions like "1.07" and "1.10", while recent versions return "1.2.0"
-            # or "2.0.0".
+            return
+
+        # Convert the version to a 3-tuple for easy comparison.
+        # 1.2.3 will be converted to (1,2,3), 1.10 to (1,1,0), and so on.
+        #
+        # There are two version formats returned from the reference CMSIS-DAP code: 2-field and 3-field.
+        # The older versions return versions like "1.07" and "1.10", while recent versions return "1.2.0"
+        # or "2.0.0".
+        #
+        # Some CMSIS-DAP compatible debug probes from various vendors return the probe's firmware version
+        # rather than protocol version (like DAPLink versions 0254 and 0255 do) due to a misunderstanding
+        # based on unclear documentation. These cases are handled by the additional error checking below.
+        #
+        # Note that the exact version identified here is not that important, as it's not used much in
+        # this code (so far at least). There are also DAP_Info Capability bits for availability of certain
+        # commands that should be used instead of checking the version.
+        try:
             fw_version = protocol_version_str.split('.')
             major = int(fw_version[0])
             # Handle version of the form "1.10" by treating the two digits after the dot as minor and patch.
             if (len(fw_version) == 2) and len(fw_version[1]) == 2:
                 minor = int(fw_version[1][0])
                 patch = int(fw_version[1][1])
-            # All other forms, including unexpected cases such as 
+            # All other forms.
             else:
                 minor = int(fw_version[1] if len(fw_version) > 1 else 0)
                 patch = int(fw_version[2] if len(fw_version) > 2 else 0)
             self._cmsis_dap_version = (major, minor, patch)
+        except ValueError:
+            # One of the protocol version fields had a non-numeric character, indicating it is not a valid
+            # CMSIS-DAP version number. Default to the lowest version.
+            self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
+        
+        # Validate the version against known CMSIS-DAP minor versions. This will also catch the beta release
+        # versions of CMSIS-DAP, 0.01 and 0.02, and raise them to 1.0.0.
+        if self._cmsis_dap_version[:2] not in CMSISDAPVersion.minor_versions():
+            self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
 
     @locked
     def open(self):

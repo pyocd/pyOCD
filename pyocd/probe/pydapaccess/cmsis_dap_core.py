@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import (Set, Tuple)
+
 from .dap_access_api import DAPAccessIntf
 
 class Command:
@@ -77,7 +79,8 @@ INTEGER_INFOS = [
 class CMSISDAPVersion:
     """! @brief Known CMSIS-DAP versions.
 
-    The tuple fields are major, minor, patch.
+    The tuple fields are major, minor, patch. Generally, patch release versions are excluded from this
+    list, unless there is a specific reason to know about a particular patch release.
     """
     V1_0_0 = (1, 0, 0)
     V1_1_0 = (1, 1, 0)
@@ -85,6 +88,14 @@ class CMSISDAPVersion:
     V1_3_0 = (1, 3, 0)
     V2_0_0 = (2, 0, 0)
     V2_1_0 = (2, 1, 0)
+
+    @classmethod
+    def minor_versions(cls) -> Set[Tuple[int, int]]:
+        """@brief Returns a set of minor version tuples."""
+        return {
+            v[:2] for k, v in cls.__dict__.items()
+            if k.startswith('V')
+            }
 
 DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
