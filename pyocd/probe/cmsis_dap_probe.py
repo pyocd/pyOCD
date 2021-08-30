@@ -17,6 +17,7 @@
 
 from time import sleep
 import logging
+from typing import (Dict, Tuple)
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
@@ -40,8 +41,11 @@ class CMSISDAPProbe(DebugProbe):
     JTAG_CAPABILITY_MASK = 2
 
     # Map from DebugProbe protocol types to/from DAPAccess port types.
+    #
+    # Note that Protocol.DEFAULT gets mapped to PORT.SWD. We need a concrete port type because some
+    # non-reference CMSIS-DAP implementations do not accept the default port type.
     PORT_MAP = {
-        DebugProbe.Protocol.DEFAULT: DAPAccess.PORT.DEFAULT,
+        DebugProbe.Protocol.DEFAULT: DAPAccess.PORT.SWD,
         DebugProbe.Protocol.SWD: DAPAccess.PORT.SWD,
         DebugProbe.Protocol.JTAG: DAPAccess.PORT.JTAG,
         DAPAccess.PORT.DEFAULT: DebugProbe.Protocol.DEFAULT,
@@ -57,7 +61,7 @@ class CMSISDAPProbe(DebugProbe):
     A32 = 0x0000000c
     
     # Map from AP/DP and 2-bit register address to the enums used by pydapaccess.
-    REG_ADDR_TO_ID_MAP = {
+    REG_ADDR_TO_ID_MAP: Dict[Tuple[int, int], DAPAccess.REG] = {
         # APnDP A32
         ( 0,    0x0 ) : DAPAccess.REG.DP_0x0,
         ( 0,    0x4 ) : DAPAccess.REG.DP_0x4,
@@ -208,10 +212,12 @@ class CMSISDAPProbe(DebugProbe):
         TRACE.debug("trace: connect(%s)", protocol.name if (protocol is not None) else "None")
         
         # Convert protocol to port enum.
-        if protocol is not None:
-            port = self.PORT_MAP[protocol]
-        else:
-            port = DAPAccess.PORT.DEFAULT
+        # 
+        # We must get a non-default port, since some CMSIS-DAP implementations do not accept the default
+        # port. Note that the conversion of the default port type is contained in the PORT_MAP dict so it 
+        # is one location.
+        port = self.PORT_MAP.get(protocol, self.PORT_MAP[DebugProbe.Protocol.DEFAULT])
+        assert port is not DAPAccess.PORT.DEFAULT
         
         try:
             self._link.connect(port)
