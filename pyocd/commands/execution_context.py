@@ -392,7 +392,7 @@ class CommandExecutionContext(object):
             
             result = eval(invocation.cmd, globals(), self._python_namespace)
             if result is not None:
-                if isinstance(result, str):
+                if isinstance(result, int):
                     self.writei("0x%08x (%d)", result, result)
                 else:
                     w, h = get_terminal_size()
