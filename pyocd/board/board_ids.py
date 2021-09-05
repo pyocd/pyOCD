@@ -98,6 +98,7 @@ BOARD_ID_TO_INFO = {
     "0417": BoardInfo(  "MAX32630MBED",         "max32630",         None                    ),
     "0418": BoardInfo(  "MAX32620FTHR",         "max32620",         "max32620fthr.bin",     ),
     "0420": BoardInfo(  "MAX32630HSP3",         "max32630",         None                    ),
+    "0421": BoardInfo(  "MAX32660EVSYS",        "max32660",         "max32660evsys.bin",    ),
     "0451": BoardInfo(  "MTB MXChip EMW3166",   "stm32f412xg",      "mtb_mxchip_emw3166.bin",),
     "0459": BoardInfo(  "MTB Advantech WISE-1530", "stm32f412xg",   "mtb_wise-1530.bin",    ),
     "0462": BoardInfo(  "MTB USI WM-BN-BM-22",  "stm32f412xg",      "mtb_usi_wm-bn-bm-22.bin",),
