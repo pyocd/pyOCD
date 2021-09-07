@@ -1,10 +1,8 @@
-include dev-requirements.txt
+# setuptools_scm will ensure all files tracked by git are included
+
 include pyocd/debug/svd/svd_data.zip
-recursive-include docs *
-recursive-include udev *
-recursive-include scripts *.py
-recursive-include src *.ld *.txt *.c *.bat *.py
-recursive-include test *.py *.sh
-recursive-include test/data *
 recursive-exclude pyocd/debug/svd/data *
-global-exclude .DS_Store
+global-exclude __pycache__ *.py[cod] .* .DS_Store
+prune .github
+prune .azure
+prune scripts
