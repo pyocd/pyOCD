@@ -16,16 +16,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import re
 import logging
 import collections
 import threading
+from typing import (Optional, Tuple)
+
 from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
 from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2)
-from .interface.common import ARM_DAPLINK_ID
 from .cmsis_dap_core import (
     Command,
     Pin,
@@ -38,6 +38,8 @@ from .cmsis_dap_core import (
     )
 from ...core import session
 from ...utility.concurrency import locked
+
+VersionTuple = Tuple[int, int, int]
 
 # CMSIS-DAP values
 AP_ACC = 1 << 0
@@ -560,11 +562,24 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._commands_to_read = None
         self._command_response_buf = None
         self._swo_status = None
-        self._cmsis_dap_version = None
+        self._cmsis_dap_version: VersionTuple = CMSISDAPVersion.V1_0_0
+        self._fw_version: Optional[str] = None
 
     @property
-    def protocol_version(self):
+    def protocol_version(self) -> VersionTuple:
+        """! @brief Tuple of CMSIS-DAP protocol version.
+        @return 3-tuple consisting of (major, minor, micro) version of the CMSIS-DAP protocol implemented
+            by the debug probe.
+        """
         return self._cmsis_dap_version
+    
+    @property
+    def firmware_version(self) -> Optional[str]:
+        """! @brief A string of the product firmware version, or None.
+        
+        Only probes supporting CMSIS-DAP protocol v2.1 or later can return their firmware version.
+        """
+        return self._fw_version
 
     @property
     def vendor_name(self):
@@ -593,36 +608,47 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def _read_protocol_version(self):
         """! Determine the CMSIS-DAP protocol version."""
-        fw_version_str = self._protocol.dap_info(self.ID.FW_VER)
+        protocol_version_str = self._protocol.dap_info(self.ID.CMSIS_DAP_PROTOCOL_VERSION)
         # Just in case we don't get a valid response, default to the lowest version (not including betas).
-        if not fw_version_str:
+        if not protocol_version_str:
             self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
-        # Deal with DAPLink broken version number, where these versions of the firmware reported the DAPLink
-        # version number for DAP_INFO_FW_VER instead of the CMSIS-DAP version, due to a misunderstanding
-        # based on unclear documentation.
-        elif (self._vidpid == ARM_DAPLINK_ID) and (fw_version_str in ("0254", "0255", "0256")):
-            self._cmsis_dap_version = CMSISDAPVersion.V2_0_0
-        else:
-            # Convert the version to a single BCD value for easy comparison.
-            # 1.2.3 will be converted to 0x10203, 1.10 to 0x11000, and so on.
-            #
-            # There are two version formats returned from the reference CMSIS-DAP code: 2-field and 3-field.
-            # The older versions return versions like "1.07" and "1.10", while recent versions return "1.2.0"
-            # or "2.0.0".
-            fw_version = fw_version_str.split('.')
+            return
+
+        # Convert the version to a 3-tuple for easy comparison.
+        # 1.2.3 will be converted to (1,2,3), 1.10 to (1,1,0), and so on.
+        #
+        # There are two version formats returned from the reference CMSIS-DAP code: 2-field and 3-field.
+        # The older versions return versions like "1.07" and "1.10", while recent versions return "1.2.0"
+        # or "2.0.0".
+        #
+        # Some CMSIS-DAP compatible debug probes from various vendors return the probe's firmware version
+        # rather than protocol version (like DAPLink versions 0254 and 0255 do) due to a misunderstanding
+        # based on unclear documentation. These cases are handled by the additional error checking below.
+        #
+        # Note that the exact version identified here is not that important, as it's not used much in
+        # this code (so far at least). There are also DAP_Info Capability bits for availability of certain
+        # commands that should be used instead of checking the version.
+        try:
+            fw_version = protocol_version_str.split('.')
             major = int(fw_version[0])
             # Handle version of the form "1.10" by treating the two digits after the dot as minor and patch.
             if (len(fw_version) == 2) and len(fw_version[1]) == 2:
                 minor = int(fw_version[1][0])
                 patch = int(fw_version[1][1])
-            # All other forms, including unexpected cases such as 
+            # All other forms.
             else:
                 minor = int(fw_version[1] if len(fw_version) > 1 else 0)
                 patch = int(fw_version[2] if len(fw_version) > 2 else 0)
             self._cmsis_dap_version = (major, minor, patch)
-
-        # Log probe's protocol version.
-        LOG.debug("CMSIS-DAP probe %s protocol version: %i.%i.%i", self._unique_id, *self._cmsis_dap_version)
+        except ValueError:
+            # One of the protocol version fields had a non-numeric character, indicating it is not a valid
+            # CMSIS-DAP version number. Default to the lowest version.
+            self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
+        
+        # Validate the version against known CMSIS-DAP minor versions. This will also catch the beta release
+        # versions of CMSIS-DAP, 0.01 and 0.02, and raise them to 1.0.0.
+        if self._cmsis_dap_version[:2] not in CMSISDAPVersion.minor_versions():
+            self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
 
     @locked
     def open(self):
@@ -638,7 +664,22 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         else:
             self._packet_count = self._protocol.dap_info(self.ID.MAX_PACKET_COUNT)
 
+        # Get the protocol version.
         self._read_protocol_version()
+
+        # Read the firmware version if the protocol supports it.
+        # THe PRODUCT_FW_VERSION ID was added in versions 1.3.0 (HID) and 2.1.0 (bulk).
+        if (self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0) or (self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0
+                and self._cmsis_dap_version < CMSISDAPVersion.V2_0_0):
+            self._fw_version = self._protocol.dap_info(self.ID.PRODUCT_FW_VERSION)
+        
+        # Log probe's firmware version.
+        if self._fw_version:
+            LOG.debug("CMSIS-DAP probe %s: firmware version %s, protocol version %i.%i.%i",
+                    self._unique_id, self._fw_version, *self._cmsis_dap_version)
+        else:
+            LOG.debug("CMSIS-DAP probe %s: protocol version %i.%i.%i", self._unique_id, *self._cmsis_dap_version)
+
         self._interface.set_packet_count(self._packet_count)
         self._packet_size = self._protocol.dap_info(self.ID.MAX_PACKET_SIZE)
         self._interface.set_packet_size(self._packet_size)

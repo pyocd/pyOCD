@@ -82,12 +82,12 @@ class ProgressReportTTY(ProgressReport):
     """
 
     ## These width constants can't be changed yet without changing the code below to match.
-    WIDTH = 20
+    WIDTH = 50
     
     def _update(self, progress):
         self._file.write('\r')
         i = int(progress * self.WIDTH)
-        self._file.write("[%-20s] %3d%%" % ('=' * i, round(progress * 100)))
+        self._file.write("[%-50s] %3d%%" % ('=' * i, round(progress * 100)))
         self._file.flush()
 
     def _finish(self):

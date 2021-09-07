@@ -8,16 +8,20 @@ discouraged.
 
 The following debug probes are supported:
 
+- Atmel-ICE CMSIS-DAP
+- Atmel EDBG CMSIS-DAP
+- Atmel nEDBG CMSIS_DAP
 - Cypress KitProg1/KitProg2 in CMSIS-DAP mode
 - Cypress KitProg3
 - Cypress MiniProg4
 - DAPLink
-- STLinkV2
-- STLinkV2-1
-- STLinkV3
 - Keil ULINKplus
 - NXP LPC-LinkII
 - NXP MCU-Link
+- Raspberry Pi Picoprobe
+- STLinkV2
+- STLinkV2-1
+- STLinkV3
 
 
 To install, copy the rules files in this directory to `/etc/udev/rules.d/` on Ubuntu:

@@ -338,7 +338,7 @@ class AccessPort(object):
             name, klass, flags = AP_TYPE_MAP[key]
         except KeyError:
             # The AP ID doesn't match, but we can recognize unknown MEM-APs.
-            if apClass == AP_CLASS_MEM_AP:
+            if (apClass == AP_CLASS_MEM_AP) and (designer == AP_JEP106_ARM):
                 name = "MEM-AP"
                 klass = MEM_AP
             else:
@@ -388,7 +388,7 @@ class AccessPort(object):
     def init(self):
         # Read IDR if it wasn't given to us in the ctor.
         if self.idr is None:
-            self.idr = self.read_reg(AP_IDR)
+            self.idr = self.read_reg(self.address.idr_address)
         
         self.variant = (self.idr & AP_IDR_VARIANT_MASK) >> AP_IDR_VARIANT_SHIFT
         self.revision = (self.idr & AP_IDR_REVISION_MASK) >> AP_IDR_REVISION_SHIFT

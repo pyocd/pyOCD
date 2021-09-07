@@ -15,12 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
+LOG = logging.getLogger(__name__)
+
 RESET_MASK = 0x50021104
-RESET_MASK_SYSRESETREQ0_EN = 1 << 4
+RESET_MASK_SYSRSTREQ0_EN = 1 << 4
+RESET_MASK_SYSRSTREQ1_EN = 1 << 5
 
 FLASH_ALGO_QSPI = {
     'load_address' : 0x20000000,
@@ -298,8 +303,9 @@ class MuscaB1(CoreSightTarget):
         return seq
     
     def _enable_sysresetreq(self):
+        LOG.info("Enabling SYSRSTREQ0_EN and SYSRSTREQ1_EN")
         reset_mask = self.read32(RESET_MASK)
-        reset_mask |= RESET_MASK_SYSRESETREQ0_EN
+        reset_mask |= RESET_MASK_SYSRSTREQ0_EN | RESET_MASK_SYSRSTREQ1_EN
         self.write32(RESET_MASK, reset_mask)
     
     

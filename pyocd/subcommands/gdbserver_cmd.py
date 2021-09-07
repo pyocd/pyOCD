@@ -37,7 +37,7 @@ from ..utility.notification import Notification
 LOG = logging.getLogger(__name__)
 
 class GdbserverSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd gdbserver` subcommand."""
     
     NAMES = ['gdbserver', 'gdb']
     HELP = "Run the gdb remote server(s)."
@@ -64,15 +64,15 @@ class GdbserverSubcommand(SubcommandBase):
             help="Specify starting telnet port for semihosting (default 4444).")
         gdbserver_options.add_argument("-R", "--probe-server-port",
             dest="probe_server_port", metavar="PORT", type=int, default=5555,
-            help="Specify the telnet port for semihosting (default 4444).")
+            help="Specify the port for the probe server (default 5555).")
+        gdbserver_options.add_argument("-r", "--probe-server", action="store_true", dest="enable_probe_server",
+            help="Enable the probe server in addition to the GDB server.")
         gdbserver_options.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false",
             help="Allow remote TCP/IP connections (default is no).")
         gdbserver_options.add_argument("--persist", action="store_true",
             help="Keep GDB server running even after remote has detached.")
-        gdbserver_options.add_argument("-r", "--probe-server", action="store_true", dest="enable_probe_server",
-            help="Enable the probe server in addition to the GDB server.")
         gdbserver_options.add_argument("--core", metavar="CORE_LIST",
-            help="Comma-separated list of cores for which gdbservers will be created. Default is all cores.")
+            help="Comma-separated list of core numbers for which gdbservers will be created. Default is all cores.")
         gdbserver_options.add_argument("--elf", metavar="PATH",
             help="Optionally specify ELF file being debugged.")
         gdbserver_options.add_argument("-e", "--erase", choices=cls.ERASE_OPTIONS, default='sector',
@@ -81,8 +81,8 @@ class GdbserverSubcommand(SubcommandBase):
             help="Use only the CRC of each page to determine if it already has the same data.")
         gdbserver_options.add_argument("-C", "--vector-catch", default='h',
             help="Enable vector catch sources, one letter per enabled source in any order, or 'all' "
-                "or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, "
-                "c=check err, p=nocp, r=reset, a=all, n=none). Default is hard fault.")
+                "or 'none'. (b=bus fault, c=check err, e=secure fault, h=hard fault, i=irq err, m=mem fault, "
+                "p=nocp, r=reset, s=state err, a=all, n=none). Default is hard fault.")
         gdbserver_options.add_argument("-S", "--semihosting", dest="enable_semihosting", action="store_true",
             help="Enable semihosting.")
         gdbserver_options.add_argument("--step-into-interrupts", dest="step_into_interrupt", default=False, action="store_true",

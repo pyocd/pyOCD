@@ -89,4 +89,6 @@ pyocd/_version.py
 pyocd.yaml
 pyocd_user.py
 
+# Mac
+.DS_Store
 

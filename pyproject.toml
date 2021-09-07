@@ -1,0 +1,34 @@
+[build-system]
+# These are the assumed default build requirements from pip:
+# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
+requires = [
+    "setuptools>=51",
+    "wheel",
+    "setuptools_scm[toml]>=6.0",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "pyocd/_version.py"
+local_scheme = "dirty-tag"
+
+[tool.pytest.ini_options]
+testpaths = ["test/unit"]
+junit_family = "xunit2"
+junit_logging = "all"
+log_level = "DEBUG"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py37
+
+# Defaults for all test environments.
+[testenv]
+deps =
+    pytest
+changedir = test
+passenv = CI_JOBS
+commands =
+    python automated_test.py -j4 -q
+"""

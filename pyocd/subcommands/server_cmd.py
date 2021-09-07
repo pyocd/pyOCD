@@ -28,7 +28,7 @@ from ..probe.tcp_probe_server import DebugProbeServer
 LOG = logging.getLogger(__name__)
 
 class ServerSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd server` subcommand."""
     
     NAMES = ['server']
     HELP = "Run debug probe server."
@@ -56,11 +56,11 @@ class ServerSubcommand(SubcommandBase):
         server_options.add_argument("--allow-remote", dest="serve_local_only", default=None, action="store_false",
             help="Allow remote TCP/IP connections (default is no).")
         server_options.add_argument("--local-only", default=False, action="store_true",
-            help="Ignored and deprecated. Server is local only by default. Use --alow-remote to enable remote "
-                 "connections.")
+            help="Server is local only by default. Use --alow-remote to enable remote "
+                 "connections. (Currently ignored.)")
         server_options.add_argument("-u", "--uid", "--probe", dest="unique_id",
-            help="Serve the specified probe. Optionally prefixed with '<probe-type>:' where <probe-type> is the "
-                 "name of a probe plugin.")
+            help="Select the debug probe by its full or partial unique ID. Optionally prefixed with "
+            "'<probe-type>:' where <probe-type> is the name of a probe plugin.")
         server_options.add_argument("-W", "--no-wait", action="store_true",
             help="Do not wait for a probe to be connected if none are available.")
         

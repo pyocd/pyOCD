@@ -16,7 +16,7 @@
 
 import sys
 import string
-import six
+import io
 
 from . import conversion
 
@@ -125,6 +125,6 @@ def dump_hex_data_to_str(data, **kwargs):
     """! @brief Returns a string with data formatted as hex.
     @see dump_hex_data()
     """
-    sio = six.StringIO()
+    sio = io.StringIO()
     dump_hex_data(data, output=sio, **kwargs)
     return sio.getvalue()

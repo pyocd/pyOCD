@@ -7,3 +7,18 @@ path_classifiers:
     - src
     - exclude: src/analyzer
 
+queries:
+  # Exclude warning about 'if' or 'while' statements that have an 'else' clause, when there is not
+  # a 'break' statement within the main statement body (ie, it uses a 'return' to exit). This style
+  # is used in some places in pyocd to reflect that the 'else' body is logically part of the main
+  # statement. In particular, the Timeout class is used in this pattern:
+  #
+  #     with Timeout(TIMEOUT) as t:
+  #         while t.check():
+  #             # code...
+  #         else:
+  #             # handle timeout...
+  #
+  # In some cases the 'while' block will exit with only a 'return', so the 'else' isn't really
+  # necessary, but retaining it maintains the expected pattern.
+  - exclude: py/redundant-else

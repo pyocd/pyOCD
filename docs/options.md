@@ -165,6 +165,41 @@ Setting this option to True will use CRC checks of existing flash sector
 contents to determine whether pages need to be programmed.
 </td></tr>
 
+<tr><td>flash.timeout.init</td>
+<td>float</td>
+<td>5.0</td>
+<td>
+Flash algorithm init and uninit timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.analyzer</td>
+<td>float</td>
+<td>30.0</td>
+<td>
+Flash CRC analyzer timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.erase_all</td>
+<td>float</td>
+<td>240.0</td>
+<td>
+Flash algorithm erase all timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.erase_sector</td>
+<td>float</td>
+<td>10.0</td>
+<td>
+Flash algorithm sector erase timeout in seconds.
+</td></tr>
+
+<tr><td>flash.timeout.program</td>
+<td>float</td>
+<td>10.0</td>
+<td>
+Flash algorithm programming timeout in seconds.
+</td></tr>
+
 <tr><td>frequency</td>
 <td>int</td>
 <td>1000000 (1 MHz)</td>
@@ -248,11 +283,28 @@ Number of seconds to hold hardware reset asserted.
 Number of seconds to delay after a reset is issued.
 </td></tr>
 
+<tr><td>reset.dap_recover.timeout</td>
+<td>float</td>
+<td>5.0</td>
+<td>
+Timeout for waiting for the DAP to be accessible after reset, in seconds. If the timeout lapses, an attempt
+will be made to reconnect the DP and retry.
+</td></tr>
+
+<tr><td>reset.core_recover.timeout</td>
+<td>float</td>
+<td>2.0</td>
+<td>
+Timeout in seconds for waiting for a core to be accessible after reset. A warning is printed if the timeout
+lapses. Set to 0 to disable the core accessibility test. For halting reset, this is also the timeout for waiting
+for the core to halt.
+</td></tr>
+
 <tr><td>reset.halt_timeout</td>
 <td>float</td>
 <td>2.0</td>
 <td>
-Timeout for waiting for the core to halt after a reset and halt.
+Timeout in seconds for waiting for the core to halt after a reset and halt.
 </td></tr>
 
 <tr><td>resume_on_disconnect</td>

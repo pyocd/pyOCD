@@ -16,9 +16,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
 import os
 import argparse
+import colorama
+from datetime import datetime
 import struct
 import binascii
 import jinja2
@@ -33,7 +34,7 @@ STACK_SIZE = 0x200
 
 PYOCD_TEMPLATE = \
 """# pyOCD debugger
-# Copyright (c) 2017-2021 Arm Limited
+# Copyright (c) {{year}} {{copyright_owner}}
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -92,6 +93,8 @@ FLASH_ALGO = {
 }
 
 """
+
+colorama.init()
 
 def str_to_num(val):
     return int(val, 0)  #convert string to number and automatically handle hex conversion
@@ -171,7 +174,12 @@ def main():
                         "(default 'pyocd_blob.py').")
     parser.add_argument("-t", "--template", help="Path to Jinja template file (default is an internal "
                         "template for pyocd).")
+    parser.add_argument('-c', '--copyright', help="Set copyright owner.")
     args = parser.parse_args()
+    
+    if not args.copyright:
+        print(f"{colorama.Fore.YELLOW}Warning! No copyright owner was specified. Defaulting to \"PyOCD Authors\". "
+            f"Please set via --copyright, or edit output.{colorama.Style.RESET_ALL}")
     
     if args.template:
         with open(args.template, "r") as tmpl_file:
@@ -199,13 +207,16 @@ def main():
             'header_size': HEADER_SIZE,
             'entry': args.blob_start,
             'stack_pointer': sp,
+            'year': datetime.now().year,
+            'copyright_owner': args.copyright or "PyOCD Authors",
         }
 
         text = algo.process_template(tmpl, data_dict)
         
         with open(args.output, "w") as file_handle:
             file_handle.write(text)
-
+        
+        print(f"Wrote flash algo dict to {args.output}")
 
 if __name__ == '__main__':
     main()

@@ -52,7 +52,7 @@ Functional tests:
 ## Testing with tox
 
 pyOCD includes a configuration file for tox that enables easy testing of multiple Python versions.
-The tox tool is included in `dev-requirements.txt`, so it will already be present in a standard
+The tox tool is included in `test` install extra, so it will already be present in a standard
 pyOCD developer virtual environment.
 
 To run the functional tests via tox, just execute `tox` from the root of the pyOCD

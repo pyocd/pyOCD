@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +16,9 @@
 # limitations under the License.
 
 from time import (time, sleep)
+from typing import Optional
 
-class Timeout(object):
+class Timeout:
     """! @brief Timeout helper context manager.
     
     The recommended way to use this class is demonstrated here. It uses an else block on a
@@ -57,7 +59,7 @@ class Timeout(object):
     True and the loop must be exited via some other means.
     """
 
-    def __init__(self, timeout, sleeptime=0):
+    def __init__(self, timeout: Optional[float], sleeptime: float = 0) -> None:
         """! @brief Constructor.
         @param self
         @param timeout The timeout in seconds. May be None to indicate no timeout.
@@ -67,17 +69,40 @@ class Timeout(object):
         self._sleeptime = sleeptime
         self._timeout = timeout
         self._timed_out = False
-        self._start = -1
+        self._start = -1.0
         self._is_first_check = True
+        self._is_running = False
 
     def __enter__(self):
-        self._start = time()
+        self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def check(self, autosleep=True):
+    def start(self) -> None:
+        """! @brief Start or restart the timeout timer.
+
+        This has precisely the same effect as entering `self` when used as a context manager.
+
+        If called after the timeout has already been started, the effect is to reset the timeout from the
+        current time.
+        """
+        self._is_running = True
+        self._start = time()
+        self._timed_out = False
+        self._is_first_check = True
+    
+    def clear(self):
+        """! @brief Reset the timeout back to initial, non-running state.
+        
+        The timeout can be made to run again by calling start().
+        """
+        self._is_running = False
+        self._timed_out = False
+        self._is_first_check = True
+
+    def check(self, autosleep: bool = True) -> bool:
         """! @brief Check for timeout and possibly sleep.
         
         Starting with the second call to this method, it will automatically sleep before returning
@@ -87,6 +112,10 @@ class Timeout(object):
             - The _autosleep_ parameter is True.
         
         This method is intended to be used as the predicate of a while loop.
+
+        If this method is called prior to the timeout being started (by the start() method or entering
+        it as a context manager) this the return value will always be True (not timeed out). Only after
+        the timeout is running will the elapsed time be tested.
         
         @param self
         @param autosleep Whether to sleep if not timed out yet. The sleeptime passed to the
@@ -95,16 +124,21 @@ class Timeout(object):
         @retval False Timeout is passed and the loop should be exited.
         """
         # Check for a timeout.
-        if (self._timeout is not None) and ((time() - self._start) > self._timeout):
+        if self._is_running and (self._timeout is not None) and ((time() - self._start) > self._timeout):
             self._timed_out = True
         # Sleep if appropriate.
         elif (not self._is_first_check) and autosleep and self._sleeptime:
             sleep(self._sleeptime)
         self._is_first_check = False
         return not self._timed_out
+    
+    @property
+    def is_running(self) -> bool:
+        """! @brief Whether the timeout object has started timing."""
+        return self._is_running
 
     @property
-    def did_time_out(self):
+    def did_time_out(self) -> bool:
         """! @brief Whether the timeout has occurred as of the time when this property is accessed."""
         self.check(autosleep=False)
         return self._timed_out

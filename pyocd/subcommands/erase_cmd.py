@@ -21,12 +21,15 @@ import logging
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..flash.eraser import FlashEraser
-from ..utility.cmdline import convert_session_options
+from ..utility.cmdline import (
+    convert_session_options,
+    flatten_args,
+)
 
 LOG = logging.getLogger(__name__)
 
 class EraseSubcommand(SubcommandBase):
-    """! @brief Base class for pyocd command line subcommand."""
+    """! @brief `pyocd erase` subcommand."""
     
     NAMES = ['erase']
     HELP = "Erase entire device flash or specified sectors."
@@ -50,10 +53,11 @@ class EraseSubcommand(SubcommandBase):
         erase_options.add_argument("-c", "--chip", dest="erase_mode", action="store_const", const=FlashEraser.Mode.CHIP,
             help="Perform a chip erase.")
         erase_options.add_argument("-s", "--sector", dest="erase_mode", action="store_const", const=FlashEraser.Mode.SECTOR,
-            help="Erase the sectors listed as positional arguments.")
+            help="Erase the sectors listed as positional arguments. This is the default.")
         erase_options.add_argument("--mass", dest="erase_mode", action="store_const", const=FlashEraser.Mode.MASS,
             help="Perform a mass erase. On some devices this is different than a chip erase.")
-        erase_options.add_argument("addresses", metavar="<sector-address>", action='append', nargs='*',
+
+        erase_parser.add_argument("addresses", metavar="<sector-address>", action='append', nargs='*',
             help="List of sector addresses or ranges to erase.")
         
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, erase_parser]
@@ -89,7 +93,7 @@ class EraseSubcommand(SubcommandBase):
             mode = self._args.erase_mode or FlashEraser.Mode.SECTOR
             eraser = FlashEraser(session, mode)
             
-            addresses = self.flatten_args(self._args.addresses)
+            addresses = flatten_args(self._args.addresses)
             eraser.erase(addresses)
 
         return 0

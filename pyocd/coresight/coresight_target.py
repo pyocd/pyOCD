@@ -16,11 +16,11 @@
 # limitations under the License.
 
 import logging
-import six
 from inspect import getfullargspec
+from pathlib import PurePath
 
 from ..core.target import Target
-from ..core.memory_map import MemoryType
+from ..core.memory_map import (MemoryType, RamRegion, DeviceRegion, MemoryMap)
 from ..core.soc_target import SoCTarget
 from ..core import exceptions
 from . import (dap, discovery)
@@ -37,6 +37,11 @@ class CoreSightTarget(SoCTarget):
     """
     
     def __init__(self, session, memory_map=None):
+        # Supply a default memory map.
+        if (memory_map is None) or (memory_map.region_count == 0):
+            memory_map = self._create_default_cortex_m_memory_map()
+            LOG.debug("Using default Cortex-M memory map (no memory map supplied)")
+        
         super(CoreSightTarget, self).__init__(session, memory_map)
         self.dp = dap.DebugPort(session.probe, self)
         self._svd_load_thread = None
@@ -54,6 +59,19 @@ class CoreSightTarget(SoCTarget):
             LOG.debug("Waiting for SVD load to complete")
             self._svd_device = self._svd_load_thread.device
         return self._svd_device
+
+    def _create_default_cortex_m_memory_map(self):
+        """! @brief Create a MemoryMap for the Cortex-M system address map."""
+        return MemoryMap(
+                RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
+                RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
+                DeviceRegion(name="Peripheral", start=0x40000000, length=0x20000000, access='rw'),
+                RamRegion(name="RAM1",          start=0x60000000, length=0x20000000, access='rwx'),
+                RamRegion(name="RAM2",          start=0x80000000, length=0x20000000, access='rwx'),
+                DeviceRegion(name="Device1",    start=0xA0000000, length=0x20000000, access='rw'),
+                DeviceRegion(name="Device2",    start=0xC0000000, length=0x20000000, access='rw'),
+                DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
+                )
 
     def load_svd(self):
         def svd_load_completed_cb(svdDevice):
@@ -81,6 +99,18 @@ class CoreSightTarget(SoCTarget):
             )
         
         return seq
+
+    def disconnect(self, resume=True):
+        """! @brief Disconnect from the target.
+        
+        Same as SoCTarget.disconnect(), except that it asks the DebugPort to power down.
+        """
+        self.session.notify(Target.Event.PRE_DISCONNECT, self)
+        self.call_delegate('will_disconnect', target=self, resume=resume)
+        for core in self.cores.values():
+            core.disconnect(resume)
+        self.dp.disconnect()
+        self.call_delegate('did_disconnect', target=self, resume=resume)
             
     def create_discoverer(self):
         """! @brief Init task to create the discovery object.
@@ -155,27 +185,27 @@ class CoreSightTarget(SoCTarget):
             # If the region doesn't have an algo dict but does have an FLM file, try to load
             # the FLM and create the algo dict.
             if (region.algo is None) and (region.flm is not None):
-                if isinstance(region.flm, six.string_types):
-                    flmPath = self.session.find_user_file(None, [region.flm])
-                    if flmPath is not None:
-                        LOG.info("creating flash algo from: %s", flmPath)
-                        packAlgo = PackFlashAlgo(flmPath)
+                if isinstance(region.flm, (str, PurePath)):
+                    flm_path = self.session.find_user_file(None, [region.flm])
+                    if flm_path is not None:
+                        LOG.info("creating flash algo from: %s", flm_path)
+                        pack_algo = PackFlashAlgo(flm_path)
                     else:
                         LOG.warning("Failed to find FLM file: %s", region.flm)
                         break
                 elif isinstance(region.flm, PackFlashAlgo):
-                    packAlgo = region.flm
+                    pack_algo = region.flm
                 else:
                     LOG.warning("flash region flm attribute is unexpected type")
                     break
 
                 # Create the algo dict from the FLM.
                 if self.session.options.get("debug.log_flm_info"):
-                    LOG.debug("Flash algo info: %s", packAlgo.flash_info)
-                page_size = packAlgo.page_size
+                    LOG.debug("Flash algo info: %s", pack_algo.flash_info)
+                page_size = pack_algo.page_size
                 if page_size <= 32:
-                    page_size = min(s[1] for s in packAlgo.sector_sizes)
-                algo = packAlgo.get_pyocd_flash_algo(
+                    page_size = min(s[1] for s in pack_algo.sector_sizes)
+                algo = pack_algo.get_pyocd_flash_algo(
                         page_size,
                         self.memory_map.get_default_region_of_type(MemoryType.RAM))
                 
@@ -214,10 +244,29 @@ class CoreSightTarget(SoCTarget):
                 raise exceptions.DebugError("No cores were discovered!")
     @property
     def irq_table(self):
-        if self._irq_table is None:
-            if self.svd_device is not None:
-                self._irq_table = {i.value : i.name for i in
-                    [i for p in self.svd_device.peripherals for i in p.interrupts]}
+        if (self._irq_table is None):
+            if (self.svd_device is not None) and (self.svd_device.peripherals is not None):
+                peripherals = [
+                        p for p in self.svd_device.peripherals
+                        if p.interrupts is not None
+                        ]
+                self._irq_table = {
+                        i.value : i.name
+                        for p in peripherals
+                            for i in p.interrupts
+                        }
+            else:
+                self._irq_table = {}
         return self._irq_table
+
+    # Override this method from SoCTarget so we can use the DP for hardware resets when there isn't a
+    # valid core (instead of the probe), so reset notifications will be sent. We can't use the DP in
+    # SoCTarget because it is only created by this class.
+    def reset(self, reset_type=None):
+        # Use the DP to reset if there is not a core.
+        if (self.selected_core is None) and (self.dp is not None):
+            self.dp.reset()
+        else:
+            super().reset(reset_type)
     
         

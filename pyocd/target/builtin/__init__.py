@@ -119,6 +119,9 @@ from . import target_MPS3_AN540
 from . import target_RP2040
 
 ## @brief Dictionary of all builtin targets.
+#
+# @note Target type names must be all lowercase and use _underscores_ instead of dashes. The code in Board
+#   automatically converts dashes in user-supplied target type names to underscores.
 BUILTIN_TARGETS = {
           'mps3_an522': target_MPS3_AN522.AN522,
           'mps3_an540': target_MPS3_AN540.AN540,

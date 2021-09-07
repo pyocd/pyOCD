@@ -21,7 +21,6 @@ from time import sleep
 from ..core.target import Target
 from ..core import exceptions
 from ..core.core_registers import CoreRegistersIndex
-from ..core.memory_map import (MemoryMap, RamRegion, DeviceRegion)
 from ..utility import (cmdline, timeout)
 from .component import CoreSightCoreComponent
 from .fpb import FPB
@@ -169,6 +168,8 @@ class CortexM(Target, CoreSightCoreComponent):
     MVFR2_VFP_MISC_MASK = 0x000000f0
     MVFR2_VFP_MISC_SHIFT = 4
 
+    _RESET_RECOVERY_SLEEP_INTERVAL = 0.01 # 10 ms
+
     @classmethod
     def factory(cls, ap, cmpid, address):
         # Create a new core instance.
@@ -188,11 +189,6 @@ class CortexM(Target, CoreSightCoreComponent):
         return core
 
     def __init__(self, session, ap, memory_map=None, core_num=0, cmpid=None, address=None):
-        # Supply a default memory map.
-        if (memory_map is None) or (memory_map.region_count == 0):
-            memory_map = self._create_default_cortex_m_memory_map()
-            LOG.debug("Using default memory map for core #%d (no memory map supplied)", core_num)
-        
         Target.__init__(self, session, memory_map)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
@@ -324,19 +320,6 @@ class CortexM(Target, CoreSightCoreComponent):
                 self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
         self.call_delegate('did_stop_debug_core', core=self)
-
-    def _create_default_cortex_m_memory_map(self):
-        """! @brief Create a MemoryMap for the Cortex-M system address map."""
-        return MemoryMap(
-                RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
-                RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
-                DeviceRegion(name="Peripheral", start=0x40000000, length=0x20000000, access='rw'),
-                RamRegion(name="RAM1",          start=0x60000000, length=0x20000000, access='rwx'),
-                RamRegion(name="RAM2",          start=0x80000000, length=0x20000000, access='rwx'),
-                DeviceRegion(name="Device1",    start=0xA0000000, length=0x20000000, access='rw'),
-                DeviceRegion(name="Device2",    start=0xC0000000, length=0x20000000, access='rw'),
-                DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
-                )
 
     def _build_registers(self):
         """! @brief Build set of core registers available on this code.
@@ -705,7 +688,8 @@ class CortexM(Target, CoreSightCoreComponent):
         """! @brief Perform a reset of the specified type."""
         assert isinstance(reset_type, Target.ResetType)
         if reset_type is Target.ResetType.HW:
-            self.session.target.dp.reset()
+            # Tell DP to not send reset notifications because we are doing it.
+            self.session.target.dp.reset(send_notifications=False)
         elif reset_type is Target.ResetType.SW_EMULATED:
             self._perform_emulated_reset()
         else:
@@ -716,12 +700,47 @@ class CortexM(Target, CoreSightCoreComponent):
             else:
                 raise exceptions.InternalError("unhandled reset type")
         
+            # Transfer errors are ignored on the AIRCR write for resets. On a few systems, the reset
+            # apparently happens so quickly that we can't even finish the SWD transaction.
             try:
                 self.write_memory(CortexM.NVIC_AIRCR, CortexM.NVIC_AIRCR_VECTKEY | mask)
                 # Without a flush a transfer error can occur
                 self.flush()
             except exceptions.TransferError:
                 self.flush()
+            
+            # Post reset delay.
+            sleep(self.session.options.get('reset.post_delay'))
+
+    def _post_reset_core_accessibility_test(self):
+        """! @brief Wait for the system to come out of reset and this core to be accessible.
+        
+        Keep reading the DHCSR until we get a good response with S_RESET_ST cleared, or we time out. There's nothing
+        we can do if the test times out, and in fact if this is a secondary core on a multicore system then timing out
+        is almost guaranteed.
+        """
+        recover_timeout = self.session.options.get('reset.core_recover.timeout')
+        if recover_timeout == 0:
+            return
+        with timeout.Timeout(recover_timeout, self._RESET_RECOVERY_SLEEP_INTERVAL) as time_out:
+            dhcsr = None
+            while time_out.check():
+                try:
+                    dhcsr = self.read32(CortexM.DHCSR)
+                    if (dhcsr & CortexM.S_RESET_ST) == 0:
+                        break
+                except exceptions.TransferError:
+                    # Ignore errors caused by flushing.
+                    try:
+                        self.flush()
+                    except exceptions.TransferError:
+                        pass
+            else:
+                # If dhcsr is None then we know that we never were able to read the register.
+                if dhcsr is None:
+                    LOG.warning("Core #%d is not accessible after reset")
+                else:
+                    LOG.debug("Core #%d did not come out of reset within timeout")
 
     def reset(self, reset_type=None):
         """! @brief Reset the core.
@@ -742,9 +761,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
         LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
 
-        # The HW reset type is passed to the DP, which itself sends reset notifications.
-        if reset_type is not Target.ResetType.HW:
-            self.session.notify(Target.Event.PRE_RESET, self)
+        self.session.notify(Target.Event.PRE_RESET, self)
 
         self._run_token += 1
 
@@ -753,22 +770,20 @@ class CortexM(Target, CoreSightCoreComponent):
         if not self.call_delegate('will_reset', core=self, reset_type=reset_type):
             self._perform_reset(reset_type)
 
-        self.call_delegate('did_reset', core=self, reset_type=reset_type)
-        
-        # Now wait for the system to come out of reset. Keep reading the DHCSR until
-        # we get a good response with S_RESET_ST cleared, or we time out.
-        with timeout.Timeout(2.0) as t_o:
-            while t_o.check():
-                try:
-                    dhcsr = self.read32(CortexM.DHCSR)
-                    if (dhcsr & CortexM.S_RESET_ST) == 0:
-                        break
-                except exceptions.TransferError:
-                    self.flush()
-                    sleep(0.01)
+        # Post reset recovery tests.
+        # We only need to test accessibility after reset for system-level resets.
+        # If a hardware reset is being used, then the DP will perform its post-reset recovery for us. Out of the
+        # other reset types, only a system-level reset by SW_SYSRESETREQ require us to ensure the DP reset recovery
+        # is performed. VECTRESET 
+        if reset_type is Target.ResetType.SW_SYSRESETREQ:
+            self.ap.dp.post_reset_recovery()
+        if reset_type in (Target.ResetType.HW, Target.ResetType.SW_SYSRESETREQ):
+            # Now run the core accessibility test.
+            self._post_reset_core_accessibility_test()
 
-        if reset_type is not Target.ResetType.HW:
-            self.session.notify(Target.Event.POST_RESET, self)
+        self.call_delegate('did_reset', core=self, reset_type=reset_type)
+
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def set_reset_catch(self, reset_type=None):
         """! @brief Prepare to halt core on reset."""
@@ -813,7 +828,7 @@ class CortexM(Target, CoreSightCoreComponent):
                     break
                 sleep(0.01)
             else:
-                LOG.warning("Timed out waiting for target to complete reset (state is %s)", self.get_state().name)
+                LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
         # points to an invalid address. Only do this if the core is actually halted, otherwise we

@@ -176,11 +176,13 @@ class PackTargets(object):
             tgt = PackTargets._generate_pack_target_class(dev)
             if tgt is None:
                 return
-            part = dev.part_number.lower()
+            part = dev.part_number.lower().replace("-", "_")
 
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
                 TARGET[part] = tgt
+            else:
+                LOG.debug("did not populate %s because there is already a %s target installed", dev.part_number, part)
         except (MalformedCmsisPackError, FileNotFoundError) as err:
             LOG.warning(err)
 

@@ -104,7 +104,9 @@ class CommandBase(metaclass=CommandMeta):
 
     def _format_core_register(self, info, value):
         hex_width = round_up_div(info.bitsize, 4) + 2 # add 2 for the "0x" prefix
-        if info.is_float_register:
+        if info.is_double_float_register:
+            value_str = "{f:g} ({i:#0{w}x})".format(f=conversion.u64_to_float64(value), i=value, w=hex_width)
+        elif info.is_single_float_register:
             value_str = "{f:g} ({i:#0{w}x})".format(f=conversion.u32_to_float32(value), i=value, w=hex_width)
         elif info.gdb_type in ('data_ptr', 'code_ptr'):
             value_str = "{h:#0{w}x}".format(h=value, w=hex_width)

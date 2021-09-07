@@ -42,11 +42,16 @@ class DAPAccessIntf(object):
         VENDOR = 1
         PRODUCT = 2
         SER_NUM = 3
-        FW_VER = 4
+        CMSIS_DAP_PROTOCOL_VERSION = 4
         DEVICE_VENDOR = 5
         DEVICE_NAME = 6
+        BOARD_VENDOR = 7
+        BOARD_NAME = 8
+        PRODUCT_FW_VERSION = 9
         CAPABILITIES = 0xf0
         TEST_DOMAIN_TIMER = 0xf1
+        UART_RECEIVE_BUFFER_SIZE = 0xfb
+        UART_TRANSMIT_BUFFER_SIZE = 0xfc
         SWO_BUFFER_SIZE = 0xfd
         MAX_PACKET_COUNT = 0xfe
         MAX_PACKET_SIZE = 0xff

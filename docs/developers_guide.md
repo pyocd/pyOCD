@@ -36,13 +36,13 @@ the following.
 Linux or Mac:
 ```
 $ source venv/bin/activate
-$ pip install -r dev-requirements.txt
+$ pip install -e .[test]
 ```
 
 Windows:
 ```
 $ venv\Scripts\activate
-$ pip install -r dev-requirements.txt
+$ pip install -e .[test]
 ```
 
 **Step 3.** Develop

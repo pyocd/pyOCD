@@ -15,12 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 import logging
 from enum import Enum
 
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
-from ..utility.mask import msb
+from ..utility.mask import (align_down, msb)
+from ..utility.timeout import Timeout
 from .builder import FlashBuilder
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +35,7 @@ TRACE.setLevel(logging.CRITICAL)
 # Usage requirements:
 # -In memory reserve 0x600 for code & table
 # -Make sure data buffer is big enough to hold 4 bytes for each page that could be checked (ie.  >= num pages * 4)
-analyzer = (
+_ANALYZER_CODE = (
     0x2780b5f0, 0x25004684, 0x4e2b2401, 0x447e4a2b, 0x0023007f, 0x425b402b, 0x40130868, 0x08584043,
     0x425b4023, 0x40584013, 0x40200843, 0x40104240, 0x08434058, 0x42404020, 0x40584010, 0x40200843,
     0x40104240, 0x08434058, 0x42404020, 0x40584010, 0x40200843, 0x40104240, 0x08584043, 0x425b4023,
@@ -43,44 +45,29 @@ analyzer = (
     0x00000042, 
     )
 
-class SectorInfo(object):
-    """! @brief Info about an erase sector."""
+@dataclass
+class SectorInfo:
+    """@brief Info about an erase sector."""
+    base_addr: int           # Start address of this sector
+    erase_weight: int        # Time it takes to erase a page
+    size: int                # Size of sector
 
-    def __init__(self):
-        self.base_addr = None           # Start address of this sector
-        self.erase_weight = None        # Time it takes to erase a page
-        self.size = None                # Size of sector
+@dataclass
+class PageInfo:
+    """@brief Info about a program page."""
+    base_addr: int           # Start address of this page
+    program_weight: int      # Time it takes to program a page (Not including data transfer time)
+    size: int                # Size of page
 
-    def __repr__(self):
-        return "<SectorInfo@0x%x base=0x%x size=0x%x erswt=%g>" \
-            % (id(self), self.base_addr, self.size, self.erase_weight)
+@dataclass
+class FlashInfo:
+    """@brief Info about the entire flash region."""
+    rom_start: int           # Starting address of ROM
+    erase_weight: int        # Time it takes to perform an erase all
+    crc_supported: int       # Is the function compute_crcs supported?
 
-class PageInfo(object):
-    """! @brief Info about a program page."""
-
-    def __init__(self):
-        self.base_addr = None           # Start address of this page
-        self.program_weight = None      # Time it takes to program a page (Not including data transfer time)
-        self.size = None                # Size of page
-
-    def __repr__(self):
-        return "<PageInfo@0x%x base=0x%x size=0x%x prgwt=%g>" \
-            % (id(self), self.base_addr, self.size, self.program_weight)
-
-class FlashInfo(object):
-    """! @brief Info about the entire flash region."""
-
-    def __init__(self):
-        self.rom_start = None           # Starting address of ROM
-        self.erase_weight = None        # Time it takes to perform an erase all
-        self.crc_supported = None       # Is the function compute_crcs supported?
-
-    def __repr__(self):
-        return "<FlashInfo@0x%x start=0x%x erswt=%g crc=%s>" \
-            % (id(self), self.rom_start, self.erase_weight, self.crc_supported)
-
-class Flash(object):
-    """!
+class Flash:
+    """
     @brief Low-level control of flash programming algorithms.
     
     Instances of this class are bound to a flash memory region
@@ -121,13 +108,19 @@ class Flash(object):
     All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
     class Operation(Enum):
-        """! @brief Operations passed to init(). """
+        """@brief Operations passed to init()."""
         ## Erase all or sector erase.
         ERASE = 1
         ## Program page or phrase.
         PROGRAM = 2
         ## Currently unused, but defined as part of the flash algorithm specification.
         VERIFY = 3
+
+    ## Error value returned from wait_for_completion() on operation timeout.
+    # 
+    # The flash algo itself can never return a negative error code because the core register r0 is read
+    # as unsigned.
+    TIMEOUT_ERROR = -1
 
     def __init__(self, target, flash_algo):
         self.target = target
@@ -175,6 +168,7 @@ class Flash(object):
 
     @property
     def minimum_program_length(self):
+        assert self.region is not None
         return self.min_program_length or self.region.phrase_size
 
     @property
@@ -248,12 +242,15 @@ class Flash(object):
         if self._is_api_valid('pc_init'):
             TRACE.debug("algo call init(addr=%d, clock=%d, op=%d)", address, clock, operation.value)
             result = self._call_function_and_wait(self.flash_algo['pc_init'],
-                                              r0=address, r1=clock, r2=operation.value, init=True)
+                                              r0=address, r1=clock, r2=operation.value, init=True,
+                timeout=self.target.session.options.get('flash.timeout.init'))
 
             # check the return code
             TRACE.debug("init result = %d", result)
-            if result != 0:
-                raise FlashFailure('init error: %i' % result, result_code=result)
+            if result == self.TIMEOUT_ERROR:
+                raise FlashFailure('flash init timed out')
+            elif result != 0:
+                raise FlashFailure('flash init failure', result_code=result)
         
         self._active_operation = operation
 
@@ -284,12 +281,15 @@ class Flash(object):
 
             # update core register to execute the uninit subroutine
             result = self._call_function_and_wait(self.flash_algo['pc_unInit'],
-                                                    r0=self._active_operation.value)
+                                                    r0=self._active_operation.value,
+                timeout=self.target.session.options.get('flash.timeout.init'))
             
             # check the return code
             TRACE.debug("uninit result = %d", result)
-            if result != 0:
-                raise FlashFailure('uninit error: %i' % result, result_code=result)
+            if result == self.TIMEOUT_ERROR:
+                raise FlashFailure('flash uninit timed out')
+            elif result != 0:
+                raise FlashFailure('flash uninit', result_code=result)
             
         self._active_operation = None
 
@@ -307,7 +307,7 @@ class Flash(object):
         data = []
 
         # Load analyzer code into target RAM.
-        self.target.write_memory_block32(self.flash_algo['analyzer_address'], analyzer)
+        self.target.write_memory_block32(self.flash_algo['analyzer_address'], _ANALYZER_CODE)
 
         # Convert address, size pairs into commands
         # for the crc computation algorithm to preform
@@ -325,7 +325,8 @@ class Flash(object):
 
         # update core register to execute the subroutine
         TRACE.debug("call compute crc(%x, %x)", self.begin_data, len(data))
-        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data))
+        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data),
+                timeout=self.target.session.options.get('flash.timeout.analyzer'))
 
         # Read back the CRCs for each section
         data = self.target.read_memory_block32(self.begin_data, len(data))
@@ -342,12 +343,15 @@ class Flash(object):
 
         # update core register to execute the erase_all subroutine
         TRACE.debug("call erase_all")
-        result = self._call_function_and_wait(self.flash_algo['pc_eraseAll'])
+        result = self._call_function_and_wait(self.flash_algo['pc_eraseAll'],
+                timeout=self.target.session.options.get('flash.timeout.erase_all'))
 
         # check the return code
         TRACE.debug("erase_all result = %d", result)
-        if result != 0:
-            raise FlashEraseFailure('erase_all error: %i' % result, result_code=result)
+        if result == self.TIMEOUT_ERROR:
+            raise FlashEraseFailure('flash erase all timed out')
+        elif result != 0:
+            raise FlashEraseFailure('flash erase all failure', result_code=result)
 
     def erase_sector(self, address):
         """!
@@ -359,12 +363,15 @@ class Flash(object):
 
         # update core register to execute the erase_sector subroutine
         TRACE.debug("call erase_sector(%x)", address)
-        result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address)
+        result = self._call_function_and_wait(self.flash_algo['pc_erase_sector'], address,
+                timeout=self.target.session.options.get('flash.timeout.erase_sector'))
 
         # check the return code
         TRACE.debug("erase_sector result = %d", result)
-        if result != 0:
-            raise FlashEraseFailure('erase_sector(0x%x) error: %i' % (address, result), address, result)
+        if result == self.TIMEOUT_ERROR:
+            raise FlashEraseFailure('flash erase sector timed out')
+        elif result != 0:
+            raise FlashEraseFailure('flash erase sector failure', address=address, result_code=result)
 
     def program_page(self, address, bytes):
         """!
@@ -382,17 +389,21 @@ class Flash(object):
 
         # update core register to execute the program_page subroutine
         TRACE.debug("call program_page(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data,
+                timeout=self.target.session.options.get('flash.timeout.program'))
 
         # check the return code
         TRACE.debug("program_page result = %d", result)
-        if result != 0:
-            raise FlashProgramFailure('program_page(0x%x) error: %i' % (address, result), address, result)
+        if result == self.TIMEOUT_ERROR:
+            raise FlashProgramFailure('flash program page timed out')
+        elif result != 0:
+            raise FlashProgramFailure('flash program page failure', address=address, result_code=result)
 
     def start_program_page_with_buffer(self, buffer_number, address):
         """!
         @brief Start flashing one or more pages.
         """
+        assert self.region is not None
         assert buffer_number < len(self.page_buffers), "Invalid buffer number"
         assert self._active_operation == self.Operation.PROGRAM
 
@@ -426,17 +437,14 @@ class Flash(object):
         """
         assert self._active_operation == self.Operation.PROGRAM
 
-        # Get min programming length. If one was not specified, use the page size.
-        if self.min_program_length:
-            min_len = self.min_program_length
-        else:
-            min_len = self.region.page_size
+        # Get min programming length.
+        min_len = self.minimum_program_length
 
         # Require write address and length to be aligned to min write size.
         if address % min_len:
-            raise FlashFailure("unaligned flash write address")
+            raise FlashFailure("flash program phrase failure: unaligned start address", address=address)
         if len(bytes) % min_len:
-            raise FlashFailure("phrase length is unaligned or too small")
+            raise FlashFailure("flash program phrase failure: phrase length is unaligned or too small", address=address)
 
         # prevent security settings from locking the device
         bytes = self.override_security_bits(address, bytes)
@@ -446,11 +454,14 @@ class Flash(object):
 
         # update core register to execute the program_page subroutine
         TRACE.debug("call program_phrase(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data)
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data,
+                timeout=self.target.session.options.get('flash.timeout.program'))
 
         # check the return code
-        if result != 0:
-            raise FlashProgramFailure('program_phrase(0x%x) error: %i' % (address, result), address, result)
+        if result == self.TIMEOUT_ERROR:
+            raise FlashProgramFailure('flash program phrase timed out')
+        elif result != 0:
+            raise FlashProgramFailure('flash program phrase failure', address=address, result_code=result)
 
     def get_sector_info(self, addr):
         """!
@@ -460,10 +471,11 @@ class Flash(object):
         if not self.region.contains_address(addr):
             return None
 
-        info = SectorInfo()
-        info.erase_weight = self.region.erase_sector_weight
-        info.size = self.region.sector_size
-        info.base_addr = addr - (addr % info.size)
+        info = SectorInfo(
+                erase_weight=self.region.erase_sector_weight,
+                size=self.region.sector_size,
+                base_addr=align_down(addr, self.region.sector_size),
+                )
         return info
 
     def get_page_info(self, addr):
@@ -474,10 +486,11 @@ class Flash(object):
         if not self.region.contains_address(addr):
             return None
 
-        info = PageInfo()
-        info.program_weight = self.region.program_page_weight
-        info.size = self.region.page_size
-        info.base_addr = addr - (addr % info.size)
+        info = PageInfo(
+                program_weight=self.region.program_page_weight,
+                size=self.region.page_size,
+                base_addr=align_down(addr, self.region.page_size)
+                )
         return info
 
     def get_flash_info(self):
@@ -488,10 +501,11 @@ class Flash(object):
         """
         assert self.region is not None
 
-        info = FlashInfo()
-        info.rom_start = self.region.start
-        info.erase_weight = self.region.erase_all_weight
-        info.crc_supported = self.use_analyzer
+        info = FlashInfo(
+                rom_start=self.region.start,
+                erase_weight=self.region.erase_all_weight,
+                crc_supported=self.use_analyzer,
+                )
         return info
 
     def get_flash_builder(self):
@@ -500,6 +514,8 @@ class Flash(object):
     def flash_block(self, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
         """!
         @brief Flash a block of data.
+
+        @note Deprecated. Will be removed in v1.0.
         """
         assert self.region is not None
         assert self.region.contains_range(start=addr, length=len(data))
@@ -514,9 +530,7 @@ class Flash(object):
         data_list = []
 
         if self.flash_algo_debug:
-            # Save vector catch state for use in wait_for_completion()
-            self._saved_vector_catch = self.target.get_vector_catch()
-            self.target.set_vector_catch(Target.VectorCatch.ALL)
+            self._flash_algo_debug_setup()
 
         reg_list.append('pc')
         data_list.append(pc)
@@ -545,63 +559,77 @@ class Flash(object):
         # resume target
         self.target.resume()
 
-    def wait_for_completion(self):
+    def _flash_algo_debug_setup(self):
+        # Save vector catch state for use in wait_for_completion()
+        self._saved_vector_catch = self.target.get_vector_catch()
+        self.target.set_vector_catch(Target.VectorCatch.ALL)
+
+    def _flash_algo_debug_check(self):
+        regs = self.target.read_core_registers_raw(list(range(19)) + [20])
+        LOG.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
+
+        expected_fp = self.flash_algo['static_base']
+        expected_sp = self.flash_algo['begin_stack']
+        expected_pc = self.flash_algo['load_address']
+        final_ipsr = self.target.read_core_register('ipsr')
+        final_fp = self.target.read_core_register('r9')
+        final_sp = self.target.read_core_register('sp')
+        final_pc = self.target.read_core_register('pc')
+        #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+        #expected_flash_algo = self.flash_algo['instructions']
+        #if self.use_analyzer:
+        #    expected_analyzer = analyzer
+        #final_flash_algo = self.target.read_memory_block32(self.flash_algo['load_address'], len(self.flash_algo['instructions']))
+        #if self.use_analyzer:
+        #    final_analyzer = self.target.read_memory_block32(self.flash_algo['analyzer_address'], len(analyzer))
+
+        error = False
+        if final_ipsr != 0:
+            LOG.error("IPSR should be 0 but is 0x%x", final_ipsr)
+            error = True
+        if final_fp != expected_fp:
+            # Frame pointer should not change
+            LOG.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
+            error = True
+        if final_sp != expected_sp:
+            # Stack pointer should return to original value after function call
+            LOG.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
+            error = True
+        if final_pc != expected_pc:
+            # PC should be pointing to breakpoint address
+            LOG.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
+            error = True
+        #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
+        #if not _same(expected_flash_algo, final_flash_algo):
+        #    LOG.error("Flash algorithm overwritten!")
+        #    error = True
+        #if self.use_analyzer and not _same(expected_analyzer, final_analyzer):
+        #    LOG.error("Analyzer overwritten!")
+        #    error = True
+        assert error == False
+        self.target.set_vector_catch(self._saved_vector_catch)
+
+    def wait_for_completion(self, timeout=None):
         """!
         @brief Wait until the breakpoint is hit.
         """
-        while self.target.get_state() == Target.State.RUNNING:
-            pass
+        with Timeout(timeout) as time_out:
+            while time_out.check():
+                if self.target.get_state() != Target.State.RUNNING:
+                    break
+            else:
+                # Operation timed out. 
+                self.target.halt()
+                return self.TIMEOUT_ERROR
 
         if self.flash_algo_debug:
-            regs = self.target.read_core_registers_raw(list(range(19)) + [20])
-            LOG.debug("Registers after flash algo: [%s]", " ".join("%08x" % r for r in regs))
-
-            expected_fp = self.flash_algo['static_base']
-            expected_sp = self.flash_algo['begin_stack']
-            expected_pc = self.flash_algo['load_address']
-            final_ipsr = self.target.read_core_register('ipsr')
-            final_fp = self.target.read_core_register('r9')
-            final_sp = self.target.read_core_register('sp')
-            final_pc = self.target.read_core_register('pc')
-            #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
-            #expected_flash_algo = self.flash_algo['instructions']
-            #if self.use_analyzer:
-            #    expected_analyzer = analyzer
-            #final_flash_algo = self.target.read_memory_block32(self.flash_algo['load_address'], len(self.flash_algo['instructions']))
-            #if self.use_analyzer:
-            #    final_analyzer = self.target.read_memory_block32(self.flash_algo['analyzer_address'], len(analyzer))
-
-            error = False
-            if final_ipsr != 0:
-                LOG.error("IPSR should be 0 but is 0x%x", final_ipsr)
-                error = True
-            if final_fp != expected_fp:
-                # Frame pointer should not change
-                LOG.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
-                error = True
-            if final_sp != expected_sp:
-                # Stack pointer should return to original value after function call
-                LOG.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
-                error = True
-            if final_pc != expected_pc:
-                # PC should be pointing to breakpoint address
-                LOG.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
-                error = True
-            #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
-            #if not _same(expected_flash_algo, final_flash_algo):
-            #    LOG.error("Flash algorithm overwritten!")
-            #    error = True
-            #if self.use_analyzer and not _same(expected_analyzer, final_analyzer):
-            #    LOG.error("Analyzer overwritten!")
-            #    error = True
-            assert error == False
-            self.target.set_vector_catch(self._saved_vector_catch)
+            self._flash_algo_debug_check()
 
         return self.target.read_core_register('r0')
 
-    def _call_function_and_wait(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):
+    def _call_function_and_wait(self, pc, r0=None, r1=None, r2=None, r3=None, init=False, timeout=None):
         self._call_function(pc, r0, r1, r2, r3, init)
-        return self.wait_for_completion()
+        return self.wait_for_completion(timeout=timeout)
 
     def set_flash_algo_debug(self, enable):
         """!

@@ -97,7 +97,7 @@ def byte_list_to_u16le_list(byteData):
 
 def u32_to_float32(data):
     """! @brief Convert a 32-bit int to an IEEE754 float"""
-    d = struct.pack(">I", data)
+    d = struct.pack(">I", data & 0xffff_ffff)
     return struct.unpack(">f", d)[0]
 
 def float32_to_u32(data):
@@ -107,7 +107,7 @@ def float32_to_u32(data):
 
 def u64_to_float64(data):
     """! @brief Convert a 64-bit int to an IEEE754 float"""
-    d = struct.pack(">Q", data)
+    d = struct.pack(">Q", data & 0xffff_ffff_ffff_ffff)
     return struct.unpack(">d", d)[0]
 
 def float64_to_u64(data):
