@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2021 Arm Limited
+# Copyright (c) 2017-2021 Maxim Integrated (Part of Analog Devices)
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -87,5 +87,5 @@ class MAX32660(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(max32660, self).__init__(session, self.MEMORY_MAP)
+        super().__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("max32660.svd")
