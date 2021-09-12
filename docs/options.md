@@ -532,22 +532,33 @@ These session options are available when the SEGGER J-Link debug probe plugin is
 
 <tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
 
+<tr><td>jlink.device</td>
+<td>str</td>
+<td><i>No default</i></td>
+<td>
+If this option is set to a supported J-Link device name, then the J-Link will be asked connect
+using this name. Otherwise, when unset, the J-Link is configured for only the low-level CoreSight operations
+required by pyOCD. Ordinarily, it does not need to be set.
+</td></tr>
+
+<tr><td>jlink.non_interactive</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Controls whether the J-Link DLL is allowed to present UI dialog boxes and its control
+panel. Note that dialog boxes will actually still be visible, but the default option
+will be chosen automatically after 5 seconds.
+
+Note: This has the effect of also silencing dialog boxes that appear when
+updating firmware / to confirm updating firmware.
+</td></tr>
+
 <tr><td>jlink.power</td>
 <td>bool</td>
 <td>True</td>
 <td>
 Enable target power when connecting via a JLink probe, and disable power when disconnecting.
 Default is True.
-</td></tr>
-
-<tr><td>jlink.device</td>
-<td>str</td>
-<td><i>No default</i></td>
-<td>
-Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD does has its own
-device support, and so when this option is unset, "Cortex-M4" is used just to supply something
-valid. (For non-M4-based devices, you might see a warning about unexpected core type if you look at
-the J-Link logs, but this is harmless. J-Link does not support a "none" or "unknown" device type.)
 </td></tr>
 
 </table>
