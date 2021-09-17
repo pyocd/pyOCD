@@ -52,6 +52,7 @@ from . import target_MK82FN256xxx15
 from . import target_MK20DX128xxx5
 from . import target_K32W042S1M2xxx
 from . import target_K32L2B
+from . import target_KW45B41Z
 from . import target_lpc800
 from . import target_LPC845
 from . import target_LPC11U24FBD64_401
@@ -149,6 +150,7 @@ BUILTIN_TARGETS = {
           'kw24d5': target_MKW24D512xxx5.KW24D5,
           'kw36z4': target_MKW36Z512xxx4.KW36Z4,
           'kw40z4': target_MKW40Z160xxx4.KW40Z4,
+          'kw45b41z': target_KW45B41Z.KW45B41Z,
           'kw41z4': target_MKW41Z512xxx4.KW41Z4,
           'k20d50m': target_MK20DX128xxx5.K20D50M,
           'k22fa12': target_MK22FN1M0Axxx12.K22FA12,
