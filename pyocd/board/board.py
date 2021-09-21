@@ -111,8 +111,8 @@ class Board(GraphNode):
                 resume = self.session.options.get('resume_on_disconnect')
                 self.target.disconnect(resume)
                 self._inited = False
-            except exceptions.Error:
-                LOG.error("link exception during target disconnect:", exc_info=self._session.log_tracebacks)
+            except exceptions.Error as err:
+                LOG.error("link exception during target disconnect: %s", err, exc_info=self._session.log_tracebacks)
 
     @property
     def session(self):
