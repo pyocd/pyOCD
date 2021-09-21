@@ -115,6 +115,12 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
                 except ValueError:
                     LOG.warning("invalid value for option '%s'", name)
                     continue
+            elif info.type is float:
+                try:
+                    value = float(value)
+                except ValueError:
+                    LOG.warning("invalid value for option '%s'", name)
+                    continue
             
             options[name] = value
     return options
