@@ -160,6 +160,11 @@ class JLinkProbe(DebugProbe):
     
     def open(self):
         try:
+            # Configure UI usage. We must do this here rather than in the ctor because the ctor
+            # doesn't have access to the session.
+            if self.session.options.get('jlink.non_interactive'):
+                self._link.disable_dialog_boxes()
+            
             self._link.open(self._serial_number_int)
             self._is_open = True
         
@@ -212,8 +217,12 @@ class JLinkProbe(DebugProbe):
             self._link.set_tif(iface)
             if self.session.options.get('jlink.power'):
                 self._link.power_on()
-            device_name = self.session.options.get('jlink.device') or "Cortex-M4"
-            self._link.connect(device_name)
+            
+            # Connect if a device name was supplied.
+            device_name = self.session.options.get('jlink.device')
+            if device_name is not None:
+                self._link.connect(device_name)
+
             self._link.coresight_configure()
             self._protocol = protocol
         except JLinkException as exc:
@@ -383,9 +392,14 @@ class JLinkProbePlugin(Plugin):
         """! @brief Returns J-Link probe options."""
         return [
             OptionInfo('jlink.device', str, None,
-                "Set the device name passed to the J-Link. Normally, it doesn't matter because pyOCD "
-                "has its own device support, and \"Cortex-M4\" is used."),
+                "If this option is set to a supported J-Link device name, then the J-Link will be asked connect "
+                "using this name. Otherwise, the J-Link is configured for only the low-level CoreSight operations "
+                "required by pyOCD. Ordinarily, it does not need to be set."),
             OptionInfo('jlink.power', bool, True,
                 "Enable target power when connecting via a JLink probe, and disable power when "
                 "disconnecting. Default is True."),
+            OptionInfo('jlink.non_interactive', bool, True,
+                "Controls whether the J-Link DLL is allowed to present UI dialog boxes and its control "
+                "panel. Note that dialog boxes will actually still be visible, but the default option "
+                "will be chosen automatically after 5 seconds. Default is True."),
             ]
