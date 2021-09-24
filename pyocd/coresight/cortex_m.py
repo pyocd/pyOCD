@@ -738,9 +738,9 @@ class CortexM(Target, CoreSightCoreComponent):
             else:
                 # If dhcsr is None then we know that we never were able to read the register.
                 if dhcsr is None:
-                    LOG.warning("Core #%d is not accessible after reset")
+                    LOG.warning("Core #%d is not accessible after reset", self.core_number)
                 else:
-                    LOG.debug("Core #%d did not come out of reset within timeout")
+                    LOG.debug("Core #%d did not come out of reset within timeout", self.core_number)
 
     def reset(self, reset_type=None):
         """! @brief Reset the core.
