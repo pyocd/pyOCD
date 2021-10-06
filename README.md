@@ -1,10 +1,15 @@
 pyOCD
 =====
 
+[\[pyocd.io\]](https://pyocd.io/) [\[Docs\]](https://pyocd.io/docs) [\[Slack\]](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) [\[Mailing list\]](https://groups.google.com/g/pyocd)
+
 <table><tr><td>
 
 ### News
 
+- pyOCD has several new community resources: the [pyocd.io](https://pyocd.io/) website,
+    a [Slack workspace](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg),
+    and a [mailing list](https://groups.google.com/g/pyocd) for announcements.
 - Branch configuration changes: the default branch `master` has been renamed to `main`, and a `develop` branch has been added to be used for active development. New pull requests should generally target `develop`. See [this discussion](https://github.com/pyocd/pyOCD/discussions/1169) for more information about this change.
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
@@ -19,8 +24,8 @@ A command line tool is provided that covers most use cases, or you can make use 
 API to enable low-level target control. A common use for the Python API is to run and control CI
 tests.
 
-Upwards of 70 popular MCUs are supported built-in. In addition, through the use of CMSIS-Packs,
-[nearly every Cortex-M device](https://www.keil.com/dd2/pack/) on the market is supported.
+Support for more than 70 popular MCUs is built-in. In addition, through the use of CMSIS Device
+Family Packs, [nearly every Cortex-M device](https://www.keil.com/dd2/pack/) on the market is supported.
 
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
@@ -79,16 +84,15 @@ Requirements
 Status
 ------
 
-PyOCD is functionally reliable and fully useable.
+PyOCD is beta quality.
 
-The Python API is considered partially unstable as we are restructuring and cleaning it up prior to
-releasing version 1.0.
+The Python API is considered stable for version 0.x, but will be changed in version 1.0.
 
 
 Documentation
 -------------
 
-The pyOCD documentation is located in [the docs directory](docs/).
+The pyOCD documentation is available on the [pyocd.io website](https://pyocd.io/docs).
 
 In addition to user guides, you can generate reference documentation using Doxygen with the
 supplied [config file](docs/Doxyfile).
@@ -96,6 +100,11 @@ supplied [config file](docs/Doxyfile).
 
 Installing
 ----------
+
+**The full installation guide is available [in the documentation](https://pyocd.io/docs/installing).**
+
+For notes about installing and using on non-x86 systems such as Raspberry Pi, see the
+[relevant documentation](https://pyocd.io/docs/installing-on-non-x86).
 
 The latest stable version of pyOCD may be installed via [pip](https://pip.pypa.io/en/stable/index.html)
 as follows:
@@ -132,9 +141,6 @@ You have a few options here:
 4. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
    local to a specific project working set.
 
-For notes about installing and using on non-x86 systems such as Raspberry Pi, see the
-[relevant documentation](docs/installing_on_non_x86.md).
-
 ### libusb installation
 
 [pyusb](https://github.com/pyusb/pyusb) and its backend library [libusb](https://libusb.info/) are
@@ -164,72 +170,45 @@ instructions.
 
 ### Target support
 
-See the [target support documentation](docs/target_support.md) for information on how to check if
+See the [target support documentation](https://pyocd.io/docs/target-support) for information on how to check if
 the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
 CMSIS-Packs.
 
 
-Standalone GDB server
----------------------
+Using GDB
+---------
 
-After you install pyOCD via pip or setup.py, you will be able to execute the following in order to
-start a GDB server powered by pyOCD:
-
-```
-$ pyocd gdbserver
-```
-
-You can get additional help by running ``pyocd gdbserver --help``.
-
-Example command line GDB session showing how to connect to a running `pyocd gdbserver` and load
-firmware:
-
-```
-$ arm-none-eabi-gdb application.elf
-
-<gdb> target remote localhost:3333
-<gdb> load
-<gdb> monitor reset
-```
-
-The `pyocd gdbserver` subcommand is also usable as a drop in place replacement for OpenOCD in
-existing setups. The primary difference is the set of gdb monitor commands.
+See the [GDB setup](https://pyocd.io/docs/gdb-setup) documentation for a guide for setting up
+and using pyocd with gdb and IDEs.
 
 
-Recommended GDB and IDE setup
------------------------------
+Community resources
+-------------------
 
-The recommended toolchain for embedded Arm Cortex-M development is [GNU Arm
-Embedded](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm),
-provided by Arm. GDB is included with this toolchain.
+Join the pyOCD community!
 
-For [Visual Studio Code](https://code.visualstudio.com), the
-[cortex-debug](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug) plugin is available
-that supports pyOCD.
+[pyocd.io website](https://pyocd.io) \
+[Documentation](https://pyocd.io/docs) \
+[Issues](https://github.com/pyocd/pyOCD/issues) \
+[Discussions](https://github.com/pyocd/pyOCD/discussions) \
+[Wiki](https://github.com/pyocd/pyOCD/wiki) \
+[Mailing list](https://groups.google.com/g/pyocd) for announcements
 
-The GDB server also works well with [Eclipse Embedded CDT](https://projects.eclipse.org/projects/iot.embed-cdt),
-previously known as [GNU MCU/ARM Eclipse](https://gnu-mcu-eclipse.github.io/). It fully supports pyOCD with
-an included pyOCD debugging plugin.
-
-To view peripheral register values either the built-in Eclipse Embedded CDT register view can be used, or
-the Embedded System Register Viewer plugin can be installed. The latter can be installed from inside
-Eclipse adding `http://embsysregview.sourceforge.net/update` as a software update server URL
-under the "Help -> Install New Software..." menu item.
+In order to foster a healthy and safe environment, we expect contributors and all members of the community to
+follow our [Code of Conduct](https://github.com/pyocd/pyOCD/tree/main/CODE_OF_CONDUCT.md).
 
 
 Contributions
 -------------
 
-Join the pyOCD community! We welcome contributions in any area. Please see the [contribution
-guidelines](CONTRIBUTING.md) for detailed requirements. In order to foster a healthy
-and safe environment, we expect contributors and all members of the community to follow the
-[code of conduct](CODE_OF_CONDUCT.md).
+We welcome contributions in any area, even if you just create an issue. If you would like to get involved but
+aren't sure what to start with, just ask on
+[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) or [GitHub
+discussions](https://github.com/pyocd/pyOCD/discussions) and we'll be happy to help you. Or you can look for
+an open issue. Any work on major changes should be discussed with the maintainers to make everyone is aligned.
 
-To report bugs, please [create an issue](https://github.com/pyocd/pyOCD/issues/new) in the
-GitHub project.
-
-Please see the [Developers' Guide](docs/developers_guide.md) for instructions on how to set up a
-development environment for pyOCD.
+Please see the [contribution guidelines](https://github.com/pyocd/pyOCD/tree/main/CONTRIBUTING.md) for detailed requirements. The [developers'
+Guide](https://pyocd.io/docs/developers-guide) has instructions on how to set up a development environment for pyOCD.
 
 New pull requests should be [created](https://github.com/pyocd/pyOCD/pull/new/develop) against the `develop` branch.
 
@@ -237,7 +216,8 @@ New pull requests should be [created](https://github.com/pyocd/pyOCD/pull/new/de
 License
 -------
 
-PyOCD is licensed with the permissive Apache 2.0 license. See the [LICENSE](LICENSE) file for the
-full text of the license.
+PyOCD is licensed with the permissive Apache 2.0 license. See the
+[LICENSE](https://github.com/pyocd/pyOCD/tree/main/LICENSE) file for the full text of the license. All
+documentation and the website are licensed with [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 Copyright © 2006-2021 PyOCD Authors
