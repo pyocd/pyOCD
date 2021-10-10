@@ -1,5 +1,5 @@
 ---
-title: Developers' Guide
+title: Developers' guide
 ---
 
 ## Setup

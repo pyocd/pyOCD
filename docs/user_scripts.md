@@ -1,5 +1,5 @@
 ---
-title: User Scripts
+title: User scripts
 ---
 
 ## Introduction
@@ -146,7 +146,7 @@ This section documents all functions that user scripts can provide to modify pyO
     Hook to enable debug for the given core.
 
     *core* - A `CortexM` object about to be initialized.<br/>
-    **Result** - *True* Do not perform the normal procedure to start core debug.
+    **Result** - *True* Do not perform the normal procedure to start core debug. \
         *False/None* Continue with normal behaviour.
 
 - `did_start_debug_core(core)`<br/>
@@ -159,7 +159,7 @@ This section documents all functions that user scripts can provide to modify pyO
     Pre-cleanup hook for the core.
 
     *core* - A `CortexM` object.<br/>
-    **Result** - *True* Do not perform the normal procedure to disable core debug.
+    **Result** - *True* Do not perform the normal procedure to disable core debug. \
         *False/None* Continue with normal behaviour.
 
 - `did_stop_debug_core(core)`<br/>
@@ -187,7 +187,8 @@ This section documents all functions that user scripts can provide to modify pyO
 
     *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
-    **Result** - *True* The hook performed the reset. *False/None* Caller should perform the normal
+    **Result** - *True* The hook performed the reset.  \
+    *False/None* Caller should perform the normal
         reset procedure.
 
 - `did_reset(core, reset_type)`<br/>
@@ -202,7 +203,7 @@ This section documents all functions that user scripts can provide to modify pyO
 
     *core* - A CortexM instance.<br/>
     *reset_type* - One of the `Target.ResetType` enumerations.<br/>
-    **Result** - *True* This hook handled setting up reset catch, caller should do nothing.
+    **Result** - *True* This hook handled setting up reset catch, caller should do nothing. \
                 *False/None* Perform the default reset catch set using vector catch.
 
 - `clear_reset_catch(core, reset_type)`<br/>
@@ -216,7 +217,7 @@ This section documents all functions that user scripts can provide to modify pyO
     Hook to override mass erase.
 
     *target* - A `CoreSightTarget` object.<br/>
-    **Result** - *True* Indicate that mass erase was performed by the hook.
+    **Result** - *True* Indicate that mass erase was performed by the hook. \
                 *False/None* Mass erase was not overridden and the caller should proceed with the
                     standard mass erase procedure.
 
