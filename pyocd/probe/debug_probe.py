@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from ..core.session import Session
     from ..core.memory_interface import MemoryInterface
     from ..board.board import Board
+    from ..board.board_ids import BoardInfo
     from ..coresight.ap import APAddressBase
 
 class DebugProbe:
@@ -222,6 +223,11 @@ class DebugProbe:
         """
         raise NotImplementedError()
 
+    @property
+    def associated_board_info(self) -> Optional["BoardInfo"]:
+        """@brief Info about the board associated with this probe, if known."""
+        return None
+
     def create_associated_board(self) -> Optional["Board"]:
         """@brief Create a board instance representing the board of which the probe is a component.
 
@@ -231,7 +237,6 @@ class DebugProbe:
         does not have an associated board, then this method returns None.
 
         @param self
-        @param session Session to pass to the board upon construction.
         """
         return None
 
