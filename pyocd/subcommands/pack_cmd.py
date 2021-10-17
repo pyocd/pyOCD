@@ -135,11 +135,10 @@ class PackShowSubcommand(PackSubcommandBase):
         cache = self._get_cache()
         
         packs = pack_target.ManagedPacks.get_installed_packs(cache)
-        pt = self._get_pretty_table(["Vendor", "Pack", "Version"])
+        pt = self._get_pretty_table(["Pack", "Version"])
         for ref in packs:
             pt.add_row([
-                        ref.vendor,
-                        ref.pack,
+                        f"{ref.vendor}.{ref.pack}",
                         ref.version,
                         ])
         print(pt)
@@ -198,8 +197,8 @@ class PackFindSubcommand(PackSubcommandBase):
                 ref, = cache.packs_for_devices([info])
                 pt.add_row([
                             info['name'],
-                            ref.vendor,
-                            ref.pack,
+                            info['vendor'].split(':')[0],
+                            f"{ref.vendor}.{ref.pack}",
                             ref.version,
                             info['name'].lower() in installed_target_names,
                             ])
@@ -348,8 +347,8 @@ class PackSubcommand(PackSubcommandBase):
                     ref, = cache.packs_for_devices([info])
                     pt.add_row([
                                 info['name'],
-                                ref.vendor,
-                                ref.pack,
+                                info['vendor'].split(':')[0],
+                                f"{ref.vendor}.{ref.pack}",
                                 ref.version,
                                 info['name'].lower() in installed_target_names,
                                 ])
