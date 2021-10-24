@@ -585,6 +585,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._swo_status = None
         self._cmsis_dap_version: VersionTuple = CMSISDAPVersion.V1_0_0
         self._fw_version: Optional[str] = None
+        self._has_opened_once = False
+        self._is_open: bool = False
 
     @property
     def protocol_version(self) -> VersionTuple:
@@ -684,12 +686,29 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                         *self._cmsis_dap_version)
                 self._cmsis_dap_version = fallback_protocol_version
 
+    @property
+    def is_open(self) -> bool:
+        """@brief Whether the probe's USB interface is open."""
+        return self._is_open
+
     @locked
     def open(self):
         if self._interface is None:
             raise DAPAccessIntf.DeviceError("Unable to open device with no interface")
+        if self._is_open:
+            return
 
         self._interface.open()
+
+        # If this probe has already been opened and examined previously, we don't need to examine it again.
+        if self._has_opened_once:
+            self._init_deferred_buffers()
+            if self._has_swo_uart:
+                self._swo_disable()
+                self._swo_status = SWOStatus.DISABLED
+            self._is_open = True
+            return
+
         self._protocol = CMSISDAPProtocol(self._interface)
 
         if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
@@ -731,11 +750,17 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         self._init_deferred_buffers()
 
+        self._has_opened_once = True
+        self._is_open = True
+
     @locked
     def close(self):
         assert self._interface is not None
+        if not self._is_open:
+            return
         self.flush()
         self._interface.close()
+        self._is_open = False
 
     def get_unique_id(self):
         return self._unique_id

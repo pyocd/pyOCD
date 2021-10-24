@@ -131,6 +131,11 @@ class DAPAccessIntf(object):
         """
         raise NotImplementedError()
 
+    @property
+    def is_open(self) -> bool:
+        """@brief Whether the probe's USB interface is open."""
+        raise NotImplementedError()
+
     # ------------------------------------------- #
     #          Host control functions
     # ------------------------------------------- #
