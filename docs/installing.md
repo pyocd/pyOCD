@@ -2,6 +2,9 @@
 title: Installing
 ---
 
+PyOCD requires [Python](https://python.org/) 3.6 or later, and a recent version of [libusb](https://libusb.info/). It runs on macOS,
+Linux, FreeBSD, and Windows platforms.
+
 The latest stable version of pyOCD may be installed via [pip](https://pip.pypa.io/en/stable/index.html)
 as follows:
 
