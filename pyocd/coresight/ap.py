@@ -389,6 +389,10 @@ class AccessPort:
         self.address = ap_address
         self._ap_version = ap_address.ap_version
         self.idr = idr
+        self.variant = 0
+        self.revision = 0
+        self.ap_class = 0
+        self.ap_type = 0
         self.type_name = name or "AP"
         self.rom_addr = 0
         self.has_rom_table = False
@@ -398,7 +402,22 @@ class AccessPort:
         self._cmpid = cmpid
 
     @property
+    def description(self):
+        """ @brief The AP's type and version description.
+
+        If the AP is an unknown proprietary type, then only the string "proprietary" is returned.
+
+        This property should only be read after init() has be called.
+        """
+        if self.type_name is not None:
+            return f"{self.type_name} var{self.variant} rev{self.revision}"
+        else:
+            return "proprietary"
+
+
+    @property
     def short_description(self) -> str:
+        """ @brief The AP's name and address."""
         return self.type_name + str(self.address)
 
     @property
@@ -421,12 +440,6 @@ class AccessPort:
         # Get the type name for this AP.
         self.ap_class = (self.idr & AP_IDR_CLASS_MASK) >> AP_IDR_CLASS_SHIFT
         self.ap_type = self.idr & AP_IDR_TYPE_MASK
-        if self.type_name is not None:
-            desc = "{} var{} rev{}".format(self.type_name, self.variant, self.revision)
-        else:
-            desc = "proprietary"
-
-        LOG.info("%s IDR = 0x%08x (%s)", self.short_description, self.idr, desc)
 
     def find_components(self) -> None:
         """@brief Find CoreSight components attached to this AP."""
