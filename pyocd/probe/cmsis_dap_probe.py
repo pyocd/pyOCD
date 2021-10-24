@@ -25,6 +25,7 @@ from pyocd.probe.pydapaccess.dap_access_api import DAPAccessIntf
 from .debug_probe import DebugProbe
 from ..core import exceptions
 from ..core.plugin import Plugin
+from ..core.options import OptionInfo
 from .pydapaccess import DAPAccess
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
@@ -550,3 +551,13 @@ class CMSISDAPProbePlugin(Plugin):
     @property
     def description(self):
         return "CMSIS-DAP debug probe"
+
+    @property
+    def options(self):
+        """@brief Returns CMSIS-DAP probe options."""
+        return [
+            OptionInfo('cmsis_dap.deferred_transfers', bool, True,
+                "Whether the CMSIS-DAP probe backend will use deferred transfers for improved performance."),
+            OptionInfo('cmsis_dap.limit_packets', bool, False,
+                "Restrict CMSIS-DAP backend to using a single in-flight command at a time."),
+            ]
