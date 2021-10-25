@@ -330,14 +330,14 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """
         self.call_delegate('will_start_debug_core', core=self)
 
+        # Enable debug
+        if not self.call_delegate('start_debug_core', core=self):
+            self.write32(self.DHCSR, self.DBGKEY | self.C_DEBUGEN)
+
         # Examine this CPU.
         self._read_core_type()
         self._check_for_fpu()
         self._build_registers()
-
-        # Enable debug
-        if not self.call_delegate('start_debug_core', core=self):
-            self.write32(self.DHCSR, self.DBGKEY | self.C_DEBUGEN)
 
         self.sw_bp.init()
 
