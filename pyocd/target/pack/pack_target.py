@@ -112,7 +112,11 @@ else:
     ManagedPacks = ManagedPacksStub
 
 class _PackTargetMethods:
-    """@brief Container for methods added to the dynamically generated pack target subclass."""
+    """@brief Container for methods added to the dynamically generated pack target subclass.
+
+    We can't just make a subclass of CoreSightTarget out of these methods, because the superclass
+    is variable based on the possible family class.
+    """
 
     @staticmethod
     def _pack_target__init__(self, session: Session) -> None: # type:ignore
@@ -158,6 +162,7 @@ class PackTargets:
                 # Require the regex to match the entire family name.
                 match = familyInfo.matches.match(compare_name)
                 if match and match.span() == (0, len(compare_name)):
+                    LOG.debug("using family class %s", familyInfo.klass.__name__)
                     return familyInfo.klass
 
         # Didn't match, so return default target superclass.
