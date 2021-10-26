@@ -40,6 +40,7 @@ from .subcommands.load_cmd import LoadSubcommand
 from .subcommands.pack_cmd import PackSubcommand
 from .subcommands.reset_cmd import ResetSubcommand
 from .subcommands.server_cmd import ServerSubcommand
+from .subcommands.rtt_cmd import RTTSubcommand
 
 ## @brief Default log format for all subcommands.
 LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
@@ -64,6 +65,7 @@ class PyOCDTool(SubcommandBase):
         PackSubcommand,
         ResetSubcommand,
         ServerSubcommand,
+        RTTSubcommand,
         ]
     
     ## @brief Logging level names.
