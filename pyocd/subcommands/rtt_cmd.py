@@ -19,6 +19,7 @@ from typing import List
 import logging
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.memory_map import MemoryMap, MemoryRegion, MemoryType
+from pyocd.core.soc_target import SoCTarget
 from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
 from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
@@ -69,11 +70,11 @@ class RTTSubcommand(SubcommandBase):
 
     NAMES = ["rtt"]
     HELP = "SEGGER RTT Viewer."
-    DEFAULT_LOG_LEVEL = logging.WARNING
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
         """! @brief Add this subcommand to the subparsers object."""
+
         rtt_parser = argparse.ArgumentParser(cls.HELP, add_help=False)
 
         rtt_options = rtt_parser.add_argument_group("rtt options")
@@ -85,6 +86,8 @@ class RTTSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, rtt_parser]
 
     def invoke(self) -> int:
+
+        session = None
 
         try:
             session = ConnectHelper.session_with_chosen_probe(
@@ -106,7 +109,7 @@ class RTTSubcommand(SubcommandBase):
 
             with session:
 
-                target = session.board.target
+                target: SoCTarget = session.board.target
 
                 memory_map: MemoryMap = target.get_memory_map()
                 ram_region: MemoryRegion = memory_map.get_default_region_of_type(MemoryType.RAM)
@@ -161,7 +164,8 @@ class RTTSubcommand(SubcommandBase):
                         target.write_memory(up_addr + SEGGER_RTT_BUFFER_UP.RdOff.offset, up.WrOff)
                         print(bytes(data).decode(), end="")
 
-        except (KeyboardInterrupt, Exception):
-            session.close()
+        finally:
+            if session:
+                session.close()
 
         return 0
