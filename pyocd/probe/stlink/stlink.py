@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +15,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
-from ...core import exceptions
-from ...coresight import dap
-from ...utility import conversion
-from ...utility.mask import bfx
 import logging
 import struct
 import six
 import threading
 from enum import Enum
+from typing import Optional
+import usb.core
+
+from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
+from ...core import exceptions
+from ...coresight import dap
+from ...utility import conversion
+from ...utility.mask import bfx
 
 LOG = logging.getLogger(__name__)
 
@@ -56,6 +60,11 @@ class STLink(object):
     #
     # Keys are the hardware version, value is the minimum JTAG version.
     MIN_JTAG_VERSION_DPBANKSEL = {2: 32, 3: 2}
+
+    ## Firmware version that supports JTAG_GET_BOARD_IDENTIFIERS.
+    #
+    # Keys are the hardware version, value is the minimum JTAG version.
+    MIN_JTAG_VERSION_GET_BOARD_IDS = {2: 36, 3: 6}
     
     ## Port number to use to indicate DP registers.
     DP_PORT = 0xffff
@@ -110,6 +119,38 @@ class STLink(object):
             self.enter_idle()
             self._device.close()
 
+    def get_board_id(self) -> Optional[str]:
+        """@brief Return the Mbed board ID by command.
+
+        If the device is not already open, it will be temporarily opened in order to read the board ID.
+
+        @retval Board ID as a 4-character string.
+        @retval None is returned if the board ID cannot be read.
+        """
+        with self._lock:
+            did_open = False
+            try:
+                if not self._device.is_open:
+                    self.open()
+                    did_open = True
+                if self._jtag_version < self.MIN_JTAG_VERSION_GET_BOARD_IDS[self._hw_version]:
+                    return None
+                response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GET_BOARD_IDENTIFIERS],
+                        readSize=36)
+                self._check_status(response[:2])
+
+                # Extract and return the board ID. If the ID field consists of all 0 bytes then we didn't
+                # get a valid ID, so return None instead.
+                board_id = response[2:6]
+                if board_id == b'\x00\x00\x00\x00':
+                    return None
+                return board_id.decode('ascii')
+            except usb.core.USBError:
+                return None
+            finally:
+                if did_open:
+                    self.close()
+
     def get_version(self):
         # GET_VERSION response structure:
         #   Byte 0-1:
@@ -144,12 +185,12 @@ class STLink(object):
 
         # Check versions.
         if self._jtag_version == 0:
-            raise exceptions.ProbeError("%s firmware does not support JTAG/SWD. Please update"
-                "to a firmware version that supports JTAG/SWD" % (self._version_str))
+            raise exceptions.ProbeError(f"{self._version_str} firmware does not support JTAG/SWD. Please update"
+                "to a firmware version that supports JTAG/SWD")
         if not self._check_version(self.MIN_JTAG_VERSION):
-            raise exceptions.ProbeError("STLink %s is using an unsupported, older firmware version. "
-                "Please update to the latest STLink firmware. Current version is %s, must be at least version v2J%d.)" 
-                % (self.serial_number, self._version_str, self.MIN_JTAG_VERSION))
+            raise exceptions.ProbeError(f"STLink {self.serial_number} is using an unsupported, older firmware version. "
+                f"Please update to the latest STLink firmware. Current version is {self._version_str}, must be at "
+                f"least version v2J{self.MIN_JTAG_VERSION}.)")
 
     def _check_version(self, min_version):
         return (self._hw_version >= 3) or (self._jtag_version >= min_version)
@@ -263,6 +304,8 @@ class STLink(object):
                 protocolParam = Commands.JTAG_ENTER_SWD
             elif protocol == self.Protocol.JTAG:
                 protocolParam = Commands.JTAG_ENTER_JTAG_NO_CORE_RESET
+            else:
+                raise ValueError(protocol)
             response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_ENTER2, protocolParam, 0], readSize=2)
             self._check_status(response)
             self._protocol = protocol
@@ -418,9 +461,8 @@ class STLink(object):
                 doesn't support that.
         """
         if ((port == self.DP_PORT) and ((addr & 0xf0) != 0) and not self.supports_banked_dp):
-            raise exceptions.ProbeError("this STLinkV%d firmware version does not support accessing"
-                    " banked DP registers; please upgrade to the latest STLinkV%d firmware release",
-                    self._hw_version, self._hw_version)
+            raise exceptions.ProbeError(f"this STLinkV{self._hw_version} firmware version does not support accessing"
+                    f" banked DP registers; please upgrade to the latest STLinkV{self._hw_version} firmware release")
     
     def read_dap_register(self, port, addr):
         assert (addr >> 16) == 0, "register address must be 16-bit"

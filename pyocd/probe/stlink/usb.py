@@ -101,6 +101,7 @@ class STLinkUSBInterface:
             common.show_no_libusb_warning()
             return []
     
+        assert devices is not None
         intfList = []
         for dev in devices:
             try:
@@ -179,6 +180,10 @@ class STLinkUSBInterface:
         self._ep_in = None
 
     @property
+    def is_open(self) -> bool:
+        return not self._closed
+
+    @property
     def serial_number(self):
         return self._serial_number
 
@@ -199,6 +204,8 @@ class STLinkUSBInterface:
         return self._max_packet_size
 
     def _flush_rx(self):
+        assert self._ep_in
+        
         # Flush the RX buffers by reading until timeout exception
         try:
             while True:
@@ -208,12 +215,16 @@ class STLinkUSBInterface:
             pass
 
     def _read(self, size, timeout=1000):
+        assert self._ep_in
+
         # Minimum read size is the maximum packet size.
         read_size = max(size, self._max_packet_size)
         data = self._ep_in.read(read_size, timeout)
         return bytearray(data)[:size]
 
     def transfer(self, cmd, writeData=None, readSize=None, timeout=1000):
+        assert self._ep_out
+
         # Pad command to required 16 bytes.
         assert len(cmd) <= self.CMD_SIZE
         paddedCmd = bytearray(self.CMD_SIZE)
@@ -242,6 +253,7 @@ class STLinkUSBInterface:
         return None
 
     def read_swv(self, size, timeout=1000):
+        assert self._ep_swv
         return bytearray(self._ep_swv.read(size, timeout))
     
     def __repr__(self):
