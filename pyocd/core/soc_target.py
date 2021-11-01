@@ -138,6 +138,8 @@ class SoCTarget(TargetGraphNode):
 
     def add_core(self, core: CoreTarget) -> None:
         core.delegate = self.delegate
+        if self.debug_sequence_delegate:
+            core.debug_sequence_delegate = self.debug_sequence_delegate
         ctx = CachingDebugContext(
                 core,
                 enable_memory=self.session.options['cache.enable_memory'],

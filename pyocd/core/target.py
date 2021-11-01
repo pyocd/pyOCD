@@ -20,6 +20,7 @@ from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING, Set)
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
+from .target_delegate import DelegateHavingMixIn
 from ..utility.graph import GraphNode
 
 if TYPE_CHECKING:
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     from ..debug.svd.model import SVDDevice
     from ..utility.sequencer import CallSequence
 
-class Target(MemoryInterface):
+class Target(MemoryInterface, DelegateHavingMixIn):
 
     class State(Enum):
         """@brief States a target processor can be in."""
@@ -188,7 +189,6 @@ class Target(MemoryInterface):
 
     def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
         self._session = session
-        self._delegate: Any = None
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
         self.memory_map = memory_map.clone() if memory_map else MemoryMap()
@@ -198,24 +198,6 @@ class Target(MemoryInterface):
     @property
     def session(self) -> "Session":
         return self._session
-
-    @property
-    def delegate(self) -> Any:
-        return self._delegate
-
-    @delegate.setter
-    def delegate(self, the_delegate: Any) -> None:
-        self._delegate = the_delegate
-
-    def delegate_implements(self, method_name: str) -> bool:
-        return (self._delegate is not None) and (hasattr(self._delegate, method_name))
-
-    def call_delegate(self, method_name: str, *args, **kwargs) -> None:
-        if self.delegate_implements(method_name):
-            return getattr(self._delegate, method_name)(*args, **kwargs)
-        else:
-            # The default action is always taken if None is returned.
-            return None
 
     @property
     def svd_device(self) -> Optional["SVDDevice"]:
