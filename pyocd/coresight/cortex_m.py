@@ -237,8 +237,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             Target.ResetType.SW_SYSTEM,
             Target.ResetType.SW_CORE, # May be removed since only v7-M cores support SW_VECTRESET
         }
-        self._reset_catch_delegate_result: DelegateResult = False
-        self._reset_catch_saved_demcr: int = 0
+        self._last_vector_catch: int = 0
         self.fpb: Optional[FPB] = None
         self.dwt: Optional[DWT] = None
 
@@ -362,7 +361,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.call_delegate('will_start_debug_core', core=self)
 
         # Enable debug, preserving any current debug state.
-        if not self.call_delegate('start_debug_core', core=self):
+        if not self.start_debug_core_hook():
             self.write32(self.DHCSR, (self.read32(self.DHCSR) & 0xffff) | self.DBGKEY | self.C_DEBUGEN)
 
         # Examine this CPU.
@@ -370,7 +369,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self._check_for_fpu()
         self._init_reset_types()
         self._build_registers()
-
+        self.get_vector_catch() # Cache the current vector cache settings.
         self.sw_bp.init()
 
         self.call_delegate('did_start_debug_core', core=self)
@@ -383,7 +382,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         if self.dwt is not None:
             self.dwt.remove_all_watchpoints()
 
-        if not self.call_delegate('stop_debug_core', core=self):
+        if not self.stop_debug_core_hook():
             # Disable other debug blocks.
             self.write32(CortexM.DEMCR, 0)
 
@@ -393,6 +392,22 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
         self.call_delegate('did_stop_debug_core', core=self)
+
+    def start_debug_core_hook(self):
+        result = self.call_delegate('start_debug_core', core=self)
+        if not result and self.has_debug_sequence('DebugCoreStart', pname=self.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('DebugCoreStart', pname=self.node_name)
+            result = True
+        return result
+
+    def stop_debug_core_hook(self):
+        result = self.call_delegate('stop_debug_core', core=self)
+        if not result and self.has_debug_sequence('DebugCoreStop', pname=self.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('DebugCoreStop', pname=self.node_name)
+            result = True
+        return result
 
     def _build_registers(self) -> None:
         """@brief Build set of core registers available on this code.
@@ -868,6 +883,33 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 else:
                     LOG.debug("Core #%d did not come out of reset within timeout", self.core_number)
 
+    def reset_hook(self, reset_type: Target.ResetType) -> Optional[bool]:
+        # Must import here to prevent an import cycle.
+        from ..target.pack.reset_sequence_maps import RESET_TYPE_TO_SEQUENCE_MAP
+
+        result = self.call_delegate('will_reset', core=self, reset_type=reset_type)
+        if not result and (self.debug_sequence_delegate is not None):
+            # Map our reset type to a reset sequence name.
+            if reset_type is Target.ResetType.SW_EMULATED:
+                # Emulated reset isn't supported by standard debug sequences, so don't attempt
+                # to run any sequence.
+                return False
+            else:
+                try:
+                    reset_sequence_name = RESET_TYPE_TO_SEQUENCE_MAP[reset_type]
+                except KeyError:
+                    # Unhandled reset type.
+                    raise exceptions.InternalError(
+                            f"CortexM.reset_hook(): unhandled reset type {reset_type.name}")
+
+            if self.has_debug_sequence(reset_sequence_name, pname=self.node_name):
+                assert self.debug_sequence_delegate
+
+                # Run the reset sequence.
+                self.debug_sequence_delegate.run_sequence(reset_sequence_name, pname=self.node_name)
+                result = True
+        return result
+
     def reset(self, reset_type=None):
         """@brief Reset the core.
 
@@ -893,7 +935,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         # Give the delegate a chance to overide reset. If the delegate returns True, then it
         # handled the reset on its own.
-        if not self.call_delegate('will_reset', core=self, reset_type=reset_type):
+        if not self.reset_hook(reset_type):
             self._perform_reset(reset_type)
 
         # Post reset recovery tests.
@@ -911,33 +953,57 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         self.session.notify(Target.Event.POST_RESET, self)
 
-    def set_reset_catch(self, reset_type):
-        """@brief Prepare to halt core on reset."""
+    def set_reset_catch(self, reset_type=None):
+        """@brief Prepare to halt core on reset.
+
+        This method nominally configures vector catch to stop code execution after the reset for the
+        core on which it is called. The delegate object and debug sequence delegate are both given a
+        chance to override the behaviour, in that order.
+        """
         LOG.debug("set reset catch, core %d", self.core_number)
 
-        self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
+        # First let the delegate object have a chance.
+        delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
 
-        # Default behaviour if the delegate didn't handle it.
-        if not self._reset_catch_delegate_result:
+        # Next in line is a debug sequence.
+        if not delegate_result and self.has_debug_sequence('ResetCatchSet', pname=self.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('ResetCatchSet', pname=self.node_name)
+            delegate_result = True
+
+        # Default behaviour if delegates didn't handle it.
+        if not delegate_result:
             # Halt the target.
             self.halt()
 
-            # Save CortexM.DEMCR.
-            self._reset_catch_saved_demcr = self.read_memory(CortexM.DEMCR)
-
             # Enable reset vector catch if needed.
-            if (self._reset_catch_saved_demcr & CortexM.DEMCR_VC_CORERESET) == 0:
-                self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr | CortexM.DEMCR_VC_CORERESET)
+            demcr = self.read_memory(CortexM.DEMCR)
+            if (demcr & CortexM.DEMCR_VC_CORERESET) == 0:
+                self.write_memory(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
 
-    def clear_reset_catch(self, reset_type):
-        """@brief Disable halt on reset."""
+    def clear_reset_catch(self, reset_type=None):
+        """@brief Disable halt on reset.
+
+        Free hardware resources allocated by set_reset_catch(), primarily meaning clearing the DEMCR.VC_CORERESET
+        bit if it was not previously set. The delegate object and debug sequence delegate are both given a
+        chance to override the behaviour, in that order.
+        """
         LOG.debug("clear reset catch, core %d", self.core_number)
 
-        self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
+        delegate_result = self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
-        if not self._reset_catch_delegate_result:
-            # restore vector catch setting
-            self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr)
+        # Check for a debug sequence.
+        if not delegate_result and self.has_debug_sequence('ResetCatchClear', pname=self.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('ResetCatchClear', pname=self.node_name)
+            delegate_result = True
+
+        # Default behaviour if the delegates didn't handle it.
+        if not delegate_result and not (self._last_vector_catch & Target.VectorCatch.CORE_RESET):
+            # Clear VC_CORERESET in DEMCR.
+            demcr = self.read_memory(CortexM.DEMCR)
+            if (demcr & CortexM.DEMCR_VC_CORERESET) != 0:
+                self.write_memory(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
 
     def reset_and_halt(self, reset_type=None):
         """@brief Perform a reset and stop the core on the reset handler."""
@@ -1405,16 +1471,19 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             result |= Target.VectorCatch.SECURE_FAULT
         return result
 
-    def set_vector_catch(self, enableMask):
+    def set_vector_catch(self, enable_mask):
+        self._last_vector_catch = enable_mask
         demcr = self.read_memory(CortexM.DEMCR)
-        demcr |= CortexM._map_to_vector_catch_mask(enableMask)
-        demcr &= ~CortexM._map_to_vector_catch_mask(~enableMask)
-        LOG.debug("Setting vector catch to 0x%08x", enableMask)
+        demcr |= CortexM._map_to_vector_catch_mask(enable_mask)
+        demcr &= ~CortexM._map_to_vector_catch_mask(~enable_mask)
+        LOG.debug("Setting vector catch to 0x%08x", enable_mask)
         self.write_memory(CortexM.DEMCR, demcr)
 
     def get_vector_catch(self):
         demcr = self.read_memory(CortexM.DEMCR)
-        return CortexM._map_from_vector_catch_mask(demcr)
+        mask = CortexM._map_from_vector_catch_mask(demcr)
+        self._last_vector_catch = mask
+        return mask
 
     def is_debug_trap(self):
         debugEvents = self.read_memory(CortexM.DFSR) & (CortexM.DFSR_DWTTRAP | CortexM.DFSR_BKPT | CortexM.DFSR_HALTED)
