@@ -107,6 +107,18 @@ class CoreSightTarget(SoCTarget):
 
         return seq
 
+    def init(self) -> None:
+        """@brief CoreSight specific target init.
+
+        Connects this object's delegates, including a debug sequence delegate, to the DP.
+        """
+        # Set delegates on the DP.
+        self.dp.delegate = self.delegate
+        if self.debug_sequence_delegate:
+            self.dp.debug_sequence_delegate = self.debug_sequence_delegate
+
+        super().init()
+
     def disconnect(self, resume: bool = True) -> None:
         """@brief Disconnect from the target.
 
