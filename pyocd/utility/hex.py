@@ -83,6 +83,13 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
         line_width = 4
     elif width == 64:
         line_width = 2
+    else:
+        raise RuntimeError(f"unsupported width of {width}")
+
+    def line_width_in_chars(elements: int) -> int:
+        return elements * ((2 * width // 8) + 1)
+
+    max_line_width = line_width_in_chars(line_width)
     i = 0
     while i < len(data):
         if start_address is not None:
@@ -104,7 +111,8 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                 output.write("%016x " % d)
             if i % line_width == 0:
                 break
-        
+        actual_line_width = line_width_in_chars(i - start_i)
+
         if print_ascii:
             s = "|"
             for n in range(start_i, start_i + line_width):
@@ -117,7 +125,7 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                     d = conversion.nbit_le_list_to_byte_list([d], width)
                     d.reverse()
                 s += "".join((chr(b) if (chr(b) in _PRINTABLE) else '.') for b in d)
-            output.write("   " + s + "|")
+            output.write(" " * (max_line_width - actual_line_width) + "   " + s + "|")
         
         output.write("\n")
 
