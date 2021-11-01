@@ -88,6 +88,17 @@ class TargetDelegateInterface:
     def __init__(self, session: "Session") -> None:
         self._session = session
 
+    def unlock_device(self, target: "SoCTarget") -> None:
+        """! @brief Hook to perform any required unlock sequence.
+
+        Called after the DP is initialised but prior to discovery.
+
+        @param self
+        @param target An SoCTarget object about to be initialized.
+        @return Ignored.
+        """
+        pass
+
     def will_connect(self, board: "Board") -> None:
         """@brief Pre-init hook for the board.
         @param self

@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,6 +55,8 @@ class CoreSightTarget(SoCTarget):
         self._irq_table: Optional[Dict[int, str]] = None
         self._discoverer: Optional[Callable] = None
 
+        self.session.context_state.is_performing_pre_reset = False
+
     @property
     def aps(self) -> Dict["APAddressBase", "AccessPort"]:
         return self.dp.aps
@@ -95,6 +97,7 @@ class CoreSightTarget(SoCTarget):
             ('load_svd',            self.load_svd),
             ('pre_connect',         self.pre_connect),
             ('dp_init',             self.dp.create_connect_sequence),
+            ('unlock_device',       self.unlock_device),
             ('create_discoverer',   self.create_discoverer),
             ('discovery',           lambda : self._discoverer.discover() if self._discoverer else None),
             ('check_for_cores',     self.check_for_cores),
@@ -128,11 +131,68 @@ class CoreSightTarget(SoCTarget):
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
-        # Only disconnect the DP if resuming; otherwise it will power down debug and potentially
-        # let the core continue running.
+        # Only disconnect the DP if resuming; if not resuming we need to keep debug powered up so
+        # the core can stay halted.
         if resume:
             self.dp.disconnect()
         self.call_delegate('did_disconnect', target=self, resume=resume)
+
+    @property
+    def primary_core_pname(self) -> str:
+        """@brief Returns the pname for the `primary_core` option.
+
+        This property is expected to be used prior to discovery. After discovery is complete, the
+        node name of the `.primary_core` property can be used.
+
+        This property is used rarely, so is not cached.
+
+        @exception KeyError if `primary_core` is invalid.
+        @exception AssertionError The device is not DFP based.
+        """
+        # The `primary_core` is an index into available cores, not necessarily the same as the AP
+        # address and always different in the case of ADIv6. So we must use the DFP's list of APs
+        # and processors to reconstruct the core order we will find during discovery.
+        assert self.debug_sequence_delegate
+        pack_device = self.debug_sequence_delegate.cmsis_pack_device
+        ap_map = pack_device.processors_ap_map
+        primary_core = self.session.options.get('primary_core')
+        for i, proc_info in enumerate(sorted(ap_map.values(), key=lambda p: p.ap_address)):
+            if i == primary_core:
+                return proc_info.name
+        else:
+            raise exceptions.Error(f"invalid 'primary_core' session option '{primary_core}' "
+                           f"(valid values are {', '.join(str(i) for i, _ in enumerate(ap_map.values()))})")
+
+    def _call_pre_discovery_debug_sequence(self, sequence: str) -> bool:
+        """@brief Run a debug sequence before discovery has been performed.
+
+        The primary core's pname cannot be looked up via the `node_name` property of the core
+        object because that core object doesn't yet exist at the time this method is called.
+        """
+        if self.debug_sequence_delegate:
+            # Try to get the pname to use.
+            try:
+                pcore_pname = self.primary_core_pname
+            except exceptions.Error as err:
+                LOG.warning("%s", err)
+            else:
+                if self.has_debug_sequence(sequence, pname=pcore_pname):
+                    self.debug_sequence_delegate.run_sequence(sequence, pname=pcore_pname)
+                    return True
+
+        # Sequence wasn't run.
+        return False
+
+    def unlock_device(self) -> None:
+        """@brief Hook to unlock the debug.
+
+        The default implementation of this hook calls the delegate `unlock_device()` method or `DebugDeviceUnlock`
+        debug sequence, if they exist, checked in this order.
+        """
+        if self.delegate_implements('unlock_device'):
+            self.call_delegate('unlock_device')
+        else:
+            self._call_pre_discovery_debug_sequence('DebugDeviceUnlock')
 
     def create_discoverer(self) -> None:
         """@brief Init task to create the discovery object.
@@ -151,7 +211,14 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'pre-reset':
             LOG.info("Performing connect pre-reset")
-            self.dp.reset()
+            try:
+                # Set the state variable indicating we're running ResetHardware for pre-reset, used
+                # by the debug sequence delegate's get_connection_type() method.
+                self.session.context_state.is_performing_pre_reset = True
+                if not self._call_pre_discovery_debug_sequence('ResetHardware'):
+                    self.dp.reset()
+            finally:
+                self.session.context_state.is_performing_pre_reset = False
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
             self.dp.assert_reset(True)
@@ -272,4 +339,27 @@ class CoreSightTarget(SoCTarget):
         else:
             super().reset(reset_type)
 
+    @property
+    def first_ap(self) -> Optional["AccessPort"]:
+        if len(self.aps) == 0:
+            return None
+        return sorted(self.aps.values(), key=lambda v: v.address)[0]
+
+    def trace_start(self):
+        result = self.call_delegate('trace_start', target=self, mode=0)
+        if not result and self.has_debug_sequence('TraceStart', pname=self.selected_core_or_raise.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('TraceStart',
+                    pname=self.selected_core_or_raise.node_name)
+            result = True
+        return result
+
+    def trace_stop(self):
+        result = self.call_delegate('trace_stop', target=self, mode=0)
+        if not result and self.has_debug_sequence('TraceStop', pname=self.selected_core_or_raise.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('TraceStop',
+                    pname=self.selected_core_or_raise.node_name)
+            result = True
+        return result
 
