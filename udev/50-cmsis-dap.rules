@@ -1,6 +1,9 @@
 # 04b4:f138 Cypress KitProg1/KitProg2 CMSIS-DAP mode
 SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="f138", MODE:="666"
 
+# 04b4:f148 Cypress KitProg1/KitProg2 CMSIS-DAP mode
+SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="f148", MODE:="666"
+
 # 04b4:f151 Cypress MiniProg4 CMSIS-DAPv2 Bulk + I2C/SPI/UART
 SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="f151", MODE:="666"
 
