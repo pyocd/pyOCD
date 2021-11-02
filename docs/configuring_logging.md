@@ -77,7 +77,7 @@ Trace logger                                            | Trace output
 `pyocd.probe.stlink.usb.trace`                          | STLink USB transfers
 `pyocd.probe.tcp_client_probe.trace`                    | Remote probe client requests and responses
 `pyocd.probe.tcp_probe_server.trace`                    | Remote probe server requests and responses
-`pyocd.utility.notification.trace`                      | Sent notifications 
+`pyocd.utility.notification.trace`                      | Sent notifications
 
 
 ## Logger-level control
@@ -148,6 +148,9 @@ need to set the level of parent loggers to match the child levels. In fact, sett
 parent logger
 such as `pyocd` will set the level for all children—this is an easy way to control the log level
 for all of pyOCD.
+
+Note that because the `logging` option is passed to and handled by the Python logging module, it does not support
+wildcard matching against loggers like the `--log-level` argument.
 
 
 ### Full control
