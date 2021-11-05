@@ -366,20 +366,31 @@ init
 Ignored; for OpenOCD compatibility.
 </td></tr>
 
+<tr><td colspan="3"><b>Probe</b></td></tr>
+
+<tr><td>
+<a href="#flushprobe"><tt>flushprobe</tt></a>
+</td><td>
+</td><td>
+Ensure all debug probe requests have been completed.
+</td></tr>
+
 <tr><td colspan="3"><b>Registers</b></td></tr>
 
 <tr><td>
-<a href="#reg"><tt>reg</tt></a>
+<a href="#reg"><tt>reg</tt></a>,
+<a href="#reg"><tt>rr</tt></a>
 </td><td>
-[-f] [REG]
+[-p] [-f] [REG...]
 </td><td>
 Print core or peripheral register(s).
 </td></tr>
 
 <tr><td>
-<a href="#wreg"><tt>wreg</tt></a>
+<a href="#wreg"><tt>wreg</tt></a>,
+<a href="#wreg"><tt>wr</tt></a>
 </td><td>
-[-r] REG VALUE
+[-r] [-p] [-f] REG VALUE
 </td><td>
 Set the value of a core or peripheral register.
 </td></tr>
@@ -650,37 +661,37 @@ Commands
 ##### `break`
 
 **Usage**: ADDR \
-Set a breakpoint address. 
+Set a breakpoint address.
 
 
 ##### `lsbreak`
 
 **Usage**:  \
-List breakpoints. 
+List breakpoints.
 
 
 ##### `lswatch`
 
 **Usage**:  \
-List watchpoints. 
+List watchpoints.
 
 
 ##### `rmbreak`
 
 **Usage**: ADDR \
-Remove a breakpoint. 
+Remove a breakpoint.
 
 
 ##### `rmwatch`
 
 **Usage**: ADDR \
-Remove a watchpoint. 
+Remove a watchpoint.
 
 
 ##### `watch`
 
 **Usage**: ADDR [r|w|rw] [1|2|4] \
-Set a watchpoint address, and optional access type (default rw) and size (4). 
+Set a watchpoint address, and optional access type (default rw) and size (4).
 
 
 ### Bringup
@@ -689,7 +700,7 @@ These commands are meant to be used when starting up Commander in no-init mode. 
 ##### `initdp`
 
 **Usage**:  \
-Init DP and power up debug. 
+Init DP and power up debug.
 
 
 ##### `makeap`
@@ -701,7 +712,7 @@ Creates a new AP object for the given APSEL. The type of AP, MEM-AP or generic, 
 ##### `reinit`
 
 **Usage**:  \
-Reinitialize the target object. 
+Reinitialize the target object.
 
 
 ### Commander
@@ -710,13 +721,13 @@ Reinitialize the target object.
 
 **Aliases**: `quit` \
 **Usage**:  \
-Quit pyocd commander. 
+Quit pyocd commander.
 
 
 ##### `list`
 
 **Usage**:  \
-Show available targets. 
+Show available targets.
 
 
 ### Core
@@ -731,21 +742,21 @@ Resume execution of the target. The target's state is read back after resuming. 
 ##### `core`
 
 **Usage**: [NUM] \
-Select CPU core by number or print selected core. 
+Select CPU core by number or print selected core.
 
 
 ##### `halt`
 
 **Aliases**: `h` \
 **Usage**:  \
-Halt the target. 
+Halt the target.
 
 
 ##### `step`
 
 **Aliases**: `s` \
 **Usage**: [COUNT] \
-Step one or more instructions. 
+Step one or more instructions.
 
 
 ### Dap
@@ -754,28 +765,28 @@ Step one or more instructions.
 
 **Aliases**: `rap` \
 **Usage**: [APSEL] ADDR \
-Read AP register. 
+Read AP register.
 
 
 ##### `readdp`
 
 **Aliases**: `rdp` \
 **Usage**: ADDR \
-Read DP register. 
+Read DP register.
 
 
 ##### `writeap`
 
 **Aliases**: `wap` \
 **Usage**: [APSEL] ADDR DATA \
-Write AP register. 
+Write AP register.
 
 
 ##### `writedp`
 
 **Aliases**: `wdp` \
 **Usage**: ADDR DATA \
-Write DP register. 
+Write DP register.
 
 
 ### Device
@@ -789,7 +800,7 @@ Reset the target, optionally specifying the reset type. The reset type must be o
 ##### `unlock`
 
 **Usage**:  \
-Unlock security on the target. 
+Unlock security on the target.
 
 
 ### General
@@ -798,7 +809,7 @@ Unlock security on the target.
 
 **Aliases**: `?` \
 **Usage**: [CMD] \
-Show help for commands. 
+Show help for commands.
 
 
 ### Memory
@@ -820,7 +831,7 @@ Disassemble instructions at an address. Only available if the capstone library i
 ##### `erase`
 
 **Usage**: [ADDR] [COUNT] \
-Erase all internal flash or a range of sectors. 
+Erase all internal flash or a range of sectors.
 
 
 ##### `fill`
@@ -838,7 +849,7 @@ Search for a value in memory within the given address range. A pattern of any nu
 ##### `load`
 
 **Usage**: FILENAME [ADDR] \
-Load a binary, hex, or elf file with optional base address. 
+Load a binary, hex, or elf file with optional base address.
 
 
 ##### `loadmem`
@@ -878,7 +889,7 @@ Read 8-bit bytes. Optional length parameter is the number of bytes to read. If t
 ##### `savemem`
 
 **Usage**: ADDR LEN FILENAME \
-Save a range of memory to a binary file. 
+Save a range of memory to a binary file.
 
 
 ##### `write16`
@@ -914,21 +925,31 @@ Write 8-bit bytes to memory. The data arguments are 8-bit bytes. Can write to bo
 ##### `init`
 
 **Usage**: init \
-Ignored; for OpenOCD compatibility. 
+Ignored; for OpenOCD compatibility.
+
+
+### Probe
+
+##### `flushprobe`
+
+**Usage**:  \
+Ensure all debug probe requests have been completed.
 
 
 ### Registers
 
 ##### `reg`
 
-**Usage**: [-f] [REG] \
-Print core or peripheral register(s). If no arguments are provided, all core registers will be printed. Either a core register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral name is provided without a register, all registers in the peripheral will be printed. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
+**Aliases**: `rr` \
+**Usage**: [-p] [-f] [REG...] \
+Print core or peripheral register(s). If no arguments are provided, the 'general' core register group will be printed. Either a core register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral name is provided without a register, all registers in the peripheral will be printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
 ##### `wreg`
 
-**Usage**: [-r] REG VALUE \
-Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed.
+**Aliases**: `wr` \
+**Usage**: [-r] [-p] [-f] REG VALUE \
+Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
 ### Semihosting
@@ -974,7 +995,7 @@ Show symbol, file, and line for address. The symbol name, source file path, and 
 
 **Aliases**: `st` \
 **Usage**:  \
-Show the target's current state. 
+Show the target's current state.
 
 
 ### Threads
@@ -982,7 +1003,7 @@ Show the target's current state.
 ##### `threads`
 
 **Usage**: {flush,enable,disable,status} \
-Control thread awareness. 
+Control thread awareness.
 
 
 ### Values
@@ -990,11 +1011,11 @@ Control thread awareness.
 ##### `set`
 
 **Usage**: NAME VALUE \
-Set a value. 
+Set a value.
 
 
 ##### `show`
 
 **Usage**: NAME \
-Display a value. 
+Display a value.
 
