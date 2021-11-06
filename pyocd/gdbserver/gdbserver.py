@@ -275,11 +275,14 @@ class GDBServer(threading.Thread):
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
 
-    def stop(self):
+    def stop(self, wait=True):
         if self.is_alive():
             self.shutdown_event.set()
-            LOG.debug("gdbserver shutdown event set; waiting for exit")
-            self.join()
+            if wait:
+                LOG.debug("gdbserver shutdown event set; waiting for exit")
+                self.join()
+            else:
+                LOG.debug("gdbserver shutdown event set")
             LOG.info("GDB server thread stopped")
 
     def _cleanup(self):
