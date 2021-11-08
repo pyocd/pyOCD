@@ -35,6 +35,7 @@ from ..dap_access_api import DAPAccessIntf
 LOG = logging.getLogger(__name__)
 
 try:
+    import libusb_package
     import usb.core
     import usb.util
 except ImportError:
@@ -68,7 +69,7 @@ class PyUSB(Interface):
         assert self.closed is True
 
         # Get device handle
-        dev = usb.core.find(custom_match=FindDap(self.serial_number))
+        dev = libusb_package.find(custom_match=FindDap(self.serial_number))
         if dev is None:
             raise DAPAccessIntf.DeviceError("Device %s not found" % self.serial_number)
 
@@ -153,7 +154,7 @@ class PyUSB(Interface):
         """
         # find all cmsis-dap devices
         try:
-            all_devices = usb.core.find(find_all=True, custom_match=FindDap())
+            all_devices = libusb_package.find(find_all=True, custom_match=FindDap())
         except usb.core.NoBackendError:
             if not PyUSB.did_show_no_libusb_warning:
                 LOG.warning("CMSIS-DAPv1 probes may not be detected because no libusb library was found.")

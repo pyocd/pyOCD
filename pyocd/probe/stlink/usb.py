@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import libusb_package
 import usb.core
 import usb.util
 import logging
@@ -96,7 +97,7 @@ class STLinkUSBInterface:
     @classmethod
     def get_all_connected_devices(cls):
         try:
-            devices = usb.core.find(find_all=True, custom_match=cls._usb_match)
+            devices = libusb_package.find(find_all=True, custom_match=cls._usb_match)
         except usb.core.NoBackendError:
             common.show_no_libusb_warning()
             return []
