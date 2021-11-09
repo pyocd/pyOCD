@@ -82,7 +82,7 @@ class STM32L031x6(CoreSightTarget):
     VENDOR = "STMicroelectronics"
     
     MEMORY_MAP = MemoryMap(
-        FlashRegion(name='Flash', start=0x08000000, length=0x8000, blocksize=0x1000,  is_boot_memory=True, algo=FLASH_ALGO),
+        FlashRegion(name='Flash', start=0x08000000, length=0x8000, blocksize=0x80,  is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(name='RAM', start=0x20000000, length=0x2000),
         FlashRegion(name='EEPROM', start=0x08080000, length=0x400, blocksize=0x400, algo=FLASH_ALGO)
         )
