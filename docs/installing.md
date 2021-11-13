@@ -41,24 +41,6 @@ For notes about installing and using on non-x86 systems such as Raspberry Pi, se
 [relevant documentation]({% link _docs/installing_on_non_x86.md %}).
 
 
-libusb installation
--------------------
-
-[pyusb](https://github.com/pyusb/pyusb) and its backend library [libusb](https://libusb.info/) are
-dependencies on all supported operating systems. pyusb is a regular Python package and will be
-installed along with pyOCD. However, libusb is a binary shared library that does not get installed
-automatically via pip dependency management.
-
-How to install libusb depends on your OS:
-
-- macOS: use Homebrew: `brew install libusb`
-- Linux: should already be installed.
-- Windows: download libusb from [libusb.info](https://libusb.info/) and place the .dll file in your Python
-  installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
-  your Python installation. The latest release is [available on GitHub](https://github.com/libusb/libusb/releases);
-  download the .7z archive under Assets. Use the library from the VS2019 folder in the archive.
-
-
 udev rules on Linux
 -------------------
 
