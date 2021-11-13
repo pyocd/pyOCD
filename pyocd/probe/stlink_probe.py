@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from time import sleep
+from typing import (List, Optional)
 
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
@@ -32,43 +33,54 @@ class StlinkProbe(DebugProbe):
     """! @brief Wraps an STLink as a DebugProbe."""
         
     @classmethod
-    def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
+    def get_all_connected_probes(cls, unique_id: Optional[str] = None,
+            is_explicit: bool = False) -> List["StlinkProbe"]:
         return [cls(dev) for dev in STLinkUSBInterface.get_all_connected_devices()]
     
     @classmethod
-    def get_probe_with_id(cls, unique_id, is_explicit=False):
+    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional["StlinkProbe"]:
         for dev in STLinkUSBInterface.get_all_connected_devices():
             if dev.serial_number == unique_id:
                 return cls(dev)
         return None
 
-    def __init__(self, device):
-        super(StlinkProbe, self).__init__()
+    def __init__(self, device: STLinkUSBInterface) -> None:
+        super().__init__()
         self._link = STLink(device)
         self._is_open = False
         self._is_connected = False
         self._nreset_state = False
         self._memory_interfaces = {}
         self._mbed_info = None
-        self._board_id = None
+        self._board_id = self._get_board_id()
         self._caps = set()
         
-        # Try to detect associated board info via the STLinkV2-1 MSD volume.
-        detector = create_mbed_detector()
-        for info in detector.list_mbeds():
-            if info['target_id_usb_id'] == self._link.serial_number:
-                self._mbed_info = info
-                
-                # Some STLink probes provide an MSD volume, but not the mbed.htm file.
-                # We can live without the board ID, so just ignore any error.
-                try:
-                    self._board_id = info['target_id_mbed_htm'][0:4]
-                except KeyError:
-                    pass
-                break
-        
+    def _get_board_id(self) -> Optional[str]:
+        # Try to get the board ID first by sending a command, since it is much faster. This requires
+        # opening the USB device, however, and requires a recent STLink firmware version.
+        board_id = self._link.get_board_id()
+        if board_id is None:
+            # Try to detect associated board info via the STLinkV2-1 MSD volume.
+            detector = create_mbed_detector()
+            if detector is not None:
+                for info in detector.list_mbeds():
+                    if info['target_id_usb_id'] == self._link.serial_number:
+                        self._mbed_info = info
+                        
+                        # Some STLink probes provide an MSD volume, but not the mbed.htm file.
+                        # We can live without the board ID, so just ignore any error.
+                        try:
+                            board_id = info['target_id_mbed_htm'][0:4]
+                        except KeyError:
+                            pass
+                        break
+        return board_id
+
     @property
-    def description(self):
+    def description(self) -> str:
+        if self._board_id is None:
+            return self.product_name
+
         try:
             board_info = BOARD_ID_TO_INFO[self._board_id]
         except KeyError:
@@ -147,6 +159,7 @@ class StlinkProbe(DebugProbe):
         self._link.set_swd_frequency(frequency)
 
     def reset(self):
+        assert self.session
         self._link.drive_nreset(True)
         sleep(self.session.options.get('reset.hold_time'))
         self._link.drive_nreset(False)
