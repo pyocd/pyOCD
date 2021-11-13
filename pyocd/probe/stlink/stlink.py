@@ -186,11 +186,11 @@ class STLink(object):
         # Check versions.
         if self._jtag_version == 0:
             raise exceptions.ProbeError(f"{self._version_str} firmware does not support JTAG/SWD. Please update"
-                "to a firmware version that supports JTAG/SWD")
+                "to a firmware version that supports JTAG/SWD.")
         if not self._check_version(self.MIN_JTAG_VERSION):
             raise exceptions.ProbeError(f"STLink {self.serial_number} is using an unsupported, older firmware version. "
                 f"Please update to the latest STLink firmware. Current version is {self._version_str}, must be at "
-                f"least version v2J{self.MIN_JTAG_VERSION}.)")
+                f"least version v2J{self.MIN_JTAG_VERSION}.")
 
     def _check_version(self, min_version):
         return (self._hw_version >= 3) or (self._jtag_version >= min_version)
