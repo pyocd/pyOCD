@@ -136,7 +136,7 @@ PyOCD supports automatic target type identification for debug probes built with 
 ### STLink
 
 <div class="alert alert-warning">
-<b>Note!</b> Recent STLink firmware versions will only allow access to STM32 targets. If you are using a target
+Recent STLink firmware versions will only allow access to STM32 targets. If you are using a target
 from a silicon vendor other than ST Micro, please use a different debug probe.
 </div>
 
@@ -162,7 +162,12 @@ and Windows.
 
 [Firmware and driver installer and updates](https://www.segger.com/downloads/jlink/)
 
-On macOS, you can install the `segger-jlink` cask with Homebrew to get automatic driver updates.
+On macOS, you can install the `segger-jlink` cask with Homebrew to get managed driver updates.
+
+Please note that flash programming performance using a J-Link through pyOCD is currently slower than using the J-Link
+software directly (or compared to CMSIS-DAP). This is because pyOCD uses the low-level DAP commands provided by J-Link,
+which are inherently slower than higher level commands (which are less flexible and more difficult and complex to
+integrate).
 
 #### Session options
 
