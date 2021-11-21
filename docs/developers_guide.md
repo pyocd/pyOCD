@@ -2,12 +2,14 @@
 title: Developers' guide
 ---
 
-## Setup
-
 <div class="alert alert-info">
-Please familiarise yourself with the [contributing guide](https://github.com/pyocd/pyOCD/blob/main/CONTRIBUTING.md)
-before beginning any development on pyOCD or related projects.
+<p>
+Please familiarise yourself with the <a href="https://github.com/pyocd/pyOCD/blob/main/CONTRIBUTING.md">
+contributing guide</a> before beginning any development on pyOCD or related projects.
+</p>
 </div>
+
+## Setup
 
 PyOCD developers are strongly recommended to setup a working environment using either
 [virtualenv](https://virtualenv.pypa.io/en/latest/) or the built-in `venv` module (only use of `venv` is shown
