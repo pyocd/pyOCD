@@ -116,7 +116,7 @@ class DebugProbe(object):
         
         @param cls The class instance.
         @param unique_id String. Optional partial unique ID value used to filter available probes. May be used by the
-            probe to optimize retreiving the probe list; there is no requirement to filter the results.
+            probe to optimize retrieving the probe list; there is no requirement to filter the results.
         @param is_explicit Boolean. Whether the probe type was explicitly specified in the unique ID. This
             can be used, for instance, to specially interpret the unique ID as an IP address or
             domain name when the probe class was specifically requested but not for general lists
@@ -315,7 +315,7 @@ class DebugProbe(object):
         """! @brief Assert or de-assert target's nRESET signal.
         
         Because nRESET is negative logic and usually open drain, passing True will drive it low, and
-        pasing False will stop driving so nRESET will be pulled up.
+        passing False will stop driving so nRESET will be pulled up.
         """
         raise NotImplementedError()
     

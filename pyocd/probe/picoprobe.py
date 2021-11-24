@@ -439,7 +439,7 @@ class Picoprobe(DebugProbe):
         @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
             sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
         """
-        # Init leghts to pack and cmd queue
+        # Init lengths to pack and cmd queue
         reads_lengths = []
         self._link.start_queue()
         # Take each sequence 'seq' in sequences
