@@ -498,7 +498,7 @@ def post_interrupt_task(interrupt_arg):
     gdb.post_event(interrupt_task)
 
 
-# Run the main test by repreatedly calling the generator
+# Run the main test by repeatedly calling the generator
 # This must only run on GDB's queue
 def run_generator(event):
     global ignore_events

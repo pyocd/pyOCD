@@ -57,7 +57,7 @@ class SDC600(CoreSightComponent):
         """! @brief COM Port link phases."""
         ## Hardware-defined link phase.
         PHASE1 = 1
-        ## Software-defiend link phase.
+        ## Software-defined link phase.
         PHASE2 = 2
     
     class Register:
