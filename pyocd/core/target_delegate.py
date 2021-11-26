@@ -16,14 +16,14 @@
 
 class TargetDelegateInterface(object):
     """! @brief Abstract class defining the delegate interface for targets.
-    
+
     Note that delegates don't actually have to derive from this class due to Python's
     dynamic method dispatching.
     """
 
     def __init__(self, session):
         self._session = session
-    
+
     def will_connect(self, board):
         """! @brief Pre-init hook for the board.
         @param self
@@ -31,7 +31,7 @@ class TargetDelegateInterface(object):
         @return Ignored.
         """
         pass
-    
+
     def did_connect(self, board):
         """! @brief Post-initialization hook for the board.
         @param self
@@ -49,7 +49,7 @@ class TargetDelegateInterface(object):
         @return Ignored.
         """
         pass
-    
+
     def did_init_target(self, target):
         """! @brief Post-initialization hook.
         @param self
@@ -66,7 +66,7 @@ class TargetDelegateInterface(object):
         @retval "False or None" Continue with normal behaviour.
         """
         pass
-    
+
     def did_start_debug_core(self, core):
         """! @brief Post-initialization hook.
         @param self
@@ -83,7 +83,7 @@ class TargetDelegateInterface(object):
         @retval "False or None" Continue with normal behaviour.
         """
         pass
-    
+
     def did_stop_debug_core(self, core):
         """! @brief Post-cleanup hook for the core.
         @param self
@@ -174,5 +174,5 @@ class TargetDelegateInterface(object):
         @return Ignored.
         """
         pass
-    
+
 

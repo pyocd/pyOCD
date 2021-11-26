@@ -67,7 +67,7 @@ class TargetList(object):
 
 class FreeRTOSThreadContext(DebugContext):
     """! @brief Thread context for FreeRTOS."""
-    
+
     # SP/PSP are handled specially, so it is not in these dicts.
 
     COMMON_REGISTER_OFFSETS = {
@@ -535,14 +535,14 @@ class FreeRTOSThreadProvider(ThreadProvider):
 
 class FreeRTOSPlugin(Plugin):
     """! @brief Plugin class for FreeRTOS."""
-    
+
     def load(self):
         return FreeRTOSThreadProvider
-    
+
     @property
     def name(self):
         return "freertos"
-    
+
     @property
     def description(self):
         return "FreeRTOS"

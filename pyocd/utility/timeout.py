@@ -20,11 +20,11 @@ from typing import Optional
 
 class Timeout:
     """! @brief Timeout helper context manager.
-    
+
     The recommended way to use this class is demonstrated here. It uses an else block on a
     while loop to handle the timeout. The code in the while loop must use a break statement
     to exit in the successful case.
-    
+
     @code
     with Timeout(5, sleeptime=0.1) as t_o:
         while t_o.check(): # or "while not t_o.did_time_out"
@@ -34,10 +34,10 @@ class Timeout:
         else:
             print("Timed out!")
     @endcode
-    
+
     Another method of using the class is to check the `did_time_out` property from within the
     while loop, as shown below.
-    
+
     @code
     with Timeout(5) as t_o:
         while perform_some_test():
@@ -47,14 +47,14 @@ class Timeout:
                 break
             sleep(0.1)
     @endcode
-    
+
     You may also combine the call to check() in the while loop with other boolean expressions
     related to the operation being performed.
-    
+
     If you pass a non-zero value for _sleeptime_ to the constructor, the check() method will
     automatically sleep by default starting with the second call. You can disable auto-sleep
     by passing `autosleep=False` to check().
-    
+
     Passing a timeout of None to the constructor is allowed. In this case, check() will always return
     True and the loop must be exited via some other means.
     """
@@ -92,10 +92,10 @@ class Timeout:
         self._start = time()
         self._timed_out = False
         self._is_first_check = True
-    
+
     def clear(self):
         """! @brief Reset the timeout back to initial, non-running state.
-        
+
         The timeout can be made to run again by calling start().
         """
         self._is_running = False
@@ -104,19 +104,19 @@ class Timeout:
 
     def check(self, autosleep: bool = True) -> bool:
         """! @brief Check for timeout and possibly sleep.
-        
+
         Starting with the second call to this method, it will automatically sleep before returning
         if:
             - The timeout has not yet occurred.
             - A non-zero _sleeptime_ was passed to the constructor.
             - The _autosleep_ parameter is True.
-        
+
         This method is intended to be used as the predicate of a while loop.
 
         If this method is called prior to the timeout being started (by the start() method or entering
         it as a context manager) this the return value will always be True (not timeed out). Only after
         the timeout is running will the elapsed time be tested.
-        
+
         @param self
         @param autosleep Whether to sleep if not timed out yet. The sleeptime passed to the
             constructor must have been non-zero.
@@ -131,7 +131,7 @@ class Timeout:
             sleep(self._sleeptime)
         self._is_first_check = False
         return not self._timed_out
-    
+
     @property
     def is_running(self) -> bool:
         """! @brief Whether the timeout object has started timing."""

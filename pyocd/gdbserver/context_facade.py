@@ -59,27 +59,27 @@ GDB_TYPE_MAP = {
 class GDBDebugContextFacade(object):
     """! @brief Provides GDB specific transformations to a DebugContext."""
 
-    ## The order certain target features should appear in target XML.        
+    ## The order certain target features should appear in target XML.
     REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.vfp")
 
     def __init__(self, context):
         self._context = context
-        
+
         # Note: Use the gdb 'maint print remote-registers' command to see it's view of the g/G commands.
-        
+
         ## List of CoreRegisterInfos sorted by gdb_regnum, excluding any registers not communicated to gdb.
         #
         # This list is in the order expected by the g/G commands for reading/writing full register contexts.
         # It contains de-duplicated core registers with a valid GDB regnum, sorted by regnum.
         self._register_list = sorted(set(self._context.core.core_registers.iter_matching(
                 lambda reg: reg.gdb_regnum is not None)), key=lambda v: v.gdb_regnum)
-        
+
         ## List of internal register numbers corresponding to gdb registers.
         self._full_reg_num_list = [reg.index for reg in self._register_list]
-        
+
         ## Map of gdb regnum to register info.
         self._gdb_regnum_map = {reg.gdb_regnum: reg for reg in self._register_list}
-        
+
         ## String of XML target description for gdb.
         self._target_xml = self._build_target_xml()
 
@@ -92,7 +92,7 @@ class GDBDebugContextFacade(object):
 
     def get_register_context(self):
         """! @brief Return hexadecimal dump of registers as expected by GDB.
-        
+
         @exception CoreRegisterAccessError
         """
         LOG.debug("GDB getting register context")
@@ -101,7 +101,7 @@ class GDBDebugContextFacade(object):
             vals = self._context.read_core_registers_raw(self._full_reg_num_list)
         except exceptions.CoreRegisterAccessError:
             vals = [None] * len(self._full_reg_num_list)
-            
+
         for reg, reg_value in zip(self._register_list, vals):
             # Return x's to indicate unavailable register value.
             if reg_value is None:
@@ -116,7 +116,7 @@ class GDBDebugContextFacade(object):
 
     def set_register_context(self, data):
         """! @brief Set registers from GDB hexadecimal string.
-        
+
         @exception CoreRegisterAccessError
         """
         LOG.debug("GDB setting register context")
@@ -137,11 +137,11 @@ class GDBDebugContextFacade(object):
 
     def set_register(self, gdb_regnum, data):
         """! @brief Set single register from GDB hexadecimal string.
-        
+
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
         @param data String of hex-encoded value for the register.
-        
+
         @exception CoreRegisterAccessError
         """
         reg = self._gdb_regnum_map.get(gdb_regnum, None)
@@ -154,17 +154,17 @@ class GDBDebugContextFacade(object):
 
     def gdb_get_register(self, gdb_regnum):
         """! @brief Set single core register.
-        
+
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
         @return String of hex-encoded value for the register.
-        
+
         @exception CoreRegisterAccessError
         """
         reg = self._gdb_regnum_map.get(gdb_regnum, None)
         if reg is None:
             return b''
-        
+
         try:
             reg_value = self._context.read_core_register_raw(reg.name)
             resp = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
@@ -177,7 +177,7 @@ class GDBDebugContextFacade(object):
 
     def get_t_response(self, force_signal=None):
         """! @brief Returns a GDB T response string.
-        
+
         This includes:
         - The signal encountered.
         - The current value of the important registers (sp, lr, pc).
@@ -212,7 +212,7 @@ class GDBDebugContextFacade(object):
 
     def _get_reg_index_value_pairs(self, reg_list):
         """! @brief Return register values as pairs.
-        
+
         Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
         for the T response string.  NN is the index of the
         register to follow MMMMMMMM is the value of the register.
@@ -241,7 +241,7 @@ class GDBDebugContextFacade(object):
             # Look up the region type name. Regions default to ram if gdb doesn't
             # have a concept of the region type.
             gdb_type = GDB_TYPE_MAP.get(r.type, 'ram')
-            
+
             start = hex(r.start).rstrip("L")
             length = hex(r.length).rstrip("L")
             mem = ElementTree.SubElement(root, 'memory', type=gdb_type, start=start, length=length)
@@ -282,7 +282,7 @@ class GDBDebugContextFacade(object):
         regs_by_feature = {k: list(g) for k, g in groupby(regs_sorted_by_feature, key=lambda r: r.gdb_feature)}
         unordered_features = list(regs_by_feature.keys())
         features = []
-        
+
         # Get a list of gdb features with some features having a determined order.
         for feature_name in self.REQUIRED_FEATURE_ORDER:
             if feature_name in unordered_features:
@@ -290,20 +290,20 @@ class GDBDebugContextFacade(object):
                 unordered_features.remove(feature_name)
         # Add any remaining features at the end of the feature list.
         features += unordered_features
-        
+
         use_xpsr_control_fields = self._context.session.options.get('xpsr_control_fields')
-        
+
         xml_root = ElementTree.Element('target')
-        
+
         for feature_name in features:
             regs = regs_by_feature[feature_name]
-        
+
             xml_feature = ElementTree.SubElement(xml_root, "feature", name=feature_name)
 
             # Special case for XPSR and CONTROL bitfield presentation.
             if (feature_name == "org.gnu.gdb.arm.m-profile") and use_xpsr_control_fields:
                 self._define_xpsr_control_fields(xml_feature)
-            
+
             # Add XML for the registers in this feature.
             for reg in regs:
                 if use_xpsr_control_fields and (reg.name in ('xpsr', 'control')):

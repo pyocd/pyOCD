@@ -26,18 +26,18 @@ LOG = logging.getLogger(__name__)
 
 class StreamServer(threading.Thread):
     """! @brief File-like object that serves data over a TCP socket.
-    
+
     The user can connect to the socket with telnet or netcat.
-    
+
     The server thread will automatically be started by the constructor. To shut down the
     server and its thread, call the stop() method.
     """
-    
+
     def __init__(self, port, serve_local_only=True, name=None, is_read_only=True, extra_info=None):
         """! @brief Constructor.
-        
+
         Starts the server immediately.
-        
+
         @param self
         @param port The TCP/IP port number on which the server should listen. If 0 is passed,
             then an arbitrary unused port is selected by the OS. In this case, the `port` property
@@ -68,7 +68,7 @@ class StreamServer(threading.Thread):
         self._shutdown_event = threading.Event()
         self.daemon = True
         self.start()
-    
+
     @property
     def port(self):
         return self._port

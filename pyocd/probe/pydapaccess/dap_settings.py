@@ -15,5 +15,5 @@
 # limitations under the License.
 
 class DAPSettings():
-	
+
 	limit_packets = False

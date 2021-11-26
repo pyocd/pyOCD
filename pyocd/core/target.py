@@ -34,7 +34,7 @@ class Target(MemoryInterface):
         SLEEPING = 4
         ## Core is locked up.
         LOCKUP = 5
-    
+
     class SecurityState(Enum):
         """! @brief Security states for a processor with the Security extension."""
         ## PE is in the Non-secure state.
@@ -81,7 +81,7 @@ class Target(MemoryInterface):
 
     class VectorCatch:
         """! Vector catch option masks.
-        
+
         These constants can be OR'd together to form any combination of vector catch settings.
         """
         ## Disable vector catch.
@@ -145,7 +145,7 @@ class Target(MemoryInterface):
 
     class RunType(Enum):
         """! Run type for run notifications.
-        
+
         An enum of this type is set as the data attribute on PRE_RUN and POST_RUN notifications.
         """
         ## Target is being resumed.
@@ -155,7 +155,7 @@ class Target(MemoryInterface):
 
     class HaltReason(Enum):
         """! Halt type for halt notifications.
-        
+
         An value of this type is returned from Target.get_halt_reason(). It is also used as the data
         attribute on PRE_HALT and POST_HALT notifications.
         """
@@ -186,18 +186,18 @@ class Target(MemoryInterface):
     @property
     def session(self):
         return self._session
-    
+
     @property
     def delegate(self):
         return self._delegate
-    
+
     @delegate.setter
     def delegate(self, the_delegate):
         self._delegate = the_delegate
-    
+
     def delegate_implements(self, method_name):
         return (self._delegate is not None) and (hasattr(self._delegate, method_name))
-    
+
     def call_delegate(self, method_name, *args, **kwargs):
         if self.delegate_implements(method_name):
             return getattr(self._delegate, method_name)(*args, **kwargs)
@@ -208,11 +208,11 @@ class Target(MemoryInterface):
     @property
     def svd_device(self):
         return self._svd_device
-    
+
     @property
     def supported_security_states(self):
         raise NotImplementedError()
-    
+
     @property
     def core_registers(self):
         raise NotImplementedError()
@@ -288,7 +288,7 @@ class Target(MemoryInterface):
 
     def get_state(self):
         raise NotImplementedError()
-        
+
     def get_security_state(self):
         raise NotImplementedError()
 

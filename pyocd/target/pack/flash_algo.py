@@ -41,7 +41,7 @@ class PackFlashAlgo(object):
     This class is intended to provide easy access to the information
     provided by a flash algorithm, such as symbols and the flash
     algorithm itself.
-    
+
     @sa PackFlashInfo
     """
 
@@ -57,7 +57,7 @@ class PackFlashAlgo(object):
         "EraseChip",
         "Verify",
         }
-        
+
     SECTIONS_TO_FIND = (
         ("PrgCode", "SHT_PROGBITS"),
         ("PrgData", "SHT_PROGBITS"),
@@ -106,18 +106,18 @@ class PackFlashAlgo(object):
 
     def get_pyocd_flash_algo(self, blocksize, ram_region):
         """! @brief Return a dictionary representing a pyOCD flash algorithm, or None.
-        
+
         The most interesting operation this method performs is dynamically allocating memory
         for the flash algo from a given RAM region. Note that the .data and .bss sections are
         concatenated with .text. That's why there isn't a specific allocation for those sections.
-        
+
         Double buffering is supported as long as there is enough RAM.
-        
+
         Memory layout:
         ```
         [stack] [code] [buf1] [buf2]
         ```
-        
+
         @param self
         @param blocksize The size to use for page buffers, normally the erase block size.
         @param ram_region A RamRegion object where the flash algo will be allocated.

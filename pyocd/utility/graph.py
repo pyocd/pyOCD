@@ -17,9 +17,9 @@
 
 class GraphNode(object):
     """! @brief Simple graph node.
-    
+
     All nodes have a parent, which is None for a root node, and zero or more children.
-    
+
     Supports indexing and iteration over children.
     """
 
@@ -28,34 +28,34 @@ class GraphNode(object):
         super(GraphNode, self).__init__()
         self._parent = None
         self._children = []
-    
+
     @property
     def parent(self):
         """! @brief This node's parent in the object graph."""
         return self._parent
-    
+
     @property
     def children(self):
         """! @brief Child nodes in the object graph."""
         return self._children
-    
+
     @property
     def is_leaf(self):
         """! @brief Returns true if the node has no children."""
         return len(self.children) == 0
-    
+
     def add_child(self, node):
         """! @brief Link a child node onto this object."""
         node._parent = self
         self._children.append(node)
-    
+
     def find_root(self):
         """! @brief Returns the root node of the object graph."""
         root = self
         while root.parent is not None:
             root = root.parent
         return root
-    
+
     def find_children(self, predicate, breadth_first=True):
         """! @brief Recursively search for children that match a given predicate.
         @param self
@@ -76,14 +76,14 @@ class GraphNode(object):
                     results.extend(_search(child, klass))
                 elif breadth_first:
                     childrenToExamine.append(child)
-                
+
             if breadth_first:
                 for child in childrenToExamine:
                     results.extend(_search(child, klass))
             return results
-        
+
         return _search(self, predicate)
-    
+
     def get_first_child_of_type(self, klass):
         """! @brief Breadth-first search for a child of the given class.
         @param self
@@ -97,33 +97,33 @@ class GraphNode(object):
             return matches[0]
         else:
             return None
-    
+
     def __getitem__(self, key):
         """! @brief Returns the indexed child.
-        
+
         Slicing is supported.
         """
         return self._children[key]
-    
+
     def __iter__(self):
         """! @brief Iterate over the node's children."""
         return iter(self.children)
-    
+
     def _dump_desc(self):
         """! @brief Similar to __repr__ by used for dump_to_str()."""
         return str(self)
-    
+
     def dump_to_str(self):
         """! @brief Returns a string describing the object graph."""
-    
+
         def _dump(node, level):
             result = ("  " * level) + "- " + node._dump_desc() + "\n"
             for child in node.children:
                 result += _dump(child, level + 1)
             return result
-    
+
         return _dump(self, 0)
-    
+
     def dump(self):
         """! @brief Pretty print the object graph to stdout."""
         print(self.dump_to_str())

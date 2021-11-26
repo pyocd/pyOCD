@@ -53,7 +53,7 @@ VECTOR_CATCH_CHAR_MAP = {
 
 def convert_vector_catch(vcvalue: Union[str, bytes]) -> int:
     """! @brief Convert a vector catch string to a mask.
-    
+
     @exception ValueError Raised if an invalid vector catch character is encountered.
     """
     # Make case insensitive.
@@ -84,14 +84,14 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
             else:
                 name = o.strip().lower()
                 value = None
-            
+
             # Check for and strip "no-" prefix before we validate the option name.
             if (value is None) and (name.startswith('no-')):
                 name = name[3:]
                 had_no_prefix = True
             else:
                 had_no_prefix = False
-            
+
             # Look for this option.
             try:
                 info = OPTIONS_INFO[name]
@@ -121,7 +121,7 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
                 except ValueError:
                     LOG.warning("invalid value for option '%s'", name)
                     continue
-            
+
             options[name] = value
     return options
 

@@ -60,7 +60,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 class MAX32625(CoreSightTarget):
 
     VENDOR = "Maxim"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,            length=0x80000, blocksize=0x2000, is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,   length=0x28000),

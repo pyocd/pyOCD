@@ -15,11 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class Commands:    
+class Commands:
     """!
     @brief STLink V2 and V3 commands.
     """
-    
+
     # Common commands.
     GET_VERSION = 0xf1
     JTAG_COMMAND = 0xf2
@@ -71,7 +71,7 @@ class Commands:
     SET_COM_FREQ = 0x61 # V3 only, replaces SWD/JTAG_SET_FREQ
     GET_COM_FREQ = 0x62 # V3 only
     SWITCH_STLINK_FREQ = 0x63 # V3 only
-    
+
     # Parameters for JTAG_ENTER2.
     JTAG_ENTER_SWD = 0xa3
     JTAG_ENTER_JTAG_NO_CORE_RESET = 0xa3
@@ -80,15 +80,15 @@ class Commands:
     JTAG_DRIVE_NRST_LOW = 0x00
     JTAG_DRIVE_NRST_HIGH = 0x01
     JTAG_DRIVE_NRST_PULSE = 0x02
-    
+
     # Parameters for JTAG_INIT_AP and JTAG_CLOSE_AP_DBG.
     JTAG_AP_NO_CORE = 0x00
     JTAG_AP_CORTEXM_CORE = 0x01
-    
+
     # Parameters for SET_COM_FREQ and GET_COM_FREQ.
     JTAG_STLINK_SWD_COM = 0x00
     JTAG_STLINK_JTAG_COM = 0x01
-    
+
 class Status:
     """!
     @brief STLink status codes and messages.
@@ -123,7 +123,7 @@ class Status:
     SWV_NOT_AVAILABLE = 0x20
     JTAG_FREQ_NOT_SUPPORTED = 0x41
     JTAG_UNKNOWN_CMD = 0x42
-    
+
     ## Map from status code to error message.
     MESSAGES = {
         JTAG_UNKNOWN_ERROR : "Unknown error",
@@ -155,7 +155,7 @@ class Status:
         JTAG_FREQ_NOT_SUPPORTED : "Frequency not supported",
         JTAG_UNKNOWN_CMD : "Unknown command",
     }
-    
+
     @staticmethod
     def get_error_message(status):
         return "STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error"))

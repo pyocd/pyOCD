@@ -22,21 +22,21 @@ LOG = logging.getLogger(__name__)
 
 class CallSequence(object):
     """! @brief Call sequence manager.
-    
+
     Contains an ordered sequence of tasks. Each task has a name and associated
     callable. The CallSequence class itself is callable, so instances can be nested
     as tasks within other CallSequences.
-    
+
     When tasks within a sequence are called, they may optionally return a new CallSequence
     instance. If this happens, the new sequence is executed right away, before continuing
     with the next task in the original sequence.
-    
+
     A CallSequence can be iterated over. It will return tuples of (task-name, callable).
     """
 
     def __init__(self, *args):
         """! @brief Constructor.
-        
+
         The constructor accepts an arbitrary number of parameters describing an ordered
         set of tasks. Each parameter must be a 2-tuple with the first element being the
         task's name and the second element a callable that implements the task. If you
@@ -44,64 +44,64 @@ class CallSequence(object):
         """
         self._validate_tasks(args)
         self._calls = OrderedDict(args)
-    
+
     def _validate_tasks(self, tasks):
         for i in tasks:
             assert len(i) == 2
             assert type(i[0]) is str
             assert isinstance(i[1], Callable)
-    
+
     @property
     def sequence(self):
         """! @brief Returns an OrderedDict of the call sequence.
-        
+
         Task names are keys.
         """
         return self._calls
-    
+
     @sequence.setter
     def sequence(self, seq):
         """! @brief Replace the entire call sequence.
-        
+
         Accepts either an OrderedDict or a list of 2-tuples like the constructor.
         """
         if isinstance(seq, OrderedDict):
             self._calls = seq
         elif type(seq) is list and len(seq) and type(seq[0]) is tuple:
             self._calls = OrderedDict(seq)
-    
+
     @property
     def count(self):
         """! @brief Returns the number of tasks in the sequence."""
         return len(self._calls)
-    
+
     def clear(self):
         """! @brief Remove all tasks from the sequence."""
         self._calls = OrderedDict()
-    
+
     def copy(self):
         """! @brief Duplicate the sequence."""
         new_seq = CallSequence()
         new_seq._calls = self._calls.copy()
         return new_seq
-    
+
     def remove_task(self, name):
         """! @brief Remove a task with the given name.
         @exception KeyError Raised if no task with the specified name exists.
         """
         del self._calls[name]
         return self
-    
+
     def has_task(self, name):
         """! @brief Returns a boolean indicating presence of the named task in the sequence."""
         return name in self._calls
-    
+
     def get_task(self, name):
         """! @brief Return the callable for the named task.
         @exception KeyError Raised if no task with the specified name exists.
         """
         return self._calls[name]
-    
+
     def replace_task(self, name, replacement):
         """! @brief Change the callable associated with a task."""
         assert isinstance(replacement, Callable)
@@ -112,10 +112,10 @@ class CallSequence(object):
             # that is already in the dict.
             self._calls[name] = replacement
         return self
-    
+
     def wrap_task(self, name, wrapper):
         """! @brief Wrap an existing task with a new callable.
-        
+
         The wrapper is expected to take a single parameter, the return value from the
         original task. This allows for easy filtering of a new call sequence returned by
         the original task.
@@ -125,15 +125,15 @@ class CallSequence(object):
 
         # Get original callable.
         orig = self._calls[name]
-        
+
         # OrderedDict preserves the order when changing the value of a key
         # that is already in the dict.
         self._calls[name] = lambda : wrapper(orig())
         return self
-    
+
     def append(self, *args):
         """! @brief Append a new task or tasks to the sequence.
-        
+
         Like the constructor, this method takes any number of arguments. Each must be a
         2-tuple task description.
         """
@@ -145,17 +145,17 @@ class CallSequence(object):
 
     def insert_before(self, beforeTaskName, *args):
         """! @brief Insert a task or tasks before a named task.
-        
+
         @param beforeTaskName The name of an existing task. The new tasks will be inserted
           prior to this task.
-        
+
         After the task name parameter, any number of task description 2-tuples may be
         passed.
-        
+
         @exception KeyError Raised if the named task does not exist in the sequence.
         """
         self._validate_tasks(args)
-        
+
         if not self.has_task(beforeTaskName):
             raise KeyError(beforeTaskName)
 
@@ -172,17 +172,17 @@ class CallSequence(object):
 
     def insert_after(self, afterTaskName, *args):
         """! @brief Insert a task or tasks after a named task.
-        
+
         @param afterTaskName The name of an existing task. The new tasks will be inserted
           after this task.
-        
+
         After the task name parameter, any number of task description 2-tuples may be
         passed.
-        
+
         @exception KeyError Raised if the named task does not exist in the sequence.
         """
         self._validate_tasks(args)
-        
+
         if not self.has_task(afterTaskName):
             raise KeyError(afterTaskName)
 
@@ -199,30 +199,30 @@ class CallSequence(object):
 
     def invoke(self):
         """! @brief Execute each task in order.
-        
+
         A task may return a CallSequence, in which case the new sequence is immediately
         executed.
         """
         for name, call in self._calls.items():
             LOG.debug("Running task %s", name)
             resultSequence = call()
-            
+
             # Invoke returned call sequence.
             if resultSequence is not None and isinstance(resultSequence, CallSequence):
 #                 LOG.debug("Invoking returned call sequence: %s", resultSequence)
                 resultSequence.invoke()
-    
+
     def __call__(self, *args, **kwargs):
         """! @brief Another way to execute the tasks.
-        
+
         Supports nested CallSequences.
         """
         self.invoke()
-    
+
     def __iter__(self):
         """! @brief Iterate over the sequence."""
         return iter(self._calls.items())
-    
+
     def __repr__(self):
         s = "<%s@%x: " % (self.__class__.__name__, id(self))
         for name, task in self._calls.items():

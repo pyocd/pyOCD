@@ -25,7 +25,7 @@ class Interface(object):
         self.serial_number = ""
         self.packet_count = 1
         self.packet_size = 64
-    
+
     @property
     def has_swo_ep(self):
         return False

@@ -82,7 +82,7 @@ class TestRegisterCache:
                 modifier = 0
             mockcore.write_core_registers_raw([r], [get_expected_reg_value(r) + modifier])
             assert mockcore.read_core_registers_raw([r]) == [get_expected_reg_value(r) + modifier]
-        
+
     def test_r_1(self, mockcore, regcache):
         assert regcache.read_core_registers_raw(['r0']) == [0] # cache initial value of 0
         mockcore.write_core_registers_raw(['r0'], [1234]) # modify reg behind the cache's back
@@ -91,7 +91,7 @@ class TestRegisterCache:
         regcache.invalidate() # explicitly invalidate cache
         assert mockcore.read_core_registers_raw(['r0']) == [1234] # verify modified reg
         assert regcache.read_core_registers_raw(['r0']) == [1234] # now should return updated 1234 value
-        
+
     def test_run_token(self, mockcore, regcache):
         assert regcache.read_core_registers_raw(['r0']) == [0] # cache initial value of 0
         mockcore.write_core_registers_raw(['r0'], [1234]) # modify reg behind the cache's back
@@ -136,7 +136,7 @@ class TestRegisterCache:
         mockcore.write_core_registers_raw(['control', 'primask'], [0x55, 0xaa])
         # cache should return original value
         assert regcache.read_core_registers_raw(['cfbp']) == [get_expected_cfbp()]
-    
+
     def test_read_cached_xpsr(self, mockcore, regcache):
         self.set_core_regs(mockcore)
         # cache it
@@ -153,14 +153,14 @@ class TestRegisterCache:
         regcache.write_core_registers_raw(['r0'], [1234])
         assert mockcore.read_core_registers_raw(['r0']) == [1234]
         assert regcache.read_core_registers_raw(['r0']) == [1234]
-    
+
     def test_write_regs(self, mockcore, regcache):
         self.set_core_regs(mockcore)
         for r in core_regs_composite_regs(mockcore):
             regcache.write_core_registers_raw([r], [get_expected_reg_value(r) + get_modifier(r)])
         for r in core_regs_composite_regs(mockcore):
             assert mockcore.read_core_registers_raw([r]) == [get_expected_reg_value(r) + get_modifier(r)]
-     
+
     def test_write_cfbp(self, mockcore, regcache):
         self.set_core_regs(mockcore)
         assert mockcore.read_core_registers_raw(['cfbp']) == [get_expected_cfbp()]
@@ -170,7 +170,7 @@ class TestRegisterCache:
             ((3 << 24) | (get_expected_reg_value('faultmask') << 16) |
             (get_expected_reg_value('basepri') << 8) | 19)
             ]
-   
+
     def test_write_xpsr(self, mockcore, regcache):
         self.set_core_regs(mockcore)
         assert mockcore.read_core_registers_raw(['xpsr']) == [get_expected_xpsr()]
@@ -196,16 +196,16 @@ class TestRegisterCache:
     def test_invalid_reg_w(self, regcache):
         with pytest.raises(KeyError):
             regcache.write_core_registers_raw([132423], [1234])
-    
+
     def test_invalid_fpu_reg_r(self, regcache_no_fpu):
         with pytest.raises(KeyError):
             regcache_no_fpu.read_core_registers_raw(['s1'])
-    
+
     def test_invalid_fpu_reg_w(self, regcache_no_fpu):
         with pytest.raises(KeyError):
             regcache_no_fpu.write_core_registers_raw(['s1'], [1.234])
 
-            
+
 
 
 

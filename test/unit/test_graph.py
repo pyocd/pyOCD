@@ -22,7 +22,7 @@ class BaseNode(GraphNode):
     def __init__(self, value):
         super(BaseNode, self).__init__()
         self.value = value
-    
+
     def __repr__(self):
         return "<{}@{:#010x} {}".format(self.__class__.__name__, id(self), self.value)
 
@@ -83,7 +83,7 @@ class TestGraph:
         assert a.children == []
         assert b.children == []
         assert c.children == []
-    
+
     def test_multilevel(self, graph, a, b, c):
         assert len(graph.children) == 2
         assert graph.children == [a, c]
@@ -95,17 +95,17 @@ class TestGraph:
         assert c.parent is graph
         assert b.children == []
         assert c.children == []
-    
+
     def test_find_breadth(self, graph, a, b, c):
         assert graph.find_children(lambda n: n.value == 1) == [b]
         assert graph.find_children(lambda n: n.value == 1 or n.value == 2) == [c, b]
-    
+
     def test_find_depth(self, graph, a, b, c):
         assert graph.find_children(lambda n: n.value == 1, breadth_first=False) == [b]
         assert graph.find_children(lambda n: n.value == 1 or n.value == 2, breadth_first=False) == [b, c]
-    
+
     def test_first(self, graph, a, b, c):
         assert graph.get_first_child_of_type(NodeA) == a
         assert graph.get_first_child_of_type(NodeB) == c
         assert a.get_first_child_of_type(NodeB) == b
-        
+

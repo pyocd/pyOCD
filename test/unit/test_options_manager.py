@@ -73,14 +73,14 @@ class TestOptionsManager(object):
         mgr.add_back({'debug__traceback': False})
         assert 'debug.traceback' in mgr
         assert mgr.get('debug.traceback') == False
-        
+
     def test_set(self, mgr, layer1):
         mgr.add_front(layer1)
         mgr.set('buzz', 1234)
         assert mgr['buzz'] == 1234
         mgr.add_front({'buzz': 4321})
         assert mgr.get('buzz') == 4321
-        
+
     def test_update(self, mgr, layer1, layer2):
         mgr.add_front(layer1)
         mgr.add_front(layer2)
@@ -121,4 +121,4 @@ class TestOptionsManager(object):
         mgr.add_back(layer2)
         assert flag[0] == False
 
-        
+

@@ -23,10 +23,10 @@ from .mask import align_up
 
 def byte_list_to_nbit_le_list(data, bitwidth, pad=0x00):
     """! @brief Convert a list of bytes to a list of n-bit integers (little endian)
-    
+
     If the length of the data list is not a multiple of `bitwidth` // 8, then the pad value is used
     for the additional required bytes.
-    
+
     @param data List of bytes.
     @param bitwidth Width in bits of the resulting values.
     @param pad Optional value used to pad input data if not aligned to the bitwidth.
@@ -46,7 +46,7 @@ def byte_list_to_nbit_le_list(data, bitwidth, pad=0x00):
 
 def nbit_le_list_to_byte_list(data, bitwidth):
     """! @brief Convert a list of n-bit values into a byte list.
-    
+
     @param data List of n-bit values.
     @param bitwidth Width in bits of the input vales.
     @result List of integer bytes.
@@ -55,7 +55,7 @@ def nbit_le_list_to_byte_list(data, bitwidth):
 
 def byte_list_to_u32le_list(data, pad=0x00):
     """! @brief Convert a list of bytes to a list of 32-bit integers (little endian)
-    
+
     If the length of the data list is not a multiple of 4, then the pad value is used
     for the additional required bytes.
     """
@@ -118,7 +118,7 @@ def float64_to_u64(data):
 def uint_to_hex_le(value, width):
     """! @brief Create an n-digit hexadecimal string from an integer value.
     @param value Integer value to format.
-    @param width The width in bits. 
+    @param width The width in bits.
     @return A string with the number of hex bytes required to fit `width` bits, rounded up to the
         next whole byte. The bytes represent `value` in little-endian order. That is, the first hex
         byte contains the LSB of `value`, while the last hex byte the MSB.

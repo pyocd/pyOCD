@@ -114,7 +114,7 @@ class TestConversionUtilities(object):
 
     def test_byte_list_to_u32le_list_empty(self):
         assert byte_list_to_u32le_list([]) == []
-        
+
     def test_byteListToU32leList(self):
         data = range(32)
         assert byte_list_to_u32le_list(data) == [
@@ -127,7 +127,7 @@ class TestConversionUtilities(object):
             0x1B1A1918,
             0x1F1E1D1C,
         ]
-    
+
     def test_byte_list_to_u32le_list_unaligned(self):
         assert byte_list_to_u32le_list([1]) == [0x00000001]
         assert byte_list_to_u32le_list([1, 2, 3]) == [0x00030201]
@@ -193,10 +193,10 @@ class TestConversionUtilities(object):
 
     def test_hex16ToU64le(self):
         assert hex16_to_u64le("0102ABCD171819EF") == 0x0102ABCD171819EF
-    
+
     def test_uint_to_hex_le_odd_width(self):
         assert uint_to_hex_le(0xd0102ABCD, 36) == "cdab02010d"
-    
+
     def test_hex_le_to_uint_odd_width(self):
         assert hex_le_to_uint("0102ABCD0d", 36) == 0x0dCDAB0201
 
@@ -248,7 +248,7 @@ class TestGdbEscape(object):
         [six.int2byte(x) for x in range(256) if (x not in ESCAPEES)])
     def test_escape_passthrough(self, data):
         assert escape(data) == data
-    
+
     @pytest.mark.parametrize(("data", "expected"), [
             (b'#', b'}\x03'),
             (b'$', b'}\x04'),
@@ -257,16 +257,16 @@ class TestGdbEscape(object):
         ])
     def test_escape_1(self, data, expected):
         assert escape(data) == expected
-    
+
     def test_escape_2(self):
         assert escape(b'1234#09*xyz') == b'1234}\x0309}\x0axyz'
-    
+
     # Verify all chars that shouldn't be escaped pass through unmodified.
     @pytest.mark.parametrize("data",
         [six.int2byte(x) for x in range(256) if (x not in ESCAPEES)])
     def test_unescape_passthrough(self, data):
         assert unescape(data) == [six.byte2int(data)]
-    
+
     @pytest.mark.parametrize(("expected", "data"), [
             (0x23, b'}\x03'),
             (0x24, b'}\x04'),
@@ -275,7 +275,7 @@ class TestGdbEscape(object):
         ])
     def test_unescape_1(self, data, expected):
         assert unescape(data) == [expected]
-    
+
     def test_unescape_2(self):
         assert unescape(b'1234}\x0309}\x0axyz') == \
             [0x31, 0x32, 0x33, 0x34, 0x23, 0x30, 0x39, 0x2a, 0x78, 0x79, 0x7a]
@@ -283,9 +283,9 @@ class TestGdbEscape(object):
 class TestPairwise(object):
     def test_empty(self):
         assert list(pairwise([])) == []
-    
+
     def test_str(self):
         assert list(pairwise('abcdef')) == [('a','b'), ('c','d'), ('e','f')]
-    
+
     def test_int(self):
         assert list(pairwise([1, 2, 3, 4, 5, 6])) == [(1, 2), (3, 4), (5, 6)]

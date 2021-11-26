@@ -24,7 +24,7 @@ class TestCallSequence:
     def test_empty(self):
         cs = CallSequence()
         assert cs.count == 0
-    
+
     def test_a(self):
         results = []
         cs = CallSequence(
@@ -42,11 +42,11 @@ class TestCallSequence:
                 )
         assert cs.count == 1
 
-        cs.append(        
+        cs.append(
                 ('b', lambda : results.append('b ran')),
                 )
         assert cs.count == 2
-        
+
         cs.invoke()
         assert results == ['a ran', 'b ran']
 
@@ -57,12 +57,12 @@ class TestCallSequence:
                 )
         assert cs.count == 1
 
-        cs.append(        
+        cs.append(
                 ('b', lambda : results.append('b ran')),
                 ('c', lambda : results.append('c ran')),
                 )
         assert cs.count == 3
-        
+
         cs.invoke()
         assert results == ['a ran', 'b ran', 'c ran']
 
@@ -73,10 +73,10 @@ class TestCallSequence:
                 ('b', lambda : results.append('b ran')),
                 )
         assert cs.count == 2
-        
+
         cs.remove_task('b')
         assert cs.count == 1
-        
+
         cs.invoke()
         assert results == ['a ran']
 

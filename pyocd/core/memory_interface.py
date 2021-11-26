@@ -21,13 +21,13 @@ class MemoryInterface(object):
 
     def write_memory(self, addr, data, transfer_size=32):
         """! @brief Write a single memory location.
-        
+
         By default the transfer size is a word."""
         raise NotImplementedError()
-        
+
     def read_memory(self, addr, transfer_size=32, now=True):
         """! @brief Read a memory location.
-        
+
         By default, a word will be read."""
         raise NotImplementedError()
 
@@ -38,11 +38,11 @@ class MemoryInterface(object):
     def read_memory_block32(self, addr, size):
         """! @brief Read an aligned block of 32-bit words."""
         raise NotImplementedError()
-  
+
     def write64(self, addr, value):
         """! @brief Shorthand to write a 64-bit word."""
         self.write_memory(addr, value, 64)
-  
+
     def write32(self, addr, value):
         """! @brief Shorthand to write a 32-bit word."""
         self.write_memory(addr, value, 32)

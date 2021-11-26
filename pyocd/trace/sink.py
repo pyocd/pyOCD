@@ -27,20 +27,20 @@ class TraceEventSink(object):
 
 class TraceEventFilter(TraceEventSink):
     """! @brief Abstract interface for a trace event filter."""
-    
+
     def __init__(self, sink=None):
         self._sink = sink
 
     def connect(self, sink):
         """! @brief Connect the downstream trace sink or filter."""
         self._sink = sink
-    
+
     def receive(self, event):
         """! @brief Handle a single trace event.
-        
+
         Passes the event through the filter() method. If one or more objects are returned, they
         are then passed to the trace sink connected to this filter (which may be another filter).
-        
+
         @param self
         @param event An instance of TraceEvent or one of its subclasses.
         """
@@ -51,10 +51,10 @@ class TraceEventFilter(TraceEventSink):
                     self._sink.receive(event_item)
             else:
                 self._sink.receive(event)
-    
+
     def filter(self, event):
         """! @brief Filter a single trace event.
-        
+
         @param self
         @param event An instance of TraceEvent or one of its subclasses.
         @return Either None, a single TraceEvent, or a sequence of TraceEvents.
@@ -63,13 +63,13 @@ class TraceEventFilter(TraceEventSink):
 
 class TraceEventTee(TraceEventSink):
     """! @brief Trace event sink that replicates events to multiple sinks."""
-    
+
     def __init__(self):
         self._sinks = []
 
     def connect(self, sinks):
         """! @brief Connect one or more downstream trace sinks.
-        
+
         @param self
         @param sinks If this parameter is a single object, it will be added to the list of
           downstream trace event sinks. If it is an iterable (list, tuple, etc.), then it will
@@ -82,7 +82,7 @@ class TraceEventTee(TraceEventSink):
 
     def receive(self, event):
         """! @brief Replicate a single trace event to all connected downstream trace event sinks.
-        
+
         @param self
         @param event An instance of TraceEvent or one of its subclasses.
         """

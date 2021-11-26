@@ -31,12 +31,12 @@ LOG = logging.getLogger(__name__)
 
 class LoadSubcommand(SubcommandBase):
     """! @brief `pyocd load` and `flash` subcommand."""
-    
+
     NAMES = ['load', 'flash']
     HELP = "Load one or more images into target device memory."
     EPILOG = "Supported file formats are: binary, Intel hex, and ELF32."
     DEFAULT_LOG_LEVEL = logging.WARNING
-    
+
     ## @brief Valid erase mode options.
     ERASE_OPTIONS = [
         'auto',
@@ -66,18 +66,18 @@ class LoadSubcommand(SubcommandBase):
         parser.add_argument("file", metavar="<file-path>", nargs="+",
             help="File to write to memory. Binary files can have an optional base address appended to the file "
                  "name as '@<address>', for instance 'app.bin@0x20000'.")
-        
+
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, parser]
-    
+
     def invoke(self) -> int:
         """! @brief Handle 'load' subcommand."""
         self._increase_logging(["pyocd.flash.loader", __name__])
-        
+
         # Validate arguments.
         if (self._args.base_address is not None) and (len(self._args.file) > 1):
             raise ValueError("--base-address cannot be set when loading more than one file; "
                     "use a base address suffix instead")
-        
+
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
@@ -104,11 +104,11 @@ class LoadSubcommand(SubcommandBase):
                     base_address = int_base_0(suffix)
                 else:
                     base_address = self._args.base_address
-                
+
                 # Resolve our path.
                 file_path = Path(filename).expanduser().resolve()
                 filename = str(file_path)
-                
+
                 if base_address is None:
                     LOG.info("Loading %s", filename)
                 else:

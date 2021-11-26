@@ -142,7 +142,7 @@ def flash_test(board_id):
         test_pass_count = 0
         test_count = 0
         result = FlashTestResult()
-        
+
         # Test each flash region separately.
         for rom_region in memory_map.iter_matching_regions(type=MemoryType.FLASH, is_testable=True):
             rom_start = rom_region.start
@@ -150,7 +150,7 @@ def flash_test(board_id):
 
             flash = rom_region.flash
             flash_info = flash.get_flash_info()
-            
+
             # This can be any value, as long as it's not the erased byte value. We take the
             # inverse of the erased value so that for most flash, the unerased value is 0x00.
             unerasedValue = invert32(flash.region.erased_byte_value) & 0xff
@@ -162,7 +162,7 @@ def flash_test(board_id):
                 data = f.read()
             data = struct.unpack("%iB" % len(data), data)
             unused = rom_size - len(data)
-            
+
             # Make sure data doesn't overflow this region.
             if unused < 0:
                 data = data[:rom_size]
@@ -173,7 +173,7 @@ def flash_test(board_id):
 
             # Turn on extra checks for the next 4 tests
             flash.set_flash_algo_debug(True)
-            
+
             print("\n------ Test Erased Value Check ------")
             d = [flash.region.erased_byte_value] * 128
             if flash.region.is_data_erased(d):

@@ -54,7 +54,7 @@ class ITM(CoreSightComponent):
     TCR_TRACEBUSID_MASK = (0x7f << 16)
     TCR_TRACEBUSID_SHIFT = 16
     TCR_BUSY_MASK = (1 << 23)
-    
+
     LAR = 0x00000fb0
     LAR_KEY = 0xC5ACCE55
     LSR = 0x00000fb4
@@ -79,10 +79,10 @@ class ITM(CoreSightComponent):
             val = self.ap.read32(self.address + ITM.LSR)
             if val & ITM.LSR_SLK_MASK:
                 raise exceptions.DebugError("Failed to unlock ITM")
-        
+
         # Disable the ITM until enabled.
         self.disable()
-    
+
     @property
     def is_enabled(self):
         return self._is_enabled
@@ -99,9 +99,9 @@ class ITM(CoreSightComponent):
 
     def set_enabled_ports(self, enabled_ports):
         self.ap.write32(self.address + ITM.TERn, enabled_ports)
-    
+
     def disable(self):
         self.ap.write32(self.address + ITM.TERn, 0)
         self.ap.write32(self.address + ITM.TCR, 0)
         self._is_enabled = False
-        
+

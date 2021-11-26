@@ -257,7 +257,7 @@ class GDBServerTool(object):
 
         if not self.args.no_deprecation_warning:
             LOG.warning("pyocd-gdbserver is deprecated; please use the new combined pyocd tool.")
-    
+
         self.process_commands(self.args.commands)
 
         gdb = None
@@ -271,7 +271,7 @@ class GDBServerTool(object):
                 # Build dict of session options.
                 sessionOptions = convert_session_options(self.args.option)
                 sessionOptions.update(self.gdb_server_settings)
-                
+
                 session = ConnectHelper.session_with_chosen_probe(
                     config_file=self.args.config,
                     no_config=self.args.no_config,
@@ -290,7 +290,7 @@ class GDBServerTool(object):
                     for core_number, core in session.board.target.cores.items():
                         if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                             continue
-                            
+
                         gdb = GDBServer(session, core=core_number)
                         # Only subscribe to the server for the first core, so echo messages aren't printed
                         # multiple times.

@@ -23,12 +23,12 @@ class TestFaultError:
     def test_no_args(self):
         e = TransferFaultError()
         assert str(e) == 'Memory transfer fault'
-    
+
     def test_no_args_set_addr(self):
         e = TransferFaultError()
         e.fault_address = 0x1000
         assert str(e) == 'Memory transfer fault @ 0x00001000'
-    
+
     def test_no_args_set_addr_len(self):
         e = TransferFaultError()
         e.fault_address = 0x1000
@@ -42,12 +42,12 @@ class TestFaultError:
     def test_arg_tuple(self):
         e = TransferFaultError(-1, 1234)
         assert str(e) == 'Memory transfer fault (-1, 1234)'
-    
+
     def test_msg_ctor_addr(self):
         e = TransferFaultError("my bad", fault_address=0x20008400)
         assert e.fault_address == 0x20008400
         assert str(e) == 'Memory transfer fault (my bad) @ 0x20008400'
-    
+
     def test_msg_ctor_addr_len(self):
         e = TransferFaultError("my bad", fault_address=0x20008400, length=32)
         assert e.fault_address == 0x20008400

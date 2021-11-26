@@ -33,14 +33,14 @@ TRACE.setLevel(logging.CRITICAL)
 
 class DebugProbeServer(threading.Thread):
     """! @brief Shares a debug probe over a TCP server.
-    
+
     When the start() method is called, a new daemon thread is created to run the server. The server
     can be terminated by calling the stop() method, which will also kill the server thread.
     """
-    
+
     def __init__(self, session, probe, port=None, serve_local_only=None):
         """! @brief Constructor.
-        
+
         @param self The object.
         @param session A @ref pyocd.core.session.Session "Session" object. Does not need to have a
             probe assigned to it.
@@ -55,75 +55,75 @@ class DebugProbeServer(threading.Thread):
             localhost. If not specified (set to None), then the 'serve_local_only' session option is used.
         """
         super(DebugProbeServer, self).__init__()
-        
+
         # Configure the server thread.
         self.name = "debug probe %s server" % probe.unique_id
         self.daemon = True
-        
+
         # Init instance variables.
         self._session = session
         self._probe = probe
         self._is_running = False
-        
+
         # Make sure we have a shared proxy for the probe.
         if isinstance(probe, SharedDebugProbeProxy):
             self._proxy = probe
         else:
             self._proxy = SharedDebugProbeProxy(probe)
-        
+
         # Get the port from options if not specified.
         if port is None:
             self._port = session.options.get('probeserver.port')
         else:
             self._port = port
-        
+
         # Default to the serve_local_only session option.
         if serve_local_only is None:
             serve_local_only = session.options.get('serve_local_only')
-        
+
         host = 'localhost' if serve_local_only else ''
         address = (host, self._port)
-        
+
         # Create the server and bind to the address, but don't start running yet.
         self._server = TCPProbeServer(address, session, self._proxy)
         self._server.server_bind()
-        
+
     def start(self):
         """! @brief Start the server thread and begin listening."""
         self._server.server_activate()
         super(DebugProbeServer, self).start()
-    
+
     def stop(self):
         """! @brief Shut down the server.
-        
+
         Any open connections will be forcibly closed. This function does not return until the
         server thread has exited.
         """
         self._server.shutdown()
         self.join()
-    
+
     @property
     def is_running(self):
         """! @brief Whether the server thread is running."""
         return self._is_running
-    
+
     @property
     def port(self):
         """! @brief The server's port.
-        
+
         If port 0 was specified in the constructor, then, after start() is called, this will reflect the actual port
         on which the server is listening.
         """
         return self._port
-    
+
     def run(self):
         """! @brief The server thread implementation."""
         self._is_running = True
-        
+
         # Read back the actual port if 0 was specified.
         if self._port == 0:
             self._port = self._server.socket.getsockname()[1]
-        
+
         LOG.info("Serving debug probe %s (%s) on port %i",
                 self._probe.description, self._probe.unique_id, self._port)
         self._server.serve_forever()
@@ -131,24 +131,24 @@ class DebugProbeServer(threading.Thread):
 
 class TCPProbeServer(ThreadingTCPServer):
     """! @brief TCP server subclass that carries the session and probe being served."""
-    
+
     # Change the default SO_REUSEADDR setting.
     allow_reuse_address = True
-    
+
     def __init__(self, server_address, session, probe):
         self._session = session
         self._probe = probe
         ThreadingTCPServer.__init__(self, server_address, DebugProbeRequestHandler,
             bind_and_activate=False)
-    
+
     @property
     def session(self):
         return self._session
-    
+
     @property
     def probe(self):
         return self._probe
-    
+
     def handle_error(self, request, client_address):
         LOG.error("Error while handling client request (client address %s):", client_address,
             exc_info=self._session.log_tracebacks)
@@ -156,7 +156,7 @@ class TCPProbeServer(ThreadingTCPServer):
 class DebugProbeRequestHandler(StreamRequestHandler):
     """!
     @brief Probe server request handler.
-    
+
     This class implements the server side for the remote probe protocol.
 
     request:
@@ -178,10 +178,10 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     }
     ````
     """
-    
+
     ## Current version of the remote probe protocol.
     PROTOCOL_VERSION = 1
-    
+
     class StatusCode:
         """! @brief Constants for errors reported from the server."""
         GENERAL_ERROR = 1
@@ -198,22 +198,22 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             self._client_domain = info[0]
         except socket.herror:
             self._client_domain = self.client_address[0]
-        
+
         LOG.info("Remote probe client connected (%s from port %i)", self._client_domain, self.client_address[1])
-        
+
         # Get the session and probe we're serving from the server.
         self._session = self.server.session
         self._probe = self.server.probe
-        
+
         # Give the probe a session if it doesn't have one, in case it needs to access settings.
         # TODO: create a session proxy so client-side options can be accessed
         if self._probe.session is None:
             self._probe.session = self._session
-        
+
         # Dict to store handles for AP memory interfaces.
         self._next_ap_memif_handle = 0
         self._ap_memif_handles = {}
-    
+
         # Create the request handlers dict here so we can reference bound probe methods.
         self._REQUEST_HANDLERS = {
                 # Command                Handler                            Arg count
@@ -250,17 +250,17 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 'read_block8':          (self._request__read_block8,        3   ), # 'read_block8', handle:int, addr:int, word_count:int -> List[int]
                 'write_block8':         (self._request__write_block8,       3   ), # 'write_block8', handle:int, addr:int, data:List[int]
             }
-        
+
         # Let superclass do its thing. (Can't use super() here because the superclass isn't derived
         # from object in Py2.)
         StreamRequestHandler.setup(self)
-    
+
     def finish(self):
         LOG.info("Remote probe client disconnected (%s from port %i)", self._client_domain, self.client_address[1])
-        
+
         self._session = None
         StreamRequestHandler.finish(self)
-    
+
     def _send_error_response(self, status=1, message=""):
         response_dict = {
                 "id": self._current_request_id,
@@ -271,7 +271,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         TRACE.debug("response: %s", response)
         response_encoded = response.encode('utf-8')
         self.wfile.write(response_encoded + b"\n")
-        
+
     def _send_response(self, result):
         response_dict = {
                 "id": self._current_request_id,
@@ -283,7 +283,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         TRACE.debug("response: %s", response)
         response_encoded = response.encode('utf-8')
         self.wfile.write(response_encoded + b"\n")
-        
+
     def handle(self):
         # Process requests until the connection is closed.
         while True:
@@ -291,48 +291,48 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 request = None
                 request_dict = None
                 self._current_request_id = -1
-                
+
                 # Read request line.
                 request = self.rfile.readline()
                 TRACE.debug("request: %s", request)
                 if len(request) == 0:
                     LOG.debug("empty request, closing connection")
                     return
-                
+
                 try:
                     request_dict = json.loads(request)
                 except json.JSONDecodeError:
                     self._send_error_response(message="invalid request format")
                     continue
-            
+
                 if not isinstance(request_dict, dict):
                     self._send_error_response(message="invalid request format")
                     continue
-                    
+
                 if 'id' not in request_dict:
                     self._send_error_response(message="missing request ID")
                     continue
                 self._current_request_id = request_dict['id']
-                
+
                 if 'request' not in request_dict:
                     self._send_error_response(message="missing request field")
                     continue
                 request_type = request_dict['request']
-                
+
                 # Get arguments. If the key isn't present then there are no arguments.
                 request_args = request_dict.get('arguments', [])
-            
+
                 if not isinstance(request_args, list):
                     self._send_error_response(message="invalid request arguments format")
                     continue
-                
+
                 if request_type not in self._REQUEST_HANDLERS:
                     self._send_error_response(message="unknown request type")
                     continue
                 handler, arg_count = self._REQUEST_HANDLERS[request_type]
                 self._check_args(request_args, arg_count)
                 result = handler(*request_args)
-                
+
                 # Send a success response.
                 self._send_response(result)
             # Catch all exceptions so that an error response can be returned, to not leave the client hanging.
@@ -349,7 +349,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 # Reraise non-pyocd errors.
                 if not isinstance(err, exceptions.Error):
                     raise
-    
+
     def _get_exception_status_code(self, err):
         """! @brief Convert an exception class into a status code."""
         # Must test the exception class in order of specific to general.
@@ -365,17 +365,17 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             return self.StatusCode.TRANSFER_ERROR
         else:
             return self.StatusCode.GENERAL_ERROR
-    
+
     def _check_args(self, args, count):
         if len(args) != count:
             raise exceptions.Error("malformed request; invalid number of arguments")
-    
+
     def _request__hello(self, version):
         # 'hello', protocol-version:int
         if version != self.PROTOCOL_VERSION:
             raise exceptions.Error("client requested unsupported protocol version %i (expected %i)" %
                     (version, self.PROTOCOL_VERSION))
-    
+
     def _request__read_property(self, name):
         # 'readprop', name:str
         if not hasattr(self._probe, name):
@@ -385,7 +385,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         if name in self._PROPERTY_CONVERTERS:
             value = self._PROPERTY_CONVERTERS[name](value)
         return value
-    
+
     def _request__connect(self, protocol_name):
         # 'connect', protocol:str
         try:
@@ -393,7 +393,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         except KeyError:
             raise exceptions.Error("invalid protocol name %s" % protocol_name)
         self._probe.connect(protocol)
-    
+
     def _request__get_memory_interface_for_ap(self, ap_address_version, ap_nominal_address):
         # 'get_memory_interface_for_ap', ap_address_version:int, ap_nominal_address:int -> handle:int|null
         ap_version = APVersion(ap_address_version)
@@ -413,7 +413,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         else:
             handle = None
         return handle
-    
+
     def _request__swo_read(self):
         return list(self._probe.swo_read())
 
@@ -422,34 +422,34 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
         return self._ap_memif_handles[handle].read_memory(addr, xfer_size, now=True)
-    
+
     def _request__write_mem(self, handle, addr, value, xfer_size):
         # 'write_mem', handle:int, addr:int, value:int, xfer_size:int
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
         self._ap_memif_handles[handle].write_memory(addr, value, xfer_size)
-    
+
     def _request__read_block32(self, handle, addr, word_count):
         # 'read_block32', handle:int, addr:int, word_count:int -> List[int]
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
         return self._ap_memif_handles[handle].read_memory_block32(addr, word_count)
-    
+
     def _request__write_block32(self, handle, addr, data):
         # 'write_block32', handle:int, addr:int, data:List[int]
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
         self._ap_memif_handles[handle].write_memory_block32(addr, data)
-    
+
     def _request__read_block8(self, handle, addr, word_count):
         # 'read_block8', handle:int, addr:int, word_count:int -> List[int]
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
         return self._ap_memif_handles[handle].read_memory_block8(addr, word_count)
-    
+
     def _request__write_block8(self, handle, addr, data):
         # 'write_block8', handle:int, addr:int, data:List[int]
         # TODO use base64 data

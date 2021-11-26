@@ -39,7 +39,7 @@ class TestTimeout:
                 sleep(0.01)
         assert to.did_time_out
         assert (time() - s) >= 0.05
-    
+
     def test_timeout_b(self):
         timedout = False
         s = time()
@@ -53,7 +53,7 @@ class TestTimeout:
         assert timedout
         assert to.did_time_out
         assert (time() - s) >= 0.05
-    
+
     def test_timeout_c(self):
         timedout = False
         with Timeout(0.05) as to:
@@ -64,7 +64,7 @@ class TestTimeout:
                 cnt += 1
         assert not timedout
         assert not to.did_time_out
-    
+
     def test_timeout_reset(self):
         cnt = 0
         cnta = 0

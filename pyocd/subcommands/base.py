@@ -36,7 +36,7 @@ class SubcommandBase:
 
     class CommonOptions:
         """! @brief Namespace with parsers for repeated option groups."""
-        
+
         # Define logging related options.
         LOGGING = argparse.ArgumentParser(description='logging', add_help=False)
         LOGGING_GROUP = LOGGING.add_argument_group("logging")
@@ -48,7 +48,7 @@ class SubcommandBase:
             help="Set log level of loggers whose name matches any of the comma-separated list of glob-style "
             "patterns. Log level must be one of (critical, error, warning, info, debug). Can be "
             "specified multiple times. Example: -L*.trace,pyocd.core.*=debug")
-    
+
         # Define config related options for all subcommands.
         CONFIG = argparse.ArgumentParser(description='common', add_help=False)
         CONFIG_GROUP = CONFIG.add_argument_group("configuration")
@@ -66,11 +66,11 @@ class SubcommandBase:
             help="(Deprecated) Send setting to DAPAccess layer.")
         CONFIG_GROUP.add_argument("--pack", metavar="PATH", action="append",
             help="Path to the .pack file for a CMSIS Device Family Pack.")
-    
+
         # Define common options for all subcommands, including logging options.
         COMMON = argparse.ArgumentParser(description='common',
             parents=[LOGGING, CONFIG], add_help=False)
-    
+
         # Common connection related options.
         CONNECT = argparse.ArgumentParser(description='common', add_help=False)
         CONNECT_GROUP = CONNECT.add_argument_group("connection")
@@ -89,7 +89,7 @@ class SubcommandBase:
             help="Do not wait for a probe to be connected if none are available.")
         CONNECT_GROUP.add_argument("-M", "--connect", dest="connect_mode", metavar="MODE",
             help="Select connect mode from one of (halt, pre-reset, under-reset, attach).")
-    
+
     @classmethod
     def add_subcommands(cls, parser: argparse.ArgumentParser) -> None:
         """! @brief Add declared subcommands to the given parser."""
@@ -98,7 +98,7 @@ class SubcommandBase:
             for subcmd_class in cls.SUBCOMMANDS:
                 parsers = subcmd_class.get_args()
                 subcmd_class.parser = parsers[-1]
-                
+
                 subparser = subparsers.add_parser(
                                 subcmd_class.NAMES[0],
                                 aliases=subcmd_class.NAMES[1:],
@@ -120,15 +120,15 @@ class SubcommandBase:
     def customize_subparser(cls, subparser: argparse.ArgumentParser) -> None:
         """! @brief Optionally modify a subparser after it is created."""
         pass
-    
+
     def __init__(self, args: argparse.Namespace):
         """! @brief Constructor.
-        
+
         @param self This object.
         @param args Namespace of parsed argument values.
         """
         self._args = args
-    
+
     def invoke(self) -> int:
         """! @brief Run the subcommand.
         @return Process status code for the command.
@@ -166,5 +166,5 @@ class SubcommandBase:
         pt.hrules = prettytable.HEADER
         pt.vrules = prettytable.NONE
         return pt
-    
+
 

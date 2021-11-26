@@ -40,13 +40,13 @@ class ConnectionClosedException(Exception):
 
 class GDBServerPacketIOThread(threading.Thread):
     """! @brief Packet I/O thread.
-    
+
     This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
     handles verifying checksums, acking, and receiving Ctrl-C interrupts. There is a queue
     for received packets. The interface to this queue is the receive() method. The send()
     method writes outgoing packets to the socket immediately.
     """
-    
+
     def __init__(self, abstract_socket):
         super(GDBServerPacketIOThread, self).__init__()
         self.name = "gdb-packet-thread-port%d" % abstract_socket.port

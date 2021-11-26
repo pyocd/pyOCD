@@ -102,7 +102,7 @@ class DAPAccessIntf(object):
     @property
     def protocol_version(self):
         """! @brief CMSIS-DAP protocol version.
-        
+
         The version is represented as 3-tuple with elements, in order, of major version,
         minor version, and patch version.
 
@@ -117,7 +117,7 @@ class DAPAccessIntf(object):
     @property
     def product_name(self):
         raise NotImplementedError()
-    
+
     @property
     def vidpid(self):
         """! @brief A tuple of USB VID and PID, in that order."""
@@ -126,7 +126,7 @@ class DAPAccessIntf(object):
     @property
     def has_swd_sequence(self):
         """! @brief Boolean indicating whether the DAP_SWD_Sequence command is supported.
-        
+
         This property is only valid after the probe is opened. Until then, the value will be None.
         """
         raise NotImplementedError()
@@ -162,17 +162,17 @@ class DAPAccessIntf(object):
 
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
         """! @brief Modify SWD configuration.
-        
+
         @param self
         @param turnaround Number of turnaround phase clocks, from 1-4.
         @param always_send_data_phase Whether the data phase should always be transmitted on writes,
             even on a FAULT response. This is required for sticky overrun support.
         """
         raise NotImplementedError()
-    
+
     def configure_jtag(self, devices_irlen=None):
         """! @brief Modify JTAG configuration.
-        
+
         @param self
         @param devices_irlen Sequence of IR lengths for each device, thus also specifying the
             number of devices. If not passed, this will default to a single device with IRLen=4.
@@ -181,7 +181,7 @@ class DAPAccessIntf(object):
 
     def swj_sequence(self, length, bits):
         """! @brief Send sequence to activate JTAG or SWD on the target.
-        
+
         @param self
         @param length Number of bits to transfer on TCK/TMS.
         @param bits Integer with the bit values, sent LSB first.
@@ -190,32 +190,32 @@ class DAPAccessIntf(object):
 
     def swd_sequence(self, sequences):
         """! @brief Send a sequences of bits on the SWDIO signal.
-        
+
         This method sends the DAP_SWD_Sequence CMSIS-DAP command.
-        
+
         Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members:
         - 0: int: number of TCK cycles from 1-64
         - 1: int: the SWDIO bit values to transfer. The presence of this tuple member indicates the sequence is
             an output sequence; the absence means that the specified number of TCK cycles of SWDIO data will be
             read and returned.
-        
+
         @param self
         @param sequences A sequence of sequence description tuples as described above.
-        
+
         @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
             sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
         """
 
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
         """! @brief Send JTAG sequence.
-        
+
         @param self
         @param cycles Number of TCK cycles, from 1-64.
         @param tms Fixed TMS value. Either 0 or 1.
         @param read_tdo Boolean indicating whether TDO should be read.
         @param tdi Integer with the TDI bit values to be transferred each TCK cycle. The LSB is
             sent first.
-        
+
         @return Either an integer with TDI bit values, or None, if _read_tdo_ was false.
         """
         raise NotImplementedError()
@@ -242,7 +242,7 @@ class DAPAccessIntf(object):
     def assert_reset(self, asserted):
         """! @brief Assert or de-assert target reset line"""
         raise NotImplementedError()
-    
+
     def is_reset_asserted(self):
         """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
         raise NotImplementedError()
@@ -258,7 +258,7 @@ class DAPAccessIntf(object):
     def vendor(self, index, data=None):
         """! @brief Send a vendor specific command"""
         raise NotImplementedError()
-    
+
     def has_swo(self):
         """! @brief Returns bool indicating whether the link supports SWO."""
         raise NotImplementedError()
@@ -278,11 +278,11 @@ class DAPAccessIntf(object):
 
     def swo_read(self, count=None):
         """! @brief Read buffered SWO data from the target.
-        
+
         The count parameter is optional. If
         provided, it is the number of bytes to read, which must be less than the packet size.
         If count is not provided, the packet size will be used instead.
-        
+
         Returns a 3-tuple containing the status mask at index 0, the number of buffered
         SWO data bytes at index 1, and a list of the received data bytes at index 2."""
         raise NotImplementedError()

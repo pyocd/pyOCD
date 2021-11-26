@@ -37,12 +37,12 @@ OptionChangeInfo = namedtuple('OptionChangeInfo', 'new_value old_value')
 
 class OptionsManager(Notifier):
     """! @brief Handles session option management for a session.
-    
+
     The options manager supports multiple layers of option priority. When an option's value is
     accessed, the highest priority layer that contains a value for the option is used. This design
     makes it easy to load options from multiple sources. The default value specified for an option
     in the OPTIONS_INFO dictionary provides a layer with an infinitely low priority.
-    
+
     Users can subscribe to notifications for changes to option values by calling the subscribe()
     method. The notification events are the option names themselves. The source for notifications is
     always the options manager instance. The notification data is an instance of OptionChangeInfo
@@ -55,10 +55,10 @@ class OptionsManager(Notifier):
         """
         super(OptionsManager, self).__init__()
         self._layers = []
-    
+
     def _update_layers(self, new_options, update_operation):
         """! @brief Internal method to add a new layer dictionary.
-        
+
         @param self
         @param new_options Dictionary of option values.
         @param update_operation Callable to add the layer. Must accept a single parameter, which is
@@ -74,23 +74,23 @@ class OptionsManager(Notifier):
 
     def add_front(self, new_options):
         """! @brief Add a new highest priority layer of option values.
-        
+
         @param self
         @param new_options Dictionary of option values.
         """
         self._update_layers(new_options, partial(self._layers.insert, 0))
-    
+
     def add_back(self, new_options):
         """! @brief Add a new lowest priority layer of option values.
-        
+
         @param self
         @param new_options Dictionary of option values.
         """
         self._update_layers(new_options, self._layers.append)
-    
+
     def _convert_options(self, new_options):
         """! @brief Prepare a dictionary of session options for use by the manager.
-        
+
         1. Strip dictionary entries with a value of None.
         2. Replace double-underscores ("__") with a dot (".").
         3. Convert option names to all-lowercase.
@@ -106,7 +106,7 @@ class OptionsManager(Notifier):
 
     def is_set(self, key):
         """! @brief Return whether a value is set for the specified option.
-        
+
         This method returns True as long as any layer has a value set for the option, even if the
         value is the same as the default value. If the option is not set in any layer, then False is
         returned regardless of whether the default value is None.
@@ -129,18 +129,18 @@ class OptionsManager(Notifier):
             if key in layer:
                 return layer[key]
         return self.get_default(key)
-    
+
     def set(self, key, value):
         """! @brief Set an option in the current highest priority layer."""
         self.update({key: value})
-    
+
     def update(self, new_options):
         """! @brief Set multiple options in the current highest priority layer."""
         filtered_options = self._convert_options(new_options)
         previous_values = {name: self.get(name) for name in filtered_options.keys()}
         self._layers[0].update(filtered_options)
         self._notify_changes(previous_values, filtered_options)
-    
+
     def _notify_changes(self, previous, options):
         """! @brief Send notifications that the specified options have changed."""
         for name, new_value in options.items():
@@ -151,11 +151,11 @@ class OptionsManager(Notifier):
     def __contains__(self, key):
         """! @brief Returns whether the named option has a non-default value."""
         return self.is_set(key)
-        
+
     def __getitem__(self, key):
         """! @brief Return the highest priority value for the option, or its default."""
         return self.get(key)
-    
+
     def __setitem__(self, key, value):
         """! @brief Set an option in the current highest priority layer."""
         self.set(key, value)

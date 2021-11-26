@@ -114,20 +114,20 @@ class RamBuilder(MemoryBuilder):
 
 class MemoryLoader:
     """@brief Handles high level programming of raw binary data to memory.
-    
+
     If you need file programming, either binary files or other formats, please see the
     FileProgrammer class.
-    
+
     This manager provides a simple interface to programming data that may cross memory
     region boundaries. To use it, create an instance and pass in the session object. Then call
     add_data() for each chunk of binary data you need to write. When all data is added, call the
     commit() method to write everything to memory. You may reuse a single MemoryLoader instance for
     multiple add-commit sequences.
-    
+
     When programming across multiple regions, progress reports are combined so that only a
     one progress output is reported. Similarly, the programming performance report for each region
     is suppresed and a combined report is logged.
-    
+
     Internally, MemoryBuilder instances are used to buffer data to be written to different types of memory.
     FlashBuilder is used to optimise programming within flash memory regions. RAM regions are programmed
     using the much simpler RamBuilder.
@@ -155,7 +155,7 @@ class MemoryLoader:
             keep_unwritten: Optional[bool] = None
         ):
         """! @brief Constructor.
-        
+
         @param self
         @param session The session object.
         @param progress A progress report handler as a callable that takes a percentage completed.
@@ -195,9 +195,9 @@ class MemoryLoader:
                             else self._session.options.get('fast_program')
         self._keep_unwritten = keep_unwritten if (keep_unwritten is not None) \
                             else self._session.options.get('keep_unwritten')
-        
+
         self._reset_state()
-    
+
     def _reset_state(self):
         """! @brief Clear all state variables. """
         # _builders is a dict that maps memory regions to either a FlashBuilder or, for writable memories,
@@ -206,19 +206,19 @@ class MemoryLoader:
         self._total_data_size = 0
         self._progress_offset = 0.0
         self._current_progress_fraction = 0.0
-    
+
     def add_data(self, address, data):
         """! @brief Add a chunk of data to be programmed.
-        
+
         The data may cross memory region boundaries, as long as the regions are contiguous.
-        
+
         @param self
         @param address Integer address for where the first byte of _data_ should be written.
         @param data A list of byte values to be programmed at the given address.
-        
+
         @return The MemoryLoader instance is returned, to allow chaining further add_data()
             calls or a call to commit().
-        
+
         @exception ValueError Raised when the address is not within a flash memory region.
         @exception TargetSupportError Raised if the flash memory region does not have a valid Flash
             instance associated with it, which indicates that the target connect sequence did
@@ -244,28 +244,28 @@ class MemoryLoader:
                     region_builder = RamBuilder(self._session, region)
                 else:
                     raise ValueError(f"memory region at address {address:#010x} is not writable")
-                
+
                 # Save the new builder.
                 assert region_builder is not None
                 self._builders[region] = region_builder
-        
+
             # Take as much data as is contained by this region.
             program_length = min(len(data), region.end - address + 1)
             assert program_length != 0
 
             # Add data to this region's builder.
             region_builder.add_data(address, data[:program_length])
-            
+
             # Advance.
             data = data[program_length:]
             address += program_length
             self._total_data_size += program_length
-        
+
         return self
-    
+
     def commit(self):
         """! @brief Write all collected data to memory.
-        
+
         This routine ensures that chip erase is only used once if either the auto mode or chip
         erase mode are used. As an example, if two regions are to be written to and True was
         passed to the constructor for chip_erase (or if the session option was set), then only
@@ -273,17 +273,17 @@ class MemoryLoader:
         sector erase. This will not result in extra erasing, as sector erase always verifies whether
         the sectors are already erased. This will, of course, also work correctly if the flash
         algorithm for the first region doesn't actually erase the entire chip (all regions).
-        
+
         After calling this method, the loader instance can be reused to program more data.
         """
         didChipErase = False
         perfList = []
-        
+
         # Iterate over builders we've created and program the data.
         for builder in sorted(self._builders.values(), key=lambda v: v.region.start):
             # Determine this builder's portion of total progress.
             self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
-            
+
             # Program the data.
             chipErase = self._chip_erase if not didChipErase else "sector"
             perf = builder.program(chip_erase=chipErase,
@@ -293,15 +293,15 @@ class MemoryLoader:
                                     keep_unwritten=self._keep_unwritten)
             perfList.append(perf)
             didChipErase = True
-            
+
             self._progress_offset += self._current_progress_fraction
 
         # Report programming statistics.
         self._log_performance(perfList)
-        
+
         # Clear state to allow reuse.
         self._reset_state()
-    
+
     def _log_performance(self, perf_list):
         """! @brief Log a report of programming performance numbers."""
         # Compute overall performance numbers.
@@ -311,13 +311,13 @@ class MemoryLoader:
         actual_program_page_count = sum(perf.program_page_count for perf in perf_list)
         skipped_byte_count = sum(perf.skipped_byte_count for perf in perf_list)
         skipped_page_count = sum(perf.skipped_page_count for perf in perf_list)
-        
+
         # Compute kbps while avoiding a potential zero-div error.
         if totalProgramTime == 0:
             kbps = 0
         else:
             kbps = (program_byte_count/1024) / totalProgramTime
-        
+
         if any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
             LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
                 actual_program_byte_count, get_page_count(actual_program_page_count),
@@ -327,22 +327,22 @@ class MemoryLoader:
             erase_byte_count = sum(perf.erase_byte_count for perf in perf_list)
             erase_sector_count = sum(perf.erase_sector_count for perf in perf_list)
 
-            LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s", 
+            LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
                 erase_byte_count, get_sector_count(erase_sector_count),
                 actual_program_byte_count, get_page_count(actual_program_page_count),
                 skipped_byte_count, get_page_count(skipped_page_count),
                 kbps)
-        
+
     def _progress_cb(self, amount):
         if self._progress is not None:
             self._progress((amount * self._current_progress_fraction) + self._progress_offset)
-    
+
     @classmethod
     def program_binary_data(cls, session, address, data):
         """! @brief Helper routine to write a single chunk of data.
-        
+
         The session options for chip_erase and trust_crc are used.
-        
+
         @param cls
         @param session The session instance.
         @param address Start address of the data to program.

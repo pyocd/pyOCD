@@ -74,7 +74,7 @@ class TestSDC600:
             if i in FLAGS:
                 continue
             assert sdc._destuff([i]) == [i]
-    
+
     # Test stuffing a single byte.
     def test_stuff_flag(self, sdc):
         for i in FLAGS:

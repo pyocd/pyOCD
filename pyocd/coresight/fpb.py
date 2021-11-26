@@ -29,7 +29,7 @@ class HardwareBreakpoint(Breakpoint):
 
 class FPB(BreakpointProvider, CoreSightComponent):
     """! @brief Flash Patch and Breakpoint unit"""
-    
+
     # FPB registers
     #
     # The addresses are offsets from the base address.
@@ -38,7 +38,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
     FP_CTRL_REV_MASK = 0xf0000000
     FP_CTRL_REV_SHIFT = 28
     FP_COMP0 = 0x00000008
-    
+
     def __init__(self, ap, cmpid=None, addr=None):
         CoreSightComponent.__init__(self, ap, cmpid, addr)
         BreakpointProvider.__init__(self)
@@ -55,7 +55,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
 
     def init(self):
         """! @brief Inits the FPB.
-        
+
         Reads the number of hardware breakpoints available on the core and disable the FPB
         (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
         setup FPB (breakpoint)
@@ -97,7 +97,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
 
     def can_support_address(self, addr):
         """! @brief Test whether an address is supported by the FPB.
-        
+
         For FPBv1, hardware breakpoints are only supported in the range 0x00000000 - 0x1fffffff.
         This was fixed for FPBv2, which supports hardware breakpoints at any address.
         """

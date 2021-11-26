@@ -25,7 +25,7 @@ _PRINTABLE = string.digits + string.ascii_letters + string.punctuation + ' '
 
 def format_hex_width(value, width):
     """! @brief Formats the value as hex of the specified bit width.
-    
+
     @param value Integer value to be formatted.
     @param width Bit width, must be one of 8, 16, 32, 64.
     @return String with (width / 8) hex digits. Does not have a "0x" prefix.
@@ -43,27 +43,27 @@ def format_hex_width(value, width):
 
 def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True):
     """! @brief Prints a canonical hex dump of the given data.
-    
+
     Each line of the output consists of an address column, the data as hex, and a printable ASCII
     representation of the data.
-    
+
     The @a width parameter controls grouping of the hex bytes in the output. The bytes of the
     provided data are progressively read as little endian values of the specified bit width, then
     printed at that width. For example, for input data of [0x61 0x62 0x63 0x64], if @width is set to
     8 the output will be "61 62 63 64", for 16 it will be printed as "6261 6463", and for 32 bit
     width it will be shown as "64636261". A space is inserted after each bit-width value, with an
     extra space every 4 bytes for 8 bit width.
-    
+
     The output looks similar to this (width of 8):
     ```
     00000000:  85 89 70 0f  20 b1 ff bc  a9 0c c8 3c  bc a6 47 dd    ..p. ......<..G.
     00000010:  c8 c9 66 ab  59 c8 35 6c  57 94 00 c8  17 35 85 b2    ..f.Y.5lW....5..
     ```
-    
+
     The output is always terminated with a newline.
-    
+
     If you want a string instead of output to a file, use the dump_hex_data_to_str() function.
-    
+
     @param data The data to print as hex. Can be a `bytes`, `bytearray`, or list of integers.
     @param start_address Address of the first byte of the data. Defaults to 0. If set to None,
         then the address column is not printed.
@@ -126,7 +126,7 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                     d.reverse()
                 s += "".join((chr(b) if (chr(b) in _PRINTABLE) else '.') for b in d)
             output.write(" " * (max_line_width - actual_line_width) + "   " + s + "|")
-        
+
         output.write("\n")
 
 def dump_hex_data_to_str(data, **kwargs):

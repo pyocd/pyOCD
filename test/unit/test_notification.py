@@ -28,7 +28,7 @@ class Subscriber(object):
     def __init__(self):
         self.was_called = False
         self.last_note = None
-    
+
     def cb(self, note):
         self.was_called = True
         self.last_note = note
@@ -111,4 +111,4 @@ class TestNotification(object):
         notifier.notify(EVENT_A, self)
         assert not subscriber.was_called
 
-        
+

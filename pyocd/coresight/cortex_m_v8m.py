@@ -32,18 +32,18 @@ class CortexM_v8M(CortexM):
 
     ## DFSR.PMU added in v8.1-M.
     DFSR_PMU = (1 << 5)
-    
+
     DSCSR = 0xE000EE08
     DSCSR_CDSKEY = 0x00020000
     DSCSR_CDS = 0x00010000
     DSCSR_SBRSEL = 0x00000002
     DSCSR_SBRSELEN = 0x00000001
-    
+
     # Processor Feature Register 1
     PFR1 = 0xE000ED44
     PFR1_SECURITY_MASK = 0x000000f0
     PFR1_SECURITY_SHIFT = 4
-    
+
     PFR1_SECURITY_EXT_V8_0 = 0x1 # Base security extension.
     PFR1_SECURITY_EXT_V8_1 = 0x3 # v8.1-M adds several instructions.
 
@@ -59,11 +59,11 @@ class CortexM_v8M(CortexM):
 
         # Only v7-M supports VECTRESET.
         self._supports_vectreset = False
-    
+
     @property
     def supported_security_states(self):
         """! @brief Tuple of security states supported by the processor.
-        
+
         @return Tuple of @ref pyocd.core.target.Target.SecurityState "Target.SecurityState". The
             result depends on whether the Security extension is enabled.
         """
@@ -83,10 +83,10 @@ class CortexM_v8M(CortexM):
 
         arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
-        
+
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
-        
+
         pfr1 = self.read32(self.PFR1)
         pfr1_sec = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT)
         self.has_security_extension = pfr1_sec in (self.PFR1_SECURITY_EXT_V8_0, self.PFR1_SECURITY_EXT_V8_1)
@@ -94,12 +94,12 @@ class CortexM_v8M(CortexM):
             self._extensions.append(CortexMExtension.SEC)
         if pfr1_sec == self.PFR1_SECURITY_EXT_V8_1:
             self._extensions.append(CortexMExtension.SEC_V81)
-        
+
         if arch == self.ARMv8M_BASE:
             self._architecture = CoreArchitecture.ARMv8M_BASE
         else:
             self._architecture = CoreArchitecture.ARMv8M_MAIN
-        
+
         if self.core_type in CORE_TYPE_NAME:
             if self.has_security_extension:
                 LOG.info("CPU core #%d is %s r%dp%d (security ext present)", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
@@ -110,11 +110,11 @@ class CortexM_v8M(CortexM):
 
     def _check_for_fpu(self):
         """! @brief Determine if a core has an FPU.
-        
+
         In addition to the tests performed by CortexM, this method tests for the MVE extension.
         """
         super(CortexM_v8M, self)._check_for_fpu()
-        
+
         # Check for MVE.
         mvfr1 = self.read32(self.MVFR1)
         mve = (mvfr1 & self.MVFR1_MVE_MASK) >> self.MVFR1_MVE_SHIFT
@@ -125,7 +125,7 @@ class CortexM_v8M(CortexM):
 
     def _build_registers(self):
         super(CortexM_v8M, self)._build_registers()
-        
+
         # Registers available with Security extension, either Baseline or Mainline.
         if self.has_security_extension:
             self._core_registers.add_group(CoreRegisterGroups.V8M_SEC_ONLY)
@@ -133,18 +133,18 @@ class CortexM_v8M(CortexM):
         # Mainline-only registers.
         if self.architecture == CoreArchitecture.ARMv8M_MAIN:
             self._core_registers.add_group(CoreRegisterGroups.V7M_v8M_ML_ONLY)
-        
+
             # Registers available when both Mainline and Security extensions are implemented.
             if self.has_security_extension:
                 self._core_registers.add_group(CoreRegisterGroups.V8M_ML_SEC_ONLY)
-        
+
         # MVE registers.
         if CortexMExtension.MVE in self.extensions:
             self._core_registers.add_group(CoreRegisterGroups.V81M_MVE_ONLY)
-        
+
     def get_security_state(self):
         """! @brief Returns the current security state of the processor.
-        
+
         @return @ref pyocd.core.target.Target.SecurityState "Target.SecurityState" enumerator.
         """
         dscsr = self.read32(self.DSCSR)
@@ -161,12 +161,12 @@ class CortexM_v8M(CortexM):
                 | CortexM.DFSR_DWTTRAP
                 | CortexM.DFSR_BKPT
                 | CortexM.DFSR_HALTED)
-    
+
     def get_halt_reason(self):
         """! @brief Returns the reason the core has halted.
-        
+
         This overridden version of this method adds support for v8.x-M halt reasons.
-        
+
         @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
         """
         dfsr = self.read32(self.DFSR)

@@ -120,7 +120,7 @@ class CY8C6xx7_S25FS512S(PSoC6):
 
     def __init__(self, session):
         super(CY8C6xx7_S25FS512S, self).__init__(session, CortexM_PSoC6_BLE2, self.MEMORY_MAP)
-        
+
 class CY8C6xx7_nosmif(PSoC6):
     from .flash_algos.flash_algo_CY8C6xx7 import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work

@@ -67,7 +67,7 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
 class LPC1768(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
                                                                 blocksize=0x1000,
@@ -94,7 +94,7 @@ class LPC1768(CoreSightTarget):
     def add_core(self, core):
         super(LPC1768, self).add_core(core)
         core.delegate = self
-    
+
     def map_flash(self):
         self.write32(0x400FC040, 1)
 
@@ -104,10 +104,10 @@ class LPC1768(CoreSightTarget):
         # Clear reset vector catch and remember whether it was set.
         self._saved_vc = self.get_vector_catch()
         self.set_vector_catch(self._saved_vc & ~Target.VectorCatch.CORE_RESET)
-        
+
         # Map flash to 0.
         self.map_flash()
-        
+
         # Set breakpoint on user reset handler.
         self._reset_handler = self.read32(0x4)
         if self._reset_handler < 0x80000:
@@ -120,6 +120,6 @@ class LPC1768(CoreSightTarget):
         # Clear breakpoint if it wasn't previously set.
         if not self._had_reset_handler_bp:
             self.remove_breakpoint(self._reset_handler)
-        
+
         # Restore vector catch.
         self.set_vector_catch(self._saved_vc)

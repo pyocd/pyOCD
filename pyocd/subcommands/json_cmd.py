@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
 
 class JsonSubcommand(SubcommandBase):
     """! @brief `pyocd json` subcommand."""
-    
+
     NAMES = ['json']
     HELP = "Output information as JSON."
     DEFAULT_LOG_LEVEL = logging.FATAL + 1
@@ -51,26 +51,26 @@ class JsonSubcommand(SubcommandBase):
             help="List available features and options.")
 
         return [cls.CommonOptions.CONFIG, json_parser]
-    
+
     @classmethod
     def customize_subparser(cls, subparser: argparse.ArgumentParser) -> None:
         """! @brief Optionally modify a subparser after it is created."""
         subparser.set_defaults(verbose=0, quiet=0)
-    
+
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
-        
+
         # Disable all logging.
         logging.disable(logging.CRITICAL)
-    
+
     def invoke(self) -> int:
         """! @brief Handle 'json' subcommand."""
         all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.features)
-        
+
         # Default to listing probes.
         if not any(all_outputs):
             self._args.probes = True
-        
+
         # Check for more than one output option being selected.
         if sum(int(x) for x in all_outputs) > 1:
             # Because we're outputting JSON we can't just log the error, but must report the error
@@ -84,7 +84,7 @@ class JsonSubcommand(SubcommandBase):
 
             print(json.dumps(obj, indent=4))
             return 0
-        
+
         # Create a session with no device so we load any config.
         session = Session(None,
                             project_dir=self._args.project_dir,
@@ -93,7 +93,7 @@ class JsonSubcommand(SubcommandBase):
                             pack=self._args.pack,
                             **convert_session_options(self._args.options)
                             )
-        
+
         if self._args.targets or self._args.boards:
             # Create targets from provided CMSIS pack.
             if session.options['pack'] is not None:

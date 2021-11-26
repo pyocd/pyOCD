@@ -48,31 +48,31 @@ class DebugProbeAggregator(object):
     @staticmethod
     def get_all_connected_probes(unique_id=None):
         klasses, unique_id, is_explicit = DebugProbeAggregator._get_probe_classes(unique_id)
-        
+
         probes = []
-        
+
         # First look for a match against the full ID, as this can be more efficient for certain probes.
         if unique_id is not None:
             for cls in klasses:
                 probe = cls.get_probe_with_id(unique_id, is_explicit)
                 if probe is not None:
                     return [probe]
-        
+
         # No full match, so ask probe classes for probes.
         for cls in klasses:
             probes += cls.get_all_connected_probes(unique_id, is_explicit)
-        
+
         # Filter by unique ID.
         if unique_id is not None:
             unique_id = unique_id.lower()
             probes = [probe for probe in probes if (unique_id in probe.unique_id.lower())]
-        
+
         return probes
-    
+
     @classmethod
     def get_probe_with_id(cls, unique_id):
         klasses, unique_id, is_explicit = DebugProbeAggregator._get_probe_classes(unique_id)
-        
+
         for cls in klasses:
             probe = cls.get_probe_with_id(unique_id, is_explicit)
             if probe is not None:

@@ -18,24 +18,24 @@ from ..core import exceptions
 
 class Autoflush(object):
     """! @brief Context manager for performing flushes.
-    
+
     Pass a Target instance to the constructor, and when the context exits, the target will be
     automatically flushed. If a TransferError or subclass, such as TransferFaultError, is raised
     within the context, then the flush will be skipped.
-    
+
     The parameter passed to the constructor can actually be any object with a `flush()` method,
     due to Python's dynamic dispatch.
     """
-    
+
     def __init__(self, target):
         """! @brief Constructor.
-        
+
         @param self The object.
         @param target Object on which the flush will be performed. Normally this is a Target
             instance.
         """
         self._target = target
-    
+
     def __enter__(self):
         return self
 

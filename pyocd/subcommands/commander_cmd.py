@@ -27,7 +27,7 @@ from ..utility.cmdline import (
 
 class CommanderSubcommand(SubcommandBase):
     """! @brief `pyocd commander` subcommand."""
-    
+
     NAMES = ['commander', 'cmd']
     HELP = "Interactive command console."
     DEFAULT_LOG_LEVEL = logging.WARNING
@@ -46,9 +46,9 @@ class CommanderSubcommand(SubcommandBase):
             help="Optionally specify ELF file being debugged.")
         commander_options.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+',
             help="Run commands.")
-        
+
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, commander_parser]
-    
+
     def invoke(self) -> int:
         """! @brief Handle 'commander' subcommand."""
         # Flatten commands list then extract primary command and its arguments.

@@ -27,7 +27,7 @@ DEAD_VALUE = 0
 
 class GenericMemAPTarget(Target, CoreSightCoreComponent):
     """! @brief This target represents ARM debug Access Port without a CPU
-    
+
     It may be used to access the address space of the target via Access Ports
     without real ARM CPU core behind it. For instance Cypress PSoC64 devices have
     three APs implemented in the hardware:
@@ -35,11 +35,11 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
     * AP #1 -> Cortex-M0+ AP
     * AP #2 -> Cortex-M4F AP
     Depending on the protection state, AP #1 and AP #2 can be permanently disabled.
-    This class allows to communicate with Secure FW running on the target via AP #0. 
-    
+    This class allows to communicate with Secure FW running on the target via AP #0.
+
     Most of the methods in this class (except memory access methods) are empty/dummy.
     """
-    
+
     def __init__(self, session, ap, memory_map=None, core_num=0, cmpid=None, address=None):
         Target.__init__(self, session, memory_map)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)

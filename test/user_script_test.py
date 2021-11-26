@@ -70,7 +70,7 @@ def user_script_test(board_id):
         boot_region = memory_map.get_boot_memory()
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         binary_file = get_test_binary_path(board.test_binary)
-        
+
         test_pass_count = 0
         test_count = 0
         result = UserScriptTestResult()
@@ -79,10 +79,10 @@ def user_script_test(board_id):
         target.resume()
         target.halt()
         target.step()
-        
+
         test_count += 1
         test_pass_count += 1
-        
+
         print("\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))
         if test_pass_count == test_count:

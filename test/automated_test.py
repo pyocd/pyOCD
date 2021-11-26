@@ -106,12 +106,12 @@ def split_results_by_board(result_list):
 
 def generate_xml_results(result_list):
     board_results = split_results_by_board(result_list)
-    
+
     suite_id = 0
     total_failures = 0
     total_tests = 0
     total_time = 0
-    
+
     root = ElementTree.Element('testsuites',
             name="pyocd"
             )
@@ -127,7 +127,7 @@ def generate_xml_results(result_list):
         suite.text = "\n"
         suite.tail = "\n"
         suite_id += 1
-        
+
         for result in results:
 
             total += 1
@@ -143,11 +143,11 @@ def generate_xml_results(result_list):
         total_tests += total
         total_failures += failures
         total_time += suite_time
-    
+
     root.set('tests', str(total_tests))
     root.set('failures', str(total_failures))
     root.set('time', "%.3f" % total_time)
-    
+
     xml_results = os.path.join(TEST_OUTPUT_DIR, XML_RESULTS_TEMPLATE.format(get_env_file_name()))
     ElementTree.ElementTree(root).write(xml_results, encoding="UTF-8", xml_declaration=True)
 
@@ -173,15 +173,15 @@ def print_test_header(output_file, board, test):
 
 def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     """! @brief Run all tests on a given board.
-    
+
     When multiple test jobs are being used, this function is the entry point executed in
     child processes.
-    
+
     Always writes both stdout and log messages of tests to a board-specific log file, and saves
     the output for each test to a string that is stored in the TestResult object. Depending on
     the logToConsole and commonLogFile parameters, output may also be copied to the console
     (sys.stdout) and/or a common log file for all boards.
-    
+
     @param board_id Unique ID of the board to test.
     @param n Unique index of the test run.
     @param loglevel Log level passed to logger instance. Usually INFO or DEBUG.
@@ -202,7 +202,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     log_filename = os.path.join(TEST_OUTPUT_DIR, LOG_FILE_TEMPLATE.format(name_info))
     if os.path.exists(log_filename):
         os.remove(log_filename)
-    
+
     # Skip board if specified in the config.
     if session.options['skip_test']:
         print("Skipping board %s due as specified in config" % board.unique_id)
@@ -215,7 +215,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     # Open board-specific output file. This is done after skipping so a skipped board doesn't have a
     # log file created for it (but a previous log file will be removed, above).
     log_file = open(log_filename, "w", buffering=1) # 1=Line buffered
-    
+
     # Setup logging.
     log_handler = RecordingLogHandler(None)
     log_handler.setFormatter(logging.Formatter(LOG_FORMAT))
@@ -234,7 +234,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         # Run all tests on this board.
         for test in test_list:
             print("{} #{}: starting {}...".format(board.name, n, test.name), file=originalStdout)
-            
+
             # Set the test number on the test object. Used to get a unique port for the GdbTest.
             test.n = n
 
@@ -242,7 +242,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
             print_test_header(log_file, board, test)
             if commonLogFile is not None:
                 print_test_header(commonLogFile, board, test)
-            
+
             # Create a StringIO object to record the test's output, an IOTee to copy
             # output to both the log file and StringIO, then set the log handler and
             # stdio to write to the tee.
@@ -255,7 +255,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
             log_handler.stream = tee
             sys.stdout = tee
             sys.stderr = tee
-            
+
             test_start = time()
             result = test.run(board)
             test_stop = time()
@@ -263,7 +263,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
             tee.flush()
             result.output = testOutput.getvalue()
             result_list.append(result)
-            
+
             passFail = "PASSED" if result.passed else "FAILED"
             print("{} #{}: finished {}... {} ({:.3f} s)".format(
                 board.name, n, test.name, passFail, result.time),
@@ -285,7 +285,7 @@ def filter_tests(args):
         sys.exit(1)
     excludes = [t.strip().lower() for t in args.exclude_tests.split(',')] if args.exclude_tests else []
     includes = [t.strip().lower() for t in args.include_tests.split(',')] if args.include_tests else []
-    
+
     for test in all_tests:
         if excludes:
             include_it = (test.name.lower() not in excludes)
@@ -293,7 +293,7 @@ def filter_tests(args):
             include_it = (test.name.lower() in includes)
         else:
             include_it = True
-        
+
         if include_it:
             test_list.append(test)
 
@@ -308,18 +308,18 @@ def main():
     parser.add_argument('-x', '--exclude-tests', metavar="TESTS", default="", help="Comma-separated list of tests to exclude.")
     parser.add_argument('-i', '--include-tests', metavar="TESTS", default="", help="Comma-separated list of tests to include.")
     args = parser.parse_args()
-    
+
     # Allow CI to override the number of concurrent jobs.
     if 'CI_JOBS' in os.environ:
         args.jobs = int(os.environ['CI_JOBS'])
-    
+
     filter_tests(args)
-    
+
     if args.list_tests:
         for test in test_list:
             print(test.name)
         return
-    
+
     # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
     # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()
     # to be used in order to init correctly (CoreFoundation is used in hidapi). Only on Python
@@ -330,7 +330,7 @@ def main():
         args.jobs = 1
 
     ensure_output_dir()
-    
+
     # Setup logging based on concurrency and quiet option.
     level = logging.DEBUG if args.debug else logging.INFO
     if args.jobs == 1 and not args.quiet:
@@ -350,7 +350,7 @@ def main():
     # Put together list of boards to test
     board_list = ConnectHelper.get_all_connected_probes(blocking=False)
     board_id_list = sorted(b.unique_id for b in board_list)
-    
+
     # Filter boards.
     if args.board:
         board_id_list = [b for b in board_id_list if any(c for c in args.board if c.lower() in b.lower())]
@@ -364,11 +364,11 @@ def main():
         # Create a pool of processes to run tests.
         try:
             pool = mp.Pool(args.jobs)
-            
+
             # Issue board test job to process pool.
             async_results = [pool.apply_async(test_board, (board_id, n, level, logToConsole, commonLogFile))
                              for n, board_id in enumerate(board_id_list)]
-            
+
             # Gather results.
             for r in async_results:
                 result_list += r.get(timeout=JOB_TIMEOUT)
@@ -383,7 +383,7 @@ def main():
     with open(summary_file, "w") as output_file:
         print_summary(test_list, result_list, test_time, output_file)
     generate_xml_results(result_list)
-    
+
     exit_val = 0 if Test.all_tests_pass(result_list) else -1
     exit(exit_val)
 

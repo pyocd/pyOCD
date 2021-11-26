@@ -220,7 +220,7 @@ def run_test():
 
         # Connect to server
         gdb_execute("target remote localhost:%d" % test_port)
-        
+
         # Show memory regions, useful for debug and verification.
         gdb_execute("info mem")
 

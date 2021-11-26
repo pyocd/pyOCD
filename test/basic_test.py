@@ -53,7 +53,7 @@ RANGE_STEP_CODE = u16le_list_to_byte_list([
 class BasicTest(Test):
     def __init__(self):
         super(BasicTest, self).__init__("Basic Test", run_basic_test)
-    
+
 def run_basic_test(board_id):
     return basic_test(board_id, None)
 
@@ -171,7 +171,7 @@ def basic_test(board_id, file):
             print("Failed to write range step test code to RAM")
         else:
             print("wrote range test step code to RAM successfully")
-        
+
         target.write_core_register('pc', test_addr)
         currentPC = target.read_core_register('pc')
         print("start PC: 0x%X" % currentPC)
@@ -288,7 +288,7 @@ def basic_test(board_id, file):
         data = target.read_memory_block8(address, sector_size)
         if data != [flash.region.erased_byte_value] * sector_size:
             print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
-       
+
         # Re-verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
         did_pass = False
         for i in range(0, sectors_to_test):

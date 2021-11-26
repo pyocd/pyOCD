@@ -30,11 +30,11 @@ class TestCompatibility(object):
         assert next(i) == b'2'
         assert next(i) == b'3'
         assert next(i) == b'4'
-    
+
     def test_to_bytes_safe(self):
         assert to_bytes_safe(b"hello") == b"hello"
         assert to_bytes_safe("string") == b"string"
-    
+
     def test_to_str_safe(self):
         assert to_str_safe(b"bytes") == "bytes"
         assert to_str_safe("string") == "string"

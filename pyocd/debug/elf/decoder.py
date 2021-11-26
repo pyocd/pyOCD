@@ -51,7 +51,7 @@ class ElfSymbolDecoder(object):
             return sorted(self.symbol_tree[addr])[0].data
         except IndexError:
             return None
-    
+
     def get_symbol_for_name(self, name):
         try:
             return self.symbol_dict[name]
@@ -80,7 +80,7 @@ class ElfSymbolDecoder(object):
 
             # Add to symbol dict.
             self.symbol_dict[symbol.name] = syminfo
-            
+
             # Add to symbol tree.
             self.symbol_tree.addi(sym_value, sym_value+sym_size, syminfo)
 

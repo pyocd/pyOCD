@@ -81,7 +81,7 @@ def commands_test(board_id):
         temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)
 
         temp_bin_file = tempfile.mktemp('.bin')
-        
+
         with open(binary_file, "rb") as f:
             test_data = list(bytearray(f.read()))
         test_data_length = len(test_data)
@@ -93,10 +93,10 @@ def commands_test(board_id):
         test_count = 0
         failed_commands = []
         result = CommandsTestResult()
-        
+
         context = CommandExecutionContext()
         context.attach_session(session)
-        
+
         COMMANDS_TO_TEST = [
                 "status",
                 "reset",
@@ -183,10 +183,10 @@ def commands_test(board_id):
                 "set step-into-interrupts 1",
                 "set log info",
                 "set frequency %d" % test_params['test_clock'],
-                
+
                 # Semicolon-separated commands.
                 'rw 0x%08x ; rw 0x%08x' % (ram_base, ram_base + 4),
-                
+
                 # Python and system commands.
                 '$2+ 2',
                 '!echo hello',
@@ -203,10 +203,10 @@ def commands_test(board_id):
 #                 "where",
 #                 "symbol",
                 ]
-        
+
         # For now we just verify that the commands run without raising an exception.
         print("\n------ Testing commands ------")
-        
+
         def test_command(cmd):
             try:
                 print("\nTEST: %s" % cmd)

@@ -18,7 +18,7 @@ from functools import wraps
 
 def locked(func):
     """! @brief Decorator to automatically lock a method of a class.
-    
+
     The class is required to have `lock()` and `unlock()` methods.
     """
     @wraps(func)
