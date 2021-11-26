@@ -16,7 +16,10 @@
 # limitations under the License.
 
 from time import (time, sleep)
-from typing import Optional
+from typing import (Any, Optional, TYPE_CHECKING)
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 class Timeout:
     """! @brief Timeout helper context manager.
@@ -73,12 +76,12 @@ class Timeout:
         self._is_first_check = True
         self._is_running = False
 
-    def __enter__(self):
+    def __enter__(self) -> "Timeout":
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+    def __exit__(self, exc_type: type, value: Any, traceback: "TracebackType") -> bool:
+        return False
 
     def start(self) -> None:
         """! @brief Start or restart the timeout timer.
@@ -93,7 +96,7 @@ class Timeout:
         self._timed_out = False
         self._is_first_check = True
 
-    def clear(self):
+    def clear(self) -> None:
         """! @brief Reset the timeout back to initial, non-running state.
 
         The timeout can be made to run again by calling start().

@@ -16,8 +16,9 @@
 
 import operator
 from functools import reduce
+from typing import (Any, Optional, Sequence, Tuple, Union)
 
-def bitmask(*args):
+def bitmask(*args: Union[int, Sequence[int], Tuple[int, int]]) -> int:
     """! @brief Returns a mask with specified bit ranges set.
 
     An integer mask is generated based on the bits and bit ranges specified by the
@@ -54,7 +55,7 @@ def bitmask(*args):
 
     return mask
 
-def bit_invert(value, width=32):
+def bit_invert(value: int, width: int = 32) -> int:
     """! @brief Return the bitwise inverted value of the argument given a specified width.
 
     @param value Integer value to be inverted.
@@ -66,37 +67,37 @@ def bit_invert(value, width=32):
 invert32 = bit_invert
 """! @brief Return the 32-bit inverted value of the argument."""
 
-def bfx(value, msb, lsb):
+def bfx(value: int, msb: int, lsb: int) -> int:
     """! @brief Extract a value from a bitfield."""
     mask = bitmask((msb, lsb))
     return (value & mask) >> lsb
 
-def bfxw(value, lsb, width):
+def bfxw(value: int, lsb: int, width: int) -> int:
     """! @brief Extract a value from a bitfield given the LSb and width."""
     mask = bitmask((lsb + width, lsb))
     return (value & mask) >> lsb
 
-def bfi(value, msb, lsb, field):
+def bfi(value: int, msb: int, lsb: int, field: int) -> int:
     """! @brief Change a bitfield value."""
     mask = bitmask((msb, lsb))
     value &= ~mask
     value |= (field << lsb) & mask
     return value
 
-class Bitfield(object):
+class Bitfield:
     """! @brief Represents a bitfield of a register."""
 
-    def __init__(self, msb, lsb=None, name=None):
+    def __init__(self, msb: int, lsb: Optional[int] = None, name: Optional[str] = None):
         self._msb = msb
         self._lsb = lsb if (lsb is not None) else msb
         self._name = name
         assert self._msb >= self._lsb
 
     @property
-    def width(self):
+    def width(self) -> int:
         return self._msb - self._lsb + 1
 
-    def get(self, value):
+    def get(self, value: int) -> int:
         """! @brief Extract the bitfield value from a register value.
         @param self The Bitfield object.
         @param value Integer register value.
@@ -104,7 +105,7 @@ class Bitfield(object):
         """
         return bfx(value, self._msb, self._lsb)
 
-    def set(self, register_value, field_value):
+    def set(self, register_value: int, field_value: int) -> int:
         """! @brief Modified the bitfield in a register value.
         @param self The Bitfield object.
         @param register_value Integer register value.
@@ -113,10 +114,10 @@ class Bitfield(object):
         """
         return bfi(register_value, self._msb, self._lsb, field_value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<{}@{:x} name={} {}:{}>".format(self.__class__.__name__, id(self), self._name, self._msb, self._lsb)
 
-def msb(n):
+def msb(n: int) -> int:
     """! @brief Return the bit number of the highest set bit."""
     ndx = 0
     while ( 1 < n ):
@@ -124,7 +125,7 @@ def msb(n):
         ndx += 1
     return ndx
 
-def same(d1, d2):
+def same(d1: Sequence[Any], d2: Sequence[Any]) -> bool:
     """! @brief Test whether two sequences contain the same values.
 
     Unlike a simple equality comparison, this function works as expected when the two sequences
@@ -138,19 +139,19 @@ def same(d1, d2):
             return False
     return True
 
-def align_down(value, multiple):
+def align_down(value: int, multiple: int) -> int:
     """! @brief Return value aligned down to multiple."""
     return value // multiple * multiple
 
-def align_up(value, multiple):
+def align_up(value: int, multiple: int) -> int:
     """! @brief Return value aligned up to multiple."""
     return (value + multiple - 1) // multiple * multiple
 
-def round_up_div(value, divisor):
+def round_up_div(value: int, divisor: int) -> int:
     """! @brief Return value divided by the divisor, rounding up to the nearest multiple of the divisor."""
     return (value + divisor - 1) // divisor
 
-def parity32_high(n):
+def parity32_high(n: int) -> int:
     """! @brief Compute parity over a 32-bit value.
 
     This function is intended to be used for computing parity over a 32-bit value transferred in an Arm
