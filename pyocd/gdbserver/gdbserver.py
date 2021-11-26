@@ -59,7 +59,7 @@ TRACE_MEM.setLevel(logging.CRITICAL)
 
 def unescape(data):
     """! @brief De-escapes binary data from Gdb.
-    
+
     @param data Bytes-like object with possibly escaped values.
     @return List of integers in the range 0-255, with all escaped bytes de-escaped.
     """
@@ -81,7 +81,7 @@ def unescape(data):
 
 def escape(data):
     """! @brief Escape binary data to be sent to Gdb.
-    
+
     @param data Bytes-like object containing raw binary.
     @return Bytes object with the characters in '#$}*' escaped as required by Gdb.
     """
@@ -99,17 +99,17 @@ class GDBError(exceptions.Error):
 
 class GDBServer(threading.Thread):
     """! @brief GDB remote server thread.
-    
+
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
     """
 
     ## Notification event for the gdbserver beginnning to listen on its RSP port.
     GDBSERVER_START_LISTENING_EVENT = 'gdbserver-start-listening'
-    
+
     ## Timer delay for sending the notification that the server is listening.
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
-    
+
     def __init__(self, session, core=None):
         super(GDBServer, self).__init__()
         self.session = session
@@ -198,7 +198,7 @@ class GDBServer(threading.Thread):
             self.telnet_server = None
             semihost_console = semihost_io_handler
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
-        
+
         #
         # If SWV is enabled, create a SWVReader thread. Note that we only do
         # this if the core is 0: SWV is not a per-core construct, and can't
@@ -214,11 +214,11 @@ class GDBServer(threading.Thread):
                 swo_clock = int(session.options.get("swv_clock"))
                 self._swv_reader = SWVReader(session, self.core, self.lock)
                 self._swv_reader.init(sys_clock, swo_clock, console_file)
-        
+
         self._init_remote_commands()
 
         # pylint: disable=invalid-name
-        
+
         # Command handler table.
         #
         # The dict keys are the first character of the incoming command from gdb. Values are a
@@ -274,7 +274,7 @@ class GDBServer(threading.Thread):
         self._command_context = CommandExecutionContext()
         self._command_context.selected_core = self.target
         self._command_context.attach_session(self.session)
-        
+
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
 
@@ -334,7 +334,7 @@ class GDBServer(threading.Thread):
 
                 if self.detach_event.is_set():
                     continue
-        
+
                 # Make sure the target is halted. Otherwise gdb gets easily confused.
                 self.target.halt()
 
@@ -453,7 +453,7 @@ class GDBServer(threading.Thread):
         if not self.persist:
             self.board.target.set_vector_catch(Target.VectorCatch.NONE)
             self.board.target.resume()
-    
+
     def restart(self, data):
         self.target.reset_and_halt()
         # No reply.
@@ -663,7 +663,7 @@ class GDBServer(threading.Thread):
                 # This exception was not a transfer error, so reading the target state should be ok.
                 val = ('S%02x' % self.target_facade.get_signal_value()).encode()
                 break
-        
+
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
             LOG.error("Timed out while attempting to reestablish control over target.")
@@ -674,13 +674,13 @@ class GDBServer(threading.Thread):
     def step(self, data, start=0, end=0):
         #addr = self._get_resume_step_addr(data)
         LOG.debug("GDB step: %s (start=0x%x, end=0x%x)", data, start, end)
-        
+
         # Use the step hook to check for an interrupt event.
         def step_hook():
             # Note we don't clear the interrupt event here!
             return self.packet_io.interrupt_event.is_set()
         self.target.step(not self.step_into_interrupt, start, end, hook_cb=step_hook)
-        
+
         # Clear and handle an interrupt.
         if self.packet_io.interrupt_event.is_set():
             LOG.debug("Received Ctrl-C during step")
@@ -688,7 +688,7 @@ class GDBServer(threading.Thread):
             response = self.get_t_response(forceSignal=signals.SIGINT)
         else:
             response = self.get_t_response()
-        
+
         return self.create_rsp_packet(response)
 
     def halt(self):
@@ -772,7 +772,7 @@ class GDBServer(threading.Thread):
             end = 0
             if thread_actions[currentThread][0:1] == b'r':
                 start, end = [int(addr, base=16) for addr in thread_actions[currentThread][1:].split(b',')]
-	
+
             if self.non_stop:
                 self.target.step(not self.step_into_interrupt, start, end)
                 self.packet_io.send(self.create_rsp_packet(b"OK"))
@@ -997,9 +997,9 @@ class GDBServer(threading.Thread):
         if not self.session.options.get('rtos.enable'):
             LOG.debug("Skipping RTOS load because it was disabled.")
             return self.create_rsp_packet(b"OK")
-        
+
         forced_rtos_name = self.session.options.get('rtos.name')
-        
+
         symbol_provider = GDBSymbolProvider(self)
 
         for rtosName, rtosClass in RTOS.items():
@@ -1053,7 +1053,7 @@ class GDBServer(threading.Thread):
         # Create a new stream to collect the command output.
         stream = io.StringIO()
         self._command_context.output_stream = stream
-        
+
         # TODO run this in a separate thread so we can cancel the command with ^C from gdb?
         try:
             # Run command and collect output.
@@ -1070,7 +1070,7 @@ class GDBServer(threading.Thread):
             stream.write("Unexpected error: %s\n" % err)
             LOG.error("Exception while executing remote command '%s': %s", cmd, err,
                     exc_info=self.session.log_tracebacks)
-        
+
         # Convert back to bytes, hex encode, then return the response packet.
         output = stream.getvalue()
         if not output:
@@ -1079,7 +1079,7 @@ class GDBServer(threading.Thread):
 
         # Disconnect the stream.
         self._command_context.output_stream = None
-            
+
         return self.create_rsp_packet(response)
 
     def handle_general_set(self, msg):
@@ -1240,7 +1240,7 @@ class GDBServer(threading.Thread):
 
     def _option_did_change(self, notification):
         """! @brief Handle an option changing at runtime.
-        
+
         For option notifications, the event is the name of the option and the `data` attribute is an
         OptionChangeInfo object with `new_value` and `old_value` attributes.
         """

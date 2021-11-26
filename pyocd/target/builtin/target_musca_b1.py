@@ -143,7 +143,7 @@ FLASH_ALGO_QSPI = {
     0xf811e003, 0xf8003b01, 0x1e523b01, 0x4770d2f9, 0x52800000, 0x0003ffff, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000004, 0x00800000, 0x00000000, 0x00000000
     ],
-    
+
     # Function addresses
     'pc_init': 0x20000021,
     'pc_unInit': 0x20000071,
@@ -252,7 +252,7 @@ FLASH_ALGO_EFLASH = {
 class MuscaB1(CoreSightTarget):
 
     VENDOR = "Arm"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion(name='neflash',     start=0x0A000000, length=0x00200000, access='rx',
                         blocksize=0x4000,
@@ -295,17 +295,17 @@ class MuscaB1(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(MuscaB1, self).create_init_sequence()
-        
-        seq.insert_before('halt_on_connect',  
+
+        seq.insert_before('halt_on_connect',
             ('enable_sysresetreq',        self._enable_sysresetreq),
             )
-        
+
         return seq
-    
+
     def _enable_sysresetreq(self):
         LOG.info("Enabling SYSRSTREQ0_EN and SYSRSTREQ1_EN")
         reset_mask = self.read32(RESET_MASK)
         reset_mask |= RESET_MASK_SYSRSTREQ0_EN | RESET_MASK_SYSRSTREQ1_EN
         self.write32(RESET_MASK, reset_mask)
-    
-    
+
+

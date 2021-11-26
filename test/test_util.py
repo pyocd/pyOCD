@@ -155,7 +155,7 @@ def wait_with_deadline(process, timeout):
 class IOTee(object):
     def __init__(self, *args):
         self.outputs = list(args)
-    
+
     def add(self, output):
         self.outputs.append(output)
 
@@ -171,7 +171,7 @@ class RecordingLogHandler(logging.Handler):
     def __init__(self, iostream, level=logging.NOTSET):
         super(RecordingLogHandler, self).__init__(level)
         self.stream = iostream
-    
+
     def emit(self, record):
         try:
             message = self.format(record)
@@ -189,11 +189,11 @@ class TestResult(object):
         self.name = "test"
         self.time = 0
         self.output = ""
-    
+
     @property
     def board(self):
         return self._board
-    
+
     @board.setter
     def board(self, newBoard):
         self._board = newBoard.target_type if newBoard else 'unknown'
@@ -220,7 +220,7 @@ class TestResult(object):
         system_out = ElementTree.SubElement(case, 'system-out')
         system_out.text = self.filter_output(self.output)
         return case
-    
+
     def filter_output(self, output):
         """! @brief Hex-encode null byte and control characters."""
         result = six.text_type()
@@ -285,4 +285,4 @@ class Test(object):
         if len(result_list) <= 0:
             passed = False
         return passed
-            
+

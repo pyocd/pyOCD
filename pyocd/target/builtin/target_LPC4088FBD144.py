@@ -64,7 +64,7 @@ FLASH_ALGO = {
 class LPC4088(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x10000,      is_boot_memory=True,
                                                                 blocksize=0x1000,

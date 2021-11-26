@@ -65,7 +65,7 @@ class HandlerModeThread(TargetThread):
     """! @brief Class representing the handler mode."""
 
     UNIQUE_ID = 2
-    
+
     def __init__(self, targetContext, provider):
         super(HandlerModeThread, self).__init__()
         self._target_context = targetContext

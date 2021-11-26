@@ -45,7 +45,7 @@ class TestSplitCommandLine(object):
         assert split_command_line('a\rb') == ['a', 'b']
         assert split_command_line('a\nb') == ['a', 'b']
         assert split_command_line('a   \tb') == ['a', 'b']
-    
+
     @pytest.mark.parametrize(("input", "result"), [
         (r'\h\e\l\l\o', ['hello']),
         (r'"\"hello\""', ['"hello"']),
@@ -79,14 +79,14 @@ class TestConvertVectorCatch(object):
         [(six.b(x), y) for x,y in VECTOR_CATCH_CHAR_MAP.items()])
     def test_vc_b(self, vc, msk):
         assert convert_vector_catch(vc) == msk
-        
+
 class TestConvertSessionOptions(object):
     def test_empty(self):
         assert convert_session_options([]) == {}
-    
+
     def test_unknown_option(self):
         assert convert_session_options(['dumkopf']) == {}
-    
+
     def test_bool(self):
         assert convert_session_options(['auto_unlock']) == {'auto_unlock': True}
         assert convert_session_options(['no-auto_unlock']) == {'auto_unlock': False}
@@ -97,12 +97,12 @@ class TestConvertSessionOptions(object):
         assert convert_session_options(['auto_unlock=0']) == {'auto_unlock': False}
         assert convert_session_options(['auto_unlock=false']) == {'auto_unlock': False}
         assert convert_session_options(['auto_unlock=anything-goes-here']) == {'auto_unlock': False}
-    
+
     def test_noncasesense(self):
         # Test separate paths for with and without a value.
         assert convert_session_options(['AUTO_Unlock']) == {'auto_unlock': True}
         assert convert_session_options(['AUTO_Unlock=0']) == {'auto_unlock': False}
-    
+
     def test_int(self):
         # Non-bool with no value is ignored (and logged).
         assert convert_session_options(['frequency']) == {}
@@ -114,7 +114,7 @@ class TestConvertSessionOptions(object):
         assert convert_session_options(['frequency=1000']) == {'frequency': 1000}
         # Valid hex int
         assert convert_session_options(['frequency=0x40']) == {'frequency': 64}
-    
+
     def test_str(self):
         # Ignore with no value
         assert convert_session_options(['test_binary']) == {}
@@ -122,5 +122,5 @@ class TestConvertSessionOptions(object):
         assert convert_session_options(['no-test_binary']) == {}
         # Valid
         assert convert_session_options(['test_binary=abc']) == {'test_binary': 'abc'}
-        
+
 

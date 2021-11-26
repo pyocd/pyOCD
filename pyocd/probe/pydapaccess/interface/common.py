@@ -76,10 +76,10 @@ def is_known_cmsis_dap_vid_pid(vid, pid):
 
 def filter_device_by_class(vid, pid, device_class):
     """! @brief Test whether the device should be ignored by comparing bDeviceClass.
-    
+
     This function checks the device's bDeviceClass to determine whether it is likely to be
     a CMSIS-DAP device. It uses the vid and pid for device-specific quirks.
-    
+
     @retval True Skip the device.
     @retval False The device is valid.
     """
@@ -94,12 +94,12 @@ def filter_device_by_class(vid, pid, device_class):
 
 def filter_device_by_usage_page(vid, pid, usage_page):
     """! @brief Test whether the device should be ignored by comparing the HID usage page.
-    
+
     This function performs device-specific tests to determine whether the device is a CMSIS-DAP
     interface. The only current test is for the NXP LPC-Link2, which has extra HID interfaces with
     usage pages other than 0xff00. No generic tests are done regardless of VID/PID, because it is
     not clear whether all CMSIS-DAP devices have the usage page set to the same value.
-    
+
     @retval True Skip the device.
     @retval False The device is valid.
     """
@@ -114,12 +114,12 @@ def check_ep(interface, ep_index, ep_dir, ep_type):
 
 def generate_device_unique_id(vid: int, pid: int, *locations: List[Union[int, str]]) -> str:
     """! @brief Generate a semi-stable unique ID from USB device properties.
-    
+
     This function is intended to be used in cases where a device does not provide a serial number
     string. pyocd still needs a valid unique ID so the device can be selected from amongst multiple
     connected devices. The algorithm used here generates an ID that is stable for a given device as
     long as it is connected to the same USB port.
-    
+
     @param vid Vendor ID.
     @param pid Product ID.
     @param locations Additional parameters are expected to be int or string values that represent

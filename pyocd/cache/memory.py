@@ -26,19 +26,19 @@ LOG = logging.getLogger(__name__)
 
 class MemoryCache(object):
     """! @brief Memory cache.
-    
+
     Maintains a cache of target memory. The constructor is passed a backing DebugContext object that
     will be used to fill the cache.
-    
+
     The cache is invalidated whenever the target has run since the last cache operation (based on run
     tokens). If the target is currently running, all accesses cause the cache to be invalidated.
-    
+
     The target's memory map is referenced. All memory accesses must be fully contained within a single
     memory region, or a TransferFaultError will be raised. However, if an access is outside of all regions,
     the access is passed to the underlying context unmodified. When an access is within a region, that
     region's cacheability flag is honoured.
     """
-    
+
     def __init__(self, context, core):
         self._context = context
         self._core = core
@@ -143,11 +143,11 @@ class MemoryCache(object):
 
     def _merge_data(self, combined, addr, size):
         """! @brief Extracts data from the intersection of an address range across a list of interval objects.
-        
+
         The range represented by @a addr and @a size are assumed to overlap the intervals. The first
         and last interval in the list may have ragged edges not fully contained in the address range, in
         which case the correct slice of those intervals is extracted.
-        
+
         @param self
         @param combined List of Interval objects forming a contiguous range. The @a data attribute of
           each interval must be a bytearray.
@@ -165,7 +165,7 @@ class MemoryCache(object):
             endOffset = offset + size
             result = combined[0].data[offset:endOffset]
             return result
-        
+
         # Take slice of leading ragged edge.
         if len(combined) and combined[0].begin < addr:
             offset = addr - combined[0].begin

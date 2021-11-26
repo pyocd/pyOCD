@@ -51,9 +51,9 @@ LOG = logging.getLogger("pyocd.tool")
 class PyOCDTool(SubcommandBase):
     """! @brief Main class for the pyocd tool and subcommands.
     """
-    
+
     HELP = "PyOCD debug tools for Arm Cortex devices"
-    
+
     ## List of subcommand classes.
     SUBCOMMANDS = [
         CommanderSubcommand,
@@ -67,7 +67,7 @@ class PyOCDTool(SubcommandBase):
         ServerSubcommand,
         RTTSubcommand,
         ]
-    
+
     ## @brief Logging level names.
     LOG_LEVEL_NAMES = {
             'debug': logging.DEBUG,
@@ -91,21 +91,21 @@ class PyOCDTool(SubcommandBase):
         parser.add_argument('-V', '--version', action='version', version=__version__)
         parser.add_argument('--help-options', action='store_true',
             help="Display available session options.")
-            
+
         self.add_subcommands(parser)
 
         return parser
 
     def _setup_logging(self) -> None:
         """! @brief Configure the logging module.
-        
+
         The quiet and verbose argument counts are used to set the log verbosity level.
-        
+
         Log level for specific loggers are also configured here.
         """
         level = max(1, self._args.command_class.DEFAULT_LOG_LEVEL + self._get_log_level_delta())
         logging.basicConfig(level=level, format=LOG_FORMAT)
-        
+
         # Handle settings for individual loggers from --log-level arguments.
         for logger_setting in self._args.log_level:
             try:
@@ -131,7 +131,7 @@ class PyOCDTool(SubcommandBase):
         else:
             self._parser.print_help()
         return 0
-    
+
     def __call__(self, *args: Any, **kwds: Any) -> "PyOCDTool":
         """! @brief Hack to allow the root command object instance to be used as default command class."""
         return self
@@ -140,13 +140,13 @@ class PyOCDTool(SubcommandBase):
         """! @brief Main entry point for command line processing."""
         try:
             self._args = self._parser.parse_args(args)
-            
+
             self._setup_logging()
-            
+
             # Pass any options to DAPAccess.
             if hasattr(self._args, 'daparg'):
                 DAPAccess.set_args(self._args.daparg)
-            
+
             # Create an instance of the subcommand and invoke it.
             cmd = self._args.command_class(self._args)
             status = cmd.invoke()
@@ -161,7 +161,7 @@ class PyOCDTool(SubcommandBase):
         except Exception as e:
             LOG.critical("uncaught exception: %s", e, exc_info=Session.get_current().log_tracebacks)
             return 1
-    
+
     def show_options_help(self) -> None:
         """! @brief Display help for session options."""
         for info_name in sorted(options.OPTIONS_INFO.keys()):

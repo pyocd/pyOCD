@@ -66,21 +66,21 @@ def commander_test(board_id):
     test_count = 0
     failed_commands = []
     result = CommanderTestResult()
-    
+
     COMMANDS_TO_TEST = [
             # general commands
             ["continue"],
             ["status"],
             ["halt"],
             ["status"],
-            
+
             # commander command group - these are not tested by commands_test.py.
             ["list"],
             ["exit"], # Must be last command!
             ]
 
     print("\n------ Testing commander ------\n")
-    
+
     # Set up commander args.
     args = UserDict()
     args.no_init = False
@@ -96,7 +96,7 @@ def commander_test(board_id):
     args.unique_id = board_id
     args.target_override = None
     args.elf = GDB_TEST_ELF
-    
+
     test_count += 1
     try:
         cmdr = PyOCDCommander(args, COMMANDS_TO_TEST)
@@ -106,7 +106,7 @@ def commander_test(board_id):
     except Exception:
         print("TEST FAILED")
         traceback.print_exc()
-        
+
     test_count += 1
     print("Testing exit code")
     print("Exit code:", cmdr.exit_code)

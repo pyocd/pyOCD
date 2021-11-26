@@ -47,7 +47,7 @@ class TargetList(object):
 
 class ZephyrThreadContext(DebugContext):
     """! @brief Thread context for Zephyr."""
-    
+
     STACK_FRAME_OFFSETS = {
                  0: 0, # r0
                  1: 4, # r1
@@ -417,14 +417,14 @@ class ZephyrThreadProvider(ThreadProvider):
 
 class ZephyrPlugin(Plugin):
     """! @brief Plugin class for the Zephyr RTOS."""
-    
+
     def load(self):
         return ZephyrThreadProvider
-    
+
     @property
     def name(self):
         return "zephyr"
-    
+
     @property
     def description(self):
         return "Zephyr"

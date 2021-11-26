@@ -78,7 +78,7 @@ FLASH_ALGO = {
 }
 
 class STM32L432xC(CoreSightTarget):
-        
+
     VENDOR = "STMicroelectronics"
 
     MEMORY_MAP = MemoryMap(

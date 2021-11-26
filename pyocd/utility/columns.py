@@ -22,13 +22,13 @@ LOG = logging.getLogger(__name__)
 
 class ColumnFormatter(object):
     """! @brief Formats a set of values in multiple columns.
-    
+
     The value_list must be a list of bi-tuples (name, value) sorted in the desired display order.
-    
+
     The number of columns will be determined by the terminal width and maximum value width. The values
     will be printed in column major order.
     """
-    
+
     def __init__(self, maxwidth=None, inset=2):
         """! @brief Constructor.
         @param self The object.
@@ -42,19 +42,19 @@ class ColumnFormatter(object):
         self._items = []
         self._max_name_width = 0
         self._max_value_width = 0
-    
+
     def add_items(self, item_list):
         """! @brief Add items to the output.
         @param self The object.
         @param item_list Must be a list of bi-tuples (name, value) sorted in the desired display order.
         """
         self._items.extend(item_list)
-        
+
         # Update max widths.
         for name, value in item_list:
             self._max_name_width = max(self._max_name_width, len(name))
             self._max_value_width = max(self._max_value_width, len(value))
-    
+
     def format(self):
         """! @brief Return the formatted columns as a string.
         @param self The object.
@@ -63,7 +63,7 @@ class ColumnFormatter(object):
         item_width = self._max_name_width + self._max_value_width  + self._inset * 2 + 2
         column_count = self._term_width // item_width
         row_count = (len(self._items) + column_count - 1) // column_count
-        
+
         rows = [[i for i in self._items[r::row_count]]
                 for r in range(row_count)]
 
@@ -77,7 +77,7 @@ class ColumnFormatter(object):
                     inset=(" " * self._inset))
             txt += "\n"
         return txt
-    
+
     def write(self, output_file=None):
         """! @brief Write the formatted columns to stdout or the specified file.
         @param self The object.
@@ -87,5 +87,5 @@ class ColumnFormatter(object):
         if output_file is None:
             output_file = sys.stdout
         output_file.write(self.format())
-        
+
 

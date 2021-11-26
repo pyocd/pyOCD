@@ -24,12 +24,12 @@ LOG = logging.getLogger(__name__)
 
 class SharedDebugProbeProxy(object):
     """! @brief Proxy for a DebugProbe that allows it to be shared by multiple clients.
-    
+
     The main purpose of this class is to keep track of the number of times the probe has been
     opened and connected, and to perform checks to ensure that probes don't interfere with each
     other. Most probe APIs are simply passed to the underlying probe object.
     """
-    
+
     def __init__(self, probe):
         self._session = None
         self._probe = probe
@@ -40,21 +40,21 @@ class SharedDebugProbeProxy(object):
     def session(self):
         """! @brief Session associated with this probe."""
         return self._session
-    
+
     @session.setter
     def session(self, the_session):
         self._session = the_session
         self._probe.session = the_session
-    
+
     @property
     def probe(self):
         return self._probe
-    
+
     def open(self):
         if self._open_count == 0:
             self._probe.open()
         self._open_count += 1
-    
+
     def close(self):
         if self._open_count == 1:
             self._probe.close()
@@ -75,7 +75,7 @@ class SharedDebugProbeProxy(object):
 
     def swj_sequence(self, length, bits):
         self._probe.swj_sequence(length, bits)
-    
+
     def __getattr__(self, name):
         """! @brief Redirect to underlying probe object methods."""
         if hasattr(self._probe, name):

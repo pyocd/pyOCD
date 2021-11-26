@@ -68,7 +68,7 @@ FLASH_ALGO = {
     0xfe31f7ff, 0x0018f89d, 0xf89d7020, 0x70600019, 0x001af89d, 0xf89d70a0, 0x70e0001b, 0xb0082000,
     0x0000bd70, 0x00000000, 0x00000000
     ],
-    
+
     # Function addresses
     'pc_init': 0x20000021,
     'pc_unInit': 0x20000043,
@@ -96,7 +96,7 @@ FLASH_ALGO = {
 class MuscaA1(CoreSightTarget):
 
     VENDOR = "Arm"
-    
+
     MEMORY_MAP = MemoryMap(
         # Due to an errata, only the first 256 kB of QSPI is memory mapped. The remainder
         # of the 8 MB region can be read and written via register accesses only.

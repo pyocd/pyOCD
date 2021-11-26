@@ -31,7 +31,7 @@ class ListGenerator(object):
     @staticmethod
     def list_probes():
         """! @brief Generate dictionary with info about the connected debug probes.
-        
+
         Output version history:
         - 1.0, initial version
         """
@@ -71,7 +71,7 @@ class ListGenerator(object):
     @staticmethod
     def list_boards(name_filter=None):
         """! @brief Generate dictionary with info about supported boards.
-        
+
         Output version history:
         - 1.0, initial version
         - 1.1, added is_target_builtin and is_target_supported keys
@@ -112,7 +112,7 @@ class ListGenerator(object):
     @staticmethod
     def list_targets(name_filter=None, vendor_filter=None, source_filter=None):
         """! @brief Generate dictionary with info about all supported targets.
-        
+
         Output version history:
         - 1.0, initial version
         - 1.1, added part_families
@@ -136,19 +136,19 @@ class ListGenerator(object):
             # Filter by name.
             if name_filter and name_filter not in name.lower():
                 continue
-            
+
             s = Session(None) # Create empty session
             t = TARGET[name](s)
-            
+
             # Filter by vendor.
             if vendor_filter and vendor_filter not in t.vendor.lower():
                 continue
-            
+
             # Filter by source.
             source = 'pack' if hasattr(t, '_pack_device') else 'builtin'
             if source_filter and source_filter != source:
                 continue
-            
+
             d = {
                 'name' : name,
                 'vendor' : t.vendor,
@@ -161,7 +161,7 @@ class ListGenerator(object):
                 if isinstance(svdPath, str) and os.path.exists(svdPath):
                     d['svd_path'] = svdPath
             targets.append(d)
-        
+
         if not source_filter or source_filter == 'pack':
             # Add targets from cmsis-pack-manager cache.
             for dev in pack_target.ManagedPacks.get_installed_targets():
@@ -183,11 +183,11 @@ class ListGenerator(object):
                     pass
 
         return obj
-        
+
     @staticmethod
     def list_plugins():
         """! @brief Generate dictionary with lists of available plugins.
-        
+
         Output version history:
         - 1.0, initial version with debug probe and RTOS plugins
         """
@@ -204,7 +204,7 @@ class ListGenerator(object):
             'status': 0,
             'plugins': plugin_groups_list,
             }
-        
+
         # Add plugins info
         for group_name in plugin_groups:
             plugin_list = []
@@ -212,7 +212,7 @@ class ListGenerator(object):
                 'plugin_type': group_name,
                 'plugins': plugin_list,
                 }
-            
+
             for entry_point in pkg_resources.iter_entry_points(group_name):
                 klass = entry_point.load()
                 plugin = klass()
@@ -224,13 +224,13 @@ class ListGenerator(object):
                     }
                 plugin_list.append(info)
             plugin_groups_list.append(group_info)
-        
+
         return obj
-        
+
     @staticmethod
     def list_features():
         """! @brief Generate dictionary with info about supported features and options.
-        
+
         Output version history:
         - 1.1, added 'plugins' feature
         - 1.0, initial version
@@ -249,11 +249,11 @@ class ListGenerator(object):
                 ],
             'options' : options_list,
             }
-        
+
         # Add plugins
         plugins = ListGenerator.list_plugins()
         plugins_list.extend(plugins['plugins'])
-        
+
         # Add options
         for option_name in options.OPTIONS_INFO.keys():
             info = options.OPTIONS_INFO[option_name]
@@ -270,5 +270,5 @@ class ListGenerator(object):
                 types_list = [info.type.__name__]
             option_dict['type'] = types_list
             options_list.append(option_dict)
-        
+
         return obj

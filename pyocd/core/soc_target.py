@@ -28,17 +28,17 @@ LOG = logging.getLogger(__name__)
 
 class SoCTarget(Target, GraphNode):
     """! @brief Represents a microcontroller system-on-chip.
-    
+
     An instance of this class is the root of the chip-level object graph. It has child
     nodes for the DP and all cores. As a concrete subclass of Target, it provides methods
     to control the device, access memory, adjust breakpoints, and so on.
-    
+
     For single core devices, the SoCTarget has mostly equivalent functionality to
     the Target object for the core. Multicore devices work differently. This class tracks
     a "selected core", to which all actions are directed. The selected core can be changed
     at any time. You may also directly access specific cores and perform operations on them.
     """
-    
+
     VENDOR = "Generic"
 
     def __init__(self, session, memory_map=None):
@@ -61,7 +61,7 @@ class SoCTarget(Target, GraphNode):
         if self._selected_core is None:
             return None
         return self.cores[self._selected_core]
-    
+
     @selected_core.setter
     def selected_core(self, core_number):
         if core_number not in self.cores:
@@ -84,11 +84,11 @@ class SoCTarget(Target, GraphNode):
                 if self.session.options['cache.read_code_from_elf']:
                     self.cores[core_number].set_target_context(
                             ElfReaderContext(self.cores[core_number].get_target_context(), self._elf))
-    
+
     @property
     def supported_security_states(self):
         return self.selected_core.supported_security_states
-    
+
     @property
     def core_registers(self):
         return self.selected_core.core_registers
@@ -98,28 +98,28 @@ class SoCTarget(Target, GraphNode):
         core.set_target_context(CachingDebugContext(core))
         self.cores[core.core_number] = core
         self.add_child(core)
-        
+
         if self._selected_core is None:
             self._selected_core = core.core_number
 
     def create_init_sequence(self):
         # Return an empty call sequence. The subclass must override this.
         return CallSequence()
-    
+
     def init(self):
         # If we don't have a delegate installed yet but there is a session delegate, use it.
         if (self.delegate is None) and (self.session.delegate is not None):
             self.delegate = self.session.delegate
-        
+
         # Create and execute the init sequence.
         seq = self.create_init_sequence()
         self.call_delegate('will_init_target', target=self, init_sequence=seq)
         seq.invoke()
         self.call_delegate('did_init_target', target=self)
-    
+
     def post_connect_hook(self):
         """! @brief Hook function called after post_connect init task.
-        
+
         This hook lets the target subclass configure the target as necessary.
         """
         pass
@@ -218,7 +218,7 @@ class SoCTarget(Target, GraphNode):
 
     def get_state(self):
         return self.selected_core.get_state()
-        
+
     def get_security_state(self):
         return self.selected_core.get_security_state()
 
@@ -235,11 +235,11 @@ class SoCTarget(Target, GraphNode):
         if core is None:
             core = self._selected_core
         return self.cores[core].get_target_context()
-    
+
     def trace_start(self):
         self.call_delegate('trace_start', target=self, mode=0)
-    
+
     def trace_stop(self):
         self.call_delegate('trace_stop', target=self, mode=0)
-    
-        
+
+

@@ -19,7 +19,7 @@ from ..utility.graph import GraphNode
 
 class CoreSightComponent(GraphNode):
     """! @brief CoreSight component base class."""
-    
+
     @classmethod
     def factory(cls, ap, cmpid, address):
         """! @brief Common CoreSightComponent factory."""
@@ -34,30 +34,30 @@ class CoreSightComponent(GraphNode):
         self._ap = ap
         self._cmpid = cmpid
         self._address = addr if (addr is not None) else (cmpid.address if cmpid else None)
-    
+
     @property
     def ap(self):
         return self._ap
-    
+
     @property
     def cmpid(self):
         return self._cmpid
-    
+
     @cmpid.setter
     def cmpid(self, newCmpid):
         self._cmpid = newCmpid
-    
+
     @property
     def address(self):
         return self._address
-    
+
     @address.setter
     def address(self, newAddr):
         self._address = newAddr
 
 class CoreSightCoreComponent(CoreSightComponent):
     """! @brief CoreSight component for a CPU core.
-    
+
     This class serves only as a superclass for identifying core-type components.
     """
     pass

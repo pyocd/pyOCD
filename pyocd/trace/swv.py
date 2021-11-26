@@ -34,14 +34,14 @@ LOG = logging.getLogger(__name__)
 
 class SWVEventSink(TraceEventSink):
     """! @brief Trace event sink that converts ITM packets to a text stream."""
-    
+
     def __init__(self, console):
         """! @brief Constructor.
         @param self
         @param console File-like object to which SWV data will be written.
         """
         self._console = console
-    
+
     def receive(self, event):
         """! @brief Handle an SWV trace event.
         @param self
@@ -82,32 +82,32 @@ class SWVReader(threading.Thread):
         self._shutdown_event = threading.Event()
         self._swo_clock = 0
         self._lock = lock
-        
+
         self._session.subscribe(self._reset_handler, Target.Event.POST_RESET, self._session.target.cores[core_number])
-        
+
     def init(self, sys_clock, swo_clock, console):
         """! @brief Configures trace graph and starts thread.
-        
+
         This method performs all steps required to start up SWV. It first calls the target's
         trace_start() method, which allows for target-specific trace initialization. Then it
         configures the TPIU and ITM modules. A simple trace data processing graph is created that
         connects an SWVEventSink with a SWOParser. Finally, the reader thread is started.
-        
+
         If the debug probe does not support SWO, a warning is printed but nothing else is done.
-        
+
         @param self
         @param sys_clock
         @param swo_clock
         @param console
         """
         self._swo_clock = swo_clock
-        
+
         if DebugProbe.Capability.SWO not in self._session.probe.capabilities:
             LOG.warning("Probe %s does not support SWO", self._session.probe.unique_id)
             return
-        
+
         self._session.target.trace_start()
-        
+
         itm = self._session.target.get_first_child_of_type(ITM)
         tpiu = self._session.target.get_first_child_of_type(TPIU)
 
@@ -124,15 +124,15 @@ class SWVReader(threading.Thread):
         self._parser = SWOParser(self._session.target.cores[self._core_number])
         self._sink = SWVEventSink(console)
         self._parser.connect(self._sink)
-        
+
         self.start()
-    
+
     def stop(self):
         """! @brief Stops processing SWV data.
-        
+
         The reader thread is terminated first, then the ITM is disabled. The last step is to call
         the target's trace_stop() method.
-        
+
         Does nothing if the init() method did not complete successfully.
         """
         if not self.is_alive():
@@ -143,12 +143,12 @@ class SWVReader(threading.Thread):
 
         itm = self._session.target.get_first_child_of_type(ITM)
         itm.disable()
-        
+
         self._session.target.trace_stop()
-    
+
     def run(self):
         """! @brief SWV reader thread routine.
-        
+
         Starts the probe receiving SWO data by calling DebugProbe.swo_start(). For as long as the
         thread runs, it reads SWO data from the probe and passes it to the SWO parser created in
         init(). When the thread is signaled to stop, it calls DebugProbe.swo_stop() before exiting.
@@ -170,14 +170,14 @@ class SWVReader(threading.Thread):
         except exceptions.ProbeError:
             pass
         self._session.probe.swo_start(self._swo_clock)
-        
+
         while not self._shutdown_event.is_set():
             data = self._session.probe.swo_read()
             if data:
                 if swv_raw_server:
                     swv_raw_server.write(data)
                 self._parser.parse(data)
-        
+
             if self._lock:
                 self._lock.release()
 
@@ -185,18 +185,18 @@ class SWVReader(threading.Thread):
 
             if self._lock:
                 self._lock.acquire()
-            
+
         self._session.probe.swo_stop()
 
         if swv_raw_server:
             swv_raw_server.stop()
-    
+
         if self._lock:
             self._lock.release()
-    
+
     def _reset_handler(self, notification):
         """! @brief Reset notification handler.
-        
+
         If the target is reset while the SWV reader is running, then the Target::trace_start()
         method is called to reinit trace output.
         """

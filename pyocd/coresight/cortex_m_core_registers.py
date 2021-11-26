@@ -28,7 +28,7 @@ IPSR_MASK = 0x000001FF
 
 class CortexMCoreRegisterInfo(CoreRegisterInfo):
     """! @brief Core register subclass for Cortex-M registers.
-    
+
     For most registers, the index is the value written to the DCRSR register to read or write the
     core register. Other core registers not directly supported by DCRSR have special index values that
     are interpreted by the helper methods on this class and the core register read/write code in CortexM
@@ -37,7 +37,7 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
 
     ## Map of register name to info.
     _NAME_MAP = {}
-    
+
     ## Map of register index to info.
     _INDEX_MAP = {}
 
@@ -84,12 +84,12 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
 
 class CoreRegisterGroups:
     """! @brief Namespace for lists of Cortex-M core register information."""
-    
+
     _I = CortexMCoreRegisterInfo # Reduce table width.
 
     # For most registers, the index is the DCRSR register selector value. Those registers not directly
     # supported by the DCRSR have special values that are interpreted by the register read/write methods.
-    
+
     ## @brief Registers common to all M-profile cores.
     M_PROFILE_COMMON = [
         #  Name         index   bits    type            group       gdbnum  feature
@@ -241,7 +241,7 @@ class CoreRegisterGroups:
         _I('d14',       -0x5c,  64,     'ieee_double',  'double',   36,     "org.gnu.gdb.arm.vfp"),
         _I('d15',       -0x5e,  64,     'ieee_double',  'double',   37,     "org.gnu.gdb.arm.vfp"),
         ]
-        
+
     del _I # Cleanup namespace.
 
 # Build info map.

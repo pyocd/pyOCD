@@ -31,12 +31,12 @@ from ..utility import conversion
 
 class StlinkProbe(DebugProbe):
     """! @brief Wraps an STLink as a DebugProbe."""
-        
+
     @classmethod
     def get_all_connected_probes(cls, unique_id: Optional[str] = None,
             is_explicit: bool = False) -> List["StlinkProbe"]:
         return [cls(dev) for dev in STLinkUSBInterface.get_all_connected_devices()]
-    
+
     @classmethod
     def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional["StlinkProbe"]:
         for dev in STLinkUSBInterface.get_all_connected_devices():
@@ -54,7 +54,7 @@ class StlinkProbe(DebugProbe):
         self._mbed_info = None
         self._board_id = self._get_board_id()
         self._caps = set()
-        
+
     def _get_board_id(self) -> Optional[str]:
         # Try to get the board ID first by sending a command, since it is much faster. This requires
         # opening the USB device, however, and requires a recent STLink firmware version.
@@ -66,7 +66,7 @@ class StlinkProbe(DebugProbe):
                 for info in detector.list_mbeds():
                     if info['target_id_usb_id'] == self._link.serial_number:
                         self._mbed_info = info
-                        
+
                         # Some STLink probes provide an MSD volume, but not the mbed.htm file.
                         # We can live without the board ID, so just ignore any error.
                         try:
@@ -87,11 +87,11 @@ class StlinkProbe(DebugProbe):
             return self.product_name
         else:
             return "{0} [{1}]".format(board_info.name, board_info.target)
-    
+
     @property
     def vendor_name(self):
         return self._link.vendor_name
-    
+
     @property
     def product_name(self):
         return self._link.product_name
@@ -107,11 +107,11 @@ class StlinkProbe(DebugProbe):
     @property
     def wire_protocol(self):
         return DebugProbe.Protocol.SWD if self._is_connected else None
-    
+
     @property
     def is_open(self):
         return self._is_open
-    
+
     @property
     def capabilities(self):
         return self._caps
@@ -122,11 +122,11 @@ class StlinkProbe(DebugProbe):
             return MbedBoard(self.session, board_id=self._board_id)
         else:
             return None
-    
+
     def open(self):
         self._link.open()
         self._is_open = True
-        
+
         # Update capabilities.
         self._caps = {
                 self.Capability.SWO,
@@ -135,7 +135,7 @@ class StlinkProbe(DebugProbe):
                 }
         if self._link.supports_banked_dp:
             self._caps.add(self.Capability.BANKED_DP_REGISTERS)
-    
+
     def close(self):
         self._link.close()
         self._is_open = False
@@ -151,7 +151,7 @@ class StlinkProbe(DebugProbe):
         # TODO Close the APs. When this is attempted, we get an undocumented 0x1d error. Doesn't
         #      seem to be necessary, anyway.
         self._memory_interfaces = {}
-        
+
         self._link.enter_idle()
         self._is_connected = False
 
@@ -168,7 +168,7 @@ class StlinkProbe(DebugProbe):
     def assert_reset(self, asserted):
         self._link.drive_nreset(asserted)
         self._nreset_state = asserted
-    
+
     def is_reset_asserted(self):
         return self._nreset_state
 
@@ -178,13 +178,13 @@ class StlinkProbe(DebugProbe):
     # ------------------------------------------- #
     #          DAP Access functions
     # ------------------------------------------- #
-    
+
     def read_dp(self, addr, now=True):
         result = self._link.read_dap_register(STLink.DP_PORT, addr)
-        
+
         def read_dp_result_callback():
             return result
-        
+
         return result if now else read_dp_result_callback
 
     def write_dp(self, addr, data):
@@ -193,10 +193,10 @@ class StlinkProbe(DebugProbe):
     def read_ap(self, addr, now=True):
         apsel = (addr & APSEL) >> APSEL_SHIFT
         result = self._link.read_dap_register(apsel, addr & 0xffff)
-        
+
         def read_ap_result_callback():
             return result
-        
+
         return result if now else read_ap_result_callback
 
     def write_ap(self, addr, data):
@@ -205,10 +205,10 @@ class StlinkProbe(DebugProbe):
 
     def read_ap_multiple(self, addr, count=1, now=True):
         results = [self.read_ap(addr, now=True) for n in range(count)]
-        
+
         def read_ap_multiple_result_callback():
             return results
-        
+
         return results if now else read_ap_multiple_result_callback
 
     def write_ap_multiple(self, addr, values):
@@ -237,14 +237,14 @@ class StlinkProbe(DebugProbe):
 
 class STLinkMemoryInterface(MemoryInterface):
     """! @brief Concrete memory interface for a single AP."""
-    
+
     def __init__(self, link, apsel):
         self._link = link
         self._apsel = apsel
 
     def write_memory(self, addr, data, transfer_size=32):
         """! @brief Write a single memory location.
-        
+
         By default the transfer size is a word.
         """
         assert transfer_size in (8, 16, 32)
@@ -255,10 +255,10 @@ class STLinkMemoryInterface(MemoryInterface):
             self._link.write_mem16(addr, conversion.u16le_list_to_byte_list([data]), self._apsel)
         elif transfer_size == 8:
             self._link.write_mem8(addr, [data], self._apsel)
-        
+
     def read_memory(self, addr, transfer_size=32, now=True):
         """! @brief Read a memory location.
-        
+
         By default, a word will be read.
         """
         assert transfer_size in (8, 16, 32)
@@ -269,7 +269,7 @@ class STLinkMemoryInterface(MemoryInterface):
             result = conversion.byte_list_to_u16le_list(self._link.read_mem16(addr, 2, self._apsel))[0]
         elif transfer_size == 8:
             result = self._link.read_mem8(addr, 1, self._apsel)[0]
-        
+
         def read_callback():
             return result
         return result if now else read_callback
@@ -284,18 +284,18 @@ class STLinkMemoryInterface(MemoryInterface):
 
 class StlinkProbePlugin(Plugin):
     """! @brief Plugin class for StlLinkProbe."""
-    
+
     def should_load(self):
         # TODO only load the plugin when libusb is available
         return True
-    
+
     def load(self):
         return StlinkProbe
-    
+
     @property
     def name(self):
         return "stlink"
-    
+
     @property
     def description(self):
         return "STMicro STLinkV2 and STLinkV3 debug probe"

@@ -72,7 +72,7 @@ class BreakpointManager(object):
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         """! @brief Set a hardware or software breakpoint at a specific location in memory.
-        
+
         @retval True Breakpoint was set.
         @retval False Breakpoint could not be set.
         """
@@ -105,7 +105,7 @@ class BreakpointManager(object):
 
     def _check_added_breakpoint(self, bp):
         """! @brief Check whether a new breakpoint is likely to actually be added when we flush.
-        
+
         First, software breakpoints are assumed to always be addable. For hardware breakpoints,
         the current free hardware breakpoint count is updated based on the current set of to-be
         added and removed breakpoints. If there are enough free hardware breakpoints to meet the
@@ -115,11 +115,11 @@ class BreakpointManager(object):
         if self._fpb is None:
             region = self._core.memory_map.get_region_for_address(bp.addr)
             return region is not None and region.is_writable
-        
+
         likely_bp_type = self._select_breakpoint_type(bp, False)
         if likely_bp_type == Target.BreakpointType.SW:
             return True
-        
+
         # Count updated hw breakpoints.
         free_hw_bp_count = self._fpb.available_breakpoints
         added, removed = self._get_updated_breakpoints()
@@ -130,7 +130,7 @@ class BreakpointManager(object):
             likely_bp_type = self._select_breakpoint_type(bp, False)
             if likely_bp_type == Target.BreakpointType.HW:
                 free_hw_bp_count -= 1
-        
+
         return free_hw_bp_count > self.MIN_HW_BREAKPOINTS
 
     def remove_breakpoint(self, addr):

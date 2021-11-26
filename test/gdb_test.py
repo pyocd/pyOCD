@@ -114,7 +114,7 @@ def test_gdb(board_id=None, n=0):
         target_test_params = get_target_test_params(session)
         test_port = 3333 + n
         telnet_port = 4444 + n
-        
+
         # Hardware breakpoints are not supported above 0x20000000 on
         # Cortex-M devices with FPB revision 1.
         fpb = session.target.selected_core.fpb

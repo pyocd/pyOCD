@@ -107,8 +107,8 @@ class cy8c64xx_s25hx512t(PSoC64):
 
     def __init__(self, session, ap_num):
         super(cy8c64xx_s25hx512t, self).__init__(session, CortexM_PSoC64_BLE2, self.MEMORY_MAP, ap_num)
-        
-        
+
+
 class cy8c64xx_nosmif(PSoC64):
     from .flash_algos.flash_algo_CY8C64xx import flash_algo as flash_algo_main
     from .flash_algos.flash_algo_CY8C6xxx_WFLASH import flash_algo as flash_algo_work
@@ -158,8 +158,8 @@ class cy8c64xx_cm0_s25hx512t(cy8c64xx_s25hx512t):
 class cy8c64xx_cm4_s25hx512t(cy8c64xx_s25hx512t):
     def __init__(self, session):
         super(cy8c64xx_cm4_s25hx512t, self).__init__(session, 2)
-        
-        
+
+
 class cy8c64xx_cm0_nosmif(cy8c64xx_nosmif):
     def __init__(self, session):
         super(cy8c64xx_cm0_nosmif, self).__init__(session, 1)

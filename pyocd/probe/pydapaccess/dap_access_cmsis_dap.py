@@ -65,16 +65,16 @@ def _get_interfaces():
     """! @brief Get the connected USB devices"""
     # Get CMSIS-DAPv1 interfaces.
     v1_interfaces = INTERFACE[USB_BACKEND].get_all_connected_interfaces()
-    
+
     # Get CMSIS-DAPv2 interfaces.
     v2_interfaces = INTERFACE[USB_BACKEND_V2].get_all_connected_interfaces()
-    
+
     # Prefer v2 over v1 if a device provides both.
     devices_in_both = [v1 for v1 in v1_interfaces for v2 in v2_interfaces
                         if _get_unique_id(v1) == _get_unique_id(v2)]
     for dev in devices_in_both:
         v1_interfaces.remove(dev)
-        
+
     # Return the combined list.
     return v1_interfaces + v2_interfaces
 
@@ -323,11 +323,11 @@ class _Command(object):
         The ACK bits [2:0] and the protocol error bit are checked. If any error is indicated,
         the appropriate exception is raised. An exception is also raised for unrecognised ACK
         values.
-        
+
         @param self
         @param response The "Transfer Response" byte from a DAP_Transfer or DAP_TransferBlock
             command.
-        
+
         @exception DAPAccessIntf.TransferFaultError Raised for the ACK_FAULT response.
         @exception DAPAccessIntf.TransferTimeoutError Raised for ACK_WAIT response.
         @exception DAPAccessIntf.TransferError Raised for other, less common errors, including No
@@ -346,7 +346,7 @@ class _Command(object):
                 raise DAPAccessIntf.TransferError("Unexpected ACK value (%d) returned by probe" % ack)
         elif (response & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
             raise DAPAccessIntf.TransferError("SWD protocol error")
-    
+
     def _decode_transfer_data(self, data):
         """! @brief Take a byte array and extract the data from it
 
@@ -456,7 +456,7 @@ class _Command(object):
 
 class DAPAccessCMSISDAP(DAPAccessIntf):
     """! @brief An implementation of the DAPAccessIntf layer for DAPLink boards
-    
+
     @internal
     All methods that use the CMSISDAPProtocol instance must be locked and must flush the command queue
     prior to using methods of that object. Otherwise the command responses may be processed out of order.
@@ -548,7 +548,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._vendor_name = ""
             self._product_name = ""
             self._vidpid = (0, 0)
-            
+
         self._lock = threading.RLock()
         self._interface = interface
         self._deferred_transfer = False
@@ -572,11 +572,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             by the debug probe.
         """
         return self._cmsis_dap_version
-    
+
     @property
     def firmware_version(self) -> Optional[str]:
         """! @brief A string of the product firmware version, or None.
-        
+
         Only probes supporting CMSIS-DAP protocol v2.1 or later can return their firmware version.
         """
         return self._fw_version
@@ -588,7 +588,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @property
     def product_name(self):
         return self._product_name
-    
+
     @property
     def vidpid(self):
         """! @brief A tuple of USB VID and PID, in that order."""
@@ -597,11 +597,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @property
     def has_swd_sequence(self):
         return self._cmsis_dap_version >= CMSISDAPVersion.V1_2_0
-    
+
     def lock(self):
         """! @brief Lock the interface."""
         self._lock.acquire()
-    
+
     def unlock(self):
         """! @brief Unlock the interface."""
         self._lock.release()
@@ -644,7 +644,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             # One of the protocol version fields had a non-numeric character, indicating it is not a valid
             # CMSIS-DAP version number. Default to the lowest version.
             self._cmsis_dap_version = CMSISDAPVersion.V1_0_0
-        
+
         # Validate the version against known CMSIS-DAP minor versions. This will also catch the beta release
         # versions of CMSIS-DAP, 0.01 and 0.02, and raise them to 1.0.0.
         if self._cmsis_dap_version[:2] not in CMSISDAPVersion.minor_versions():
@@ -672,7 +672,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         if (self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0) or (self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0
                 and self._cmsis_dap_version < CMSISDAPVersion.V2_0_0):
             self._fw_version = self._protocol.dap_info(self.ID.PRODUCT_FW_VERSION)
-        
+
         # Log probe's firmware version.
         if self._fw_version:
             LOG.debug("CMSIS-DAP probe %s: firmware version %s, protocol version %i.%i.%i",
@@ -709,7 +709,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._protocol.set_swj_pins(0, Pin.nRESET)
         else:
             self._protocol.set_swj_pins(Pin.nRESET, Pin.nRESET)
-    
+
     @locked
     def is_reset_asserted(self):
         self.flush()
@@ -775,7 +775,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._protocol.set_swj_clock(self._frequency)
         # configure transfer
         self._protocol.transfer_configure()
-        
+
         # configure the selected protocol with defaults.
         if self._dap_port == DAPAccessIntf.PORT.SWD:
             self.configure_swd()
@@ -786,7 +786,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
         self.flush()
         self._protocol.swd_configure(turnaround, always_send_data_phase)
-    
+
     @locked
     def configure_jtag(self, devices_irlen=None):
         self.flush()
@@ -811,10 +811,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def disconnect(self):
         self.flush()
         self._protocol.disconnect()
-    
+
     def has_swo(self):
         return self._has_swo_uart
-    
+
     @locked
     def swo_configure(self, enabled, rate):
         self.flush()
@@ -822,7 +822,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # Don't send any commands if the SWO commands aren't supported.
         if not self._has_swo_uart:
             return False
-        
+
         # Before we attempt any configuration, we must explicitly disable SWO
         # (if SWO is enabled, setting any other configuration fails).
         self._swo_disable()
@@ -834,7 +834,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                     transport = DAPSWOTransport.DAP_SWO_EP
                 else:
                     transport = DAPSWOTransport.DAP_SWO_DATA
-                
+
                 if self._protocol.swo_transport(transport) != 0:
                     self._swo_disable()
                     return False
@@ -851,7 +851,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             LOG.debug("Exception while configuring SWO: %s", e)
             self._swo_disable()
             return False
-    
+
     # Doesn't need @locked because it is only called from swo_configure().
     def _swo_disable(self):
         try:
@@ -861,7 +861,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             LOG.debug("Exception while disabling SWO: %s", e)
         finally:
             self._swo_status = SWOStatus.DISABLED
-    
+
     @locked
     def swo_control(self, start):
         self.flush()
@@ -869,7 +869,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # Don't send any commands if the SWO commands aren't supported.
         if not self._has_swo_uart:
             return False
-        
+
         if start:
             self._protocol.swo_control(DAPSWOControl.START)
             if self._interface.has_swo_ep:
@@ -881,11 +881,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                 self._interface.stop_swo()
             self._swo_status = SWOStatus.CONFIGURED
         return True
-    
+
     @locked
     def get_swo_status(self):
         return self._protocol.swo_status()
-    
+
     def swo_read(self, count=None):
         # The separate SWO EP can be read without locking.
         if self._interface.has_swo_ep:

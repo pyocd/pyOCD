@@ -59,7 +59,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 class LPC54114(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash',   start=0,           length=0x40000,  is_boot_memory=True,
                                                                         blocksize=0x8000,

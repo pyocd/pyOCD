@@ -86,18 +86,18 @@ def flash_loader_test(board_id):
 
         # Generate an Intel hex file from the binary test file.
         temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)
-        
+
         # Generate ELF file from the binary test file.
         temp_test_elf_name = binary_to_elf_file(binary_file, boot_region.start)
 
         test_pass_count = 0
         test_count = 0
         result = FlashLoaderTestResult()
-        
+
         with open(binary_file, "rb") as f:
             data = list(bytearray(f.read()))
         data_length = len(data)
-        
+
         print("\n------ Test Basic Load ------")
         loader = FlashLoader(session, chip_erase="sector")
         loader.add_data(boot_start_addr, data)
@@ -109,7 +109,7 @@ def flash_loader_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         print("\n------ Test Load Sector Erase ------")
         test_data = [0x55] * boot_blocksize
         addr = (boot_end_addr + 1) - (boot_blocksize * num_test_sectors)
@@ -117,12 +117,12 @@ def flash_loader_test(board_id):
             orig_data_length = addr - boot_start_addr
         else:
             orig_data_length = data_length
-        
+
         loader = FlashLoader(session, chip_erase="sector")
         loader.add_data(addr, test_data)
         loader.add_data(addr + boot_blocksize, test_data)
         loader.commit()
-        
+
         verify_data = target.read_memory_block8(addr, boot_blocksize * num_test_sectors)
         verify_data2 = target.read_memory_block8(boot_start_addr, orig_data_length)
         if same(verify_data, test_data * num_test_sectors) and same(verify_data2, data[:orig_data_length]):
@@ -131,7 +131,7 @@ def flash_loader_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         print("\n------ Test Basic Sector Erase ------")
         addr = (boot_end_addr + 1) - (boot_blocksize * num_test_sectors)
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
@@ -143,7 +143,7 @@ def flash_loader_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         print("\n------ Test Load Chip Erase ------")
         loader = FlashLoader(session, chip_erase="chip")
         loader.add_data(boot_start_addr, data)
@@ -155,7 +155,7 @@ def flash_loader_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
         programmer.program(binary_file, file_format='bin', base_address=boot_start_addr)
@@ -166,7 +166,7 @@ def flash_loader_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         print("\n------ Test Intel Hex File Load ------")
         programmer = FileProgrammer(session)
         programmer.program(temp_test_hex_name, file_format='hex')
@@ -177,7 +177,7 @@ def flash_loader_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         print("\n------ Test ELF File Load ------")
         programmer = FileProgrammer(session)
         programmer.program(temp_test_elf_name, file_format='elf')

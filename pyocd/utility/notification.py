@@ -46,17 +46,17 @@ class Notification(object):
 
 class Notifier(object):
     """!@brief Mix-in class that provides notification broadcast capabilities.
-    
+
     In this notification model, subscribers register callbacks for one or more events. The events
     are simply a Python object of any kind, as long as it is hashable. Typically integers or Enums
     are used. Subscriptions can be registered for any sender of an event, or be filtered by the
     sender (called the source).
-    
+
     When a notification is sent to the callback, it is wrapped up as a Notification object. Along
     with the notification, an optional, arbitrary data value can be sent. This allows for further
     specifying the event, or passing related values (or anything else you can think of).
     """
-    
+
     def __init__(self):
         ## Dict of subscribers for particular events and sources.
         #
@@ -75,7 +75,7 @@ class Notifier(object):
 
     def subscribe(self, cb, events, source=None):
         """!@brief Subscribe to selection of events from an optional source.
-        
+
         @param self
         @param cb The callable that will be invoked when a matching notification is sent. Must
             accept a single parameter, a Notification instance.
@@ -87,12 +87,12 @@ class Notifier(object):
         """
         if not isinstance(events, (tuple, list, set)):
             events = [events]
-        
+
         for event in events:
             if event not in self._subscribers:
                 self._subscribers[event] = ([], {})
             event_info = self._subscribers[event]
-            
+
             if source is None:
                 event_info[0].append(cb)
             else:
@@ -102,7 +102,7 @@ class Notifier(object):
 
     def unsubscribe(self, cb, events=None):
         """!@brief Remove a callback from the subscribers list.
-        
+
         @param self
         @param cb The callback to remove from all subscriptions.
         @param events Optional. May be a single event or an iterable of events. If specified, the
@@ -110,16 +110,16 @@ class Notifier(object):
         """
         if (events is not None) and (not isinstance(events, (tuple, list, set))):
             events = [events]
-        
+
         for event, event_info in self._subscribers.items():
             # Skip this event if it's not one on the removal list.
             if (events is not None) and (event not in events):
                 continue
-            
+
             # Remove callback from all-sources list.
             if cb in event_info[0]:
                 event_info[0].remove(cb)
-            
+
             # Scan source-specific subscribers.
             for source_info in event_info[1].values():
                 if cb in source_info:
@@ -127,7 +127,7 @@ class Notifier(object):
 
     def notify(self, event, source=None, data=None):
         """!@brief Notify subscribers of an event.
-        
+
         @param self
         @param event Event to send. Must be a hashable object. It is acceptable to notify for an
             event for which there are no subscribers.
@@ -142,26 +142,26 @@ class Notifier(object):
             # Nobody has subscribed to this event, so nothing to do.
             TRACE.debug("Not sending notification because no subscribers: event=%s", event)
             return
-        
+
         # Look up subscribers for this event + source combo.
         try:
             source_subscribers = event_info[1][source]
         except KeyError:
             # No source-specific subscribers.
             source_subscribers = []
-        
+
         # Create combined subscribers list. Exit if no subscribers matched.
         subscribers = event_info[0] + source_subscribers
         if not subscribers:
             TRACE.debug("Not sending notification because no matching subscribers: event=%s", event)
             return
-        
+
         # Create the notification object now that we know there are some subscribers.
         if source is None:
             source = self
         note = Notification(event, source, data)
         TRACE.debug("Sending notification to %d subscribers: %s", len(subscribers), note)
-        
+
         # Tell everyone!
         for cb in subscribers:
             cb(note)

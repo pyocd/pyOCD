@@ -44,7 +44,7 @@ class STLinkUSBInterface:
 
     ## Command packet size.
     CMD_SIZE = 16
-    
+
     ## ST's USB vendor ID
     USB_VID = 0x0483
 
@@ -62,23 +62,23 @@ class STLinkUSBInterface:
         0x3755: STLinkInfo('V3',    0x01,   0x81,   0x82),
         0x3757: STLinkInfo('V3',    0x01,   0x81,   0x82),
         }
-    
+
     ## STLink devices only have one USB interface.
     DEBUG_INTERFACE_NUMBER = 0
-    
+
     @classmethod
     def _usb_match(cls, dev):
         try:
             # Check VID/PID.
             isSTLink = (dev.idVendor == cls.USB_VID) and (dev.idProduct in cls.USB_PID_EP_MAP)
-            
+
             # Try accessing the current config, which will cause a permission error on Linux. Better
             # to error out here than later when building the device description. For Windows we
             # don't need to worry about device permissions, but reading descriptors requires special
             # handling due to the libusb bug described in __init__().
             if isSTLink and platform.system() != "Windows":
                 dev.get_active_configuration()
-            
+
             return isSTLink
         except usb.core.USBError as error:
             if error.errno == errno.EACCES and platform.system() == "Linux" \
@@ -101,7 +101,7 @@ class STLinkUSBInterface:
         except usb.core.NoBackendError:
             common.show_no_libusb_warning()
             return []
-    
+
         assert devices is not None
         intfList = []
         for dev in devices:
@@ -111,7 +111,7 @@ class STLinkUSBInterface:
             except (ValueError, usb.core.USBError, IndexError, NotImplementedError) as error:
                 # Ignore errors that can be raised by libusb, just don't add the device to the list.
                 pass
-    
+
         return intfList
 
     def __init__(self, dev):
@@ -142,14 +142,14 @@ class STLinkUSBInterface:
             self._product_name = self._dev.product
         finally:
             usb.util.dispose_resources(self._dev)
-    
+
     def open(self):
         assert self._closed
-        
+
         # Debug interface is always interface 0, alt setting 0.
         config = self._dev.get_active_configuration()
         interface = config[(self.DEBUG_INTERFACE_NUMBER, 0)]
-        
+
         # Look up endpoint objects.
         for endpoint in interface:
             if endpoint.bEndpointAddress == self._info.out_ep:
@@ -158,20 +158,20 @@ class STLinkUSBInterface:
                 self._ep_in = endpoint
             elif endpoint.bEndpointAddress == self._info.swv_ep:
                 self._ep_swv = endpoint
-        
+
         if not self._ep_out:
             raise exceptions.ProbeError("Unable to find OUT endpoint")
         if not self._ep_in:
             raise exceptions.ProbeError("Unable to find IN endpoint")
 
         self._max_packet_size = self._ep_in.wMaxPacketSize
-        
+
         # Claim this interface to prevent other processes from accessing it.
         usb.util.claim_interface(self._dev, self.DEBUG_INTERFACE_NUMBER)
-        
+
         self._flush_rx()
         self._closed = False
-    
+
     def close(self):
         assert not self._closed
         self._closed = True
@@ -206,7 +206,7 @@ class STLinkUSBInterface:
 
     def _flush_rx(self):
         assert self._ep_in
-        
+
         # Flush the RX buffers by reading until timeout exception
         try:
             while True:
@@ -230,19 +230,19 @@ class STLinkUSBInterface:
         assert len(cmd) <= self.CMD_SIZE
         paddedCmd = bytearray(self.CMD_SIZE)
         paddedCmd[0:len(cmd)] = cmd
-        
+
         try:
             # Command phase.
             TRACE.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
             count = self._ep_out.write(paddedCmd, timeout)
             assert count == len(paddedCmd)
-            
+
             # Optional data out phase.
             if writeData is not None:
                 TRACE.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
                 count = self._ep_out.write(writeData, timeout)
                 assert count == len(writeData)
-            
+
             # Optional data in phase.
             if readSize is not None:
                 TRACE.debug("  USB IN < (%d bytes)" % readSize)
@@ -256,7 +256,7 @@ class STLinkUSBInterface:
     def read_swv(self, size, timeout=1000):
         assert self._ep_swv
         return bytearray(self._ep_swv.read(size, timeout))
-    
+
     def __repr__(self):
         return "<{} @ {:#x} vid={:#06x} pid={:#06x} sn={} version={}>".format(
             self.__class__.__name__, id(self),

@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 class FlashEraser(object):
     """! @brief Class that manages high level flash erasing.
-    
+
     Can erase a target in one of three modes:
     - chip erase: Erase all flash on the target.
     - mass erase: Also erase all flash on the target. However, on some targets, a mass erase has
@@ -37,34 +37,34 @@ class FlashEraser(object):
         MASS = 1
         CHIP = 2
         SECTOR = 3
-    
+
     def __init__(self, session, mode):
         """! @brief Constructor.
-        
+
         @param self
         @param session The session instance.
         @param mode One of the FlashEraser.Mode enums to select mass, chip, or sector erase.
         """
         self._session = session
         self._mode = mode
-    
+
     def erase(self, addresses=None):
         """! @brief Perform the type of erase operation selected when the object was created.
-        
+
         For sector erase mode, an iterable of sector addresses specifications must be provided via
         the _addresses_ parameter. The address iterable elements can be either strings, tuples,
         or integers. Tuples must have two elements, the start and end addresses of a range to erase.
         Integers are simply an address within the single page to erase.
-        
+
         String address specifications may be in one of three formats: "<address>", "<start>-<end>",
         or "<start>+<length>". Each field denoted by angled brackets is an integer literal in
         either decimal or hex notation.
-        
+
         Examples:
         - "0x1000" - erase the one sector at 0x1000
         - "0x1000-0x4fff" - erase sectors from 0x1000 up to but not including 0x5000
         - "0x8000+0x800" - erase sectors starting at 0x8000 through 0x87ff
-        
+
         @param self
         @param addresses List of addresses or address ranges of the sectors to erase.
         """
@@ -76,14 +76,14 @@ class FlashEraser(object):
             self._sector_erase(addresses)
         else:
             LOG.warning("No operation performed")
-    
+
     def _mass_erase(self):
         LOG.info("Mass erasing device...")
         if self._session.target.mass_erase():
             LOG.info("Successfully erased.")
         else:
             LOG.error("Mass erase failed.")
-    
+
     def _chip_erase(self):
         LOG.info("Erasing chip...")
         # Erase all flash regions. This may be overkill if either each region's algo erases
@@ -98,7 +98,7 @@ class FlashEraser(object):
                 else:
                     self._sector_erase([(region.start, region.end)])
         LOG.info("Done")
-    
+
     def _sector_erase(self, addresses):
         flash = None
         currentRegion = None
@@ -106,7 +106,7 @@ class FlashEraser(object):
         for spec in addresses:
             # Convert the spec into a start and end address.
             sector_addr, end_addr = self._convert_spec(spec)
-            
+
             while sector_addr < end_addr:
                 # Look up the flash memory region for the current address.
                 region = self._session.target.memory_map.get_region_for_address(sector_addr)
@@ -116,34 +116,34 @@ class FlashEraser(object):
                 if not region.is_flash:
                     LOG.warning("address 0x%08x is not in flash", sector_addr)
                     break
-            
+
                 # Handle switching regions.
                 if region is not currentRegion:
                     # Clean up previous flash.
                     if flash is not None:
                         flash.cleanup()
-                
+
                     currentRegion = region
                     flash = region.flash
                     flash.init(flash.Operation.ERASE)
-        
+
                 assert flash is not None
-                
+
                 # Get sector info for the current address.
                 sector_info = flash.get_sector_info(sector_addr)
                 assert sector_info, ("sector address 0x%08x within flash region '%s' is invalid"
                                         % (sector_addr, region.name))
-                
+
                 # Align first page address.
                 delta = sector_addr % sector_info.size
                 if delta:
                     LOG.warning("sector address 0x%08x is unaligned", sector_addr)
                     sector_addr -= delta
-        
+
                 # Erase this page.
                 LOG.info("Erasing sector 0x%08x (%d bytes)", sector_addr, sector_info.size)
                 flash.erase_sector(sector_addr)
-                
+
                 sector_addr += sector_info.size
 
         if flash is not None:

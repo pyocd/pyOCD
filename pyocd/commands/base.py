@@ -29,7 +29,7 @@ ALL_COMMANDS = {}
 
 class CommandMeta(type):
     """! @brief Metaclass for commands.
-    
+
     Examines the `INFO` attribute of the command class and builds the @ref pyocd.commands.commands.ALL_COMMANDS
     "ALL_COMMANDS" table.
     """
@@ -37,11 +37,11 @@ class CommandMeta(type):
     def __new__(mcs, name, bases, dict):
         # Create the new type.
         new_type = type.__new__(mcs, name, bases, dict)
-        
+
         # The Command base class won't have an INFO.
         if 'INFO' in dict:
             info = dict['INFO']
-            
+
             # Validate the INFO dict.
             assert (('names' in info)
                     and ('group' in info)
@@ -49,14 +49,14 @@ class CommandMeta(type):
                     and ('help' in info)
                     and ((('nargs' in info) and ('usage' in info)) # Required for commands.
                         or ('access' in info))) # Required for values.
-            
+
             # Add this command to our table of commands by group.
             ALL_COMMANDS.setdefault(info['group'], set()).add(new_type)
         return new_type
 
 class CommandBase(metaclass=CommandMeta):
     """! @brief Base class for a command.
-    
+
     Each command class must have an `INFO` attribute with the following keys:
     - `names`: List of names for the info. The first element is the primary name.
     - `group`: Optional name for the command group. The group is meant to be a context group, not type of
@@ -72,7 +72,7 @@ class CommandBase(metaclass=CommandMeta):
     def __init__(self, context):
         """! @brief Constructor."""
         self._context = context
-    
+
     @property
     def context(self):
         """! @brief The command execution context."""
@@ -116,7 +116,7 @@ class CommandBase(metaclass=CommandMeta):
 
     def _convert_value(self, arg):
         """! @brief Convert an argument to a 32-bit integer.
-        
+
         Handles the usual decimal, binary, and hex numbers with the appropriate prefix.
         Also recognizes register names and address dereferencing. Dereferencing using the
         ARM assembler syntax. To dereference, put the value in brackets, i.e. '[r0]' or
@@ -179,12 +179,12 @@ class CommandBase(metaclass=CommandMeta):
 
 class ValueBase(CommandBase):
     """! @brief Base class for value commands.
-    
+
     Value commands are special commands representing a value that can be read and/or written. They are used
     through the `show` and `set` commands. A value command has an associated access mode of read-only,
     write-only, or read-write. The access mode sets which of the `show` and `set` commands may be used with
     the value.
-    
+
     Each value class must have an `INFO` attribute with the following keys:
     - `names`: List of names for the value. The first element is the primary name.
     - `group`: Optional name for the command group. The group is meant to be a context group, not type of
@@ -195,11 +195,11 @@ class ValueBase(CommandBase):
     - `help`: String for the short help. Typically should be no more than one sentence.
     - `extra_help`: Optional key for a string with more detailed help.
     """
-    
+
     def display(self, args):
         """! @brief Output the value of the info."""
         raise NotImplementedError()
-    
+
     def modify(self, args):
         """! @brief Change the info to a new value."""
         raise NotImplementedError()

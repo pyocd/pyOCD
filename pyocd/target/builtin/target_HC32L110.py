@@ -24,7 +24,7 @@ from ...debug.svd.loader import SVDFile
 DEBUG_ACTIVE = 0x40002038
 DEBUG_ACTIVE_VAL = 0x00000FFF
 
-FLASH_ALGO = { 
+FLASH_ALGO = {
     'load_address' : 0x20000000,
     # Flash algorithm as a hex string
     'instructions': [
@@ -58,7 +58,7 @@ FLASH_ALGO = {
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [0x20000600],   
+    'page_buffers' : [0x20000600],
     'min_program_length' : 0x200,
   }
 

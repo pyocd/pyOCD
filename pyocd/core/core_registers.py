@@ -24,10 +24,10 @@ LOG = logging.getLogger(__name__)
 
 class CoreRegisterInfo(object):
     """! @brief Useful information about a core register.
-    
+
     Provides properties for classification of the register, and utilities to convert to and from
     the raw integer representation of the register value.
-    
+
     Each core register has both a name (string), which is always lowercase, and an integer index.
     The index is a unique identifier with an architecture-specified meaning.
     """
@@ -37,7 +37,7 @@ class CoreRegisterInfo(object):
     # This is just a placeholder. The architecture-specific subclass should override the definition. Its
     # value is set to None to cause an exception if used.
     _NAME_MAP = None
-    
+
     ## Map of register index to info.
     #
     # This is just a placeholder. The architecture-specific subclass should override the definition. Its
@@ -50,7 +50,7 @@ class CoreRegisterInfo(object):
         for reg in all_regs:
             cls._NAME_MAP[reg.name] = reg
             cls._INDEX_MAP[reg.index] = reg
-    
+
     @classmethod
     def get(cls, reg):
         """! @brief Return the CoreRegisterInfo instance for a register.
@@ -81,32 +81,32 @@ class CoreRegisterInfo(object):
     def name(self):
         """! @brief Name of the register. Always lowercase."""
         return self._name
-    
+
     @property
     def index(self):
         """! @brief Integer index of the register."""
         return self._index
-    
+
     @property
     def bitsize(self):
         """! @brief Bit width of the register.."""
         return self._bitsize
-    
+
     @property
     def group(self):
         """! @brief Named group the register is contained within."""
         return self._group
-    
+
     @property
     def gdb_type(self):
         """! @brief Value type specific to gdb."""
         return self._gdb_type
-    
+
     @property
     def gdb_regnum(self):
         """! @brief Register number specific to gdb."""
         return self._gdb_regnum
-    
+
     @property
     def gdb_feature(self):
         """! @brief GDB architecture feature to which the register belongs."""
@@ -126,7 +126,7 @@ class CoreRegisterInfo(object):
     def is_double_float_register(self):
         """! @brief Returns true for registers holding double-precision float values"""
         return self.gdb_type == 'ieee_double'
-    
+
     def from_raw(self, value):
         """! @brief Convert register value from raw (integer) to canonical type."""
         # Convert int to float.
@@ -135,7 +135,7 @@ class CoreRegisterInfo(object):
         elif self.is_double_float_register:
             value = conversion.u64_to_float64(value)
         return value
-    
+
     def to_raw(self, value):
         """! @brief Convert register value from canonical type to raw (integer)."""
         # Convert float to int.
@@ -147,23 +147,23 @@ class CoreRegisterInfo(object):
             else:
                 raise TypeError("non-float register value has float type")
         return value
-    
+
     def clone(self):
         """! @brief Return a copy of the register info."""
         return copy(self)
-    
+
     def __eq__(self, other):
         return isinstance(other, CoreRegisterInfo) and (self.index == other.index)
-    
+
     def __hash__(self):
         return hash(self.index)
-    
+
     def __repr__(self):
         return "<{}@{:#x} {}={} {}-bit>".format(self.__class__.__name__, id(self), self.name, self.index, self.bitsize)
 
 class CoreRegistersIndex(object):
     """! @brief Class to hold indexes of available core registers.
-    
+
     This class is meant to be used by a core to hold the set of core registers that are actually present on
     a particular device, as determined by runtime inspection of the core. A number of properties are made
     available to access the core registers by various keys.
@@ -175,17 +175,17 @@ class CoreRegistersIndex(object):
         self._by_name = {}
         self._by_index = {}
         self._by_feature = {}
-    
+
     @property
     def groups(self):
         """! @brief Set of unique register group names."""
         return self._groups
-    
+
     @property
     def as_set(self):
         """! @brief Set of available registers as CoreRegisterInfo objects."""
         return self._all
-    
+
     @property
     def by_name(self):
         """! @brief Dict of (register name) -> CoreRegisterInfo."""
@@ -200,7 +200,7 @@ class CoreRegistersIndex(object):
     def by_feature(self):
         """! @brief Dict of (register gdb feature) -> List[CoreRegisterInfo]."""
         return self._by_feature
-    
+
     def iter_matching(self, predicate):
         """! @brief Iterate over registers matching a given predicate callable.
         @param self The object.
@@ -210,7 +210,7 @@ class CoreRegistersIndex(object):
         for reg in self._all:
             if predicate(reg):
                 yield reg
-    
+
     def add_group(self, regs):
         """! @brief Add a list of registers.
         @param self The object.

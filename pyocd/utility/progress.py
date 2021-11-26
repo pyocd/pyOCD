@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 class ProgressReport(object):
     """!
     @brief Base progress report class.
-    
+
     This base class implements the logic but no output.
     """
     def __init__(self, file=None):
@@ -32,11 +32,11 @@ class ProgressReport(object):
         self.backwards_progress = False
         self.done = False
         self.last = 0
-    
+
     def __call__(self, progress):
         assert progress >= 0.0
 
-        # Cap progress at 1.0.        
+        # Cap progress at 1.0.
         if progress > 1.0:
             progress = 1.0
             LOG.debug("progress out of bounds: %.3f", progress)
@@ -60,7 +60,7 @@ class ProgressReport(object):
                 self._finish()
                 if self.backwards_progress:
                     LOG.debug("Progress went backwards!")
-    
+
     def _start(self):
         self.prev_progress = 0
         self.backwards_progress = False
@@ -76,14 +76,14 @@ class ProgressReport(object):
 class ProgressReportTTY(ProgressReport):
     """!
     @brief Progress report subclass for TTYs.
-    
+
     The progress bar is fully redrawn onscreen as progress is updated to give the
     impression of animation.
     """
 
     ## These width constants can't be changed yet without changing the code below to match.
     WIDTH = 50
-    
+
     def _update(self, progress):
         self._file.write('\r')
         i = int(progress * self.WIDTH)
@@ -96,7 +96,7 @@ class ProgressReportTTY(ProgressReport):
 class ProgressReportNoTTY(ProgressReport):
     """!
     @brief Progress report subclass for non-TTY output.
-    
+
     A simpler progress bar is used than for the TTY version. Only the difference between
     the previous and current progress is drawn for each update, making the output suitable
     for piping to a file or similar output.
@@ -104,7 +104,7 @@ class ProgressReportNoTTY(ProgressReport):
 
     ## These width constants can't be changed yet without changing the code below to match.
     WIDTH = 40
-    
+
     def _start(self):
         super(ProgressReportNoTTY, self)._start()
 
@@ -125,14 +125,14 @@ class ProgressReportNoTTY(ProgressReport):
 def print_progress(file=None):
     """!
     @brief Progress printer factory.
-    
+
     This factory function checks whether the output file is a TTY, and instantiates the
     appropriate subclass of ProgressReport.
-    
+
     @param file The output file. Optional. If not provided, or if set to None, then sys.stdout
           will be used automatically.
     """
-    
+
     if file is None:
         file = sys.stdout
     try:
@@ -141,7 +141,7 @@ def print_progress(file=None):
         # Either the file doesn't have a fileno method, or calling it returned an
         # error. In either case, just assume we're not connected to a TTY.
         istty = False
-    
+
     klass = ProgressReportTTY if istty else ProgressReportNoTTY
     return klass(file)
 

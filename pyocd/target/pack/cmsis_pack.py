@@ -56,16 +56,16 @@ def _get_part_number_from_element(element: Element) -> str:
 
 class CmsisPack(object):
     """! @brief Wraps a CMSIS Device Family Pack.
-    
+
     This class provides a top-level interface for extracting device information from CMSIS-Packs.
     After an instance is constructed, a list of the devices described within the pack is available
     from the `devices` property. Each item in the list is a CmsisPackDevice object.
-    
+
     The XML element hierarchy that defines devices is as follows.
     ```
     family [-> subFamily] -> device [-> variant]
     ```
-    
+
     Internally, this class is responsible for collecting the device-related XML elements from each
     of the levels of the hierarchy described above. It determines which elements belong to each
     defined device and passes those to CmsisPackDevice. It is then CmsisPackDevice that performs
@@ -73,14 +73,14 @@ class CmsisPack(object):
     """
     def __init__(self, file_or_path):
         """! @brief Constructor.
-        
+
         Opens the CMSIS-Pack and builds instances of CmsisPackDevice for all the devices
         and variants defined within the pack.
-        
+
         @param self
         @param file_or_path The .pack file to open. May be a string that is the path to the pack,
             or may be a ZipFile, or a file-like object that is already opened.
-        
+
         @exception MalformedCmsisPackError The pack is not a zip file, or the .pdsc file is missing
             from within the pack.
         """
@@ -91,7 +91,7 @@ class CmsisPack(object):
                 self._pack_file = zipfile.ZipFile(file_or_path, 'r')
             except zipfile.BadZipFile as err:
                 raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
-        
+
         # Find the .pdsc file.
         for name in self._pack_file.namelist():
             if name.endswith('.pdsc'):
@@ -99,28 +99,28 @@ class CmsisPack(object):
                 break
         else:
             raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
-        
+
         with self._pack_file.open(self._pdscName) as pdscFile:
             self._pdsc = CmsisPackDescription(self, pdscFile)
-    
+
     @property
     def filename(self):
         """! @brief Accessor for the filename or path of the .pack file."""
         return self._pack_file.filename
-    
+
     @property
     def pdsc(self):
         """! @brief Accessor for the CmsisPackDescription instance for the pack's PDSC file."""
         return self._pdsc
-    
+
     @property
     def devices(self):
         """! @brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._pdsc.devices
-    
+
     def get_file(self, filename):
         """! @brief Return file-like object for a file within the pack.
-        
+
         @param self
         @param filename Relative path within the pack. May use forward or back slashes.
         @return A BytesIO object is returned that contains all of the data from the file
@@ -133,37 +133,37 @@ class CmsisPack(object):
 class CmsisPackDescription(object):
     def __init__(self, pack, pdsc_file):
         """! @brief Constructor.
-        
+
         @param self This object.
         @param pack Reference to the CmsisPack instance.
         @param pdsc_file A file-like object for the .pdsc contained in _pack_.
         """
         self._pack = pack
-        
+
         # Convert PDSC into an ElementTree.
         self._pdsc = ElementTree(file=pdsc_file)
 
         self._state_stack = []
         self._devices = []
-        
+
         # Remember if we have already warned about overlapping memory regions
         # so we can limit these to one warning per DFP
         self._warned_overlapping_memory_regions = False
-        
+
         # Extract devices.
         for family in self._pdsc.iter('family'):
             self._parse_devices(family)
-    
+
     @property
     def pack(self):
         """! @brief Reference to the containing CmsisPack object."""
         return self._pack
-    
+
     @property
     def devices(self):
         """! @brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._devices
-    
+
     def _parse_devices(self, parent):
         # Extract device description elements we care about.
         newState = _DeviceInfo(element=parent)
@@ -181,7 +181,7 @@ class CmsisPackDescription(object):
 
         # Push the new device description state onto the stack.
         self._state_stack.append(newState)
-        
+
         # Create a device object if this element defines one.
         if parent.tag in ('device', 'variant'):
             # Build device info from elements applying to this device.
@@ -191,14 +191,14 @@ class CmsisPackDescription(object):
                                         algos=self._extract_algos(),
                                         debugs=self._extract_debugs()
                                         )
-            
+
             dev = CmsisPackDevice(self.pack, deviceInfo)
             self._devices.append(dev)
 
         # Recursively process subelements.
         for elem in children:
             self._parse_devices(elem)
-        
+
         self._state_stack.pop()
 
     def _extract_families(self):
@@ -248,7 +248,7 @@ class CmsisPackDescription(object):
 
             pname = elem.attrib.get('Pname', None)
             info = (name, pname)
-        
+
             if info in map:
                 del map[info]
             for k in list(map.keys()):
@@ -273,7 +273,7 @@ class CmsisPackDescription(object):
                     del map[k]
 
             map[info] = elem
-        
+
         return self._extract_items('memories', filter)
 
     def _extract_algos(self):
@@ -282,24 +282,24 @@ class CmsisPackDescription(object):
             if ('style' in elem.attrib) and (elem.attrib['style'] != 'Keil'):
                 LOG.debug("skipping non-Keil flash algorithm")
                 return None, None
-    
+
             # Both start and size are required.
             start = int(elem.attrib['start'], base=0)
             size = int(elem.attrib['size'], base=0)
             memrange = (start, size)
-    
+
             # An algo with the same range as an existing algo will override the previous.
             map[memrange] = elem
-        
+
         return self._extract_items('algos', filter)
-    
+
     def _extract_debugs(self):
         def filter(map, elem):
             if 'Pname' in elem.attrib:
                 name = elem.attrib['Pname']
                 unit = elem.attrib.get('Punit', 0)
                 name += str(unit)
-            
+
                 if '*' in map:
                     map.clear()
                 map[name] = elem
@@ -308,15 +308,15 @@ class CmsisPackDescription(object):
                 # all processors.
                 map.clear()
                 map['*'] = elem
-        
+
         return self._extract_items('debugs', filter)
 
 def _get_bool_attribute(elem, name, default=False):
     """! @brief Extract an XML attribute with a boolean value.
-    
+
     Supports "true"/"false" or "1"/"0" as the attribute values. Leading and trailing whitespace
     is stripped, and the comparison is case-insensitive.
-    
+
     @param elem ElementTree.Element object.
     @param name String for the attribute name.
     @param default An optional default value if the attribute is missing. If not provided,
@@ -335,10 +335,10 @@ def _get_bool_attribute(elem, name, default=False):
 
 class CmsisPackDevice(object):
     """! @brief Wraps a device defined in a CMSIS Device Family Pack.
-    
+
     Responsible for converting the XML elements that describe the device into objects
     usable by pyOCD. This includes the memory map and flash algorithms.
-    
+
     An instance of this class can represent either a `<device>` or `<variant>` XML element from
     the PDSC.
     """
@@ -356,10 +356,10 @@ class CmsisPackDevice(object):
         self._saw_startup = False
         self._default_ram = None
         self._memory_map = None
-            
+
     def _build_memory_regions(self):
         """! @brief Creates memory region instances for the device.
-        
+
         For each `<memory>` element in the device info, a memory region object is created and
         added to the `_regions` attribute. IROM or non-writable memories are created as RomRegions
         by this method. They will be converted to FlashRegions by _build_flash_regions().
@@ -370,7 +370,7 @@ class CmsisPackDevice(object):
                 if 'name' in elem.attrib:
                     name = elem.attrib['name']
                     access = elem.attrib['access']
-                    
+
                     if ('p' in access):
                         type = MemoryType.DEVICE
                     elif ('w' in access):
@@ -379,7 +379,7 @@ class CmsisPackDevice(object):
                         type = MemoryType.ROM
                 elif 'id' in elem.attrib:
                     name = elem.attrib['id']
-                    
+
                     if 'RAM' in name:
                         access = 'rwx'
                         type = MemoryType.RAM
@@ -388,11 +388,11 @@ class CmsisPackDevice(object):
                         type = MemoryType.ROM
                 else:
                     continue
-                
+
                 # Both start and size are required attributes.
                 start = int(elem.attrib['start'], base=0)
                 size = int(elem.attrib['size'], base=0)
-                
+
                 isDefault = _get_bool_attribute(elem, 'default')
                 isStartup = _get_bool_attribute(elem, 'startup')
                 if isStartup:
@@ -408,11 +408,11 @@ class CmsisPackDevice(object):
                         'is_testable': isDefault,
                         'alias': elem.attrib.get('alias', None),
                     }
-                
+
                 # Create the memory region and add to map.
                 region = MEMORY_TYPE_CLASS_MAP[type](**attrs)
                 self._regions.append(region)
-                
+
                 # Record the first default ram for use in flash algos.
                 if self._default_ram is None and type == MemoryType.RAM and isDefault:
                     self._default_ram = region
@@ -420,7 +420,7 @@ class CmsisPackDevice(object):
                 # Ignore errors.
                 LOG.debug("ignoring error parsing memories for CMSIS-Pack devices %s: %s",
                     self.part_number, str(err))
-    
+
     def _get_containing_region(self, addr: int) -> Optional[MemoryRegion]:
         """@brief Return the memory region containing the given address."""
         for region in self._regions:
@@ -430,7 +430,7 @@ class CmsisPackDevice(object):
 
     def _build_flash_regions(self):
         """! @brief Converts ROM memory regions to flash regions.
-        
+
         Each ROM region in the `_regions` attribute is converted to a flash region if a matching
         flash algo can be found. If the flash has multiple sector sizes, then separate flash
         regions will be created for each sector size range. The flash algo is converted to a
@@ -452,7 +452,7 @@ class CmsisPackDevice(object):
             # We're only interested in ROM regions here.
             if region.type != MemoryType.ROM:
                 continue
-            
+
             # Look for matching flash algo.
             algo_element = self._find_matching_algo(region)
             if algo_element is None:
@@ -465,7 +465,7 @@ class CmsisPackDevice(object):
                 LOG.warning("Failed to convert ROM region to flash region because flash algorithm '%s' could not be "
                             " found (%s)", algo_element.attrib['name'], self.part_number)
                 continue
-            
+
             # The ROM region will be replaced with one or more flash regions.
             regions_to_delete.append(region)
 
@@ -473,14 +473,14 @@ class CmsisPackDevice(object):
             current_session = Session.get_current()
             if current_session and current_session.options.get("debug.log_flm_info"):
                 LOG.debug("Flash algo info: %s", packAlgo.flash_info)
-            
+
             # Choose the page size. The check for <=32 is to handle some flash algos with incorrect
             # page sizes that are too small and probably represent the phrase size.
             page_size = packAlgo.page_size
             if page_size <= 32:
                 page_size = min(s[1] for s in packAlgo.sector_sizes)
-            
-            # Select the RAM to use for the algo. 
+
+            # Select the RAM to use for the algo.
             try:
                 # See if an explicit RAM range was specified for the algo.
                 ram_start = int(algo_element.attrib['RAMstart'], base=0)
@@ -499,7 +499,7 @@ class CmsisPackDevice(object):
                         # start of the provided region, this won't be a problem unless the DFP is
                         # actually erroneous.
                         ram_size = 128 * 1024
-                    
+
                 ram_for_algo = RamRegion(start=ram_start, length=ram_size)
             except KeyError:
                 # No RAM addresses were given, so go with the RAM marked default.
@@ -512,13 +512,13 @@ class CmsisPackDevice(object):
             # Create a separate flash region for each sector size range.
             regions_to_add += list(self._split_flash_region_by_sector_size(
                                             region, page_size, algo, packAlgo)) # type: ignore
-        
+
         # Now update the regions list.
         for region in regions_to_delete:
             self._regions.remove(region)
         for region in regions_to_add:
             self._regions.append(region)
-    
+
     def _split_flash_region_by_sector_size(self,
             region: MemoryRegion,
             page_size: int,
@@ -528,7 +528,7 @@ class CmsisPackDevice(object):
         # The sector_sizes attribute is a list of bi-tuples of (start-address, sector-size), sorted by start address.
         for j, (offset, sector_size) in enumerate(pack_algo.sector_sizes):
             start = region.start + offset
-            
+
             # Determine the end address of the this sector range. For the last range, the end
             # is just the end of the entire region. Otherwise it's the start of the next
             # range - 1.
@@ -536,11 +536,11 @@ class CmsisPackDevice(object):
                 end = region.end
             else:
                 end = region.start + pack_algo.sector_sizes[j + 1][0] - 1
-            
+
             # Skip wrong start and end addresses
             if end < start:
                 continue
-            
+
             # Limit page size.
             if page_size > sector_size:
                 region_page_size = sector_size
@@ -549,19 +549,19 @@ class CmsisPackDevice(object):
                             region_page_size)
             else:
                 region_page_size = page_size
-            
+
             # If we don't have a boot memory yet, pick the first flash.
             if not self._saw_startup:
                 is_boot = True
                 self._saw_startup = True
             else:
                 is_boot = region.is_boot_memory
-            
+
             # Construct region name. If there is more than one sector size, we need to make the region's name unique.
             region_name = region.name
             if len(pack_algo.sector_sizes) > 1:
                 region_name += f"_{sector_size:#x}"
-            
+
             # Construct the flash region.
             yield FlashRegion(name=region_name,
                             access=region.access,
@@ -584,12 +584,12 @@ class CmsisPackDevice(object):
             algoStart = int(algo.attrib['start'], base=0)
             algoSize = int(algo.attrib['size'], base=0)
             algoEnd = algoStart + algoSize - 1
-        
+
             # Check if the region indicated by start..size fits within the algo.
             if (algoStart <= region.start <= algoEnd) and (algoStart <= region.end <= algoEnd):
                 return algo
         return None
-    
+
     def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
         """! @brief Return the PackFlashAlgo instance for the given flash algo filename."""
         if self.pack is not None:
@@ -605,26 +605,26 @@ class CmsisPackDevice(object):
     def pack(self):
         """! @brief The CmsisPack object that defines this device."""
         return self._pack
-    
+
     @property
     def part_number(self):
         """! @brief Part number for this device.
-        
+
         This value comes from either the `Dname` or `Dvariant` attribute, depending on whether the
         device was created from a `<device>` or `<variant>` element.
         """
         return self._part
-    
+
     @property
     def vendor(self):
         """! @brief Vendor or manufacturer name."""
         return self._info.families[0].split(':')[0]
-    
+
     @property
     def families(self):
         """! @brief List of families the device belongs to, ordered most generic to least."""
         return [f for f in self._info.families[1:]]
-    
+
     @property
     def memory_map(self):
         """! @brief MemoryMap object."""
@@ -632,15 +632,15 @@ class CmsisPackDevice(object):
         if self._memory_map is None:
             self._build_memory_regions()
             self._build_flash_regions()
-        
+
             # Warn if there was no boot memory.
             if not self._saw_startup:
                 LOG.warning("CMSIS-Pack device %s has no identifiable boot memory", self.part_number)
-            
+
             self._memory_map = MemoryMap(self._regions)
-        
+
         return self._memory_map
-        
+
     @property
     def svd(self):
         """! @brief File-like object for the device's SVD file.
@@ -651,7 +651,7 @@ class CmsisPackDevice(object):
             return self._pack.get_file(svdPath)
         except (KeyError, IndexError):
             return None
-    
+
     @property
     def default_reset_type(self):
         """! @brief One of the Target.ResetType enums.
@@ -669,10 +669,10 @@ class CmsisPackDevice(object):
                 return Target.ResetType.SW
         except (KeyError, IndexError):
             return Target.ResetType.SW
-    
+
     def __repr__(self):
         return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
-        
-        
 
- 
+
+
+

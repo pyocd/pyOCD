@@ -33,7 +33,7 @@ LOG = logging.getLogger(__name__)
 
 class CommandSet(object):
     """! @brief Holds a set of command classes."""
-    
+
     ## Whether command and infos modules have been loaded yet.
     DID_LOAD_COMMAND_MODULES = False
 
@@ -44,10 +44,10 @@ class CommandSet(object):
         self._values = {}
         self._value_classes = set()
         self._value_matcher = UniquePrefixMatcher()
-        
+
         # Ensure these modules get loaded so the ALL_COMMANDS dicts are filled.
         self._load_modules()
-    
+
     @classmethod
     def _load_modules(cls):
         # Load these modules in order to populate the dicts with standard commands. This must be
@@ -57,31 +57,31 @@ class CommandSet(object):
             from . import commands
             from . import values
             cls.DID_LOAD_COMMAND_MODULES = True
-    
+
     @property
     def commands(self):
         return self._commands
-    
+
     @property
     def command_classes(self):
         return self._command_classes
-    
+
     @property
     def command_matcher(self):
         return self._command_matcher
-    
+
     @property
     def values(self):
         return self._values
-    
+
     @property
     def value_classes(self):
         return self._value_classes
-    
+
     @property
     def value_matcher(self):
         return self._value_matcher
-    
+
     def add_command_group(self, group_name):
         """! @brief Add commands belonging to a group to the command set.
         @param self The command set.
@@ -89,7 +89,7 @@ class CommandSet(object):
         """
         from .base import ALL_COMMANDS
         self.add_commands(ALL_COMMANDS.get(group_name, set()))
-    
+
     def add_commands(self, commands):
         """! @brief Add some commands to the command set.
         @param self The command set.
@@ -102,7 +102,7 @@ class CommandSet(object):
         self._commands.update(cmd_names)
         self._command_classes.update(cmd_classes)
         self._command_matcher.add_items(cmd_names.keys())
-    
+
         value_names = {name: klass for klass in value_classes for name in klass.INFO['names']}
         self._values.update(value_names)
         self._value_classes.update(value_classes)
@@ -117,11 +117,11 @@ CommandInvocation instance.
 
 class CommandExecutionContext(object):
     """! @brief Manages command execution.
-    
+
     This class holds persistent state for command execution, and provides the interface for executing
     commands and command lines.
     """
-    
+
     def __init__(self, no_init=False, output_stream=None):
         """! @brief Constructor.
         @param self This object.
@@ -142,18 +142,18 @@ class CommandExecutionContext(object):
         self._selected_ap_address = None
         self._peripherals = {}
         self._loaded_peripherals = False
-        
+
         # Add in the standard commands.
         self._command_set.add_command_group('standard')
-    
+
     def write(self, message='', **kwargs):
         """! @brief Write a fixed message to the output stream.
-        
+
         The message is written to the output stream passed to the constructor, terminated with
         a newline by default. The `end` keyword argument can be passed to change the terminator. No
         formatting is applied to the message. If formatting is required, use the writei() or writef()
         methods instead.
-        
+
         @param self This object.
         @param message The text to write to the output. If not a string object, it is run through str().
         """
@@ -163,26 +163,26 @@ class CommandExecutionContext(object):
         if not isinstance(message, str):
             message = str(message)
         self._output.write(message + end)
-    
+
     def writei(self, fmt, *args, **kwargs):
         """! @brief Write an interpolated string to the output stream.
-        
+
         The formatted string is written to the output stream passed to the constructor, terminated with
         a newline by default. The `end` keyword argument can be passed to change the terminator.
-        
+
         @param self This object.
         @param fmt Format string using printf-style "%" formatters.
         """
         assert isinstance(fmt, str)
         message = fmt % args
         self.write(message, **kwargs)
-    
+
     def writef(self, fmt, *args, **kwargs):
         """! @brief Write a formatted string to the output stream.
-        
+
         The formatted string is written to the output stream passed to the constructor, terminated with
         a newline by default. The `end` keyword argument can be passed to change the terminator.
-        
+
         @param self This object.
         @param fmt Format string using the format() mini-language.
         """
@@ -192,10 +192,10 @@ class CommandExecutionContext(object):
 
     def attach_session(self, session):
         """! @brief Associate a session with the command context.
-        
+
         Various data for the context are initialized. This includes selecting the initially selected core and MEM-AP,
         and getting an ELF file that was set on the target.
-        
+
         @param self This object.
         @param session A @ref pyocd.core.session.Session "Session" instance.
         @retval True Session attached and context state inited successfully.
@@ -211,47 +211,47 @@ class CommandExecutionContext(object):
                 # Selected core defaults to the target's default selected core.
                 if self.selected_core is None:
                     self.selected_core = self.target.selected_core
-            
+
                 # Get the AP for the selected core.
                 if self.selected_core is not None:
                     self.selected_ap_address = self.selected_core.ap.address
             except IndexError:
                 pass
-            
+
             # Fall back to the first MEM-AP.
             if self.selected_ap_address is None:
                 for ap_num in sorted(self.target.aps.keys()):
                     if isinstance(self.target.aps[ap_num], MEM_AP):
                         self.selected_ap_address = ap_num
                         break
-        
+
         return True
-    
+
     @property
     def session(self):
         return self._session
-    
+
     @property
     def board(self):
         return self._session and self._session.board
-    
+
     @property
     def target(self):
         return self._session and self._session.target
-    
+
     @property
     def probe(self):
         return self._session and self._session.probe
-    
+
     @property
     def elf(self):
         return self.target and self.target.elf
-    
+
     @property
     def command_set(self):
         """! @brief CommandSet with commands available in this context."""
         return self._command_set
-    
+
     @property
     def peripherals(self):
         """! @brief Dict of SVD peripherals."""
@@ -260,24 +260,24 @@ class CommandExecutionContext(object):
                 self._peripherals[p.name.lower()] = p
             self._loaded_peripherals = True
         return self._peripherals
-    
+
     @property
     def output_stream(self):
         return self._output
-    
+
     @output_stream.setter
     def output_stream(self, stream):
         self._output = stream
-    
+
     @property
     def selected_core(self):
         """! @brief The Target instance for the selected core."""
         return self._selected_core
-    
+
     @selected_core.setter
     def selected_core(self, value):
         self._selected_core = value
-    
+
     @property
     def selected_ap_address(self):
         return self._selected_ap_address
@@ -285,7 +285,7 @@ class CommandExecutionContext(object):
     @selected_ap_address.setter
     def selected_ap_address(self, value):
         self._selected_ap_address = value
-    
+
     @property
     def selected_ap(self):
         if self.selected_ap_address is None:
@@ -327,7 +327,7 @@ class CommandExecutionContext(object):
     def parse_command(self, cmdline):
         """! @brief Create a CommandInvocation from a single command."""
         cmdline = cmdline.strip()
-        
+
         # Check for Python or shell command lines.
         first_char = cmdline[0]
         if first_char in '$!':
@@ -353,7 +353,7 @@ class CommandExecutionContext(object):
                         ", ".join("'%s'" % c for c in all_matches)))
             else:
                 raise exceptions.CommandError("unrecognized command '%s'" % cmd)
-        
+
         return CommandInvocation(matched_command, args, self.execute_command)
 
     def execute_command(self, invocation):
@@ -389,7 +389,7 @@ class CommandExecutionContext(object):
             # Lazily build the python environment.
             if self._python_namespace is None:
                 self._build_python_namespace()
-            
+
             result = eval(invocation.cmd, globals(), self._python_namespace)
             if result is not None:
                 if isinstance(result, int):
@@ -402,7 +402,7 @@ class CommandExecutionContext(object):
             if self.session.log_tracebacks:
                 LOG.error("Exception while executing expression: %s", e, exc_info=True)
             raise exceptions.CommandError("exception while executing expression: %s" % e)
-    
+
     def handle_system(self, invocation):
         """! @brief Evaluate a system call command."""
         try:

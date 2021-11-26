@@ -38,7 +38,7 @@ class SVDFile(object):
             from ...core.session import Session
             LOG.warning("unable to open builtin SVD file: %s", err, exc_info=Session.get_current().log_tracebacks)
             return None
-    
+
     def __init__(self, filename=None):
         self.filename = filename
         self.device = None

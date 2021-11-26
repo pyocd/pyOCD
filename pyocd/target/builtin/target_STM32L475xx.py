@@ -66,7 +66,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
   }
 
 class STM32L475xx(CoreSightTarget):
-        
+
     VENDOR = "STMicroelectronics"
 
     def post_connect_hook(self):

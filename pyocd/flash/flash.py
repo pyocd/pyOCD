@@ -42,7 +42,7 @@ _ANALYZER_CODE = (
     0x40434013, 0xc6083501, 0xd1d242bd, 0xd01f2900, 0x46602301, 0x469c25ff, 0x00894e11, 0x447e1841,
     0x88034667, 0x409f8844, 0x2f00409c, 0x2201d012, 0x4252193f, 0x34017823, 0x402b4053, 0x599b009b,
     0x405a0a12, 0xd1f542bc, 0xc00443d2, 0xd1e74281, 0xbdf02000, 0xe7f82200, 0x000000b2, 0xedb88320,
-    0x00000042, 
+    0x00000042,
     )
 
 @dataclass
@@ -69,13 +69,13 @@ class FlashInfo:
 class Flash:
     """
     @brief Low-level control of flash programming algorithms.
-    
+
     Instances of this class are bound to a flash memory region
     (@ref pyocd.core.memory_map.FlashRegion "FlashRegion") and support
     programming only within that region's address range. To program images that cross flash
     memory region boundaries, use the @ref pyocd.flash.loader.FlashLoader "FlashLoader" or
     @ref pyocd.flash.file_programmer.FileProgrammer "FileProgrammer" classes.
-    
+
     Terminology:
     - sector: The size of an erasable block.
     - page: The size of a nominal programming block. Often flash can be programmed in much smaller
@@ -84,7 +84,7 @@ class Flash:
         sectors.
     - phrase: The minimum programming granularity, often from 1-16 bytes. For some flash
         technologies, the is no distinction between a phrase and a page.
-    
+
     The `flash_algo` parameter of the constructor is a dictionary that defines all the details
     of the flash algorithm. The keys of this dictionary are as follows.
     - `load_address`: Memory address where the flash algo instructions will be loaded.
@@ -104,7 +104,7 @@ class Flash:
     - `analyzer_supported`: Whether the CRC32-based analyzer is supported.
     - `analyzer_address`: RAM base address where the analyzer code will be placed. There must be at
         least 0x600 free bytes after this address.
-    
+
     All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
     class Operation(Enum):
@@ -117,7 +117,7 @@ class Flash:
         VERIFY = 3
 
     ## Error value returned from wait_for_completion() on operation timeout.
-    # 
+    #
     # The flash algo itself can never return a negative error code because the core register r0 is read
     # as unsigned.
     TIMEOUT_ERROR = -1
@@ -160,7 +160,7 @@ class Flash:
             self.min_program_length = 0
             self.page_buffers = []
             self.double_buffer_supported = False
-        
+
     def _is_api_valid(self, api_name):
         return (api_name in self.flash_algo) \
                 and (self.flash_algo[api_name] >= self.flash_algo['load_address']) \
@@ -174,7 +174,7 @@ class Flash:
     @property
     def page_buffer_count(self):
         return len(self.page_buffers)
-    
+
     @property
     def is_erase_all_supported(self):
         return self._is_api_valid('pc_eraseAll')
@@ -182,11 +182,11 @@ class Flash:
     @property
     def is_double_buffering_supported(self):
         return self.double_buffer_supported
-    
+
     @property
     def region(self):
         return self._region
-    
+
     @region.setter
     def region(self, flashRegion):
         assert flashRegion.is_flash
@@ -195,27 +195,27 @@ class Flash:
     def init(self, operation, address=None, clock=0, reset=True):
         """!
         @brief Prepare the flash algorithm for performing operations.
-        
+
         First, the target is prepared to execute flash algo operations, including loading the algo
         to target RAM. This step is skipped if the target is already prepared, i.e., init() has been
         called, but cleanup() not called yet.
-        
+
         Next, the algo's Init() function is called with the provided parameters. If the algo does
         not have an Init() function, this step is skipped. Calling Init() is also skipped if the
         algo was previously inited for the same operation without an intervening uninit. If the
         algo is already inited for a different operation, uninit() is automatically called prior
         to intiting for the new operation.
-        
+
         @exception FlashFailure
         """
         if address is None:
             address = self.get_flash_info().rom_start
-        
+
         assert isinstance(operation, self.Operation)
         assert (self._did_prepare_target) or (not self._did_prepare_target and self._active_operation is None)
-        
+
         self.target.halt()
-        
+
         # Handle the algo already being inited.
         if self._active_operation is not None:
             # Uninit if the algo was left inited for a different operation.
@@ -228,7 +228,7 @@ class Flash:
         # Setup target for running the flash algo.
         if not self._did_prepare_target:
             TRACE.debug("algo init and load to %#010x", self.flash_algo['load_address'])
-            
+
             if reset:
                 self.target.reset_and_halt(Target.ResetType.SW)
             self.prepare_target()
@@ -251,12 +251,12 @@ class Flash:
                 raise FlashFailure('flash init timed out')
             elif result != 0:
                 raise FlashFailure('flash init failure', result_code=result)
-        
+
         self._active_operation = operation
 
     def cleanup(self):
         """! @brief Deinitialize the flash algo and restore the target.
-        
+
         Before further operations are executed, the algo must be reinited. Unlike uninit(), this
         method marks the target and unprepared to execute flash algo functions. So on the next call
         to init(), the target will be prepared and the algo loaded into RAM.
@@ -267,15 +267,15 @@ class Flash:
 
     def uninit(self):
         """! @brief Uninitialize the flash algo.
-        
+
         Before further operations are executed, the algo must be reinited. The target is left in
         a state where algo does not have to be reloaded when init() is called.
-        
+
         @exception FlashFailure
         """
         if self._active_operation is None:
             return
-        
+
         if self._is_api_valid('pc_unInit'):
             TRACE.debug("call uninit(%d)", self._active_operation.value)
 
@@ -283,27 +283,27 @@ class Flash:
             result = self._call_function_and_wait(self.flash_algo['pc_unInit'],
                                                     r0=self._active_operation.value,
                 timeout=self.target.session.options.get('flash.timeout.init'))
-            
+
             # check the return code
             TRACE.debug("uninit result = %d", result)
             if result == self.TIMEOUT_ERROR:
                 raise FlashFailure('flash uninit timed out')
             elif result != 0:
                 raise FlashFailure('flash uninit', result_code=result)
-            
+
         self._active_operation = None
 
     def prepare_target(self):
         """! @brief Subclasses can override this method to perform special target configuration."""
         pass
-    
+
     def restore_target(self):
         """! @brief Subclasses can override this method to undo any target configuration changes."""
         pass
 
     def compute_crcs(self, sectors):
         assert self.use_analyzer
-        
+
         data = []
 
         # Load analyzer code into target RAM.
@@ -335,7 +335,7 @@ class Flash:
     def erase_all(self):
         """!
         @brief Erase all the flash.
-        
+
         @exception FlashEraseFailure
         """
         assert self._active_operation == self.Operation.ERASE
@@ -356,7 +356,7 @@ class Flash:
     def erase_sector(self, address):
         """!
         @brief Erase one sector.
-        
+
         @exception FlashEraseFailure
         """
         assert self._active_operation == self.Operation.ERASE
@@ -376,7 +376,7 @@ class Flash:
     def program_page(self, address, bytes):
         """!
         @brief Flash one or more pages.
-        
+
         @exception FlashProgramFailure
         """
         assert self._active_operation == self.Operation.PROGRAM
@@ -415,7 +415,7 @@ class Flash:
     def load_page_buffer(self, buffer_number, address, bytes):
         """!
         @brief Load data to a numbered page buffer.
-        
+
         This method is used in conjunction with start_program_page_with_buffer() to implement
         double buffered programming.
         """
@@ -430,7 +430,7 @@ class Flash:
     def program_phrase(self, address, bytes):
         """!
         @brief Flash a portion of a page.
-        
+
         @exception FlashFailure The address or data length is not aligned to the minimum
             programming length specified in the flash algorithm.
         @exception FlashProgramFailure
@@ -519,7 +519,7 @@ class Flash:
         """
         assert self.region is not None
         assert self.region.contains_range(start=addr, length=len(data))
-        
+
         fb = FlashBuilder(self)
         fb.add_data(addr, data)
         info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
@@ -618,7 +618,7 @@ class Flash:
                 if self.target.get_state() != Target.State.RUNNING:
                     break
             else:
-                # Operation timed out. 
+                # Operation timed out.
                 self.target.halt()
                 return self.TIMEOUT_ERROR
 

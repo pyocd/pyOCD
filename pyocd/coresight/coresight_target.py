@@ -32,16 +32,16 @@ LOG = logging.getLogger(__name__)
 
 class CoreSightTarget(SoCTarget):
     """! @brief Represents an SoC that uses CoreSight debug infrastructure.
-    
+
     This class adds Arm CoreSight-specific discovery and initialization code to SoCTarget.
     """
-    
+
     def __init__(self, session, memory_map=None):
         # Supply a default memory map.
         if (memory_map is None) or (memory_map.region_count == 0):
             memory_map = self._create_default_cortex_m_memory_map()
             LOG.debug("Using default Cortex-M memory map (no memory map supplied)")
-        
+
         super(CoreSightTarget, self).__init__(session, memory_map)
         self.dp = dap.DebugPort(session.probe, self)
         self._svd_load_thread = None
@@ -97,12 +97,12 @@ class CoreSightTarget(SoCTarget):
             ('create_flash',        self.create_flash),
             ('notify',              lambda : self.session.notify(Target.Event.POST_CONNECT, self))
             )
-        
+
         return seq
 
     def disconnect(self, resume=True):
         """! @brief Disconnect from the target.
-        
+
         Same as SoCTarget.disconnect(), except that it asks the DebugPort to power down.
         """
         self.session.notify(Target.Event.PRE_DISCONNECT, self)
@@ -111,10 +111,10 @@ class CoreSightTarget(SoCTarget):
             core.disconnect(resume)
         self.dp.disconnect()
         self.call_delegate('did_disconnect', target=self, resume=resume)
-            
+
     def create_discoverer(self):
         """! @brief Init task to create the discovery object.
-        
+
         Instantiates the appropriate @ref pyocd.coresight.discovery.CoreSightDiscovery
         CoreSightDiscovery subclass for the target's ADI version.
         """
@@ -122,7 +122,7 @@ class CoreSightTarget(SoCTarget):
 
     def pre_connect(self):
         """! @brief Handle some of the connect modes.
-        
+
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
         """
@@ -133,10 +133,10 @@ class CoreSightTarget(SoCTarget):
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
             self.dp.assert_reset(True)
-    
+
     def perform_halt_on_connect(self):
         """! @brief Halt cores.
-        
+
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
         """
@@ -154,10 +154,10 @@ class CoreSightTarget(SoCTarget):
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
-    
+
     def post_connect(self):
         """! @brief Handle cleaning up some of the connect modes.
-        
+
         This init task de-asserts reset if the connect mode is under-reset.
         """
         mode = self.session.options.get('connect_mode')
@@ -173,10 +173,10 @@ class CoreSightTarget(SoCTarget):
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
-    
+
     def create_flash(self):
         """! @brief Instantiates flash objects for memory regions.
-        
+
         This init task iterates over flash memory regions and for each one creates the Flash
         instance. It uses the flash_algo and flash_class properties of the region to know how
         to construct the flash object.
@@ -208,12 +208,12 @@ class CoreSightTarget(SoCTarget):
                 algo = pack_algo.get_pyocd_flash_algo(
                         page_size,
                         self.memory_map.get_default_region_of_type(MemoryType.RAM))
-                
+
                 # If we got a valid algo from the FLM, set it on the region. This will then
                 # be used below.
                 if algo is not None:
                     region.algo = algo
-            
+
             # If the constructor of the region's flash class takes the flash_algo arg, then we
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
             # algo is built-in.
@@ -227,10 +227,10 @@ class CoreSightTarget(SoCTarget):
                     continue
             else:
                 obj = klass(self)
-            
+
             # Set the region in the flash instance.
             obj.region = region
-            
+
             # Store the flash object back into the memory region.
             region.flash = obj
 
@@ -268,5 +268,5 @@ class CoreSightTarget(SoCTarget):
             self.dp.reset()
         else:
             super().reset(reset_type)
-    
-        
+
+

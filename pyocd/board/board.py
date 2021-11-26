@@ -30,15 +30,15 @@ class Board(GraphNode):
     """
     def __init__(self, session, target=None):
         super(Board, self).__init__()
-        
+
         # Use the session option if no target type was given to us.
         if target is None:
             target = session.options.get('target_override')
-        
+
         # As a last resort, default the target to 'cortex_m'.
         if target is None:
             target = 'cortex_m'
-        
+
             # Log a helpful warning when defaulting to the generic cortex_m target.
             if session.options.get('warning.cortex_m_default'):
                 LOG.warning("Generic 'cortex_m' target type is selected by default; is this "
@@ -48,10 +48,10 @@ class Board(GraphNode):
                             "targets types.")
 
         assert target is not None
-        
+
         # Convert dashes to underscores in the target type, and convert to lower case.
         target = target.replace('-', '_').lower()
-        
+
         # Write the effective target type back to options if it's different.
         if target != session.options.get('target_override'):
             session.options['target_override'] = target
@@ -61,7 +61,7 @@ class Board(GraphNode):
         self._test_binary = session.options.get('test_binary')
         self._delegate = None
         self._inited = False
-        
+
         # Create targets from provided CMSIS pack.
         if session.options['pack'] is not None:
             pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
@@ -79,10 +79,10 @@ class Board(GraphNode):
                 "available target types. "
                 "See <https://github.com/pyocd/pyOCD/blob/master/docs/target_support.md> "
                 "for how to install additional target support.") from exc
-        
+
         # Tell the user what target type is selected.
         LOG.info("Target type is %s", self._target_type)
-        
+
         self.add_child(self.target)
 
     def init(self):
@@ -90,15 +90,15 @@ class Board(GraphNode):
         # If we don't have a delegate set yet, see if there is a session delegate.
         if (self.delegate is None) and (self.session.delegate is not None):
             self.delegate = self.session.delegate
-        
+
         # Delegate pre-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'will_connect'):
             self.delegate.will_connect(board=self)
-        
+
         # Init the target.
         self.target.init()
         self._inited = True
-        
+
         # Delegate post-init hook.
         if (self.delegate is not None) and hasattr(self.delegate, 'did_connect'):
             self.delegate.did_connect(board=self)
@@ -117,31 +117,31 @@ class Board(GraphNode):
     @property
     def session(self):
         return self._session
-    
+
     @property
     def delegate(self):
         return self._delegate
-    
+
     @delegate.setter
     def delegate(self, the_delegate):
         self._delegate = the_delegate
-        
+
     @property
     def unique_id(self):
         return self.session.probe.unique_id
-    
+
     @property
     def target_type(self):
         return self._target_type
-    
+
     @property
     def test_binary(self):
         return self._test_binary
-    
+
     @property
     def name(self):
         return "generic"
-    
+
     @property
     def description(self):
         return "Generic board via " + self.session.probe.vendor_name + " " \

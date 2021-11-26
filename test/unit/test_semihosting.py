@@ -98,7 +98,7 @@ BKPT_AB = 0xbeab
 
 class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
     """! @brief Semihost IO handler that records output.
-    
+
     This handler is only meant to be used for console I/O since it doesn't implement
     open() or close().
     """
@@ -479,7 +479,7 @@ class TestSemihosting:
 #         telnet.stop()
 #     request.addfinalizer(stopit)
 #     return telnet
-# 
+#
 # @pytest.fixture(scope='function')
 # def semihost_telnet_agent(ctx, telnet, request):
 #     agent = semihost.SemihostAgent(ctx, console=telnet)
@@ -487,11 +487,11 @@ class TestSemihosting:
 #         agent.cleanup()
 #     request.addfinalizer(cleanup)
 #     return agent
-# 
+#
 # @pytest.fixture(scope='function')
 # def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
 #     return SemihostRequestBuilder(tgt, semihost_telnet_agent, ramrgn)
-# 
+#
 # @pytest.fixture(scope='function')
 # def telnet_conn(request):
 #     from time import sleep
@@ -502,47 +502,47 @@ class TestSemihosting:
 #         telnet.close()
 #     request.addfinalizer(cleanup)
 #     return telnet
-# 
+#
 # class TestSemihostingTelnet:
 #     def test_connect(self, semihost_telnet_builder, telnet_conn):
 #         result = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
 #         assert result == 0
-# 
+#
 #     def test_write(self, semihost_telnet_builder, telnet_conn):
 #         result = semihost_telnet_builder.do_write(semihost.STDOUT_FD, 'hello world')
 #         assert result == 0
-# 
+#
 #         index, _, text = telnet_conn.expect(['hello world'])
 #         assert index != -1
 #         assert text == 'hello world'
-# 
+#
 #     def test_writec(self, semihost_telnet_builder, telnet_conn):
 #         for c in 'xyzzy':
 #             result = semihost_telnet_builder.do_writec(c)
 #             assert result == 0
-# 
+#
 #             index, _, text = telnet_conn.expect([c])
 #             assert index != -1
 #             assert text == c
-# 
+#
 #     def test_write0(self, semihost_telnet_builder, telnet_conn):
 #         result = semihost_telnet_builder.do_write0('hello world')
 #         assert result == 0
-# 
+#
 #         index, _, text = telnet_conn.expect(['hello world'])
 #         assert index != -1
 #         assert text == 'hello world'
-# 
+#
 #     def test_read(self, semihost_telnet_builder, telnet_conn):
 #         telnet_conn.write('hello world')
-# 
+#
 #         result, data = semihost_telnet_builder.do_read(semihost.STDIN_FD, 11)
 #         assert result == 0
 #         assert data == 'hello world'
-# 
+#
 #     def test_readc(self, semihost_telnet_builder, telnet_conn):
 #         telnet_conn.write('xyz')
-# 
+#
 #         for c in 'xyz':
 #             rc = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_READC)
 #             assert chr(rc) == c

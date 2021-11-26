@@ -48,7 +48,7 @@ class TargetList(object):
 
 class RTXThreadContext(DebugContext):
     """! @brief Thread context for RTX5."""
-    
+
     # SP/PSP are handled specially, so it is not in these dicts.
 
     # Offsets are relative to stored SP in a task switch block, for the
@@ -234,7 +234,7 @@ class RTXTargetThread(TargetThread):
          0x83: "Waiting[MsgGet]",
          0x93: "Waiting[MsgPut]",
     }
-    
+
     def __init__(self, targetContext, provider, base):
         super(RTXTargetThread, self).__init__()
         self._target_context = targetContext
@@ -247,13 +247,13 @@ class RTXTargetThread(TargetThread):
         try:
             name_ptr = self._target_context.read32(self._base + RTXTargetThread.NAME_OFFSET)
             self._name = read_c_string(self._target_context, name_ptr)
-            
+
             self.update_state()
         except exceptions.TransferError as exc:
             LOG.debug("Transfer error while reading thread %x name: %s", self._base, exc)
             self._name = "?"
         LOG.debug('RTXTargetThread 0x%x' % base)
-    
+
     def update_state(self):
         try:
             state = self._target_context.read8(self._base + RTXTargetThread.STATE_OFFSET)
@@ -353,7 +353,7 @@ class RTX5ThreadProvider(ThreadProvider):
 
     def _build_thread_list(self):
         newThreads = {}
-        
+
         def create_or_update(thread):
             # Check for and reuse existing thread.
             if thread in self._threads:
@@ -390,7 +390,7 @@ class RTX5ThreadProvider(ThreadProvider):
         # Create fake handler mode thread.
         if self._target_context.read_core_register('ipsr') > 0:
             newThreads[HandlerModeThread.UNIQUE_ID] = HandlerModeThread(self._target_context, self)
-        
+
         self._threads = newThreads
 
     def get_thread(self, threadId):
@@ -448,14 +448,14 @@ class RTX5ThreadProvider(ThreadProvider):
 
 class RTX5Plugin(Plugin):
     """! @brief Plugin class for the RTX5 RTOS."""
-    
+
     def load(self):
         return RTX5ThreadProvider
-    
+
     @property
     def name(self):
         return "rtx5"
-    
+
     @property
     def description(self):
         return "RTX5"

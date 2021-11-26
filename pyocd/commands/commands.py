@@ -74,7 +74,7 @@ class ListCommand(CommandBase):
             'usage': "",
             'help': "Show available targets.",
             }
-    
+
     def execute(self):
         ConnectHelper.list_connected_probes()
 
@@ -87,7 +87,7 @@ class ExitCommand(CommandBase):
             'usage': "",
             'help': "Quit pyocd commander.",
             }
-    
+
     def execute(self):
         from .repl import ToolExitException
         raise ToolExitException()
@@ -101,7 +101,7 @@ class StatusCommand(CommandBase):
             'usage': "",
             'help': "Show the target's current state.",
             }
-    
+
     def execute(self):
         if not self.context.target.is_locked():
             for i, c in enumerate(self.context.target.cores):
@@ -119,12 +119,12 @@ class RegisterCommandBase(CommandBase):
         regs = natsort(self.context.selected_core.core_registers.iter_matching(
                 lambda r: r.group == group_name), key=lambda r: r.name)
         reg_values = self.context.selected_core.read_core_registers_raw(r.name for r in regs)
-        
+
         col_printer = ColumnFormatter()
         for info, value in zip(regs, reg_values):
             value_str = self._format_core_register(info, value)
             col_printer.add_items([(info.name, value_str)])
-        
+
         col_printer.write()
 
     def dump_registers(self, show_all=False, show_group=None):
@@ -141,7 +141,7 @@ class RegisterCommandBase(CommandBase):
             groups_to_show = [show_group]
         else:
             groups_to_show = ['general']
-        
+
         for group in groups_to_show:
             self.context.writei("%s registers:", group)
             self.dump_register_group(group)
@@ -196,12 +196,12 @@ class RegCommand(RegisterCommandBase):
                            "be printed. If the -f option is passed, then individual fields of "
                            "peripheral registers will be printed in addition to the full value.",
             }
-    
+
     def parse(self, args):
         self.show_all = False
         self.reg = None
         self.show_fields = False
-        
+
         if len(args) == 0:
             self.reg = "general"
         else:
@@ -217,7 +217,7 @@ class RegCommand(RegisterCommandBase):
         if self.show_all:
             self.dump_registers(show_all=True)
             return
-        
+
         # Check register names first.
         if self.reg in self.context.selected_core.core_registers.by_name:
             if not self.context.selected_core.is_halted():
@@ -229,14 +229,14 @@ class RegCommand(RegisterCommandBase):
             value_str = self._format_core_register(info, value)
             self.context.writei("%s = %s", self.reg, value_str)
             return
-        
+
         # Now look for matching group name.
         matcher = UniquePrefixMatcher(self.context.selected_core.core_registers.groups)
         group_matches = matcher.find_all(self.reg)
         if len(group_matches) == 1:
             self.dump_registers(show_group=group_matches[0])
             return
-        
+
         # And finally check for peripherals.
         subargs = self.reg.split('.')
         if subargs[0] in self.context.peripherals:
@@ -265,7 +265,7 @@ class WriteRegCommand(RegisterCommandBase):
                            "When a peripheral register is written, if the -r option is passed then "
                            "it is read back and the updated value printed.",
             }
-    
+
     def parse(self, args):
         idx = 0
         if len(args) == 3:
@@ -338,7 +338,7 @@ class ResetCommand(CommandBase):
                           "or 'emulated'.",
 
             }
-    
+
     def parse(self, args):
         self.do_halt = False
         self.reset_type = None
@@ -374,7 +374,7 @@ class DisassembleCommand(CommandBase):
             'extra_help': "Only available if the capstone library is installed. To install "
                            "capstone, run 'pip install capstone'.",
             }
-    
+
     def parse(self, args):
         self.center = (len(args) > 1) and (args[0] in ('-c', '--center'))
         if self.center:
@@ -505,7 +505,7 @@ class WriteCommandBase(CommandBase):
             if not region.is_flash:
                 raise exceptions.CommandError("address 0x%08x is not in flash", self.addr)
             assert region.flash is not None
-            
+
             # Program phrase to flash.
             region.flash.init(region.flash.Operation.PROGRAM)
             region.flash.program_phrase(self.addr, self.data)
@@ -582,7 +582,7 @@ class SavememCommand(CommandBase):
             'usage': "ADDR LEN FILENAME",
             'help': "Save a range of memory to a binary file.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
         self.count = self._convert_value(args[1])
@@ -616,7 +616,7 @@ class LoadmemCommand(CommandBase):
             'help': "Load a binary file to an address in memory (RAM or flash).",
             'extra_help': "This command is deprecated in favour of the more flexible 'load'.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
         self.filename = args[1]
@@ -639,7 +639,7 @@ class LoadCommand(CommandBase):
             'usage': "FILENAME [ADDR]",
             'help': "Load a binary, hex, or elf file with optional base address.",
             }
-    
+
     def parse(self, args):
         self.filename = args[0]
         if len(args) > 1:
@@ -661,7 +661,7 @@ class CompareCommand(CommandBase):
             'help': "Compare a memory range against a binary file.",
             'extra_help': "If the length is not provided, then the length of the file is used.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
         if len(args) < 3:
@@ -685,7 +685,7 @@ class CompareCommand(CommandBase):
                 file_data = bytearray(f.read())
             else:
                 file_data = bytearray(f.read(self.length))
-        
+
         if self.length is None:
             length = len(file_data)
         elif len(file_data) < self.length:
@@ -693,36 +693,36 @@ class CompareCommand(CommandBase):
             length = len(file_data)
         else:
             length = self.length
-        
+
         # Divide into 32 kB chunks.
         CHUNK_SIZE = 32 * 1024
         chunk_count = (length + CHUNK_SIZE - 1) // CHUNK_SIZE
-        
+
         addr = self.addr
         end_addr = addr + length
         offset = 0
         mismatch = False
-        
+
         for chunk in range(chunk_count):
             # Get this chunk's size.
             chunk_size = min(end_addr - addr, CHUNK_SIZE)
             self.context.writei("Comparing %d bytes @ 0x%08x", chunk_size, addr)
-            
+
             data = bytearray(self.context.selected_ap.read_memory_block8(addr, chunk_size))
-            
+
             for i in range(chunk_size):
                 if data[i] != file_data[offset+i]:
                     mismatch = True
                     self.context.writei("Mismatched byte at 0x%08x (offset 0x%x): 0x%02x (memory) != 0x%02x (file)",
                         addr + i, offset + i, data[i], file_data[offset+i])
                     break
-        
+
             if mismatch:
                 break
-        
+
             offset += chunk_size
             addr += chunk_size
-        
+
         if not mismatch:
             self.context.writei("All %d bytes match.", length)
 
@@ -741,7 +741,7 @@ class FillCommand(CommandBase):
                            "provided, the size is determined by the pattern value's most "
                            "significant set bit. Only RAM regions may be filled.",
             }
-    
+
     def parse(self, args):
         if len(args) == 3:
             self.size = None
@@ -755,7 +755,7 @@ class FillCommand(CommandBase):
             self.addr = self._convert_value(args[1])
             self.length = self._convert_value(args[2])
             self.pattern = self._convert_value(args[3])
-        
+
         # Determine size by the highest set bit in the pattern.
         if self.size is None:
             highest = msb(self.pattern)
@@ -779,20 +779,20 @@ class FillCommand(CommandBase):
         elif self.size == 32:
             pattern_str = "0x%08x" % (self.pattern & 0xffffffff)
             self.pattern = conversion.u32le_list_to_byte_list([self.pattern])
-        
+
         # Divide into 32 kB chunks.
         CHUNK_SIZE = 32 * 1024
         chunk_count = (self.length + CHUNK_SIZE - 1) // CHUNK_SIZE
-        
+
         addr = self.addr
         end_addr = addr + self.length
         self.context.writei("Filling 0x%08x-0x%08x with pattern %s", addr, end_addr - 1, pattern_str)
-        
+
         for chunk in range(chunk_count):
             # Get this chunk's size.
             chunk_size = min(end_addr - addr, CHUNK_SIZE)
             self.context.writei("Wrote %d bytes @ 0x%08x", chunk_size, addr)
-            
+
             # Construct data for the chunk.
             if self.size == 8:
                 data = self.pattern * chunk_size
@@ -800,7 +800,7 @@ class FillCommand(CommandBase):
                 data = (self.pattern * ((chunk_size + 1) // 2))[:chunk_size]
             elif self.size == 32:
                 data = (self.pattern * ((chunk_size + 3) // 4))[:chunk_size]
-            
+
             # Write to target.
             self.context.selected_ap.write_memory_block8(addr, data)
             addr += chunk_size
@@ -816,7 +816,7 @@ class FindCommand(CommandBase):
             'extra_help': "A pattern of any number of bytes can be searched for. Each BYTE "
                            "parameter must be an 8-bit value.",
             }
-    
+
     def parse(self, args):
         if len(args) < 3:
             raise exceptions.CommandError("missing argument")
@@ -826,32 +826,32 @@ class FindCommand(CommandBase):
         for p in args[2:]:
             self.pattern += bytearray([self._convert_value(p)])
         self.pattern_str = " ".join("%02x" % p for p in self.pattern)
-        
+
     def execute(self):
         # Divide into 32 kB chunks.
         CHUNK_SIZE = 32 * 1024
         chunk_count = (self.length + CHUNK_SIZE - 1) // CHUNK_SIZE
-        
+
         addr = self.addr
         end_addr = addr + self.length
         self.context.writei("Searching 0x%08x-0x%08x for pattern [%s]", addr, end_addr - 1, self.pattern_str)
-        
+
         match = False
         for chunk in range(chunk_count):
             # Get this chunk's size.
             chunk_size = min(end_addr - addr, CHUNK_SIZE)
             self.context.writei("Read %d bytes @ 0x%08x", chunk_size, addr)
-            
+
             data = bytearray(self.context.selected_ap.read_memory_block8(addr, chunk_size))
-            
+
             offset = data.find(self.pattern)
             if offset != -1:
                 match = True
                 self.context.writei("Found pattern at address 0x%08x", addr + offset)
                 break
-            
+
             addr += chunk_size - len(self.pattern)
-        
+
         if not match:
             self.context.writei("Failed to find pattern in range 0x%08x-0x%08x", self.addr, end_addr - 1)
 
@@ -864,7 +864,7 @@ class EraseCommand(CommandBase):
             'usage': "[ADDR] [COUNT]",
             'help': "Erase all internal flash or a range of sectors.",
             }
-    
+
     def parse(self, args):
         if len(args) == 0:
             self.erase_chip = True
@@ -908,7 +908,7 @@ class UnlockCommand(CommandBase):
             'usage': "",
             'help': "Unlock security on the target.",
             }
-    
+
     def execute(self):
         self.context.target.mass_erase()
 
@@ -924,7 +924,7 @@ class ContinueCommand(CommandBase):
                           "then it's state is reported. For instance, if the target is halted immediately "
                           "after resuming, a debug event such as a breakpoint most likely occurred.",
             }
-    
+
     def execute(self):
         self.context.selected_core.resume()
         status = self.context.selected_core.get_state()
@@ -950,13 +950,13 @@ class StepCommand(CommandBase):
             'usage': "[COUNT]",
             'help': "Step one or more instructions.",
             }
-    
+
     def parse(self, args):
         if len(args) == 1:
             self.count = self._convert_value(args[0])
         else:
             self.count = 1
-    
+
     def execute(self):
         if not self.context.selected_core.is_halted():
             self.context.write("Core is not halted; cannot step")
@@ -981,7 +981,7 @@ class HaltCommand(CommandBase):
             'usage': "",
             'help': "Halt the target.",
             }
-    
+
     def execute(self):
         self.context.selected_core.halt()
 
@@ -1001,7 +1001,7 @@ class BreakpointCommand(CommandBase):
             'usage': "ADDR",
             'help': "Set a breakpoint address.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
 
@@ -1021,7 +1021,7 @@ class RemoveBreakpointCommand(CommandBase):
             'usage': "ADDR",
             'help': "Remove a breakpoint.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
 
@@ -1042,7 +1042,7 @@ class ListBreakpointsCommand(CommandBase):
             'usage': "",
             'help': "List breakpoints.",
             }
-    
+
     def execute(self):
         availableBpCount = self.context.selected_core.available_breakpoint_count
         self.context.writei("%d hardware breakpoints available", availableBpCount)
@@ -1062,7 +1062,7 @@ class WatchpointCommand(CommandBase):
             'usage': "ADDR [r|w|rw] [1|2|4]",
             'help': "Set a watchpoint address, and optional access type (default rw) and size (4).",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
         if len(args) > 1:
@@ -1096,7 +1096,7 @@ class RemoveWatchpointCommand(CommandBase):
             'usage': "ADDR",
             'help': "Remove a watchpoint.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
 
@@ -1118,7 +1118,7 @@ class ListWatchpointsCommand(CommandBase):
             'usage': "",
             'help': "List watchpoints.",
             }
-    
+
     def execute(self):
         if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
@@ -1131,7 +1131,7 @@ class ListWatchpointsCommand(CommandBase):
             for i, wp in enumerate(wps):
                 # TODO fix requirement to access WATCH_TYPE_TO_FUNCT
                 self.context.writei("%d: 0x%08x, %d bytes, %s",
-                    i, wp.addr, wp.size, 
+                    i, wp.addr, wp.size,
                     WATCHPOINT_FUNCTION_NAME_MAP[self.context.selected_core.dwt.WATCH_TYPE_TO_FUNCT[wp.func]])
 
 class SelectCoreCommand(CommandBase):
@@ -1143,7 +1143,7 @@ class SelectCoreCommand(CommandBase):
             'usage': "[NUM]",
             'help': "Select CPU core by number or print selected core.",
             }
-    
+
     def parse(self, args):
         if len(args) == 0:
             self.show_core = True
@@ -1170,7 +1170,7 @@ class ReadDpCommand(CommandBase):
             'usage': "ADDR",
             'help': "Read DP register.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
 
@@ -1187,7 +1187,7 @@ class WriteDpCommand(CommandBase):
             'usage': "ADDR DATA",
             'help': "Write DP register.",
             }
-    
+
     def parse(self, args):
         self.addr = self._convert_value(args[0])
         self.data = self._convert_value(args[1])
@@ -1314,7 +1314,7 @@ class WhereCommand(CommandBase):
         if self.context.elf is None:
             self.context.write("No ELF available")
             return
-        
+
         lineInfo = self.context.elf.address_decoder.get_line_for_address(self.addr)
         if lineInfo is not None:
             path = os.path.join(lineInfo.dirname, lineInfo.filename).decode()
@@ -1322,7 +1322,7 @@ class WhereCommand(CommandBase):
             pathline = "{}:{}".format(path, line)
         else:
             pathline = "<unknown file>"
-        
+
         fnInfo = self.context.elf.address_decoder.get_function_for_address(self.addr)
         if fnInfo is not None:
             name = fnInfo.name.decode()
@@ -1330,7 +1330,7 @@ class WhereCommand(CommandBase):
         else:
             name = "<unknown symbol>"
             offset = 0
-        
+
         self.context.writef("{addr:#10x} : {fn}+{offset} : {pathline}",
                 addr=self.addr, fn=name, offset=offset, pathline=pathline)
 
@@ -1352,7 +1352,7 @@ class SymbolCommand(CommandBase):
         if self.context.elf is None:
             self.context.write("No ELF available")
             return
-        
+
         sym = self.context.elf.symbol_decoder.get_symbol_for_name(self.name)
         if sym is not None:
             if sym.type == 'STT_FUNC':
@@ -1394,7 +1394,7 @@ class GdbserverCommand(CommandBase):
             if self.context.session.gdbservers[core_number] is not None:
                 server = self.context.session.gdbservers[core_number]
                 del self.context.session.gdbservers[core_number]
-                
+
                 # Stop the server and wait for it to terminate.
                 server.stop()
                 while server.is_alive():
@@ -1404,7 +1404,7 @@ class GdbserverCommand(CommandBase):
         elif self.action == 'status':
             if core_number in self.context.session.gdbservers:
                 self.context.writef("gdbserver for core {0} is running", core_number)
-            else:            
+            else:
                 self.context.writef("gdbserver for core {0} is not running", core_number)
 
 class ProbeserverCommand(CommandBase):
@@ -1469,7 +1469,7 @@ class ShowCommand(CommandBase):
         # Check readability.
         if 'r' not in value_class.INFO['access']:
             raise exceptions.CommandError("value '%s' is not readable" % self.name)
-        
+
         # Execute show operation.
         value_object = value_class(self.context)
         value_object.display(self.args)
@@ -1515,7 +1515,7 @@ class SetCommand(CommandBase):
         # Check writability.
         if 'w' not in value_class.INFO['access']:
             raise exceptions.CommandError("value '%s' is not modifiable" % self.name)
-        
+
         # Execute set operation.
         value_object = value_class(self.context)
         value_object.modify(self.args)
@@ -1544,7 +1544,7 @@ class HelpCommand(CommandBase):
             'usage': "[CMD]",
             'help': "Show help for commands.",
             }
-    
+
     HELP_ADDENDUM = """
 All register names are also available as commands that print the register's value.
 Any ADDR or LEN argument will accept a register name.
@@ -1591,19 +1591,19 @@ Prefix line with ! to execute a shell command."""
                     return
                 except IndexError:
                     pass
-            
+
             self.context.write(cmd_class.format_help(self.context, self.term_width))
 
     def _list_commands(self, title, command_list, help_format):
         cmds = {}
         nominal_cmds = []
-        
+
         for klass in command_list:
             cmd_name = klass.INFO['names'][0]
             cmds[cmd_name] = klass
             nominal_cmds.append(cmd_name)
         nominal_cmds.sort()
-        
+
         self.context.write(title + ":\n" + ("-" * len(title)))
         for cmd_name in nominal_cmds:
             cmd_klass = cmds[cmd_name]

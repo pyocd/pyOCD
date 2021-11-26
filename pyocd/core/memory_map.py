@@ -45,7 +45,7 @@ def check_range(start, end=None, length=None, range=None):
 @total_ordering
 class MemoryRangeBase(object):
     """! @brief Base class for a range of memory.
-    
+
     This base class provides the basic address range support and methods to test for containment
     or intersection with another range.
     """
@@ -87,13 +87,13 @@ class MemoryRangeBase(object):
         start, end = check_range(start, end, length, range)
         return (start <= self.start and end >= self.start) or (start <= self.end and end >= self.end) \
             or (start >= self.start and end <= self.end)
-    
+
     def __hash__(self):
         return hash("%08x%08x%08x" % (self.start, self.end, self.length))
-    
+
     def __eq__(self, other):
         return self.start == other.start and self.length == other.length
-    
+
     def __lt__(self, other):
         return self.start < other.start or (self.start == other.start and self.length == other.length)
 
@@ -106,13 +106,13 @@ class MemoryRange(MemoryRangeBase):
     @property
     def region(self):
         return self._region
-    
+
     def __hash__(self):
         h = super(MemoryRange, self).__hash__()
         if self.region is not None:
             h ^= hash(self.region)
         return h
-    
+
     def __eq__(self, other):
         return self.start == other.start and self.length == other.length and self.region == other.region
 
@@ -122,9 +122,9 @@ class MemoryRange(MemoryRangeBase):
 
 class MemoryRegion(MemoryRangeBase):
     """! @brief One contiguous range of memory.
-    
+
     Memory regions have attributes accessible via the normal dot syntax.
-    
+
     - `name`: Name of the region, which defaults to the region type in lowercase.
     - `access`: Composition of r, w, x, s.
     - `alias`: If set, this is the name of another region that of which this region is an alias.
@@ -141,7 +141,7 @@ class MemoryRegion(MemoryRangeBase):
         as memory-mapped OTP or configuration flash.
     - `is_testable`: Whether pyOCD should consider the region in its functional tests.
     - `is_external`: If true, the region is backed by an external memory device such as SDRAM or QSPI.
-    
+
     Several attributes are available whose values are computed from other attributes. These should
     not be set when creating the region.
     - `is_ram`
@@ -154,7 +154,7 @@ class MemoryRegion(MemoryRangeBase):
     - `is_secure`
     - `is_nonsecure`
     """
-    
+
     ## Default attribute values for all memory region types.
     DEFAULT_ATTRS = {
         'name': lambda r: r.type.name.lower(),
@@ -166,7 +166,7 @@ class MemoryRegion(MemoryRangeBase):
         'is_cacheable': True,
         'invalidate_cache_on_run': True,
         'is_testable': True,
-        'is_external': False,        
+        'is_external': False,
         'is_ram': lambda r: r.type == MemoryType.RAM,
         'is_rom': lambda r: r.type == MemoryType.ROM,
         'is_flash': lambda r: r.type == MemoryType.FLASH,
@@ -177,12 +177,12 @@ class MemoryRegion(MemoryRangeBase):
         'is_secure': lambda r: 's' in r.access,
         'is_nonsecure': lambda r: not r.is_secure,
         }
-    
+
     def __init__(self, type=MemoryType.OTHER, start=0, end=0, length=None, **attrs):
         """! Memory region constructor.
-        
+
         Memory regions are required to have non-zero lengths, unlike memory ranges.
-        
+
         Some common optional region attributes passed as keyword arguments:
         - name: If a name is not provided, the name is set to the region type in lowercase.
         - access: composition of r, w, x, s
@@ -197,7 +197,7 @@ class MemoryRegion(MemoryRangeBase):
         self._map = None
         self._type = type
         self._attributes = attrs
-        
+
         # Assign default values to any attributes missing from kw args.
         for k, v in self.DEFAULT_ATTRS.items():
             if k not in self._attributes:
@@ -210,15 +210,15 @@ class MemoryRegion(MemoryRangeBase):
     @map.setter
     def map(self, the_map):
         self._map = the_map
-        
+
     @property
     def type(self):
         return self._type
-    
+
     @property
     def attributes(self):
         return self._attributes
-        
+
     @property
     def alias(self):
         # Resolve alias reference.
@@ -231,7 +231,7 @@ class MemoryRegion(MemoryRangeBase):
             return referent
         else:
             return alias_value
-        
+
     def __getattr__(self, name):
         try:
             v = self._attributes[name]
@@ -245,7 +245,7 @@ class MemoryRegion(MemoryRangeBase):
 
     def _get_attributes_for_clone(self):
         """@brief Return a dict containing all the attributes of this region.
-        
+
         This method must be overridden by subclasses to include in the returned dict any instance attributes
         not present in the `_attributes` attribute.
         """
@@ -255,7 +255,7 @@ class MemoryRegion(MemoryRangeBase):
         """@brief Create a duplicate this region with some of its attributes modified."""
         new_attrs = self._get_attributes_for_clone()
         new_attrs.update(modified_attrs)
-        
+
         return self.__class__(**new_attrs)
 
     def __copy__(self):
@@ -263,7 +263,7 @@ class MemoryRegion(MemoryRangeBase):
 
     # Need to redefine __hash__ since we redefine __eq__.
     __hash__ = MemoryRangeBase.__hash__
-    
+
     def __eq__(self, other):
         # Include type and attributes in equality comparison.
         return self.start == other.start and self.length == other.length \
@@ -299,7 +299,7 @@ class DefaultFlashWeights:
 
 class FlashRegion(MemoryRegion):
     """! @brief Contiguous region of flash memory.
-    
+
     Flash regions have a number of attributes in addition to those available in all region types.
     - `blocksize`: Erase sector size in bytes.
     - `sector_size`: Alias for `blocksize`.
@@ -317,7 +317,7 @@ class FlashRegion(MemoryRegion):
     - `flash`: After connection, this attribute holds the instance of `flash_class` for this region.
     - `are_erased_sectors_readable`: Specifies whether the flash controller allows reads of erased
         sectors, or will fault such reads. Default is True.
-    
+
     `sector_size` and `blocksize` are aliases of each other. If one is set via the constructor, the
     other will have the same value.
     """
@@ -347,13 +347,13 @@ class FlashRegion(MemoryRegion):
         self._algo = attrs.get('algo', None)
         self._flm = attrs.get('flm', None)
         self._flash = None
-        
+
         if ('flash_class' in attrs) and (attrs['flash_class'] is not None):
             self._flash_class = attrs['flash_class']
             assert issubclass(self._flash_class, Flash)
         else:
             self._flash_class = Flash
-        
+
         # Remove writable region attributes from attributes dict so there is only one copy.
         try:
             del self._attributes['algo']
@@ -367,39 +367,39 @@ class FlashRegion(MemoryRegion):
             del self._attributes['flm']
         except KeyError:
             pass
-    
+
     @property
     def algo(self):
         return self._algo
-    
+
     @algo.setter
     def algo(self, flash_algo):
         self._algo = flash_algo
-    
+
     @property
     def flm(self):
         return self._flm
-    
+
     @flm.setter
     def flm(self, flm_path):
         self._flm = flm_path
-    
+
     @property
     def flash_class(self):
         return self._flash_class
-    
+
     @flash_class.setter
     def flash_class(self, klass):
         self._flash_class = klass
-    
+
     @property
     def flash(self):
         return self._flash
-    
+
     @flash.setter
     def flash(self, flash_instance):
         self._flash = flash_instance
-        
+
     def is_data_erased(self, d):
         """! @brief Helper method to check if a block of data is erased.
         @param self
@@ -425,7 +425,7 @@ class FlashRegion(MemoryRegion):
 
     # Need to redefine __hash__ since we redefine __eq__.
     __hash__ = MemoryRegion.__hash__
-    
+
     def __eq__(self, other):
         # Include flash algo, class, and flm in equality test.
         return super(FlashRegion, self).__eq__(other) and self.algo == other.algo and \
@@ -451,7 +451,7 @@ class DeviceRegion(MemoryRegion):
         attrs['type'] = MemoryType.DEVICE
         super(DeviceRegion, self).__init__(start=start, end=end, length=length, **attrs)
 
-## @brief Map from memory type to class.         
+## @brief Map from memory type to class.
 MEMORY_TYPE_CLASS_MAP = {
         MemoryType.OTHER:   MemoryRegion,
         MemoryType.RAM:     RamRegion,
@@ -462,10 +462,10 @@ MEMORY_TYPE_CLASS_MAP = {
 
 class MemoryMap(collections.abc.Sequence):
     """! @brief Memory map consisting of memory regions.
-    
+
     The normal way to create a memory map is to instantiate regions directly in the call to the
     constructor.
-    
+
     @code
     map = MemoryMap(
                 FlashRegion(    start=0,
@@ -473,25 +473,25 @@ class MemoryMap(collections.abc.Sequence):
                                 blocksize=0x400,
                                 is_boot_memory=True,
                                 algo=FLASH_ALGO),
-            
+
                 RamRegion(      start=0x10000000,
                                 length=0x1000)
                 )
     @endcode
-    
+
     The memory map can also be modified by adding and removing regions at runtime. Regardless of
     the order regions are added, the list of regions contained in the memory map is always
     maintained sorted by start address.
 
     MemoryMap objects implement the collections.abc.Sequence interface.
     """
-    
+
     def __init__(self, *more_regions):
         """! @brief Constructor.
-        
+
         All parameters passed to the constructor are assumed to be MemoryRegion instances, and
         are passed to add_regions(). The resulting memory map is sorted by region start address.
-        
+
         @param self
         @param more_regions Zero or more MemoryRegion objects passed as separate parameters.
         """
@@ -501,7 +501,7 @@ class MemoryMap(collections.abc.Sequence):
     @property
     def regions(self):
         """! @brief List of all memory regions.
-        
+
         Regions in the returned list are sorted by start address.
         """
         return self._regions
@@ -513,7 +513,7 @@ class MemoryMap(collections.abc.Sequence):
 
     def clone(self):
         """! @brief Create a duplicate of the memory map.
-        
+
         The duplicate memory map contains shallow copies of each of the regions. This is intended
         to be used so that `Target` objects in different but simultaneously live sessions have
         independant copies of the target's memory map.
@@ -522,13 +522,13 @@ class MemoryMap(collections.abc.Sequence):
 
     def add_regions(self, *more_regions):
         """! @brief Add multiple regions to the memory map.
-        
+
         There are two options for passing the list of regions to be added. The first is to pass
         each region as a separate parameter, similar to how the constructor is intended to be used.
         The second option is to pass either a list or tuple of regions.
-        
+
         The region list is kept sorted. If no regions are provided, the call is a no-op.
-        
+
         @param self
         @param more_regions Either a single tuple or list, or one or more MemoryRegion objects
             passed as separate parameters.
@@ -538,15 +538,15 @@ class MemoryMap(collections.abc.Sequence):
                 regionsToAdd = more_regions[0]
             else:
                 regionsToAdd = more_regions
-            
+
             for newRegion in regionsToAdd:
                 self.add_region(newRegion)
 
     def add_region(self, new_region):
         """! @brief Add one new region to the map.
-        
+
         The region list is resorted after adding the provided region.
-        
+
         @param self
         @param new_region An instance of MemoryRegion to add. A new instance that is a copy of this argument
             may be added to the memory map in order to guarantee unique region names.
@@ -555,11 +555,11 @@ class MemoryMap(collections.abc.Sequence):
         existing_names = [r.name for r in self._regions if r]
         if new_region.name and (new_region.name in existing_names):
             new_region = new_region.clone_with_changes(name=uniquify_name(new_region.name, existing_names))
-        
+
         new_region.map = self
         self._regions.append(new_region)
         self._regions.sort()
-    
+
     def remove_region(self, region):
         """! @brief Removes a memory region from the map.
         @param self
@@ -572,7 +572,7 @@ class MemoryMap(collections.abc.Sequence):
 
     def get_boot_memory(self):
         """! @brief Returns the first region marked as boot memory.
-        
+
         @param self
         @return MemoryRegion or None.
         """
@@ -583,7 +583,7 @@ class MemoryMap(collections.abc.Sequence):
 
     def get_region_for_address(self, address):
         """! @brief Returns the first region containing the given address.
-        
+
         @param self
         @param address An integer target address.
         @return MemoryRegion or None.
@@ -595,7 +595,7 @@ class MemoryMap(collections.abc.Sequence):
 
     def is_valid_address(self, address):
         """! @brief Determines whether an address is contained by any region.
-        
+
         @param self
         @param address An integer target address.
         @return Boolean indicating whether the address was contained by a region.
@@ -604,7 +604,7 @@ class MemoryMap(collections.abc.Sequence):
 
     def get_contained_regions(self, start, end=None, length=None, range=None):
         """! @brief Get all regions fully contained by an address range.
-        
+
         @param self
         @param start The start address or a MemoryRange object.
         @param end Optional end address.
@@ -618,7 +618,7 @@ class MemoryMap(collections.abc.Sequence):
 
     def get_intersecting_regions(self, start, end=None, length=None, range=None):
         """! @brief Get all regions intersected by an address range.
-        
+
         @param self
         @param start The start address or a MemoryRange object.
         @param end Optional end address.
@@ -629,12 +629,12 @@ class MemoryMap(collections.abc.Sequence):
         """
         start, end = check_range(start, end, length, range)
         return [r for r in self._regions if r.intersects_range(start, end)]
-    
+
     def iter_matching_regions(self, **kwargs):
         """! @brief Iterate over regions matching given criteria.
-        
+
         Useful attributes to match on include 'type', 'name', 'is_default', and others.
-        
+
         @param self
         @param kwargs Values for region attributes that must match.
         """
@@ -651,15 +651,15 @@ class MemoryMap(collections.abc.Sequence):
                     mismatch = True
             if mismatch:
                 continue
-            
+
             yield r
-    
+
     def get_first_matching_region(self, **kwargs):
         """! @brief Get the first region matching a given memory type.
-        
+
         The region of given type with the lowest start address is returned. If there are no regions
         with that type, None is returned instead.
-        
+
         @param self
         @param type One of the MemoryType enums.
         @return A MemoryRegion object or None.
@@ -667,14 +667,14 @@ class MemoryMap(collections.abc.Sequence):
         for r in self.iter_matching_regions(**kwargs):
             return r
         return None
-    
+
     def get_default_region_of_type(self, type):
         """! @brief Get the default region of a given memory type.
-        
+
         If there are multiple regions of the specified type marked as default, then the one with
         the lowest start address will be returned. None is returned if there are no default regions
         of the type.
-        
+
         @param self
         @param type One of the MemoryType enums.
         @return A MemoryRegion object or None.
@@ -687,22 +687,22 @@ class MemoryMap(collections.abc.Sequence):
     def __iter__(self):
         """! @brief Enable iteration over the memory map."""
         return iter(self._regions)
-    
+
     def __reversed__(self):
         """! @brief Reverse iteration over the memory map."""
         return reversed(self._regions)
-    
+
     def __getitem__(self, key):
         """! @brief Return a region indexed by name or number."""
         if isinstance(key, str):
             return self.get_first_matching_region(name=key)
         else:
             return self._regions[key]
-    
+
     def __len__(self):
         """! @brief Return the number of regions."""
         return len(self._regions)
-    
+
     def __contains__(self, key):
         if isinstance(key, int):
             return self.is_valid_address(key)

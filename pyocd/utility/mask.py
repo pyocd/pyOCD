@@ -19,20 +19,20 @@ from functools import reduce
 
 def bitmask(*args):
     """! @brief Returns a mask with specified bit ranges set.
-    
+
     An integer mask is generated based on the bits and bit ranges specified by the
     arguments. Any number of arguments can be provided. Each argument may be either
     a 2-tuple of integers, a list of integers, or an individual integer. The result
     is the combination of masks produced by the arguments.
-    
+
     - 2-tuple: The tuple is a bit range with the first element being the MSB and the
           second element the LSB. All bits from LSB up to and included MSB are set.
     - list: Each bit position specified by the list elements is set.
     - int: The specified bit position is set.
-    
+
     @return An integer mask value computed from the logical OR'ing of masks generated
       by each argument.
-    
+
     Example:
     @code
       >>> hex(bitmask((23,17),1))
@@ -56,7 +56,7 @@ def bitmask(*args):
 
 def bit_invert(value, width=32):
     """! @brief Return the bitwise inverted value of the argument given a specified width.
-    
+
     @param value Integer value to be inverted.
     @param width Bit width of both the input and output. If not supplied, this defaults to 32.
     @return Integer of the bitwise inversion of @a value.
@@ -91,11 +91,11 @@ class Bitfield(object):
         self._lsb = lsb if (lsb is not None) else msb
         self._name = name
         assert self._msb >= self._lsb
-    
+
     @property
     def width(self):
         return self._msb - self._lsb + 1
-    
+
     def get(self, value):
         """! @brief Extract the bitfield value from a register value.
         @param self The Bitfield object.
@@ -103,7 +103,7 @@ class Bitfield(object):
         @return Integer value of the bitfield extracted from `value`.
         """
         return bfx(value, self._msb, self._lsb)
-    
+
     def set(self, register_value, field_value):
         """! @brief Modified the bitfield in a register value.
         @param self The Bitfield object.
@@ -112,7 +112,7 @@ class Bitfield(object):
         @return Integer register value with the bitfield updated to `field_value`.
         """
         return bfi(register_value, self._msb, self._lsb, field_value)
-    
+
     def __repr__(self):
         return "<{}@{:x} name={} {}:{}>".format(self.__class__.__name__, id(self), self._name, self._msb, self._lsb)
 
@@ -126,7 +126,7 @@ def msb(n):
 
 def same(d1, d2):
     """! @brief Test whether two sequences contain the same values.
-    
+
     Unlike a simple equality comparison, this function works as expected when the two sequences
     are of different types, such as a list and bytearray. The sequences must return
     compatible types from indexing.

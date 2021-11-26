@@ -32,7 +32,7 @@ from pyocd.debug.context import DebugContext
 
 class MockCoreForMemCache(CoreSightCoreComponent):
     """! @brief Just enough of a core to satisfy MemoryCache.
-    
+
     Most importantly, it defines a memory map with a single RAM region covering almost the
     full 4 GB address space.
     """
@@ -49,18 +49,18 @@ MockDebugContext = mock.Mock(spec=DebugContext)
 
 class RomMemory(MemoryCache, MemoryInterface):
     """! @brief Memory interface for reading constant values.
-    
+
     Uses the memory cache as readily-available component to store data at fixed addresses. We
     just have to make sure the cache is never invalidated.
     """
     def __init__(self, ranges):
         """! @brief Constructor.
-        
+
         @param self
         @param ranges Dict of start address -> list of word values.
         """
         super(RomMemory, self).__init__(MockDebugContext(), MockCoreForMemCache())
-        
+
         # Fill in cache with data from ranges.
         for addr, data in ranges.items():
             self.write_memory_block32(addr, data)
@@ -73,25 +73,25 @@ class MockCoreSight(RomMemory):
     """! @brief RomMemory based on a list of MockCoreSightComponent objects."""
     def __init__(self, components):
         """! @brief Constructor.
-        
+
         @param self
         @param components List of component dicts, where each component dict consists of start
             address -> list of word values.
         """
         ranges = {base: data for c in components for base, data in c.data.items()}
         super(MockCoreSight, self).__init__(ranges)
-    
+
     @property
     def short_description(self):
         return "MockCoreSight"
 
 class MockCoreSightComponent(object):
     """! @brief Generates a data dict from CoreSight component ID register values."""
-    
+
     # Start offset within the 4 kB CoreSight component memory window of the ID registers
     # we care about, particularly those read by CoreSightComponentID.
     CMPID_REGS_OFFSET = 0xfbc
-    
+
     def __init__(self, base, cidr, pidr, **kwargs):
         """! @brief Constructor.
         @param self
@@ -111,7 +111,7 @@ class MockCoreSightComponent(object):
         self._devid = kwargs.get('devid', [0, 0, 0])
         self._devtype = kwargs.get('devtype', 0)
         self._extra = kwargs.get('extra', {})
-    
+
     @property
     def data(self):
         d = self._extra.copy()
@@ -140,7 +140,7 @@ class MockCoreSightComponent(object):
 
 class MockM4Components:
     """! @ brief Namespace for mock Cortex-M4 Class 0x1 ROM table and core complex components."""
-    
+
     # ROM table #0 @ 0xe00ff000 (designer=244 part=00d)
     M4_ROM_TABLE_BASE = 0xe00ff000
     M4_ROM_TABLE = MockCoreSightComponent(M4_ROM_TABLE_BASE, cidr=0xb105100d, pidr=0x4000bb4c4,
@@ -179,10 +179,10 @@ class MockM4Components:
     # [5]<e0041000:ETM-M4 class=9 designer=43b part=925 devtype=13 archid=0000 devid=0:0:0>
     ETM_BASE = 0xe0041000
     ETM = MockCoreSightComponent(ETM_BASE, cidr=0xb105900d, pidr=0x4000bb925, devtype=0x13)
-    
+
 class MockCSSOC600Components:
     """! @ brief Namespace for mock Class 0x9 ROM table and CoreSight SoC-600 components."""
-    
+
     C9_ROM_TABLE_BASE = 0x00000000
     C9_ROM_TABLE = MockCoreSightComponent(C9_ROM_TABLE_BASE, cidr=0xb105900d, pidr=0x4000bb7d5,
         devarch=0x47700af7, devid=[0x20, 0, 0],
@@ -194,13 +194,13 @@ class MockCSSOC600Components:
                             0x00000000, 0x00000000, 0x00000000, 0x00000000, # (extra)
                         ],
         })
-    
+
     SDC600_BASE = 0x00001000
     SDC600 = MockCoreSightComponent(SDC600_BASE, cidr=0xb105900d, pidr=0x4000bb9ef, devarch=0x47700a57)
-    
+
     C9_AHB_AP_BASE = 0x00002000
     C9_AHB_AP = MockCoreSightComponent(C9_AHB_AP_BASE, cidr=0xb105900d, pidr=0x4002bb9e3, devarch=0x47700a17)
-    
+
 
 # Complete set of components for a Cortex-M4 subsystem.
 @pytest.fixture(scope='function')
@@ -266,7 +266,7 @@ class TestRomMemory:
     def test_rb8(self, testrom):
         assert testrom.read_memory_block8(0x1008, 6) == [3, 0, 0, 0, 4, 0]
         assert testrom.read_memory_block8(0x4001, 6) == [0, 0, 0, 0xef, 0xbe, 00]
-    
+
 class TestMockCoreSight:
     def test_1(self, testcoresight):
         assert testcoresight.read32(0xe00ff000) == 0xfff0f003
@@ -284,7 +284,7 @@ class TestCoreSightComponentID:
         assert cmp.part == 0xc
         assert cmp.devarch == 0
         assert cmp.devid == [0, 0, 0]
-    
+
     # Test parsing a CoreSight (class 9) component in isolation.
     def test_etm(self):
         cmp = CoreSightComponentID(None, MockCoreSight([MockM4Components.ETM]),
@@ -297,7 +297,7 @@ class TestCoreSightComponentID:
         assert cmp.archid == 0
         assert cmp.devarch == 0
         assert cmp.devid == [0, 0, 0]
-    
+
     # Test parsing a CoreSight (class 9) component with a DEVID.
     def test_tpiu(self):
         cmp = CoreSightComponentID(None, MockCoreSight([MockM4Components.TPIU]),
@@ -310,7 +310,7 @@ class TestCoreSightComponentID:
         assert cmp.archid == 0
         assert cmp.devarch == 0
         assert cmp.devid == [0xca1, 0, 0]
-    
+
     # Test parsing a Class 0x9 ROM table.
     def test_c9_rom(self):
         cmp = CoreSightComponentID(None, MockCoreSight([MockCSSOC600Components.C9_ROM_TABLE]),
@@ -325,32 +325,32 @@ class TestRomTable:
         # Read ROM table component ID.
         cmpid = CoreSightComponentID(None, m4_rom, MockM4Components.M4_ROM_TABLE_BASE)
         cmpid.read_id_registers()
-        
+
         # Create the ROM table.
         rom_table = ROMTable.create(m4_rom, cmpid)
         rom_table.init()
-        
+
         # Verify all components were parsed.
         assert len(rom_table.components) == 6
-        
+
         # Check SCS-M4.
         scs = rom_table.components[0]
         assert scs.component_class == 14
         assert scs.designer == 0x43b
         assert scs.part == 0xc
-        
+
         # Check TPIU.
         tpiu = rom_table.components[4]
         assert tpiu.component_class == 9
         assert tpiu.part == 0x9a1
         assert tpiu.devid == [0xca1, 0, 0]
-        
+
     # Test a Class 0x9 ROM table and CS-600 components.
     def test_c9_rom(self, c9_top_rom):
         # Read ROM table component ID.
         cmpid = CoreSightComponentID(None, c9_top_rom, MockCSSOC600Components.C9_ROM_TABLE_BASE)
         cmpid.read_id_registers()
-        
+
         # Create the ROM table.
         rom_table = ROMTable.create(c9_top_rom, cmpid)
         rom_table.init()
@@ -363,14 +363,14 @@ class TestRomTable:
 
         # Validate components.
         assert len(rom_table.components) == 2
-        
+
         # Validate SDC-600.
         sdc = rom_table.components[0]
         assert sdc.component_class == 9
         assert sdc.designer == 0x43b
         assert sdc.part == 0x9ef
         assert sdc.archid == 0xa57
-        
+
         # Validate AHB-AP.
         ahb = rom_table.components[1]
         assert ahb.component_class == 9

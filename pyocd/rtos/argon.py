@@ -69,7 +69,7 @@ class TargetList(object):
 
 class ArgonThreadContext(DebugContext):
     """! @brief Thread context for Argon."""
-    
+
     # SP is handled specially, so it is not in these dicts.
 
     CORE_REGISTER_OFFSETS = {
@@ -190,7 +190,7 @@ class ArgonThreadContext(DebugContext):
                 # vector catch, so retrieve LR stored by OS on last
                 # thread switch.
                 hasExtendedFrame = self._thread.has_extended_frame
-            
+
             if hasExtendedFrame:
                 table = self.FPU_EXTENDED_REGISTER_OFFSETS
                 hwStacked = 0x68
@@ -449,30 +449,30 @@ class ArgonTraceEvent(events.TraceEvent):
     kArTraceThreadSwitch = 1 # 2 value: 0=previous thread's new state, 1=new thread id
     kArTraceThreadCreated = 2 # 1 value
     kArTraceThreadDeleted = 3 # 1 value
-    
+
     def __init__(self, eventID, threadID, name, state, ts=0):
         super(ArgonTraceEvent, self).__init__("argon", ts)
         self._event_id = eventID
         self._thread_id = threadID
         self._thread_name = name
         self._prev_thread_state = state
-    
+
     @property
     def event_id(self):
         return self._event_id
-    
+
     @property
     def thread_id(self):
         return self._thread_id
-    
+
     @property
     def thread_name(self):
         return self._thread_name
-    
+
     @property
     def prev_thread_state(self):
         return self._prev_thread_state
-    
+
     def __str__(self):
         if self.event_id == ArgonTraceEvent.kArTraceThreadSwitch:
             stateName = ArgonThread.STATE_NAMES.get(self.prev_thread_state, "<invalid state>")
@@ -487,7 +487,7 @@ class ArgonTraceEvent(events.TraceEvent):
 
 class ArgonTraceEventFilter(TraceEventFilter):
     """! @brief Trace event filter to identify Argon kernel trace events sent via ITM.
-    
+
     As Argon kernel trace events are identified, the ITM trace events are replaced with instances
     of ArgonTraceEvent.
     """
@@ -496,7 +496,7 @@ class ArgonTraceEventFilter(TraceEventFilter):
         self._threads = threads
         self._is_thread_event_pending = False
         self._pending_event = None
-        
+
     def filter(self, event):
         if isinstance(event, events.TraceITMEvent):
             if event.port == 31:
@@ -511,25 +511,25 @@ class ArgonTraceEventFilter(TraceEventFilter):
                 threadID = event.data
                 name = self._threads.get(threadID, "<unknown thread>")
                 state = self._pending_event.data & 0x00ffffff
-                
+
                 # Create the Argon event.
                 event = ArgonTraceEvent(eventID, threadID, name, state, self._pending_event.timestamp)
 
                 self._is_thread_event_pending = False
                 self._pending_event = None
 
-        return event        
+        return event
 
 class ArgonPlugin(Plugin):
     """! @brief Plugin class for the Argon RTOS."""
-    
+
     def load(self):
         return ArgonThreadProvider
-    
+
     @property
     def name(self):
         return "argon"
-    
+
     @property
     def description(self):
         return "Argon RTOS"

@@ -20,7 +20,7 @@ class Error(RuntimeError):
 
 class InternalError(Error):
     """! @brief Internal consistency or logic error.
-    
+
     This error indicates that something has happened that shouldn't be possible.
     """
     pass
@@ -63,11 +63,11 @@ class TransferTimeoutError(TransferError):
 
 class TransferFaultError(TransferError):
     """! @brief A memory fault occurred.
-    
+
     This exception class is extended to optionally record the start address and an optional length of the
     attempted memory access that caused the fault. The address and length, if available, will be included
     in the description of the exception when it is converted to a string.
-    
+
     Positional arguments passed to the constructor are passed through to the superclass'
     constructor, and thus operate like any other standard exception class. Keyword arguments of
     'fault_address' and 'length' can optionally be passed to the constructor to initialize the fault
@@ -86,15 +86,15 @@ class TransferFaultError(TransferError):
     @fault_address.setter
     def fault_address(self, addr):
         self._address = addr
-    
+
     @property
     def fault_end_address(self):
         return (self._address + self._length - 1) if (self._length is not None) else self._address
-    
+
     @property
     def fault_length(self):
         return self._length
-    
+
     @fault_length.setter
     def fault_length(self, length):
         self._length = length
@@ -111,10 +111,10 @@ class TransferFaultError(TransferError):
             if self._length is not None:
                 desc += "-0x%08x" % self.fault_end_address
         return desc
-  
+
 class FlashFailure(TargetError):
     """! @brief Exception raised when flashing fails for some reason.
-    
+
     Positional arguments passed to the constructor are passed through to the superclass'
     constructor, and thus operate like any other standard exception class. The flash address that
     failed and/or result code from the algorithm can optionally be recorded in the exception, if
@@ -124,11 +124,11 @@ class FlashFailure(TargetError):
         super(FlashFailure, self).__init__(*args)
         self._address = kwargs.get('address', None)
         self._result_code = kwargs.get('result_code', None)
-    
+
     @property
     def address(self):
         return self._address
-    
+
     @property
     def result_code(self):
         return self._result_code

@@ -56,7 +56,7 @@ class CoreArchitecture(Enum):
     ARMv7M = 2
     ARMv8M_BASE = 3
     ARMv8M_MAIN = 4
-    
+
 class CortexMExtension(Enum):
     """! @brief Extensions for the Cortex-M architecture."""
     FPU = "FPU" # Single-Precision floating point

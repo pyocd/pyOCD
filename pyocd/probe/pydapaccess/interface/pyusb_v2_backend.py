@@ -70,7 +70,7 @@ class PyUSBv2(Interface):
         self.read_sem = threading.Semaphore(0)
         self.packet_size = 512
         self.is_swo_running = False
-    
+
     @property
     def has_swo_ep(self):
         return self.ep_swo is not None
@@ -135,7 +135,7 @@ class PyUSBv2(Interface):
         self.thread = threading.Thread(target=self.rx_task, name=thread_name)
         self.thread.daemon = True
         self.thread.start()
-    
+
     def start_swo(self):
         self.swo_stop_event = threading.Event()
         thread_name = "SWO receive (%s)" % self.serial_number
@@ -143,7 +143,7 @@ class PyUSBv2(Interface):
         self.swo_thread.daemon = True
         self.swo_thread.start()
         self.is_swo_running = True
-    
+
     def stop_swo(self):
         self.swo_stop_event.set()
         self.swo_thread.join()
@@ -224,7 +224,7 @@ class PyUSBv2(Interface):
             if self.swo_data[0] is None:
                 raise DAPAccessIntf.DeviceError("Device %s SWO thread exited unexpectedly" % self.serial_number)
             data += self.swo_data.pop(0)
-        
+
         return data
 
     def close(self):
@@ -251,11 +251,11 @@ class PyUSBv2(Interface):
 
 def _match_cmsis_dap_v2_interface(interface):
     """! @brief Returns true for a CMSIS-DAP v2 interface.
-    
+
     This match function performs several tests on the provided USB interface descriptor, to
     determine whether it is a CMSIS-DAPv2 interface. These requirements must be met by the
     interface:
-    
+
     1. Have an interface name string containing "CMSIS-DAP".
     2. bInterfaceClass must be 0xff.
     3. bInterfaceSubClass must be 0.
@@ -264,7 +264,7 @@ def _match_cmsis_dap_v2_interface(interface):
     """
     try:
         interface_name = usb.util.get_string(interface.device, interface.iInterface)
-        
+
         # This tells us whether the interface is CMSIS-DAP, but not whether it's v1 or v2.
         if (interface_name is None) or ("CMSIS-DAP" not in interface_name):
             return False
@@ -277,20 +277,20 @@ def _match_cmsis_dap_v2_interface(interface):
         # Must have either 2 or 3 endpoints.
         if interface.bNumEndpoints not in (2, 3):
             return False
-        
+
         # Endpoint 0 must be bulk out.
         if not check_ep(interface, 0, usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_BULK):
             return False
-        
+
         # Endpoint 1 must be bulk in.
         if not check_ep(interface, 1, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_BULK):
             return False
-        
+
         # Endpoint 2 is optional. If present it must be bulk in.
         if (interface.bNumEndpoints == 3) \
             and not check_ep(interface, 2, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_BULK):
             return False
-        
+
         # All checks passed, this is a CMSIS-DAPv2 interface!
         return True
 
@@ -314,7 +314,7 @@ class HasCmsisDapv2Interface(object):
         # Check if the device class is a valid one for CMSIS-DAP.
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
-        
+
         try:
             config = dev.get_active_configuration()
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_v2_interface)

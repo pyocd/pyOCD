@@ -19,12 +19,12 @@ from . import events
 
 class SWOParser(object):
     """! @brief SWO data stream parser.
-    
+
     Processes a stream of SWO data and generates TraceEvent objects. SWO data is passed to the
     parse() method. It processes the data and creates TraceEvent objects which are passed to an
     event sink object that is a subclass of TraceEventSink. The event sink must either be provided
     when the SWOParser is constructed, or can be set using the connect() method.
-    
+
     A SWOParser instance can be reused for multiple SWO sessions. If a break in SWO data streaming
     occurs, the reset() method should be called before passing further data to parse().
     """
@@ -32,18 +32,18 @@ class SWOParser(object):
         self.reset()
         self._core = core
         self._sink = sink
-    
+
     def reset(self):
         self._bytes_parsed = 0
         self._itm_page = 0
         self._timestamp = 0
         self._pending_events = []
         self._pending_data_trace = None
-        
+
         # Get generator instance and prime it.
         self._parser = self._parse()
         next(self._parser)
-    
+
     def connect(self, sink):
         """! @brief Connect the downstream trace sink or filter."""
         self._sink = sink
@@ -55,26 +55,26 @@ class SWOParser(object):
 
     def parse(self, data):
         """! @brief Process SWO data.
-        
+
         This method will return once the provided data is consumed, and can be called again when
         more data is available. There is no minimum or maximum limit on the size of the provided
         data. As trace events are identified during parsing, they will be passed to the event
         sink object passed into the constructor or connect().
-        
+
         @param self
         @param data A sequence of integer byte values, usually a bytearray.
         """
         for value in data:
             self._parser.send(value)
             self._bytes_parsed += 1
-    
+
     def _flush_events(self):
         """! @brief Send all pending events to event sink."""
         if self._sink is not None:
             for event in self._pending_events:
                 self._sink.receive(event)
         self._pending_events = []
-    
+
     def _merge_data_trace_events(self, event):
         """! @brief Look for pairs of data trace events and merge."""
         if isinstance(event, events.TraceDataTraceEvent):
@@ -105,21 +105,21 @@ class SWOParser(object):
             self._pending_events.append(self._pending_data_trace)
             self._pending_data_trace = None
         return False
-    
+
     def _send_event(self, event):
         """! @brief Process event objects and decide when to send to event sink.
-        
+
         This method handles the logic to associate a timestamp event with the prior other
         event. A list of pending events is built up until either a timestamp or overflow event
         is generated, at which point all pending events are flushed to the event sink. If a
         timestamp is seen, the timestamp of all pending events is set prior to flushing.
         """
         flush = False
-        
+
         # Handle merging data trace events.
         if self._merge_data_trace_events(event):
             return
-        
+
         if isinstance(event, events.TraceTimestamp):
             for ev in self._pending_events:
                 ev.timestamp = event.timestamp
@@ -128,13 +128,13 @@ class SWOParser(object):
             self._pending_events.append(event)
             if isinstance(event, events.TraceOverflow):
                 flush = True
-        
+
         if flush:
             self._flush_events()
-    
+
     def _parse(self):
         """! @brief SWO parser as generator function coroutine.
-        
+
         The generator yields every time it needs a byte of SWO data. The caller must use the
         generator's send() method to provide the next byte.
         """
@@ -143,7 +143,7 @@ class SWOParser(object):
         while True:
             byte = yield
             hdr = byte
-            
+
             # Sync packet.
             if hdr == 0:
                 packets = 0
@@ -218,18 +218,18 @@ class SWOParser(object):
                 elif l == 2:
                     byte1 = yield
                     byte2 = yield
-                    payload = (byte1 | 
+                    payload = (byte1 |
                                 (byte2 << 8))
                 else:
                     byte1 = yield
                     byte2 = yield
                     byte3 = yield
                     byte4 = yield
-                    payload = (byte1 | 
+                    payload = (byte1 |
                                 (byte2 << 8) |
                                 (byte3 << 16) |
                                 (byte4 << 24))
-                
+
                 # Instrumentation packet.
                 if (hdr & 0x4) == 0:
                     port = (self._itm_page * 32) + a
@@ -248,7 +248,7 @@ class SWOParser(object):
                     else:
                         invalid = True
                 # Periodic PC
-                elif a == 2:                        
+                elif a == 2:
                     # A payload of 0 indicates a period PC sleep event.
                     self._send_event(events.TracePeriodicPC(payload, timestamp))
                 # Data trace
@@ -270,6 +270,6 @@ class SWOParser(object):
                 # Invalid DWT 'a' value.
                 else:
                     invalid = True
-        
+
 
 

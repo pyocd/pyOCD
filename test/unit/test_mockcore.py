@@ -65,7 +65,7 @@ class TestMockCoreReg:
             mockcore.write_core_registers_raw([r], [1+r])
         for r in range(0, 16):
             assert mockcore.read_core_registers_raw([r]) == [1+r]
-    
+
     def test_rw_cfbp(self, mockcore):
         mockcore.write_core_registers_raw([index_for_reg('cfbp')], [0x01020304])
         assert mockcore.read_core_registers_raw([

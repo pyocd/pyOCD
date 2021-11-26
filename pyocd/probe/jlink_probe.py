@@ -42,7 +42,7 @@ class JLinkProbe(DebugProbe):
     APBANKSEL = 0x000000f0
     APSEL = 0xff000000
     APSEL_APBANKSEL = APSEL | APBANKSEL
-    
+
     @classmethod
     def _get_jlink(cls):
         # TypeError is raised by pylink if the JLink DLL cannot be found.
@@ -59,7 +59,7 @@ class JLinkProbe(DebugProbe):
     @classmethod
     def _format_serial_number(cls, serial_number):
         return "{:d}".format(serial_number)
-    
+
     @classmethod
     def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         try:
@@ -69,7 +69,7 @@ class JLinkProbe(DebugProbe):
             return [cls(cls._format_serial_number(info.SerialNumber)) for info in jlink.connected_emulators()]
         except JLinkException as exc:
             raise cls._convert_exception(exc) from exc
-    
+
     @classmethod
     def get_probe_with_id(cls, unique_id, is_explicit=False):
         try:
@@ -120,15 +120,15 @@ class JLinkProbe(DebugProbe):
         self._default_protocol = None
         self._is_open = False
         self._product_name = six.ensure_str(info.acProduct)
-        
+
     @property
     def description(self):
         return self.vendor_name + " " + self.product_name
-    
+
     @property
     def vendor_name(self):
         return "Segger"
-    
+
     @property
     def product_name(self):
         return self._product_name
@@ -145,11 +145,11 @@ class JLinkProbe(DebugProbe):
     @property
     def wire_protocol(self):
         return self._protocol
-    
+
     @property
     def is_open(self):
         return self._link.opened
-    
+
     @property
     def capabilities(self):
         return {
@@ -157,17 +157,17 @@ class JLinkProbe(DebugProbe):
                 self.Capability.BANKED_DP_REGISTERS,
                 self.Capability.APv2_ADDRESSES,
                 }
-    
+
     def open(self):
         try:
             # Configure UI usage. We must do this here rather than in the ctor because the ctor
             # doesn't have access to the session.
             if self.session.options.get('jlink.non_interactive'):
                 self._link.disable_dialog_boxes()
-            
+
             self._link.open(self._serial_number_int)
             self._is_open = True
-        
+
             # Get available wire protocols.
             ifaces = self._link.supported_tifs()
             self._supported_protocols = [DebugProbe.Protocol.DEFAULT]
@@ -178,7 +178,7 @@ class JLinkProbe(DebugProbe):
             if not len(self._supported_protocols) >= 2: # default + 1
                 raise exceptions.ProbeError("J-Link probe {} does not support any known wire protocols".format(
                         self.unique_id))
-            
+
             # Select default protocol, preferring SWD over JTAG.
             if DebugProbe.Protocol.SWD in self._supported_protocols:
                 self._default_protocol = DebugProbe.Protocol.SWD
@@ -186,7 +186,7 @@ class JLinkProbe(DebugProbe):
                 self._default_protocol = DebugProbe.Protocol.JTAG
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
-    
+
     def close(self):
         try:
             self._link.close()
@@ -202,22 +202,22 @@ class JLinkProbe(DebugProbe):
         # Handle default protocol.
         if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
             protocol = self._default_protocol
-        
+
         # Validate selected protocol.
         if protocol not in self._supported_protocols:
             raise ValueError("unsupported wire protocol %s" % protocol)
-        
+
         # Convert protocol to port enum.
         if protocol == DebugProbe.Protocol.SWD:
             iface = pylink.enums.JLinkInterfaces.SWD
         elif protocol == DebugProbe.Protocol.JTAG:
             iface = pylink.enums.JLinkInterfaces.JTAG
-        
+
         try:
             self._link.set_tif(iface)
             if self.session.options.get('jlink.power'):
                 self._link.power_on()
-            
+
             # Connect if a device name was supplied.
             device_name = self.session.options.get('jlink.device')
             if device_name is not None:
@@ -232,15 +232,15 @@ class JLinkProbe(DebugProbe):
         for chunk in range((length + 31) // 32):
             chunk_word = bits & 0xffffffff
             chunk_len = min(length, 32)
-            
+
             if chunk_len == 32:
                 self._link.swd_write32(chunk_len, chunk_word)
             else:
                 self._link.swd_write(0, chunk_word, chunk_len)
-            
+
             bits >>= 32
             length -= 32
-            
+
         self._link.swd_sync()
 
     def disconnect(self):
@@ -276,7 +276,7 @@ class JLinkProbe(DebugProbe):
                 self._link.set_reset_pin_high()
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
-    
+
     def is_reset_asserted(self):
         try:
             status = self._link.hardware_status()
@@ -296,7 +296,7 @@ class JLinkProbe(DebugProbe):
         else:
             def read_reg_cb():
                 return value
-        
+
             return value if now else read_reg_cb
 
     def write_dp(self, addr, data):
@@ -314,7 +314,7 @@ class JLinkProbe(DebugProbe):
         else:
             def read_reg_cb():
                 return value
-        
+
             return value if now else read_reg_cb
 
     def write_ap(self, addr, data):
@@ -326,10 +326,10 @@ class JLinkProbe(DebugProbe):
 
     def read_ap_multiple(self, addr, count=1, now=True):
         results = [self.read_ap(addr, now=True) for n in range(count)]
-        
+
         def read_ap_multiple_result_callback():
             return results
-        
+
         return results if now else read_ap_multiple_result_callback
 
     def write_ap_multiple(self, addr, values):
@@ -371,18 +371,18 @@ class JLinkProbe(DebugProbe):
 
 class JLinkProbePlugin(Plugin):
     """! @brief Plugin class for JLinkProbe."""
-    
+
     def should_load(self):
         """! @brief Load the J-Link plugin if the J-Link library is available."""
         return JLinkProbe._get_jlink() is not None
-    
+
     def load(self):
         return JLinkProbe
-    
+
     @property
     def name(self):
         return "jlink"
-    
+
     @property
     def description(self):
         return "SEGGER J-Link debug probe"

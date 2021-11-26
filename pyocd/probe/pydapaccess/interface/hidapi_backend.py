@@ -56,7 +56,7 @@ class HidApiUSB(Interface):
     @staticmethod
     def get_all_connected_interfaces():
         """! @brief Returns all the connected devices with CMSIS-DAP in the name.
-        
+
         returns an array of HidApiUSB (Interface) objects
         """
 
@@ -73,10 +73,10 @@ class HidApiUSB(Interface):
                 if "CMSIS-DAP" not in device_path:
                     # Skip non cmsis-dap devices
                     continue
-            
+
             vid = deviceInfo['vendor_id']
             pid = deviceInfo['product_id']
-            
+
             # Perform device-specific filtering.
             if filter_device_by_usage_page(vid, pid, deviceInfo['usage_page']):
                 continue

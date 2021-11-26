@@ -48,7 +48,7 @@ class PyUSB(Interface):
     """
 
     isAvailable = IS_AVAILABLE
-    
+
     did_show_no_libusb_warning = False
 
     def __init__(self):
@@ -237,28 +237,28 @@ class PyUSB(Interface):
 
 class MatchCmsisDapv1Interface(object):
     """! @brief Match class for finding CMSIS-DAPv1 interface.
-    
+
     This match class performs several tests on the provided USB interface descriptor, to
     determine whether it is a CMSIS-DAPv1 interface. These requirements must be met by the
     interface:
-    
+
     1. If there is more than one HID interface on the device, the interface must have an interface
         name string containing "CMSIS-DAP".
     2. bInterfaceClass must be 0x03 (HID).
     3. bInterfaceSubClass must be 0.
     4. Must have interrupt in endpoint, with an optional interrupt out endpoint, in that order.
     """
-    
+
     def __init__(self, hid_interface_count):
         """! @brief Constructor."""
         self._hid_count = hid_interface_count
-        
+
     def __call__(self, interface):
         """! @brief Return True if this is a CMSIS-DAPv1 interface."""
         try:
             if self._hid_count > 1:
                 interface_name = usb.util.get_string(interface.device, interface.iInterface)
-        
+
                 # This tells us whether the interface is CMSIS-DAP, but not whether it's v1 or v2.
                 if (interface_name is None) or ("CMSIS-DAP" not in interface_name):
                     return False
@@ -291,7 +291,7 @@ class MatchCmsisDapv1Interface(object):
             ]
             if endpoint_attrs not in ENDPOINT_ATTRS_ALLOWED:
                 return False
-        
+
             # All checks passed, this is a CMSIS-DAPv2 interface!
             return True
 
@@ -315,20 +315,20 @@ class FindDap(object):
         # Check if the device class is a valid one for CMSIS-DAP.
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
-        
+
         try:
             # First attempt to get the active config. This produces a more direct error
             # when you don't have device permissions on Linux
             config = dev.get_active_configuration()
-            
+
             # Now read the product name string.
             device_string = dev.product
             if (device_string is None) or ("CMSIS-DAP" not in device_string):
                 return False
-            
+
             # Get count of HID interfaces.
             hid_interface_count = len(list(usb.util.find_descriptor(config, find_all=True, bInterfaceClass=USB_CLASS_HID)))
-            
+
             # Find the CMSIS-DAPv1 interface.
             matcher = MatchCmsisDapv1Interface(hid_interface_count)
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=matcher)

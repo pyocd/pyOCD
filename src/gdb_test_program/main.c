@@ -28,22 +28,22 @@ volatile uint32_t watchpoint_write_buffer[3];
 
 void function_1()
 {
-    
+
 }
 
 void function_2()
 {
-    
+
 }
 
 void function_3()
 {
-    
+
 }
 
 void breakpoint_test()
 {
-    
+
 }
 
 void watchpoint_test()
@@ -75,7 +75,7 @@ void watchpoint_test()
 int main()
 {
     int i;
-    
+
     // Initialize variables
     run_breakpoint_test = 0;
     watchpoint_write = 0;

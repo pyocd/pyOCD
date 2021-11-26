@@ -108,7 +108,7 @@ def speed_test(board_id):
 
         test_params = get_target_test_params(session)
         session.probe.set_clock(test_params['test_clock'])
-        
+
         test_config = "uncached 8-bit"
 
         def test_ram(record_speed=False, width=8):
@@ -185,44 +185,44 @@ def speed_test(board_id):
             print("Reading %i byte took %.3f seconds: %.3f B/s" % (test_size, diff, read_speed))
             print("TEST PASSED")
             return True
-        
+
         # 8-bit without memcache
         passed = test_ram(True, 8)
         test_count += 1
         test_pass_count += int(passed)
-        
+
         passed = test_rom(True, 8)
         test_count += 1
         test_pass_count += int(passed)
-        
+
         # 32-bit without memcache
         test_config = "uncached 32-bit"
         passed = test_ram(False, 32)
         test_count += 1
         test_pass_count += int(passed)
-        
+
         passed = test_rom(False, 32)
         test_count += 1
         test_pass_count += int(passed)
-        
+
         # With memcache
         target = target.get_target_context()
         test_config = "cached 8-bit, pass 1"
-        
+
         passed = test_ram()
         test_count += 1
         test_pass_count += int(passed)
-        
+
         passed = test_rom()
         test_count += 1
         test_pass_count += int(passed)
-        
+
         # Again with memcache
         test_config = "cached 8-bit, pass 2"
         passed = test_ram()
         test_count += 1
         test_pass_count += int(passed)
-        
+
         passed = test_rom()
         test_count += 1
         test_pass_count += int(passed)
