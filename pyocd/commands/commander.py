@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import colorama
 import logging
 import os
 import traceback
@@ -76,16 +77,16 @@ class PyOCDCommander(object):
                                 status = self.session.target.get_state().name.capitalize()
                             except (AttributeError, KeyError):
                                 status = "<no core>"
-
-                        # Say what we're connected to.
-                        print("Connected to %s [%s]: %s" % (self.context.target.part_number,
-                            status, self.session.board.unique_id))
                     except exceptions.TransferFaultError:
-                        pass
+                        status = "<error>"
                 else:
                     # Say what we're connected to, but without status.
-                    print("Connected to %s [no init mode]: %s" % (self.context.target.part_number,
-                        self.session.board.unique_id))
+                    status = "no init mode"
+
+                # Say what we're connected to.
+                print(colorama.Fore.GREEN + f"Connected to {self.context.target.part_number} " +
+                        colorama.Fore.CYAN + f"[{status}]" +
+                        colorama.Style.RESET_ALL + f": {self.session.board.unique_id}")
 
                 # Run the REPL interface.
                 console = PyocdRepl(self.context)
