@@ -5,7 +5,7 @@ title: Installing
 PyOCD requires [Python](https://python.org/) 3.6 or later, and a recent version of [libusb](https://libusb.info/). It runs on macOS,
 Linux, FreeBSD, and Windows platforms.
 
-The latest stable version of pyOCD may be installed via [pip](https://pip.pypa.io/en/stable/index.html)
+The latest stable version of pyOCD may be installed or upgraded via [pip](https://pip.pypa.io/en/stable/index.html)
 as follows:
 
 ```
@@ -14,21 +14,24 @@ $ python3 -mpip install -U pyocd
 
 _Note: depending on your system, you may need to use `python` instead of `python3`._
 
-The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/) as well as
-[on GitHub](https://github.com/pyocd/pyOCD/releases).
+The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/). The
+[GitHub releases](https://github.com/pyocd/pyOCD/releases) page details changes between versions.
 
-To install the latest prerelease version from the HEAD of the master branch, you can do
+To install the latest prerelease version from the HEAD of the `develop` branch, you can do
 the following:
 
 ```
-$ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git
+$ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git@develop
 ```
 
 You can also install directly from the source by cloning the git repository and running:
 
 ```
-$ python3 setup.py install
+$ python3 -mpip install .
 ```
+
+See the [developer's guide]({% link _docs/developers_guide.md %}) for more about setting up a development
+environment for pyOCD.
 
 Note that, depending on your operating system, you may run into permissions issues running these commands.
 You have a few options here:
@@ -43,6 +46,10 @@ You have a few options here:
 For notes about installing and using on non-x86 systems such as Raspberry Pi, see the
 [relevant documentation]({% link _docs/installing_on_non_x86.md %}).
 
+(Note: Installing by running `setup.py` directly is deprecated since pyOCD migrated to PEP 517 based packaging.
+In many cases it will not work at all. Installing with pip or another standards-compliant tool is the only
+supported method.)
+
 
 udev rules on Linux
 -------------------
@@ -52,8 +59,8 @@ probes from user space. Otherwise you will need to run pyOCD as root, using sudo
 highly discouraged. (You should _never_ run pyOCD as root on any OS.)
 
 To help with this, example udev rules files are included with pyOCD in the
-[udev](https://github.com/pyocd/pyOCD/tree/master/udev) folder. The
-[readme](https://github.com/pyocd/pyOCD/tree/master/udev/README.md) in this folder has detailed
+[udev](https://github.com/pyocd/pyOCD/tree/main/udev) folder. The
+[readme](https://github.com/pyocd/pyOCD/tree/main/udev/README.md) in this folder has detailed
 instructions.
 
 

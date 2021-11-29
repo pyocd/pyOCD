@@ -128,7 +128,7 @@ $ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git@develop
 You can also install directly from the source by cloning the git repository and running:
 
 ```
-$ python3 setup.py install
+$ python3 pip install .
 ```
 
 Note that, depending on your operating system, you may run into permissions issues running these commands.
