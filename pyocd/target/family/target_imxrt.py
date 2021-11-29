@@ -107,7 +107,7 @@ class CortexM7_IMXRT(CortexM):
             value = self.read_memory(CortexM.DEMCR)
             self.write_memory(CortexM.DEMCR, (value & (~0x00000001)))
             vectable_addr = self._get_flash_vector_addr()
-            LOG.debug("vectable_addr: %x", vectable_addr)
+            LOG.debug("vectable_addr: %s", hex(vectable_addr) if (vectable_addr is not None) else "None")
             vectable = None
             imageentry = None
 
