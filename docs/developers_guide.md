@@ -70,7 +70,7 @@ See the [branch policy](#branch-configuration-policy) below for details about br
 work from.
 
 If you'd like suggestions for something to work on, from small to large, the
-[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) workspace is a great
+[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA) workspace is a great
 way to engage with the community and maintainers.
 
 **Step 5.** Test
@@ -123,5 +123,5 @@ The branch that your changes should be made against depends on the type and comp
 Maintainers will cherry-pick commits between `main` and `develop` as necessary to keep fixes in sync.
 
 If you have any questions about how best to submit changes or the branch policy, please ask in the
-[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) workspace or
+[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA) workspace or
 [GitHub Discussions](https://github.com/pyocd/pyOCD/discussions). We'll be happy to help.

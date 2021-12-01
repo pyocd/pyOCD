@@ -8,7 +8,7 @@ pyOCD
 ### News
 
 - pyOCD has several new community resources: the [pyocd.io](https://pyocd.io/) website,
-    a [Slack workspace](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg),
+    a [Slack workspace](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA),
     and a [mailing list](https://groups.google.com/g/pyocd) for announcements.
 - Branch configuration changes: the default branch `master` has been renamed to `main`, and a `develop` branch has been added to be used for active development. New pull requests should generally target `develop`. See [this discussion](https://github.com/pyocd/pyOCD/discussions/1169) for more information about this change.
 
@@ -203,7 +203,7 @@ Contributions
 
 We welcome contributions in any area, even if you just create an issue. If you would like to get involved but
 aren't sure what to start with, just ask on
-[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) or [GitHub
+[Slack](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA) or [GitHub
 discussions](https://github.com/pyocd/pyOCD/discussions) and we'll be happy to help you. Or you can look for
 an open issue. Any work on major changes should be discussed with the maintainers to make everyone is aligned.
 
