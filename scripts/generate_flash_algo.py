@@ -25,10 +25,17 @@ import binascii
 import jinja2
 from pyocd.target.pack.flash_algo import PackFlashAlgo
 
-# TODO
-# FIXED LENGTH - remove and these (shrink offset to 4 for bkpt only)
-BLOB_HEADER = '0xe00abe00,' #, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,'
-HEADER_SIZE = 4 #0x20
+# This header consists of two instructions:
+#
+# ```
+# bkpt  #0
+# b     .-2     # branch to the bkpt
+# ```
+#
+# Before running a flash algo operation, LR is set to the address of the `bkpt` instruction,
+# so when the operation function returns it will halt the CPU.
+BLOB_HEADER = '0xe7fdbe00,'
+HEADER_SIZE = 4
 
 STACK_SIZE = 0x200
 
@@ -176,11 +183,11 @@ def main():
                         "template for pyocd).")
     parser.add_argument('-c', '--copyright', help="Set copyright owner.")
     args = parser.parse_args()
-    
+
     if not args.copyright:
         print(f"{colorama.Fore.YELLOW}Warning! No copyright owner was specified. Defaulting to \"PyOCD Authors\". "
             f"Please set via --copyright, or edit output.{colorama.Style.RESET_ALL}")
-    
+
     if args.template:
         with open(args.template, "r") as tmpl_file:
             tmpl = tmpl_file.read()
@@ -212,10 +219,10 @@ def main():
         }
 
         text = algo.process_template(tmpl, data_dict)
-        
+
         with open(args.output, "w") as file_handle:
             file_handle.write(text)
-        
+
         print(f"Wrote flash algo dict to {args.output}")
 
 if __name__ == '__main__':
