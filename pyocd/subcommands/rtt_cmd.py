@@ -1,5 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2021 mikisama
+# Copyright (C) 2021 Ciro Cattuto <ciro.cattuto@gmail.com>
+# Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +26,12 @@ from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
 from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
 
+# The KBHit code below is based on the file https://simondlevy.academic.wlu.edu/files/software/kbhit.py ,
+# re-licensed under an MIT License by its author Simon D. Levy (https://github.com/simondlevy)
+# for inclusion in the pyOCD project.
+
 import os
+
 # Windows
 if os.name == 'nt':
     import msvcrt
@@ -36,9 +43,8 @@ else:
     from select import select
 
 class KBHit:
-    # taken from https://stackoverflow.com/questions/2408560/non-blocking-console-input
 
-    def __init__(self):
+    def __init__(self) -> None:
         '''Creates a KBHit object that you can call to do various keyboard things.
         '''
 
@@ -57,7 +63,7 @@ class KBHit:
             # Support normal-terminal reset at exit
             atexit.register(self.set_normal_term)
 
-    def set_normal_term(self):
+    def set_normal_term(self) -> None:
         ''' Resets to normal terminal.  On Windows this is a no-op.
         '''
 
@@ -66,18 +72,16 @@ class KBHit:
         else:
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_term)
 
-    def getch(self):
+    def getch(self) -> str:
         ''' Returns a keyboard character after kbhit() has been called.
-            Should not be called in the same program as getarrow().
         '''
 
-        s = ''
         if os.name == 'nt':
             return msvcrt.getch().decode('utf-8')
         else:
             return sys.stdin.read(1)
 
-    def kbhit(self):
+    def kbhit(self) -> bool:
         ''' Returns True if keyboard character was hit, False otherwise.
         '''
         if os.name == 'nt':
@@ -86,6 +90,7 @@ class KBHit:
             dr,dw,de = select([sys.stdin], [], [], 0)
             return dr != []
 
+# end of the KBHit code re-licensed by its author Simon D. Levy under an MIT License 
 
 
 LOG = logging.getLogger(__name__)
@@ -201,6 +206,9 @@ class RTTSubcommand(SubcommandBase):
                 down_addr = up_addr + sizeof(SEGGER_RTT_BUFFER_UP) * rtt_cb.MaxNumUpBuffers
 
                 LOG.info(f"_SEGGER_RTT @ {rtt_cb_addr:#08x} with {rtt_cb.MaxNumUpBuffers} aUp and {rtt_cb.MaxNumDownBuffers} aDown")
+
+                # some targets might need this here
+                #target.reset_and_halt()
 
                 target.resume()
 
