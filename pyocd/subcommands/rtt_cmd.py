@@ -24,72 +24,8 @@ from pyocd.core.memory_map import MemoryMap, MemoryRegion, MemoryType
 from pyocd.core.soc_target import SoCTarget
 from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
+from pyocd.utility.kbhit import KBHit
 from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
-
-# The KBHit code below is based on https://github.com/simondlevy/kbhit by Simon D. Levy,
-# published under the MIT License.
-
-import os
-
-# Windows
-if os.name == 'nt':
-    import msvcrt
-# Posix (Linux, OS X)
-else:
-    import sys
-    import termios
-    import atexit
-    from select import select
-
-class KBHit:
-
-    def __init__(self) -> None:
-        '''Creates a KBHit object that you can call to do various keyboard things.
-        '''
-
-        if os.name == 'nt':
-            pass
-        else:
-            # Save the terminal settings
-            self.fd = sys.stdin.fileno()
-            self.new_term = termios.tcgetattr(self.fd)
-            self.old_term = termios.tcgetattr(self.fd)
-
-            # New terminal setting unbuffered
-            self.new_term[3] = (self.new_term[3] & ~termios.ICANON & ~termios.ECHO)
-            termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.new_term)
-
-            # Support normal-terminal reset at exit
-            atexit.register(self.set_normal_term)
-
-    def set_normal_term(self) -> None:
-        ''' Resets to normal terminal.  On Windows this is a no-op.
-        '''
-
-        if os.name == 'nt':
-            pass
-        else:
-            termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_term)
-
-    def getch(self) -> str:
-        ''' Returns a keyboard character after kbhit() has been called.
-        '''
-
-        if os.name == 'nt':
-            return msvcrt.getch().decode('utf-8')
-        else:
-            return sys.stdin.read(1)
-
-    def kbhit(self) -> bool:
-        ''' Returns True if keyboard character was hit, False otherwise.
-        '''
-        if os.name == 'nt':
-            return msvcrt.kbhit()
-        else:
-            dr,dw,de = select([sys.stdin], [], [], 0)
-            return dr != []
-
-# end of the KBHit code
 
 
 LOG = logging.getLogger(__name__)
