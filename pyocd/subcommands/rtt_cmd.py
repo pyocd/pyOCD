@@ -26,9 +26,8 @@ from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
 from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
 
-# The KBHit code below is based on the file https://simondlevy.academic.wlu.edu/files/software/kbhit.py ,
-# re-licensed under an MIT License by its author Simon D. Levy (https://github.com/simondlevy)
-# for inclusion in the pyOCD project.
+# The KBHit code below is based on https://github.com/simondlevy/kbhit by Simon D. Levy,
+# published under the MIT License.
 
 import os
 
@@ -90,7 +89,7 @@ class KBHit:
             dr,dw,de = select([sys.stdin], [], [], 0)
             return dr != []
 
-# end of the KBHit code re-licensed by its author Simon D. Levy under an MIT License 
+# end of the KBHit code
 
 
 LOG = logging.getLogger(__name__)
