@@ -1,5 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2021 mikisama
+# Copyright (C) 2021 Ciro Cattuto <ciro.cattuto@gmail.com>
+# Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +24,9 @@ from pyocd.core.memory_map import MemoryMap, MemoryRegion, MemoryType
 from pyocd.core.soc_target import SoCTarget
 from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
+from pyocd.utility.kbhit import KBHit
 from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
+
 
 LOG = logging.getLogger(__name__)
 
@@ -134,14 +138,23 @@ class RTTSubcommand(SubcommandBase):
 
                 rtt_cb = SEGGER_RTT_CB.from_buffer(bytearray(data[pos:]))
                 up_addr = rtt_cb_addr + SEGGER_RTT_CB.aUp.offset
-                # down_addr = up_addr + sizeof(SEGGER_RTT_BUFFER_UP) * rtt_cb.MaxNumUpBuffers
+                down_addr = up_addr + sizeof(SEGGER_RTT_BUFFER_UP) * rtt_cb.MaxNumUpBuffers
 
                 LOG.info(f"_SEGGER_RTT @ {rtt_cb_addr:#08x} with {rtt_cb.MaxNumUpBuffers} aUp and {rtt_cb.MaxNumDownBuffers} aDown")
 
+                # some targets might need this here
+                #target.reset_and_halt()
+
                 target.resume()
 
-                while True:
+                # set up terminal input
+                kb = KBHit()
 
+                # byte array to send via RTT
+                cmd = bytes()
+
+                while True:
+                    # read data from up buffers (target -> host)    
                     data = target.read_memory_block8(up_addr, sizeof(SEGGER_RTT_BUFFER_UP))
                     up = SEGGER_RTT_BUFFER_UP.from_buffer(bytearray(data))
 
@@ -152,7 +165,7 @@ class RTTSubcommand(SubcommandBase):
                         """
                         data = target.read_memory_block8(up.pBuffer + up.RdOff, up.WrOff - up.RdOff)
                         target.write_memory(up_addr + SEGGER_RTT_BUFFER_UP.RdOff.offset, up.WrOff)
-                        print(bytes(data).decode(), end="")
+                        print(bytes(data).decode(), end="", flush=True)
 
                     elif up.WrOff < up.RdOff:
                         """
@@ -162,10 +175,61 @@ class RTTSubcommand(SubcommandBase):
                         data = target.read_memory_block8(up.pBuffer + up.RdOff, up.SizeOfBuffer - up.RdOff)
                         data += target.read_memory_block8(up.pBuffer, up.WrOff)
                         target.write_memory(up_addr + SEGGER_RTT_BUFFER_UP.RdOff.offset, up.WrOff)
-                        print(bytes(data).decode(), end="")
+                        print(bytes(data).decode(), end="", flush=True)
+
+                    else: # up buffer is empty
+
+                        # try and fetch character
+                        if not kb.kbhit():
+                            continue
+                        c = kb.getch()
+
+                        if ord(c) == 8 or ord(c) == 127: # process backspace
+                            print("\b \b", end="", flush=True)
+                            cmd = cmd[:-1]
+                            continue
+                        elif ord(c) == 27: # process ESC
+                            break
+                        else:
+                            print(c, end="", flush=True)
+                            cmd += c.encode()
+
+                        # keep accumulating until we see CR or LF
+                        if not c in "\r\n":
+                            continue
+
+                        # SEND TO TARGET
+
+                        data = target.read_memory_block8(down_addr, sizeof(SEGGER_RTT_BUFFER_DOWN))
+                        down = SEGGER_RTT_BUFFER_DOWN.from_buffer(bytearray(data))
+
+                        # compute free space in down buffer
+                        if down.WrOff >= down.RdOff:
+                            num_avail = down.SizeOfBuffer - (down.WrOff - down.RdOff)
+                        else:
+                            num_avail = down.RdOff - down.WrOff - 1
+
+                        # wait until there's space for the entire string in the RTT down buffer
+                        if (num_avail < len(cmd)):
+                            continue
+
+                        # write data to down buffer (host -> target), char by char
+                        for i in range(len(cmd)):
+                            target.write_memory_block8(down.pBuffer + down.WrOff, cmd[i:i+1])
+                            down.WrOff += 1
+                            if down.WrOff == down.SizeOfBuffer:
+                                down.WrOff = 0;
+                        target.write_memory(down_addr + SEGGER_RTT_BUFFER_DOWN.WrOff.offset, down.WrOff)
+
+                        # clear it and start anew
+                        cmd = bytes()
+
+        except KeyboardInterrupt:
+            pass
 
         finally:
             if session:
                 session.close()
+                kb.set_normal_term()
 
         return 0
