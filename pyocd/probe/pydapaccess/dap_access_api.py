@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018-2019 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +17,7 @@
 
 
 from enum import Enum
-from typing import (Tuple, Sequence)
+from typing import (Optional, Tuple, Sequence)
 
 class DAPAccessIntf(object):
 
@@ -111,6 +112,14 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     @property
+    def firmware_version(self) -> Optional[str]:
+        """@brief A string of the product firmware version, or None.
+
+        Only probes supporting CMSIS-DAP protocol v2.1 or later can return their firmware version.
+        """
+        raise NotImplementedError()
+
+    @property
     def vendor_name(self):
         raise NotImplementedError()
 
@@ -124,11 +133,36 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     @property
+    def board_names(self) -> Tuple[Optional[str], Optional[str]]:
+        """@brief Bi-tuple of CMSIS-DAP v2.1 board vendor name and product name.
+
+        If the CMSIS-DAP protocol does not support reading board names from DAP_Info, a pair of
+        None will be returned. If either of the names are not returned from the device, then None
+        is substituted.
+        """
+        raise NotImplementedError()
+
+    @property
+    def target_names(self) -> Tuple[Optional[str], Optional[str]]:
+        """@brief Bituple of CMSIS-DAP v2.1 target vendor name and part number.
+
+        If the CMSIS-DAP protocol does not support reading target names from DAP_Info, a pair of
+        None will be returned. If either of the names are not returned from the device, then None
+        is substituted.
+        """
+        raise NotImplementedError()
+
+    @property
     def has_swd_sequence(self):
         """@brief Boolean indicating whether the DAP_SWD_Sequence command is supported.
 
         This property is only valid after the probe is opened. Until then, the value will be None.
         """
+        raise NotImplementedError()
+
+    @property
+    def supports_board_and_target_names(self) -> bool:
+        """@brief Boolean of whether board_names and target_names are supported."""
         raise NotImplementedError()
 
     @property

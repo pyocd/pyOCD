@@ -618,8 +618,43 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return self._vidpid
 
     @property
+    def board_names(self) -> Tuple[Optional[str], Optional[str]]:
+        """@brief Bi-tuple of CMSIS-DAP v2.1 board vendor name and product name.
+
+        If the CMSIS-DAP protocol does not support reading board names from DAP_Info, a pair of
+        None will be returned. If either of the names are not returned from the device, then None
+        is substituted.
+        """
+        if not self.supports_board_and_target_names:
+            return (None, None)
+        vendor = self._protocol.dap_info(self.ID.BOARD_VENDOR)
+        name = self._protocol.dap_info(self.ID.BOARD_NAME)
+        return (vendor, name)
+
+    @property
+    def target_names(self) -> Tuple[Optional[str], Optional[str]]:
+        """@brief Bituple of CMSIS-DAP v2.1 target vendor name and part number.
+
+        If the CMSIS-DAP protocol does not support reading target names from DAP_Info, a pair of
+        None will be returned. If either of the names are not returned from the device, then None
+        is substituted.
+        """
+        if not self.supports_board_and_target_names:
+            return (None, None)
+        vendor = self._protocol.dap_info(self.ID.DEVICE_VENDOR)
+        name = self._protocol.dap_info(self.ID.DEVICE_NAME)
+        return (vendor, name)
+
+    @property
     def has_swd_sequence(self):
         return self._cmsis_dap_version >= CMSISDAPVersion.V1_2_0
+
+    @property
+    def supports_board_and_target_names(self) -> bool:
+        """@brief Boolean of whether board_names and target_names are supported."""
+        return ((self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0)
+                or ((self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0)
+                    and (self._cmsis_dap_version < CMSISDAPVersion.V2_0_0)))
 
     def lock(self):
         """@brief Lock the interface."""
