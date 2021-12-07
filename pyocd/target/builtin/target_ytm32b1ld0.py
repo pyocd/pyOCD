@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021 Major Lin
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -82,4 +82,4 @@ class YTM32B1LD0(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(YTM32B1LD0, self).__init__(session, self.MEMORY_MAP)
+        super().__init__(session, self.MEMORY_MAP)

@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021 Major Lin
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,10 +79,11 @@ class YTM32B1MD0(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(YTM32B1MD0, self).__init__(session, self.MEMORY_MAP)
+        super().__init__(session, self.MEMORY_MAP)
 
     def create_init_sequence(self):
-        seq = super(YTM32B1MD0, self).create_init_sequence()
+        # pyOCD won't find core, connect core manually
+        seq = super().create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.replace_task('create_cores', self.create_cores)
             )
@@ -90,9 +91,6 @@ class YTM32B1MD0(CoreSightTarget):
 
     def create_cores(self):
         core0 = CortexM(self.session, self.aps[0], self.memory_map, 0)
-
         self.aps[0].core = core0
-
         core0.init()
-
         self.add_core(core0)
