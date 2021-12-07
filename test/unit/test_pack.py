@@ -185,11 +185,11 @@ class TestFLM(object):
 #         print(d)
         STACK_SIZE = 0x200
         assert d['load_address'] == ram.start + STACK_SIZE
-        assert d['pc_init'] == ram.start + STACK_SIZE + 0x21
-        assert d['pc_unInit'] == ram.start + STACK_SIZE + 0x71
-        assert d['pc_eraseAll'] == ram.start + STACK_SIZE + 0x95
-        assert d['pc_erase_sector'] == ram.start + STACK_SIZE + 0xcb
-        assert d['pc_program_page'] == ram.start + STACK_SIZE + 0xdf
+        assert d['pc_init'] == ram.start + STACK_SIZE + 0x5
+        assert d['pc_unInit'] == ram.start + STACK_SIZE + 0x55
+        assert d['pc_eraseAll'] == ram.start + STACK_SIZE + 0x79
+        assert d['pc_erase_sector'] == ram.start + STACK_SIZE + 0xaf
+        assert d['pc_program_page'] == ram.start + STACK_SIZE + 0xc3
 
 def has_overlapping_regions(memmap):
     return any((len(memmap.get_intersecting_regions(r.start, r.end)) > 1) for r in memmap.regions)

@@ -48,6 +48,8 @@ class SubcommandBase:
             help="Set log level of loggers whose name matches any of the comma-separated list of glob-style "
             "patterns. Log level must be one of (critical, error, warning, info, debug). Can be "
             "specified multiple times. Example: -L*.trace,pyocd.core.*=debug")
+        LOGGING_GROUP.add_argument('--color', choices=("always", "auto", "never"), default=None, nargs='?',
+            const="auto", help="Control color logging. Default is auto.")
 
         # Define config related options for all subcommands.
         CONFIG = argparse.ArgumentParser(description='common', add_help=False)

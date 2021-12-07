@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import sys
 import logging
 import argparse
@@ -30,6 +31,7 @@ from .core.session import Session
 from .core import exceptions
 from .probe.pydapaccess import DAPAccess
 from .core import options
+from .utility.color_log import ColorFormatter
 from .subcommands.base import SubcommandBase
 from .subcommands.commander_cmd import CommanderSubcommand
 from .subcommands.erase_cmd import EraseSubcommand
@@ -41,9 +43,6 @@ from .subcommands.pack_cmd import PackSubcommand
 from .subcommands.reset_cmd import ResetSubcommand
 from .subcommands.server_cmd import ServerSubcommand
 from .subcommands.rtt_cmd import RTTSubcommand
-
-## @brief Default log format for all subcommands.
-LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
 
 ## @brief Logger for this module.
 LOG = logging.getLogger("pyocd.tool")
@@ -99,12 +98,31 @@ class PyOCDTool(SubcommandBase):
     def _setup_logging(self) -> None:
         """! @brief Configure the logging module.
 
+        The color log formatter is set up, based on the --color argument and `PYOCD_COLOR` env variable. The --color
+        argument overrides `PYOCD_COLOR`.
+
         The quiet and verbose argument counts are used to set the log verbosity level.
 
         Log level for specific loggers are also configured here.
         """
+        is_tty = sys.stderr.isatty()
+        color_setting = ((hasattr(self._args, 'color') and self._args.color) or os.environ.get('PYOCD_COLOR', 'auto'))
+        use_color = (color_setting == "always") or (color_setting == "auto" and is_tty)
+
+        # Compute global log level.
         level = max(1, self._args.command_class.DEFAULT_LOG_LEVEL + self._get_log_level_delta())
-        logging.basicConfig(level=level, format=LOG_FORMAT)
+
+        # Create handler to output logging to stderr.
+        console = logging.StreamHandler()
+
+        # Create the color formatter and attach to our stream handler.
+        color_formatter = ColorFormatter(ColorFormatter.FORMAT, use_color, is_tty)
+        console.setFormatter(color_formatter)
+
+        # Set stream handler and log level on root logger.
+        root_logger = logging.getLogger()
+        root_logger.addHandler(console)
+        root_logger.setLevel(level)
 
         # Handle settings for individual loggers from --log-level arguments.
         for logger_setting in self._args.log_level:

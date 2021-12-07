@@ -64,11 +64,18 @@ class PackFlashAlgo(object):
         ("PrgData", "SHT_NOBITS"),
         )
 
-    ## @brief Standard flash blob header that starts with a breakpoint instruction.
-    _FLASH_BLOB_HEADER = [
-        0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040,
-        0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x04770D1F
-        ]
+    ## @brief Standard flash blob header a breakpoint instruction.
+    #
+    # This header consists of two instructions:
+    #
+    # ```
+    # bkpt  #0
+    # b     .-2     # branch to the bkpt
+    # ```
+    #
+    # Before running a flash algo operation, LR is set to the address of the `bkpt` instruction,
+    # so when the operation function returns it will halt the CPU.
+    _FLASH_BLOB_HEADER = [ 0xE7FDBE00 ]
     ## @brief Size of the flash blob header in bytes.
     _FLASH_BLOB_HEADER_SIZE = len(_FLASH_BLOB_HEADER) * 4
 
