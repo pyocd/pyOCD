@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,28 +14,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
 
 import argparse
 import sys
 import traceback
 import logging
-import six
+from types import SimpleNamespace
 import os
-from collections import UserDict
 
-from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
-from pyocd.utility.mask import round_up_div
-from pyocd.utility import conversion
-from pyocd.core.memory_map import MemoryType
 from pyocd.commands.commander import PyOCDCommander
-from pyocd.commands import commands
 from test_util import (
     Test,
     TestResult,
-    get_session_options,
-    binary_to_elf_file,
     PYOCD_DIR,
     )
 
@@ -74,6 +66,9 @@ def commander_test(board_id):
             ["halt"],
             ["status"],
 
+            # semicolon separated
+            ["status", ";", "halt", ";", "continue", ";", "halt"],
+
             # commander command group - these are not tested by commands_test.py.
             ["list"],
             ["exit"], # Must be last command!
@@ -82,7 +77,7 @@ def commander_test(board_id):
     print("\n------ Testing commander ------\n")
 
     # Set up commander args.
-    args = UserDict()
+    args = SimpleNamespace()
     args.no_init = False
     args.frequency = 1000000
     args.options = {} #get_session_options()
@@ -103,18 +98,18 @@ def commander_test(board_id):
         cmdr.run()
         test_pass_count += 1
         print("TEST PASSED")
+
+        test_count += 1
+        print("Testing exit code")
+        print("Exit code:", cmdr.exit_code)
+        if cmdr.exit_code == 0:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
     except Exception:
         print("TEST FAILED")
         traceback.print_exc()
-
-    test_count += 1
-    print("Testing exit code")
-    print("Exit code:", cmdr.exit_code)
-    if cmdr.exit_code == 0:
-        test_pass_count += 1
-        print("TEST PASSED")
-    else:
-        print("TEST FAILED")
 
     print("\n\nTest Summary:")
     print("Pass count %i of %i tests" % (test_pass_count, test_count))
