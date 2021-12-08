@@ -75,6 +75,11 @@ class PyUSBv2(Interface):
     def has_swo_ep(self):
         return self.ep_swo is not None
 
+    @property
+    def is_bulk(self):
+        """@brief Whether the interface uses CMSIS-DAP v2 bulk endpoints."""
+        return True
+
     def open(self):
         assert self.closed is True
 

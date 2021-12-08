@@ -90,6 +90,14 @@ class CMSISDAPVersion:
     V2_1_0 = (2, 1, 0)
 
     @classmethod
+    def major_versions(cls) -> Set[int]:
+        """@brief Returns a set of major versions."""
+        return {
+            v[0] for k, v in cls.__dict__.items()
+            if k.startswith('V')
+            }
+
+    @classmethod
     def minor_versions(cls) -> Set[Tuple[int, int]]:
         """@brief Returns a set of minor version tuples."""
         return {

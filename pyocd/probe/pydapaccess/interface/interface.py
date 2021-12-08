@@ -30,6 +30,11 @@ class Interface(object):
     def has_swo_ep(self):
         return False
 
+    @property
+    def is_bulk(self):
+        """@brief Whether the interface uses CMSIS-DAP v2 bulk endpoints."""
+        return False
+
     def open(self):
         return
 
@@ -63,3 +68,6 @@ class Interface(object):
 
     def get_serial_number(self):
         return self.serial_number
+
+    def __repr__(self):
+        return f"<{type(self).__name__}@{id(self):x} {self.get_info()} {self.serial_number}>"
