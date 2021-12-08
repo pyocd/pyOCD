@@ -108,7 +108,11 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
                     continue
             # Convert string value to option type.
             elif info.type is bool:
-                value = value in ("true", "1", "yes", "on")
+                if value.lower() in ("true", "1", "yes", "on", "false", "0", "no", "off"):
+                    value = value.lower() in ("true", "1", "yes", "on")
+                else:
+                    LOG.warning("invalid value for option '%s'", name)
+                    continue
             elif info.type is int:
                 try:
                     value = int(value, base=0)

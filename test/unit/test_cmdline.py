@@ -96,7 +96,11 @@ class TestConvertSessionOptions(object):
         assert convert_session_options(['auto_unlock=on']) == {'auto_unlock': True}
         assert convert_session_options(['auto_unlock=0']) == {'auto_unlock': False}
         assert convert_session_options(['auto_unlock=false']) == {'auto_unlock': False}
-        assert convert_session_options(['auto_unlock=anything-goes-here']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=True']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=False']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=YES']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=oFF']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=anything-goes-here']) == {}
     
     def test_noncasesense(self):
         # Test separate paths for with and without a value.
