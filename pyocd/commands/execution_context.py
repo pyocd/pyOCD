@@ -307,22 +307,18 @@ class CommandExecutionContext(object):
 
     def _split_commands(self, line):
         """! @brief Generator yielding commands separated by semicolons."""
-        result = ''
-        i = 0
-        while i < len(line):
-            c = line[i]
-            # Don't split on escaped semicolons.
-            if (c == '\\') and (i < len(line) - 1) and (line[i + 1] == ';'):
-                i += 1
-                result += ';'
-            elif c == ';':
-                yield result
-                result = ''
+        # FIXME This is a big, inefficient hack to work around a bug splitting on quoted semicolons. Practically,
+        #   though, it will never be noticeable.
+        parts = split_command_line(line)
+        result = []
+        for p in parts:
+            if p == ';':
+                yield " ".join(f'"{a}"' for a in result)
+                result = []
             else:
-                result += c
-            i += 1
+                result.append(p)
         if result:
-            yield result
+            yield " ".join(f'"{a}"' for a in result)
 
     def parse_command(self, cmdline):
         """! @brief Create a CommandInvocation from a single command."""
