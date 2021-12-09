@@ -30,6 +30,8 @@ from ....utility.timeout import Timeout
 OPEN_TIMEOUT_S = 60.0
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 try:
     import pywinusb.hid as hid
@@ -56,7 +58,10 @@ class PyWinUSB(Interface):
 
     # handler called when a report is received
     def rx_handler(self, data):
-#         LOG.debug("rcv<(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
+        if TRACE.isEnabledFor(logging.DEBUG):
+            # Strip off trailing zero bytes to reduce clutter.
+            TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in bytes(data).rstrip(b'\x00')]))
+
         self.rcv_data.append(data[1:])
 
     def open(self):
@@ -140,8 +145,10 @@ class PyWinUSB(Interface):
     def write(self, data):
         """! @brief Write data on the OUT endpoint associated to the HID interface
         """
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
         data.extend([0] * (self.packet_size - len(data)))
-#         LOG.debug("snd>(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
         self.report.send([0] + data)
 
     def read(self, timeout=20.0):
@@ -161,6 +168,13 @@ class PyWinUSB(Interface):
                 # 3. CMSIS-DAP is performing a long operation or is being
                 #    halted in a debugger
                 raise DAPAccessIntf.DeviceError("Read timed out")
+
+        # Trace when the higher layer actually gets a packet previously read.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            # Strip off trailing zero bytes to reduce clutter.
+            TRACE.debug("  USB RD < (%d) %s", len(self.rcv_data[0]),
+                    ' '.join([f'{i:02x}' for i in bytes(self.rcv_data[0]).rstrip(b'\x00')]))
+
         return self.rcv_data.popleft()
 
     def close(self):

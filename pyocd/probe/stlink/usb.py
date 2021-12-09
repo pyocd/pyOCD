@@ -233,21 +233,25 @@ class STLinkUSBInterface:
 
         try:
             # Command phase.
-            TRACE.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
+            if TRACE.isEnabledFor(logging.DEBUG):
+                TRACE.debug("  USB CMD> (%d) %s", len(paddedCmd), ' '.join([f'{i:02x}' for i in paddedCmd]))
             count = self._ep_out.write(paddedCmd, timeout)
             assert count == len(paddedCmd)
 
             # Optional data out phase.
             if writeData is not None:
-                TRACE.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
+                if TRACE.isEnabledFor(logging.DEBUG):
+                    TRACE.debug("  USB OUT> (%d) %s", len(writeData), ' '.join([f'{i:02x}' for i in writeData]))
                 count = self._ep_out.write(writeData, timeout)
                 assert count == len(writeData)
 
             # Optional data in phase.
             if readSize is not None:
-                TRACE.debug("  USB IN < (%d bytes)" % readSize)
+                if TRACE.isEnabledFor(logging.DEBUG):
+                    TRACE.debug("  USB IN < (req %d bytes)", readSize)
                 data = self._read(readSize)
-                TRACE.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
+                if TRACE.isEnabledFor(logging.DEBUG):
+                    TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
                 return data
         except usb.core.USBError as exc:
             raise exceptions.ProbeError("USB Error: %s" % exc) from exc

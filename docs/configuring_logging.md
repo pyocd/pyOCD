@@ -89,6 +89,10 @@ Trace logger                                            | Trace output
 `pyocd.probe.cmsis_dap_probe.trace`                     | CMSIS-DAP probe API calls
 `pyocd.probe.jlink_probe.trace`                         | Log output from JLink library
 `pyocd.probe.pydapaccess.dap_access_cmsis_dap.trace`    | CMSIS-DAP packet building
+`pyocd.probe.pydapaccess.interface.hidapi_backend.trace` | CMSIS-DAP v1 hidapi backend USB transfers
+`pyocd.probe.pydapaccess.interface.pyusb_backend.trace` | CMSIS-DAP v1 pyusb backend USB transfers
+`pyocd.probe.pydapaccess.interface.pyusb_v2_backend.trace` | CMSIS-DAP v2 pyusb backend USB transfers
+`pyocd.probe.pydapaccess.interface.pywinusb_backend.trace` | CMSIS-DAP v1 pywinusb backend USB transfers
 `pyocd.probe.stlink.usb.trace`                          | STLink USB transfers
 `pyocd.probe.tcp_client_probe.trace`                    | Remote probe client requests and responses
 `pyocd.probe.tcp_probe_server.trace`                    | Remote probe server requests and responses
