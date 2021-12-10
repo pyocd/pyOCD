@@ -168,7 +168,11 @@ class _Command(object):
     encode_data.  The response to the command is decoded with decode_data.
     """
 
+    _command_counter = 0
+
     def __init__(self, size):
+        self._id = _Command._command_counter
+        _Command._command_counter += 1
         self._size = size
         self._read_count = 0
         self._write_count = 0
@@ -177,10 +181,14 @@ class _Command(object):
         self._data = []
         self._dap_index = None
         self._data_encoded = False
-        TRACE.debug("New _Command")
+        TRACE.debug("[cmd:%d] New _Command", self._id)
 
-    def _get_free_words(self, blockAllowed, isRead):
-        """! @brief Return the number of words free in the transmit packet
+    @property
+    def uid(self) -> int:
+        return self._id
+
+    def _get_free_transfers(self, blockAllowed, isRead):
+        """! @brief Return the number of available read or write transfers.
         """
         if blockAllowed:
             # DAP_TransferBlock request packet:
@@ -233,7 +241,7 @@ class _Command(object):
 
         # Compute the portion of the request that will fit in this packet.
         is_read = request & READ
-        free = self._get_free_words(blockAllowed, is_read)
+        free = self._get_free_transfers(blockAllowed, is_read)
         size = min(count, free)
 
         # Non-block transfers only have 1 byte for request count.
@@ -241,11 +249,13 @@ class _Command(object):
             max_count = self._write_count + self._read_count + size
             delta = max_count - 255
             size = min(size - delta, size)
-            TRACE.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)" %
-                    (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free, delta))
+            TRACE.debug("[cmd:%d] get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d, delta=%d)",
+                    self.uid, count, request, 'r' if is_read else 'w', self._write_count, self._read_count,
+                    self._block_allowed, blockAllowed, size, free, delta)
         else:
-            TRACE.debug("get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)" %
-                (count, request, 'r' if is_read else 'w', self._write_count, self._read_count, self._block_allowed, blockAllowed, size, free))
+            TRACE.debug("[cmd:%d] get_request_space(%d, %02x:%s)[wc=%d, rc=%d, ba=%d->%d] -> (sz=%d, free=%d)",
+                    self.uid, count, request, 'r' if is_read else 'w', self._write_count, self._read_count,
+                    self._block_allowed, blockAllowed, size, free)
 
         # We can get a negative free count if the packet already contains more data than can be
         # sent by a DAP_Transfer command, but the new request forces DAP_Transfer. In this case,
@@ -253,8 +263,8 @@ class _Command(object):
         return max(size, 0)
 
     def get_full(self):
-        return (self._get_free_words(self._block_allowed, True) == 0) or \
-            (self._get_free_words(self._block_allowed, False) == 0)
+        return (self._get_free_transfers(self._block_allowed, True) == 0) or \
+            (self._get_free_transfers(self._block_allowed, False) == 0)
 
     def get_empty(self):
         """! @brief Return True if no transfers have been added to this packet
@@ -281,8 +291,9 @@ class _Command(object):
             self._write_count += count
         self._data.append((count, request, data))
 
-        TRACE.debug("add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]" %
-                (count, request, 'r' if (request & READ) else 'w', self._write_count, self._read_count, self._block_allowed))
+        TRACE.debug("[cmd:%d] add(%d, %02x:%s) -> [wc=%d, rc=%d, ba=%d]",
+                self.uid, count, request, 'r' if (request & READ) else 'w', self._write_count, self._read_count,
+                self._block_allowed)
 
     def _encode_transfer_data(self):
         """! @brief Encode this command into a byte array that can be sent
@@ -356,7 +367,8 @@ class _Command(object):
         """
         assert self.get_empty() is False
         if data[0] != Command.DAP_TRANSFER:
-            raise ValueError('DAP_TRANSFER response error')
+            TRACE.debug("[cmd:%d] response not DAP_TRANSFER", self.uid)
+            raise DAPAccessIntf.TransferError(f'DAP_TRANSFER response error: response is for command {data[0]:02x}')
 
         # Check response and raise an exception on errors.
         self._check_response(data[2])
@@ -416,7 +428,8 @@ class _Command(object):
         """
         assert self.get_empty() is False
         if data[0] != Command.DAP_TRANSFER_BLOCK:
-            raise ValueError('DAP_TRANSFER_BLOCK response error')
+            TRACE.debug("[cmd:%d] response not DAP_TRANSFER_BLOCK", self.uid)
+            raise DAPAccessIntf.TransferError(f'DAP_TRANSFER_BLOCK response error: response is for command {data[0]:02x}')
 
         # Check response and raise an exception on errors.
         self._check_response(data[3])
@@ -762,6 +775,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @locked
     def flush(self):
+        TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
         # Send current packet
         self._send_packet()
         # Read all backlogged
@@ -1028,11 +1042,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         """
         # Grab command, send it and decode response
         cmd = self._commands_to_read.popleft()
+        TRACE.debug("[cmd:%d] _read_packet: reading", cmd.uid)
         try:
             raw_data = self._interface.read()
             raw_data = bytearray(raw_data)
             decoded_data = cmd.decode_data(raw_data)
         except Exception as exception:
+            TRACE.debug("[cmd:%d] _read_packet: got exception %r; aborting all transfers!", cmd.uid, exception)
             self._abort_all_transfers(exception)
             raise
 
@@ -1076,7 +1092,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         max_packets = self._interface.get_packet_count()
         if len(self._commands_to_read) >= max_packets:
+            TRACE.debug("[cmd:%d] _send_packet: reading packet; outstanding=%d >= max=%d",
+                    cmd.uid, len(self._commands_to_read), max_packets)
             self._read_packet()
+        TRACE.debug("[cmd:%d] _send_packet: sending", cmd.uid)
         data = cmd.encode_data()
         try:
             self._interface.write(list(data))
@@ -1143,6 +1162,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         """! @brief Abort any ongoing transfers and clear all buffers
         """
         pending_reads = len(self._commands_to_read)
+        TRACE.debug("aborting %d pending reads after exception %r", pending_reads, exception)
         # invalidate _transfer_list
         for transfer in self._transfer_list:
             transfer.add_error(exception)
