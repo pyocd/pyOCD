@@ -92,6 +92,7 @@ class RTTSubcommand(SubcommandBase):
     def invoke(self) -> int:
 
         session = None
+        kb = None
 
         try:
             session = ConnectHelper.session_with_chosen_probe(
@@ -132,7 +133,7 @@ class RTTSubcommand(SubcommandBase):
 
                 if pos == -1:
                     LOG.error("No RTT control block available")
-                    return
+                    return 1
 
                 rtt_cb_addr = rtt_range_start + pos
 
@@ -230,6 +231,7 @@ class RTTSubcommand(SubcommandBase):
         finally:
             if session:
                 session.close()
+            if kb:
                 kb.set_normal_term()
 
         return 0
