@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017-2019 Arm Limited
+# COpyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
+import collections.abc
 
 class TraceEventSink(object):
     """! @brief Abstract interface for a trace event sink."""
@@ -46,7 +47,7 @@ class TraceEventFilter(TraceEventSink):
         """
         event = self.filter(event)
         if (event is not None) and (self._sink is not None):
-            if isinstance(event, collections.Iterable):
+            if isinstance(event, collections.abc.Iterable):
                 for event_item in event:
                     self._sink.receive(event_item)
             else:
@@ -75,7 +76,7 @@ class TraceEventTee(TraceEventSink):
           downstream trace event sinks. If it is an iterable (list, tuple, etc.), then it will
           completely replace the current list of trace event sinks.
         """
-        if isinstance(sinks, collections.Iterable):
+        if isinstance(sinks, collections.abc.Iterable):
             self._sinks = sinks
         elif sinks not in self._sinks:
             self._sinks.append(sinks)
