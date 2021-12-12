@@ -17,6 +17,7 @@
 
 import logging
 import textwrap
+from typing import (Any, Dict, Set, Tuple, Type, Union)
 
 from ..core import exceptions
 from ..utility import conversion
@@ -25,7 +26,7 @@ from ..utility.mask import round_up_div
 LOG = logging.getLogger(__name__)
 
 ## @brief Dict of command group names to a set of command classes.
-ALL_COMMANDS = {}
+ALL_COMMANDS: Dict[str, Set[Union["CommandBase", "ValueBase"]]] = {}
 
 class CommandMeta(type):
     """! @brief Metaclass for commands.
@@ -34,13 +35,13 @@ class CommandMeta(type):
     "ALL_COMMANDS" table.
     """
 
-    def __new__(mcs, name, bases, dict):
+    def __new__(mcs: Type, name: str, bases: Tuple[type, ...], objdict: Dict[str, Any]) -> "CommandMeta":
         # Create the new type.
-        new_type = type.__new__(mcs, name, bases, dict)
+        new_type = type.__new__(mcs, name, bases, objdict)
 
         # The Command base class won't have an INFO.
-        if 'INFO' in dict:
-            info = dict['INFO']
+        if 'INFO' in objdict:
+            info = objdict['INFO']
 
             # Validate the INFO dict.
             assert (('names' in info)
@@ -68,6 +69,16 @@ class CommandBase(metaclass=CommandMeta):
     - `help`: String for the short help. Typically should be no more than one sentence.
     - `extra_help`: Optional key for a string with more detailed help.
     """
+
+    ## Default, empty info dict.
+    INFO = {
+            'names': [],
+            'group': '',
+            'category': '',
+            'nargs': 0,
+            'usage': "",
+            'help': "",
+            }
 
     def __init__(self, context):
         """! @brief Constructor."""
@@ -124,6 +135,7 @@ class CommandBase(metaclass=CommandMeta):
         '[r3,8]'. The offset can be positive or negative, and any supported base.
         """
         try:
+            offset = 0
             deref = (arg[0] == '[')
             if deref:
                 if not self.context.selected_core:

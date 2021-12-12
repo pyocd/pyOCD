@@ -16,11 +16,10 @@
 # limitations under the License.
 
 import logging
-import os
 import sys
+from typing import (Any, Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, TYPE_CHECKING)
 import six
 import pprint
-from collections import namedtuple
 import subprocess
 from shutil import get_terminal_size
 
@@ -29,9 +28,12 @@ from ..coresight.ap import MEM_AP
 from ..utility.strings import UniquePrefixMatcher
 from ..utility.cmdline import split_command_line
 
+if TYPE_CHECKING:
+    from ..debug.svd.model import SVDPeripheral
+
 LOG = logging.getLogger(__name__)
 
-class CommandSet(object):
+class CommandSet:
     """! @brief Holds a set of command classes."""
 
     ## Whether command and infos modules have been loaded yet.
@@ -95,7 +97,7 @@ class CommandSet(object):
         @param self The command set.
         @param commands List of command classes.
         """
-        from .base import (CommandBase, ValueBase)
+        from .base import ValueBase
         value_classes = {klass for klass in commands if issubclass(klass, ValueBase)}
         cmd_classes = commands - value_classes
         cmd_names = {name: klass for klass in cmd_classes for name in klass.INFO['names']}
@@ -108,21 +110,24 @@ class CommandSet(object):
         self._value_classes.update(value_classes)
         self._value_matcher.add_items(value_names.keys())
 
-CommandInvocation = namedtuple('CommandInvocation', ['cmd', 'args', 'handler'])
-"""! @brief Groups the command name with an iterable of args and a handler function.
+class CommandInvocation(NamedTuple):
+    """! @brief Groups the command name with an iterable of args and a handler function.
 
-The handler is a callable that will evaluate the command. It accepts a single argument of the
-CommandInvocation instance.
-"""
+    The handler is a callable that will evaluate the command. It accepts a single argument of the
+    CommandInvocation instance.
+    """
+    cmd: str
+    args: Sequence[str]
+    handler: Callable[["CommandInvocation"], None] # type:ignore # mypy doesn't support recursive types yet!
 
-class CommandExecutionContext(object):
+class CommandExecutionContext:
     """! @brief Manages command execution.
 
     This class holds persistent state for command execution, and provides the interface for executing
     commands and command lines.
     """
 
-    def __init__(self, no_init=False, output_stream=None):
+    def __init__(self, no_init: bool = False, output_stream: Optional[IO[str]] = None):
         """! @brief Constructor.
         @param self This object.
         @param no_init Whether the board and target will be initialized when attach_session() is called.
@@ -133,14 +138,14 @@ class CommandExecutionContext(object):
         """
         self._no_init = no_init
         self._output = output_stream or sys.stdout
-        self._python_namespace = None
+        self._python_namespace: Dict[str, Any] = {}
         self._command_set = CommandSet()
 
         # State attributes.
         self._session = None
         self._selected_core = None
         self._selected_ap_address = None
-        self._peripherals = {}
+        self._peripherals: Dict[str, "SVDPeripheral"] = {}
         self._loaded_peripherals = False
 
         # Add in the standard commands.
@@ -204,6 +209,7 @@ class CommandExecutionContext(object):
         assert self._session is None
         assert session.is_open or self._no_init
         self._session = session
+        assert self.target
 
         # Select the first core's MEM-AP by default.
         if not self._no_init:
@@ -255,6 +261,7 @@ class CommandExecutionContext(object):
     @property
     def peripherals(self):
         """! @brief Dict of SVD peripherals."""
+        assert self.target
         if self.target.svd_device and not self._loaded_peripherals:
             for p in self.target.svd_device.peripherals:
                 self._peripherals[p.name.lower()] = p
@@ -291,26 +298,27 @@ class CommandExecutionContext(object):
         if self.selected_ap_address is None:
             return None
         else:
+            assert self.target
             return self.target.aps[self.selected_ap_address]
 
-    def process_command_line(self, line):
+    def process_command_line(self, line: str) -> None:
         """! @brief Run a command line consisting of one or more semicolon-separated commands."""
         for invoc in self.parse_command_line(line):
             invoc.handler(invoc)
 
-    def parse_command_line(self, line):
+    def parse_command_line(self, line: str) -> Iterator[CommandInvocation]:
         """! @brief Generator yielding CommandInvocations for commands separated by semicolons."""
         for cmd in self._split_commands(line):
             invoc = self.parse_command(cmd)
             if invoc is not None:
                 yield invoc
 
-    def _split_commands(self, line):
+    def _split_commands(self, line: str) -> Iterator[str]:
         """! @brief Generator yielding commands separated by semicolons."""
         # FIXME This is a big, inefficient hack to work around a bug splitting on quoted semicolons. Practically,
         #   though, it will never be noticeable.
         parts = split_command_line(line)
-        result = []
+        result: List[str] = []
         for p in parts:
             if p == ';':
                 yield " ".join(f'"{a}"' for a in result)
@@ -320,7 +328,7 @@ class CommandExecutionContext(object):
         if result:
             yield " ".join(f'"{a}"' for a in result)
 
-    def parse_command(self, cmdline):
+    def parse_command(self, cmdline: str) -> CommandInvocation:
         """! @brief Create a CommandInvocation from a single command."""
         cmdline = cmdline.strip()
 
@@ -329,16 +337,16 @@ class CommandExecutionContext(object):
         if first_char in '$!':
             cmdline = cmdline[1:]
             if first_char == '$':
-                return CommandInvocation(cmdline, None, self.handle_python)
+                return CommandInvocation(cmdline, [], self.handle_python)
             elif first_char == '!':
-                return CommandInvocation(cmdline, None, self.handle_system)
+                return CommandInvocation(cmdline, [], self.handle_system)
 
         # Split command into words.
         args = split_command_line(cmdline)
         cmd = args[0].lower()
         args = args[1:]
 
-        # Look up shorted unambiguous match for the command name.
+        # Look up shortened unambiguous match for the command name.
         matched_command = self._command_set.command_matcher.find_one(cmd)
 
         # Check for valid command.
@@ -352,7 +360,7 @@ class CommandExecutionContext(object):
 
         return CommandInvocation(matched_command, args, self.execute_command)
 
-    def execute_command(self, invocation):
+    def execute_command(self, invocation: CommandInvocation) -> None:
         """! @brief Execute a single command."""
         # Must have an attached session to run commands, except for certain commands.
         assert (self.session is not None) or (invocation.cmd in ('list', 'help', 'exit'))
@@ -364,9 +372,10 @@ class CommandExecutionContext(object):
         cmd_object.parse(invocation.args)
         cmd_object.execute()
 
-    def _build_python_namespace(self):
+    def _build_python_namespace(self) -> None:
         """! @brief Construct the dictionary used as the namespace for python commands."""
         import pyocd
+        assert self.target
         self._python_namespace = {
                 'session': self.session,
                 'board': self.board,
@@ -379,11 +388,11 @@ class CommandExecutionContext(object):
                 'pyocd': pyocd,
             }
 
-    def handle_python(self, invocation):
+    def handle_python(self, invocation: CommandInvocation) -> None:
         """! @brief Evaluate a python expression."""
         try:
             # Lazily build the python environment.
-            if self._python_namespace is None:
+            if not self._python_namespace:
                 self._build_python_namespace()
 
             result = eval(invocation.cmd, globals(), self._python_namespace)
@@ -395,11 +404,11 @@ class CommandExecutionContext(object):
                     self.write(pprint.pformat(result, indent=2, width=w, depth=10))
         except Exception as e:
             # Log the traceback before raising the exception.
-            if self.session.log_tracebacks:
+            if self.session and self.session.log_tracebacks:
                 LOG.error("Exception while executing expression: %s", e, exc_info=True)
             raise exceptions.CommandError("exception while executing expression: %s" % e)
 
-    def handle_system(self, invocation):
+    def handle_system(self, invocation: CommandInvocation) -> None:
         """! @brief Evaluate a system call command."""
         try:
             output = subprocess.check_output(invocation.cmd, stderr=subprocess.STDOUT, shell=True)

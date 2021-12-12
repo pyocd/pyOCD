@@ -19,6 +19,7 @@ import colorama
 import logging
 import os
 import traceback
+from typing import (Optional, Sequence, TYPE_CHECKING)
 
 from ..core.helpers import ConnectHelper
 from ..core import (exceptions, session)
@@ -27,12 +28,15 @@ from ..utility.cmdline import convert_session_options
 from ..commands.repl import (PyocdRepl, ToolExitException)
 from ..commands.execution_context import CommandExecutionContext
 
+if TYPE_CHECKING:
+    import argparse
+
 LOG = logging.getLogger(__name__)
 
 ## Default SWD clock in Hz.
 DEFAULT_CLOCK_FREQ_HZ = 1000000
 
-class PyOCDCommander(object):
+class PyOCDCommander:
     """! @brief Manages the commander interface.
 
     Responsible for connecting the execution context, REPL, and commands, and handles connection.
@@ -47,24 +51,33 @@ class PyOCDCommander(object):
     @todo Replace use of args from argparse with something cleaner.
     """
 
-    def __init__(self, args, cmds=None):
+    CommandsListType = Sequence[Sequence[str]]
+
+    def __init__(
+                self,
+                args: "argparse.Namespace",
+                cmds: Optional[CommandsListType] = None
+            ) -> None:
         """! @brief Constructor."""
         # Read command-line arguments.
         self.args = args
-        self.cmds = cmds
+        self.cmds: PyOCDCommander.CommandsListType = cmds or []
 
         self.context = CommandExecutionContext(no_init=self.args.no_init)
         self.context.command_set.add_command_group('commander')
-        self.session = None
-        self.exit_code = 0
+        self.session: Optional[session.Session] = None
+        self.exit_code: int = 0
 
-    def run(self):
+    def run(self) -> int:
         """! @brief Main entry point."""
         try:
             # If no commands, enter interactive mode.
             if self.cmds is None:
                 if not self.connect():
                     return self.exit_code
+                assert self.session
+                assert self.session.board
+                assert self.context.target
 
                 # Print connected message, unless not initing.
                 if not self.args.no_init:
@@ -84,7 +97,7 @@ class PyOCDCommander(object):
                     status = "no init mode"
 
                 # Say what we're connected to.
-                print(colorama.Fore.GREEN + f"Connected to {self.context.target.part_number} " +
+                print(colorama.Fore.GREEN + f"Connected to {self.session.target.part_number} " +
                         colorama.Fore.CYAN + f"[{status}]" +
                         colorama.Style.RESET_ALL + f": {self.session.board.unique_id}")
 
@@ -115,7 +128,7 @@ class PyOCDCommander(object):
 
         return self.exit_code
 
-    def run_commands(self):
+    def run_commands(self) -> None:
         """! @brief Run commands specified on the command line."""
         did_connect = False
 
@@ -129,7 +142,7 @@ class PyOCDCommander(object):
             # For others, connect first.
             if needs_connect and not did_connect:
                 if not self.connect():
-                    return self.exit_code
+                    return
                 did_connect = True
 
             # Merge commands args back to one string.
@@ -137,12 +150,9 @@ class PyOCDCommander(object):
             cmdline = " ".join('"{}"'.format(a) for a in args)
 
             # Invoke action handler.
-            result = self.context.process_command_line(cmdline)
-            if result is not None:
-                self.exit_code = result
-                break
+            self.context.process_command_line(cmdline)
 
-    def connect(self):
+    def connect(self) -> bool:
         """! @brief Connect to the probe."""
         if (self.args.frequency is not None) and (self.args.frequency != DEFAULT_CLOCK_FREQ_HZ):
             self.context.writei("Setting SWD clock to %d kHz", self.args.frequency // 1000)
@@ -199,7 +209,7 @@ class PyOCDCommander(object):
             self.exit_code = 1
         return result
 
-    def _post_connect(self):
+    def _post_connect(self) -> bool:
         """! @brief Finish the connect process.
 
         The session is opened. The `no_init` parameter passed to the constructor determines whether the
