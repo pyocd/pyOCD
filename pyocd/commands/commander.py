@@ -16,10 +16,11 @@
 # limitations under the License.
 
 import colorama
+import io
 import logging
 import os
 import traceback
-from typing import (Optional, Sequence, TYPE_CHECKING)
+from typing import (IO, Optional, Sequence, TYPE_CHECKING, Union)
 
 from ..core.helpers import ConnectHelper
 from ..core import (exceptions, session)
@@ -51,7 +52,10 @@ class PyOCDCommander:
     @todo Replace use of args from argparse with something cleaner.
     """
 
-    CommandsListType = Sequence[Sequence[str]]
+    CommandsListType = Sequence[Union[str, IO[str]]]
+
+    ## Commands that can run without requiring a connection.
+    _CONNECTIONLESS_COMMANDS = ('list', 'help', 'exit')
 
     def __init__(
                 self,
@@ -71,10 +75,20 @@ class PyOCDCommander:
     def run(self) -> int:
         """! @brief Main entry point."""
         try:
-            # If no commands, enter interactive mode.
-            if self.cmds is None:
-                if not self.connect():
-                    return self.exit_code
+            # If no commands, enter interactive mode. If there are commands, use the --interactive arg.
+            enter_interactive = (not self.cmds) or self.args.interactive
+
+            # Connect unless we are only running commands that don't require a connection.
+            do_connect = enter_interactive or self._commands_require_connect()
+            if do_connect and not self.connect():
+                return self.exit_code
+
+            # Run the list of commands we were given.
+            if self.cmds:
+                self.run_commands()
+
+            # Enter the interactive REPL.
+            if enter_interactive:
                 assert self.session
                 assert self.session.board
                 assert self.context.target
@@ -105,11 +119,6 @@ class PyOCDCommander:
                 console = PyocdRepl(self.context)
                 console.run()
 
-            # Otherwise, run the list of commands we were given and exit. We only connect when
-            # there is a command that requires a connection (most do).
-            else:
-                self.run_commands()
-
         except ToolExitException:
             self.exit_code = 0
         except exceptions.TransferError:
@@ -128,29 +137,40 @@ class PyOCDCommander:
 
         return self.exit_code
 
+    def _commands_require_connect(self) -> bool:
+        """@brief Determine whether a connection is needed to run commands."""
+        for args in self.cmds:
+            # Always assume connection required for command files.
+            if isinstance(args, io.IOBase):
+                return True
+
+            # Check for connectionless commands.
+            else:
+                assert isinstance(args, str)
+
+                if not ((len(args) == 1) and (args[0].lower() in self._CONNECTIONLESS_COMMANDS)):
+                    return True
+
+        # No command was found that needs a connection.
+        return False
+
     def run_commands(self) -> None:
         """! @brief Run commands specified on the command line."""
-        did_connect = False
-
         for args in self.cmds:
-            # Extract the command name.
-            cmd = args[0].lower()
+            # Open file containing commands.
+            if isinstance(args, io.IOBase) and not isinstance(args, str):
+                self.context.process_command_file(args)
 
-            # Handle certain commands without connecting.
-            needs_connect = (cmd not in ('list', 'help', 'exit'))
+            # List of command and argument strings.
+            else:
+                assert isinstance(args, str)
 
-            # For others, connect first.
-            if needs_connect and not did_connect:
-                if not self.connect():
-                    return
-                did_connect = True
+                # Skip empty args lists.
+                if len(args) == 0:
+                    continue
 
-            # Merge commands args back to one string.
-            # FIXME this is overly complicated
-            cmdline = " ".join('"{}"'.format(a) for a in args)
-
-            # Invoke action handler.
-            self.context.process_command_line(cmdline)
+                # Run the command line.
+                self.context.process_command_line(args)
 
     def connect(self) -> bool:
         """! @brief Connect to the probe."""
