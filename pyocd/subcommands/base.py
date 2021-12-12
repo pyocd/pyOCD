@@ -17,7 +17,7 @@
 import argparse
 import logging
 import prettytable
-from typing import (List, Optional)
+from typing import (List, Optional, Type)
 
 from ..utility.cmdline import convert_frequency
 
@@ -29,7 +29,7 @@ class SubcommandBase:
     HELP: str = ""
     EPILOG: Optional[str] = None
     DEFAULT_LOG_LEVEL = logging.INFO
-    SUBCOMMANDS: List["SubcommandBase"] = []
+    SUBCOMMANDS: List[Type["SubcommandBase"]] = []
 
     ## Class attribute to store the built subcommand argument parser.
     parser: Optional[argparse.ArgumentParser] = None

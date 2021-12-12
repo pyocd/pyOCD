@@ -125,14 +125,14 @@ class FileProgrammer(object):
         is_path = isinstance(file_or_path, str)
 
         # Check for valid path first.
-        if is_path and not os.path.isfile(file_or_path): # type: ignore (type checker doesn't use is_path)
+        if is_path and not os.path.isfile(file_or_path): # type: ignore # (type checker doesn't use is_path)
             raise FileNotFoundError(errno.ENOENT, "No such file: '{}'".format(file_or_path))
 
         # If no format provided, use the file's extension.
         if not file_format:
             if is_path:
                 # Extract the extension from the path.
-                file_format = os.path.splitext(file_or_path)[1][1:] # type: ignore (type checker doesn't use is_path)
+                file_format = os.path.splitext(file_or_path)[1][1:] # type: ignore # (type checker doesn't use is_path)
 
                 # Explicitly check for no extension.
                 if file_format == '':
