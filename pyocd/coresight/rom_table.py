@@ -394,6 +394,9 @@ class Class1ROMTable(ROMTable):
         if (entry & self.ROM_TABLE_ADDR_OFFSET_NEG_MASK) != 0:
             offset = ~bit_invert(offset)
         address = self.address + offset
+        # Handle address going negative, since python doesn't have unsigned ints.
+        if address < 0:
+            address = 0x100000000 + address
 
         # Check power ID.
         if (entry & self.ROM_TABLE_POWERIDVALID_MASK) != 0:
@@ -582,6 +585,9 @@ class Class9ROMTable(ROMTable):
         if (entry & self.ROM_TABLE_ADDR_OFFSET_NEG_MASK[self._width]) != 0:
             offset = ~bit_invert(offset, width=self._width)
         address = self.address + offset
+        # Handle address going negative, since python doesn't have unsigned ints.
+        if address < 0:
+            address = (1 << self._width) + address
 
         # Check power ID.
         if (entry & self.ROM_TABLE_ENTRY_POWERIDVALID_MASK) != 0:
