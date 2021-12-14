@@ -70,6 +70,14 @@ Restrict CMSIS-DAP backend to using a single in-flight command at a time. This i
 where USB is problematic, in particular virtual machines.
 </td></tr>
 
+<tr><td>cmsis_dap.prefer_v1</td>
+<td>bool</td>
+<td>False</td>
+<td>
+If a device provides both CMSIS-DAP v1 and v2 interfaces, use the v1 interface in preference of v2.
+Normal behaviour is to prefer the v2 interface. This option is primarily intended for testing.
+</td></tr>
+
 <tr><td>commander.history_length</td>
 <td>int</td>
 <td>1000</td>
