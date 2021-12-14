@@ -96,9 +96,11 @@ class Session(Notifier):
         or for debug or other purposes.
         """
         if cls._current_session is not None:
-            return cls._current_session()
-        else:
-            return Session(None)
+            session = cls._current_session()
+            if session is not None:
+                return session
+
+        return Session(None)
 
     def __init__(self, probe, auto_open=True, options=None, option_defaults=None, **kwargs):
         """! @brief Session constructor.
