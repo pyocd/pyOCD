@@ -384,9 +384,11 @@ class Class1ROMTable(ROMTable):
     def _handle_table_entry(self, entry, number):
         # Nonzero entries can still be disabled, so check the present bit before handling.
         if (entry & self.ROM_TABLE_ENTRY_PRESENT_MASK) == 0:
+            LOG.debug("%s[%d]<%08x not present>", self.depth_indent, number, entry)
             return
         # Verify the entry format is 32-bit.
         if (entry & self.ROM_TABLE_32BIT_FORMAT_MASK) == 0:
+            LOG.debug("%s[%d]<%08x unsupported 8-bit format>", self.depth_indent, number, entry)
             return
 
         # Get the component's top 4k address.
@@ -554,6 +556,8 @@ class Class9ROMTable(ROMTable):
                         LOG.error("Error attempting to probe CoreSight component referenced by "
                                 "ROM table entry #%d: %s", entryNumber, err,
                                 exc_info=self.ap.dp.session.get_current().log_tracebacks)
+                else:
+                    LOG.debug("%s[%d]<%08x not present>", self.depth_indent, entryNumber, entry)
 
                 entryAddress += 4 * entrySizeMultiplier
                 entryNumber += 1
