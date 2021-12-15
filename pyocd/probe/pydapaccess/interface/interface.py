@@ -17,6 +17,8 @@
 
 class Interface(object):
 
+    DEFAULT_READ_TIMEOUT = 20
+
     def __init__(self):
         self.vid = 0
         self.pid = 0
@@ -44,7 +46,7 @@ class Interface(object):
     def write(self, data):
         return
 
-    def read(self, size=-1, timeout=-1):
+    def read(self, timeout=DEFAULT_READ_TIMEOUT):
         return
 
     def get_info(self):

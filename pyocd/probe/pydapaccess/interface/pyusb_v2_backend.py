@@ -18,7 +18,6 @@
 
 import logging
 import threading
-from time import sleep
 import errno
 import platform
 
@@ -32,6 +31,7 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ... import common
+from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -221,12 +221,16 @@ class PyUSBv2(Interface):
         self.read_sem.release()
 
         self.ep_out.write(data)
-        #logging.debug('sent: %s', data)
 
-    def read(self):
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
         """! @brief Read data on the IN endpoint."""
-        while len(self.rcv_data) == 0:
-            sleep(0)
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
+            while t_o.check():
+                if len(self.rcv_data) != 0:
+                    break
+            else:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
 
         if self.rcv_data[0] is None:
             raise DAPAccessIntf.DeviceError("Device %s read thread exited unexpectedly" % self.serial_number)

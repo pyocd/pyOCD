@@ -17,7 +17,6 @@
 
 import logging
 import collections
-from time import sleep
 
 from .interface import Interface
 from .common import (
@@ -71,7 +70,7 @@ class PyWinUSB(Interface):
         # Note - this operation must be retried since
         # other instances of pyOCD listing board can prevent
         # opening this device with exclusive access.
-        with Timeout(OPEN_TIMEOUT_S) as t_o:
+        with Timeout(OPEN_TIMEOUT_S, sleeptime=0.25) as t_o:
             while t_o.check():
                 # Attempt to open the device
                 try:
@@ -151,14 +150,14 @@ class PyWinUSB(Interface):
         data.extend([0] * (self.packet_size - len(data)))
         self.report.send([0] + data)
 
-    def read(self, timeout=20.0):
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
         """! @brief Read data on the IN endpoint associated to the HID interface
         """
-        with Timeout(timeout) as t_o:
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.rcv_data):
                     break
-                sleep(0)
             else:
                 # Read operations should typically take ~1-2ms.
                 # If this exception occurs, then it could indicate
@@ -167,7 +166,7 @@ class PyWinUSB(Interface):
                 # 2. CMSIS-DAP firmware problem cause a dropped read or write
                 # 3. CMSIS-DAP is performing a long operation or is being
                 #    halted in a debugger
-                raise DAPAccessIntf.DeviceError("Read timed out")
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
 
         # Trace when the higher layer actually gets a packet previously read.
         if TRACE.isEnabledFor(logging.DEBUG):

@@ -19,7 +19,6 @@
 
 import logging
 import threading
-from time import sleep
 import platform
 import errno
 
@@ -31,6 +30,7 @@ from .common import (
     generate_device_unique_id,
     )
 from ..dap_access_api import DAPAccessIntf
+from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -210,11 +210,16 @@ class PyUSB(Interface):
 
         self.ep_out.write(data)
 
-    def read(self):
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
         """! @brief Read data on the IN endpoint associated to the HID interface
         """
-        while len(self.rcv_data) == 0:
-            sleep(0)
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
+            while t_o.check():
+                if len(self.rcv_data) != 0:
+                    break
+            else:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
 
         if self.rcv_data[0] is None:
             raise DAPAccessIntf.DeviceError("Device %s read thread exited" %
