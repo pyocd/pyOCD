@@ -2,7 +2,7 @@
 # Copyright (c) 2006-2021 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2021 mentha
-# Copyright (c) Chris Reed
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,15 +46,14 @@ else:
     IS_AVAILABLE = True
 
 class PyUSB(Interface):
-    """! @brief CMSIS-DAP USB interface class using pyusb for the backend.
-    """
+    """@brief CMSIS-DAP USB interface class using pyusb for the backend."""
 
     isAvailable = IS_AVAILABLE
 
     did_show_no_libusb_warning = False
 
     def __init__(self):
-        super(PyUSB, self).__init__()
+        super().__init__()
         self.ep_out = None
         self.ep_in = None
         self.dev = None
@@ -156,7 +155,7 @@ class PyUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """! @brief Returns all the connected CMSIS-DAP devices.
+        """@brief Returns all the connected CMSIS-DAP devices.
 
         returns an array of PyUSB (Interface) objects
         """
@@ -184,8 +183,7 @@ class PyUSB(Interface):
         return boards
 
     def write(self, data):
-        """! @brief Write data on the OUT endpoint associated to the HID interface
-        """
+        """@brief Write data on the OUT endpoint associated to the HID interface"""
 
         report_size = self.packet_size
         if self.ep_out:
@@ -211,8 +209,7 @@ class PyUSB(Interface):
         self.ep_out.write(data)
 
     def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
-        """! @brief Read data on the IN endpoint associated to the HID interface
-        """
+        """@brief Read data on the IN endpoint associated to the HID interface"""
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
         with Timeout(timeout, sleeptime=0.0001) as t_o:
             while t_o.check():
@@ -234,8 +231,7 @@ class PyUSB(Interface):
         return self.rcv_data.pop(0)
 
     def close(self):
-        """! @brief Close the interface
-        """
+        """@brief Close the interface"""
         assert self.closed is False
 
         LOG.debug("closing interface")
@@ -259,8 +255,8 @@ class PyUSB(Interface):
         self.kernel_driver_was_attached = False
         self.thread = None
 
-class MatchCmsisDapv1Interface(object):
-    """! @brief Match class for finding CMSIS-DAPv1 interface.
+class MatchCmsisDapv1Interface:
+    """@brief Match class for finding CMSIS-DAPv1 interface.
 
     This match class performs several tests on the provided USB interface descriptor, to
     determine whether it is a CMSIS-DAPv1 interface. These requirements must be met by the
@@ -274,11 +270,11 @@ class MatchCmsisDapv1Interface(object):
     """
 
     def __init__(self, hid_interface_count):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         self._hid_count = hid_interface_count
 
     def __call__(self, interface):
-        """! @brief Return True if this is a CMSIS-DAPv1 interface."""
+        """@brief Return True if this is a CMSIS-DAPv1 interface."""
         try:
             if self._hid_count > 1:
                 interface_name = usb.util.get_string(interface.device, interface.iInterface)
@@ -327,15 +323,15 @@ class MatchCmsisDapv1Interface(object):
             # IndexError can be raised if an endpoint is missing.
             return False
 
-class FindDap(object):
-    """! @brief CMSIS-DAP match class to be used with usb.core.find"""
+class FindDap:
+    """@brief CMSIS-DAP match class to be used with usb.core.find"""
 
     def __init__(self, serial=None):
-        """! @brief Create a new FindDap object with an optional serial number"""
+        """@brief Create a new FindDap object with an optional serial number"""
         self._serial = serial
 
     def __call__(self, dev):
-        """! @brief Return True if this is a DAP device, False otherwise"""
+        """@brief Return True if this is a DAP device, False otherwise"""
         # Check if the device class is a valid one for CMSIS-DAP.
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False

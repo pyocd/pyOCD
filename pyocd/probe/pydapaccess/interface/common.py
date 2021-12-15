@@ -19,7 +19,10 @@
 import usb.util
 from hashlib import sha1
 from base64 import b32encode
-from typing import (List, Union)
+from typing import (List, Tuple, Union, TYPE_CHECKING)
+
+if TYPE_CHECKING:
+    from usb.core import Interface
 
 # USB class codes.
 USB_CLASS_COMPOSITE = 0x00
@@ -35,21 +38,23 @@ CMSIS_DAP_USB_CLASSES = [
 
 CMSIS_DAP_HID_USAGE_PAGE = 0xff00
 
+VidPidPair = Tuple[int, int]
+
 # Known USB VID/PID pairs.
-ARM_DAPLINK_ID = (0x0d28, 0x0204) # Arm DAPLink firmware
-ATMEL_ICE_ID = (0x03eb, 0x2141) # Atmel-ICE
-CYPRESS_KITPROG1_2_ID = (0x04b4, 0xf138) # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
-CYPRESS_MINIPROG4_BULK_ID = (0x04b4, 0xf151) # Cypress MiniProg4 bulk
-CYPRESS_MINIPROG4_HID_ID = (0x04b4, 0xf152) # Cypress MiniProg4 HID
-CYPRESS_KITPROG3_HID_ID = (0x04b4, 0xf154) # Cypress KitProg3 HID
-CYPRESS_KITPROG3_BULKD_ID = (0x04b4, 0xf155) # Cypress KitProg3 bulk
-CYPRESS_KITPROG3_BULK_2_UART_ID = (0x04b4, 0xf166) # Cypress KitProg3 bulk with 2x UART
-KEIL_ULINKPLUS_ID = (0xc251, 0x2750) # Keil ULINKplus
-NXP_LPCLINK2_ID = (0x1fc9, 0x0090) # NXP LPC-LinkII
-NXP_MCULINK_ID = (0x1fc9, 0x0143) # NXP MCU-Link
+ARM_DAPLINK_ID: VidPidPair = (0x0d28, 0x0204) # Arm DAPLink firmware
+ATMEL_ICE_ID: VidPidPair = (0x03eb, 0x2141) # Atmel-ICE
+CYPRESS_KITPROG1_2_ID: VidPidPair = (0x04b4, 0xf138) # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
+CYPRESS_MINIPROG4_BULK_ID: VidPidPair = (0x04b4, 0xf151) # Cypress MiniProg4 bulk
+CYPRESS_MINIPROG4_HID_ID: VidPidPair = (0x04b4, 0xf152) # Cypress MiniProg4 HID
+CYPRESS_KITPROG3_HID_ID: VidPidPair = (0x04b4, 0xf154) # Cypress KitProg3 HID
+CYPRESS_KITPROG3_BULKD_ID: VidPidPair = (0x04b4, 0xf155) # Cypress KitProg3 bulk
+CYPRESS_KITPROG3_BULK_2_UART_ID: VidPidPair = (0x04b4, 0xf166) # Cypress KitProg3 bulk with 2x UART
+KEIL_ULINKPLUS_ID: VidPidPair = (0xc251, 0x2750) # Keil ULINKplus
+NXP_LPCLINK2_ID: VidPidPair = (0x1fc9, 0x0090) # NXP LPC-LinkII
+NXP_MCULINK_ID: VidPidPair = (0x1fc9, 0x0143) # NXP MCU-Link
 
 ## List of VID/PID pairs for known CMSIS-DAP USB devices.
-KNOWN_CMSIS_DAP_IDS = [
+KNOWN_CMSIS_DAP_IDS: List[VidPidPair] = [
     ARM_DAPLINK_ID,
     ATMEL_ICE_ID,
     CYPRESS_KITPROG1_2_ID,
@@ -65,17 +70,17 @@ KNOWN_CMSIS_DAP_IDS = [
 
 ## List of VID/PID pairs for CMSIS-DAP probes that have multiple HID interfaces that must be
 # filtered by usage page. Currently these are only NXP probes.
-CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE = [
+CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE: List[VidPidPair] = [
     NXP_LPCLINK2_ID,
     NXP_MCULINK_ID,
     ]
 
-def is_known_cmsis_dap_vid_pid(vid, pid):
-    """! @brief Test whether a VID/PID pair belong to a known CMSIS-DAP device."""
+def is_known_cmsis_dap_vid_pid(vid: int, pid: int) -> bool:
+    """@brief Test whether a VID/PID pair belong to a known CMSIS-DAP device."""
     return (vid, pid) in KNOWN_CMSIS_DAP_IDS
 
-def filter_device_by_class(vid, pid, device_class):
-    """! @brief Test whether the device should be ignored by comparing bDeviceClass.
+def filter_device_by_class(vid: int, pid: int, device_class: int) -> bool:
+    """@brief Test whether the device should be ignored by comparing bDeviceClass.
 
     This function checks the device's bDeviceClass to determine whether it is likely to be
     a CMSIS-DAP device. It uses the vid and pid for device-specific quirks.
@@ -92,8 +97,8 @@ def filter_device_by_class(vid, pid, device_class):
     # Any other class indicates the device is not CMSIS-DAP.
     return True
 
-def filter_device_by_usage_page(vid, pid, usage_page):
-    """! @brief Test whether the device should be ignored by comparing the HID usage page.
+def filter_device_by_usage_page(vid: int, pid: int, usage_page: int) -> bool:
+    """@brief Test whether the device should be ignored by comparing the HID usage page.
 
     This function performs device-specific tests to determine whether the device is a CMSIS-DAP
     interface. The only current test is for the NXP LPC-Link2, which has extra HID interfaces with
@@ -106,14 +111,14 @@ def filter_device_by_usage_page(vid, pid, usage_page):
     return ((vid, pid) in CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE) \
         and (usage_page != CMSIS_DAP_HID_USAGE_PAGE)
 
-def check_ep(interface, ep_index, ep_dir, ep_type):
-    """! @brief Tests an endpoint type and direction."""
+def check_ep(interface: "Interface", ep_index: int, ep_dir: int, ep_type: int) -> bool:
+    """@brief Tests an endpoint type and direction."""
     ep = interface[ep_index]
-    return (usb.util.endpoint_direction(ep.bEndpointAddress) == ep_dir) \
-        and (usb.util.endpoint_type(ep.bmAttributes) == ep_type)
+    return ((usb.util.endpoint_direction(ep.bEndpointAddress) == ep_dir) # type:ignore
+        and (usb.util.endpoint_type(ep.bmAttributes) == ep_type)) # type:ignore
 
 def generate_device_unique_id(vid: int, pid: int, *locations: List[Union[int, str]]) -> str:
-    """! @brief Generate a semi-stable unique ID from USB device properties.
+    """@brief Generate a semi-stable unique ID from USB device properties.
 
     This function is intended to be used in cases where a device does not provide a serial number
     string. pyocd still needs a valid unique ID so the device can be selected from amongst multiple

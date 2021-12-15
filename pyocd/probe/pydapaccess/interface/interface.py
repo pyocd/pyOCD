@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,11 @@
 # limitations under the License.
 
 
-class Interface(object):
+class Interface:
+
+    @staticmethod
+    def get_all_connected_interfaces():
+        raise NotImplementedError()
 
     DEFAULT_READ_TIMEOUT = 20
 
@@ -38,16 +43,19 @@ class Interface(object):
         return False
 
     def open(self):
-        return
+        raise NotImplementedError()
 
     def close(self):
-        return
+        raise NotImplementedError()
 
     def write(self, data):
-        return
+        raise NotImplementedError()
 
     def read(self, timeout=DEFAULT_READ_TIMEOUT):
-        return
+        raise NotImplementedError()
+
+    def read_swo(self):
+        raise NotImplementedError()
 
     def get_info(self):
         return self.vendor_name + " " + \
