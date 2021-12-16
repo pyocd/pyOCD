@@ -19,7 +19,6 @@ import logging
 import threading
 from time import sleep
 import sys
-import six
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 from typing import (Dict, List, Optional)
@@ -934,7 +933,7 @@ class GDBServer(threading.Thread):
 
             # Build our list of features.
             features = [b'qXfer:features:read+', b'QStartNoAckMode+', b'qXfer:threads:read+', b'QNonStop+']
-            features.append(b'PacketSize=' + six.b(hex(self.packet_size))[2:])
+            features.append(b'PacketSize=' + (hex(self.packet_size).encode())[2:])
             if self.target_facade.get_memory_map_xml() is not None:
                 features.append(b'qXfer:memory-map:read+')
             resp = b';'.join(features)

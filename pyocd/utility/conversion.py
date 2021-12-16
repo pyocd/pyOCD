@@ -18,7 +18,6 @@
 import struct
 import binascii
 from typing import (Any, Iterator, Sequence, Tuple, cast)
-import six
 
 from .mask import align_up
 
@@ -176,7 +175,7 @@ def byte_to_hex2(val: int) -> str:
 
 def hex_to_byte_list(data: str) -> ByteList:
     """! @brief Convert string of hex bytes to list of integers"""
-    return list(six.iterbytes(binascii.unhexlify(data)))
+    return list(binascii.unhexlify(data))
 
 def hex_decode(cmd: str) -> bytes:
     """! @brief Return the binary data represented by the hexadecimal string."""

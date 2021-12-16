@@ -20,12 +20,10 @@ from io import open
 from os import listdir
 from os.path import join, exists, isdir
 import logging
-import six
 
 LOG = logging.getLogger(__name__)
 
-@six.add_metaclass(ABCMeta)
-class StlinkDetectBase(object):
+class StlinkDetectBase(object, metaclass=ABCMeta):
     """ Base class for stlink detection, defines public interface for
     mbed-enabled stlink devices detection for various hosts
     """
