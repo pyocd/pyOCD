@@ -839,7 +839,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @locked
     def swd_sequence(self, sequences):
         self.flush()
-        self._protocol.swd_sequence(sequences)
+        return self._protocol.swd_sequence(sequences)
 
     @locked
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
