@@ -20,7 +20,7 @@ import abc
 from dataclasses import dataclass
 from time import time
 from binascii import crc32
-from typing import (Any, Union)
+from typing import (Any, List, Optional, Union)
 
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashProgramFailure)
@@ -95,11 +95,11 @@ def _stub_progress(percent):
 class _FlashSector:
     """! @brief Info about an erase sector and all pages to be programmed within it."""
     def __init__(self, sector_info):
-        self.addr = sector_info.base_addr
-        self.size = sector_info.size
-        self.max_page_count = 0
-        self.page_list = []
-        self.erase_weight = sector_info.erase_weight
+        self.addr: int = sector_info.base_addr
+        self.size: int = sector_info.size
+        self.max_page_count: int = 0
+        self.page_list: List[_FlashPage] = []
+        self.erase_weight: float = sector_info.erase_weight
 
     def add_page(self, page):
         # The first time a page is added, compute the page count for this sector. This
@@ -128,14 +128,14 @@ class _FlashSector:
 class _FlashPage:
     """! @brief A page to be programmed and its data."""
     def __init__(self, page_info):
-        self.addr = page_info.base_addr
-        self.size = page_info.size
-        self.data = []
-        self.program_weight = page_info.program_weight
-        self.erased = None # Whether the data all matches the erased value.
-        self.same = False
-        self.crc = 0
-        self.cached_estimate_data = None
+        self.addr: int = page_info.base_addr
+        self.size: int = page_info.size
+        self.data: List[int] = []
+        self.program_weight: float = page_info.program_weight
+        self.erased: Optional[bool] = None # Whether the data all matches the erased value.
+        self.same: Optional[bool] = None
+        self.crc: int = 0
+        self.cached_estimate_data: Optional[List[int]] = None
 
     def get_program_weight(self):
         """! @brief Get time to program a page including the data transfer."""
