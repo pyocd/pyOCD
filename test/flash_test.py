@@ -246,13 +246,16 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Fast Verify ------")
-            info = flash.flash_block(addr, new_data, progress_cb=print_progress(), fast_verify=True)
-            if info.program_type == FlashBuilder.FLASH_SECTOR_ERASE:
-                print("TEST PASSED")
-                test_pass_count += 1
+            if flash.get_flash_info().crc_supported:
+                info = flash.flash_block(addr, new_data, progress_cb=print_progress(), fast_verify=True)
+                if info.analyze_type == FlashBuilder.FLASH_ANALYSIS_CRC32:
+                    print("TEST PASSED")
+                    test_pass_count += 1
+                else:
+                    print("TEST FAILED")
+                test_count += 1
             else:
-                print("TEST FAILED")
-            test_count += 1
+                print("Skipping because analyser isn't supported for this algo")
 
             print("\n------ Test Offset Write ------")
             addr = rom_start + rom_size // 2
@@ -339,8 +342,11 @@ def flash_test(board_id):
                 print("\n------ Test Chip Erase Decision ------")
                 new_data = list(data)
                 new_data.extend([flash.region.erased_byte_value] * unused) # Pad with erased value
+                data_size = len(new_data)
                 info = flash.flash_block(addr, new_data, progress_cb=print_progress())
-                if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
+                print(f"Selected erase type is {info.program_type}")
+                print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
+                if info.total_byte_count == data_size:
                     print("TEST PASSED")
                     test_pass_count += 1
                     result.chip_erase_rate_erased = float(len(new_data)) / float(info.program_time)
@@ -351,8 +357,11 @@ def flash_test(board_id):
                 print("\n------ Test Chip Erase Decision 2 ------")
                 new_data = list(data)
                 new_data.extend([unerasedValue] * unused) # Pad with unerased value
+                data_size = len(new_data)
                 info = flash.flash_block(addr, new_data, progress_cb=print_progress())
-                if info.program_type == FlashBuilder.FLASH_CHIP_ERASE:
+                print(f"Selected erase type is {info.program_type}")
+                print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
+                if info.total_byte_count == data_size:
                     print("TEST PASSED")
                     test_pass_count += 1
                     result.chip_erase_rate = float(len(new_data)) / float(info.program_time)
@@ -363,8 +372,11 @@ def flash_test(board_id):
             print("\n------ Test Page Erase Decision ------")
             new_data = list(data)
             new_data.extend([unerasedValue] * unused) # Pad with unerased value
+            data_size = len(new_data)
             info = flash.flash_block(addr, new_data, progress_cb=print_progress())
-            if info.program_type == FlashBuilder.FLASH_SECTOR_ERASE:
+            print(f"Selected erase type is {info.program_type}")
+            print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
+            if info.total_byte_count == data_size:
                 print("TEST PASSED")
                 test_pass_count += 1
                 result.page_erase_rate_same = float(len(new_data)) / float(info.program_time)
@@ -381,8 +393,11 @@ def flash_test(board_id):
             size_differ = unused - size_same
             new_data.extend([unerasedValue] * size_same) # Pad 5/6 with unerased value and 1/6 with 0x55
             new_data.extend([0x55] * size_differ)
+            data_size = len(new_data)
             info = flash.flash_block(addr, new_data, progress_cb=print_progress())
-            if info.program_type == FlashBuilder.FLASH_SECTOR_ERASE:
+            print(f"Selected erase type is {info.program_type}")
+            print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
+            if info.total_byte_count == data_size:
                 print("TEST PASSED")
                 test_pass_count += 1
             else:
