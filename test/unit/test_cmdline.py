@@ -50,12 +50,23 @@ class TestSplitCommandLine(object):
         (r'\h\e\l\l\o', ['hello']),
         (r'"\"hello\""', ['"hello"']),
         ('x "a\\"b" y', ['x', 'a"b', 'y']),
-        ('hello"there"', ['hellothere']),
+        ('hello"there"', ['hello', 'there']),
         (r"'raw\string'", [r'raw\string']),
-        ('"foo said \\"hi\\"" and \'C:\\baz\'', ['foo said "hi"', 'and', 'C:\\baz'])
+        ('"foo said \\"hi\\"" and \'C:\\baz\'', ['foo said "hi"', 'and', 'C:\\baz']),
+        ("foo;bar", ["foo", ";", "bar"]),
         ])
     def test_em(self, input, result):
         assert split_command_line(input) == result
+
+    # ;!@#$%^&*()+=[]{}|<>,?
+    @pytest.mark.parametrize("sep",
+        list(c for c in ';!@#$%^&*()+=[]{}|<>,?')
+        )
+    def test_word_separators(self, sep):
+        assert split_command_line(f"foo{sep}bar") == ["foo", sep, "bar"]
+        assert split_command_line(f"foo{sep} bar") == ["foo", sep, "bar"]
+        assert split_command_line(f"foo {sep}bar") == ["foo", sep, "bar"]
+        assert split_command_line(f"foo {sep} bar") == ["foo", sep, "bar"]
 
 class TestConvertVectorCatch(object):
     def test_none_str(self):
