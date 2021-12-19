@@ -265,7 +265,7 @@ class Test(object):
         pass
 
     @staticmethod
-    def print_results(result_list, output_file=None):
+    def print_results(result_list, output_file=None, ignored=[]):
         msg_format_str = "{:<15}{:<21}{:<15}{:<15}"
         print("\n\n------ TEST RESULTS ------")
         print(msg_format_str .format("Target", "Test", "Result", "Time"),
@@ -273,16 +273,18 @@ class Test(object):
         print("", file=output_file)
         for result in result_list:
             status_str = "Pass" if result.passed else "Fail"
+            if not result.passed and result.test.name in ignored:
+                status_str += " [ignored]"
             print(msg_format_str.format(result.board,
                                         result.test.name,
                                         status_str, "%.3f" % result.time),
                   file=output_file)
 
     @staticmethod
-    def all_tests_pass(result_list):
+    def all_tests_pass(result_list, ignored=[]):
         passed = True
         for result in result_list:
-            if not result.passed:
+            if not result.passed and result.test.name not in ignored:
                 passed = False
                 break
         if len(result_list) <= 0:

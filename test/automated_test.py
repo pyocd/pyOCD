@@ -84,11 +84,17 @@ all_tests = [
 # Actual list used at runtime, filted by command line args.
 test_list = []
 
+# Tests that can fail without causing a non-zero exit code.
+IGNORE_FAILURE_TESTS = [
+            "Connect Test",
+            "Gdb Test",
+            ]
+
 def print_summary(test_list, result_list, test_time, output_file=None):
     for test in test_list:
         test.print_perf_info(result_list, output_file=output_file)
 
-    Test.print_results(result_list, output_file=output_file)
+    Test.print_results(result_list, output_file=output_file, ignored=IGNORE_FAILURE_TESTS)
     print("", file=output_file)
     print("Test Time: %.3f" % test_time, file=output_file)
     if Test.all_tests_pass(result_list):
@@ -416,7 +422,7 @@ def main():
         print_summary(test_list, result_list, test_time, output_file)
     generate_xml_results(result_list)
 
-    exit_val = 0 if Test.all_tests_pass(result_list) else -1
+    exit_val = 0 if Test.all_tests_pass(result_list, ignored=IGNORE_FAILURE_TESTS) else -1
     exit(exit_val)
 
     #TODO - check if any threads are still running?
