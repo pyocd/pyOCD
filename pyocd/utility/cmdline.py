@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import shlex
 from typing import (Any, Dict, Iterable, List, Union)
 
 from ..core.target import Target
@@ -25,15 +24,72 @@ from ..utility.compatibility import to_str_safe
 
 LOG = logging.getLogger(__name__)
 
+def split_command(cmd: str) -> List[str]:
+    """! @brief Split command by whitespace, supporting quoted strings."""
+    result: List[str] = []
+    state = 0
+    word = ''
+    open_quote = ''
+    pos = 0
+    while pos < len(cmd):
+        c = cmd[pos]
+        pos += 1
+        if state == 0:
+            if c.isspace():
+                if word:
+                    result.append(word)
+                    word = ''
+            elif c in ('"', "'"):
+                if word:
+                    result.append(word)
+                word = ''
+                open_quote = c
+                state = 1
+            elif c in ';!@#$%^&*()+=[]{}|<>,?':
+                if word:
+                    result.append(word)
+                word = c
+                state = 2
+            elif c == '\\':
+                if pos < len(cmd):
+                    c = cmd[pos]
+                    pos += 1
+                    word += c
+            else:
+                word += c
+        elif state == 1:
+            if c == open_quote:
+                result.append(word)
+                word = ''
+                state = 0
+            # Only honour escapes in double quotes.
+            elif open_quote == '"' and c == '\\':
+                if pos < len(cmd):
+                    c = cmd[pos]
+                    pos += 1
+                    word += c
+            else:
+                word += c
+        elif state == 2:
+            if word:
+                result.append(word)
+            # Back up to reprocess this char in state 0.
+            word = ''
+            pos -= 1
+            state = 0
+    if word:
+        result.append(word)
+    return result
+
 def split_command_line(cmd_line: Union[str, List[str]]) -> List[str]:
     """! @brief Split command line by whitespace, supporting quoted strings."""
-    result = []
+    result: List[str] = []
     if isinstance(cmd_line, str):
         args = [cmd_line]
     else:
         args = cmd_line
     for cmd in args:
-        result += shlex.split(cmd)
+        result += split_command(cmd)
     return result
 
 ## Map of vector char characters to masks.

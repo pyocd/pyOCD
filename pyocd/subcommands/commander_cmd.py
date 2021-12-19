@@ -16,14 +16,11 @@
 
 import argparse
 import logging
+import io
 from typing import List
 
 from .base import SubcommandBase
 from ..commands.commander import PyOCDCommander
-from ..utility.cmdline import (
-    flatten_args,
-    split_command_line,
-)
 
 class CommanderSubcommand(SubcommandBase):
     """! @brief `pyocd commander` subcommand."""
@@ -31,6 +28,13 @@ class CommanderSubcommand(SubcommandBase):
     NAMES = ['commander', 'cmd']
     HELP = "Interactive command console."
     DEFAULT_LOG_LEVEL = logging.WARNING
+
+    EPILOG = """Commands specified by the -c/--command and -x/--execute arguments are run in the order they are listed
+        on the command line, and the two types can be mixed freely and in any order. Normally, pyOCD will exit after
+        running such commands. If the -i/--interactive flag is set, then the interactive REPL will be instead be
+        started when the commands have finished. In command files each line is either a complete command, a comment
+        started with '#', or empty.
+        """
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
@@ -46,6 +50,11 @@ class CommanderSubcommand(SubcommandBase):
             help="Optionally specify ELF file being debugged.")
         commander_options.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+',
             help="Run commands.")
+        commander_options.add_argument("-x", "--execute", dest="commands", metavar="FILE", action='append',
+            type=argparse.FileType('r'),
+            help="Execute commands from file. Pass - for stdin.")
+        commander_options.add_argument("-i", "--interactive", action="store_true",
+            help="Stay in interactive mode after running commands specified from command line or file.")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, commander_parser]
 
@@ -55,7 +64,10 @@ class CommanderSubcommand(SubcommandBase):
         if self._args.commands is not None:
             cmds = []
             for cmd in self._args.commands:
-                cmds.append(flatten_args(split_command_line(arg) for arg in cmd))
+                if isinstance(cmd, io.IOBase):
+                    cmds.append(cmd)
+                else:
+                    cmds.append(" ".join(cmd))
         else:
             cmds = None
 
