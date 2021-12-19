@@ -186,11 +186,15 @@ def commands_test(board_id):
 
                 # Semicolon-separated commands.
                 'rw 0x%08x ; rw 0x%08x' % (ram_base, ram_base + 4),
+                'rb 0x%08x;rb 0x%08x' % (ram_base, ram_base + 1),
+                'rb 0x%08x; rb 0x%08x' % (ram_base, ram_base + 1),
 
                 # Python and system commands.
                 '$2+ 2',
+                '$ target',
                 '!echo hello',
-                '!echo hi \; echo there', # using escaped semicolon in a sytem command
+                '!echo hi ; echo there', # semicolon in a sytem command (because semicolon separation is not supported for Python/system command lines)
+                '! ls -d .',
 
                 # Commands not tested:
 #                 "list",
