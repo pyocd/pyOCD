@@ -171,6 +171,9 @@ def print_test_header(output_file, board, test):
     print(header, file=output_file)
     print(divider, file=output_file)
 
+def clean_board_name(name: str) -> str:
+    return "".join((c if c.isalnum() else "_") for c in name)
+
 def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     """! @brief Run all tests on a given board.
 
@@ -198,7 +201,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
 
     # Set up board-specific output file. A previously existing file is removed.
     env_name = (("_" + os.environ['TOX_ENV_NAME']) if ('TOX_ENV_NAME' in os.environ) else '')
-    name_info = "{}_{}_{}".format(env_name, board.name, n)
+    name_info = "{}_{}_{}".format(env_name, clean_board_name(board.name), n)
     log_filename = os.path.join(TEST_OUTPUT_DIR, LOG_FILE_TEMPLATE.format(name_info))
     if os.path.exists(log_filename):
         os.remove(log_filename)
