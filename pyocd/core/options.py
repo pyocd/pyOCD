@@ -76,9 +76,9 @@ BUILTIN_OPTIONS = [
         "SWD/JTAG frequency in Hertz."),
     OptionInfo('hide_programming_progress', bool, False,
         "Disables flash programming progress bar."),
-    OptionInfo('keep_unwritten', bool, True,
-        "Whether to load existing flash content for ranges of sectors that will be erased but not "
-        "written with new data. Default is True."),
+    OptionInfo('keep_unwritten', bool, False,
+        "Whether to preserve existing flash content for ranges of sectors that will be erased but not "
+        "written with new data. Default is False."),
     OptionInfo('logging', (str, dict), None,
         "Logging configuration dictionary, or path to YAML file containing logging configuration."),
     OptionInfo('no_config', bool, False,

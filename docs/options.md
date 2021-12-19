@@ -217,9 +217,9 @@ Disables flash programming progress bar when True.
 
 <tr><td>keep_unwritten</td>
 <td>bool</td>
-<td>True</td>
+<td>False</td>
 <td>
-Whether to load existing flash content for ranges of sectors that will be erased but not written
+Whether to preserve existing flash content for ranges of sectors that will be erased but not written
 with new data.
 </td></tr>
 
