@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
 
 import os
 import sys
@@ -24,10 +24,11 @@ import argparse
 from xml.etree import ElementTree
 import multiprocessing as mp
 import io
+from dataclasses import dataclass
+from typing import (IO, List, Optional)
 
 from pyocd.core.session import Session
 from pyocd.core.helpers import ConnectHelper
-from pyocd.utility.conversion import float32_to_u32
 from pyocd.probe.aggregator import DebugProbeAggregator
 
 from test_util import (
@@ -174,7 +175,16 @@ def print_test_header(output_file, board, test):
 def clean_board_name(name: str) -> str:
     return "".join((c if c.isalnum() else "_") for c in name)
 
-def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
+@dataclass
+class BoardTestConfig:
+    board_id: str
+    n: int
+    loglevel: int
+    log_to_console: bool
+    common_log_file: Optional[IO[str]]
+    test_list: List[Test]
+
+def test_board(config: BoardTestConfig):
     """! @brief Run all tests on a given board.
 
     When multiple test jobs are being used, this function is the entry point executed in
@@ -191,6 +201,12 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
     @param logToConsole Boolean indicating whether output should be copied to sys.stdout.
     @param commonLogFile If not None, an open file object to which output should be copied.
     """
+    board_id = config.board_id
+    n = config.n
+    loglevel = config.loglevel
+    logToConsole = config.log_to_console
+    commonLogFile = config.common_log_file
+
     probe = DebugProbeAggregator.get_probe_with_id(board_id)
     assert probe is not None
     session = Session(probe, **get_session_options())
@@ -235,7 +251,7 @@ def test_board(board_id, n, loglevel, logToConsole, commonLogFile):
         print_board_header(originalStdout, board, n, logToConsole, includeLeadingNewline=(n != 0))
 
         # Run all tests on this board.
-        for test in test_list:
+        for test in config.test_list:
             print("{} #{}: starting {}...".format(board.name, n, test.name), file=originalStdout)
 
             # Set the test number on the test object. Used to get a unique port for the GdbTest.
@@ -358,19 +374,32 @@ def main():
     if args.board:
         board_id_list = [b for b in board_id_list if any(c for c in args.board if c.lower() in b.lower())]
 
+    # Generate board test configs.
+    test_configs = [
+                BoardTestConfig(
+                    board_id=board_id,
+                    n=n,
+                    loglevel=level,
+                    log_to_console=logToConsole,
+                    common_log_file=commonLogFile,
+                    test_list=test_list,
+                )
+                for n, board_id in enumerate(board_id_list)
+            ]
+
     # If only 1 job was requested, don't bother spawning processes.
     start = time()
     if args.jobs == 1:
-        for n, board_id in enumerate(board_id_list):
-            result_list += test_board(board_id, n, level, logToConsole, commonLogFile)
+        for config in test_configs:
+            result_list += test_board(config)
     else:
         # Create a pool of processes to run tests.
         try:
             pool = mp.Pool(args.jobs)
 
             # Issue board test job to process pool.
-            async_results = [pool.apply_async(test_board, (board_id, n, level, logToConsole, commonLogFile))
-                             for n, board_id in enumerate(board_id_list)]
+            async_results = [pool.apply_async(test_board, (config,))
+                             for config in test_configs]
 
             # Gather results.
             for r in async_results:
