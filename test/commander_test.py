@@ -74,7 +74,8 @@ def commander_test(board_id):
 
             # Python and shell
             "$ 2+2",
-            "!echo 'hi mom'"
+            "!echo 'hi mom'",
+            " $ target.vendor",
 
             # commander command group - these are not tested by commands_test.py.
             "list",
