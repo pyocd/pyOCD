@@ -343,7 +343,11 @@ class CommandExecutionContext:
         # Check for Python or system command. For these we yield a list of 2 elements: the command
         # followed by the rest of the command line as it was originally.
         if parts and (parts[0] in '$!'):
-            line_remainder = line.removeprefix(parts[0]).strip()
+            # Remove the Python/system command prefix from the command line. Can't use str.removeprefix()
+            # since it was added in 3.9.
+            line_remainder = line.strip()
+            assert line_remainder.find(parts[0]) == 0
+            line_remainder = line_remainder[len(parts[0]):].strip()
             yield [parts[0], line_remainder]
             return
 
