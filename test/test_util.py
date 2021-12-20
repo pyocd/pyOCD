@@ -68,7 +68,7 @@ def get_session_options():
 def get_target_test_params(session):
     target_type = session.board.target_type
     error_on_invalid_access = True
-    if target_type in ("nrf51", "nrf52", "nrf52840"):
+    if target_type.startswith("nrf"):
         # Override clock since 10MHz is too fast
         test_clock = 1000000
         error_on_invalid_access = False
@@ -76,9 +76,8 @@ def get_target_test_params(session):
         # Override clock since 10MHz is too fast
         test_clock = 1000000
     else:
-        # Default of 10 MHz. Most probes will not actually run this fast, but this
-        # sets them to their max supported frequency.
-        test_clock = 10000000
+        # Default of 4 MHz.
+        test_clock = 4000000
     return {
             'test_clock': test_clock,
             'error_on_invalid_access': error_on_invalid_access,
@@ -167,6 +166,9 @@ class IOTee(object):
         for out in self.outputs:
             out.flush()
 
+    def isatty(self):
+        return False
+
 class RecordingLogHandler(logging.Handler):
     def __init__(self, iostream, level=logging.NOTSET):
         super(RecordingLogHandler, self).__init__(level)
@@ -205,7 +207,7 @@ class TestResult(object):
         else:
             classname = "{}.{}.{}".format(self.board_name, self.board, self.name)
         case = ElementTree.Element('testcase',
-                    name=self.name,
+                    name=classname,
                     classname=classname,
                     status=("passed" if self.passed else "failed"),
                     time="%.3f" % self.time
@@ -217,6 +219,7 @@ class TestResult(object):
                         message="failure",
                         type="failure"
                         )
+            failed.text = self.filter_output(self.output)
         system_out = ElementTree.SubElement(case, 'system-out')
         system_out.text = self.filter_output(self.output)
         return case
@@ -262,7 +265,7 @@ class Test(object):
         pass
 
     @staticmethod
-    def print_results(result_list, output_file=None):
+    def print_results(result_list, output_file=None, ignored=[]):
         msg_format_str = "{:<15}{:<21}{:<15}{:<15}"
         print("\n\n------ TEST RESULTS ------")
         print(msg_format_str .format("Target", "Test", "Result", "Time"),
@@ -270,16 +273,18 @@ class Test(object):
         print("", file=output_file)
         for result in result_list:
             status_str = "Pass" if result.passed else "Fail"
+            if not result.passed and result.test.name in ignored:
+                status_str += " [ignored]"
             print(msg_format_str.format(result.board,
                                         result.test.name,
                                         status_str, "%.3f" % result.time),
                   file=output_file)
 
     @staticmethod
-    def all_tests_pass(result_list):
+    def all_tests_pass(result_list, ignored=[]):
         passed = True
         for result in result_list:
-            if not result.passed:
+            if not result.passed and result.test.name not in ignored:
                 passed = False
                 break
         if len(result_list) <= 0:

@@ -162,6 +162,7 @@ def test_gdb(board_id=None, n=0):
                 "--uid=%s" % board_id,
                 ]
         server = PyOCDTool()
+        server._setup_logging = lambda: None # Disable logging setup so we don't have duplicate log output.
         LOG.info('Starting gdbserver: %s', ' '.join(server_args))
         server_thread = threading.Thread(target=server.run, args=[server_args])
         server_thread.daemon = True

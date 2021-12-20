@@ -20,6 +20,7 @@ import sys
 import traceback
 import logging
 import tempfile
+import platform
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
@@ -58,6 +59,13 @@ class CommandsTest(Test):
         result.board = board
         result.test = self
         return result
+
+def fix_windows_path(path: str) -> str:
+    """Double backslashes in paths on Windows."""
+    if platform.system() == "Windows":
+        return path.replace('\\', '\\\\')
+    else:
+        return path
 
 def commands_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
@@ -106,24 +114,27 @@ def commands_test(board_id):
                 "reg all",
                 "reg r0",
                 "wreg r0 0x12345678",
-#                 "d pc", # Disable disasm because capstone is not installed by default.
-#                 "d --center pc 32",
-                "read32 0x%08x" % (boot_start_addr + boot_blocksize),
-                "read16 0x%08x" % (boot_start_addr + boot_blocksize),
+                "d pc",
+                "d --center pc 32",
+                "read64 0x%08x" % ((boot_start_addr + boot_blocksize) & ~7),
+                "read32 0x%08x" % ((boot_start_addr + boot_blocksize) & ~3),
+                "read16 0x%08x" % ((boot_start_addr + boot_blocksize) & ~1),
                 "read8 0x%08x" % (boot_start_addr + boot_blocksize),
+                "rd 0x%08x 16" % ram_base,
                 "rw 0x%08x 16" % ram_base,
                 "rh 0x%08x 16" % ram_base,
                 "rb 0x%08x 16" % ram_base,
+                "write64 0x%08x 0x1122334455667788 0xaabbccddeeff0011" % ram_base,
                 "write32 0x%08x 0x11223344 0x55667788" % ram_base,
                 "write16 0x%08x 0xabcd" % (ram_base + 8),
                 "write8 0x%08x 0 1 2 3 4 5 6" % (ram_base + 10),
-                "savemem 0x%08x 128 '%s'" % (boot_start_addr, temp_bin_file),
-                "loadmem 0x%08x '%s'" % (ram_base, temp_bin_file),
-                "loadmem 0x%08x '%s'" % (boot_start_addr, binary_file),
-                "load '%s'" % temp_test_hex_name,
-                "load '%s' 0x%08x" % (binary_file, boot_start_addr),
-                "compare 0x%08x '%s'" % (ram_base, temp_bin_file),
-                "compare 0x%08x 32 '%s'" % (ram_base, temp_bin_file),
+                "savemem 0x%08x 128 '%s'" % (boot_start_addr, fix_windows_path(temp_bin_file)),
+                "loadmem 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
+                "loadmem 0x%08x '%s'" % (boot_start_addr, fix_windows_path(binary_file)),
+                "load '%s'" % fix_windows_path(temp_test_hex_name),
+                "load '%s' 0x%08x" % (fix_windows_path(binary_file), boot_start_addr),
+                "compare 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
+                "compare 0x%08x 32 '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
                 "fill 0x%08x 128 0xa5" % ram_base,
                 "fill 16 0x%08x 64 0x55aa" % (ram_base + 64),
                 "find 0x%08x 128 0xaa 0x55" % ram_base, # find that will pass
@@ -194,7 +205,8 @@ def commands_test(board_id):
                 '$ target',
                 '!echo hello',
                 '!echo hi ; echo there', # semicolon in a sytem command (because semicolon separation is not supported for Python/system command lines)
-                '! ls -d .',
+                ' $ " ".join(["hello", "there"])',
+                '  !   echo "yo dude" ',
 
                 # Commands not tested:
 #                 "list",

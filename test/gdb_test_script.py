@@ -478,7 +478,11 @@ def run_test():
         test_result_filename = os.path.join("output", "gdb_test_results%s_%d.txt" % (env_file_name, testn))
         with open(test_result_filename, "wb") as f:
             f.write(json.dumps(test_result))
-        gdb_execute("detach")
+        # Ignore errors detaching, in case connecting failed.
+        try:
+            gdb_execute("detach")
+        except gdb.error:
+            pass
         gdb_execute("quit %i" % fail_count)
 
 
