@@ -55,6 +55,7 @@ from concurrency_test import ConcurrencyTest
 from commands_test import CommandsTest
 from commander_test import CommanderTest
 from probeserver_test import ProbeserverTest
+from user_script_test import UserScriptTest
 
 XML_RESULTS_TEMPLATE = "test_results{}.xml"
 LOG_FILE_TEMPLATE = "automated_test_result{}.txt"
@@ -79,6 +80,7 @@ all_tests = [
              CommandsTest(),
              CommanderTest(),
              ProbeserverTest(),
+             UserScriptTest(),
              ]
 
 # Actual list used at runtime, filted by command line args.
