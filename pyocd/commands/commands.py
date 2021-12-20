@@ -1279,6 +1279,19 @@ class MakeApCommand(CommandBase):
         self.context.target.dp.aps[self.ap_addr] = ap # Same mutable dict as target.aps
         self.context.writef("AP#{:d} IDR = {:#010x}", self.apsel, ap.idr)
 
+class FlushProbeCommand(CommandBase):
+    INFO = {
+            'names': ['flushprobe'],
+            'group': 'commander',
+            'category': 'probe',
+            'nargs': 0,
+            'usage': "",
+            'help': "Ensure all debug probe requests have been completed.",
+            }
+
+    def execute(self):
+        self.context.probe.flush()
+
 class ReinitCommand(CommandBase):
     INFO = {
             'names': ['reinit'],

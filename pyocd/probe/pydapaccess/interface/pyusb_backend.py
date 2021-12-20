@@ -19,7 +19,6 @@
 
 import logging
 import threading
-from time import sleep
 import platform
 import errno
 
@@ -31,8 +30,11 @@ from .common import (
     generate_device_unique_id,
     )
 from ..dap_access_api import DAPAccessIntf
+from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 try:
     import libusb_package
@@ -141,7 +143,13 @@ class PyUSB(Interface):
             while not self.closed:
                 self.read_sem.acquire()
                 if not self.closed:
-                    self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, 10 * 1000))
+                    read_data = self.ep_in.read(self.ep_in.wMaxPacketSize, 10 * 1000)
+
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        # Strip off trailing zero bytes to reduce clutter.
+                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in bytes(read_data).rstrip(b'\x00')]))
+
+                    self.rcv_data.append(read_data)
         finally:
             # Set last element of rcv_data to None on exit
             self.rcv_data.append(None)
@@ -183,6 +191,10 @@ class PyUSB(Interface):
         if self.ep_out:
             report_size = self.ep_out.wMaxPacketSize
 
+        # Trace output data before padding.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
         for _ in range(report_size - len(data)):
             data.append(0)
 
@@ -198,15 +210,27 @@ class PyUSB(Interface):
 
         self.ep_out.write(data)
 
-    def read(self):
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
         """! @brief Read data on the IN endpoint associated to the HID interface
         """
-        while len(self.rcv_data) == 0:
-            sleep(0)
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
+            while t_o.check():
+                if len(self.rcv_data) != 0:
+                    break
+            else:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
 
         if self.rcv_data[0] is None:
             raise DAPAccessIntf.DeviceError("Device %s read thread exited" %
                                             self.serial_number)
+
+        # Trace when the higher layer actually gets a packet previously read.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            # Strip off trailing zero bytes to reduce clutter.
+            TRACE.debug("  USB RD < (%d) %s", len(self.rcv_data[0]),
+                    ' '.join([f'{i:02x}' for i in bytes(self.rcv_data[0]).rstrip(b'\x00')]))
+
         return self.rcv_data.pop(0)
 
     def close(self):

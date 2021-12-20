@@ -15,8 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import logging
 import six
+import threading
 
 from .interface import Interface
 from .common import (
@@ -25,8 +27,11 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
+from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 try:
     import hid
@@ -41,17 +46,52 @@ class HidApiUSB(Interface):
 
     isAvailable = IS_AVAILABLE
 
+    HIDAPI_MAX_PACKET_COUNT = 30
+
     def __init__(self):
-        super(HidApiUSB, self).__init__()
+        super().__init__()
         # Vendor page and usage_id = 2
         self.device = None
         self.device_info = None
+        self.thread = None
+        self.read_sem = threading.Semaphore(0)
+        self.closed_event = threading.Event()
+        self.received_data = collections.deque()
+
+    def set_packet_count(self, count):
+        # hidapi for macos has an arbitrary limit on the number of packets it will queue for reading.
+        # Even though we have a read thread, it doesn't hurt to limit the packet count since the limit
+        # is fairly high.
+        self.packet_count = min(count, self.HIDAPI_MAX_PACKET_COUNT)
 
     def open(self):
         try:
             self.device.open_path(self.device_info['path'])
         except IOError as exc:
             raise DAPAccessIntf.DeviceError("Unable to open device: " + str(exc)) from exc
+
+        self.closed_event.clear()
+
+        # Start RX thread
+        self.thread = threading.Thread(target=self.rx_task)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def rx_task(self):
+        try:
+            while not self.closed_event.is_set():
+                self.read_sem.acquire()
+                if not self.closed_event.is_set():
+                    read_data = self.device.read(self.packet_size)
+
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        # Strip off trailing zero bytes to reduce clutter.
+                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in bytes(read_data).rstrip(b'\x00')]))
+
+                    self.received_data.append(read_data)
+        finally:
+            # Set last element of rcv_data to None on exit
+            self.received_data.append(None)
 
     @staticmethod
     def get_all_connected_interfaces():
@@ -104,19 +144,43 @@ class HidApiUSB(Interface):
     def write(self, data):
         """! @brief Write data on the OUT endpoint associated to the HID interface
         """
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
         data.extend([0] * (self.packet_size - len(data)))
-#         LOG.debug("snd>(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
+        self.read_sem.release()
         self.device.write([0] + data)
 
-    def read(self, timeout=-1):
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
         """! @brief Read data on the IN endpoint associated to the HID interface
         """
-        data = self.device.read(self.packet_size)
-#         LOG.debug("rcv<(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
-        return data
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
+            while t_o.check():
+                if len(self.received_data) != 0:
+                    break
+            else:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
+
+        if self.received_data[0] is None:
+            raise DAPAccessIntf.DeviceError(f"Device {self.serial_number} read thread exited")
+
+        # Trace when the higher layer actually gets a packet previously read.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            # Strip off trailing zero bytes to reduce clutter.
+            TRACE.debug("  USB RD < (%d) %s", len(self.received_data[0]),
+                    ' '.join([f'{i:02x}' for i in bytes(self.received_data[0]).rstrip(b'\x00')]))
+
+        return self.received_data.popleft()
+
 
     def close(self):
         """! @brief Close the interface
         """
+        assert not self.closed_event.is_set()
+
         LOG.debug("closing interface")
+        self.closed_event.set()
+        self.read_sem.release()
+        self.thread.join()
+        self.thread = None
         self.device.close()
