@@ -177,6 +177,8 @@ class _Command(object):
 
     _command_counter = 0
 
+    _UNSET_DAP_INDEX: int = -1
+
     def __init__(self, size):
         self._id = _Command._command_counter
         _Command._command_counter += 1
@@ -186,7 +188,7 @@ class _Command(object):
         self._block_allowed = True
         self._block_request = None
         self._data = []
-        self._dap_index = None
+        self._dap_index = self._UNSET_DAP_INDEX
         self._data_encoded = False
         TRACE.debug("[cmd:%d] New _Command", self._id)
 
@@ -238,7 +240,7 @@ class _Command(object):
         assert self._data_encoded is False
 
         # Must create another command if the dap index is different.
-        if self._dap_index is not None and dap_index != self._dap_index:
+        if self._dap_index != self._UNSET_DAP_INDEX and dap_index != self._dap_index:
             return 0
 
         # Block transfers must use the same request.
@@ -282,7 +284,7 @@ class _Command(object):
         """@brief Add a single or block register transfer operation to this command
         """
         assert self._data_encoded is False
-        if self._dap_index is None:
+        if self._dap_index == self._UNSET_DAP_INDEX:
             self._dap_index = dap_index
         assert self._dap_index == dap_index
 
@@ -573,15 +575,15 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._lock = threading.RLock()
         self._interface = interface
         self._deferred_transfer = False
-        self._protocol = None  # TODO, c1728p9 remove when no longer needed
+        self._protocol = CMSISDAPProtocol(self._interface)
         self._packet_count = None
         self._frequency = 1000000  # 1MHz default clock
         self._dap_port = None
-        self._transfer_list = None
-        self._crnt_cmd = None
+        self._transfer_list = collections.deque()
+        self._crnt_cmd = _Command(0)
         self._packet_size = None
-        self._commands_to_read = None
-        self._command_response_buf = None
+        self._commands_to_read = collections.deque()
+        self._command_response_buf = bytearray()
         self._swo_status = None
         self._cmsis_dap_version: VersionTuple = CMSISDAPVersion.V1_0_0
         self._fw_version: Optional[str] = None
@@ -744,8 +746,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._is_open = True
             return
 
-        self._protocol = CMSISDAPProtocol(self._interface)
-
         if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
             self._packet_count = 1
             LOG.debug("Limiting packet count to %d", self._packet_count)
@@ -796,6 +796,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self.flush()
         self._interface.close()
         self._is_open = False
+        self._crnt_cmd = _Command(0)
 
     def get_unique_id(self):
         return self._unique_id
@@ -1089,12 +1090,12 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # List of transfers that have been started, but
         # not completed (started by write_reg, read_reg,
         # reg_write_repeat and reg_read_repeat)
-        self._transfer_list = collections.deque()
+        self._transfer_list.clear()
         # The current packet - this can contain multiple
         # different transfers
         self._crnt_cmd = _Command(self._packet_size)
         # Packets that have been sent but not read
-        self._commands_to_read = collections.deque()
+        self._commands_to_read.clear()
         # Buffer for data returned for completed commands.
         # This data will be added to transfers
         self._command_response_buf = bytearray()
