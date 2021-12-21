@@ -127,7 +127,7 @@ class ConnectHelper:
     def choose_probe(
             blocking: bool = True,
             return_first: bool = False,
-            unique_id: str = None
+            unique_id: Optional[str] = None
             ) -> Optional["DebugProbe"]:
         """@brief Return a debug probe possibly chosen by the user.
 
@@ -178,8 +178,8 @@ class ConnectHelper:
 
         # Ask user to select boards if there is more than 1 left
         if len(allProbes) > 1:
-            ch = 0
             ConnectHelper._print_probe_list(allProbes)
+            ch = 0
             while True:
                 print(colorama.Style.RESET_ALL)
                 print("Enter the number of the debug probe or 'q' to quit", end='')
