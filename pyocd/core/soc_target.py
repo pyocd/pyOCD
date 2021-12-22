@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) Chris Reed
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,9 +44,15 @@ class SoCTarget(TargetGraphNode):
     to control the device, access memory, adjust breakpoints, and so on.
 
     For single core devices, the SoCTarget has mostly equivalent functionality to
-    the Target object for the core. Multicore devices work differently. This class tracks
+    the CoreTarget object for the core. Multicore devices work differently. This class tracks
     a "selected core", to which all actions are directed. The selected core can be changed
     at any time. You may also directly access specific cores and perform operations on them.
+
+    SoCTarget subclasses must restrict usage of the DebugProbe instance in their constructor, ideally not
+    using it at all. This is required in order to be able to gather information about targets for commands
+    such as `pyocd json` and `pyocd list`. These commands create a session with the probe set to an instance
+    of StubProbe, which is a subclass of DebugProbe with the minimal implementation necessary to support
+    session creation but not opening.
     """
 
     VENDOR = "Generic"
