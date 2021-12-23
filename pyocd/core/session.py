@@ -155,17 +155,24 @@ class Session(Notifier):
             self._project_dir = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
 
-        # Apply common configuration settings from the config file.
+        # Load options from the config file.
         config = self._get_config()
-        probesConfig = config.pop('probes', None)
-        self._options.add_back(config)
+        probes_config = config.pop('probes', None)
 
-        # Pick up any config file options for this board.
-        if (probe is not None) and (probesConfig is not None):
-            for uid, settings in probesConfig.items():
+        # Pick up any config file options for this probe. These have priority over global options.
+        if (probe is not None) and (probes_config is not None):
+            did_match_probe = False
+            for uid, settings in probes_config.items():
                 if str(uid).lower() in probe.unique_id.lower():
-                    LOG.info("Using config settings for probe %s" % (probe.unique_id))
+                    if did_match_probe:
+                        LOG.warning("Multiple probe config options match probe ID %s", probe.unique_id)
+                        break
+                    LOG.info("Using config options for probe %s" % (probe.unique_id))
                     self._options.add_back(settings)
+                    did_match_probe = True
+
+        # Add global config options.
+        self._options.add_back(config)
 
         # Merge in lowest priority options.
         self._options.add_back(option_defaults)
