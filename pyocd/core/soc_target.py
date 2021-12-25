@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +16,27 @@
 # limitations under the License.
 
 import logging
+from typing import (Callable, Dict, List, Optional, overload, Sequence, Union, TYPE_CHECKING)
+from typing_extensions import Literal
 
-from .target import Target
+from .target import (Target, TargetGraphNode)
+from .core_target import CoreTarget
 from ..flash.eraser import FlashEraser
 from ..debug.cache import CachingDebugContext
 from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.elf_reader import ElfReaderContext
-from ..utility.graph import GraphNode
 from ..utility.sequencer import CallSequence
+
+if TYPE_CHECKING:
+    from .session import Session
+    from .memory_map import MemoryMap
+    from .core_registers import (CoreRegistersIndex, CoreRegisterNameOrNumberType, CoreRegisterValueType)
+    from ..debug.context import DebugContext
+    from ..debug.breakpoints.provider import Breakpoint
 
 LOG = logging.getLogger(__name__)
 
-class SoCTarget(Target, GraphNode):
+class SoCTarget(TargetGraphNode):
     """! @brief Represents a microcontroller system-on-chip.
 
     An instance of this class is the root of the chip-level object graph. It has child
@@ -34,47 +44,66 @@ class SoCTarget(Target, GraphNode):
     to control the device, access memory, adjust breakpoints, and so on.
 
     For single core devices, the SoCTarget has mostly equivalent functionality to
-    the Target object for the core. Multicore devices work differently. This class tracks
+    the CoreTarget object for the core. Multicore devices work differently. This class tracks
     a "selected core", to which all actions are directed. The selected core can be changed
     at any time. You may also directly access specific cores and perform operations on them.
+
+    SoCTarget subclasses must restrict usage of the DebugProbe instance in their constructor, ideally not
+    using it at all. This is required in order to be able to gather information about targets for commands
+    such as `pyocd json` and `pyocd list`. These commands create a session with the probe set to an instance
+    of StubProbe, which is a subclass of DebugProbe with the minimal implementation necessary to support
+    session creation but not opening.
     """
 
     VENDOR = "Generic"
 
-    def __init__(self, session, memory_map=None):
-        Target.__init__(self, session, memory_map)
-        GraphNode.__init__(self)
-        self.vendor = self.VENDOR
-        self.part_families = getattr(self, 'PART_FAMILIES', [])
-        self.part_number = getattr(self, 'PART_NUMBER', self.__class__.__name__)
-        self._cores = {}
-        self._selected_core = None
+    def __init__(self, session: "Session", memory_map: Optional["MemoryMap"] = None) -> None:
+        super().__init__(session, memory_map)
+        self.vendor: str = self.VENDOR
+        self.part_families: List[str] = getattr(self, 'PART_FAMILIES', [])
+        self.part_number: str = getattr(self, 'PART_NUMBER', self.__class__.__name__)
+        self._cores: Dict[int, CoreTarget] = {}
+        self._selected_core: int = -1
         self._new_core_num = 0
         self._elf = None
 
     @property
-    def cores(self):
+    def cores(self) -> Dict[int, CoreTarget]:
         return self._cores
 
     @property
-    def selected_core(self):
-        if self._selected_core is None:
+    def selected_core(self) -> Optional[CoreTarget]:
+        """@brief Get the selected CPU core object."""
+        if self._selected_core == -1:
             return None
         return self.cores[self._selected_core]
 
     @selected_core.setter
-    def selected_core(self, core_number):
+    def selected_core(self, core_number: int) -> None:  # type:ignore # core_number int type is not the same
+                                                                      # as selected_core property return type
+        """@brief Set the selected CPU core object."""
         if core_number not in self.cores:
-            raise ValueError("invalid core number %d" % core_number)
+            raise ValueError("invalid core number %d" % core_number) # TODO should be a KeyError
         LOG.debug("selected core #%d" % core_number)
         self._selected_core = core_number
 
     @property
-    def elf(self):
+    def selected_core_or_raise(self) -> CoreTarget:
+        """@brief Get the selected CPU core object.
+
+        Like selected_core but will raise an exception if no core is selected rather than returning None.
+        @exception KeyError The selected_core property is None.
+        """
+        if self._selected_core == -1:
+            raise KeyError("SoCTarget has no selected core")
+        return self.cores[self._selected_core]
+
+    @property
+    def elf(self) -> Optional[ELFBinaryFile]:
         return self._elf
 
     @elf.setter
-    def elf(self, filename):
+    def elf(self, filename: str) -> None: # type:ignore # filename str type is not same as elf property return type
         if filename is None:
             self._elf = None
         else:
@@ -86,27 +115,28 @@ class SoCTarget(Target, GraphNode):
                             ElfReaderContext(self.cores[core_number].get_target_context(), self._elf))
 
     @property
-    def supported_security_states(self):
-        return self.selected_core.supported_security_states
+    def supported_security_states(self) -> Sequence[Target.SecurityState]:
+        return self.selected_core_or_raise.supported_security_states
 
     @property
-    def core_registers(self):
-        return self.selected_core.core_registers
+    def core_registers(self) -> "CoreRegistersIndex":
+        return self.selected_core_or_raise.core_registers
 
-    def add_core(self, core):
+    def add_core(self, core: CoreTarget) -> None:
         core.delegate = self.delegate
         core.set_target_context(CachingDebugContext(core))
         self.cores[core.core_number] = core
         self.add_child(core)
 
-        if self._selected_core is None:
-            self._selected_core = core.core_number
+        # Select first added core.
+        if self.selected_core is None:
+            self.selected_core = core.core_number
 
-    def create_init_sequence(self):
+    def create_init_sequence(self) -> CallSequence:
         # Return an empty call sequence. The subclass must override this.
         return CallSequence()
 
-    def init(self):
+    def init(self) -> None:
         # If we don't have a delegate installed yet but there is a session delegate, use it.
         if (self.delegate is None) and (self.session.delegate is not None):
             self.delegate = self.session.delegate
@@ -117,14 +147,14 @@ class SoCTarget(Target, GraphNode):
         seq.invoke()
         self.call_delegate('did_init_target', target=self)
 
-    def post_connect_hook(self):
+    def post_connect_hook(self) -> None:
         """! @brief Hook function called after post_connect init task.
 
         This hook lets the target subclass configure the target as necessary.
         """
         pass
 
-    def disconnect(self, resume=True):
+    def disconnect(self, resume: bool = True) -> None:
         self.session.notify(Target.Event.PRE_DISCONNECT, self)
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
@@ -132,109 +162,128 @@ class SoCTarget(Target, GraphNode):
         self.call_delegate('did_disconnect', target=self, resume=resume)
 
     @property
-    def run_token(self):
-        return self.selected_core.run_token
+    def run_token(self) -> int:
+        return self.selected_core_or_raise.run_token
 
-    def halt(self):
-        return self.selected_core.halt()
+    def halt(self) -> None:
+        return self.selected_core_or_raise.halt()
 
-    def step(self, disable_interrupts=True, start=0, end=0, hook_cb=None):
-        return self.selected_core.step(disable_interrupts, start, end, hook_cb)
+    def step(self, disable_interrupts: bool = True, start: int = 0, end: int = 0,
+            hook_cb: Optional[Callable[[], bool]] = None) -> None:
+        return self.selected_core_or_raise.step(disable_interrupts, start, end, hook_cb)
 
-    def resume(self):
-        return self.selected_core.resume()
+    def resume(self) -> None:
+        return self.selected_core_or_raise.resume()
 
-    def mass_erase(self):
+    def mass_erase(self) -> None:
         if not self.call_delegate('mass_erase', target=self):
             # The default mass erase implementation is to simply perform a chip erase.
             FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
-        return True
 
-    def write_memory(self, addr, value, transfer_size=32):
-        return self.selected_core.write_memory(addr, value, transfer_size)
+    def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
+        return self.selected_core_or_raise.write_memory(addr, data, transfer_size)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
-        return self.selected_core.read_memory(addr, transfer_size, now)
+    @overload
+    def read_memory(self, addr: int, transfer_size: int = 32) -> int:
+        ...
 
-    def write_memory_block8(self, addr, value):
-        return self.selected_core.write_memory_block8(addr, value)
+    @overload
+    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True) -> int:
+        ...
 
-    def write_memory_block32(self, addr, data):
-        return self.selected_core.write_memory_block32(addr, data)
+    @overload
+    def read_memory(self, addr: int, transfer_size: int, now: Literal[False]) -> Callable[[], int]:
+        ...
 
-    def read_memory_block8(self, addr, size):
-        return self.selected_core.read_memory_block8(addr, size)
+    @overload
+    def read_memory(self, addr: int, transfer_size: int, now: bool) -> Union[int, Callable[[], int]]:
+        ...
 
-    def read_memory_block32(self, addr, size):
-        return self.selected_core.read_memory_block32(addr, size)
+    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
+        return self.selected_core_or_raise.read_memory(addr, transfer_size, now)
 
-    def read_core_register(self, id):
-        return self.selected_core.read_core_register(id)
+    def write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
+        return self.selected_core_or_raise.write_memory_block8(addr, data)
 
-    def write_core_register(self, id, data):
-        return self.selected_core.write_core_register(id, data)
+    def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
+        return self.selected_core_or_raise.write_memory_block32(addr, data)
 
-    def read_core_register_raw(self, reg):
-        return self.selected_core.read_core_register_raw(reg)
+    def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
+        return self.selected_core_or_raise.read_memory_block8(addr, size)
 
-    def read_core_registers_raw(self, reg_list):
-        return self.selected_core.read_core_registers_raw(reg_list)
+    def read_memory_block32(self, addr: int, size) -> Sequence[int]:
+        return self.selected_core_or_raise.read_memory_block32(addr, size)
 
-    def write_core_register_raw(self, reg, data):
-        self.selected_core.write_core_register_raw(reg, data)
+    def read_core_register(self, id: "CoreRegisterNameOrNumberType") -> "CoreRegisterValueType":
+        return self.selected_core_or_raise.read_core_register(id)
 
-    def write_core_registers_raw(self, reg_list, data_list):
-        self.selected_core.write_core_registers_raw(reg_list, data_list)
+    def write_core_register(self, id: "CoreRegisterNameOrNumberType", data: "CoreRegisterValueType") -> None:
+        return self.selected_core_or_raise.write_core_register(id, data)
 
-    def find_breakpoint(self, addr):
-        return self.selected_core.find_breakpoint(addr)
+    def read_core_register_raw(self, reg: "CoreRegisterNameOrNumberType") -> int:
+        return self.selected_core_or_raise.read_core_register_raw(reg)
 
-    def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
-        return self.selected_core.set_breakpoint(addr, type)
+    def read_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"]) -> List[int]:
+        return self.selected_core_or_raise.read_core_registers_raw(reg_list)
 
-    def get_breakpoint_type(self, addr):
-        return self.selected_core.get_breakpoint_type(addr)
+    def write_core_register_raw(self, reg: "CoreRegisterNameOrNumberType", data: int) -> None:
+        self.selected_core_or_raise.write_core_register_raw(reg, data)
 
-    def remove_breakpoint(self, addr):
-        return self.selected_core.remove_breakpoint(addr)
+    def write_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"], data_list: Sequence[int]) -> None:
+        self.selected_core_or_raise.write_core_registers_raw(reg_list, data_list)
 
-    def set_watchpoint(self, addr, size, type):
-        return self.selected_core.set_watchpoint(addr, size, type)
+    def find_breakpoint(self, addr: int) -> Optional["Breakpoint"]:
+        return self.selected_core_or_raise.find_breakpoint(addr)
 
-    def remove_watchpoint(self, addr, size, type):
-        return self.selected_core.remove_watchpoint(addr, size, type)
+    def set_breakpoint(self, addr: int, type: Target.BreakpointType = Target.BreakpointType.AUTO) -> bool:
+        return self.selected_core_or_raise.set_breakpoint(addr, type)
 
-    def reset(self, reset_type=None):
+    def get_breakpoint_type(self, addr: int) -> Optional[Target.BreakpointType]:
+        return self.selected_core_or_raise.get_breakpoint_type(addr)
+
+    def remove_breakpoint(self, addr: int) -> None:
+        return self.selected_core_or_raise.remove_breakpoint(addr)
+
+    def set_watchpoint(self, addr: int, size: int, type: Target.WatchpointType) -> bool:
+        return self.selected_core_or_raise.set_watchpoint(addr, size, type)
+
+    def remove_watchpoint(self, addr: int, size: int, type: Target.WatchpointType) -> None:
+        return self.selected_core_or_raise.remove_watchpoint(addr, size, type)
+
+    def reset(self, reset_type: Optional[Target.ResetType] = None) -> None:
         # Use the probe to reset to perform a hardware reset if there is not a core.
         if self.selected_core is None:
             # Use the probe to reset. (We can't use the DP here because that's a class layering violation;
             # the DP is only created by the CoreSightTarget subclass.)
+            assert self.session.probe
             self.session.probe.reset()
             return
-        self.selected_core.reset(reset_type)
+        self.selected_core_or_raise.reset(reset_type)
 
-    def reset_and_halt(self, reset_type=None):
-        return self.selected_core.reset_and_halt(reset_type)
+    def reset_and_halt(self, reset_type: Optional[Target.ResetType] = None) -> None:
+        return self.selected_core_or_raise.reset_and_halt(reset_type)
 
-    def get_state(self):
-        return self.selected_core.get_state()
+    def get_state(self) -> Target.State:
+        return self.selected_core_or_raise.get_state()
 
-    def get_security_state(self):
-        return self.selected_core.get_security_state()
+    def get_security_state(self) -> Target.SecurityState:
+        return self.selected_core_or_raise.get_security_state()
 
-    def get_halt_reason(self):
-        return self.selected_core.get_halt_reason()
+    def get_halt_reason(self) -> Target.HaltReason:
+        return self.selected_core_or_raise.get_halt_reason()
 
-    def set_vector_catch(self, enableMask):
-        return self.selected_core.set_vector_catch(enableMask)
+    def set_vector_catch(self, enable_mask: int) -> None:
+        return self.selected_core_or_raise.set_vector_catch(enable_mask)
 
-    def get_vector_catch(self):
-        return self.selected_core.get_vector_catch()
+    def get_vector_catch(self) -> int:
+        return self.selected_core_or_raise.get_vector_catch()
 
-    def get_target_context(self, core=None):
-        if core is None:
-            core = self._selected_core
-        return self.cores[core].get_target_context()
+    def get_target_context(self, core: Optional[int] = None) -> "DebugContext":
+        if core is not None:
+            core_obj = self.cores[core]
+        else:
+            core_obj = self.selected_core_or_raise
+        return core_obj.get_target_context()
 
     def trace_start(self):
         self.call_delegate('trace_start', target=self, mode=0)

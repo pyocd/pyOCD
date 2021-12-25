@@ -161,6 +161,7 @@ class RegisterCommandBase(CommandBase):
                 lsb = f.bit_offset
                 f_value = bfx(value, msb, lsb)
                 v_enum = None
+                v = None
                 if f.enumerated_values:
                     for v in f.enumerated_values:
                         if v.value == f_value:
@@ -176,6 +177,7 @@ class RegisterCommandBase(CommandBase):
                 f_value_bin_str = bin(f_value)[2:]
                 f_value_bin_str = "0" * (f.bit_width - len(f_value_bin_str)) + f_value_bin_str
                 if v_enum:
+                    assert v
                     f_value_enum_str = " %s: %s" % (v.name, v_enum.description)
                 else:
                     f_value_enum_str = ""

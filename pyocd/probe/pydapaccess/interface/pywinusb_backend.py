@@ -40,13 +40,12 @@ else:
     IS_AVAILABLE = True
 
 class PyWinUSB(Interface):
-    """! @brief CMSIS-DAP USB interface class using pyWinUSB for the backend.
-    """
+    """@brief CMSIS-DAP USB interface class using pyWinUSB for the backend."""
 
     isAvailable = IS_AVAILABLE
 
     def __init__(self):
-        super(PyWinUSB, self).__init__()
+        super().__init__()
         # Vendor page and usage_id = 2
         self.report = None
         # deque used here instead of synchronized Queue
@@ -98,8 +97,7 @@ class PyWinUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """! @brief Returns all the connected CMSIS-DAP devices
-        """
+        """@brief Returns all the connected CMSIS-DAP devices"""
         all_devices = hid.find_all_hid_devices()
 
         # find devices with good vid/pid
@@ -142,8 +140,7 @@ class PyWinUSB(Interface):
         return boards
 
     def write(self, data):
-        """! @brief Write data on the OUT endpoint associated to the HID interface
-        """
+        """@brief Write data on the OUT endpoint associated to the HID interface"""
         if TRACE.isEnabledFor(logging.DEBUG):
             TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
 
@@ -151,8 +148,7 @@ class PyWinUSB(Interface):
         self.report.send([0] + data)
 
     def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
-        """! @brief Read data on the IN endpoint associated to the HID interface
-        """
+        """@brief Read data on the IN endpoint associated to the HID interface"""
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
         with Timeout(timeout, sleeptime=0.0001) as t_o:
             while t_o.check():
@@ -177,7 +173,6 @@ class PyWinUSB(Interface):
         return self.rcv_data.popleft()
 
     def close(self):
-        """! @brief Close the interface
-        """
+        """@brief Close the interface"""
         LOG.debug("closing interface")
         self.device.close()

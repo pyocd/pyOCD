@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import six
 from xml.etree import ElementTree
 from itertools import groupby
 
@@ -107,7 +106,7 @@ class GDBDebugContextFacade(object):
             if reg_value is None:
                 r = b"xx" * round_up_div(reg.bitsize, 8)
             else:
-                r = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
+                r = conversion.uint_to_hex_le(reg_value, reg.bitsize).encode()
             resp += r
             LOG.debug("GDB get_reg_context: %s = %s -> %s", reg.name,
                     "None" if (reg_value is None) else ("0x%08X" % reg_value), r)
@@ -167,7 +166,7 @@ class GDBDebugContextFacade(object):
 
         try:
             reg_value = self._context.read_core_register_raw(reg.name)
-            resp = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
+            resp = conversion.uint_to_hex_le(reg_value, reg.bitsize).encode()
             LOG.debug("GDB reg: %s = 0x%X", reg.name, reg_value)
         except exceptions.CoreRegisterAccessError:
             # Return x's if the register read failed.
@@ -183,9 +182,9 @@ class GDBDebugContextFacade(object):
         - The current value of the important registers (sp, lr, pc).
         """
         if force_signal is not None:
-            response = six.b('T' + conversion.byte_to_hex2(force_signal))
+            response = ('T' + conversion.byte_to_hex2(force_signal)).encode()
         else:
-            response = six.b('T' + conversion.byte_to_hex2(self.get_signal_value()))
+            response = ('T' + conversion.byte_to_hex2(self.get_signal_value())).encode()
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self._get_reg_index_value_pairs(['r7', 'sp', 'lr', 'pc'])
@@ -230,7 +229,7 @@ class GDBDebugContextFacade(object):
                 encoded_reg = "xx" * round_up_div(reg.bitsize, 8)
             else:
                 encoded_reg = conversion.uint_to_hex_le(reg_value, reg.bitsize)
-            result += six.b(conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';')
+            result += (conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';').encode()
         return result
 
     def get_memory_map_xml(self):

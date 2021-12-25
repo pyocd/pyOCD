@@ -46,8 +46,7 @@ _IS_DARWIN = (platform.system() == 'Darwin')
 _IS_WINDOWS = (platform.system() == 'Windows')
 
 class HidApiUSB(Interface):
-    """! @brief CMSIS-DAP USB interface class using hidapi backend.
-    """
+    """@brief CMSIS-DAP USB interface class using hidapi backend."""
 
     isAvailable = IS_AVAILABLE
 
@@ -105,7 +104,7 @@ class HidApiUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """! @brief Returns all the connected devices with CMSIS-DAP in the name.
+        """@brief Returns all the connected devices with CMSIS-DAP in the name.
 
         returns an array of HidApiUSB (Interface) objects
         """
@@ -152,8 +151,7 @@ class HidApiUSB(Interface):
         return boards
 
     def write(self, data):
-        """! @brief Write data on the OUT endpoint associated to the HID interface
-        """
+        """@brief Write data on the OUT endpoint associated to the HID interface"""
         if TRACE.isEnabledFor(logging.DEBUG):
             TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
         data.extend([0] * (self.packet_size - len(data)))
@@ -162,8 +160,7 @@ class HidApiUSB(Interface):
         self.device.write([0] + data)
 
     def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
-        """! @brief Read data on the IN endpoint associated to the HID interface
-        """
+        """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
             read_data = self.device.read(self.packet_size)
@@ -194,10 +191,8 @@ class HidApiUSB(Interface):
 
         return self.received_data.popleft()
 
-
     def close(self):
-        """! @brief Close the interface
-        """
+        """@brief Close the interface"""
         assert not self.closed_event.is_set()
 
         LOG.debug("closing interface")

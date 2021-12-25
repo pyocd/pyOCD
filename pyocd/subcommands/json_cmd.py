@@ -18,6 +18,7 @@ import argparse
 from typing import List
 import logging
 import json
+import traceback
 
 from .base import SubcommandBase
 from ..core.session import Session
@@ -65,50 +66,60 @@ class JsonSubcommand(SubcommandBase):
 
     def invoke(self) -> int:
         """! @brief Handle 'json' subcommand."""
-        all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.features)
+        exit_status = 0
+        try:
+            all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.features)
 
-        # Default to listing probes.
-        if not any(all_outputs):
-            self._args.probes = True
+            # Default to listing probes.
+            if not any(all_outputs):
+                self._args.probes = True
 
-        # Check for more than one output option being selected.
-        if sum(int(x) for x in all_outputs) > 1:
-            # Because we're outputting JSON we can't just log the error, but must report the error
-            # via the JSON format.
+            # Check for more than one output option being selected.
+            if sum(int(x) for x in all_outputs) > 1:
+                # Because we're outputting JSON we can't just log the error, but must report the error
+                # via the JSON format.
+                obj = {
+                    'pyocd_version' : __version__,
+                    'version' : { 'major' : 1, 'minor' : 0 },
+                    'status' : 1,
+                    'error' : "More than one output data selected.",
+                    }
+                exit_status = 1
+            else:
+                # Create a session with no device so we load any config.
+                session = Session(None,
+                                    project_dir=self._args.project_dir,
+                                    config_file=self._args.config,
+                                    no_config=self._args.no_config,
+                                    pack=self._args.pack,
+                                    **convert_session_options(self._args.options)
+                                    )
+
+                if self._args.targets or self._args.boards:
+                    # Create targets from provided CMSIS pack.
+                    if session.options['pack'] is not None:
+                        pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
+
+                if self._args.probes:
+                    obj = ListGenerator.list_probes()
+                elif self._args.targets:
+                    obj = ListGenerator.list_targets()
+                elif self._args.boards:
+                    obj = ListGenerator.list_boards()
+                elif self._args.features:
+                    obj = ListGenerator.list_features()
+                else:
+                    assert False
+        except Exception as e:
+            # Report exceptions via JSON output.
             obj = {
                 'pyocd_version' : __version__,
                 'version' : { 'major' : 1, 'minor' : 0 },
                 'status' : 1,
-                'error' : "More than one output data selected.",
+                'error' : f"Error occurred during processing.\n" + traceback.format_exc(),
                 }
+            exit_status = 1
 
-            print(json.dumps(obj, indent=4))
-            return 0
-
-        # Create a session with no device so we load any config.
-        session = Session(None,
-                            project_dir=self._args.project_dir,
-                            config_file=self._args.config,
-                            no_config=self._args.no_config,
-                            pack=self._args.pack,
-                            **convert_session_options(self._args.options)
-                            )
-
-        if self._args.targets or self._args.boards:
-            # Create targets from provided CMSIS pack.
-            if session.options['pack'] is not None:
-                pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
-
-        if self._args.probes:
-            obj = ListGenerator.list_probes()
-        elif self._args.targets:
-            obj = ListGenerator.list_targets()
-        elif self._args.boards:
-            obj = ListGenerator.list_boards()
-        elif self._args.features:
-            obj = ListGenerator.list_features()
-        else:
-            assert False
         print(json.dumps(obj, indent=4))
-        return 0
+        return exit_status
 

@@ -17,20 +17,18 @@
 
 import logging
 import threading
-from struct import unpack
 from time import sleep
 import sys
-import six
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
-from typing import (Dict, Optional)
+from typing import (Dict, List, Optional)
 
 from ..core import exceptions
 from ..core.target import Target
 from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
-from ..utility.compatibility import (iter_single_bytes, to_bytes_safe, to_str_safe)
+from ..utility.compatibility import (to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..utility.timeout import Timeout
 from ..trace.swv import SWVReader
@@ -57,7 +55,7 @@ LOG = logging.getLogger(__name__)
 TRACE_MEM = LOG.getChild("trace.mem")
 TRACE_MEM.setLevel(logging.CRITICAL)
 
-def unescape(data):
+def unescape(data: bytes) -> List[int]:
     """! @brief De-escapes binary data from Gdb.
 
     @param data Bytes-like object with possibly escaped values.
@@ -66,18 +64,19 @@ def unescape(data):
     data_idx = 0
 
     # unpack the data into binary array
-    str_unpack = str(len(data)) + 'B'
-    data = unpack(str_unpack, data)
-    data = list(data)
+    result = list(data)
 
     # check for escaped characters
-    while data_idx < len(data):
-        if data[data_idx] == 0x7d:
-            data.pop(data_idx)
-            data[data_idx] = data[data_idx] ^ 0x20
+    while data_idx < len(result):
+        if result[data_idx] == 0x7d:
+            result.pop(data_idx)
+            result[data_idx] = result[data_idx] ^ 0x20
         data_idx += 1
 
-    return data
+    return result
+
+## Tuple of int values of characters that must be escaped.
+_GDB_ESCAPED_CHARS = tuple(b'#$}*')
 
 def escape(data):
     """! @brief Escape binary data to be sent to Gdb.
@@ -85,13 +84,14 @@ def escape(data):
     @param data Bytes-like object containing raw binary.
     @return Bytes object with the characters in '#$}*' escaped as required by Gdb.
     """
-    result = b''
-    for c in iter_single_bytes(data):
-        if c in b'#$}*':
-            result += b'}' + six.int2byte(six.byte2int(c) ^ 0x20)
+    result: List[int] = []
+    for c in data:
+        if c in _GDB_ESCAPED_CHARS:
+            # Escape by prefixing with '}' and xor'ing the char with 0x20.
+            result += [0x7d, c ^ 0x20]
         else:
-            result += c
-    return result
+            result.append(c)
+    return bytes(result)
 
 class GDBError(exceptions.Error):
     """! @brief Error communicating with GDB."""
@@ -933,7 +933,7 @@ class GDBServer(threading.Thread):
 
             # Build our list of features.
             features = [b'qXfer:features:read+', b'QStartNoAckMode+', b'qXfer:threads:read+', b'QNonStop+']
-            features.append(b'PacketSize=' + six.b(hex(self.packet_size))[2:])
+            features.append(b'PacketSize=' + (hex(self.packet_size).encode())[2:])
             if self.target_facade.get_memory_map_xml() is not None:
                 features.append(b'qXfer:memory-map:read+')
             resp = b';'.join(features)

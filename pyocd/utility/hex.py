@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +18,14 @@
 import sys
 import string
 import io
+from typing import (IO, Optional, Sequence)
 
 from . import conversion
 
 ## ASCII printable characters not including whitespace that changes line position.
 _PRINTABLE = string.digits + string.ascii_letters + string.punctuation + ' '
 
-def format_hex_width(value, width):
+def format_hex_width(value: int, width: int) -> str:
     """! @brief Formats the value as hex of the specified bit width.
 
     @param value Integer value to be formatted.
@@ -41,7 +43,13 @@ def format_hex_width(value, width):
     else:
         raise ValueError("unrecognized register width (%d)" % width)
 
-def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True):
+def dump_hex_data(
+        data: Sequence[int],
+        start_address: int = 0,
+        width: int = 8,
+        output: Optional[IO[str]] = None,
+        print_ascii: bool = True
+    ) -> None:
     """! @brief Prints a canonical hex dump of the given data.
 
     Each line of the output consists of an address column, the data as hex, and a printable ASCII
@@ -122,7 +130,7 @@ def dump_hex_data(data, start_address=0, width=8, output=None, print_ascii=True)
                 if width == 8:
                     d = [d]
                 else:
-                    d = conversion.nbit_le_list_to_byte_list([d], width)
+                    d = list(conversion.nbit_le_list_to_byte_list([d], width))
                     d.reverse()
                 s += "".join((chr(b) if (chr(b) in _PRINTABLE) else '.') for b in d)
             output.write(" " * (max_line_width - actual_line_width) + "   " + s + "|")

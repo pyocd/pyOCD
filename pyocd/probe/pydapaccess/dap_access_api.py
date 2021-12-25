@@ -16,7 +16,7 @@
 
 
 from enum import Enum
-
+from typing import (Tuple, Sequence)
 
 class DAPAccessIntf(object):
 
@@ -188,7 +188,7 @@ class DAPAccessIntf(object):
         """
         raise NotImplementedError()
 
-    def swd_sequence(self, sequences):
+    def swd_sequence(self, sequences) -> Tuple[int, Sequence[bytes]]:
         """! @brief Send a sequences of bits on the SWDIO signal.
 
         This method sends the DAP_SWD_Sequence CMSIS-DAP command.
@@ -205,6 +205,7 @@ class DAPAccessIntf(object):
         @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
             sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
         """
+        raise NotImplementedError()
 
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
         """! @brief Send JTAG sequence.

@@ -18,7 +18,6 @@
 import logging
 import threading
 import socket
-import six
 import queue
 
 CTRL_C = b'\x03'
@@ -31,8 +30,8 @@ TRACE_ACK.setLevel(logging.CRITICAL)
 TRACE_PACKETS = LOG.getChild("trace.packet")
 TRACE_PACKETS.setLevel(logging.CRITICAL)
 
-def checksum(data):
-    return ("%02x" % (sum(six.iterbytes(data)) % 256)).encode()
+def checksum(data: bytes) -> bytes:
+    return ("%02x" % (sum(data) % 256)).encode()
 
 class ConnectionClosedException(Exception):
     """! @brief Exception used to signal the GDB server connection closed."""

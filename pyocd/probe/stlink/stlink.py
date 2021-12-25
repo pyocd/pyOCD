@@ -17,7 +17,6 @@
 
 import logging
 import struct
-import six
 import threading
 from enum import Enum
 from typing import Optional
@@ -279,7 +278,7 @@ class STLink(object):
             response = self._device.transfer(cmd, readSize=52)
             self._check_status(response[0:2])
 
-            freqs = conversion.byte_list_to_u32le_list(response[4:52])
+            freqs = list(conversion.byte_list_to_u32le_list(response[4:52]))
             currentFreq = freqs.pop(0)
             freqCount = freqs.pop(0)
             return currentFreq, freqs[:freqCount]
@@ -363,7 +362,7 @@ class STLink(object):
                 thisTransferSize = min(size, max)
 
                 cmd = [Commands.JTAG_COMMAND, memcmd]
-                cmd.extend(six.iterbytes(struct.pack('<IHB', addr, thisTransferSize, apsel)))
+                cmd.extend(struct.pack('<IHB', addr, thisTransferSize, apsel))
                 result += self._device.transfer(cmd, readSize=thisTransferSize)
 
                 addr += thisTransferSize
@@ -397,7 +396,7 @@ class STLink(object):
                 thisTransferData = data[:thisTransferSize]
 
                 cmd = [Commands.JTAG_COMMAND, memcmd]
-                cmd.extend(six.iterbytes(struct.pack('<IHB', addr, thisTransferSize, apsel)))
+                cmd.extend(struct.pack('<IHB', addr, thisTransferSize, apsel))
                 self._device.transfer(cmd, writeData=thisTransferData)
 
                 addr += thisTransferSize
@@ -471,7 +470,7 @@ class STLink(object):
 
         with self._lock:
             cmd = [Commands.JTAG_COMMAND, Commands.JTAG_READ_DAP_REG]
-            cmd.extend(six.iterbytes(struct.pack('<HH', port, addr)))
+            cmd.extend(struct.pack('<HH', port, addr))
             response = self._device.transfer(cmd, readSize=8)
             self._check_status(response[:2])
             value, = struct.unpack('<I', response[4:8])
@@ -484,7 +483,7 @@ class STLink(object):
 
         with self._lock:
             cmd = [Commands.JTAG_COMMAND, Commands.JTAG_WRITE_DAP_REG]
-            cmd.extend(six.iterbytes(struct.pack('<HHI', port, addr, value)))
+            cmd.extend(struct.pack('<HHI', port, addr, value))
             response = self._device.transfer(cmd, readSize=2)
             self._check_status(response)
 
@@ -492,7 +491,7 @@ class STLink(object):
         with self._lock:
             bufferSize = 4096
             cmd = [Commands.JTAG_COMMAND, Commands.SWV_START_TRACE_RECEPTION]
-            cmd.extend(six.iterbytes(struct.pack('<HI', bufferSize, baudrate)))
+            cmd.extend(struct.pack('<HI', bufferSize, baudrate))
             response = self._device.transfer(cmd, readSize=2)
             self._check_status(response)
 

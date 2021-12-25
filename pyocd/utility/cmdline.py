@@ -16,7 +16,7 @@
 # limitations under the License.
 
 import logging
-from typing import (Any, Dict, Iterable, List, Union)
+from typing import (Any, Dict, Iterable, List, Optional, Union)
 
 from ..core.target import Target
 from ..core.options import OPTIONS_INFO
@@ -186,7 +186,7 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
     return options
 
 ## Map to convert from reset type names to enums.
-RESET_TYPE_MAP = {
+RESET_TYPE_MAP: Dict[str, Optional[Target.ResetType]] = {
         'default': None,
         'hw': Target.ResetType.HW,
         'sw': Target.ResetType.SW,
@@ -200,7 +200,7 @@ RESET_TYPE_MAP = {
         'emulated': Target.ResetType.SW_EMULATED,
     }
 
-def convert_reset_type(value: str) -> Target.ResetType:
+def convert_reset_type(value: str) -> Optional[Target.ResetType]:
     """! @brief Convert a reset_type session option value to the Target.ResetType enum.
     @param value The value of the reset_type session option.
     @exception ValueError Raised if an unknown reset_type value is passed.
