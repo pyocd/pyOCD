@@ -48,14 +48,18 @@ class STLinkUSBInterface:
     USB_VID = 0x0483
 
     ## Map of USB PID to firmware version name and device endpoints.
+    #
+    # Other PIDs:
+    # - 0x3744: STLink V1
+    # - 0x374d: STLink V3 DFU
     USB_PID_EP_MAP = {
         # PID              Version  OUT     IN      SWV
         0x3748: STLinkInfo('V2',    0x02,   0x81,   0x83),
-        0x374b: STLinkInfo('V2-1',  0x01,   0x81,   0x82),
         0x374a: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # Audio
-        0x3742: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # No MSD
+        0x374b: STLinkInfo('V2-1',  0x01,   0x81,   0x82),
         0x374e: STLinkInfo('V3',    0x01,   0x81,   0x82),
         0x374f: STLinkInfo('V3',    0x01,   0x81,   0x82),  # Bridge
+        0x3752: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # No MSD
         0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP, No MSD
         0x3754: STLinkInfo('V3',    0x01,   0x81,   0x82),  # No MSD
         0x3755: STLinkInfo('V3',    0x01,   0x81,   0x82),
