@@ -484,7 +484,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """! @brief Write an aligned block of 32-bit words."""
         self.ap.write_memory_block32(addr, data)
 
-    def read_memory_block32(self, addr: int, size) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
         """! @brief Read an aligned block of 32-bit words."""
         data = self.ap.read_memory_block32(addr, size)
         return self.bp_manager.filter_memory_aligned_32(addr, size, data)
