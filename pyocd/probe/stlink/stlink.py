@@ -246,10 +246,23 @@ class STLink(object):
                 self._device.transfer([Commands.SWIM_COMMAND, Commands.SWIM_EXIT])
             self._protocol = None
 
+    def set_prescaler(self, prescaler: int) -> None:
+        assert prescaler in (1, 2, 4)
+
+        # The SWITCH_STLINK_FREQ command is only supported on V3.
+        if self._hw_version < 3:
+            return
+        with self._lock:
+            cmd = [Commands.JTAG_COMMAND, Commands.SWITCH_STLINK_FREQ, prescaler]
+            response = self._device.transfer(cmd, readSize=8)
+            # The JTAG_CONF_CHANGED status is ok and expected.
+            if response[0] != Status.JTAG_CONF_CHANGED:
+                self._check_status(response[0:2])
+
     def set_swd_frequency(self, freq=1800000):
         with self._lock:
             if self._hw_version >= 3:
-                self.set_com_frequency(self.Protocol.JTAG, freq)
+                self.set_com_frequency(self.Protocol.SWD, freq)
             else:
                 for f, d in SWD_FREQ_MAP.items():
                     if freq >= f:
@@ -293,6 +306,7 @@ class STLink(object):
             self._check_status(response[0:2])
 
             freqs = conversion.byte_list_to_u32le_list(response[4:8])
+            LOG.debug("actual %s frequency is %d kHz", protocol.name, freqs[0])
             return freqs[0]
 
     def enter_debug(self, protocol):
@@ -355,11 +369,11 @@ class STLink(object):
                 self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT,
                     dap.CTRLSTAT_STICKYERR | dap.CTRLSTAT_STICKYCMP | dap.CTRLSTAT_STICKYORUN)
 
-    def _read_mem(self, addr, size, memcmd, max, apsel):
+    def _read_mem(self, addr, size, memcmd, maxrx, apsel):
         with self._lock:
             result = []
             while size:
-                thisTransferSize = min(size, max)
+                thisTransferSize = min(size, maxrx)
 
                 cmd = [Commands.JTAG_COMMAND, memcmd]
                 cmd.extend(struct.pack('<IHB', addr, thisTransferSize, apsel))
@@ -389,10 +403,10 @@ class STLink(object):
                         raise exceptions.ProbeError(error_message)
             return result
 
-    def _write_mem(self, addr, data, memcmd, max, apsel):
+    def _write_mem(self, addr, data, memcmd, maxtx, apsel):
         with self._lock:
             while len(data):
-                thisTransferSize = min(len(data), max)
+                thisTransferSize = min(len(data), maxtx)
                 thisTransferData = data[:thisTransferSize]
 
                 cmd = [Commands.JTAG_COMMAND, memcmd]

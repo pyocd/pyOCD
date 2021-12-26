@@ -21,6 +21,7 @@ from typing import (List, Optional)
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
 from ..core.plugin import Plugin
+from ..core.options import OptionInfo
 from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT)
 from .stlink.usb import STLinkUSBInterface
 from .stlink.stlink import STLink
@@ -124,8 +125,16 @@ class StlinkProbe(DebugProbe):
             return None
 
     def open(self):
+        assert self.session is not None
+
         self._link.open()
         self._is_open = True
+
+        # This call is ignored if the STLink is not V3.
+        prescaler = self.session.options.get('stlink.v3_prescaler')
+        if prescaler not in (1, 2, 4):
+            prescaler = self.session.options.get_default('stlink.v3_prescaler')
+        self._link.set_prescaler(prescaler)
 
         # Update capabilities.
         self._caps = {
@@ -299,3 +308,11 @@ class StlinkProbePlugin(Plugin):
     @property
     def description(self):
         return "STMicro STLinkV2 and STLinkV3 debug probe"
+
+    @property
+    def options(self) -> List[OptionInfo]:
+        return [
+            OptionInfo('stlink.v3_prescaler', int, 1,
+                    "Sets the HCLK prescaler of an STLinkV3, changing performance versus power tradeoff. "
+                    "The value must be one of 1=high performance (default), 2=normal, or 4=low power.")
+        ]
