@@ -211,8 +211,8 @@ class GDBDebugContextFacade(object):
         return signal
 
     def _get_reg_index_value_pairs(self, reg_list):
-        """! @brief Return register values as pairs.
-        
+        """! @brief Return register values as pairs for the T response.
+
         Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
         for the T response string.  NN is the index of the
         register to follow MMMMMMMM is the value of the register.
@@ -221,16 +221,15 @@ class GDBDebugContextFacade(object):
         try:
             reg_values = self._context.read_core_registers_raw(reg_list)
         except exceptions.CoreRegisterAccessError:
-            reg_values = [None] * len(reg_list)
+            # If we cannot read registers, return an empty string. We mustn't return 'x's like the other
+            # register read methods do, because gdb terribly dislikes 'x's in a T response.
+            return result
 
         for reg_name, reg_value in zip(reg_list, reg_values):
             reg = self._context.core.core_registers.by_name[reg_name]
-            # Return x's if the register read failed.
-            if reg_value is None:
-                encoded_reg = "xx" * round_up_div(reg.bitsize, 8)
-            else:
-                encoded_reg = conversion.uint_to_hex_le(reg_value, reg.bitsize)
-            result += six.b(conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';')
+            assert reg_value is not None
+            encoded_reg = conversion.uint_to_hex_le(reg_value, reg.bitsize)
+            result += (conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';').encode()
         return result
 
     def get_memory_map_xml(self):
