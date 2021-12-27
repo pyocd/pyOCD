@@ -1,5 +1,17 @@
 # Test user script.
-#
+
+@command(help="test command")
+def testcmd(f: float, i: int, s: str):
+    assert isinstance(f, float)
+    assert isinstance(i, int)
+    assert isinstance(s, str)
+
+@command("anothertestcmd", help="second test command")
+def testcmd2(*args):
+    assert isinstance(args, tuple)
+    assert all(isinstance(s, str) for s in args)
+
+
 # Provides stub implementations of all hooks.
 
 def will_connect(board):

@@ -20,8 +20,8 @@ import logging.config
 import yaml
 import os
 import weakref
-from inspect import getfullargspec
-from typing import (Any, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
+from inspect import (getfullargspec, signature)
+from typing import (Any, Callable, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
 
 from . import exceptions
 from .options_manager import OptionsManager
@@ -427,6 +427,7 @@ class Session(Notifier):
             'session': self,
             'options': self.options,
             'LOG': logging.getLogger('pyocd.user_script'),
+            'command': new_command_decorator,
             }
 
     def _update_user_script_namespace(self) -> None:
@@ -560,3 +561,113 @@ class UserScriptDelegateProxy:
                 return obj
         else:
             raise AttributeError(name)
+
+def new_command_decorator(name: Optional[Union[str, Sequence[str]]] = None, help: str = ""):
+    """@brief User script decorator for creating new commands.
+
+    Supported parameter types:
+    - `str`
+    - `int`
+    - `float`
+    - Extra args, e.g. `*args`.
+
+    Keyword parameters and extra keyword args (**args) are not allowed.
+
+    The decorated function remains accessible as a regular function in the namespace in which it was defined.
+    This is true even if the function definition is not compatible with the command decorator, for instance
+    if it has invalid parameter types.
+
+    This is an example of defining a command with this decorator.
+    ```py
+    @command('cmdname', help='Optional help')
+    def mycommand(s: str, i: int, f: float, *args):
+        print("Hello")
+    ```
+    """
+    import types
+    from ..commands.base import CommandBase
+    def _command_decorator(fn: Callable):
+        if name is None:
+            names_list: Sequence[str] = [getattr(fn, '__name__')]
+        else:
+            names_list: Sequence[str] = [name] if isinstance(name, str) else name[0]
+        classname = names_list[0].capitalize() + "Command"
+
+        # Examine the command function's signature to extract arguments and their types.
+        sig = signature(fn)
+        arg_converters = []
+        has_var_args = False
+        usage_fields: List[str] = []
+        for parm in sig.parameters.values():
+            typ = parm.annotation
+
+            # Check if this is a *args kind of argument.
+            if parm.kind == parm.VAR_POSITIONAL:
+                has_var_args = True
+                usage_fields.append("*")
+                continue
+            # Disallow keyword params.
+            elif parm.kind in (parm.KEYWORD_ONLY, parm.VAR_KEYWORD):
+                LOG.error("ser command function '%s' uses unsupported keyword parameters", fn.__name__)
+                return fn
+
+            # Require type annotations.
+            if typ is parm.empty:
+                LOG.error("user command function '%s' is missing type annotation for parameter '%s'",
+                        fn.__name__, parm.name)
+                return fn
+
+            # Otherwise add to param converter list.
+            if issubclass(typ, str):
+                arg_converters.append(lambda _, x: x)
+            elif issubclass(typ, float):
+                arg_converters.append(lambda _, x: float(x))
+            elif issubclass(typ, int):
+                arg_converters.append(CommandBase._convert_value)
+            else:
+                LOG.error("parameter '%s' of user command function '%s' has an unsupported type",
+                        parm.name, fn.__name__)
+                return fn
+            usage_fields.append(parm.name.upper())
+
+        # parse() method of the new command class.
+        def parse(self, args: List[str]):
+            arg_values: List[Any] = []
+
+            if len(args) > len(arg_converters):
+                assert has_var_args
+                extra_args = args[len(arg_converters):]
+                args = args[:len(arg_converters)]
+            else:
+                extra_args = []
+
+            for arg, converter in zip(args, arg_converters):
+                arg_values.append(converter(self, arg))
+            if has_var_args:
+                arg_values += extra_args
+
+            self._args = arg_values
+
+        # execute() method of the new command class.
+        def execute(self):
+            fn(*self._args)
+
+        # Callback to populate the new command class' namespace dict.
+        def populate_command_class(ns: Dict[str, Any]) -> None:
+            ns['INFO'] = {
+                'names': names_list,
+                'group': 'user',
+                'category': 'user',
+                'nargs': "*" if has_var_args else len(sig.parameters),
+                'usage': " ".join(usage_fields),
+                'help': help,
+                }
+            ns['parse'] = parse
+            ns['execute'] = execute
+
+        types.new_class(classname, bases=(CommandBase,), exec_body=populate_command_class)
+
+        # Return original function. This makes it accessible from the rest of the user script
+        # and Python expression commands.
+        return fn
+    return _command_decorator

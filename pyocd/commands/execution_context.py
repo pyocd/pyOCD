@@ -231,6 +231,9 @@ class CommandExecutionContext:
                         self.selected_ap_address = ap_num
                         break
 
+        # Add user-defined commands once we know we have a session created.
+        self.command_set.add_command_group('user')
+
         return True
 
     @property
