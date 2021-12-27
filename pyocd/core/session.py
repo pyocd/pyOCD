@@ -170,6 +170,9 @@ class Session(Notifier):
             self._project_dir: str = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
 
+        # Switch the working dir to the project dir.
+        os.chdir(self.project_dir)
+
         # Load options from the config file.
         config = self._get_config()
         probes_config = config.pop('probes', None)
