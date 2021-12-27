@@ -1034,7 +1034,7 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
             self._dp.write_ap(addr, word)
             addr += 4
 
-    def read_memory_block32(self, addr: int, size) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
         """! @brief Read an aligned block of 32-bit words."""
         addr += self._offset
         result_cbs = [self._dp.read_ap(addr + i * 4, now=False) for i in range(size)]

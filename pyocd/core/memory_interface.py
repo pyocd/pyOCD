@@ -55,7 +55,7 @@ class MemoryInterface:
         """! @brief Write an aligned block of 32-bit words."""
         raise NotImplementedError()
 
-    def read_memory_block32(self, addr: int, size) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
         """! @brief Read an aligned block of 32-bit words."""
         raise NotImplementedError()
 

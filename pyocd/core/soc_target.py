@@ -211,7 +211,7 @@ class SoCTarget(TargetGraphNode):
     def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
         return self.selected_core_or_raise.read_memory_block8(addr, size)
 
-    def read_memory_block32(self, addr: int, size) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
         return self.selected_core_or_raise.read_memory_block32(addr, size)
 
     def read_core_register(self, id: "CoreRegisterNameOrNumberType") -> "CoreRegisterValueType":
