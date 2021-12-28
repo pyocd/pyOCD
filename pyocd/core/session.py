@@ -19,6 +19,7 @@ import logging
 import logging.config
 import yaml
 import os
+from pathlib import Path
 import weakref
 from inspect import (getfullargspec, signature)
 from typing import (Any, Callable, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
@@ -342,8 +343,14 @@ class Session(Notifier):
         self._delegate = new_delegate
 
     @property
-    def user_script_proxy(self) -> Optional["UserScriptDelegateProxy"]:
+    def user_script_proxy(self) -> "UserScriptDelegateProxy":
         """! @brief The UserScriptDelegateProxy object for a loaded user script."""
+        # Create a proxy if there isn't already one. This is a fallback in case there isn't a user script,
+        # yet a Python $-command is executed and needs the user script namespace in which to run.
+        if not self._user_script_proxy:
+            self._init_user_script_namespace('__script__', '<none>')
+            self._update_user_script_namespace()
+            self._user_script_proxy = UserScriptDelegateProxy(self._user_script_namespace)
         return self._user_script_proxy
 
     @property
@@ -380,7 +387,7 @@ class Session(Notifier):
         self.close()
         return False
 
-    def _init_user_script_namespace(self, user_script_path: str) -> None:
+    def _init_user_script_namespace(self, script_name: str, script_path: str) -> None:
         """! @brief Create the namespace dict used for user scripts.
 
         This initial namespace has only those objects that are available very early in the
@@ -394,6 +401,9 @@ class Session(Notifier):
         from ..flash import file_programmer
         from ..flash import eraser
         from ..flash import loader
+
+        user_script_logger = logging.getLogger('pyocd.user_script')
+
         self._user_script_namespace = {
             # Modules and classes
             'pyocd': pyocd,
@@ -421,13 +431,18 @@ class Session(Notifier):
             'FlashEraser': eraser.FlashEraser,
             'FlashLoader': loader.FlashLoader,
             # User script info
-            '__name__': os.path.splitext(os.path.basename(user_script_path))[0],
-            '__file__': user_script_path,
+            '__name__': script_name,
+            '__file__': script_path,
             # Objects
             'session': self,
             'options': self.options,
-            'LOG': logging.getLogger('pyocd.user_script'),
+            'LOG': user_script_logger,
+            # Functions
             'command': new_command_decorator,
+            'debug': user_script_logger.debug,
+            'info': user_script_logger.info,
+            'warning': user_script_logger.warning,
+            'error': user_script_logger.error,
             }
 
     def _update_user_script_namespace(self) -> None:
@@ -442,23 +457,23 @@ class Session(Notifier):
                 })
 
     def _load_user_script(self) -> None:
-        scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
+        script_path = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
 
-        if scriptPath is not None:
+        if script_path is not None:
             try:
                 # Read the script source.
-                with open(scriptPath, 'r') as scriptFile:
-                    LOG.debug("Loading user script: %s", scriptPath)
-                    scriptSource = scriptFile.read()
+                with open(script_path, 'r') as script_file:
+                    LOG.debug("Loading user script: %s", script_path)
+                    script_source = script_file.read()
 
-                self._init_user_script_namespace(scriptPath)
+                self._init_user_script_namespace(Path(script_path).stem, script_path)
 
-                scriptCode = compile(scriptSource, scriptPath, 'exec')
+                script_code = compile(script_source, script_path, 'exec')
                 # Executing the code will create definitions in the namespace for any
                 # functions or classes. A single namespace is shared for both globals and
                 # locals so that script-level definitions are available within the
                 # script functions.
-                exec(scriptCode, self._user_script_namespace, self._user_script_namespace)
+                exec(script_code, self._user_script_namespace)
 
                 # Create the proxy for the user script. It becomes the delegate unless
                 # another delegate was already set.
@@ -466,7 +481,7 @@ class Session(Notifier):
                 if self._delegate is None:
                     self._delegate = self._user_script_proxy
             except IOError as err:
-                LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
+                LOG.warning("Error attempting to load user script '%s': %s", script_path, err)
 
     def open(self, init_board: bool = True) -> None:
         """! @brief Open the session.
@@ -550,6 +565,10 @@ class UserScriptDelegateProxy:
     def __init__(self, script_namespace: Dict) -> None:
         super().__init__()
         self._script = script_namespace
+
+    @property
+    def namespace(self) -> Dict:
+        return self._script
 
     def __getattr__(self, name: str) -> Any:
         if name in self._script:

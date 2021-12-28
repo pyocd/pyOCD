@@ -414,19 +414,14 @@ class CommandExecutionContext:
 
     def _build_python_namespace(self) -> None:
         """! @brief Construct the dictionary used as the namespace for python commands."""
-        import pyocd
+        assert self.session
         assert self.target
-        self._python_namespace = {
-                'session': self.session,
-                'board': self.board,
-                'target': self.target,
-                'probe': self.probe,
-                'dp': self.target.dp,
-                'aps': self.target.dp.aps,
+        ns = self.session.user_script_proxy.namespace
+        ns.update({
                 'elf': self.elf,
                 'map': self.target.memory_map,
-                'pyocd': pyocd,
-            }
+            })
+        self._python_namespace = ns
 
     def handle_python(self, invocation: CommandInvocation) -> None:
         """! @brief Evaluate a python expression."""
