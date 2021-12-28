@@ -531,11 +531,12 @@ class UserScriptFunctionProxy:
     This proxy makes arguments to user script functions optional.
     """
 
-    def __init__(self, fn) -> None:
+    def __init__(self, fn: Callable) -> None:
+        assert isinstance(fn, Callable)
         self._fn = fn
         self._spec = getfullargspec(fn)
 
-    def __call__(self, **kwargs) -> Any:
+    def __call__(self, **kwargs: Any) -> Any:
         args = {}
         for arg in self._spec.args:
             if arg in kwargs:
@@ -551,7 +552,11 @@ class UserScriptDelegateProxy:
 
     def __getattr__(self, name: str) -> Any:
         if name in self._script:
-            fn = self._script[name]
-            return UserScriptFunctionProxy(fn)
+            obj = self._script[name]
+            # Only return the function proxy if the object is indeed callable.
+            if isinstance(obj, Callable):
+                return UserScriptFunctionProxy(obj)
+            else:
+                return obj
         else:
             raise AttributeError(name)
