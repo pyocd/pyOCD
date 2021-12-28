@@ -1561,8 +1561,7 @@ class HelpCommand(CommandBase):
             }
 
     HELP_ADDENDUM = """
-All register names are also available as commands that print the register's value.
-Any ADDR or LEN argument will accept a register name.
+Any integer argument will accept a register name.
 Prefix line with $ to execute a Python expression.
 Prefix line with ! to execute a shell command."""
 
