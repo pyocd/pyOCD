@@ -338,19 +338,19 @@ class JLinkProbe(DebugProbe):
 
     def swo_start(self, baudrate):
         try:
-            self._jlink.swo_start(baudrate)
+            self._link.swo_start(baudrate)
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
     def swo_stop(self):
         try:
-            self._jlink.swo_stop()
+            self._link.swo_stop()
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
     def swo_read(self):
         try:
-            return self._jlink.swo_read(0, self._jlink.swo_num_bytes(), True)
+            return self._link.swo_read(0, self._link.swo_num_bytes(), True)
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
