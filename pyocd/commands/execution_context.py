@@ -410,7 +410,13 @@ class CommandExecutionContext:
         cmd_object = cmd_class(self)
         cmd_object.check_arg_count(invocation.args)
         cmd_object.parse(invocation.args)
-        cmd_object.execute()
+
+        if self.session:
+            # Reroute print() in user-defined functions so it will come out our output stream.
+            with self.session.user_script_print_proxy.push_target(self.write):
+                cmd_object.execute()
+        else:
+            cmd_object.execute()
 
     def _build_python_namespace(self) -> None:
         """! @brief Construct the dictionary used as the namespace for python commands."""
@@ -425,18 +431,22 @@ class CommandExecutionContext:
 
     def handle_python(self, invocation: CommandInvocation) -> None:
         """! @brief Evaluate a python expression."""
+        assert self.session
         try:
             # Lazily build the python environment.
             if not self._python_namespace:
                 self._build_python_namespace()
 
-            result = eval(invocation.cmd, globals(), self._python_namespace)
-            if result is not None:
-                if isinstance(result, int):
-                    self.writei("0x%08x (%d)", result, result)
-                else:
-                    w, h = get_terminal_size()
-                    self.write(pprint.pformat(result, indent=2, width=w, depth=10))
+            # Reroute print() in user-defined functions so it will come out our output stream. Not that
+            # we expect much use of print() from expressions...
+            with self.session.user_script_print_proxy.push_target(self.write):
+                result = eval(invocation.cmd, self._python_namespace)
+                if result is not None:
+                    if isinstance(result, int):
+                        self.writei("0x%08x (%d)", result, result)
+                    else:
+                        w, h = get_terminal_size()
+                        self.write(pprint.pformat(result, indent=2, width=w, depth=10))
         except Exception as e:
             # Log the traceback before raising the exception.
             if self.session and self.session.log_tracebacks:

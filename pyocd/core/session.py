@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from contextlib import contextmanager
 import logging
 import logging.config
 import yaml
@@ -22,7 +23,7 @@ import os
 from pathlib import Path
 import weakref
 from inspect import (getfullargspec, signature)
-from typing import (Any, Callable, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
+from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
 
 from . import exceptions
 from .options_manager import OptionsManager
@@ -150,6 +151,7 @@ class Session(Notifier):
         self._inited: bool = False
         self._user_script_namespace: Dict[str, Any] = {}
         self._user_script_proxy: Optional[UserScriptDelegateProxy] = None
+        self._user_script_print_proxy = PrintProxy()
         self._delegate: Optional[Any] = None
         self._auto_open = auto_open
         self._options = OptionsManager()
@@ -354,6 +356,10 @@ class Session(Notifier):
         return self._user_script_proxy
 
     @property
+    def user_script_print_proxy(self) -> "PrintProxy":
+        return self._user_script_print_proxy
+
+    @property
     def gdbservers(self) -> Dict[int, "GDBServer"]:
         """! @brief Dictionary of core numbers to @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances."""
         return self._gdbservers
@@ -402,9 +408,15 @@ class Session(Notifier):
         from ..flash import eraser
         from ..flash import loader
 
+        # Duplicate builtins and override print() without our proxy.
+        import builtins
+        bi = builtins.__dict__.copy()
+        bi['print'] = self._user_script_print_proxy
+
         user_script_logger = logging.getLogger('pyocd.user_script')
 
         self._user_script_namespace = {
+            '__builtins__': bi,
             # Modules and classes
             'pyocd': pyocd,
             'exceptions': exceptions,
@@ -690,3 +702,33 @@ def new_command_decorator(name: Optional[Union[str, Sequence[str]]] = None, help
         # and Python expression commands.
         return fn
     return _command_decorator
+
+class PrintProxy:
+    """@brief Proxy for print() that can be retargeted to different functions.
+
+    When the object is created, the target function is initially the real print(). This can be changed by calling
+    `set_target()`.
+
+    To simplify requirements of the target function when it isn't the real print(), all positional parameters are
+    converted to strings and joined with spaces. The target function is then called with a single string argument
+    plus any keyword arguments.
+    """
+    _target: Callable = print
+
+    def set_target(self, new_target: Callable) -> None:
+        self._target = new_target
+
+    def __call__(self, *args: Any, **kwds: Any) -> None:
+        # Convert all args to strings and concatenate, to simplify requirements of the target function
+        # when it isn't the real print().
+        combined_args = " ".join(str(a) for a in args)
+        self._target(combined_args, **kwds)
+
+    @contextmanager
+    def push_target(self, new_target: Callable) -> Generator:
+        save_target = self._target
+        try:
+            self._target = new_target
+            yield
+        finally:
+            self._target = save_target
