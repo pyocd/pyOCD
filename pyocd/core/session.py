@@ -15,13 +15,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from contextlib import contextmanager
 import logging
 import logging.config
 import yaml
 import os
+from pathlib import Path
 import weakref
-from inspect import getfullargspec
-from typing import (Any, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
+from inspect import (getfullargspec, signature)
+from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
 
 from . import exceptions
 from .options_manager import OptionsManager
@@ -149,6 +151,7 @@ class Session(Notifier):
         self._inited: bool = False
         self._user_script_namespace: Dict[str, Any] = {}
         self._user_script_proxy: Optional[UserScriptDelegateProxy] = None
+        self._user_script_print_proxy = PrintProxy()
         self._delegate: Optional[Any] = None
         self._auto_open = auto_open
         self._options = OptionsManager()
@@ -342,9 +345,19 @@ class Session(Notifier):
         self._delegate = new_delegate
 
     @property
-    def user_script_proxy(self) -> Optional["UserScriptDelegateProxy"]:
+    def user_script_proxy(self) -> "UserScriptDelegateProxy":
         """! @brief The UserScriptDelegateProxy object for a loaded user script."""
+        # Create a proxy if there isn't already one. This is a fallback in case there isn't a user script,
+        # yet a Python $-command is executed and needs the user script namespace in which to run.
+        if not self._user_script_proxy:
+            self._init_user_script_namespace('__script__', '<none>')
+            self._update_user_script_namespace()
+            self._user_script_proxy = UserScriptDelegateProxy(self._user_script_namespace)
         return self._user_script_proxy
+
+    @property
+    def user_script_print_proxy(self) -> "PrintProxy":
+        return self._user_script_print_proxy
 
     @property
     def gdbservers(self) -> Dict[int, "GDBServer"]:
@@ -380,7 +393,7 @@ class Session(Notifier):
         self.close()
         return False
 
-    def _init_user_script_namespace(self, user_script_path: str) -> None:
+    def _init_user_script_namespace(self, script_name: str, script_path: str) -> None:
         """! @brief Create the namespace dict used for user scripts.
 
         This initial namespace has only those objects that are available very early in the
@@ -394,7 +407,16 @@ class Session(Notifier):
         from ..flash import file_programmer
         from ..flash import eraser
         from ..flash import loader
+
+        # Duplicate builtins and override print() without our proxy.
+        import builtins
+        bi = builtins.__dict__.copy()
+        bi['print'] = self._user_script_print_proxy
+
+        user_script_logger = logging.getLogger('pyocd.user_script')
+
         self._user_script_namespace = {
+            '__builtins__': bi,
             # Modules and classes
             'pyocd': pyocd,
             'exceptions': exceptions,
@@ -421,12 +443,18 @@ class Session(Notifier):
             'FlashEraser': eraser.FlashEraser,
             'FlashLoader': loader.FlashLoader,
             # User script info
-            '__name__': os.path.splitext(os.path.basename(user_script_path))[0],
-            '__file__': user_script_path,
+            '__name__': script_name,
+            '__file__': script_path,
             # Objects
             'session': self,
             'options': self.options,
-            'LOG': logging.getLogger('pyocd.user_script'),
+            'LOG': user_script_logger,
+            # Functions
+            'command': new_command_decorator,
+            'debug': user_script_logger.debug,
+            'info': user_script_logger.info,
+            'warning': user_script_logger.warning,
+            'error': user_script_logger.error,
             }
 
     def _update_user_script_namespace(self) -> None:
@@ -441,23 +469,23 @@ class Session(Notifier):
                 })
 
     def _load_user_script(self) -> None:
-        scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
+        script_path = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
 
-        if scriptPath is not None:
+        if script_path is not None:
             try:
                 # Read the script source.
-                with open(scriptPath, 'r') as scriptFile:
-                    LOG.debug("Loading user script: %s", scriptPath)
-                    scriptSource = scriptFile.read()
+                with open(script_path, 'r') as script_file:
+                    LOG.debug("Loading user script: %s", script_path)
+                    script_source = script_file.read()
 
-                self._init_user_script_namespace(scriptPath)
+                self._init_user_script_namespace(Path(script_path).stem, script_path)
 
-                scriptCode = compile(scriptSource, scriptPath, 'exec')
+                script_code = compile(script_source, script_path, 'exec')
                 # Executing the code will create definitions in the namespace for any
                 # functions or classes. A single namespace is shared for both globals and
                 # locals so that script-level definitions are available within the
                 # script functions.
-                exec(scriptCode, self._user_script_namespace, self._user_script_namespace)
+                exec(script_code, self._user_script_namespace)
 
                 # Create the proxy for the user script. It becomes the delegate unless
                 # another delegate was already set.
@@ -465,7 +493,7 @@ class Session(Notifier):
                 if self._delegate is None:
                     self._delegate = self._user_script_proxy
             except IOError as err:
-                LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
+                LOG.warning("Error attempting to load user script '%s': %s", script_path, err)
 
     def open(self, init_board: bool = True) -> None:
         """! @brief Open the session.
@@ -531,11 +559,12 @@ class UserScriptFunctionProxy:
     This proxy makes arguments to user script functions optional.
     """
 
-    def __init__(self, fn) -> None:
+    def __init__(self, fn: Callable) -> None:
+        assert isinstance(fn, Callable)
         self._fn = fn
         self._spec = getfullargspec(fn)
 
-    def __call__(self, **kwargs) -> Any:
+    def __call__(self, **kwargs: Any) -> Any:
         args = {}
         for arg in self._spec.args:
             if arg in kwargs:
@@ -549,9 +578,157 @@ class UserScriptDelegateProxy:
         super().__init__()
         self._script = script_namespace
 
+    @property
+    def namespace(self) -> Dict:
+        return self._script
+
     def __getattr__(self, name: str) -> Any:
         if name in self._script:
-            fn = self._script[name]
-            return UserScriptFunctionProxy(fn)
+            obj = self._script[name]
+            # Only return the function proxy if the object is indeed callable.
+            if isinstance(obj, Callable):
+                return UserScriptFunctionProxy(obj)
+            else:
+                return obj
         else:
             raise AttributeError(name)
+
+def new_command_decorator(name: Optional[Union[str, Sequence[str]]] = None, help: str = ""):
+    """@brief User script decorator for creating new commands.
+
+    Supported parameter types:
+    - `str`
+    - `int`
+    - `float`
+    - Extra args, e.g. `*args`.
+
+    Keyword parameters and extra keyword args (**args) are not allowed.
+
+    The decorated function remains accessible as a regular function in the namespace in which it was defined.
+    This is true even if the function definition is not compatible with the command decorator, for instance
+    if it has invalid parameter types.
+
+    This is an example of defining a command with this decorator.
+    ```py
+    @command('cmdname', help='Optional help')
+    def mycommand(s: str, i: int, f: float, *args):
+        print("Hello")
+    ```
+    """
+    import types
+    from ..commands.base import CommandBase
+    def _command_decorator(fn: Callable):
+        if name is None:
+            names_list: Sequence[str] = [getattr(fn, '__name__')]
+        else:
+            names_list: Sequence[str] = [name] if isinstance(name, str) else name[0]
+        classname = names_list[0].capitalize() + "Command"
+
+        # Examine the command function's signature to extract arguments and their types.
+        sig = signature(fn)
+        arg_converters = []
+        has_var_args = False
+        usage_fields: List[str] = []
+        for parm in sig.parameters.values():
+            typ = parm.annotation
+
+            # Check if this is a *args kind of argument.
+            if parm.kind == parm.VAR_POSITIONAL:
+                has_var_args = True
+                usage_fields.append("*")
+                continue
+            # Disallow keyword params.
+            elif parm.kind in (parm.KEYWORD_ONLY, parm.VAR_KEYWORD):
+                LOG.error("ser command function '%s' uses unsupported keyword parameters", fn.__name__)
+                return fn
+
+            # Require type annotations.
+            if typ is parm.empty:
+                LOG.error("user command function '%s' is missing type annotation for parameter '%s'",
+                        fn.__name__, parm.name)
+                return fn
+
+            # Otherwise add to param converter list.
+            if issubclass(typ, str):
+                arg_converters.append(lambda _, x: x)
+            elif issubclass(typ, float):
+                arg_converters.append(lambda _, x: float(x))
+            elif issubclass(typ, int):
+                arg_converters.append(CommandBase._convert_value)
+            else:
+                LOG.error("parameter '%s' of user command function '%s' has an unsupported type",
+                        parm.name, fn.__name__)
+                return fn
+            usage_fields.append(parm.name.upper())
+
+        # parse() method of the new command class.
+        def parse(self, args: List[str]):
+            arg_values: List[Any] = []
+
+            if len(args) > len(arg_converters):
+                assert has_var_args
+                extra_args = args[len(arg_converters):]
+                args = args[:len(arg_converters)]
+            else:
+                extra_args = []
+
+            for arg, converter in zip(args, arg_converters):
+                arg_values.append(converter(self, arg))
+            if has_var_args:
+                arg_values += extra_args
+
+            self._args = arg_values
+
+        # execute() method of the new command class.
+        def execute(self):
+            fn(*self._args)
+
+        # Callback to populate the new command class' namespace dict.
+        def populate_command_class(ns: Dict[str, Any]) -> None:
+            ns['INFO'] = {
+                'names': names_list,
+                'group': 'user',
+                'category': 'user',
+                'nargs': "*" if has_var_args else len(sig.parameters),
+                'usage': " ".join(usage_fields),
+                'help': help,
+                }
+            ns['parse'] = parse
+            ns['execute'] = execute
+
+        types.new_class(classname, bases=(CommandBase,), exec_body=populate_command_class)
+
+        # Return original function. This makes it accessible from the rest of the user script
+        # and Python expression commands.
+        return fn
+    return _command_decorator
+
+class PrintProxy:
+    """@brief Proxy for print() that can be retargeted to different functions.
+
+    When the object is created, the target function is initially the real print(). This can be changed by calling
+    `set_target()`.
+
+    To simplify requirements of the target function when it isn't the real print(), all positional parameters are
+    converted to strings and joined with spaces. The target function is then called with a single string argument
+    plus any keyword arguments.
+    """
+    _target: Callable = print
+
+    def set_target(self, new_target: Callable) -> None:
+        self._target = new_target
+
+    def __call__(self, *args: Any, **kwds: Any) -> None:
+        # Convert all args to strings and concatenate, to simplify requirements of the target function
+        # when it isn't the real print().
+        combined_args = " ".join(str(a) for a in args)
+        self._target(combined_args, **kwds)
+
+    @contextmanager
+    def push_target(self, new_target: Callable) -> Generator:
+        save_target = self._target
+        try:
+            self._target = new_target
+            yield
+        finally:
+            self._target = save_target

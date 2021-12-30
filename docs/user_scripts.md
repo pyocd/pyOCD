@@ -15,12 +15,6 @@ automatically detect it and load it as a user script. If you prefer another name
 line argument. If a relative path is set either with the option or command line, it will be searched
 for in the project directory.
 
-The arguments for hook functions defined in user scripts are the same arguments accepted by delegate
-methods. However, all arguments to user script functions are optional. If provided, the argument
-names must match the specification. But you can specify arguments in any order, and exclude any or
-all arguments if they are not needed. In fact, most arguments are not required because the same
-objects are available as script globals, for instance `board` and `target`.
-
 
 ## Examples
 
@@ -31,11 +25,11 @@ This example user script shows how to add a new memory region.
 
 def will_connect(board):
     # Create the new ROM region for the FICR.
-    ficr = pyocd.core.memory_map.RomRegion(
-                                        name="ficr",
-                                        start=0x10000000,
-                                        length=0x460
-                                        )
+    ficr = RomRegion(
+                name="ficr",
+                start=0x10000000,
+                length=0x460
+                )
 
     # Add the FICR region to the memory map.
     target.memory_map.add_region(ficr)
@@ -55,19 +49,64 @@ def will_connect():
     extFlash.flm = "MIMXRT105x_QuadSPI_4KB_SEC.FLM"
 ```
 
-This example demonstrates setting the DBGMCU_CR register on reset for STM32 devices.
+This example demonstrates setting the DBGMCU_CR register after connecting for STM32 devices.
 
 ```py
 # This example applies to the ST STM32L0x1 devicess.
 
 DBG_CR = 0x40015804
 
-def did_reset():
+def did_connect():
     # Set STANDBY, STOP, and SLEEP bits all to 1.
     target.write32(DBG_CR, 0x7)
 ```
 
 Another common use for a script is to initialize external memory such as SDRAM.
+
+
+## User-defined commands
+
+New commands accessible from the commander subcommand or gdbserver monitor commands can be easily created in a user
+script.
+
+User defined commands are created by using the `@command()` decorator on a function. The name of the new command can
+either be the same as the name of the decorated function, or can be set explicitly with a `name` (or first positional)
+argument to the decorator. For instance, either `@command('mycmd')` or `@command(name='anothercmd')`. Note that the
+decorator requires parentheses (it must be called as a function) even if there are no parameters.
+
+Parameters for the new command are automatically determined using introspection and type annotations. Arguments for
+parameters of these types are converted to the appropriate type before the function is called as a command.
+
+Supported parameter types:
+- `int`
+- `float`
+- `str`
+- Variable arguments, e.g. `*args`.
+
+Keyword parameters are not allowed.
+
+An `int` parameter is converted using the same method as for other pyOCD commands. Hexadecimal and binary numbers are
+allowed, digits can be separated by underscores, and so on. For variable arguments, type annotations are ignored and the
+tuple passed to the function will contain strings as entered in the command invocation.
+
+The decorated function remains accessible as a regular function in the user script namespace, and is therefore callable
+from other functions within the user script. This is true even if the function definition is not compatible with the
+command decorator, for instance if it has invalid parameter types.
+
+Help for the new command can be specified by passing a `help` argument to the `@command` decorator.
+
+Example:
+
+```py
+@command(help="Decode and print the first few vectors")
+def vectable(base: int):
+    vecs = target.read_memory_block32(base, 4)
+    print(f"Initial SP:     {vecs[0]:#010x}")
+    print(f"ResetHandler:   {vecs[1]:#010x}")
+    print(f"NMI:            {vecs[2]:#010x}")
+    print(f"HardFault:      {vecs[3]:#010x}")
+```
+
 
 ## Script globals
 
@@ -81,11 +120,15 @@ both target related objects, as well as parts of the pyOCD Python API.
 | `aps` | Dictionary of CoreSight Access Port (AP) objects. The keys are the APSEL value. |
 | `board` | The `Board` object. |
 | `BreakpointType` | Enumeration of breakpoint types. |
+| `command` | Decorator for defining new commands. See [user-defined commands](#user_defined_commands) for details. |
 | `DeviceRegion` | Device-type memory region class. |
+| `debug` | Log a debug message. |
 | `dp` | The CoreSight Debug Port (DP) object. |
 | `Error` | The base class for all pyOCD exceptions. |
 | `Event` | Enumeration of notification event types. |
 | `exceptions` | Module containing the exception classes. |
+| `error` | Output an error log. |
+| `info` | Output an info-level log message. |
 | `FileProgrammer` | Utility class to program files to target flash. |
 | `FlashEraser` | Utility class to erase target flash. |
 | `FlashLoader` | Utility class to program raw binary data to target flash. |
@@ -109,128 +152,238 @@ both target related objects, as well as parts of the pyOCD Python API.
 | `TransferError` | Exception class for all transfer errors. |
 | `TransferFaultError` | Exception subclass of `TransferError` for bus faults. |
 | `VectorCatch` | Namespace class containing bit mask constants for vector catch options. |
+| `warning` | Log a warning. |
 | `WatchpointType` | Enumeration of watchpoint types. |
 
 
-## Script functions
+## Delegate functions
 
-This section documents all functions that user scripts can provide to modify pyOCD's behaviour.
+This section documents all functions that user scripts can provide to modify pyOCD's behaviour. Some are simply
+notifications, while others allow for overriding of default behaviour. Collectively, these are called delegate functions.
 
-- `will_connect(board)`<br/>
-    Pre-init hook for the board.
+All parameters of script delegate functions are optional. Parameters can be declared in any order, and that are not
+needed can be excluded. In fact, most parameters are not necessary because the same objects are available as script
+globals, for instance `session` and `target`.
 
-    *board* - A `Board` instance that is about to be initialized.<br/>
-    **Result** - Ignored.
+Those parameters that are present must have names matching the specification below, and there must not be unspecified,
+required parameters (those without a default value). (Extra optional parameters are allowed but will never be passed any
+value other than the default, unless you call the function yourself from within the script.)
 
-- `did_connect(board)`<br/>
-    Post-initialization hook for the board.
 
-    *board* - A `Board` instance.<br/>
-    **Result** - Ignored.
+### will_connect
 
-- `will_init_target(target, init_sequence)`<br/>
-    Hook to review and modify init call sequence prior to execution.
+Pre-init notification for the board.
+```
+will_connect(board: Board) -> None
+```
 
-    *target* - A `CoreSightTarget` object about to be initialized.<br/>
-    *init_sequence* - The `CallSequence` that will be invoked. Because call sequences are
-        mutable, this parameter can be modified before return to change the init calls.<br/>
-    **Result** - Ignored.
+**Parameters** \
+*board* - A `Board` instance that is about to be initialized. \
+**Result** \
+Ignored.
 
-- `did_init_target(target)`<br/>
-    Post-initialization hook.
+### did_connect
 
-    *target* - Either a `CoreSightTarget` or `CortexM` object.<br/>
-    **Result** - Ignored.
+Post-initialization notification for the board.
+```
+did_connect(board: Board) -> None
+```
 
-- `will_start_debug_core(core)`<br/>
-    Hook to enable debug for the given core.
+**Parameters** \
+*board* - A `Board` instance. \
+**Result** \
+Ignored.
 
-    *core* - A `CortexM` object about to be initialized.<br/>
-    **Result** - *True* Do not perform the normal procedure to start core debug. \
-        *False/None* Continue with normal behaviour.
+### will_init_target
 
-- `did_start_debug_core(core)`<br/>
-    Post-initialization hook.
+Hook to review and modify init call sequence prior to execution.
+```
+will_init_target(target: SoCTarget, init_sequence: CallSequence) -> None
+```
 
-    *core* - A `CortexM` object.<br/>
-    **Result** - Ignored.
+**Parameters** \
+*target* - An `SoCTarget` object about to be initialized. \
+*init_sequence* - The `CallSequence` that will be invoked. Because call sequences are
+  mutable, this parameter can be modified before return to change the init calls. \
+**Result** \
+Ignored.
 
-- `will_stop_debug_core(core)`<br/>
-    Pre-cleanup hook for the core.
+### did_init_target
 
-    *core* - A `CortexM` object.<br/>
-    **Result** - *True* Do not perform the normal procedure to disable core debug. \
-        *False/None* Continue with normal behaviour.
+Post-initialization notification.
+```
+did_init_target(target: SoCTarget) -> None
+```
 
-- `did_stop_debug_core(core)`<br/>
-    Post-cleanup hook for the core.
+**Parameters** \
+*target* - An `SoCTarget` object. \
+**Result** \
+Ignored.
 
-    *core* - A `CortexM` object.<br/>
-    **Result** - Ignored.
+### will_start_debug_core
 
-- `will_disconnect(target, resume)`<br/>
-    Pre-disconnect hook.
+Hook to enable debug for the given core.
+```
+will_start_debug_core(core: CoreTarget) -> Optional[bool]
+```
 
-    *target* - Either a `CoreSightTarget` or `CortexM` object.<br/>
-    *resume* - The value of the `disconnect_on_resume` option.<br/>
-    **Result** - Ignored.
+**Parameters** \
+*core* - A `CoreTarget` object about to be initialized. \
+**Result** \
+*True* Do not perform the normal procedure to start core debug. \
+*False/None* Continue with normal behaviour.
 
-- `did_disconnect(target, resume)`<br/>
-    Post-disconnect hook.
+### did_start_debug_core
 
-    *target* - Either a `CoreSightTarget` or `CortexM` object.<br/>
-    *resume* - The value of the `disconnect_on_resume` option.<br/>
-    **Result** - Ignored.
+Post-initialization hook.
+```
+did_start_debug_core(core: CoreTarget) -> None
+```
 
-- `will_reset(core, reset_type)`<br/>
-    Pre-reset hook.
+**Parameters** \
+*core* - A `CoreTarget` object. \
+**Result** \
+Ignored.
 
-    *core* - A CortexM instance.<br/>
-    *reset_type* - One of the `Target.ResetType` enumerations.<br/>
-    **Result** - *True* The hook performed the reset.  \
-    *False/None* Caller should perform the normal
-        reset procedure.
+### will_stop_debug_core
 
-- `did_reset(core, reset_type)`<br/>
-    Post-reset hook.
+Pre-cleanup hook for the core.
+```
+will_stop_debug_core(core: CoreTarget) -> Optional[bool]
+```
 
-    *core* - A CortexM instance.<br/>
-    *reset_type* - One of the `Target.ResetType` enumerations.<br/>
-    **Result** - Ignored.
+**Parameters** \
+*core* - A `CoreTarget` object. \
+**Result** \
+*True* Do not perform the normal procedure to disable core debug. \
+*False/None* Continue with normal behaviour.
 
-- `set_reset_catch(core, reset_type)`<br/>
-    Hook to prepare target for halting on reset.
+### did_stop_debug_core
 
-    *core* - A CortexM instance.<br/>
-    *reset_type* - One of the `Target.ResetType` enumerations.<br/>
-    **Result** - *True* This hook handled setting up reset catch, caller should do nothing. \
-                *False/None* Perform the default reset catch set using vector catch.
+Post-cleanup notification for the core.
+```
+did_stop_debug_core(core: CoreTarget) -> None
+```
 
-- `clear_reset_catch(core, reset_type)`<br/>
-    Hook to clean up target after a reset and halt.
+**Parameters** \
+*core* - A `CoreTarget` object. \
+**Result** \
+Ignored.
 
-    *core* - A `CortexM` instance.<br/>
-    *reset_type* - One of the `Target.ResetType` enumerations.<br/>
-    **Result** - Ignored.
+### will_disconnect
 
-- `mass_erase(target)`<br/>
-    Hook to override mass erase.
+Pre-disconnect notification.
+```
+will_disconnect(target: SoCTarget, resume: bool) -> None
+```
 
-    *target* - A `CoreSightTarget` object.<br/>
-    **Result** - *True* Indicate that mass erase was performed by the hook. \
-                *False/None* Mass erase was not overridden and the caller should proceed with the
-                    standard mass erase procedure.
+**Parameters** \
+*target* - An `SoCTarget` object. \
+*resume* - The value of the `disconnect_on_resume` option. \
+**Result** \
+Ignored.
 
-- `trace_start(self, target, mode)`<br/>
-    Hook to prepare for tracing the target.
+### did_disconnect
 
-    *target* - A CoreSightTarget object.<br/>
-    *mode* - The trace mode. Currently always 0 to indicate SWO.<br/>
-    *Result* - Ignored.
+Post-disconnect notification.
+```
+did_disconnect(target: SoCTarget, resume: bool) -> None
+```
 
-- `trace_stop(self, target, mode)`<br/>
-    Hook to clean up after tracing the target.
+**Parameters** \
+*target* - An `SoCTarget` object. \
+*resume* - The value of the `disconnect_on_resume` option. \
+**Result** \
+Ignored.
 
-    *target* - A CoreSightTarget object.<br/>
-    *mode* - The trace mode. Currently always 0 to indicate SWO.<br/>
-    *Result* - Ignored.
+### will_reset
+
+```
+will_reset(core: CoreTarget, reset_type: Target.ResetType) -> Optional[bool]
+```
+Pre-reset hook.
+
+**Parameters** \
+*core* - A `CoreTarget` instance. \
+*reset_type* - One of the `Target.ResetType` enumerations. \
+**Result** \
+*True* The hook performed the reset.  \
+*False/None* Caller should perform the normal reset procedure.
+
+### did_reset
+
+Post-reset notification.
+```
+did_reset(core: CoreTarget, reset_type: Target.ResetType) -> None
+```
+
+**Parameters** \
+*core* - A `CoreTarget` instance. \
+*reset_type* - One of the `Target.ResetType` enumerations. \
+**Result** \
+Ignored.
+
+### set_reset_catch
+
+Hook to prepare target for halting on reset.
+```
+set_reset_catch(core: CoreTarget, reset_type: Target.ResetType) -> Optional[bool]
+```
+
+**Parameters** \
+*core* - A `CoreTarget` instance. \
+*reset_type* - One of the `Target.ResetType` enumerations. \
+**Result** \
+*True* This hook handled setting up reset catch, caller should do nothing. \
+*False/None* Perform the default reset catch set using vector catch.
+
+### clear_reset_catch
+
+Hook to clean up target after a reset and halt.
+```
+clear_reset_catch(core: CoreTarget, reset_type: Target.ResetType) -> None
+```
+
+**Parameters** \
+*core* - A `CoreTarget` instance. \
+*reset_type* - One of the `Target.ResetType` enumerations. \
+**Result** \
+Ignored.
+
+### mass_erase
+
+Hook to override mass erase.
+```
+mass_erase(target: SoCTarget) -> Optional[bool]
+```
+
+**Parameters** \
+*target* - An `SoCTarget` object. \
+**Result** \
+*True* Indicate that mass erase was performed by the hook. \
+*False/None* Mass erase was not overridden and the caller should proceed with the standard mass erase procedure.
+
+### trace_start
+
+Notification to prepare for tracing the target.
+```
+trace_start(target: SoCTarget, mode: int) -> None
+```
+
+**Parameters** \
+*target* - A `CoreSightTarget` object. \
+*mode* - The trace mode. Currently always 0 to indicate SWO. \
+*Result* - Ignored.
+
+### trace_stop
+
+Notification to clean up after tracing the target.
+```
+trace_stop(target: SoCTarget, mode: int) -> None
+```
+
+**Parameters** \
+*target* - A `CoreSightTarget` object. \
+*mode* - The trace mode. Currently always 0 to indicate SWO. \
+**Result** \
+Ignored.
