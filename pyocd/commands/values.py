@@ -76,8 +76,10 @@ class TargetValue(ValueBase):
             }
 
     def display(self, args):
-        self.context.writei("Target:       %s", self.context.target.part_number)
-        self.context.writei("DAP IDCODE:   0x%08x", self.context.target.dp.dpidr.idr)
+        self.context.write(f"Target type:  {self.context.session.options.get('target_override')}")
+        self.context.write(f"Vendor:       {self.context.target.vendor}")
+        self.context.write(f"Part number:  {self.context.target.part_number}")
+        self.context.write(f"DAP IDCODE:   {self.context.target.dp.dpidr.idr:#010x}")
 
 class CoresValue(ValueBase):
     INFO = {
@@ -689,4 +691,56 @@ class ClockFrequencyValue(ValueBase):
             nice_freq = "%d Hz" % freq_Hz
 
         self.context.writei("Changed %s frequency to %s", swd_jtag, nice_freq)
+
+class DebugSequencesValue(ValueBase):
+    INFO = {
+            'names': ['debug-sequences'],
+            'group': 'pack-target',
+            'category': 'cmsis-pack',
+            'access': 'r',
+            'help': "Show the available debug sequences from the target's DFP.",
+            'extra_help': "Only available for CMSIS-Pack based targets.",
+            }
+
+    # Names of debug sequences that are both standard and supported by pyocd.
+    STANDARD_SEQUENCE_NAMES = [
+        "DebugPortSetup",
+        "DebugPortStart",
+        "DebugPortStop",
+        "DebugDeviceUnlock",
+        "DebugCoreStart",
+        "DebugCoreStop",
+        "ResetSystem",
+        "ResetProcessor",
+        "ResetHardware",
+        "ResetCatchSet",
+        "ResetCatchClear",
+        "TraceStart",
+        "TraceStop",
+    ]
+
+    def display(self, args):
+        assert self.context.target
+
+        if self.context.target.debug_sequence_delegate is None:
+            self.context.write("Target does not use debug sequences")
+            return
+
+        pt = prettytable.PrettyTable(["Name", "Processor", "Standard", "Enabled"])
+        pt.align = 'l'
+        pt.border = False
+
+        for seq in sorted(self.context.target.debug_sequence_delegate.all_sequences,
+                key=lambda i: (i.name, i.pname)):
+            is_standard = seq.name in self.STANDARD_SEQUENCE_NAMES
+            pt.add_row([
+                seq.name,
+                seq.pname if seq.pname else "all",
+                str(is_standard),
+                seq.is_enabled,
+            ])
+
+        self.context.write(str(pt))
+
+    # def modify(self, args):
 
