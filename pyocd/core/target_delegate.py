@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
-# COpyright (c) 2021 Chris Reed
+# COpyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from .target import Target
     from ..board.board import Board
     from ..utility.sequencer import CallSequence
+    from ..commands.execution_context import CommandSet
 
 ## @brief Return type for some delegate methods.
 #
@@ -219,4 +220,11 @@ class TargetDelegateInterface:
         """
         pass
 
+    def add_target_command_groups(self, target: "SoCTarget", command_set: "CommandSet"):
+        """@brief Hook for adding target-specific commands to a command set.
+        @param self
+        @param target A `SoCTarget` object.
+        @param command_set The `CommandSet` object to which commands may be added.
+        """
+        pass
 

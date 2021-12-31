@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from .core_registers import (CoreRegistersIndex, CoreRegisterNameOrNumberType, CoreRegisterValueType)
     from ..debug.context import DebugContext
     from ..debug.breakpoints.provider import Breakpoint
+    from ..commands.execution_context import CommandSet
 
 LOG = logging.getLogger(__name__)
 
@@ -306,4 +307,7 @@ class SoCTarget(TargetGraphNode):
     def trace_stop(self):
         self.call_delegate('trace_stop', target=self, mode=0)
 
+    def add_target_command_groups(self, command_set: "CommandSet"):
+        """@brief Hook for adding target-specific commands to a command set."""
+        self.call_delegate('add_target_command_groups', target=self, command_set=command_set)
 

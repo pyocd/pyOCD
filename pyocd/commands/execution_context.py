@@ -231,6 +231,9 @@ class CommandExecutionContext:
         if not self._no_init:
             self.set_context_defaults()
 
+        # Allow the target to add its own commands.
+        self.target.add_target_command_groups(self.command_set)
+
         # Add user-defined commands once we know we have a session created.
         self.command_set.add_command_group('user')
 
