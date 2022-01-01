@@ -279,7 +279,7 @@ class JLinkProbe(DebugProbe):
 
     def is_reset_asserted(self):
         try:
-            status = self._link.hardware_status()
+            status = self._link.hardware_status
             return status.tres == 0
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
