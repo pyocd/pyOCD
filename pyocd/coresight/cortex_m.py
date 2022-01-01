@@ -1189,8 +1189,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 reg_data_list += [(-reg, singleLow), (-reg + 1, singleHigh)]
             elif CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister and cfbpValue is None:
                 cfbpValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('cfbp').index])[0]
+                reg_data_list.append((reg, data))
             elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister and xpsrValue is None:
                 xpsrValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('xpsr').index])[0]
+                reg_data_list.append((reg, data))
             else:
                 # Other register, just copy directly.
                 reg_data_list.append((reg, data))
