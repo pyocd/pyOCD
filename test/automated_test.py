@@ -380,7 +380,10 @@ def main():
 
     # Filter boards.
     if args.board:
+        # Get the full unique ID of any matching probes.
         board_id_list = [b for b in board_id_list if any(c for c in args.board if c.lower() in b.lower())]
+        # Add in any requested remotes.
+        board_id_list += [a for a in args.board if a.startswith('remote:')]
 
     # Generate board test configs.
     test_configs = [
