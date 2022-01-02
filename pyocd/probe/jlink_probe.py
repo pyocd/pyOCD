@@ -255,7 +255,7 @@ class JLinkProbe(DebugProbe):
 
     def set_clock(self, frequency):
         try:
-            self._link.set_speed(frequency // 1000)
+            self._link.set_speed(int(frequency) // 1000)
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 

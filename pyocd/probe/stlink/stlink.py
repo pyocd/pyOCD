@@ -300,8 +300,9 @@ class STLink(object):
         assert self._hw_version >= 3
 
         with self._lock:
+            freq_khz = int(freq) // 1000
             cmd = [Commands.JTAG_COMMAND, Commands.SET_COM_FREQ, protocol.value - 1, 0]
-            cmd.extend(conversion.u32le_list_to_byte_list([freq // 1000]))
+            cmd.extend(conversion.u32le_list_to_byte_list([freq_khz // 1000]))
             response = self._device.transfer(cmd, readSize=8)
             self._check_status(response[0:2])
 
