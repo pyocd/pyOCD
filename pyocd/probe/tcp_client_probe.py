@@ -79,8 +79,8 @@ class TCPClientProbe(DebugProbe):
     def __init__(self, unique_id):
         """! @brief Constructor."""
         super(TCPClientProbe, self).__init__()
-        self._uid = unique_id
         hostname, port = self._extract_address(unique_id)
+        self._uid = f"remote:{hostname}:{port}"
         self._socket = ClientSocket(hostname, port)
         self._is_open = False
         self._request_id = 0

@@ -258,6 +258,12 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     def finish(self):
         LOG.info("Remote probe client disconnected (%s from port %i)", self._client_domain, self.client_address[1])
 
+        # Flush the probe and ignore any lingering errors.
+        try:
+            self._session.probe.flush()
+        except exceptions.Error as err:
+            LOG.debug("exception while flushing probe on disconnect: %s", err)
+
         self._session = None
         StreamRequestHandler.finish(self)
 
