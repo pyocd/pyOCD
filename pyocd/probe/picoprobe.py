@@ -467,7 +467,7 @@ class Picoprobe(DebugProbe):
         self._is_connected = False
 
     def set_clock(self, frequency):
-        self._link.set_swd_frequency(frequency // 1000)
+        self._link.set_swd_frequency(int(frequency) // 1000)
 
     def reset(self):
         self.assert_reset(True)

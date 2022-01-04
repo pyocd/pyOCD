@@ -757,7 +757,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @locked
     def set_clock(self, frequency):
         self.flush()
-        self._protocol.set_swj_clock(frequency)
+        self._protocol.set_swj_clock(int(frequency))
         self._frequency = frequency
 
     def get_swj_mode(self):
