@@ -125,7 +125,7 @@ class RegisterCommandBase(CommandBase):
             value_str = self._format_core_register(info, value)
             col_printer.add_items([(info.name, value_str)])
 
-        col_printer.write()
+        col_printer.write(self.context.output_stream)
 
     def dump_registers(self, show_all=False, show_group=None):
         if not self.context.selected_core.is_halted():
