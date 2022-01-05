@@ -78,20 +78,24 @@ def build_categories(commands):
 
 def gen_cmd_groups(commands):
     categories = build_categories(commands)
-    
+
     for group in sorted(categories.keys()):
         print(f"""<tr><td colspan="3"><b>{group.capitalize()}</b></td></tr>
 """)
-        
-        group_cmds = sorted(categories[group], key=lambda c: c.INFO['names'][0])
+
+        # Filter out the base classes that have empty 'names'.
+        filtered_cmds = [c for c in categories[group] if c.INFO['names']]
+        group_cmds = sorted(filtered_cmds, key=lambda c: c.INFO['names'][0])
         for cmd in group_cmds:
             gen_command(cmd.INFO)
 
 def gen_value_groups(commands):
     for group in sorted(commands.keys()):
 #         print(f"""<tr><td colspan="3"><b>{group.capitalize()}</b></td></tr>""")
-        
-        group_cmds = sorted(commands[group], key=lambda c: c.INFO['names'][0])
+
+        # Filter out the base classes that have empty 'names'.
+        filtered_cmds = [c for c in commands[group] if c.INFO['names']]
+        group_cmds = sorted(filtered_cmds, key=lambda c: c.INFO['names'][0])
         for cmd in group_cmds:
             gen_value(cmd.INFO)
 
@@ -105,7 +109,9 @@ def gen_command_docs(commands):
         if group_docs:
             print(group_docs)
 
-        group_cmds = sorted(categories[group], key=lambda c: c.INFO['names'][0])
+        # Filter out the base classes that have empty 'names'.
+        filtered_cmds = [c for c in categories[group] if c.INFO['names']]
+        group_cmds = sorted(filtered_cmds, key=lambda c: c.INFO['names'][0])
         for cmd in group_cmds:
             info = cmd.INFO
             print(f"""
