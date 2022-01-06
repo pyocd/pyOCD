@@ -999,21 +999,27 @@ class GDBServer(threading.Thread):
             return self.create_rsp_packet(b"OK")
 
         forced_rtos_name = self.session.options.get('rtos.name')
+        if forced_rtos_name and (forced_rtos_name not in RTOS.keys()):
+            LOG.error("%s was specified as the RTOS but no plugin with that name exists", forced_rtos_name)
+            return self.create_rsp_packet(b"OK")
 
         symbol_provider = GDBSymbolProvider(self)
 
-        for rtosName, rtosClass in RTOS.items():
-            if (forced_rtos_name is not None) and (rtosName != forced_rtos_name):
+        LOG.info("Attempting to load RTOS plugins")
+        for rtos_name, rtos_class in RTOS.items():
+            if (forced_rtos_name is not None) and (rtos_name != forced_rtos_name):
                 continue
             try:
-                LOG.info("Attempting to load %s", rtosName)
-                rtos = rtosClass(self.target)
+                LOG.debug("Attempting to load %s", rtos_name)
+                rtos = rtos_class(self.target)
                 if rtos.init(symbol_provider):
-                    LOG.info("%s loaded successfully", rtosName)
+                    LOG.info("%s loaded successfully", rtos_name)
                     self.thread_provider = rtos
                     break
+                elif forced_rtos_name is not None:
+                    LOG.error("%s was specified as the RTOS but failed to load", rtos_name)
             except exceptions.Error as e:
-                LOG.error("Error during symbol lookup: " + str(e), exc_info=self.session.log_tracebacks)
+                LOG.error("Error during symbol lookup: %s", e, exc_info=self.session.log_tracebacks)
 
         self.did_init_thread_providers = True
 
