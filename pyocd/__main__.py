@@ -3,7 +3,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
 # Copyright (c) 2020 Cypress Semiconductor Corporation
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ from .core.session import Session
 from .core import exceptions
 from .probe.pydapaccess import DAPAccess
 from .core import options
-from .utility.color_log import ColorFormatter
+from .utility.color_log import build_color_logger
 from .subcommands.base import SubcommandBase
 from .subcommands.commander_cmd import CommanderSubcommand
 from .subcommands.erase_cmd import EraseSubcommand
@@ -105,24 +105,15 @@ class PyOCDTool(SubcommandBase):
 
         Log level for specific loggers are also configured here.
         """
-        is_tty = sys.stderr.isatty()
-        color_setting = ((hasattr(self._args, 'color') and self._args.color) or os.environ.get('PYOCD_COLOR', 'auto'))
-        use_color = (color_setting == "always") or (color_setting == "auto" and is_tty)
+        # Get the color setting to use, defaulting to 'auto'.
+        color_setting = ((hasattr(self._args, 'color') and self._args.color) \
+                        or os.environ.get('PYOCD_COLOR', 'auto'))
 
         # Compute global log level.
         level = max(1, self._args.command_class.DEFAULT_LOG_LEVEL + self._get_log_level_delta())
 
-        # Create handler to output logging to stderr.
-        console = logging.StreamHandler()
-
-        # Create the color formatter and attach to our stream handler.
-        color_formatter = ColorFormatter(ColorFormatter.FORMAT, use_color, is_tty)
-        console.setFormatter(color_formatter)
-
-        # Set stream handler and log level on root logger.
-        root_logger = logging.getLogger()
-        root_logger.addHandler(console)
-        root_logger.setLevel(level)
+        # Build the logger to output to stderr (the default).
+        build_color_logger(level=level, color_setting=color_setting)
 
         # Handle settings for individual loggers from --log-level arguments.
         for logger_setting in self._args.log_level:

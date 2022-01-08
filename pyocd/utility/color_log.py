@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import colorama
 from colorama import (Fore, Style)
 import logging
 from shutil import get_terminal_size
+import sys
+from typing import (IO, Optional)
 
 class ColorFormatter(logging.Formatter):
     """@brief Log formatter that applies colours based on the record's log level."""
@@ -96,3 +99,42 @@ class ColorFormatter(logging.Formatter):
             log_msg += "\n" + Style.DIM + self.formatStack(stack_info) + Style.RESET_ALL
 
         return log_msg
+
+
+def build_color_logger(
+            level: int = logging.INFO,
+            color_setting: str = 'auto',
+            stream: Optional[IO[str]] = None,
+            is_tty: Optional[bool] = None,
+        ) -> logging.Logger:
+    """@brief Sets up color logging for the root logger.
+
+    @param level Log level of the root logger.
+    @param color_setting One of 'auto', 'always', or 'never'. The default 'auto' enables color if `is_tty` is True.
+    @param stream The stream to which the log will be output. The default is stderr.
+    @param is_tty Whether the output stream is a tty. Affects the 'auto' color_setting. If not provided, the `isatty()`
+        method of `stream` is called if it exists. If `stream` doesn't have `isatty()` then the default is False.
+    """
+    if stream is None:
+        stream = sys.stderr
+    if is_tty is None:
+        is_tty = stream.isatty() if hasattr(stream, 'isatty') else False
+    use_color = (color_setting == "always") or (color_setting == "auto" and is_tty)
+
+    # Init colorama with appropriate color setting.
+    colorama.init(strip=(not use_color))
+
+    # Create handler to output logging to stderr.
+    console = logging.StreamHandler(stream)
+
+    # Create the color formatter and attach to our stream handler.
+    color_formatter = ColorFormatter(ColorFormatter.FORMAT, use_color, is_tty)
+    console.setFormatter(color_formatter)
+
+    # Set stream handler and log level on root logger.
+    root_logger = logging.getLogger()
+    root_logger.addHandler(console)
+    root_logger.setLevel(level)
+
+    return root_logger
+
