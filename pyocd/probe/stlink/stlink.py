@@ -302,7 +302,7 @@ class STLink(object):
         with self._lock:
             freq_khz = int(freq) // 1000
             cmd = [Commands.JTAG_COMMAND, Commands.SET_COM_FREQ, protocol.value - 1, 0]
-            cmd.extend(conversion.u32le_list_to_byte_list([freq_khz // 1000]))
+            cmd.extend(conversion.u32le_list_to_byte_list([freq_khz]))
             response = self._device.transfer(cmd, readSize=8)
             self._check_status(response[0:2])
 
