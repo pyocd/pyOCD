@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020-2021 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 import logging
 import json
 import threading
+from typing import (Any, Optional, Tuple)
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
@@ -31,7 +32,31 @@ TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
 class TCPClientProbe(DebugProbe):
-    """! @brief Probe class that connects to a debug probe server."""
+    """! @brief Probe class that connects to a debug probe server.
+
+    The protocol is a one-line JSON request and response form.
+
+    Request structure:
+
+    ````json
+    {
+        "id": <int>,
+        "request": <str>,
+        ["arguments": <list>]
+    }
+    ````
+
+    Response structure:
+
+    ````json
+    {
+        "id": <int>,
+        "status": <int>,
+        ["error": <str>,]
+        ["result": <value>]
+    }
+    ````
+    """
 
     DEFAULT_PORT = 5555
 
@@ -122,29 +147,12 @@ class TCPClientProbe(DebugProbe):
         self._request_id += 1
         return rid
 
-    def _perform_request(self, request, *args):
+    def _perform_request_without_raise(self, request: str, *args: Any) -> Tuple[Any, Optional[BaseException]]:
         """! Execute a request-reply transaction with the server.
 
-        Request:
-
-        ````
-        {
-          "id": <int>,
-          "request": <str>,
-          ["arguments": <list>]
-        }
-        ````
-
-        Response:
-
-        ````
-        {
-          "id": <int>,
-          "status": <int>,
-          ["error": <str>,]
-          ["result": <value>]
-        }
-        ````
+        The return value is a 2-tuple consisting of the optional result from the request and an optional
+        exception object. The latter is only non-None if the request failed and a non-zero status code was
+        returned.
         """
         # Protect requests with the local lock.
         with self._lock:
@@ -170,6 +178,7 @@ class TCPClientProbe(DebugProbe):
                 raise exceptions.ProbeError("malformed response from server; missing required field")
 
             # Check response status.
+            exc = None
             status = decoded_response['status']
             if status != 0:
                 # Get the error message.
@@ -178,20 +187,21 @@ class TCPClientProbe(DebugProbe):
                         request, status, error)
 
                 # Create an appropriate local exception based on the status code.
-                exc = self._create_exception_from_status_code(status,
+                exc = self.STATUS_CODE_CLASS_MAP.get(status, exceptions.ProbeError)(
                         "error received from server for command %s (status code %i): %s"
                         % (request, status, error))
-                raise exc
 
             # Get response value. If not present then there was no return value from the command
             result = decoded_response.get('result', None)
 
-            return result
+            return result, exc
 
-    def _create_exception_from_status_code(self, status, message):
-        """! @brief Convert a status code into an exception instance."""
-        # Other status codes can use the map.
-        return self.STATUS_CODE_CLASS_MAP.get(status, exceptions.ProbeError)(message)
+    def _perform_request(self, request: str, *args: Any) -> Any:
+        """@brief Perform the request and immediately raise any errors."""
+        result, exc = self._perform_request_without_raise(request, *args)
+        if exc is not None:
+            raise exc
+        return result
 
     _PROPERTY_CONVERTERS = {
             'capabilities':                 lambda value: [DebugProbe.Capability[v] for v in value],
@@ -278,37 +288,43 @@ class TCPClientProbe(DebugProbe):
     ##@{
 
     def read_dp(self, addr, now=True):
-        result = self._perform_request('read_dp', addr)
+        result, exc = self._perform_request_without_raise('read_dp', addr)
 
         def read_dp_cb():
-            # TODO need to raise any exception from here
+            # Raise any exception here so the traceback includes the actual caller.
+            if exc is not None:
+                raise exc
             return result
 
-        return result if now else read_dp_cb
+        return read_dp_cb() if now else read_dp_cb
 
     def write_dp(self, addr, data):
         self._perform_request('write_dp', addr, data)
 
     def read_ap(self, addr, now=True):
-        result = self._perform_request('read_ap', addr)
+        result, exc = self._perform_request_without_raise('read_ap', addr)
 
         def read_ap_cb():
-            # TODO need to raise any exception from here
+            # Raise any exception here so the traceback includes the actual caller.
+            if exc is not None:
+                raise exc
             return result
 
-        return result if now else read_ap_cb
+        return read_ap_cb() if now else read_ap_cb
 
     def write_ap(self, addr, data):
         self._perform_request('write_ap', addr, data)
 
     def read_ap_multiple(self, addr, count=1, now=True):
-        results = self._perform_request('read_ap_multiple', addr, count)
+        results, exc = self._perform_request_without_raise('read_ap_multiple', addr, count)
 
         def read_ap_multiple_cb():
-            # TODO need to raise any exception from here
+            # Raise any exception here so the traceback includes the actual caller.
+            if exc is not None:
+                raise exc
             return results
 
-        return results if now else read_ap_multiple_cb
+        return read_ap_multiple_cb() if now else read_ap_multiple_cb
 
     def write_ap_multiple(self, addr, values):
         self._perform_request('write_ap_multiple', addr, values)
@@ -352,11 +368,14 @@ class RemoteMemoryInterface(MemoryInterface):
 
     def read_memory(self, addr, transfer_size=32, now=True):
         assert transfer_size in (8, 16, 32)
-        result = self._remote_probe._perform_request('read_mem', self._handle, addr, transfer_size)
+        result, exc = self._remote_probe._perform_request_without_raise('read_mem', self._handle, addr, transfer_size)
 
         def read_callback():
+            # Raise any exception here so the traceback includes the actual caller.
+            if exc is not None:
+                raise exc
             return result
-        return result if now else read_callback
+        return read_callback() if now else read_callback
 
     def write_memory_block32(self, addr, data):
         self._remote_probe._perform_request('write_block32', self._handle, addr, data)
