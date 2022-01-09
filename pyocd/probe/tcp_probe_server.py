@@ -268,7 +268,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
 
         # Flush the probe and ignore any lingering errors.
         try:
-            self._session.probe.flush()
+            self._probe.flush()
         except exceptions.Error as err:
             LOG.debug("exception while flushing probe on disconnect: %s", err)
 
