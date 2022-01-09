@@ -218,11 +218,12 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         except socket.herror:
             self._client_domain = self.client_address[0]
 
-        LOG.info("Remote probe client connected (%s from port %i)", self._client_domain, self.client_address[1])
-
         # Get the session and probe we're serving from the server.
         self._session = cast(TCPProbeServer, self.server).session
         self._probe = cast(TCPProbeServer, self.server).probe
+
+        LOG.info("Client %s (port %i) connected to probe %s",
+                self._client_domain, self.client_address[1], self._probe.unique_id)
 
         # Give the probe a session if it doesn't have one, in case it needs to access settings.
         # TODO: create a session proxy so client-side options can be accessed
@@ -274,7 +275,8 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         super().setup()
 
     def finish(self):
-        LOG.info("Remote probe client disconnected (%s from port %i)", self._client_domain, self.client_address[1])
+        LOG.info("Client %s (port %i) disconnected from probe %s",
+                self._client_domain, self.client_address[1], self._probe.unique_id)
 
         # Flush the probe and ignore any lingering errors.
         try:
@@ -311,6 +313,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         # Process requests until the connection is closed.
         while True:
             request = None
+            request_type = "<missing>"
             try:
                 request_dict = None
                 self._current_request_id = -1
@@ -362,8 +365,10 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             except Exception as err:
                 # Only send an error response if we received an request.
                 if request is not None:
-                    LOG.error("Error while processing %s request from client: %s", request, err,
+                    LOG.error("Error processing '%s' request (ID %i, client %s, probe %s): %s",
+                            request_type, self._current_request_id, self._client_domain, self._probe.unique_id, err,
                             exc_info=self._session.log_tracebacks)
+                    LOG.debug("Full request from error: %s", request.decode('utf-8', 'replace'))
                     self._send_error_response(status=self._get_exception_status_code(err),
                             message=str(err))
                 else:
