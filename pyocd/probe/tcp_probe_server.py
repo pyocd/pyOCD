@@ -21,11 +21,16 @@ import json
 import socket
 from socketserver import (ThreadingTCPServer, StreamRequestHandler)
 from time import sleep
+from typing import (Callable, Dict, Optional, TYPE_CHECKING, Tuple, cast)
 
 from .shared_probe_proxy import SharedDebugProbeProxy
 from ..core import exceptions
 from .debug_probe import DebugProbe
 from ..coresight.ap import (APVersion, APv1Address, APv2Address)
+
+if TYPE_CHECKING:
+    from ..core.session import Session
+    from ..core.memory_interface import MemoryInterface
 
 LOG = logging.getLogger(__name__)
 
@@ -33,14 +38,20 @@ TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
 class DebugProbeServer(threading.Thread):
-    """! @brief Shares a debug probe over a TCP server.
+    """@brief Shares a debug probe over a TCP server.
 
     When the start() method is called, a new daemon thread is created to run the server. The server
     can be terminated by calling the stop() method, which will also kill the server thread.
     """
 
-    def __init__(self, session, probe, port=None, serve_local_only=None):
-        """! @brief Constructor.
+    def __init__(
+                self,
+                session: "Session",
+                probe: DebugProbe,
+                port: Optional[int] = None,
+                serve_local_only: Optional[bool] = None
+            ) -> None:
+        """@brief Constructor.
 
         @param self The object.
         @param session A @ref pyocd.core.session.Session "Session" object. Does not need to have a
@@ -64,8 +75,8 @@ class DebugProbeServer(threading.Thread):
         # Init instance variables.
         self._session = session
         self._probe = probe
-        self._did_start = False
-        self._is_running = False
+        self._did_start: bool = False
+        self._is_running: bool = False
 
         # Make sure we have a shared proxy for the probe.
         if isinstance(probe, SharedDebugProbeProxy):
@@ -75,7 +86,7 @@ class DebugProbeServer(threading.Thread):
 
         # Get the port from options if not specified.
         if port is None:
-            self._port = session.options.get('probeserver.port')
+            self._port = cast(int, session.options.get('probeserver.port'))
         else:
             self._port = port
 
@@ -87,10 +98,10 @@ class DebugProbeServer(threading.Thread):
         address = (host, self._port)
 
         # Create the server and bind to the address, but don't start running yet.
-        self._server = TCPProbeServer(address, session, self._proxy)
+        self._server = TCPProbeServer(address, session, cast(DebugProbe, self._proxy))
         self._server.server_bind()
 
-    def start(self):
+    def start(self) -> None:
         """! @brief Start the server thread and begin listening.
 
         Returns once the server thread has begun executing.
@@ -100,7 +111,7 @@ class DebugProbeServer(threading.Thread):
         while not self._did_start:
             sleep(0.005)
 
-    def stop(self):
+    def stop(self) -> None:
         """! @brief Shut down the server.
 
         Any open connections will be forcibly closed. This function does not return until the
@@ -110,12 +121,12 @@ class DebugProbeServer(threading.Thread):
         self.join()
 
     @property
-    def is_running(self):
+    def is_running(self) -> bool:
         """! @brief Whether the server thread is running."""
         return self._is_running
 
     @property
-    def port(self):
+    def port(self) -> int:
         """! @brief The server's port.
 
         If port 0 was specified in the constructor, then, after start() is called, this will reflect the actual port
@@ -123,7 +134,7 @@ class DebugProbeServer(threading.Thread):
         """
         return self._port
 
-    def run(self):
+    def run(self) -> None:
         """! @brief The server thread implementation."""
         self._did_start = True
         self._is_running = True
@@ -143,18 +154,18 @@ class TCPProbeServer(ThreadingTCPServer):
     # Change the default SO_REUSEADDR setting.
     allow_reuse_address = True
 
-    def __init__(self, server_address, session, probe):
+    def __init__(self, server_address: Tuple[str, int], session: "Session", probe: DebugProbe):
         self._session = session
         self._probe = probe
-        ThreadingTCPServer.__init__(self, server_address, DebugProbeRequestHandler,
+        super().__init__(server_address, DebugProbeRequestHandler,
             bind_and_activate=False)
 
     @property
-    def session(self):
+    def session(self) -> "Session":
         return self._session
 
     @property
-    def probe(self):
+    def probe(self) -> DebugProbe:
         return self._probe
 
     def handle_error(self, request, client_address):
@@ -210,8 +221,8 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         LOG.info("Remote probe client connected (%s from port %i)", self._client_domain, self.client_address[1])
 
         # Get the session and probe we're serving from the server.
-        self._session = self.server.session
-        self._probe = self.server.probe
+        self._session = cast(TCPProbeServer, self.server).session
+        self._probe = cast(TCPProbeServer, self.server).probe
 
         # Give the probe a session if it doesn't have one, in case it needs to access settings.
         # TODO: create a session proxy so client-side options can be accessed
@@ -219,11 +230,11 @@ class DebugProbeRequestHandler(StreamRequestHandler):
             self._probe.session = self._session
 
         # Dict to store handles for AP memory interfaces.
-        self._next_ap_memif_handle = 0
-        self._ap_memif_handles = {}
+        self._next_ap_memif_handle: int = 0
+        self._ap_memif_handles: Dict[int, "MemoryInterface"] = {}
 
         # Create the request handlers dict here so we can reference bound probe methods.
-        self._REQUEST_HANDLERS = {
+        self._REQUEST_HANDLERS: Dict[str, Tuple[Callable, int]] = {
                 # Command                Handler                            Arg count
                 'hello':                (self._request__hello,              1   ),
                 'readprop':             (self._request__read_property,      1   ),
@@ -259,9 +270,8 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 'write_block8':         (self._request__write_block8,       3   ), # 'write_block8', handle:int, addr:int, data:List[int]
             }
 
-        # Let superclass do its thing. (Can't use super() here because the superclass isn't derived
-        # from object in Py2.)
-        StreamRequestHandler.setup(self)
+        # Let superclass do its thing.
+        super().setup()
 
     def finish(self):
         LOG.info("Remote probe client disconnected (%s from port %i)", self._client_domain, self.client_address[1])
@@ -272,8 +282,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         except exceptions.Error as err:
             LOG.debug("exception while flushing probe on disconnect: %s", err)
 
-        self._session = None
-        StreamRequestHandler.finish(self)
+        super().finish()
 
     def _send_error_response(self, status=1, message=""):
         response_dict = {
@@ -301,8 +310,8 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     def handle(self):
         # Process requests until the connection is closed.
         while True:
+            request = None
             try:
-                request = None
                 request_dict = None
                 self._current_request_id = -1
 
