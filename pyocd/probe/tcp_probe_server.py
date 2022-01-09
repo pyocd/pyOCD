@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020-2021 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ import threading
 import json
 import socket
 from socketserver import (ThreadingTCPServer, StreamRequestHandler)
+from time import sleep
 
 from .shared_probe_proxy import SharedDebugProbeProxy
 from ..core import exceptions
@@ -54,7 +55,7 @@ class DebugProbeServer(threading.Thread):
         @param serve_local_only Optional Boolean. Whether to restrict the server to be accessible only from
             localhost. If not specified (set to None), then the 'serve_local_only' session option is used.
         """
-        super(DebugProbeServer, self).__init__()
+        super().__init__()
 
         # Configure the server thread.
         self.name = "debug probe %s server" % probe.unique_id
@@ -63,6 +64,7 @@ class DebugProbeServer(threading.Thread):
         # Init instance variables.
         self._session = session
         self._probe = probe
+        self._did_start = False
         self._is_running = False
 
         # Make sure we have a shared proxy for the probe.
@@ -89,9 +91,14 @@ class DebugProbeServer(threading.Thread):
         self._server.server_bind()
 
     def start(self):
-        """! @brief Start the server thread and begin listening."""
+        """! @brief Start the server thread and begin listening.
+
+        Returns once the server thread has begun executing.
+        """
         self._server.server_activate()
-        super(DebugProbeServer, self).start()
+        super().start()
+        while not self._did_start:
+            sleep(0.005)
 
     def stop(self):
         """! @brief Shut down the server.
@@ -118,6 +125,7 @@ class DebugProbeServer(threading.Thread):
 
     def run(self):
         """! @brief The server thread implementation."""
+        self._did_start = True
         self._is_running = True
 
         # Read back the actual port if 0 was specified.
