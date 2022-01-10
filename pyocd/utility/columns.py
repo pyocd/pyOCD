@@ -23,7 +23,7 @@ from typing import (IO, Iterable, List, Optional, Tuple)
 LOG = logging.getLogger(__name__)
 
 class ColumnFormatter:
-    """! @brief Formats a set of values in multiple columns.
+    """@brief Formats a set of values in multiple columns.
 
     The value_list must be a list of bi-tuples (name, value) sorted in the desired display order.
 
@@ -32,7 +32,7 @@ class ColumnFormatter:
     """
 
     def __init__(self, maxwidth: Optional[int] = None, inset: int = 2) -> None:
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self The object.
         @param maxwidth Number of characters to which the output width must be constrained. If not provided,
             then the width of the stdout terminal is used. If getting the terminal width fails, for instance
@@ -46,7 +46,7 @@ class ColumnFormatter:
         self._max_value_width = 0
 
     def add_items(self, item_list: Iterable[Tuple[str, str]]) -> None:
-        """! @brief Add items to the output.
+        """@brief Add items to the output.
         @param self The object.
         @param item_list Must be a list of bi-tuples (name, value) sorted in the desired display order.
         """
@@ -58,7 +58,7 @@ class ColumnFormatter:
             self._max_value_width = max(self._max_value_width, len(value))
 
     def format(self) -> str:
-        """! @brief Return the formatted columns as a string.
+        """@brief Return the formatted columns as a string.
         @param self The object.
         @return String containing the output of the column printer.
         """
@@ -81,7 +81,7 @@ class ColumnFormatter:
         return txt
 
     def write(self, output_file: IO[str] = None) -> None:
-        """! @brief Write the formatted columns to stdout or the specified file.
+        """@brief Write the formatted columns to stdout or the specified file.
         @param self The object.
         @param output_file Optional file to which the column printer output will be written. If no specified,
             then sys.stdout is used.

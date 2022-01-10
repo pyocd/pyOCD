@@ -25,7 +25,7 @@ from .compatibility import to_bytes_safe
 LOG = logging.getLogger(__name__)
 
 class StreamServer(threading.Thread):
-    """! @brief File-like object that serves data over a TCP socket.
+    """@brief File-like object that serves data over a TCP socket.
 
     The user can connect to the socket with telnet or netcat.
 
@@ -34,7 +34,7 @@ class StreamServer(threading.Thread):
     """
 
     def __init__(self, port, serve_local_only=True, name=None, is_read_only=True, extra_info=None):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         Starts the server immediately.
 
@@ -126,7 +126,7 @@ class StreamServer(threading.Thread):
         LOG.info("%sserver stopped", self._formatted_name)
 
     def write(self, data):
-        """! @brief Write bytes into the connection."""
+        """@brief Write bytes into the connection."""
         # If nobody is connected, act like all data was written anyway.
         if self.connected is None:
             return 0
@@ -141,7 +141,7 @@ class StreamServer(threading.Thread):
         return size
 
     def _get_input(self, length=-1):
-        """! @brief Extract requested amount of data from the read buffer."""
+        """@brief Extract requested amount of data from the read buffer."""
         self._buffer_lock.acquire()
         try:
             if length == -1:
@@ -158,7 +158,7 @@ class StreamServer(threading.Thread):
             self._buffer_lock.release()
 
     def read(self, size=-1):
-        """! @brief Return bytes read from the connection."""
+        """@brief Return bytes read from the connection."""
         if self.connected is None:
             return None
 
@@ -168,7 +168,7 @@ class StreamServer(threading.Thread):
         return data
 
     def readinto(self, b):
-        """! @brief Read bytes into a mutable buffer."""
+        """@brief Read bytes into a mutable buffer."""
         if self.connected is None:
             return None
 

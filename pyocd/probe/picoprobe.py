@@ -37,7 +37,7 @@ LOG = logging.getLogger(__name__)
 
 
 class PicoLink(object):
-    """! @brief Wrapper to handle picoprobe USB.
+    """@brief Wrapper to handle picoprobe USB.
 
     Just to hide details of USB and Picoprobe command layer
     """
@@ -105,7 +105,7 @@ class PicoLink(object):
 
     @classmethod
     def enumerate_picoprobes(cls, uid=None) -> List["PicoLink"]:
-        """! @brief Find and return all Picoprobes """
+        """@brief Find and return all Picoprobes """
         try:
             # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
             return [PicoLink(probe) for probe in libusb_package.find(find_all=True, custom_match=FindPicoprobe(uid))]
@@ -114,12 +114,12 @@ class PicoLink(object):
             return []
 
     def q_read_bits(self, bits):
-        """! @brief Queue a read request for 'bits' bits to the probe """
+        """@brief Queue a read request for 'bits' bits to the probe """
         # Cannot be called with bits = 0
         self._queue_cmd_header(self.PROBE_READ_BITS, bits)
 
     def q_write_bits(self, data, bits=None):
-        """! @brief Queue a write reeust 'bits' bits.
+        """@brief Queue a write reeust 'bits' bits.
         @param data Values to be weritten. Either int or iterable yielding bytes (0-255).
         @param bits How many bits to write. Mandatory if data is int.
         """
@@ -130,7 +130,7 @@ class PicoLink(object):
         self._queue.extend(data if type(data) is not int else data.to_bytes(count, 'little'))
 
     def flush_queue(self):
-        """! @brief Execute all the queued probe actions"""
+        """@brief Execute all the queued probe actions"""
         # Put in the packet header (byte count)
         self._queue[:self.PKT_HDR_LEN] = array(
             'B', self._qulen.to_bytes(4, 'little'))
@@ -145,7 +145,7 @@ class PicoLink(object):
             self._clear_queue()
 
     def get_bits(self):
-        """! @briefExecute all the queued probe actions and return read values"""
+        """@briefExecute all the queued probe actions and return read values"""
         self.flush_queue()
         try:
             # A single read is enough, as the 8 kB buffer in the Picoprobe can
@@ -209,13 +209,13 @@ class PicoLink(object):
     #          Picoprobe intenal functions
     # ------------------------------------------- #
     def _next_id(self):
-        """! @brief Returns a progressive id for a Picoprobe command"""
+        """@brief Returns a progressive id for a Picoprobe command"""
         id = self._id
         self._id = (self._id + 1) % 0x100
         return id
 
     def _queue_cmd_header(self, cmd, bits, length=0, id=None):
-        """! @brief Prepare a header structure in _queue byte array"""
+        """@brief Prepare a header structure in _queue byte array"""
         if id is None:
             id = self._next_id()
         length += self.CMD_HDR_LEN
@@ -235,16 +235,16 @@ class PicoLink(object):
 
 
 class FindPicoprobe(object):
-    """! @brief Custom matcher for Picoprobe to be used in core.find() """
+    """@brief Custom matcher for Picoprobe to be used in core.find() """
 
     VID_PID_CLASS = (0x2E8A, 0x0004, 0x00)  # Match for a Picoprobe
 
     def __init__(self, serial=None):
-        """! @brief Create a new FindPicoprobe object with an optional serial number"""
+        """@brief Create a new FindPicoprobe object with an optional serial number"""
         self._serial = serial
 
     def __call__(self, dev):
-        """! @brief Return True if this is a Picoprobe device, False otherwise"""
+        """@brief Return True if this is a Picoprobe device, False otherwise"""
 
         # Check if vid, pid and the device class are valid ones for Picoprobe.
         if (dev.idVendor, dev.idProduct, dev.bDeviceClass) != self.VID_PID_CLASS:
@@ -292,7 +292,7 @@ class FindPicoprobe(object):
 
 
 class Picoprobe(DebugProbe):
-    """! @brief Wraps a Picolink link as a DebugProbe. """
+    """@brief Wraps a Picolink link as a DebugProbe. """
 
     # Address of read buffer register in DP.
     RDBUFF = 0xC
@@ -374,7 +374,7 @@ class Picoprobe(DebugProbe):
 
     @ property
     def wire_protocol(self):
-        """! @brief Only valid after connecting."""
+        """@brief Only valid after connecting."""
         return DebugProbe.Protocol.SWD if self._is_connected else None
 
     @ property
@@ -397,7 +397,7 @@ class Picoprobe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """! @brief Connect to the target via SWD."""
+        """@brief Connect to the target via SWD."""
         # Make sure the protocol is supported
         if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
             protocol = DebugProbe.Protocol.SWD
@@ -425,7 +425,7 @@ class Picoprobe(DebugProbe):
         self._link.flush_queue()
 
     def swd_sequence(self, sequences):
-        """! @brief Send a sequences of bits on the SWDIO signal.
+        """@brief Send a sequences of bits on the SWDIO signal.
 
         Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members in this order:
         - 0: int: number of TCK cycles from 1-64
@@ -636,7 +636,7 @@ class Picoprobe(DebugProbe):
         self._link.flush_queue()
 
     def _swd_command(self, RnW, APnDP, addr):
-        """! @brief Builds and queues an SWD command byte plus an ACK read"""
+        """@brief Builds and queues an SWD command byte plus an ACK read"""
         cmd = (APnDP << 1) + (RnW << 2) + ((addr << 1) & self.SWD_CMD_A32)
         cmd |= parity32_high(cmd) >> (32 - 5)
         cmd |= self.SWD_CMD_START | self.SWD_CMD_STOP | self.SWD_CMD_PARK
@@ -681,7 +681,7 @@ class Picoprobe(DebugProbe):
 
 
 class PicoprobePlugin(Plugin):
-    """! @brief Plugin class for Picoprobe."""
+    """@brief Plugin class for Picoprobe."""
 
     def load(self):
         return Picoprobe
@@ -696,7 +696,7 @@ class PicoprobePlugin(Plugin):
 
     @ property
     def options(self):
-        """! @brief Returns picoprobe options."""
+        """@brief Returns picoprobe options."""
         return [
             OptionInfo(Picoprobe.SAFESWD_OPTION, bool, False,
                        "Use safe but slower SWD transfer functions with Picoprobe.")]

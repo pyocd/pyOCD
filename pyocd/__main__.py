@@ -48,7 +48,7 @@ from .subcommands.rtt_cmd import RTTSubcommand
 LOG = logging.getLogger("pyocd.tool")
 
 class PyOCDTool(SubcommandBase):
-    """! @brief Main class for the pyocd tool and subcommands.
+    """@brief Main class for the pyocd tool and subcommands.
     """
 
     HELP = "PyOCD debug tools for Arm Cortex devices"
@@ -82,7 +82,7 @@ class PyOCDTool(SubcommandBase):
         self._parser = self.build_parser()
 
     def build_parser(self) -> argparse.ArgumentParser:
-        """! @brief Construct the command line parser with all subcommands and options."""
+        """@brief Construct the command line parser with all subcommands and options."""
         # Create top level argument parser.
         parser = argparse.ArgumentParser(description=self.HELP)
         parser.set_defaults(command_class=self, quiet=0, verbose=0, log_level=[])
@@ -96,7 +96,7 @@ class PyOCDTool(SubcommandBase):
         return parser
 
     def _setup_logging(self) -> None:
-        """! @brief Configure the logging module.
+        """@brief Configure the logging module.
 
         The color log formatter is set up, based on the --color argument and `PYOCD_COLOR` env variable. The --color
         argument overrides `PYOCD_COLOR`.
@@ -143,7 +143,7 @@ class PyOCDTool(SubcommandBase):
                 break
 
     def invoke(self) -> int:
-        """! @brief Show help when pyocd is run with no subcommand."""
+        """@brief Show help when pyocd is run with no subcommand."""
         if self._args.help_options:
             self.show_options_help()
         else:
@@ -151,11 +151,11 @@ class PyOCDTool(SubcommandBase):
         return 0
 
     def __call__(self, *args: Any, **kwds: Any) -> "PyOCDTool":
-        """! @brief Hack to allow the root command object instance to be used as default command class."""
+        """@brief Hack to allow the root command object instance to be used as default command class."""
         return self
 
     def run(self, args: Optional[Sequence[str]] = None) -> int:
-        """! @brief Main entry point for command line processing."""
+        """@brief Main entry point for command line processing."""
         try:
             self._args = self._parser.parse_args(args)
 
@@ -181,7 +181,7 @@ class PyOCDTool(SubcommandBase):
             return 1
 
     def show_options_help(self) -> None:
-        """! @brief Display help for session options."""
+        """@brief Display help for session options."""
         for info_name in sorted(options.OPTIONS_INFO.keys()):
             info = options.OPTIONS_INFO[info_name]
             if isinstance(info.type, tuple):

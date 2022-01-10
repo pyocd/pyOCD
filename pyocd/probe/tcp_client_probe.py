@@ -32,7 +32,7 @@ TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
 class TCPClientProbe(DebugProbe):
-    """! @brief Probe class that connects to a debug probe server.
+    """@brief Probe class that connects to a debug probe server.
 
     The protocol is a one-line JSON request and response form.
 
@@ -63,7 +63,7 @@ class TCPClientProbe(DebugProbe):
     PROTOCOL_VERSION = 1
 
     class StatusCode:
-        """! @brief Constants for errors reported from the server."""
+        """@brief Constants for errors reported from the server."""
         GENERAL_ERROR = 1
         PROBE_DISCONNECTED = 2
         PROBE_ERROR = 3
@@ -102,7 +102,7 @@ class TCPClientProbe(DebugProbe):
         return cls(unique_id) if is_explicit else None
 
     def __init__(self, unique_id):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         super(TCPClientProbe, self).__init__()
         hostname, port = self._extract_address(unique_id)
         self._uid = f"remote:{hostname}:{port}"
@@ -142,13 +142,13 @@ class TCPClientProbe(DebugProbe):
 
     @property
     def request_id(self):
-        """! @brief Generate a new request ID."""
+        """@brief Generate a new request ID."""
         rid = self._request_id
         self._request_id += 1
         return rid
 
     def _perform_request_without_raise(self, request: str, *args: Any) -> Tuple[Any, Optional[BaseException]]:
-        """! Execute a request-reply transaction with the server.
+        """Execute a request-reply transaction with the server.
 
         The return value is a 2-tuple consisting of the optional result from the request and an optional
         exception object. The latter is only non-None if the request failed and a non-zero status code was
@@ -356,7 +356,7 @@ class TCPClientProbe(DebugProbe):
     ##@}
 
 class RemoteMemoryInterface(MemoryInterface):
-    """! @brief Local proxy for a remote memory interface."""
+    """@brief Local proxy for a remote memory interface."""
 
     def __init__(self, remote_probe, handle):
         self._remote_probe = remote_probe
@@ -390,7 +390,7 @@ class RemoteMemoryInterface(MemoryInterface):
         return self._remote_probe._perform_request('read_block8', self._handle, addr, size)
 
 class TCPClientProbePlugin(Plugin):
-    """! @brief Plugin class for TCPClientProbePlugin."""
+    """@brief Plugin class for TCPClientProbePlugin."""
 
     def load(self):
         return TCPClientProbe

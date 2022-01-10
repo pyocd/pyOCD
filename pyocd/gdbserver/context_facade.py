@@ -56,7 +56,7 @@ GDB_TYPE_MAP = {
     }
 
 class GDBDebugContextFacade(object):
-    """! @brief Provides GDB specific transformations to a DebugContext."""
+    """@brief Provides GDB specific transformations to a DebugContext."""
 
     ## The order certain target features should appear in target XML.
     REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.vfp")
@@ -90,7 +90,7 @@ class GDBDebugContextFacade(object):
         self._context = new_context
 
     def get_register_context(self):
-        """! @brief Return hexadecimal dump of registers as expected by GDB.
+        """@brief Return hexadecimal dump of registers as expected by GDB.
 
         @exception CoreRegisterAccessError
         """
@@ -114,7 +114,7 @@ class GDBDebugContextFacade(object):
         return resp
 
     def set_register_context(self, data):
-        """! @brief Set registers from GDB hexadecimal string.
+        """@brief Set registers from GDB hexadecimal string.
 
         @exception CoreRegisterAccessError
         """
@@ -135,7 +135,7 @@ class GDBDebugContextFacade(object):
         self._context.write_core_registers_raw(reg_num_list, reg_data_list)
 
     def set_register(self, gdb_regnum, data):
-        """! @brief Set single register from GDB hexadecimal string.
+        """@brief Set single register from GDB hexadecimal string.
 
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
@@ -152,7 +152,7 @@ class GDBDebugContextFacade(object):
             LOG.warning("GDB: attempt to set invalid register (regnum %d)", gdb_regnum)
 
     def gdb_get_register(self, gdb_regnum):
-        """! @brief Set single core register.
+        """@brief Set single core register.
 
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
@@ -175,7 +175,7 @@ class GDBDebugContextFacade(object):
         return resp
 
     def get_t_response(self, force_signal=None):
-        """! @brief Returns a GDB T response string.
+        """@brief Returns a GDB T response string.
 
         This includes:
         - The signal encountered.
@@ -210,7 +210,7 @@ class GDBDebugContextFacade(object):
         return signal
 
     def _get_reg_index_value_pairs(self, reg_list):
-        """! @brief Return register values as pairs for the T response.
+        """@brief Return register values as pairs for the T response.
 
         Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
         for the T response string.  NN is the index of the
@@ -232,7 +232,7 @@ class GDBDebugContextFacade(object):
         return result
 
     def get_memory_map_xml(self):
-        """! @brief Generate GDB memory map XML.
+        """@brief Generate GDB memory map XML.
         """
         root = ElementTree.Element('memory-map')
         for r in  self._context.core.memory_map:
@@ -249,7 +249,7 @@ class GDBDebugContextFacade(object):
         return MAP_XML_HEADER + ElementTree.tostring(root)
 
     def _define_xpsr_control_fields(self, xml_feature):
-        """! @brief Define XPSR and CONTROL register types with fields."""
+        """@brief Define XPSR and CONTROL register types with fields."""
         control = ElementTree.SubElement(xml_feature, 'flags', id="control", size="4")
         ElementTree.SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
         ElementTree.SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")

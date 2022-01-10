@@ -25,7 +25,7 @@ from .cortex_m_core_registers import CoreRegisterGroups
 LOG = logging.getLogger(__name__)
 
 class CortexM_v8M(CortexM):
-    """! @brief Component class for a v8.x-M architecture Cortex-M core."""
+    """@brief Component class for a v8.x-M architecture Cortex-M core."""
 
     ARMv8M_BASE = 0xC
     ARMv8M_MAIN = 0xF
@@ -62,7 +62,7 @@ class CortexM_v8M(CortexM):
 
     @property
     def supported_security_states(self):
-        """! @brief Tuple of security states supported by the processor.
+        """@brief Tuple of security states supported by the processor.
 
         @return Tuple of @ref pyocd.core.target.Target.SecurityState "Target.SecurityState". The
             result depends on whether the Security extension is enabled.
@@ -73,7 +73,7 @@ class CortexM_v8M(CortexM):
             return (Target.SecurityState.NONSECURE,)
 
     def _read_core_type(self):
-        """! @brief Read the CPUID register and determine core type and architecture."""
+        """@brief Read the CPUID register and determine core type and architecture."""
         # Read CPUID register
         cpuid = self.read32(CortexM.CPUID)
 
@@ -109,7 +109,7 @@ class CortexM_v8M(CortexM):
             LOG.warning("CPU core #%d type is unrecognized", self.core_number)
 
     def _check_for_fpu(self):
-        """! @brief Determine if a core has an FPU.
+        """@brief Determine if a core has an FPU.
 
         In addition to the tests performed by CortexM, this method tests for the MVE extension.
         """
@@ -143,7 +143,7 @@ class CortexM_v8M(CortexM):
             self._core_registers.add_group(CoreRegisterGroups.V81M_MVE_ONLY)
 
     def get_security_state(self):
-        """! @brief Returns the current security state of the processor.
+        """@brief Returns the current security state of the processor.
 
         @return @ref pyocd.core.target.Target.SecurityState "Target.SecurityState" enumerator.
         """
@@ -163,7 +163,7 @@ class CortexM_v8M(CortexM):
                 | CortexM.DFSR_HALTED)
 
     def get_halt_reason(self):
-        """! @brief Returns the reason the core has halted.
+        """@brief Returns the reason the core has halted.
 
         This overridden version of this method adds support for v8.x-M halt reasons.
 

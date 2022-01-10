@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 class Autoflush:
-    """! @brief Context manager for performing flushes.
+    """@brief Context manager for performing flushes.
 
     Pass a Target instance to the constructor, and when the context exits, the target will be
     automatically flushed. If a TransferError or subclass, such as TransferFaultError, is raised
@@ -35,7 +35,7 @@ class Autoflush:
     """
 
     def __init__(self, target: "Target") -> None:
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self The object.
         @param target Object on which the flush will be performed. Normally this is a Target

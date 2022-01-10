@@ -77,7 +77,7 @@ INTEGER_INFOS = [
     ]
 
 class CMSISDAPVersion:
-    """! @brief Known CMSIS-DAP versions.
+    """@brief Known CMSIS-DAP versions.
 
     The tuple fields are major, minor, patch. Generally, patch release versions are excluded from this
     list, unless there is a specific reason to know about a particular patch release.
@@ -144,7 +144,7 @@ DAP_OK = 0
 DAP_ERROR = 0xff
 
 class DAPTransferResponse:
-    """! Responses to DAP_Transfer and DAP_TransferBlock"""
+    """Responses to DAP_Transfer and DAP_TransferBlock"""
     ACK_MASK = 0x07 # Bits [2:0]
     PROTOCOL_ERROR_MASK = 0x08 # Bit [3]
     VALUE_MISMATCH_MASK = 0x08 # Bit [4]
@@ -156,13 +156,13 @@ class DAPTransferResponse:
     ACK_NO_ACK = 7
 
 class CMSISDAPProtocol(object):
-    """! @brief This class implements the CMSIS-DAP wire protocol."""
+    """@brief This class implements the CMSIS-DAP wire protocol."""
 
     def __init__(self, interface):
         self.interface = interface
 
     def dap_info(self, id_):
-        """! @brief Sends the DAP_Info command to read info from the CMSIS-DAP probe.
+        """@brief Sends the DAP_Info command to read info from the CMSIS-DAP probe.
         @param self This object.
         @param id_ One of the @ref pyocd.probe.pydapaccess.dap_access_api.DAPAcessIntf.ID "DAPAcessIntf.ID" constants.
         @return The `id_` parameter determines the return value data type. For those IDs defined as integer values
@@ -374,7 +374,7 @@ class CMSISDAPProtocol(object):
         return resp[1]
 
     def swd_sequence(self, sequences):
-        """! @brief Send the DAP_SWD_Sequence command.
+        """@brief Send the DAP_SWD_Sequence command.
 
         Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members:
         - 0: int: number of TCK cycles from 1-64

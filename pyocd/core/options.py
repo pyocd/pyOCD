@@ -180,7 +180,7 @@ BUILTIN_OPTIONS = [
 OPTIONS_INFO = {}
 
 def add_option_set(options):
-    """! @brief Merge a list of OptionInfo objects into OPTIONS_INFO."""
+    """@brief Merge a list of OptionInfo objects into OPTIONS_INFO."""
     OPTIONS_INFO.update({oi.name: oi for oi in options})
 
 # Start with only builtin options.

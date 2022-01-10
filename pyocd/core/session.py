@@ -54,7 +54,7 @@ _USER_SCRIPT_NAMES = [
     ]
 
 class Session(Notifier):
-    """! @brief Top-level object for a debug session.
+    """@brief Top-level object for a debug session.
 
     This class represents a debug session with a single debug probe. It is the root of the object
     graph, where it owns the debug probe and the board objects.
@@ -95,7 +95,7 @@ class Session(Notifier):
 
     @classmethod
     def get_current(cls) -> "Session":
-        """! @brief Return the most recently created Session instance or a default Session.
+        """@brief Return the most recently created Session instance or a default Session.
 
         By default this method will return the most recently created Session object that is
         still alive. If no live session exists, a new default session will be created and returned.
@@ -120,7 +120,7 @@ class Session(Notifier):
             option_defaults: Optional[Mapping[str, Any]] = None,
             **kwargs
             ) -> None:
-        """! @brief Session constructor.
+        """@brief Session constructor.
 
         Creates a new session using the provided debug probe. Session options are merged from the
         _options_ parameter and any keyword arguments. Normally a board instance is created that can
@@ -236,7 +236,7 @@ class Session(Notifier):
         return {}
 
     def find_user_file(self, option_name: Optional[str], filename_list: List[str]) -> Optional[str]:
-        """! @brief Search the project directory for a file.
+        """@brief Search the project directory for a file.
 
         @retval None No matching file was found.
         @retval string An absolute path to the requested file.
@@ -263,7 +263,7 @@ class Session(Notifier):
         return filePath
 
     def _configure_logging(self) -> None:
-        """! @brief Load a logging config dict or file."""
+        """@brief Load a logging config dict or file."""
         # Get logging config that could have been loaded from the config file.
         config_value = self.options.get('logging')
 
@@ -303,22 +303,22 @@ class Session(Notifier):
 
     @property
     def is_open(self) -> bool:
-        """! @brief Boolean of whether the session has been opened."""
+        """@brief Boolean of whether the session has been opened."""
         return self._inited and not self._closed
 
     @property
     def probe(self) -> Optional["DebugProbe"]:
-        """! @brief The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" instance."""
+        """@brief The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" instance."""
         return self._probe
 
     @property
     def board(self) -> Optional[Board]:
-        """! @brief The @ref pyocd.board.board.Board "Board" object."""
+        """@brief The @ref pyocd.board.board.Board "Board" object."""
         return self._board
 
     @property
     def target(self) -> Optional["SoCTarget"]:
-        """! @brief The @ref pyocd.core.target.soc_target "SoCTarget" object representing the SoC.
+        """@brief The @ref pyocd.core.target.soc_target "SoCTarget" object representing the SoC.
 
         This is the @ref pyocd.core.target.soc_target "SoCTarget" instance owned by the board.
         """
@@ -326,27 +326,27 @@ class Session(Notifier):
 
     @property
     def options(self) -> OptionsManager:
-        """! @brief The @ref pyocd.core.options_manager.OptionsManager "OptionsManager" object."""
+        """@brief The @ref pyocd.core.options_manager.OptionsManager "OptionsManager" object."""
         return self._options
 
     @property
     def project_dir(self) -> str:
-        """! @brief Path to the project directory."""
+        """@brief Path to the project directory."""
         return self._project_dir
 
     @property
     def delegate(self) -> Any:
-        """! @brief An optional delegate object for customizing behaviour."""
+        """@brief An optional delegate object for customizing behaviour."""
         return self._delegate
 
     @delegate.setter
     def delegate(self, new_delegate: Any) -> None:
-        """! @brief Setter for the `delegate` property."""
+        """@brief Setter for the `delegate` property."""
         self._delegate = new_delegate
 
     @property
     def user_script_proxy(self) -> "UserScriptDelegateProxy":
-        """! @brief The UserScriptDelegateProxy object for a loaded user script."""
+        """@brief The UserScriptDelegateProxy object for a loaded user script."""
         # Create a proxy if there isn't already one. This is a fallback in case there isn't a user script,
         # yet a Python $-command is executed and needs the user script namespace in which to run.
         if not self._user_script_proxy:
@@ -361,22 +361,22 @@ class Session(Notifier):
 
     @property
     def gdbservers(self) -> Dict[int, "GDBServer"]:
-        """! @brief Dictionary of core numbers to @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances."""
+        """@brief Dictionary of core numbers to @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances."""
         return self._gdbservers
 
     @property
     def probeserver(self) -> Optional["DebugProbeServer"]:
-        """! @brief A @ref pyocd.probe.tcp_probe_server.DebugProbeServer "DebugProbeServer" instance."""
+        """@brief A @ref pyocd.probe.tcp_probe_server.DebugProbeServer "DebugProbeServer" instance."""
         return self._probeserver
 
     @probeserver.setter
     def probeserver(self, server: "DebugProbeServer") -> None:
-        """! @brief Setter for the `probeserver` property."""
+        """@brief Setter for the `probeserver` property."""
         self._probeserver = server
 
     @property
     def log_tracebacks(self) -> bool:
-        """! @brief Quick access to debug.traceback option since it is widely used."""
+        """@brief Quick access to debug.traceback option since it is widely used."""
         return cast(bool, self.options.get('debug.traceback'))
 
     def __enter__(self) -> "Session":
@@ -394,7 +394,7 @@ class Session(Notifier):
         return False
 
     def _init_user_script_namespace(self, script_name: str, script_path: str) -> None:
-        """! @brief Create the namespace dict used for user scripts.
+        """@brief Create the namespace dict used for user scripts.
 
         This initial namespace has only those objects that are available very early in the
         session init process. For instance, the Target instance isn't available yet. The
@@ -458,7 +458,7 @@ class Session(Notifier):
             }
 
     def _update_user_script_namespace(self) -> None:
-        """! @brief Add objects available only after init to the user script namespace."""
+        """@brief Add objects available only after init to the user script namespace."""
         if self._user_script_namespace is not None:
             self._user_script_namespace.update({
                 'probe': self.probe,
@@ -496,7 +496,7 @@ class Session(Notifier):
                 LOG.warning("Error attempting to load user script '%s': %s", script_path, err)
 
     def open(self, init_board: bool = True) -> None:
-        """! @brief Open the session.
+        """@brief Open the session.
 
         This method does everything necessary to begin a debug session. It first loads the user
         script, if there is one. The user script will be available via the _user_script_proxy_
@@ -524,7 +524,7 @@ class Session(Notifier):
                 self._inited = True
 
     def close(self) -> None:
-        """! @brief Close the session.
+        """@brief Close the session.
 
         Uninits the board and disconnects then closes the probe.
         """
@@ -554,7 +554,7 @@ class Session(Notifier):
                 LOG.error("probe exception during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy:
-    """! @brief Proxy for user script functions.
+    """@brief Proxy for user script functions.
 
     This proxy makes arguments to user script functions optional.
     """
@@ -572,7 +572,7 @@ class UserScriptFunctionProxy:
         self._fn(**args)
 
 class UserScriptDelegateProxy:
-    """! @brief Delegate proxy for user scripts."""
+    """@brief Delegate proxy for user scripts."""
 
     def __init__(self, script_namespace: Dict) -> None:
         super().__init__()

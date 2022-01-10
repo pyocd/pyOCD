@@ -20,7 +20,7 @@ from ..utility.timeout import Timeout
 ACK_TIMEOUT = 5.0
 
 class GPR(CoreSightComponent):
-    """! @brief Granular Power Requestor.
+    """@brief Granular Power Requestor.
 
     Currently only supports enabling power domains.
     """
@@ -47,11 +47,11 @@ class GPR(CoreSightComponent):
         self.domain_count = 0
 
     def init(self):
-        """! @brief Inits the GPR."""
+        """@brief Inits the GPR."""
         self.domain_count = self.cmpid.devid[2] & self.CPWRUPM_COUNT_MASK
 
     def _power_up(self, mask):
-        """! @brief Enable power to a power domaind by mask.
+        """@brief Enable power to a power domaind by mask.
         @param self
         @param mask Bitmask of the domains to power up.
         @retval True Requested domains were successfully powered on.
@@ -69,7 +69,7 @@ class GPR(CoreSightComponent):
             return False
 
     def power_up_all(self):
-        """! @brief Enable power to all available power domains.
+        """@brief Enable power to all available power domains.
         @param self
         @retval True All domains were successfully powered on.
         @return False Timeout waiting for power ack bit(s) to set.
@@ -78,7 +78,7 @@ class GPR(CoreSightComponent):
         return self._power_up(mask)
 
     def power_up_one(self, domain_id):
-        """! @brief Power up a single power domain by domain ID.
+        """@brief Power up a single power domain by domain ID.
         @param self
         @param domain_id Integer power domain ID.
         @retval True Requested domain was powered on successfully.

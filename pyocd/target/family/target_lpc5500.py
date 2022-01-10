@@ -119,7 +119,7 @@ class LPC5500Family(CoreSightTarget):
         return seq
 
     def check_locked_state(self, seq):
-        """! @brief Attempt to unlock cores if they are locked (flash is empty etc.)"""
+        """@brief Attempt to unlock cores if they are locked (flash is empty etc.)"""
         # The device is not locked if AP#0 was found and is enabled.
         if (0 in self.aps) and self.aps[0].is_enabled:
             return
@@ -210,7 +210,7 @@ class LPC5500Family(CoreSightTarget):
         self._enable_traceclk()
 
     def unlock(self, dm_ap):
-        """! @brief Unlock Cores. See UM11126 51.6.1 """
+        """@brief Unlock Cores. See UM11126 51.6.1 """
         assert self.dp.probe.is_open
 
         LOG.info("attempting unlock procedure")
@@ -242,7 +242,7 @@ class LPC5500Family(CoreSightTarget):
 class CortexM_LPC5500(CortexM_v8M):
 
     def reset_and_halt(self, reset_type=None):
-        """! @brief Perform a reset and stop the core on the reset handler. """
+        """@brief Perform a reset and stop the core on the reset handler. """
         halt_only = False
         catch_mode = 0
 

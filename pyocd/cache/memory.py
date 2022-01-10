@@ -25,7 +25,7 @@ from ..core.exceptions import TransferFaultError
 LOG = logging.getLogger(__name__)
 
 class MemoryCache(object):
-    """! @brief Memory cache.
+    """@brief Memory cache.
 
     Maintains a cache of target memory. The constructor is passed a backing DebugContext object that
     will be used to fill the cache.
@@ -50,7 +50,7 @@ class MemoryCache(object):
         self._metrics = CacheMetrics()
 
     def _check_cache(self):
-        """! @brief Invalidates the cache if appropriate."""
+        """@brief Invalidates the cache if appropriate."""
         if self._core.is_running():
             LOG.debug("core is running; invalidating cache")
             self._reset_cache()
@@ -61,7 +61,7 @@ class MemoryCache(object):
             self._run_token = self._core.run_token
 
     def _get_ranges(self, addr, count):
-        """! @brief Splits a memory address range into cached and uncached subranges.
+        """@brief Splits a memory address range into cached and uncached subranges.
         @return Returns a 2-tuple with the first element being a set of Interval objects for each
           of the cached subranges. The second element is a set of Interval objects for each of the
           non-cached subranges.
@@ -88,7 +88,7 @@ class MemoryCache(object):
         return cached, uncached
 
     def _read_uncached(self, uncached):
-        """! "@brief Reads uncached memory ranges and updates the cache.
+        """"@brief Reads uncached memory ranges and updates the cache.
         @return A list of Interval objects is returned. Each Interval has its @a data attribute set
           to a bytearray of the data read from target memory.
         """
@@ -126,7 +126,7 @@ class MemoryCache(object):
             LOG.debug("no reads")
 
     def _read(self, addr, size):
-        """! @brief Performs a cached read operation of an address range.
+        """@brief Performs a cached read operation of an address range.
         @return A list of Interval objects sorted by address.
         """
         # Get the cached and uncached subranges of the requested read.
@@ -142,7 +142,7 @@ class MemoryCache(object):
         return combined
 
     def _merge_data(self, combined, addr, size):
-        """! @brief Extracts data from the intersection of an address range across a list of interval objects.
+        """@brief Extracts data from the intersection of an address range across a list of interval objects.
 
         The range represented by @a addr and @a size are assumed to overlap the intervals. The first
         and last interval in the list may have ragged edges not fully contained in the address range, in
@@ -207,7 +207,7 @@ class MemoryCache(object):
         self._cache.addi(leadBegin, trailEnd, data)
 
     def _check_regions(self, addr, count):
-        """! @return A bool indicating whether the given address range is fully contained within
+        """@return A bool indicating whether the given address range is fully contained within
               one known memory region, and that region is cacheable.
         @exception TransferFaultError Raised if the access is not entirely contained within a single region.
         """

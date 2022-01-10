@@ -15,7 +15,7 @@
 # limitations under the License.
 
 class CacheMetrics(object):
-    """! @brief Holds hit ratio metrics for the caches."""
+    """@brief Holds hit ratio metrics for the caches."""
     def __init__(self):
         self.hits = 0
         self.misses = 0

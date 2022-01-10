@@ -31,7 +31,7 @@ EPSR_MASK = 0x0700FC00
 IPSR_MASK = 0x000001FF
 
 class CortexMCoreRegisterInfo(CoreRegisterInfo):
-    """! @brief Core register subclass for Cortex-M registers.
+    """@brief Core register subclass for Cortex-M registers.
 
     For most registers, the index is the value written to the DCRSR register to read or write the
     core register. Other core registers not directly supported by DCRSR have special index values that
@@ -48,7 +48,7 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
 
     @classmethod
     def register_name_to_index(cls, reg: "CoreRegisterNameOrNumberType") -> int:
-        """! @brief Convert a register name to integer register index.
+        """@brief Convert a register name to integer register index.
         @param reg Either a register name or internal register number.
         @return Internal register number.
         @exception KeyError
@@ -62,7 +62,7 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
 
     @classmethod
     def get(cls, reg: "CoreRegisterNameOrNumberType") -> "CortexMCoreRegisterInfo":
-        """! @brief Return the CoreRegisterInfo instance for a register.
+        """@brief Return the CoreRegisterInfo instance for a register.
         @param reg Either a register name or internal register number.
         @return CoreRegisterInfo
         @exception KeyError
@@ -71,22 +71,22 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
 
     @property
     def is_fpu_register(self) -> bool:
-        """! @brief Returns true for FPSCR, SP, or DP registers."""
+        """@brief Returns true for FPSCR, SP, or DP registers."""
         return self.index == 33 or self.is_float_register
 
     @property
     def is_cfbp_subregister(self) -> bool:
-        """! @brief Whether the register is one of those combined into CFBP by the DCSR."""
+        """@brief Whether the register is one of those combined into CFBP by the DCSR."""
         return -4 <= self.index <= -1
 
     @property
     def is_psr_subregister(self) -> bool:
-        """! @brief Whether the register is a combination of xPSR fields."""
+        """@brief Whether the register is a combination of xPSR fields."""
         return 0x100 <= self.index <= 0x107
 
     @property
     def psr_mask(self) -> int:
-        """! @brief Generate a PSR mask based on bottom 3 bits of a MRS SYSm value"""
+        """@brief Generate a PSR mask based on bottom 3 bits of a MRS SYSm value"""
         mask = 0
         if (self.index & 1) != 0:
             mask |= IPSR_MASK
@@ -97,7 +97,7 @@ class CortexMCoreRegisterInfo(CoreRegisterInfo):
         return mask
 
 class CoreRegisterGroups:
-    """! @brief Namespace for lists of Cortex-M core register information."""
+    """@brief Namespace for lists of Cortex-M core register information."""
 
     _I = CortexMCoreRegisterInfo # Reduce table width.
 
@@ -267,5 +267,5 @@ CortexMCoreRegisterInfo.add_to_map(CoreRegisterGroups.M_PROFILE_COMMON
             + CoreRegisterGroups.VFP_V5)
 
 def index_for_reg(name: str) -> int:
-    """! @brief Utility to easily convert register name to index."""
+    """@brief Utility to easily convert register name to index."""
     return CortexMCoreRegisterInfo.get(name).index

@@ -37,7 +37,7 @@ TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
 class CMSISDAPProbe(DebugProbe):
-    """! @brief Wraps a pydapaccess link as a DebugProbe.
+    """@brief Wraps a pydapaccess link as a DebugProbe.
 
     Supports CMSIS-DAP v1 and v2.
     """
@@ -112,7 +112,7 @@ class CMSISDAPProbe(DebugProbe):
 
     @property
     def board_id(self) -> Optional[str]:
-        """! @brief Unique identifier for the board.
+        """@brief Unique identifier for the board.
 
         Only board IDs for DAPLink firmware are supported. We can't assume other
         CMSIS-DAP firmware is using the same serial number format, so we cannot reliably
@@ -145,7 +145,7 @@ class CMSISDAPProbe(DebugProbe):
 
     @property
     def supported_wire_protocols(self) -> Collection[DebugProbe.Protocol]:
-        """! @brief Only valid after opening."""
+        """@brief Only valid after opening."""
         return self._supported_protocols
 
     @property
@@ -534,7 +534,7 @@ class CMSISDAPProbe(DebugProbe):
             return exc
 
 class CMSISDAPProbePlugin(Plugin):
-    """! @brief Plugin class for CMSISDAPProbe."""
+    """@brief Plugin class for CMSISDAPProbe."""
 
     def load(self):
         return CMSISDAPProbe

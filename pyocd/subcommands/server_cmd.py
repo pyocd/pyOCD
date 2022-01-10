@@ -28,14 +28,14 @@ from ..probe.tcp_probe_server import DebugProbeServer
 LOG = logging.getLogger(__name__)
 
 class ServerSubcommand(SubcommandBase):
-    """! @brief `pyocd server` subcommand."""
+    """@brief `pyocd server` subcommand."""
 
     NAMES = ['server']
     HELP = "Run debug probe server."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         server_parser = argparse.ArgumentParser(description='server', add_help=False)
 
         server_config_options = server_parser.add_argument_group('configuration')
@@ -67,7 +67,7 @@ class ServerSubcommand(SubcommandBase):
         return [cls.CommonOptions.LOGGING, server_parser]
 
     def invoke(self) -> None:
-        """! @brief Handle 'server' subcommand."""
+        """@brief Handle 'server' subcommand."""
         # Create a session to load config, particularly logging config. Even though we do have a
         # probe, we don't set it in the session because we don't want the board, target, etc objects
         # to be created.

@@ -154,7 +154,7 @@ class MemoryLoader:
             trust_crc: Optional[bool] = None,
             keep_unwritten: Optional[bool] = None
         ):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self
         @param session The session object.
@@ -199,7 +199,7 @@ class MemoryLoader:
         self._reset_state()
 
     def _reset_state(self):
-        """! @brief Clear all state variables. """
+        """@brief Clear all state variables. """
         # _builders is a dict that maps memory regions to either a FlashBuilder or, for writable memories,
         # a bytearray.
         self._builders = {}
@@ -208,7 +208,7 @@ class MemoryLoader:
         self._current_progress_fraction = 0.0
 
     def add_data(self, address, data):
-        """! @brief Add a chunk of data to be programmed.
+        """@brief Add a chunk of data to be programmed.
 
         The data may cross memory region boundaries, as long as the regions are contiguous.
 
@@ -264,7 +264,7 @@ class MemoryLoader:
         return self
 
     def commit(self):
-        """! @brief Write all collected data to memory.
+        """@brief Write all collected data to memory.
 
         This routine ensures that chip erase is only used once if either the auto mode or chip
         erase mode are used. As an example, if two regions are to be written to and True was
@@ -303,7 +303,7 @@ class MemoryLoader:
         self._reset_state()
 
     def _log_performance(self, perf_list):
-        """! @brief Log a report of programming performance numbers."""
+        """@brief Log a report of programming performance numbers."""
         # Compute overall performance numbers.
         totalProgramTime = sum(perf.program_time for perf in perf_list)
         program_byte_count = sum(perf.total_byte_count for perf in perf_list)
@@ -339,7 +339,7 @@ class MemoryLoader:
 
     @classmethod
     def program_binary_data(cls, session, address, data):
-        """! @brief Helper routine to write a single chunk of data.
+        """@brief Helper routine to write a single chunk of data.
 
         The session options for chip_erase and trust_crc are used.
 

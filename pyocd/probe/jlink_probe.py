@@ -86,7 +86,7 @@ class JLinkProbe(DebugProbe):
 
     @classmethod
     def _get_probe_info(cls, serial_number, jlink):
-        """! @brief Look up and return a JLinkConnectInfo for the probe with matching serial number.
+        """@brief Look up and return a JLinkConnectInfo for the probe with matching serial number.
         @param cls The class object.
         @param serial_number String serial number. Must be the full serial number.
         @return JLinkConnectInfo object or None if there was no match.
@@ -100,7 +100,7 @@ class JLinkProbe(DebugProbe):
             raise cls._convert_exception(exc) from exc
 
     def __init__(self, serial_number):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self The object.
         @param serial_number String. The J-Link's serial number.
         """
@@ -198,7 +198,7 @@ class JLinkProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        """! @brief Connect to the target via JTAG or SWD."""
+        """@brief Connect to the target via JTAG or SWD."""
         # Handle default protocol.
         if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
             protocol = self._default_protocol
@@ -244,7 +244,7 @@ class JLinkProbe(DebugProbe):
         self._link.swd_sync()
 
     def disconnect(self):
-        """! @brief Disconnect from the target."""
+        """@brief Disconnect from the target."""
         try:
             if self.session.options.get('jlink.power'):
                 self._link.power_off()
@@ -370,10 +370,10 @@ class JLinkProbe(DebugProbe):
             return exc
 
 class JLinkProbePlugin(Plugin):
-    """! @brief Plugin class for JLinkProbe."""
+    """@brief Plugin class for JLinkProbe."""
 
     def should_load(self):
-        """! @brief Load the J-Link plugin if the J-Link library is available."""
+        """@brief Load the J-Link plugin if the J-Link library is available."""
         return JLinkProbe._get_jlink() is not None
 
     def load(self):
@@ -389,7 +389,7 @@ class JLinkProbePlugin(Plugin):
 
     @property
     def options(self):
-        """! @brief Returns J-Link probe options."""
+        """@brief Returns J-Link probe options."""
         return [
             OptionInfo('jlink.device', str, None,
                 "If this option is set to a supported J-Link device name, then the J-Link will be asked connect "

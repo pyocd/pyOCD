@@ -33,12 +33,12 @@ except ImportError:
 LOG = logging.getLogger(__name__)
 
 class PackSubcommandBase(SubcommandBase):
-    """! @brief Base class for `pyocd pack` subcommands."""
+    """@brief Base class for `pyocd pack` subcommands."""
 
     # cmsis_pack_manager.Cache is used in quotes in the return type annotation because it may have
     # not been imported successfully.
     def _get_cache(self) -> "cmsis_pack_manager.Cache":
-        """! @brief Handle 'clean' subcommand."""
+        """@brief Handle 'clean' subcommand."""
         if not CPM_AVAILABLE:
             raise exceptions.CommandError("'pack' subcommand is not available because cmsis-pack-manager is not installed")
 
@@ -64,19 +64,19 @@ class PackSubcommandBase(SubcommandBase):
         return matches
 
 class PackCleanSubcommand(PackSubcommandBase):
-    """! @brief `pyocd pack clean` subcommand."""
+    """@brief `pyocd pack clean` subcommand."""
 
     NAMES = ['clean']
     HELP = "Delete the pack index and all installed packs."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
         return [cls.CommonOptions.LOGGING, parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'clean' subcommand."""
+        """@brief Handle 'clean' subcommand."""
         cache = self._get_cache()
 
         LOG.info("Removing all pack data...")
@@ -85,14 +85,14 @@ class PackCleanSubcommand(PackSubcommandBase):
         return 0
 
 class PackUpdateSubcommand(PackSubcommandBase):
-    """! @brief `pyocd pack update` subcommand."""
+    """@brief `pyocd pack update` subcommand."""
 
     NAMES = ['update']
     HELP = "Update the pack index."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         parser.add_argument("-c", "--clean", action='store_true',
@@ -101,7 +101,7 @@ class PackUpdateSubcommand(PackSubcommandBase):
         return [cls.CommonOptions.LOGGING, parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'update' subcommand."""
+        """@brief Handle 'update' subcommand."""
         cache = self._get_cache()
 
         if self._args.clean:
@@ -114,14 +114,14 @@ class PackUpdateSubcommand(PackSubcommandBase):
         return 0
 
 class PackShowSubcommand(PackSubcommandBase):
-    """! @brief `pyocd pack show` subcommand."""
+    """@brief `pyocd pack show` subcommand."""
 
     NAMES = ['show']
     HELP = "Show the list of installed packs."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         display_options = parser.add_argument_group('display options')
@@ -131,7 +131,7 @@ class PackShowSubcommand(PackSubcommandBase):
         return [cls.CommonOptions.LOGGING, parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'show' subcommand."""
+        """@brief Handle 'show' subcommand."""
         cache = self._get_cache()
 
         packs = pack_target.ManagedPacks.get_installed_packs(cache)
@@ -145,14 +145,14 @@ class PackShowSubcommand(PackSubcommandBase):
         return 0
 
 class PackFindSubcommand(PackSubcommandBase):
-    """! @brief `pyocd pack find` subcommand."""
+    """@brief `pyocd pack find` subcommand."""
 
     NAMES = ['find']
     HELP = "Report pack(s) in the index containing matching device part numbers."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         index_options = parser.add_argument_group("index operations")
@@ -171,7 +171,7 @@ class PackFindSubcommand(PackSubcommandBase):
         return [cls.CommonOptions.LOGGING, parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'find' subcommand."""
+        """@brief Handle 'find' subcommand."""
         cache = self._get_cache()
 
         if self._args.update:
@@ -207,14 +207,14 @@ class PackFindSubcommand(PackSubcommandBase):
         return 0
 
 class PackInstallSubcommand(PackSubcommandBase):
-    """! @brief `pyocd pack install` subcommand."""
+    """@brief `pyocd pack install` subcommand."""
 
     NAMES = ['install']
     HELP = "Download and install pack(s) containing matching device part numbers."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         index_options = parser.add_argument_group("index operations")
@@ -233,7 +233,7 @@ class PackInstallSubcommand(PackSubcommandBase):
         return [cls.CommonOptions.LOGGING, parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'find' subcommand."""
+        """@brief Handle 'find' subcommand."""
         cache = self._get_cache()
 
         if self._args.update:
@@ -264,7 +264,7 @@ class PackInstallSubcommand(PackSubcommandBase):
         return 0
 
 class PackSubcommand(PackSubcommandBase):
-    """! @brief `pyocd pack` subcommand."""
+    """@brief `pyocd pack` subcommand."""
 
     NAMES = ['pack']
     HELP = "Manage CMSIS-Packs for target support."
@@ -278,7 +278,7 @@ class PackSubcommand(PackSubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         pack_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
         cls.add_subcommands(pack_parser)
 
@@ -303,7 +303,7 @@ class PackSubcommand(PackSubcommandBase):
         return [cls.CommonOptions.LOGGING, pack_parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'pack' subcommand."""
+        """@brief Handle 'pack' subcommand."""
 
         if not any([self._args.clean, self._args.update, self._args.show, bool(self._args.find_devices), bool(self._args.install_devices)]):
             self.parser.print_help()

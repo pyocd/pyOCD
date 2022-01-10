@@ -73,7 +73,7 @@ STDERR_FD = 3
 MAX_STRING_LENGTH = 2048
 
 class SemihostIOHandler(object):
-    """! @brief Interface for semihosting file I/O handlers.
+    """@brief Interface for semihosting file I/O handlers.
 
     This class is also used as the default I/O handler if none is provided to SemihostAgent.
     In this case, all file I/O requests are rejected.
@@ -91,7 +91,7 @@ class SemihostIOHandler(object):
         return self._errno
 
     def _std_open(self, fnptr, fnlen, mode):
-        """! @brief Helper for standard I/O open requests.
+        """@brief Helper for standard I/O open requests.
 
         In the ARM semihosting spec, standard I/O files are opened using a filename of ":tt"
         with the open mode specifying which standard I/O file to open. This method takes care
@@ -153,7 +153,7 @@ class SemihostIOHandler(object):
         raise NotImplementedError()
 
 class InternalSemihostIOHandler(SemihostIOHandler):
-    """! @brief Implements semihosting requests directly in the Python process.
+    """@brief Implements semihosting requests directly in the Python process.
 
     This class maintains its own list of pseudo-file descriptors for files opened by the
     debug target. By default, this class uses the system stdin, stdout, and stderr file objects
@@ -286,7 +286,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             return -1
 
 class ConsoleIOHandler(SemihostIOHandler):
-    """! @brief Simple IO handler for console."""
+    """@brief Simple IO handler for console."""
 
     def __init__(self, stdin_file, stdout_file=None):
         super(ConsoleIOHandler, self).__init__()
@@ -320,7 +320,7 @@ class ConsoleIOHandler(SemihostIOHandler):
             return -1
 
 class SemihostAgent(object):
-    """! @brief Handler for ARM semihosting requests.
+    """@brief Handler for ARM semihosting requests.
 
     Semihosting requests are made by the target by executing a 'bkpt #0xab' instruction. The
     requested operation is specified by R0 and any arguments by R1. Many requests use a block
@@ -396,7 +396,7 @@ class SemihostAgent(object):
             }
 
     def check_and_handle_semihost_request(self):
-        """! @brief Handle a semihosting request.
+        """@brief Handle a semihosting request.
 
         This method should be called after the target has halted, to check if the halt was
         due to a semihosting request. It first checks to see if the target halted because
@@ -457,7 +457,7 @@ class SemihostAgent(object):
         return True
 
     def cleanup(self):
-        """! @brief Clean up any resources allocated by semihost requests.
+        """@brief Clean up any resources allocated by semihost requests.
 
         @note May be called more than once.
         """

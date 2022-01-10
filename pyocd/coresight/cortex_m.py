@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-init]
-    """! @brief CoreSight component for a v6-M or v7-M Cortex-M core.
+    """@brief CoreSight component for a v6-M or v7-M Cortex-M core.
 
     This class has basic functions to access a Cortex-M core:
        - init
@@ -246,7 +246,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.bp_manager.add_provider(self.sw_bp)
 
     def add_child(self, cmp: "CoreSightComponent") -> None:
-        """! @brief Connect related CoreSight components."""
+        """@brief Connect related CoreSight components."""
         super().add_child(cmp)
 
         if isinstance(cmp, FPB):
@@ -261,17 +261,17 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     @property
     def architecture(self) -> CoreArchitecture:
-        """! @brief @ref pyocd.coresight.core_ids.CoreArchitecture "CoreArchitecture" for this core."""
+        """@brief @ref pyocd.coresight.core_ids.CoreArchitecture "CoreArchitecture" for this core."""
         return self._architecture
 
     @property
     def extensions(self) -> List[CortexMExtension]:
-        """! @brief List of extensions supported by this core."""
+        """@brief List of extensions supported by this core."""
         return self._extensions
 
     @property
     def core_registers(self) -> CoreRegistersIndex:
-        """! @brief Instance of @ref pyocd.core.core_registers.CoreRegistersIndex "CoreRegistersIndex"
+        """@brief Instance of @ref pyocd.core.core_registers.CoreRegistersIndex "CoreRegistersIndex"
             describing available core registers.
         """
         return self._core_registers
@@ -299,7 +299,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     @default_software_reset_type.setter
     def default_software_reset_type(self, reset_type: Target.ResetType) -> None:
-        """! @brief Modify the default software reset method.
+        """@brief Modify the default software reset method.
         @param self
         @param reset_type Must be one of the software reset types: Target.ResetType.SW_SYSRESETREQ,
             Target.ResetType.SW_VECTRESET, or Target.ResetType.SW_EMULATED.
@@ -311,7 +311,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     @property
     def supported_security_states(self) -> Sequence[Target.SecurityState]:
-        """! @brief Tuple of security states supported by the processor.
+        """@brief Tuple of security states supported by the processor.
 
         @return Tuple of @ref pyocd.core.target.Target.SecurityState "Target.SecurityState". For
             v6-M and v7-M cores, the return value only contains SecurityState.NONSECURE.
@@ -319,7 +319,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return (Target.SecurityState.NONSECURE,)
 
     def init(self) -> None:
-        """! @brief Cortex M initialization.
+        """@brief Cortex M initialization.
 
         The bus must be accessible when this method is called.
         """
@@ -349,7 +349,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.call_delegate('did_stop_debug_core', core=self)
 
     def _build_registers(self) -> None:
-        """! @brief Build set of core registers available on this code.
+        """@brief Build set of core registers available on this code.
 
         This method builds the list of core registers for this particular core. This includes all
         available core registers, and some variants of registers such as 'ipsr', 'iapsr', and the
@@ -365,7 +365,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             self._core_registers.add_group(CoreRegisterGroups.VFP_V5)
 
     def _read_core_type(self) -> None:
-        """! @brief Read the CPUID register and determine core type and architecture."""
+        """@brief Read the CPUID register and determine core type and architecture."""
         # Read CPUID register
         cpuid = self.read32(CortexM.CPUID)
 
@@ -392,7 +392,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             LOG.warning("CPU core #%d type is unrecognized", self.core_number)
 
     def _check_for_fpu(self) -> None:
-        """! @brief Determine if a core has an FPU.
+        """@brief Determine if a core has an FPU.
 
         The core architecture must have been identified prior to calling this function.
         """
@@ -433,7 +433,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             LOG.info("FPU present: " + fpu_type)
 
     def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
-        """! @brief Write a single memory location.
+        """@brief Write a single memory location.
 
         By default the transfer size is a word."""
         self.ap.write_memory(addr, data, transfer_size)
@@ -455,7 +455,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         ...
 
     def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Read a memory location.
+        """@brief Read a memory location.
 
         By default, a word will be read."""
         result = self.ap.read_memory(addr, transfer_size, now)
@@ -470,27 +470,27 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             return read_memory_cb
 
     def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
-        """! @brief Read a block of unaligned bytes in memory.
+        """@brief Read a block of unaligned bytes in memory.
         @return an array of byte values
         """
         data = self.ap.read_memory_block8(addr, size)
         return self.bp_manager.filter_memory_unaligned_8(addr, size, data)
 
     def write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
-        """! @brief Write a block of unaligned bytes in memory."""
+        """@brief Write a block of unaligned bytes in memory."""
         self.ap.write_memory_block8(addr, data)
 
     def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
-        """! @brief Write an aligned block of 32-bit words."""
+        """@brief Write an aligned block of 32-bit words."""
         self.ap.write_memory_block32(addr, data)
 
     def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
-        """! @brief Read an aligned block of 32-bit words."""
+        """@brief Read an aligned block of 32-bit words."""
         data = self.ap.read_memory_block32(addr, size)
         return self.bp_manager.filter_memory_aligned_32(addr, size, data)
 
     def halt(self) -> None:
-        """! @brief Halt the core
+        """@brief Halt the core
         """
         LOG.debug("halting core %d", self.core_number)
 
@@ -501,7 +501,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     def step(self, disable_interrupts: bool = True, start: int = 0, end: int = 0,
             hook_cb: Optional[Callable[[], bool]] = None) -> None:
-        """! @brief Perform an instruction level step.
+        """@brief Perform an instruction level step.
 
         This API will execute one or more individual instructions on the core. With default parameters, it
         masks interrupts and only steps a single instruction. The _start_ and _stop_ parameters define an
@@ -616,7 +616,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 )
 
     def _perform_emulated_reset(self):
-        """! @brief Emulate a software reset by writing registers.
+        """@brief Emulate a software reset by writing registers.
 
         All core registers are written to reset values. This includes setting the initial PC and SP
         to values read from the vector table, which is assumed to be located at the based of the
@@ -697,7 +697,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.write_memory_block32(self.NVIC_IPR0, [0xffffffff] * (numregs * 8))
 
     def _get_actual_reset_type(self, reset_type):
-        """! @brief Determine the reset type to use given defaults and passed in type."""
+        """@brief Determine the reset type to use given defaults and passed in type."""
 
         # Default to reset_type session option if reset_type parameter is None. If the session
         # option isn't set, then use the core's default reset type.
@@ -729,7 +729,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return reset_type
 
     def _perform_reset(self, reset_type):
-        """! @brief Perform a reset of the specified type."""
+        """@brief Perform a reset of the specified type."""
         assert isinstance(reset_type, Target.ResetType)
         if reset_type is Target.ResetType.HW:
             # Tell DP to not send reset notifications because we are doing it.
@@ -757,7 +757,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             sleep(self.session.options.get('reset.post_delay'))
 
     def _post_reset_core_accessibility_test(self):
-        """! @brief Wait for the system to come out of reset and this core to be accessible.
+        """@brief Wait for the system to come out of reset and this core to be accessible.
 
         Keep reading the DHCSR until we get a good response with S_RESET_ST cleared, or we time out. There's nothing
         we can do if the test times out, and in fact if this is a secondary core on a multicore system then timing out
@@ -787,7 +787,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                     LOG.debug("Core #%d did not come out of reset within timeout", self.core_number)
 
     def reset(self, reset_type=None):
-        """! @brief Reset the core.
+        """@brief Reset the core.
 
         The reset method is selectable via the reset_type parameter as well as the reset_type
         session option. If the reset_type parameter is not specified or None, then the reset_type
@@ -830,7 +830,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.session.notify(Target.Event.POST_RESET, self)
 
     def set_reset_catch(self, reset_type):
-        """! @brief Prepare to halt core on reset."""
+        """@brief Prepare to halt core on reset."""
         LOG.debug("set reset catch, core %d", self.core_number)
 
         self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
@@ -848,7 +848,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr | CortexM.DEMCR_VC_CORERESET)
 
     def clear_reset_catch(self, reset_type):
-        """! @brief Disable halt on reset."""
+        """@brief Disable halt on reset."""
         LOG.debug("clear reset catch, core %d", self.core_number)
 
         self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
@@ -858,7 +858,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             self.write_memory(CortexM.DEMCR, self._reset_catch_saved_demcr)
 
     def reset_and_halt(self, reset_type=None):
-        """! @brief Perform a reset and stop the core on the reset handler."""
+        """@brief Perform a reset and stop the core on the reset handler."""
         reset_type = self._get_actual_reset_type(reset_type)
 
         # Set up reset catch.
@@ -907,7 +907,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             return Target.State.RUNNING
 
     def get_security_state(self):
-        """! @brief Returns the current security state of the processor.
+        """@brief Returns the current security state of the processor.
 
         @return @ref pyocd.core.target.Target.SecurityState "Target.SecurityState" enumerator. For
             v6-M and v7-M cores, SecurityState.NONSECURE is always returned.
@@ -925,7 +925,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self.get_state() == Target.State.HALTED
 
     def resume(self):
-        """! @brief Resume execution of the core.
+        """@brief Resume execution of the core.
         """
         if self.get_state() != Target.State.HALTED:
             LOG.debug('cannot resume: target not halted')
@@ -942,7 +942,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self.bp_manager.find_breakpoint(addr)
 
     def check_reg_list(self, reg_list):
-        """! @brief Sanity check register values and raise helpful errors."""
+        """@brief Sanity check register values and raise helpful errors."""
         for reg in reg_list:
             if reg not in self.core_registers.by_index:
                 # Invalid register, try to give useful error. An invalid name will already
@@ -954,7 +954,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                     raise KeyError("register %s not available in this CPU", info.name)
 
     def read_core_register(self, reg):
-        """! @brief Read one core register.
+        """@brief Read one core register.
 
         The core must be halted or reads will fail.
 
@@ -972,7 +972,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return reg_info.from_raw(regValue)
 
     def read_core_register_raw(self, reg):
-        """! @brief Read a core register without type conversion.
+        """@brief Read a core register without type conversion.
 
         The core must be halted or reads will fail.
 
@@ -989,7 +989,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return vals[0]
 
     def read_core_registers_raw(self, reg_list):
-        """! @brief Read one or more core registers.
+        """@brief Read one or more core registers.
 
         The core must be halted or reads will fail.
 
@@ -1009,7 +1009,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self._base_read_core_registers_raw(reg_list)
 
     def _base_read_core_registers_raw(self, reg_list):
-        """! @brief Private core register read routine.
+        """@brief Private core register read routine.
 
         Items in the _reg_list_ must be pre-converted to index and only include valid
         registers for the core.
@@ -1105,7 +1105,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return reg_vals
 
     def write_core_register(self, reg, data):
-        """! @brief Write a CPU register.
+        """@brief Write a CPU register.
 
         The core must be halted or the write will fail.
 
@@ -1121,7 +1121,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.write_core_register_raw(reg_info.index, reg_info.to_raw(data))
 
     def write_core_register_raw(self, reg, data):
-        """! @brief Write a CPU register without type conversion.
+        """@brief Write a CPU register without type conversion.
 
         The core must be halted or the write will fail.
 
@@ -1136,7 +1136,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.write_core_registers_raw([reg], [data])
 
     def write_core_registers_raw(self, reg_list, data_list):
-        """! @brief Write one or more core registers.
+        """@brief Write one or more core registers.
 
         The core must be halted or writes will fail.
 
@@ -1158,7 +1158,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self._base_write_core_registers_raw(reg_list, data_list)
 
     def _base_write_core_registers_raw(self, reg_list, data_list):
-        """! @brief Private core register write routine.
+        """@brief Private core register write routine.
 
         Items in the _reg_list_ must be pre-converted to index and only include valid
         registers for the core. Similarly, data_list items must be pre-converted to integer values.
@@ -1240,7 +1240,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                     ", ".join(CortexMCoreRegisterInfo.get(r).name for r in fail_list)))
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
-        """! @brief Set a hardware or software breakpoint at a specific location in memory.
+        """@brief Set a hardware or software breakpoint at a specific location in memory.
 
         @retval True Breakpoint was set.
         @retval False Breakpoint could not be set.
@@ -1248,7 +1248,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self.bp_manager.set_breakpoint(addr, type)
 
     def remove_breakpoint(self, addr):
-        """! @brief Remove a breakpoint at a specific location."""
+        """@brief Remove a breakpoint at a specific location."""
         self.bp_manager.remove_breakpoint(addr)
 
     def get_breakpoint_type(self, addr):
@@ -1263,13 +1263,13 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             return self.dwt.find_watchpoint(addr, size, type)
 
     def set_watchpoint(self, addr, size, type):
-        """! @brief Set a hardware watchpoint.
+        """@brief Set a hardware watchpoint.
         """
         if self.dwt is not None:
             return self.dwt.set_watchpoint(addr, size, type)
 
     def remove_watchpoint(self, addr, size, type):
-        """! @brief Remove a hardware watchpoint.
+        """@brief Remove a hardware watchpoint.
         """
         if self.dwt is not None:
             return self.dwt.remove_watchpoint(addr, size, type)
@@ -1339,7 +1339,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self.get_halt_reason() == Target.HaltReason.VECTOR_CATCH
 
     def get_halt_reason(self):
-        """! @brief Returns the reason the core has halted.
+        """@brief Returns the reason the core has halted.
 
         @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
         """

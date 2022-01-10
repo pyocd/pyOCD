@@ -70,14 +70,14 @@ class BreakpointManager:
             self._fpb = provider
 
     def get_breakpoints(self) -> Iterable[int]:
-        """! @brief Return a list of all breakpoint addresses."""
+        """@brief Return a list of all breakpoint addresses."""
         return self._breakpoints.keys()
 
     def find_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         return self._updated_breakpoints.get(addr, None)
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
-        """! @brief Set a hardware or software breakpoint at a specific location in memory.
+        """@brief Set a hardware or software breakpoint at a specific location in memory.
 
         @retval True Breakpoint was set.
         @retval False Breakpoint could not be set.
@@ -110,7 +110,7 @@ class BreakpointManager:
         return True
 
     def _check_added_breakpoint(self, bp: Breakpoint) -> bool:
-        """! @brief Check whether a new breakpoint is likely to actually be added when we flush.
+        """@brief Check whether a new breakpoint is likely to actually be added when we flush.
 
         First, software breakpoints are assumed to always be addable. For hardware breakpoints,
         the current free hardware breakpoint count is updated based on the current set of to-be
@@ -140,7 +140,7 @@ class BreakpointManager:
         return free_hw_bp_count > self.MIN_HW_BREAKPOINTS
 
     def remove_breakpoint(self, addr: int) -> None:
-        """! @brief Remove a breakpoint at a specific location."""
+        """@brief Remove a breakpoint at a specific location."""
         try:
             LOG.debug("remove bkpt at 0x%x", addr)
 
@@ -153,7 +153,7 @@ class BreakpointManager:
             LOG.debug("Tried to remove breakpoint 0x%08x that wasn't set" % addr)
 
     def _get_updated_breakpoints(self) -> Tuple[List[Breakpoint], List[Breakpoint]]:
-        """! @brief Compute added and removed breakpoints since last flush.
+        """@brief Compute added and removed breakpoints since last flush.
         @return Bi-tuple of (added breakpoint list, removed breakpoint list).
         """
         added = []
@@ -295,7 +295,7 @@ class BreakpointManager:
         return data
 
     def remove_all_breakpoints(self) -> None:
-        """! @brief Remove all breakpoints immediately."""
+        """@brief Remove all breakpoints immediately."""
         for bp in self._breakpoints.values():
             bp.provider.remove_breakpoint(bp)
         self._breakpoints = {}

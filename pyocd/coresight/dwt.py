@@ -35,7 +35,7 @@ class Watchpoint(HardwareBreakpoint):
         self.func = 0
 
 class DWT(CoreSightComponent):
-    """! @brief Data Watchpoint and Trace version 1.0"""
+    """@brief Data Watchpoint and Trace version 1.0"""
 
     # DWT registers
     #
@@ -96,7 +96,7 @@ class DWT(CoreSightComponent):
         return len(self.watchpoints)
 
     def init(self):
-        """! @brief Inits the DWT.
+        """@brief Inits the DWT.
 
         Reads the number of hardware watchpoints available on the core and makes sure that they
         are all disabled and ready for future use.
@@ -126,7 +126,7 @@ class DWT(CoreSightComponent):
         return None
 
     def set_watchpoint(self, addr, size, type):
-        """! @brief Set a hardware watchpoint."""
+        """@brief Set a hardware watchpoint."""
         if self.dwt_configured is False:
             self.init()
 
@@ -163,7 +163,7 @@ class DWT(CoreSightComponent):
         return False
 
     def remove_watchpoint(self, addr, size, type):
-        """! @brief Remove a hardware watchpoint."""
+        """@brief Remove a hardware watchpoint."""
         watch = self.find_watchpoint(addr, size, type)
         if watch is None:
             return
@@ -189,7 +189,7 @@ class DWT(CoreSightComponent):
         self.ap.write32(self.address + self.DWT_CYCCNT, value)
 
 class DWTv2(DWT):
-    """! @brief Data Watchpoint and Trace version 2.x
+    """@brief Data Watchpoint and Trace version 2.x
 
     This version is present in v8-M platforms.
 
@@ -217,7 +217,7 @@ class DWTv2(DWT):
                     }
 
     def set_watchpoint(self, addr, size, type):
-        """! @brief Set a hardware watchpoint."""
+        """@brief Set a hardware watchpoint."""
         if self.dwt_configured is False:
             self.init()
 

@@ -32,7 +32,7 @@ O_EXCL = 0x800
 FD_OFFSET = 4
 
 class GDBSyscallIOHandler(SemihostIOHandler):
-    """! @brief Semihosting file I/O handler that performs GDB syscalls."""
+    """@brief Semihosting file I/O handler that performs GDB syscalls."""
 
     def __init__(self, server):
         super(GDBSyscallIOHandler, self).__init__()

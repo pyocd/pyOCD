@@ -35,8 +35,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 def ranges(i: List[int]) -> List[Tuple[int, int]]:
-    """!
-    Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
+    """Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
     Yields 2-tuples of the start and end address for each contiguous range.
 
     For instance, the input [0, 1, 2, 3, 32, 33, 34, 35] will yield the following 2-tuples:
@@ -47,7 +46,7 @@ def ranges(i: List[int]) -> List[Tuple[int, int]]:
         yield b[0][1], b[-1][1]
 
 class FileProgrammer(object):
-    """! @brief Class to manage programming a file in any supported format with many options.
+    """@brief Class to manage programming a file in any supported format with many options.
 
     Most specifically, this class implements the behaviour provided by the command-line flash
     programming tool. The code in this class simply extracts data from the given file, potentially
@@ -67,7 +66,7 @@ class FileProgrammer(object):
             trust_crc: Optional[bool] = None,
             keep_unwritten: Optional[bool] = None
         ):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self
         @param session The session object.
@@ -103,7 +102,7 @@ class FileProgrammer(object):
             }
 
     def program(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any):
-        """! @brief Program a file into flash.
+        """@brief Program a file into flash.
 
         @param self
         @param file_or_path Either a string that is a path to a file, or a file-like object.
@@ -174,7 +173,7 @@ class FileProgrammer(object):
                 file_obj.close()
 
     def _program_bin(self, file_obj: IO[bytes], **kwargs: Any) -> None:
-        """! @brief Binary file format loader"""
+        """@brief Binary file format loader"""
         assert self._loader
 
         # If no base address is specified use the start of the boot memory.
@@ -195,7 +194,7 @@ class FileProgrammer(object):
         self._loader.add_data(address, data)
 
     def _program_hex(self, file_obj: IO[bytes], **kwargs: Any) -> None:
-        """! Intel hex file format loader"""
+        """Intel hex file format loader"""
         assert self._loader
 
         hexfile = IntelHex(file_obj)

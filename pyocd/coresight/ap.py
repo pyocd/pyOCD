@@ -173,7 +173,7 @@ DEMCR = 0xE000EDFC
 DEMCR_TRCENA = (1 << 24)
 
 class APVersion(Enum):
-    """! @brief Supported versions of APs."""
+    """@brief Supported versions of APs."""
     ## APv1 from ADIv5.x.
     APv1 = 1
     ## APv2 from ADIv6.
@@ -181,7 +181,7 @@ class APVersion(Enum):
 
 @total_ordering
 class APAddressBase:
-    """! @brief Base class for AP addresses.
+    """@brief Base class for AP addresses.
 
     An instance of this class has a "nominal address", which is an integer address in terms of how
     it is typically referenced. For instance, for an APv1, the nominal address is the unshifted
@@ -201,24 +201,24 @@ class APAddressBase:
     """
 
     def __init__(self, address: int) -> None:
-        """! @brief Constructor accepting the nominal address."""
+        """@brief Constructor accepting the nominal address."""
         self._nominal_address = address
 
     @property
     def ap_version(self) -> APVersion:
-        """! @brief Version of the AP, as an APVersion enum."""
+        """@brief Version of the AP, as an APVersion enum."""
         raise NotImplementedError()
 
     @property
     def nominal_address(self) -> int:
-        """! @brief Integer AP address in the form in which one speaks about it.
+        """@brief Integer AP address in the form in which one speaks about it.
 
         This value is used for comparisons and hashing."""
         return self._nominal_address
 
     @property
     def address(self) -> int:
-        """! @brief Integer AP address used as a base for register accesses.
+        """@brief Integer AP address used as a base for register accesses.
 
         This value can be passed to the DebugPort's read_ap() or write_ap() methods. Offsets of
         registers can be added to this value to create register addresses."""
@@ -226,7 +226,7 @@ class APAddressBase:
 
     @property
     def idr_address(self) -> int:
-        """! @brief Address of the IDR register."""
+        """@brief Address of the IDR register."""
         raise NotImplementedError()
 
     def __hash__(self) -> int:
@@ -247,7 +247,7 @@ class APAddressBase:
         return "<{}@{:#x} {}>".format(self.__class__.__name__, id(self), str(self))
 
 class APv1Address(APAddressBase):
-    """! @brief Represents the address for an APv1.
+    """@brief Represents the address for an APv1.
 
     The nominal address is the 8-bit APSEL value. This is written into the top byte of
     the DP SELECT register to select the AP to communicate with.
@@ -255,12 +255,12 @@ class APv1Address(APAddressBase):
 
     @property
     def ap_version(self) -> APVersion:
-        """! @brief APVersion.APv1."""
+        """@brief APVersion.APv1."""
         return APVersion.APv1
 
     @property
     def apsel(self) -> int:
-        """! @brief Alias for the _nominal_address_ property."""
+        """@brief Alias for the _nominal_address_ property."""
         return self._nominal_address
 
     @property
@@ -269,14 +269,14 @@ class APv1Address(APAddressBase):
 
     @property
     def idr_address(self) -> int:
-        """! @brief Address of the IDR register."""
+        """@brief Address of the IDR register."""
         return AP_IDR
 
     def __str__(self) -> str:
         return "#%d" % self.apsel
 
 class APv2Address(APAddressBase):
-    """! @brief Represents the address for an APv2.
+    """@brief Represents the address for an APv2.
 
     ADIv6 uses an APB bus to communicate with APv2 instances. The nominal address is simply the base
     address of the APB slave. The APB bus address width is variable from 12-52 bits in 8-bit steps.
@@ -286,7 +286,7 @@ class APv2Address(APAddressBase):
 
     @property
     def ap_version(self) -> APVersion:
-        """! @brief Returns APVersion.APv2."""
+        """@brief Returns APVersion.APv2."""
         return APVersion.APv2
 
     @property
@@ -295,18 +295,18 @@ class APv2Address(APAddressBase):
 
     @property
     def idr_address(self) -> int:
-        """! @brief Address of the IDR register."""
+        """@brief Address of the IDR register."""
         return APv2_IDR
 
     def __str__(self) -> str:
         return "@0x%x" % self.address
 
 class AccessPort:
-    """! @brief Base class for a CoreSight Access Port (AP) instance."""
+    """@brief Base class for a CoreSight Access Port (AP) instance."""
 
     @staticmethod
     def probe(dp: "DebugPort", ap_num: int) -> bool:
-        """! @brief Determine if an AP exists with the given AP number.
+        """@brief Determine if an AP exists with the given AP number.
 
         Only applicable for ADIv5.
 
@@ -323,7 +323,7 @@ class AccessPort:
             ap_address: APAddressBase,
             cmpid: Optional["CoreSightComponentID"] = None
         ) -> "AccessPort":
-        """! @brief Create a new AP object.
+        """@brief Create a new AP object.
 
         Determines the type of the AP by examining the IDR value and creates a new
         AP object of the appropriate class. See #AP_TYPE_MAP for the mapping of IDR
@@ -375,7 +375,7 @@ class AccessPort:
                 flags: int = 0,
                 cmpid: Optional["CoreSightComponentID"] = None
             ) -> None:
-        """! @brief AP constructor.
+        """@brief AP constructor.
         @param self
         @param dp The DebugPort object.
         @param ap_address APAddress object with address of this AP.
@@ -402,7 +402,7 @@ class AccessPort:
 
     @property
     def ap_version(self) -> APVersion:
-        """! @brief The AP's major version determined by ADI version.
+        """@brief The AP's major version determined by ADI version.
         @retval APVersion.APv1
         @retval APVersion.APv2
         """
@@ -428,7 +428,7 @@ class AccessPort:
         LOG.info("%s IDR = 0x%08x (%s)", self.short_description, self.idr, desc)
 
     def find_components(self) -> None:
-        """! @brief Find CoreSight components attached to this AP."""
+        """@brief Find CoreSight components attached to this AP."""
         pass
 
     @overload
@@ -456,16 +456,16 @@ class AccessPort:
         self.dp.write_ap(self.address.address + addr, data)
 
     def lock(self) -> None:
-        """! @brief Lock the AP from access by other threads."""
+        """@brief Lock the AP from access by other threads."""
         self.dp.probe.lock()
 
     def unlock(self) -> None:
-        """! @brief Unlock the AP."""
+        """@brief Unlock the AP."""
         self.dp.probe.unlock()
 
     @contextmanager
     def locked(self) -> Generator[None, None, None]:
-        """! @brief Context manager for locking the AP using a with statement.
+        """@brief Context manager for locking the AP using a with statement.
 
         All public methods of AccessPort and its subclasses are automatically locked, so manual
         locking usually is not necessary unless you need to hold the lock across multiple AP
@@ -480,7 +480,7 @@ class AccessPort:
             self.__class__.__name__, id(self), self.short_description, self.idr, self.rom_addr)
 
 class MEM_AP(AccessPort, memory_interface.MemoryInterface):
-    """! @brief MEM-AP component.
+    """@brief MEM-AP component.
 
     This class supports MEM-AP v1 and v2.
 
@@ -575,12 +575,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     @property
     def supported_transfer_sizes(self) -> Set[int]:
-        """! @brief Tuple of transfer sizes supported by this AP."""
+        """@brief Tuple of transfer sizes supported by this AP."""
         return self._transfer_sizes
 
     @property
     def is_enabled(self) -> bool:
-        """! @brief Whether any memory transfers are allowed by this AP.
+        """@brief Whether any memory transfers are allowed by this AP.
 
         Memory transfers may be disabled by an input signal to the AP. This is often done when debug security
         is enabled on the device, to disallow debugger access to internal memory.
@@ -588,7 +588,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return self.is_enabled_for(Target.SecurityState.NONSECURE)
 
     def is_enabled_for(self, security_state: Target.SecurityState) -> bool:
-        """! @brief Checks whether memory transfers are allowed by this AP for the given security state.
+        """@brief Checks whether memory transfers are allowed by this AP for the given security state.
 
         Memory transfers may be disabled by an input signal to the AP. This is often done when debug security
         is enabled on the device, to disallow debugger access to internal memory.
@@ -613,7 +613,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     @locked
     def init(self) -> None:
-        """! @brief Initialize the MEM-AP.
+        """@brief Initialize the MEM-AP.
 
         This method interrogates the MEM-AP to determine its capabilities, and performs any initial setup
         that is required.
@@ -637,7 +637,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         original_csw = AccessPort.read_reg(self, self._reg_offset + MEM_AP_CSW)
 
         def _init_cfg() -> None:
-            """! @brief Read MEM-AP CFG register."""
+            """@brief Read MEM-AP CFG register."""
             cfg = self.read_reg(self._reg_offset + MEM_AP_CFG)
 
             # Check for 64-bit address support.
@@ -671,7 +671,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                 self._dar_count = (1 << darsize) // 4
 
         def _init_transfer_sizes() -> None:
-            """! @brief Determine supported transfer sizes.
+            """@brief Determine supported transfer sizes.
 
             If the #AP_ALL_TX_SZ flag is set, then we know a priori that this AP implementation
             supports 8-, 16- and 32- transfer sizes. If the Large Data extension is implemented, then this
@@ -693,7 +693,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                 return
 
             def _test_transfer_size(sz):
-                """! @brief Utility to verify whether the MEM-AP supports a given transfer size.
+                """@brief Utility to verify whether the MEM-AP supports a given transfer size.
 
                 From ADIv6:
                 If the CSW.Size field is written with a value corresponding to a size that is not supported,
@@ -722,7 +722,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                 self._transfer_sizes = {8, 16, 32}
 
         def _init_hprot() -> None:
-            """! @brief Init HPROT HNONSEC.
+            """@brief Init HPROT HNONSEC.
 
             Determines the implemented bits of HPROT and HNONSEC in this MEM-AP. The defaults for these
             fields of the CSW are based on the implemented bits.
@@ -746,7 +746,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.hnonsec = self._hnonsec & self._impl_hnonsec
 
         def _init_rom_table_base() -> None:
-            """! @brief Read ROM table base address."""
+            """@brief Read ROM table base address."""
             base = self.read_reg(self._reg_offset + MEM_AP_BASE)
             is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
             is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
@@ -810,7 +810,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     @hprot.setter
     @locked
     def hprot(self, value: int) -> None:
-        """! @brief Setter for current HPROT value used for memory transactions.
+        """@brief Setter for current HPROT value used for memory transactions.
 
         The bits of HPROT have the following meaning. Not all bits are implemented in all
         MEM-APs. AHB-Lite only implements HPROT[3:0].
@@ -835,7 +835,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     @hnonsec.setter
     @locked
     def hnonsec(self, value: int) -> None:
-        """! @brief Setter for current HNONSEC value used for memory transactions.
+        """@brief Setter for current HNONSEC value used for memory transactions.
 
         Not all MEM-APs support control of HNONSEC. In particular, only the AHB5-AP used for
         v8-M Cortex-M systems does. The AXI-AP for Cortex-A systems also allows this control.
@@ -848,7 +848,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                             | (self._hnonsec << CSW_HNONSEC_SHIFT))
 
     class _MemAttrContext:
-        """! @brief Context manager for temporarily setting HPROT and/or HNONSEC.
+        """@brief Context manager for temporarily setting HPROT and/or HNONSEC.
 
         The AP is locked during the lifetime of the context manager. This means that only the
         calling thread can perform memory transactions.
@@ -878,22 +878,22 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self._ap.unlock()
 
     def hprot_lock(self, hprot: int) -> _MemAttrContext:
-        """! @brief Context manager to temporarily change HPROT."""
+        """@brief Context manager to temporarily change HPROT."""
         return self._MemAttrContext(self, hprot=hprot)
 
     def hnonsec_lock(self, hnonsec: int) -> _MemAttrContext:
-        """! @brief Context manager to temporarily change HNONSEC.
+        """@brief Context manager to temporarily change HNONSEC.
 
         @see secure_lock(), nonsecure_lock()
         """
         return self._MemAttrContext(self, hnonsec=hnonsec)
 
     def secure_lock(self) -> _MemAttrContext:
-        """! @brief Context manager to temporarily set the AP to use secure memory transfers."""
+        """@brief Context manager to temporarily set the AP to use secure memory transfers."""
         return self.hnonsec_lock(SECURE)
 
     def nonsecure_lock(self) -> _MemAttrContext:
-        """! @brief Context manager to temporarily set AP to use non-secure memory transfers."""
+        """@brief Context manager to temporarily set AP to use non-secure memory transfers."""
         return self.hnonsec_lock(NONSECURE)
 
     @overload
@@ -942,17 +942,17 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
 
     def _invalidate_cache(self) -> None:
-        """! @brief Invalidate cached registers associated with this AP."""
+        """@brief Invalidate cached registers associated with this AP."""
         self._cached_csw = -1
 
     def _reset_did_occur(self, notification: "Notification") -> None:
-        """! @brief Handles reset notifications to invalidate CSW cache."""
+        """@brief Handles reset notifications to invalidate CSW cache."""
         # We clear the cache on all resets just to be safe.
         self._invalidate_cache()
 
     @locked
     def _write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
-        """! @brief Write a single memory location.
+        """@brief Write a single memory location.
 
         By default the transfer size is a word
 
@@ -1013,7 +1013,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     @locked
     def _read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Read a memory location.
+        """@brief Read a memory location.
 
         By default, a word will be read.
 
@@ -1078,7 +1078,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             return read_mem_cb
 
     def _write_block32_page(self, addr: int, data: Sequence[int]) -> None:
-        """! @brief Write a single transaction's worth of aligned words.
+        """@brief Write a single transaction's worth of aligned words.
 
         The transaction must not cross the MEM-AP's auto-increment boundary.
 
@@ -1105,7 +1105,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         TRACE.debug("_write_block32:%06d }", num)
 
     def _read_block32_page(self, addr: int, size: int) -> Sequence[int]:
-        """! @brief Read a single transaction's worth of aligned words.
+        """@brief Read a single transaction's worth of aligned words.
 
         The transaction must not cross the MEM-AP's auto-increment boundary.
 
@@ -1134,7 +1134,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     @locked
     def _write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
-        """! @brief Write a block of aligned words in memory."""
+        """@brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
         addr &= self._address_mask
         size = len(data)
@@ -1150,7 +1150,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     @locked
     def _read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
-        """! @brief Read a block of aligned words in memory.
+        """@brief Read a block of aligned words in memory.
 
         @return A list of word values.
         """
@@ -1171,7 +1171,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._invalidate_cache()
 
 class AHB_AP(MEM_AP):
-    """! @brief AHB-AP access port subclass.
+    """@brief AHB-AP access port subclass.
 
     This subclass checks for the AP_MSTRTYPE flag, and if set configures that field in the CSW
     register to use debugger transactions. Only the M3 and M4 AHB-AP implements MSTRTYPE.
@@ -1190,7 +1190,7 @@ class AHB_AP(MEM_AP):
             self._init_mstrtype()
 
     def _init_mstrtype(self) -> None:
-        """! @brief Set master type control in CSW.
+        """@brief Set master type control in CSW.
 
         Only the v1 AHB-AP from Cortex-M3 and Cortex-M4 implements the MSTRTYPE flag to control
         whether transactions appear as debugger or internal accesses.

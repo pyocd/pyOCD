@@ -31,7 +31,7 @@ from ..board.board_ids import BOARD_ID_TO_INFO
 from ..utility import conversion
 
 class StlinkProbe(DebugProbe):
-    """! @brief Wraps an STLink as a DebugProbe."""
+    """@brief Wraps an STLink as a DebugProbe."""
 
     @classmethod
     def get_all_connected_probes(cls, unique_id: Optional[str] = None,
@@ -245,14 +245,14 @@ class StlinkProbe(DebugProbe):
         return self._link.swo_read()
 
 class STLinkMemoryInterface(MemoryInterface):
-    """! @brief Concrete memory interface for a single AP."""
+    """@brief Concrete memory interface for a single AP."""
 
     def __init__(self, link, apsel):
         self._link = link
         self._apsel = apsel
 
     def write_memory(self, addr, data, transfer_size=32):
-        """! @brief Write a single memory location.
+        """@brief Write a single memory location.
 
         By default the transfer size is a word.
         """
@@ -266,7 +266,7 @@ class STLinkMemoryInterface(MemoryInterface):
             self._link.write_mem8(addr, [data], self._apsel)
 
     def read_memory(self, addr, transfer_size=32, now=True):
-        """! @brief Read a memory location.
+        """@brief Read a memory location.
 
         By default, a word will be read.
         """
@@ -292,7 +292,7 @@ class STLinkMemoryInterface(MemoryInterface):
         return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
 
 class StlinkProbePlugin(Plugin):
-    """! @brief Plugin class for StlLinkProbe."""
+    """@brief Plugin class for StlLinkProbe."""
 
     def should_load(self):
         # TODO only load the plugin when libusb is available

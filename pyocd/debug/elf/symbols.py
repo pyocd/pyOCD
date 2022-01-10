@@ -17,7 +17,7 @@
 from ..symbols import SymbolProvider
 
 class ELFSymbolProvider(SymbolProvider):
-    """! @brief Get symbol information from an ELF file."""
+    """@brief Get symbol information from an ELF file."""
 
     def __init__(self, elf):
         self._symbols = elf.symbol_decoder

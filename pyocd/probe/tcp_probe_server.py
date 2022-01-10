@@ -102,7 +102,7 @@ class DebugProbeServer(threading.Thread):
         self._server.server_bind()
 
     def start(self) -> None:
-        """! @brief Start the server thread and begin listening.
+        """@brief Start the server thread and begin listening.
 
         Returns once the server thread has begun executing.
         """
@@ -112,7 +112,7 @@ class DebugProbeServer(threading.Thread):
             sleep(0.005)
 
     def stop(self) -> None:
-        """! @brief Shut down the server.
+        """@brief Shut down the server.
 
         Any open connections will be forcibly closed. This function does not return until the
         server thread has exited.
@@ -122,12 +122,12 @@ class DebugProbeServer(threading.Thread):
 
     @property
     def is_running(self) -> bool:
-        """! @brief Whether the server thread is running."""
+        """@brief Whether the server thread is running."""
         return self._is_running
 
     @property
     def port(self) -> int:
-        """! @brief The server's port.
+        """@brief The server's port.
 
         If port 0 was specified in the constructor, then, after start() is called, this will reflect the actual port
         on which the server is listening.
@@ -135,7 +135,7 @@ class DebugProbeServer(threading.Thread):
         return self._port
 
     def run(self) -> None:
-        """! @brief The server thread implementation."""
+        """@brief The server thread implementation."""
         self._did_start = True
         self._is_running = True
 
@@ -149,7 +149,7 @@ class DebugProbeServer(threading.Thread):
         self._is_running = False
 
 class TCPProbeServer(ThreadingTCPServer):
-    """! @brief TCP server subclass that carries the session and probe being served."""
+    """@brief TCP server subclass that carries the session and probe being served."""
 
     # Change the default SO_REUSEADDR setting.
     allow_reuse_address = True
@@ -173,8 +173,7 @@ class TCPProbeServer(ThreadingTCPServer):
             exc_info=self._session.log_tracebacks)
 
 class DebugProbeRequestHandler(StreamRequestHandler):
-    """!
-    @brief Probe server request handler.
+    """@brief Probe server request handler.
 
     This class implements the server side for the remote probe protocol.
 
@@ -202,7 +201,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     PROTOCOL_VERSION = 1
 
     class StatusCode:
-        """! @brief Constants for errors reported from the server."""
+        """@brief Constants for errors reported from the server."""
         GENERAL_ERROR = 1
         PROBE_DISCONNECTED = 2
         PROBE_ERROR = 3
@@ -379,7 +378,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                     raise
 
     def _get_exception_status_code(self, err):
-        """! @brief Convert an exception class into a status code."""
+        """@brief Convert an exception class into a status code."""
         # Must test the exception class in order of specific to general.
         if isinstance(err, exceptions.ProbeDisconnected):
             return self.StatusCode.PROBE_DISCONNECTED

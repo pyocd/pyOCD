@@ -18,7 +18,7 @@
 from . import events
 
 class SWOParser(object):
-    """! @brief SWO data stream parser.
+    """@brief SWO data stream parser.
 
     Processes a stream of SWO data and generates TraceEvent objects. SWO data is passed to the
     parse() method. It processes the data and creates TraceEvent objects which are passed to an
@@ -45,16 +45,16 @@ class SWOParser(object):
         next(self._parser)
 
     def connect(self, sink):
-        """! @brief Connect the downstream trace sink or filter."""
+        """@brief Connect the downstream trace sink or filter."""
         self._sink = sink
 
     @property
     def bytes_parsed(self):
-        """! @brief The number of bytes of SWO data parsed thus far."""
+        """@brief The number of bytes of SWO data parsed thus far."""
         return self._bytes_parsed
 
     def parse(self, data):
-        """! @brief Process SWO data.
+        """@brief Process SWO data.
 
         This method will return once the provided data is consumed, and can be called again when
         more data is available. There is no minimum or maximum limit on the size of the provided
@@ -69,14 +69,14 @@ class SWOParser(object):
             self._bytes_parsed += 1
 
     def _flush_events(self):
-        """! @brief Send all pending events to event sink."""
+        """@brief Send all pending events to event sink."""
         if self._sink is not None:
             for event in self._pending_events:
                 self._sink.receive(event)
         self._pending_events = []
 
     def _merge_data_trace_events(self, event):
-        """! @brief Look for pairs of data trace events and merge."""
+        """@brief Look for pairs of data trace events and merge."""
         if isinstance(event, events.TraceDataTraceEvent):
             # Record the first data trace event.
             if self._pending_data_trace is None:
@@ -107,7 +107,7 @@ class SWOParser(object):
         return False
 
     def _send_event(self, event):
-        """! @brief Process event objects and decide when to send to event sink.
+        """@brief Process event objects and decide when to send to event sink.
 
         This method handles the logic to associate a timestamp event with the prior other
         event. A list of pending events is built up until either a timestamp or overflow event
@@ -133,7 +133,7 @@ class SWOParser(object):
             self._flush_events()
 
     def _parse(self):
-        """! @brief SWO parser as generator function coroutine.
+        """@brief SWO parser as generator function coroutine.
 
         The generator yields every time it needs a byte of SWO data. The caller must use the
         generator's send() method to provide the next byte.

@@ -75,7 +75,7 @@ ComponentFactory = Callable[["MemoryInterface", "CoreSightComponentID", int], "C
 APFactory = Callable[["DebugPort", APAddressBase, Optional["CoreSightComponentID"]], AccessPort]
 
 class CmpInfo(NamedTuple):
-    """! @brief Combines a component and product name with a factory method."""
+    """@brief Combines a component and product name with a factory method."""
     name: str
     product: Optional[str]
     factory: Optional[Union[ComponentFactory, APFactory]]

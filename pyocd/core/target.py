@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 class Target(MemoryInterface):
 
     class State(Enum):
-        """! @brief States a target processor can be in."""
+        """@brief States a target processor can be in."""
         ## Core is executing code.
         RUNNING = 1
         ## Core is halted in debug mode.
@@ -47,14 +47,14 @@ class Target(MemoryInterface):
         LOCKUP = 5
 
     class SecurityState(Enum):
-        """! @brief Security states for a processor with the Security extension."""
+        """@brief Security states for a processor with the Security extension."""
         ## PE is in the Non-secure state.
         NONSECURE = 0
         ## PE is in the Secure state.
         SECURE = 1
 
     class ResetType(Enum):
-        """! @brief Available reset methods."""
+        """@brief Available reset methods."""
         ## Hardware reset via the nRESET signal.
         HW = 1
         ## Software reset using the core's default software reset method.
@@ -73,7 +73,7 @@ class Target(MemoryInterface):
         SW_EMULATED = 5
 
     class BreakpointType(Enum):
-        """! @brief Types of breakpoints."""
+        """@brief Types of breakpoints."""
         ## Hardware breakpoint.
         HW = 1
         ## Software breakpoint.
@@ -82,7 +82,7 @@ class Target(MemoryInterface):
         AUTO = 3
 
     class WatchpointType(Enum):
-        """! @brief Types of watchpoints."""
+        """@brief Types of watchpoints."""
         ## Watchpoint on read accesses.
         READ = 1
         ## Watchpoint on write accesses.
@@ -91,7 +91,7 @@ class Target(MemoryInterface):
         READ_WRITE = 3
 
     class VectorCatch:
-        """! Vector catch option masks.
+        """Vector catch option masks.
 
         These constants can be OR'd together to form any combination of vector catch settings.
         """
@@ -121,7 +121,7 @@ class Target(MemoryInterface):
                     | SECURE_FAULT)
 
     class Event(Enum):
-        """! Target notification events."""
+        """Target notification events."""
         ## Sent after completing the initialisation sequence.
         POST_CONNECT = 1
         ## Sent prior to disconnecting cores and powering down the DP.
@@ -155,7 +155,7 @@ class Target(MemoryInterface):
         POST_FLASH_PROGRAM = 10
 
     class RunType(Enum):
-        """! Run type for run notifications.
+        """Run type for run notifications.
 
         An enum of this type is set as the data attribute on PRE_RUN and POST_RUN notifications.
         """
@@ -165,7 +165,7 @@ class Target(MemoryInterface):
         STEP = 2
 
     class HaltReason(Enum):
-        """! Halt type for halt notifications.
+        """Halt type for halt notifications.
 
         An value of this type is returned from Target.get_halt_reason(). It is also used as the data
         attribute on PRE_HALT and POST_HALT notifications.

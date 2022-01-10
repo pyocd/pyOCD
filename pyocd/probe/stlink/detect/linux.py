@@ -37,7 +37,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
     """
 
     def __init__(self, **kwargs):
-        """! ctor
+        """ctor
         """
         StlinkDetectBase.__init__(self, **kwargs)
         self.nlp = re.compile(r"(pci|usb)-[0-9a-zA-Z:_-]*_(?P<usbid>[0-9a-zA-Z]*)-.*$")
@@ -60,7 +60,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
         ]
 
     def _dev_by_id(self, device_type):
-        """! Get a dict, USBID -> device, for a device class
+        """Get a dict, USBID -> device, for a device class
         @param device_type The type of devices to search. For exmaple, "serial"
           looks for all serial devices connected to this computer
         @return A dict: Device USBID -> device file in /dev
@@ -84,7 +84,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
             return {}
 
     def _fat_mounts(self):
-        """! Lists mounted devices with vfat file system (potential mbeds)
+        """Lists mounted devices with vfat file system (potential mbeds)
         @result Returns list of all mounted vfat devices
         @details Uses Linux shell command: 'mount'
         """
@@ -97,7 +97,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
                         yield match.group("dev"), match.group("dir")
 
     def _hex_ids(self, dev_list):
-        """! Build a USBID map for a device list
+        """Build a USBID map for a device list
         @param disk_list List of disks in a system with USBID decoration
         @return Returns map USBID -> device file in /dev
         @details Uses regular expressions to get a USBID (TargeTIDs) a "by-id"

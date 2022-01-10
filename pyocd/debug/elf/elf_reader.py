@@ -24,7 +24,7 @@ from ...utility import conversion
 LOG = logging.getLogger(__name__)
 
 class ElfReaderContext(DebugContext):
-    """! @brief Reads flash memory regions from an ELF file instead of the target."""
+    """@brief Reads flash memory regions from an ELF file instead of the target."""
 
     def __init__(self, parent, elf):
         super(ElfReaderContext, self).__init__(parent)

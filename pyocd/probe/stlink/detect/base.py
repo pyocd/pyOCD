@@ -102,7 +102,7 @@ class StlinkDetectBase(object, metaclass=ABCMeta):
 
     # Private functions supporting API
     def _read_htm_ids(self, mount_point):
-        """! Function scans mbed.htm to get information about TargetID.
+        """Function scans mbed.htm to get information about TargetID.
         @param mount_point mbed mount point (disk / drive letter)
         @return Function returns targetID, in case of failure returns None.
         @details Note: This function should be improved to scan variety of boards'
@@ -121,7 +121,7 @@ class StlinkDetectBase(object, metaclass=ABCMeta):
                 return f.readlines()
 
     def _target_id_from_htm(self, line):
-        """! Extract Target id from htm line.
+        """Extract Target id from htm line.
         @return Target id or None
         """
         # Detecting modern mbed.htm file format
@@ -138,13 +138,13 @@ class StlinkDetectBase(object, metaclass=ABCMeta):
         return None
 
     def mount_point_ready(self, path):
-        """! Check if a mount point is ready for file operations
+        """Check if a mount point is ready for file operations
         """
         return exists(path) and isdir(path)
 
     @staticmethod
     def _run_cli_process(cmd, shell=True):
-        """! Runs command as a process and return stdout, stderr and ret code
+        """Runs command as a process and return stdout, stderr and ret code
         @param cmd Command to execute
         @return Tuple of (stdout, stderr, returncode)
         """

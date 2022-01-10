@@ -15,7 +15,7 @@
 # limitations under the License.
 
 class TraceEvent(object):
-    """! @brief Base trace event class."""
+    """@brief Base trace event class."""
     def __init__(self, desc="", ts=0):
         self._desc = desc
         self._timestamp = ts
@@ -35,12 +35,12 @@ class TraceEvent(object):
         return "<{}: {}>".format(self.__class__.__name__, str(self))
 
 class TraceOverflow(TraceEvent):
-    """! @brief Trace overflow event."""
+    """@brief Trace overflow event."""
     def __init__(self, ts=0):
         super(TraceOverflow, self).__init__("overflow", ts)
 
 class TraceTimestamp(TraceEvent):
-    """! @brief Trace local timestamp."""
+    """@brief Trace local timestamp."""
     def __init__(self, tc, ts=0):
         super(TraceTimestamp, self).__init__("timestamp", ts)
         self._tc = 0
@@ -53,7 +53,7 @@ class TraceTimestamp(TraceEvent):
         return "[{}] local timestamp TC={:#x} {}".format(self._timestamp, self.tc, self.timestamp)
 
 class TraceITMEvent(TraceEvent):
-    """! @brief Trace ITM stimulus port event."""
+    """@brief Trace ITM stimulus port event."""
     def __init__(self, port, data, width, ts=0):
         super(TraceITMEvent, self).__init__("itm", ts)
         self._port = port
@@ -83,7 +83,7 @@ class TraceITMEvent(TraceEvent):
         return "[{}] ITM: port={:d} data={}".format(self.timestamp, self.port, d)
 
 class TraceEventCounter(TraceEvent):
-    """! @brief Trace DWT counter overflow event."""
+    """@brief Trace DWT counter overflow event."""
     CPI_MASK = 0x01
     EXC_MASK = 0x02
     SLEEP_MASK = 0x04
@@ -119,7 +119,7 @@ class TraceEventCounter(TraceEvent):
         return "[{}] DWT: Event:{}".format(self.timestamp, self._get_event_desc(self.counter_mask))
 
 class TraceExceptionEvent(TraceEvent):
-    """! @brief Exception trace event."""
+    """@brief Exception trace event."""
     ENTERED = 1
     EXITED = 2
     RETURNED = 3
@@ -153,7 +153,7 @@ class TraceExceptionEvent(TraceEvent):
         return "[{}] DWT: Exception #{:d} {} {}".format(self.timestamp, self.exception_number, action, self.exception_name)
 
 class TracePeriodicPC(TraceEvent):
-    """! @brief Periodic PC trace event."""
+    """@brief Periodic PC trace event."""
     def __init__(self, pc, ts=0):
         super(TracePeriodicPC, self).__init__("pc", ts)
         self._pc = pc
@@ -166,7 +166,7 @@ class TracePeriodicPC(TraceEvent):
         return "[{}] DWT: PC={:#010x}".format(self.timestamp, self.pc)
 
 class TraceDataTraceEvent(TraceEvent):
-    """! @brief DWT data trace event.
+    """@brief DWT data trace event.
 
     Valid combinations:
     - PC value.

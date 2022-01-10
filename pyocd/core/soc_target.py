@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 class SoCTarget(TargetGraphNode):
-    """! @brief Represents a microcontroller system-on-chip.
+    """@brief Represents a microcontroller system-on-chip.
 
     An instance of this class is the root of the chip-level object graph. It has child
     nodes for the DP and all cores. As a concrete subclass of Target, it provides methods
@@ -148,7 +148,7 @@ class SoCTarget(TargetGraphNode):
         self.call_delegate('did_init_target', target=self)
 
     def post_connect_hook(self) -> None:
-        """! @brief Hook function called after post_connect init task.
+        """@brief Hook function called after post_connect init task.
 
         This hook lets the target subclass configure the target as necessary.
         """
