@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 Clay McClure
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -838,6 +839,8 @@ class DebugPort:
             result_cb = self.probe.read_ap_multiple(addr, count, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            if did_lock:
+                self.unlock()
             raise
         except Exception:
             if did_lock:
