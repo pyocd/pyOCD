@@ -2,6 +2,7 @@
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (C) 2020 Ted Tawara
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021 Matthias Wauer
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -130,6 +131,10 @@ class LPC5500Family(CoreSightTarget):
 
         # Perform the unlock procedure using the debugger mailbox.
         self.unlock(self.aps[DM_AP])
+
+        # Finished, if not called from init sequence
+        if seq is None:
+            return
 
         # re-run discovery
         LOG.info("re-running discovery")
@@ -348,3 +353,9 @@ class CortexM_LPC5500(CortexM_v8M):
 
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
+
+    def reset(self, reset_type):
+        # unlock debug access after reset
+        super(CortexM_LPC5500, self).reset(reset_type)
+
+        self.session.target.check_locked_state(None)
