@@ -30,10 +30,10 @@ Family Packs, [nearly every Cortex-M device](https://www.keil.com/dd2/pack/) on 
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
 - `gdbserver`: GDB remote server allows you to debug using gdb via either the console or
-    [several GUI debugger options](#recommended-gdb-and-ide-setup).
+    [several GUI debugger options](https://pyocd.io/docs/gdb_setup).
 - `load`: Program files of various formats into flash or RAM.
 - `erase`: Erase part or all of an MCU's flash memory.
-- `pack`: Manage [CMSIS Device Family Packs](http://arm-software.github.io/CMSIS_5/Pack/html/index.html)
+- `pack`: Manage [CMSIS Device Family Packs](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/index.html)
     that provide additional target device support.
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `server`: Share a debug probe with a TCP/IP server.
@@ -54,8 +54,8 @@ The API and tools provide these features:
 -  SWO and SWV
 -  and more!
 
-Configuration and customization is supported through [config files](docs/configuration.md),
-[user scripts](docs/user_scripts.md), and the Python API.
+Configuration and customization is supported through [config files](https://pyocd.io/docs/configuration),
+[user scripts](https://pyocd.io/docs/user_scripts), and the Python API.
 
 
 Requirements
@@ -66,7 +66,7 @@ Requirements
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](http://www.keil.com/pack/doc/CMSIS/DAP/html/index.html) v1 (HID) or v2 (WinUSB), including:
+  - [CMSIS-DAP](https://arm-software.github.io/CMSIS_5/DAP/html/index.html) v1 (HID) or v2 (WinUSB), including:
     - Atmel EDBG/nEDBG
     - Atmel-ICE
     - Cypress KitProg3 or MiniProg4
@@ -104,7 +104,7 @@ Installing
 **The full installation guide is available [in the documentation](https://pyocd.io/docs/installing).**
 
 For notes about installing and using on non-x86 systems such as Raspberry Pi, see the
-[relevant documentation](https://pyocd.io/docs/installing-on-non-x86).
+[relevant documentation](https://pyocd.io/docs/installing_on_non_x86).
 
 The latest stable version of pyOCD may be installed via [pip](https://pip.pypa.io/en/stable/index.html)
 as follows:
@@ -170,7 +170,7 @@ instructions.
 
 ### Target support
 
-See the [target support documentation](https://pyocd.io/docs/target-support) for information on how to check if
+See the [target support documentation](https://pyocd.io/docs/target_support) for information on how to check if
 the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
 CMSIS-Packs.
 
@@ -178,7 +178,7 @@ CMSIS-Packs.
 Using GDB
 ---------
 
-See the [GDB setup](https://pyocd.io/docs/gdb-setup) documentation for a guide for setting up
+See the [GDB setup](https://pyocd.io/docs/gdb_setup) documentation for a guide for setting up
 and using pyocd with gdb and IDEs.
 
 
@@ -208,9 +208,9 @@ discussions](https://github.com/pyocd/pyOCD/discussions) and we'll be happy to h
 an open issue. Any work on major changes should be discussed with the maintainers to make everyone is aligned.
 
 Please see the [contribution guidelines](https://github.com/pyocd/pyOCD/tree/main/CONTRIBUTING.md) for detailed requirements. The [developers'
-Guide](https://pyocd.io/docs/developers-guide) has instructions on how to set up a development environment for pyOCD.
+Guide](https://pyocd.io/docs/developers_guide) has instructions on how to set up a development environment for pyOCD.
 
-New pull requests should be [created](https://github.com/pyocd/pyOCD/pull/new/develop) against the `develop` branch.
+New pull requests should be [created](https://github.com/pyocd/pyOCD/pull/new) against the `develop` branch. (You have to change the "base" to `develop`.)
 
 
 License
@@ -220,4 +220,4 @@ PyOCD is licensed with the permissive Apache 2.0 license. See the
 [LICENSE](https://github.com/pyocd/pyOCD/tree/main/LICENSE) file for the full text of the license. All
 documentation and the website are licensed with [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-Copyright © 2006-2021 PyOCD Authors
+Copyright © 2006-2022 PyOCD Authors
