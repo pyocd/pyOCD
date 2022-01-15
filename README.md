@@ -18,12 +18,11 @@ See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recen
 
 </td></tr></table>
 
-pyOCD is an open source Python package for programming and debugging Arm Cortex-M microcontrollers
-using multiple supported types of USB debug probes. It is fully cross-platform, with support for
-Linux, macOS, Windows, and FreeBSD.
+pyOCD is an open source Python based tool and package for programming and debugging Arm Cortex-M microcontrollers
+with a wide range of debug probes. It is fully cross-platform, with support for Linux, macOS, Windows, and FreeBSD.
 
 A command line tool is provided that covers most use cases, or you can make use of the Python
-API to enable low-level target control. A common use for the Python API is to run and control CI
+API to facilitate custom target control. A common use for the Python API is to run and control CI
 tests.
 
 Support for more than 70 popular MCUs is built-in. In addition, through the use of CMSIS Device
@@ -40,6 +39,7 @@ The `pyocd` command line tool gives you total control over your device with thes
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `server`: Share a debug probe with a TCP/IP server.
 - `reset`: Hardware or software reset of a device.
+- `rtt`: Stream Segger RTT IO with _any_ debug probe.
 - `list`: Show connected devices.
 
 The API and tools provide these features:
