@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -112,7 +112,7 @@ class GDBServer(threading.Thread):
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
 
     def __init__(self, session, core=None):
-        super(GDBServer, self).__init__()
+        super().__init__()
         self.session = session
         self.board = session.board
         if core is None:
@@ -122,7 +122,6 @@ class GDBServer(threading.Thread):
             self.core = core
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
-        self.abstract_socket = None
 
         self.port = session.options.get('gdbserver_port')
         if self.port != 0:
@@ -259,9 +258,6 @@ class GDBServer(threading.Thread):
                 b'Z' : (self.breakpoint,         1   ), # Remove breakpoint/watchpoint.
             }
 
-        # Commands that kill the connection to gdb.
-        self.DETACH_COMMANDS = (b'D', b'k')
-
         # pylint: enable=invalid-name
 
         self.setDaemon(True)
@@ -282,9 +278,9 @@ class GDBServer(threading.Thread):
     def stop(self):
         if self.is_alive():
             self.shutdown_event.set()
-            while self.is_alive():
-                pass
-            LOG.info("GDB server thread killed")
+            LOG.debug("gdbserver shutdown event set; waiting for exit")
+            self.join()
+            LOG.info("GDB server thread stopped")
 
     def _cleanup(self):
         LOG.debug("GDB server cleaning up")
@@ -311,11 +307,8 @@ class GDBServer(threading.Thread):
     def run(self):
         LOG.info('GDB server started on port %d (core %d)', self.port, self.core)
 
-        while True:
+        while not self.shutdown_event.is_set():
             try:
-                self.shutdown_event.clear()
-                self.detach_event.clear()
-
                 # Notify listeners that the server is running after a short delay.
                 #
                 # This timer prevents a race condition where the notification is sent before the server is
@@ -324,18 +317,14 @@ class GDBServer(threading.Thread):
                         args=(self.GDBSERVER_START_LISTENING_EVENT, self))
                 notify_timer.start()
 
-                while not self.shutdown_event.is_set() and not self.detach_event.is_set():
+                while not self.shutdown_event.is_set():
                     connected = self.abstract_socket.connect()
                     if connected != None:
                         self.packet_io = GDBServerPacketIOThread(self.abstract_socket)
                         break
 
                 if self.shutdown_event.is_set():
-                    self._cleanup()
-                    return
-
-                if self.detach_event.is_set():
-                    continue
+                    break
 
                 # Make sure the target is halted. Otherwise gdb gets easily confused.
                 self.target.halt()
@@ -343,28 +332,27 @@ class GDBServer(threading.Thread):
                 LOG.info("Client connected to port %d!", self.port)
                 self._run_connection()
                 LOG.info("Client disconnected from port %d!", self.port)
-                self._cleanup_for_next_connection()
 
             except Exception as e:
                 LOG.error("Unexpected exception: %s", e, exc_info=self.session.log_tracebacks)
 
+        LOG.debug("gdbserver thread exiting")
+        self._cleanup()
+
     def _run_connection(self):
-        while True:
+        assert self.packet_io
+
+        self.detach_event.clear()
+
+        while not (self.detach_event.is_set() or self.shutdown_event.is_set()):
             try:
-                if self.shutdown_event.is_set():
-                    self._cleanup()
-                    return
-
-                if self.detach_event.is_set():
-                    break
-
                 if self.packet_io.interrupt_event.is_set():
                     if self.non_stop:
                         self.target.halt()
                         self.is_target_running = False
                         self.send_stop_notification()
                     else:
-                        LOG.error("Got unexpected ctrl-c, ignoring")
+                        LOG.warning("Got unexpected ctrl-c, ignoring")
                     self.packet_io.interrupt_event.clear()
 
                 if self.non_stop and self.is_target_running:
@@ -380,13 +368,10 @@ class GDBServer(threading.Thread):
                 try:
                     packet = self.packet_io.receive(block=not self.non_stop)
                 except ConnectionClosedException:
+                    LOG.debug("gdbserver connection loop exiting; client closed connection")
                     break
 
                 if self.shutdown_event.is_set():
-                    self._cleanup()
-                    return
-
-                if self.detach_event.is_set():
                     break
 
                 if self.non_stop and packet is None:
@@ -395,25 +380,28 @@ class GDBServer(threading.Thread):
 
                 if packet is not None and len(packet) != 0:
                     # decode and prepare resp
-                    resp, detach = self.handle_message(packet)
+                    resp = self.handle_message(packet)
 
                     if resp is not None:
                         # send resp
                         self.packet_io.send(resp)
 
-                    if detach:
-                        self.abstract_socket.close()
-                        self.packet_io.stop()
-                        self.packet_io = None
-                        if self.persist:
-                            self._cleanup_for_next_connection()
-                            break
-                        else:
-                            self.shutdown_event.set()
-                            return
-
             except Exception as e:
                 LOG.error("Unexpected exception: %s", e, exc_info=self.session.log_tracebacks)
+
+        LOG.debug("gdbserver exiting connection loop")
+
+        # Clean up the connection.
+        self.abstract_socket.close()
+        self.packet_io.stop()
+        self.packet_io = None
+
+        # If persisting is not enabled, we exit on detach. Otherwise prepare for a new connection.
+        if self.persist:
+            LOG.debug("preparing for next connection")
+            self._cleanup_for_next_connection()
+        else:
+            self.shutdown_event.set()
 
     def handle_message(self, msg):
         try:
@@ -425,36 +413,37 @@ class GDBServer(threading.Thread):
                 LOG.error("Unknown RSP packet: %s", msg)
                 return self.create_rsp_packet(b""), 0
 
-            self.lock.acquire()
-            if msgStart == 0:
-                reply = handler()
-            else:
-                reply = handler(msg[msgStart:])
-            self.lock.release()
+            with self.lock:
+                if msgStart == 0:
+                    reply = handler()
+                else:
+                    reply = handler(msg[msgStart:])
 
-            detach = msg[1:2] in self.DETACH_COMMANDS
-            return reply, detach
+            return reply
 
         except Exception as e:
-            self.lock.release()
-            LOG.error("Unhandled exception in handle_message: %s", e, exc_info=self.session.log_tracebacks)
+            LOG.error("Unhandled exception in handle_message (%s): %s",
+                    msg[1:2], e, exc_info=self.session.log_tracebacks)
             return self.create_rsp_packet(b"E01"), 0
 
     def extended_remote(self):
+        LOG.debug("extended remote enabled")
         self._is_extended_remote = True
         return self.create_rsp_packet(b"OK")
 
     def detach(self, data):
         LOG.info("Client detached")
-        resp = b"OK"
-        return self.create_rsp_packet(resp)
+        # In extended-remote mode, detach should detach from the program but not close the connection. gdb assumes
+        # the server connection is still valid. Detaching from the program doesn't really make sense for embedded
+        # targets, so just ignore the detach.
+        if not self._is_extended_remote:
+            self.detach_event.set()
+        return self.create_rsp_packet(b"OK")
 
     def kill(self):
         LOG.debug("GDB kill")
-        # Keep target halted and leave vector catches if in persistent mode.
-        if not self.persist:
-            self.board.target.set_vector_catch(Target.VectorCatch.NONE)
-            self.board.target.resume()
+        self.detach_event.set()
+        # No packet is returned from the 'k' command.
 
     def restart(self, data):
         self.target.reset_and_halt()
