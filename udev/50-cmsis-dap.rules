@@ -31,13 +31,25 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="1fc9", ATTR{idProduct}=="0090", MODE:="666"
 # 1fc9:0143 NXP MCU-Link
 SUBSYSTEM=="usb", ATTR{idVendor}=="1fc9", ATTR{idProduct}=="0143", MODE:="666"
 
-# 03eb:2141 Atmel-ICE CMSIS-DAP
-SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2141", MODE:="666"
-
-# 03eb:2111 Microchip/Atmel EDBG CMSIS-DAP
+# 03eb:2111 Microchip EDBG CMSIS-DAP
 SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2111", MODE:="666"
 
-# 03eb:2175 Microchip/Atmel nEDBG CMSIS-DAP
+# 03eb:2140 Microchip JTAGICE3 CMSIS-DAP (with firmware version 3 or later)
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2140", MODE:="666"
+
+# 03eb:2141 Microchip Atmel-ICE CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2141", MODE:="666"
+
+# 03eb:2144 Microchip Power Debugger CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2144", MODE:="666"
+
+# 03eb:2145 Microchip mEDBG CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2145", MODE:="666"
+
+# 03eb:216c Microchip EDBGC CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="216c", MODE:="666"
+
+# 03eb:2175 Microchip nEDBG CMSIS-DAP
 SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2175", MODE:="666"
 
 # If you share your linux system with other users, or just don't like the

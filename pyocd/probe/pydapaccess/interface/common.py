@@ -40,30 +40,38 @@ CMSIS_DAP_HID_USAGE_PAGE = 0xff00
 
 VidPidPair = Tuple[int, int]
 
-# Known USB VID/PID pairs.
-ARM_DAPLINK_ID: VidPidPair = (0x0d28, 0x0204) # Arm DAPLink firmware
-ATMEL_ICE_ID: VidPidPair = (0x03eb, 0x2141) # Atmel-ICE
-CYPRESS_KITPROG1_2_ID: VidPidPair = (0x04b4, 0xf138) # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
-CYPRESS_MINIPROG4_BULK_ID: VidPidPair = (0x04b4, 0xf151) # Cypress MiniProg4 bulk
-CYPRESS_MINIPROG4_HID_ID: VidPidPair = (0x04b4, 0xf152) # Cypress MiniProg4 HID
-CYPRESS_KITPROG3_HID_ID: VidPidPair = (0x04b4, 0xf154) # Cypress KitProg3 HID
-CYPRESS_KITPROG3_BULKD_ID: VidPidPair = (0x04b4, 0xf155) # Cypress KitProg3 bulk
-CYPRESS_KITPROG3_BULK_2_UART_ID: VidPidPair = (0x04b4, 0xf166) # Cypress KitProg3 bulk with 2x UART
-KEIL_ULINKPLUS_ID: VidPidPair = (0xc251, 0x2750) # Keil ULINKplus
-NXP_LPCLINK2_ID: VidPidPair = (0x1fc9, 0x0090) # NXP LPC-LinkII
-NXP_MCULINK_ID: VidPidPair = (0x1fc9, 0x0143) # NXP MCU-Link
+# USB vendor IDs.
+ARM_VID = 0x0d28
+ATMEL_VID = 0x03eb
+CYPRESS_VID = 0x04b4
+KEIL_VID = 0xc251
+NXP_VID = 0x1fc9
+
+# USB VID/PID pairs.
+ARM_DAPLINK_ID: VidPidPair = (ARM_VID, 0x0204) # Arm DAPLink firmware
+NXP_LPCLINK2_ID: VidPidPair = (NXP_VID, 0x0090) # NXP LPC-LinkII
+NXP_MCULINK_ID: VidPidPair = (NXP_VID, 0x0143) # NXP MCU-Link
 
 ## List of VID/PID pairs for known CMSIS-DAP USB devices.
+#
+# Microchip IDs from https://ww1.microchip.com/downloads/en/DeviceDoc/50002630A.pdf.
 KNOWN_CMSIS_DAP_IDS: List[VidPidPair] = [
     ARM_DAPLINK_ID,
-    ATMEL_ICE_ID,
-    CYPRESS_KITPROG1_2_ID,
-    CYPRESS_MINIPROG4_BULK_ID,
-    CYPRESS_MINIPROG4_HID_ID,
-    CYPRESS_KITPROG3_HID_ID,
-    CYPRESS_KITPROG3_BULKD_ID,
-    CYPRESS_KITPROG3_BULK_2_UART_ID,
-    KEIL_ULINKPLUS_ID,
+    (ATMEL_VID, 0x2111), # Microchip EDBG
+    (ATMEL_VID, 0x2140), # Microchip JTAGICE3 (firmware version 3 or later)
+    (ATMEL_VID, 0x2141), # Microchip Atmel-ICE
+    (ATMEL_VID, 0x2144), # Microchip Power Debugger
+    (ATMEL_VID, 0x2145), # Microchip mEDBG
+    (ATMEL_VID, 0x216c), # Microchip EDBGC
+    (ATMEL_VID, 0x2175), # Microchip nEDBG
+    (CYPRESS_VID, 0xf138), # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
+    (CYPRESS_VID, 0xf148), # Cypress KitProg1, KitProg2 in CMSIS-DAP mode
+    (CYPRESS_VID, 0xf151), # Cypress MiniProg4 bulk
+    (CYPRESS_VID, 0xf152), # Cypress MiniProg4 HID
+    (CYPRESS_VID, 0xf154), # Cypress KitProg3 HID
+    (CYPRESS_VID, 0xf155), # Cypress KitProg3 bulk
+    (CYPRESS_VID, 0xf166), # Cypress KitProg3 bulk with 2x UART
+    (KEIL_VID, 0x2750), # Keil ULINKplus
     NXP_LPCLINK2_ID,
     NXP_MCULINK_ID,
     ]
