@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@
 
 import logging
 import threading
-import socket
 import queue
 
 CTRL_C = b'\x03'
@@ -116,8 +115,12 @@ class GDBServerPacketIOThread(threading.Thread):
                 TRACE_PACKETS.debug('-->>>> GDB read %d bytes: %s', len(data), data)
 
                 self._buffer += data
-            except socket.error:
-                pass
+            except (ConnectionAbortedError, ConnectionResetError) as err:
+                LOG.warning("GDB packet thread: connection unexpectedly closed during receive (%s)", err)
+                self._closed = True
+                break
+            except OSError as err:
+                LOG.debug("Error in packet IO thread: %s", err)
 
             if self._shutdown_event.is_set():
                 break
@@ -130,12 +133,16 @@ class GDBServerPacketIOThread(threading.Thread):
         TRACE_PACKETS.debug('--<<<< GDB send %d bytes: %s', len(packet), packet)
 
         # Make sure the entire packet is sent.
-        remaining = len(packet)
-        while remaining:
-            written = self._abstract_socket.write(packet)
-            remaining -= written
-            if remaining:
-                packet = packet[written:]
+        try:
+            remaining = len(packet)
+            while remaining:
+                written = self._abstract_socket.write(packet)
+                remaining -= written
+                if remaining:
+                    packet = packet[written:]
+        except (ConnectionAbortedError, ConnectionResetError) as err:
+            LOG.warning("GDB packet thread: connection unexpectedly closed during send (%s)", err)
+            self._closed = True
 
         if self.send_acks:
             self._expecting_ack = True

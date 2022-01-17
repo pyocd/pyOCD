@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +40,7 @@ import threading
 from pyocd.__main__ import PyOCDTool
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.memory_map import MemoryType
+from pyocd.core.session import Session
 from pyocd.flash.file_programmer import FileProgrammer
 from test_util import (
     Test,
@@ -166,14 +168,29 @@ def test_gdb(board_id=None, n=0):
         server_thread = threading.Thread(target=server.run, args=[server_args])
         server_thread.daemon = True
         server_thread.start()
+
         LOG.info('Waiting for gdb to finish...')
         did_complete = wait_with_deadline(gdb_program, TEST_TIMEOUT_SECONDS)
-        LOG.info('Waiting for server to finish...')
-        server_thread.join(timeout=SERVER_EXIT_TIMEOUT)
         if not did_complete:
             LOG.error("Test timed out!")
+
+        LOG.info('Waiting for server to finish...')
+        server_thread.join(timeout=SERVER_EXIT_TIMEOUT)
         if server_thread.is_alive():
-            LOG.error('Server is still running!')
+            LOG.error('Server is still running! Stopping now... and failing test')
+            did_complete = False
+            session = Session.get_current()
+            LOG.info(f"gdbserver session: {session}")
+            LOG.info(f"gdbservers: {session.gdbservers}")
+            for g in session.gdbservers.values():
+                g.stop()
+
+            # Wait again for server thread to complete now that the gdbservers are stopped.
+            server_thread.join(timeout=SERVER_EXIT_TIMEOUT)
+            if server_thread.is_alive():
+                # The server thread is _still_ alive. Not much we can do at this point. Any tests run
+                # past this point will likely fail.
+                LOG.error("Server thread is still alive after stopping gdbservers!")
 
     try:
         with open(gdb_output_filename, 'r') as f:
