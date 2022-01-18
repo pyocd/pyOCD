@@ -50,16 +50,14 @@ level of WARNING to INFO.
 
 ## Color logging
 
-By default, log output to the console is colorised. Control over colorised log output is possible two ways.
+By default, log output to a tty is colorised. Control over colorised log output is possible two ways.
 
 The command-line `--color` argument accepts an optional parameter that must be one of `auto`, `always`, or `never`.
 The default is `auto`, which will enable color only when outputting to a tty.
 
 Another option for controlling color output is the `PYOCD_COLOR` environment variable. It should be set to one of the
-same values supported by `--color`, or left empty. This environment variable changes the default color output setting,
-and is overridden by `--color` on the command line.
-
-Currently, due to limitations in the colorisation support, `always` behaves the same as `auto`.
+same values supported by `--color`. This environment variable changes the default color output setting, and is
+overridden by `--color` on the command line.
 
 
 ## Loggers

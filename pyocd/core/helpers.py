@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,9 +28,6 @@ if TYPE_CHECKING:
 
 from .session import Session
 from ..probe.aggregator import DebugProbeAggregator
-
-# Init colorama here since this is currently the only module that uses it.
-colorama.init()
 
 class ConnectHelper:
     """@brief Helper class for streamlining the probe discovery and session creation process.
