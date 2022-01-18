@@ -30,7 +30,7 @@ from .. import __version__
 LOG = logging.getLogger(__name__)
 
 class JsonSubcommand(SubcommandBase):
-    """! @brief `pyocd json` subcommand."""
+    """@brief `pyocd json` subcommand."""
 
     NAMES = ['json']
     HELP = "Output information as JSON."
@@ -38,7 +38,7 @@ class JsonSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         json_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         json_options = json_parser.add_argument_group('json output')
@@ -55,7 +55,7 @@ class JsonSubcommand(SubcommandBase):
 
     @classmethod
     def customize_subparser(cls, subparser: argparse.ArgumentParser) -> None:
-        """! @brief Optionally modify a subparser after it is created."""
+        """@brief Optionally modify a subparser after it is created."""
         subparser.set_defaults(verbose=0, quiet=0)
 
     def __init__(self, args: argparse.Namespace):
@@ -65,7 +65,7 @@ class JsonSubcommand(SubcommandBase):
         logging.disable(logging.CRITICAL)
 
     def invoke(self) -> int:
-        """! @brief Handle 'json' subcommand."""
+        """@brief Handle 'json' subcommand."""
         exit_status = 0
         try:
             all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.features)

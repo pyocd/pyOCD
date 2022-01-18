@@ -23,11 +23,11 @@ from .debug_probe import DebugProbe
 PROBE_CLASSES = {}
 
 class DebugProbeAggregator(object):
-    """! @brief Simple class to enable collecting probes of all supported probe types."""
+    """@brief Simple class to enable collecting probes of all supported probe types."""
 
     @staticmethod
     def _get_probe_classes(unique_id):
-        """! @brief Return probe classes to query based on the unique ID string."""
+        """@brief Return probe classes to query based on the unique ID string."""
         probe_type = None
         if unique_id is not None:
             fields = unique_id.split(':', 1)

@@ -21,8 +21,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 class ProgressReport(object):
-    """!
-    @brief Base progress report class.
+    """@brief Base progress report class.
 
     This base class implements the logic but no output.
     """
@@ -74,8 +73,7 @@ class ProgressReport(object):
         raise NotImplementedError()
 
 class ProgressReportTTY(ProgressReport):
-    """!
-    @brief Progress report subclass for TTYs.
+    """@brief Progress report subclass for TTYs.
 
     The progress bar is fully redrawn onscreen as progress is updated to give the
     impression of animation.
@@ -94,8 +92,7 @@ class ProgressReportTTY(ProgressReport):
         self._file.write("\n")
 
 class ProgressReportNoTTY(ProgressReport):
-    """!
-    @brief Progress report subclass for non-TTY output.
+    """@brief Progress report subclass for non-TTY output.
 
     A simpler progress bar is used than for the TTY version. Only the difference between
     the previous and current progress is drawn for each update, making the output suitable
@@ -123,8 +120,7 @@ class ProgressReportNoTTY(ProgressReport):
         self._file.flush()
 
 def print_progress(file=None):
-    """!
-    @brief Progress printer factory.
+    """@brief Progress printer factory.
 
     This factory function checks whether the output file is a TTY, and instantiates the
     appropriate subclass of ProgressReport.

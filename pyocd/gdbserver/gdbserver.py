@@ -57,7 +57,7 @@ TRACE_MEM = LOG.getChild("trace.mem")
 TRACE_MEM.setLevel(logging.CRITICAL)
 
 def unescape(data: bytes) -> List[int]:
-    """! @brief De-escapes binary data from Gdb.
+    """@brief De-escapes binary data from Gdb.
 
     @param data Bytes-like object with possibly escaped values.
     @return List of integers in the range 0-255, with all escaped bytes de-escaped.
@@ -80,7 +80,7 @@ def unescape(data: bytes) -> List[int]:
 _GDB_ESCAPED_CHARS = tuple(b'#$}*')
 
 def escape(data):
-    """! @brief Escape binary data to be sent to Gdb.
+    """@brief Escape binary data to be sent to Gdb.
 
     @param data Bytes-like object containing raw binary.
     @return Bytes object with the characters in '#$}*' escaped as required by Gdb.
@@ -95,11 +95,11 @@ def escape(data):
     return bytes(result)
 
 class GDBError(exceptions.Error):
-    """! @brief Error communicating with GDB."""
+    """@brief Error communicating with GDB."""
     pass
 
 class GDBServer(threading.Thread):
-    """! @brief GDB remote server thread.
+    """@brief GDB remote server thread.
 
     This class start a GDB server listening a gdb connection on a specific port.
     It implements the RSP (Remote Serial Protocol).
@@ -263,7 +263,7 @@ class GDBServer(threading.Thread):
         self.setDaemon(True)
 
     def _init_remote_commands(self):
-        """! @brief Initialize the remote command processor infrastructure."""
+        """@brief Initialize the remote command processor infrastructure."""
         # Create command execution context. The output stream will default to stdout
         # but we'll change it to a fresh StringIO prior to running each command.
         #
@@ -1045,7 +1045,7 @@ class GDBServer(threading.Thread):
         return symValue
 
     def handle_remote_command(self, cmd):
-        """! @brief Pass remote commands to the commander command processor."""
+        """@brief Pass remote commands to the commander command processor."""
         # Convert the command line to a string.
         cmd = to_str_safe(cmd)
         LOG.debug('Remote command: %s', cmd)
@@ -1239,7 +1239,7 @@ class GDBServer(threading.Thread):
                 self.thread_provider.read_from_target = False
 
     def _option_did_change(self, notification):
-        """! @brief Handle an option changing at runtime.
+        """@brief Handle an option changing at runtime.
 
         For option notifications, the event is the name of the option and the `data` attribute is an
         OptionChangeInfo object with `new_value` and `old_value` attributes.

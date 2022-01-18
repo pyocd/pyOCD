@@ -47,7 +47,7 @@ class TargetList(object):
                 break
 
 class RTXThreadContext(DebugContext):
-    """! @brief Thread context for RTX5."""
+    """@brief Thread context for RTX5."""
 
     # SP/PSP are handled specially, so it is not in these dicts.
 
@@ -210,7 +210,7 @@ class RTXThreadContext(DebugContext):
         return reg_vals
 
 class RTXTargetThread(TargetThread):
-    """! @brief Represents an RTX5 thread on the target."""
+    """@brief Represents an RTX5 thread on the target."""
 
     STATE_OFFSET = 1
     NAME_OFFSET = 4
@@ -307,7 +307,7 @@ class RTXTargetThread(TargetThread):
             return 0xFFFFFFFD
 
 class RTX5ThreadProvider(ThreadProvider):
-    """! @brief Thread provider for RTX5 RTOS."""
+    """@brief Thread provider for RTX5 RTOS."""
 
     # Offsets in osRtxInfo_t
     KERNEL_STATE_OFFSET = 8
@@ -447,7 +447,7 @@ class RTX5ThreadProvider(ThreadProvider):
         return self._target_context.read8(self._os_rtx_info + RTX5ThreadProvider.KERNEL_STATE_OFFSET)
 
 class RTX5Plugin(Plugin):
-    """! @brief Plugin class for the RTX5 RTOS."""
+    """@brief Plugin class for the RTX5 RTOS."""
 
     def load(self):
         return RTX5ThreadProvider

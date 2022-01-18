@@ -18,7 +18,7 @@ from functools import wraps
 from typing import (Any, Callable)
 
 def locked(func: Callable) -> Callable:
-    """! @brief Decorator to automatically lock a method of a class.
+    """@brief Decorator to automatically lock a method of a class.
 
     The class is required to have `lock()` and `unlock()` methods.
     """

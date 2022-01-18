@@ -23,7 +23,7 @@ from .metrics import CacheMetrics
 LOG = logging.getLogger(__name__)
 
 class RegisterCache(object):
-    """! @brief Cache of a core's register values.
+    """@brief Cache of a core's register values.
 
     The only interesting part of this cache is how it handles the special registers: CONTROL,
     FAULTMASK, BASEPRI, PRIMASK, and CFBP. The values of the first four registers are read and written
@@ -73,7 +73,7 @@ class RegisterCache(object):
             LOG.debug("no accesses")
 
     def _check_cache(self):
-        """! @brief Invalidates the cache if needed and returns whether the core is running."""
+        """@brief Invalidates the cache if needed and returns whether the core is running."""
         if self._core.is_running():
             LOG.debug("core is running; invalidating cache")
             self._reset_cache()

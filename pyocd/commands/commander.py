@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 DEFAULT_CLOCK_FREQ_HZ = 1000000
 
 class PyOCDCommander:
-    """! @brief Manages the commander interface.
+    """@brief Manages the commander interface.
 
     Responsible for connecting the execution context, REPL, and commands, and handles connection.
 
@@ -62,7 +62,7 @@ class PyOCDCommander:
                 args: "argparse.Namespace",
                 cmds: Optional[CommandsListType] = None
             ) -> None:
-        """! @brief Constructor."""
+        """@brief Constructor."""
         # Read command-line arguments.
         self.args = args
         self.cmds: PyOCDCommander.CommandsListType = cmds or []
@@ -73,7 +73,7 @@ class PyOCDCommander:
         self.exit_code: int = 0
 
     def run(self) -> int:
-        """! @brief Main entry point."""
+        """@brief Main entry point."""
         try:
             # If no commands, enter interactive mode. If there are commands, use the --interactive arg.
             enter_interactive = (not self.cmds) or self.args.interactive
@@ -155,7 +155,7 @@ class PyOCDCommander:
         return False
 
     def run_commands(self) -> None:
-        """! @brief Run commands specified on the command line."""
+        """@brief Run commands specified on the command line."""
         for args in self.cmds:
             # Open file containing commands.
             if isinstance(args, io.IOBase) and not isinstance(args, str):
@@ -173,7 +173,7 @@ class PyOCDCommander:
                 self.context.process_command_line(args)
 
     def connect(self) -> bool:
-        """! @brief Connect to the probe."""
+        """@brief Connect to the probe."""
         if (self.args.frequency is not None) and (self.args.frequency != DEFAULT_CLOCK_FREQ_HZ):
             self.context.writei("Setting SWD clock to %d kHz", self.args.frequency // 1000)
 
@@ -230,7 +230,7 @@ class PyOCDCommander:
         return result
 
     def _post_connect(self) -> bool:
-        """! @brief Finish the connect process.
+        """@brief Finish the connect process.
 
         The session is opened. The `no_init` parameter passed to the constructor determines whether the
         board and target are initialized.

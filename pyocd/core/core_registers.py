@@ -28,7 +28,7 @@ CoreRegisterNameOrNumberType = Union[str, int]
 CoreRegisterValueType = Union[int, float]
 
 class CoreRegisterInfo:
-    """! @brief Useful information about a core register.
+    """@brief Useful information about a core register.
 
     Provides properties for classification of the register, and utilities to convert to and from
     the raw integer representation of the register value.
@@ -51,14 +51,14 @@ class CoreRegisterInfo:
 
     @classmethod
     def add_to_map(cls, all_regs: Sequence["CoreRegisterInfo"]) -> None:
-        """! @brief Build info map from list of CoreRegisterInfo instance."""
+        """@brief Build info map from list of CoreRegisterInfo instance."""
         for reg in all_regs:
             cls._NAME_MAP[reg.name] = reg
             cls._INDEX_MAP[reg.index] = reg
 
     @classmethod
     def get(cls, reg: "CoreRegisterNameOrNumberType") -> "CoreRegisterInfo":
-        """! @brief Return the CoreRegisterInfo instance for a register.
+        """@brief Return the CoreRegisterInfo instance for a register.
         @param reg Either a register name or internal register number.
         @return CoreRegisterInfo
         @exception KeyError
@@ -82,7 +82,7 @@ class CoreRegisterInfo:
                 reg_num: Optional[int] = None,
                 feature: Optional[str] = None
                 ) -> None:
-        """! @brief Constructor."""
+        """@brief Constructor."""
         self._name = name
         self._index = index
         self._bitsize = bitsize
@@ -93,56 +93,56 @@ class CoreRegisterInfo:
 
     @property
     def name(self) -> str:
-        """! @brief Name of the register. Always lowercase."""
+        """@brief Name of the register. Always lowercase."""
         return self._name
 
     @property
     def index(self) -> int:
-        """! @brief Integer index of the register."""
+        """@brief Integer index of the register."""
         return self._index
 
     @property
     def bitsize(self) -> int:
-        """! @brief Bit width of the register.."""
+        """@brief Bit width of the register.."""
         return self._bitsize
 
     @property
     def group(self) -> str:
-        """! @brief Named group the register is contained within."""
+        """@brief Named group the register is contained within."""
         return self._group
 
     @property
     def gdb_type(self) -> str:
-        """! @brief Value type specific to gdb."""
+        """@brief Value type specific to gdb."""
         return self._gdb_type
 
     @property
     def gdb_regnum(self) -> Optional[int]:
-        """! @brief Register number specific to gdb."""
+        """@brief Register number specific to gdb."""
         return self._gdb_regnum
 
     @property
     def gdb_feature(self) -> Optional[str]:
-        """! @brief GDB architecture feature to which the register belongs."""
+        """@brief GDB architecture feature to which the register belongs."""
         return self._gdb_feature
 
     @property
     def is_float_register(self) -> bool:
-        """! @brief Returns true for registers single or double precision float registers (but not, say, FPSCR)."""
+        """@brief Returns true for registers single or double precision float registers (but not, say, FPSCR)."""
         return self.is_single_float_register or self.is_double_float_register
 
     @property
     def is_single_float_register(self) -> bool:
-        """! @brief Returns true for registers holding single-precision float values"""
+        """@brief Returns true for registers holding single-precision float values"""
         return self.gdb_type == 'ieee_single'
 
     @property
     def is_double_float_register(self) -> bool:
-        """! @brief Returns true for registers holding double-precision float values"""
+        """@brief Returns true for registers holding double-precision float values"""
         return self.gdb_type == 'ieee_double'
 
     def from_raw(self, value: int) -> "CoreRegisterValueType":
-        """! @brief Convert register value from raw (integer) to canonical type."""
+        """@brief Convert register value from raw (integer) to canonical type."""
         # Convert int to float.
         if self.is_single_float_register:
             return conversion.u32_to_float32(value)
@@ -152,7 +152,7 @@ class CoreRegisterInfo:
             return value
 
     def to_raw(self, value: "CoreRegisterValueType") -> int:
-        """! @brief Convert register value from canonical type to raw (integer)."""
+        """@brief Convert register value from canonical type to raw (integer)."""
         # Convert float to int.
         if isinstance(value, float):
             if self.is_single_float_register:
@@ -164,7 +164,7 @@ class CoreRegisterInfo:
         return value
 
     def clone(self) -> "CoreRegisterInfo":
-        """! @brief Return a copy of the register info."""
+        """@brief Return a copy of the register info."""
         return copy(self)
 
     def __eq__(self, other: Any) -> bool:
@@ -177,7 +177,7 @@ class CoreRegisterInfo:
         return "<{}@{:#x} {}={} {}-bit>".format(self.__class__.__name__, id(self), self.name, self.index, self.bitsize)
 
 class CoreRegistersIndex:
-    """! @brief Class to hold indexes of available core registers.
+    """@brief Class to hold indexes of available core registers.
 
     This class is meant to be used by a core to hold the set of core registers that are actually present on
     a particular device, as determined by runtime inspection of the core. A number of properties are made
@@ -193,31 +193,31 @@ class CoreRegistersIndex:
 
     @property
     def groups(self) -> Set[str]:
-        """! @brief Set of unique register group names."""
+        """@brief Set of unique register group names."""
         return self._groups
 
     @property
     def as_set(self) -> Set[CoreRegisterInfo]:
-        """! @brief Set of available registers as CoreRegisterInfo objects."""
+        """@brief Set of available registers as CoreRegisterInfo objects."""
         return self._all
 
     @property
     def by_name(self) -> Dict[str, CoreRegisterInfo]:
-        """! @brief Dict of (register name) -> CoreRegisterInfo."""
+        """@brief Dict of (register name) -> CoreRegisterInfo."""
         return self._by_name
 
     @property
     def by_index(self) -> Dict[int, CoreRegisterInfo]:
-        """! @brief Dict of (register index) -> CoreRegisterInfo."""
+        """@brief Dict of (register index) -> CoreRegisterInfo."""
         return self._by_index
 
     @property
     def by_feature(self) -> Dict[str, List[CoreRegisterInfo]]:
-        """! @brief Dict of (register gdb feature) -> List[CoreRegisterInfo]."""
+        """@brief Dict of (register gdb feature) -> List[CoreRegisterInfo]."""
         return self._by_feature
 
     def iter_matching(self, predicate: Callable[[CoreRegisterInfo], bool]) -> Iterator[CoreRegisterInfo]:
-        """! @brief Iterate over registers matching a given predicate callable.
+        """@brief Iterate over registers matching a given predicate callable.
         @param self The object.
         @param predicate Callable accepting a single argument, a CoreRegisterInfo, and returning a boolean.
             If the predicate returns True then the iterator will include the register.
@@ -227,7 +227,7 @@ class CoreRegistersIndex:
                 yield reg
 
     def add_group(self, regs: Sequence[CoreRegisterInfo]) -> None:
-        """! @brief Add a list of registers.
+        """@brief Add a list of registers.
         @param self The object.
         @param regs Iterable of CoreRegisterInfo objects. The objects are copied as they are added.
         """

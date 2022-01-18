@@ -34,14 +34,14 @@ DATA_TRANSFER_B_PER_S = 40 * 1000 # ~40KB/s, depends on clock speed, theoretical
 LOG = logging.getLogger(__name__)
 
 def get_page_count(count: int) -> str:
-    """! @brief Return string for page count with correct plurality."""
+    """@brief Return string for page count with correct plurality."""
     if count == 1:
         return "1 page"
     else:
         return "{} pages".format(count)
 
 def get_sector_count(count: int) -> str:
-    """! @brief Return string for sector count with correct plurality."""
+    """@brief Return string for sector count with correct plurality."""
     if count == 1:
         return "1 sector"
     else:
@@ -93,7 +93,7 @@ def _stub_progress(percent):
     pass
 
 class _FlashSector:
-    """! @brief Info about an erase sector and all pages to be programmed within it."""
+    """@brief Info about an erase sector and all pages to be programmed within it."""
     def __init__(self, sector_info):
         self.addr: int = sector_info.base_addr
         self.size: int = sector_info.size
@@ -113,11 +113,11 @@ class _FlashSector:
         self.page_list.sort(key=lambda p:p.addr)
 
     def are_any_pages_not_same(self):
-        """! @brief Returns True if any pages in this sector might need to be programmed."""
+        """@brief Returns True if any pages in this sector might need to be programmed."""
         return any(page.same is not True for page in self.page_list)
 
     def mark_all_pages_not_same(self):
-        """! @brief Sets the same flag to False for all pages in this sector."""
+        """@brief Sets the same flag to False for all pages in this sector."""
         for page in self.page_list:
             page.same = False
 
@@ -126,7 +126,7 @@ class _FlashSector:
             id(self), self.addr, self.size, self.erase_weight, self.page_list)
 
 class _FlashPage:
-    """! @brief A page to be programmed and its data."""
+    """@brief A page to be programmed and its data."""
     def __init__(self, page_info):
         self.addr: int = page_info.base_addr
         self.size: int = page_info.size
@@ -138,12 +138,12 @@ class _FlashPage:
         self.cached_estimate_data: Optional[List[int]] = None
 
     def get_program_weight(self):
-        """! @brief Get time to program a page including the data transfer."""
+        """@brief Get time to program a page including the data transfer."""
         return self.program_weight + \
             float(len(self.data)) / float(DATA_TRANSFER_B_PER_S)
 
     def get_verify_weight(self):
-        """! @brief Get time to verify a page."""
+        """@brief Get time to verify a page."""
         return float(self.size) / float(DATA_TRANSFER_B_PER_S)
 
     def __repr__(self):
@@ -151,13 +151,13 @@ class _FlashPage:
             id(self), self.addr, self.size, len(self.data), self.program_weight, self.erased, self.same)
 
 class _FlashOperation:
-    """! @brief Holds requested data to be programmed at a given address."""
+    """@brief Holds requested data to be programmed at a given address."""
     def __init__(self, addr, data):
         self.addr = addr
         self.data = data
 
 class FlashBuilder(MemoryBuilder):
-    """! @brief Manages programming flash within one flash memory region.
+    """@brief Manages programming flash within one flash memory region.
 
     The purpose of this class is to optimize flash programming within a single region to achieve
     the highest flash programming performance possible. Various methods are used to estimate the
@@ -209,7 +209,7 @@ class FlashBuilder(MemoryBuilder):
         self.enable_double_buffering = enable
 
     def add_data(self, addr, data):
-        """! @brief Add a block of data to be programmed.
+        """@brief Add a block of data to be programmed.
 
         @note Programming does not start until the method program() is called.
 
@@ -248,7 +248,7 @@ class FlashBuilder(MemoryBuilder):
             prev_flash_operation = operation
 
     def _enable_read_access(self):
-        """! @brief Ensure flash is accessible by initing the algo for verify.
+        """@brief Ensure flash is accessible by initing the algo for verify.
 
         Not all flash memories are always accessible. For instance, external QSPI. Initing the
         flash algo for the VERIFY operation is the canonical way to ensure that the flash is
@@ -263,7 +263,7 @@ class FlashBuilder(MemoryBuilder):
             self.algo_inited_for_read = True
 
     def _build_sectors_and_pages(self, keep_unwritten):
-        """! @brief Converts the list of flash operations to flash sectors and pages.
+        """@brief Converts the list of flash operations to flash sectors and pages.
 
         @param self
         @param keep_unwritten If true, unwritten pages in an erased sector and unwritten
@@ -360,7 +360,7 @@ class FlashBuilder(MemoryBuilder):
             self._fill_unwritten_sector_pages()
 
     def _fill_unwritten_sector_pages(self):
-        """! @brief Fill in missing pages from sectors we are going to modify."""
+        """@brief Fill in missing pages from sectors we are going to modify."""
         for sector in self.sector_list:
             sector_page_number = 0
             sector_page_addr = sector.addr
@@ -395,7 +395,7 @@ class FlashBuilder(MemoryBuilder):
                 sector_page_addr += page.size
 
     def program(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True):
-        """! @brief Determine fastest method of flashing and then run flash programming.
+        """@brief Determine fastest method of flashing and then run flash programming.
 
         Data must have already been added with add_data().
 
@@ -573,7 +573,7 @@ class FlashBuilder(MemoryBuilder):
                 page.same = False
 
     def _compute_chip_erase_pages_and_weight(self):
-        """! @brief Compute the number of erased pages.
+        """@brief Compute the number of erased pages.
 
         Determine how many pages in the new data are already erased.
         """
@@ -594,7 +594,7 @@ class FlashBuilder(MemoryBuilder):
         return sum(page.get_verify_weight() for page in self.page_list)
 
     def _analyze_pages_with_partial_read(self):
-        """! @brief Estimate how many pages are the same by reading data.
+        """@brief Estimate how many pages are the same by reading data.
 
         Pages are analyzed by reading the first 32 bytes and comparing with data to be
         programmed.
@@ -615,7 +615,7 @@ class FlashBuilder(MemoryBuilder):
                     page.cached_estimate_data = data
 
     def _analyze_pages_with_crc32(self, assume_estimate_correct=False):
-        """! @brief Estimate how many pages are the same using a CRC32 analyzer.
+        """@brief Estimate how many pages are the same using a CRC32 analyzer.
 
         A CRC32 analyzer program is loaded into target RAM and is passed an array of pages
         and sizes. When executed, it computes the CRC32 for every page.
@@ -652,7 +652,7 @@ class FlashBuilder(MemoryBuilder):
                     page.same = False
 
     def _compute_sector_erase_pages_and_weight(self, fast_verify):
-        """! @brief Quickly analyze flash contents and compute weights for sector erase.
+        """@brief Quickly analyze flash contents and compute weights for sector erase.
 
         Quickly estimate how many pages are the same.  These estimates are used
         by _sector_erase_program so it is recommended to call this before beginning programming
@@ -702,7 +702,7 @@ class FlashBuilder(MemoryBuilder):
         return sector_erase_count, sector_erase_weight
 
     def _chip_erase_program(self, progress_cb=_stub_progress):
-        """! @brief Program by first performing an erase all."""
+        """@brief Program by first performing an erase all."""
         LOG.debug("%i of %i pages have erased data", len(self.page_list) - self.chip_erase_count, len(self.page_list))
         progress_cb(0.0)
         progress = 0
@@ -736,7 +736,7 @@ class FlashBuilder(MemoryBuilder):
         return page, i + 1
 
     def _chip_erase_program_double_buffer(self, progress_cb=_stub_progress):
-        """! @brief Double-buffered program by first performing an erase all."""
+        """@brief Double-buffered program by first performing an erase all."""
         LOG.debug("%i of %i pages have erased data", len(self.page_list) - self.chip_erase_count, len(self.page_list))
         progress_cb(0.0)
         progress = 0
@@ -790,7 +790,7 @@ class FlashBuilder(MemoryBuilder):
         return FlashBuilder.FLASH_CHIP_ERASE
 
     def _sector_erase_program(self, progress_cb=_stub_progress):
-        """! @brief Program by performing sector erases."""
+        """@brief Program by performing sector erases."""
         actual_sector_erase_count = 0
         actual_sector_erase_weight = 0
         progress = 0
@@ -839,7 +839,7 @@ class FlashBuilder(MemoryBuilder):
         return FlashBuilder.FLASH_SECTOR_ERASE
 
     def _scan_pages_for_same(self, progress_cb=_stub_progress):
-        """! @brief Read the full page data to determine if it is unchanged.
+        """@brief Read the full page data to determine if it is unchanged.
 
         When this function exits, the same flag will be set to either True or False for
         every page. In addition, sectors that need at least one page programmed will have
@@ -890,7 +890,7 @@ class FlashBuilder(MemoryBuilder):
         return page, i + 1
 
     def _sector_erase_program_double_buffer(self, progress_cb=_stub_progress):
-        """! @brief Double-buffered program by performing sector erases."""
+        """@brief Double-buffered program by performing sector erases."""
         actual_sector_erase_count = 0
         actual_sector_erase_weight = 0
         progress = 0

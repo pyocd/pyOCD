@@ -37,7 +37,7 @@ class StubProbe(DebugProbe):
 class ListGenerator(object):
     @staticmethod
     def list_probes():
-        """! @brief Generate dictionary with info about the connected debug probes.
+        """@brief Generate dictionary with info about the connected debug probes.
 
         Output version history:
         - 1.0, initial version
@@ -77,7 +77,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_boards(name_filter=None):
-        """! @brief Generate dictionary with info about supported boards.
+        """@brief Generate dictionary with info about supported boards.
 
         Output version history:
         - 1.0, initial version
@@ -118,7 +118,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_targets(name_filter=None, vendor_filter=None, source_filter=None):
-        """! @brief Generate dictionary with info about all supported targets.
+        """@brief Generate dictionary with info about all supported targets.
 
         Output version history:
         - 1.0, initial version
@@ -195,7 +195,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_plugins():
-        """! @brief Generate dictionary with lists of available plugins.
+        """@brief Generate dictionary with lists of available plugins.
 
         Output version history:
         - 1.0, initial version with debug probe and RTOS plugins
@@ -238,7 +238,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_features():
-        """! @brief Generate dictionary with info about supported features and options.
+        """@brief Generate dictionary with info about supported features and options.
 
         Output version history:
         - 1.1, added 'plugins' feature

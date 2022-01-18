@@ -32,11 +32,11 @@ from ...core.memory_map import (MemoryMap, MemoryRegion, MemoryType, MEMORY_TYPE
 LOG = logging.getLogger(__name__)
 
 class MalformedCmsisPackError(exceptions.TargetSupportError):
-    """! @brief Exception raised for errors parsing a CMSIS-Pack."""
+    """@brief Exception raised for errors parsing a CMSIS-Pack."""
     pass
 
 class _DeviceInfo:
-    """! @brief Simple container class to hold XML elements describing a device."""
+    """@brief Simple container class to hold XML elements describing a device."""
     def __init__(self, element: Element, **kwargs):
         self.element: Element = element
         self.families: List[str] = kwargs.get('families', [])
@@ -45,7 +45,7 @@ class _DeviceInfo:
         self.debugs: List[Element] = kwargs.get('debugs', [])
 
 def _get_part_number_from_element(element: Element) -> str:
-    """! @brief Extract the part number from a device or variant XML element."""
+    """@brief Extract the part number from a device or variant XML element."""
     assert element.tag in ("device", "variant")
     if element.tag == "device":
         return element.attrib['Dname']
@@ -55,7 +55,7 @@ def _get_part_number_from_element(element: Element) -> str:
         raise ValueError("element is neither device nor variant")
 
 class CmsisPack:
-    """! @brief Wraps a CMSIS Device Family Pack.
+    """@brief Wraps a CMSIS Device Family Pack.
 
     This class provides a top-level interface for extracting device information from CMSIS-Packs.
     After an instance is constructed, a list of the devices described within the pack is available
@@ -72,7 +72,7 @@ class CmsisPack:
     the parsing of each element type into pyOCD-compatible data.
     """
     def __init__(self, file_or_path: Union[str, zipfile.ZipFile, IO[bytes]]) -> None:
-        """! @brief Constructor.
+        """@brief Constructor.
 
         Opens the CMSIS-Pack and builds instances of CmsisPackDevice for all the devices
         and variants defined within the pack.
@@ -105,21 +105,21 @@ class CmsisPack:
 
     @property
     def filename(self) -> Optional[str]:
-        """! @brief Accessor for the filename or path of the .pack file."""
+        """@brief Accessor for the filename or path of the .pack file."""
         return self._pack_file.filename
 
     @property
     def pdsc(self) -> "CmsisPackDescription":
-        """! @brief Accessor for the CmsisPackDescription instance for the pack's PDSC file."""
+        """@brief Accessor for the CmsisPackDescription instance for the pack's PDSC file."""
         return self._pdsc
 
     @property
     def devices(self) -> List["CmsisPackDevice"]:
-        """! @brief A list of CmsisPackDevice objects for every part number defined in the pack."""
+        """@brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._pdsc.devices
 
     def get_file(self, filename) -> IO[bytes]:
-        """! @brief Return file-like object for a file within the pack.
+        """@brief Return file-like object for a file within the pack.
 
         @param self
         @param filename Relative path within the pack. May use forward or back slashes.
@@ -135,7 +135,7 @@ class CmsisPackDescription:
     """
 
     def __init__(self, pack: CmsisPack, pdsc_file: IO) -> None:
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self This object.
         @param pack Reference to the CmsisPack instance.
@@ -159,12 +159,12 @@ class CmsisPackDescription:
 
     @property
     def pack(self) -> CmsisPack:
-        """! @brief Reference to the containing CmsisPack object."""
+        """@brief Reference to the containing CmsisPack object."""
         return self._pack
 
     @property
     def devices(self) -> List["CmsisPackDevice"]:
-        """! @brief A list of CmsisPackDevice objects for every part number defined in the pack."""
+        """@brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._devices
 
     def _parse_devices(self, parent: Element) -> None:
@@ -205,7 +205,7 @@ class CmsisPackDescription:
         self._state_stack.pop()
 
     def _extract_families(self) -> List[str]:
-        """! @brief Generate list of family names for a device."""
+        """@brief Generate list of family names for a device."""
         families = []
         for state in self._state_stack:
             elem = state.element
@@ -219,7 +219,7 @@ class CmsisPackDescription:
     V = TypeVar('V')
 
     def _extract_items(self, state_info_name: str, filter: Callable[[Dict[Any, V], Element], None]) -> List[V]:
-        """! @brief Generic extractor utility.
+        """@brief Generic extractor utility.
 
         Iterates over saved elements for the specified device state info for each level of the
         device state stack, from outer to inner, calling the provided filter callback each
@@ -243,7 +243,7 @@ class CmsisPackDescription:
         return list(map.values())
 
     def _extract_memories(self) -> List[Element]:
-        """! @brief Extract memory elements.
+        """@brief Extract memory elements.
 
         The unique identifier is a bi-tuple of the memory's name, which is either the 'name' or 'id' attribute,
         in that order, plus the pname. If neither attribute exists, the region base and size are turned into
@@ -307,7 +307,7 @@ class CmsisPackDescription:
         return self._extract_items('memories', filter)
 
     def _extract_algos(self) -> List[Element]:
-        """! @brief Extract algorithm elements.
+        """@brief Extract algorithm elements.
 
         The unique identifier is the algorithm's memory address range.
 
@@ -331,7 +331,7 @@ class CmsisPackDescription:
         return self._extract_items('algos', filter)
 
     def _extract_debugs(self) -> List[Element]:
-        """! @brief Extract debug elements.
+        """@brief Extract debug elements.
 
         If the debug element does not have a 'Pname' element, its identifier is set to "*" to
         represent that it applies to all processors.
@@ -358,7 +358,7 @@ class CmsisPackDescription:
         return self._extract_items('debugs', filter)
 
 def _get_bool_attribute(elem: Element, name: str, default: bool = False) -> bool:
-    """! @brief Extract an XML attribute with a boolean value.
+    """@brief Extract an XML attribute with a boolean value.
 
     Supports "true"/"false" or "1"/"0" as the attribute values. Leading and trailing whitespace
     is stripped, and the comparison is case-insensitive.
@@ -380,7 +380,7 @@ def _get_bool_attribute(elem: Element, name: str, default: bool = False) -> bool
             return default
 
 class CmsisPackDevice:
-    """! @brief Wraps a device defined in a CMSIS Device Family Pack.
+    """@brief Wraps a device defined in a CMSIS Device Family Pack.
 
     Responsible for converting the XML elements that describe the device into objects
     usable by pyOCD. This includes the memory map and flash algorithms.
@@ -390,7 +390,7 @@ class CmsisPackDevice:
     """
 
     def __init__(self, pack: CmsisPack, device_info: _DeviceInfo):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self
         @param pack The CmsisPack object that contains this device.
         @param device_info A _DeviceInfo object with the XML elements that describe this device.
@@ -404,7 +404,7 @@ class CmsisPackDevice:
         self._memory_map: Optional[MemoryMap] = None
 
     def _build_memory_regions(self) -> None:
-        """! @brief Creates memory region instances for the device.
+        """@brief Creates memory region instances for the device.
 
         For each `<memory>` element in the device info, a memory region object is created and
         added to the `_regions` attribute. IROM or non-writable memories are created as RomRegions
@@ -475,7 +475,7 @@ class CmsisPackDevice:
         return None
 
     def _build_flash_regions(self) -> None:
-        """! @brief Converts ROM memory regions to flash regions.
+        """@brief Converts ROM memory regions to flash regions.
 
         Each ROM region in the `_regions` attribute is converted to a flash region if a matching
         flash algo can be found. If the flash has multiple sector sizes, then separate flash
@@ -625,7 +625,7 @@ class CmsisPackDevice:
                             alias=region.alias)
 
     def _find_matching_algo(self, region: MemoryRegion) -> Element:
-        """! @brief Searches for a flash algo covering the regions's address range.'"""
+        """@brief Searches for a flash algo covering the regions's address range.'"""
         for algo in self._info.algos:
             # Both start and size are required attributes.
             algoStart = int(algo.attrib['start'], base=0)
@@ -638,7 +638,7 @@ class CmsisPackDevice:
         raise KeyError("no matching flash algorithm")
 
     def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
-        """! @brief Return the PackFlashAlgo instance for the given flash algo filename."""
+        """@brief Return the PackFlashAlgo instance for the given flash algo filename."""
         if self.pack is not None:
             try:
                 algo_data = self.pack.get_file(filename)
@@ -650,12 +650,12 @@ class CmsisPackDevice:
 
     @property
     def pack(self) -> CmsisPack:
-        """! @brief The CmsisPack object that defines this device."""
+        """@brief The CmsisPack object that defines this device."""
         return self._pack
 
     @property
     def part_number(self) -> str:
-        """! @brief Part number for this device.
+        """@brief Part number for this device.
 
         This value comes from either the `Dname` or `Dvariant` attribute, depending on whether the
         device was created from a `<device>` or `<variant>` element.
@@ -664,17 +664,17 @@ class CmsisPackDevice:
 
     @property
     def vendor(self) -> str:
-        """! @brief Vendor or manufacturer name."""
+        """@brief Vendor or manufacturer name."""
         return self._info.families[0].split(':')[0]
 
     @property
     def families(self) -> List[str]:
-        """! @brief List of families the device belongs to, ordered most generic to least."""
+        """@brief List of families the device belongs to, ordered most generic to least."""
         return [f for f in self._info.families[1:]]
 
     @property
     def memory_map(self) -> MemoryMap:
-        """! @brief MemoryMap object."""
+        """@brief MemoryMap object."""
         # Lazily construct the memory map.
         if self._memory_map is None:
             self._build_memory_regions()
@@ -690,7 +690,7 @@ class CmsisPackDevice:
 
     @property
     def svd(self) -> Optional[IO[bytes]]:
-        """! @brief File-like object for the device's SVD file.
+        """@brief File-like object for the device's SVD file.
         @todo Support multiple cores.
         """
         try:
@@ -701,7 +701,7 @@ class CmsisPackDevice:
 
     @property
     def default_reset_type(self) -> Target.ResetType:
-        """! @brief One of the Target.ResetType enums.
+        """@brief One of the Target.ResetType enums.
         @todo Support multiple cores.
         """
         try:

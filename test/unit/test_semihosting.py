@@ -98,7 +98,7 @@ BKPT_00 = 0xbe00
 BKPT_AB = 0xbeab
 
 class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
-    """! @brief Semihost IO handler that records output.
+    """@brief Semihost IO handler that records output.
 
     This handler is only meant to be used for console I/O since it doesn't implement
     open() or close().
@@ -142,7 +142,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
             return -1
 
 class SemihostRequestBuilder:
-    """! @brief Utility to build code and set registers to perform a semihost request."""
+    """@brief Utility to build code and set registers to perform a semihost request."""
     def __init__(self, tgt, semihostagent, ramrgn):
         self.tgt = tgt
         self.ctx = tgt.get_target_context()
@@ -324,7 +324,7 @@ def delete_testfile(request):
     request.addfinalizer(delete_it)
 
 class TestSemihosting:
-    """! @brief Tests for semihost requests."""
+    """@brief Tests for semihost requests."""
     def test_open_stdio(self, semihost_builder):
         fd = semihost_builder.do_open(":tt", 'r') # stdin
         assert fd == 1

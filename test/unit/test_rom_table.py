@@ -31,7 +31,7 @@ from pyocd.debug.cache import MemoryCache
 from pyocd.debug.context import DebugContext
 
 class MockCoreForMemCache(CoreSightCoreComponent):
-    """! @brief Just enough of a core to satisfy MemoryCache.
+    """@brief Just enough of a core to satisfy MemoryCache.
 
     Most importantly, it defines a memory map with a single RAM region covering almost the
     full 4 GB address space.
@@ -48,13 +48,13 @@ class MockCoreForMemCache(CoreSightCoreComponent):
 MockDebugContext = mock.Mock(spec=DebugContext)
 
 class RomMemory(MemoryCache, MemoryInterface):
-    """! @brief Memory interface for reading constant values.
+    """@brief Memory interface for reading constant values.
 
     Uses the memory cache as readily-available component to store data at fixed addresses. We
     just have to make sure the cache is never invalidated.
     """
     def __init__(self, ranges):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self
         @param ranges Dict of start address -> list of word values.
@@ -70,9 +70,9 @@ class RomMemory(MemoryCache, MemoryInterface):
         pass
 
 class MockCoreSight(RomMemory):
-    """! @brief RomMemory based on a list of MockCoreSightComponent objects."""
+    """@brief RomMemory based on a list of MockCoreSightComponent objects."""
     def __init__(self, components):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self
         @param components List of component dicts, where each component dict consists of start
@@ -86,14 +86,14 @@ class MockCoreSight(RomMemory):
         return "MockCoreSight"
 
 class MockCoreSightComponent(object):
-    """! @brief Generates a data dict from CoreSight component ID register values."""
+    """@brief Generates a data dict from CoreSight component ID register values."""
 
     # Start offset within the 4 kB CoreSight component memory window of the ID registers
     # we care about, particularly those read by CoreSightComponentID.
     CMPID_REGS_OFFSET = 0xfbc
 
     def __init__(self, base, cidr, pidr, **kwargs):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self
         @param base Base address of the component.
         @param cidr 32-bit combined CIDR register value.
@@ -139,7 +139,7 @@ class MockCoreSightComponent(object):
         return d
 
 class MockM4Components:
-    """! @ brief Namespace for mock Cortex-M4 Class 0x1 ROM table and core complex components."""
+    """@ brief Namespace for mock Cortex-M4 Class 0x1 ROM table and core complex components."""
 
     # ROM table #0 @ 0xe00ff000 (designer=244 part=00d)
     M4_ROM_TABLE_BASE = 0xe00ff000
@@ -181,7 +181,7 @@ class MockM4Components:
     ETM = MockCoreSightComponent(ETM_BASE, cidr=0xb105900d, pidr=0x4000bb925, devtype=0x13)
 
 class MockCSSOC600Components:
-    """! @ brief Namespace for mock Class 0x9 ROM table and CoreSight SoC-600 components."""
+    """@ brief Namespace for mock Class 0x9 ROM table and CoreSight SoC-600 components."""
 
     C9_ROM_TABLE_BASE = 0x00000000
     C9_ROM_TABLE = MockCoreSightComponent(C9_ROM_TABLE_BASE, cidr=0xb105900d, pidr=0x4000bb7d5,

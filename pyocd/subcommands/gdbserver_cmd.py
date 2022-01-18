@@ -37,7 +37,7 @@ from ..utility.notification import Notification
 LOG = logging.getLogger(__name__)
 
 class GdbserverSubcommand(SubcommandBase):
-    """! @brief `pyocd gdbserver` subcommand."""
+    """@brief `pyocd gdbserver` subcommand."""
 
     NAMES = ['gdbserver', 'gdb']
     HELP = "Run the gdb remote server(s)."
@@ -51,7 +51,7 @@ class GdbserverSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         gdbserver_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         gdbserver_options = gdbserver_parser.add_argument_group("gdbserver options")
@@ -93,12 +93,12 @@ class GdbserverSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, gdbserver_parser]
 
     def __init__(self, args: argparse.Namespace):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         super().__init__(args)
         self._echo_msg = None
 
     def _process_commands(self, commands: Optional[List[str]]):
-        """! @brief Handle OpenOCD commands for compatibility."""
+        """@brief Handle OpenOCD commands for compatibility."""
         if commands is None:
             return
         for cmd_list in commands:
@@ -123,13 +123,13 @@ class GdbserverSubcommand(SubcommandBase):
                 pass
 
     def _gdbserver_listening_cb(self, note: Notification):
-        """! @brief Callback invoked when the gdbserver starts listening on its port."""
+        """@brief Callback invoked when the gdbserver starts listening on its port."""
         if self._echo_msg is not None:
             print(self._echo_msg, file=sys.stderr)
             sys.stderr.flush()
 
     def invoke(self) -> int:
-        """! @brief Handle 'gdbserver' subcommand."""
+        """@brief Handle 'gdbserver' subcommand."""
         self._process_commands(self._args.commands)
 
         probe_server = None

@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
 
 def read_c_string(context, ptr):
-    """! @brief Reads a null-terminated C string from the target."""
+    """@brief Reads a null-terminated C string from the target."""
     if ptr == 0:
         return ""
 
@@ -62,7 +62,7 @@ def read_c_string(context, ptr):
     return s
 
 class HandlerModeThread(TargetThread):
-    """! @brief Class representing the handler mode."""
+    """@brief Class representing the handler mode."""
 
     UNIQUE_ID = 2
 

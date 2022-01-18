@@ -31,12 +31,10 @@ from ...utility.mask import bfx
 LOG = logging.getLogger(__name__)
 
 class STLink(object):
-    """!
-    @brief STLink V2 and V3 command-level interface.
+    """@brief STLink V2 and V3 command-level interface.
     """
     class Protocol(Enum):
-        """!
-        @brief Protocol options to pass to STLink.enter_debug() method.
+        """@brief Protocol options to pass to STLink.enter_debug() method.
         """
         SWD = 1
         JTAG = 2
@@ -224,7 +222,7 @@ class STLink(object):
 
     @property
     def supports_banked_dp(self):
-        """! @brief Whether the firmware version supports accessing banked DP registers.
+        """@brief Whether the firmware version supports accessing banked DP registers.
 
         This property is not valid until the connection is opened.
         """
@@ -471,7 +469,7 @@ class STLink(object):
         self._write_mem(addr, data, Commands.JTAG_WRITEMEM_8BIT, self._device.max_packet_size, apsel)
 
     def _check_dp_bank(self, port, addr):
-        """! @brief Check if attempting to access a banked DP register with a firmware version that
+        """@brief Check if attempting to access a banked DP register with a firmware version that
                 doesn't support that.
         """
         if ((port == self.DP_PORT) and ((addr & 0xf0) != 0) and not self.supports_banked_dp):

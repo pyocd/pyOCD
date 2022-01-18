@@ -17,7 +17,7 @@
 from .component import CoreSightComponent
 
 class TPIU(CoreSightComponent):
-    """! @brief Trace Port Interface Unit"""
+    """@brief Trace Port Interface Unit"""
 
     # Register definitions.
     #
@@ -36,17 +36,17 @@ class TPIU(CoreSightComponent):
     DEVID_NRZ_MASK = (1 << 11)
 
     def __init__(self, ap, cmpid=None, addr=None):
-        """! @brief Standard CoreSight component constructor."""
+        """@brief Standard CoreSight component constructor."""
         super(TPIU, self).__init__(ap, cmpid, addr)
         self._has_swo_uart = False
 
     @property
     def has_swo_uart(self):
-        """! @brief Whether SWO UART mode is supported by the TPIU."""
+        """@brief Whether SWO UART mode is supported by the TPIU."""
         return self._has_swo_uart
 
     def init(self):
-        """! @brief Reads TPIU capabilities.
+        """@brief Reads TPIU capabilities.
 
         Currently this method simply checks whether the TPIU supports SWO in asynchronous
         UART mode. The result of this check is available via the has_swo_uart property.
@@ -55,7 +55,7 @@ class TPIU(CoreSightComponent):
         self._has_swo_uart = (devid & TPIU.DEVID_NRZ_MASK) != 0
 
     def set_swo_clock(self, swo_clock, system_clock):
-        """! @brief Prepare TPIU for transmitting SWO at a given baud rate.
+        """@brief Prepare TPIU for transmitting SWO at a given baud rate.
 
         Configures the TPIU for SWO UART mode, then sets the SWO clock frequency based on
         the provided system clock.

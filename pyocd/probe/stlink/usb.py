@@ -40,7 +40,7 @@ class STLinkInfo(NamedTuple):
     swv_ep: int
 
 class STLinkUSBInterface:
-    """!@brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices."""
+    """@brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices."""
 
     ## Command packet size.
     CMD_SIZE = 16

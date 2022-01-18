@@ -133,8 +133,7 @@ class Flash_kl28z(Flash_Kinetis):
         self._saved_rccr = 0
 
     def prepare_target(self):
-        """!
-        This function sets up target clocks to ensure that flash is clocked at the maximum
+        """This function sets up target clocks to ensure that flash is clocked at the maximum
         of 24MHz. Doing so gets the best flash programming performance. The FIRC clock source
         is used so that there is no dependency on an external crystal frequency.
         """
@@ -154,7 +153,7 @@ class Flash_kl28z(Flash_Kinetis):
         LOG.debug("SCG_CSR = 0x%08x", csr)
 
     def restore_target(self):
-        """! Restore clock registers to original values."""
+        """Restore clock registers to original values."""
         self.target.write32(SCG_FIRCCSR, self._saved_firccsr)
         self.target.write32(SCG_RCCR, self._saved_rccr)
 
@@ -203,7 +202,7 @@ class KL28x(Kinetis):
         return seq
 
     def create_kl28_aps(self):
-        """! @brief Set the fixed list of valid AP numbers for KL28."""
+        """@brief Set the fixed list of valid AP numbers for KL28."""
         self.dp.valid_aps = [0, 1, 2]
 
     def detect_dual_core(self):

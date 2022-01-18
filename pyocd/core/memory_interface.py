@@ -21,10 +21,10 @@ from typing_extensions import Literal
 from ..utility import conversion
 
 class MemoryInterface:
-    """! @brief Interface for memory access."""
+    """@brief Interface for memory access."""
 
     def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
-        """! @brief Write a single memory location.
+        """@brief Write a single memory location.
 
         By default the transfer size is a word."""
         raise NotImplementedError()
@@ -46,33 +46,33 @@ class MemoryInterface:
         ...
 
     def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Read a memory location.
+        """@brief Read a memory location.
 
         By default, a word will be read."""
         raise NotImplementedError()
 
     def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
-        """! @brief Write an aligned block of 32-bit words."""
+        """@brief Write an aligned block of 32-bit words."""
         raise NotImplementedError()
 
     def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
-        """! @brief Read an aligned block of 32-bit words."""
+        """@brief Read an aligned block of 32-bit words."""
         raise NotImplementedError()
 
     def write64(self, addr: int, value: int) -> None:
-        """! @brief Shorthand to write a 64-bit word."""
+        """@brief Shorthand to write a 64-bit word."""
         self.write_memory(addr, value, 64)
 
     def write32(self, addr: int, value: int) -> None:
-        """! @brief Shorthand to write a 32-bit word."""
+        """@brief Shorthand to write a 32-bit word."""
         self.write_memory(addr, value, 32)
 
     def write16(self, addr: int, value: int) -> None:
-        """! @brief Shorthand to write a 16-bit halfword."""
+        """@brief Shorthand to write a 16-bit halfword."""
         self.write_memory(addr, value, 16)
 
     def write8(self, addr: int, value: int) -> None:
-        """! @brief Shorthand to write a byte."""
+        """@brief Shorthand to write a byte."""
         self.write_memory(addr, value, 8)
 
     @overload
@@ -92,7 +92,7 @@ class MemoryInterface:
         ...
 
     def read64(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Shorthand to read a 64-bit word."""
+        """@brief Shorthand to read a 64-bit word."""
         return self.read_memory(addr, 64, now)
 
     @overload
@@ -112,7 +112,7 @@ class MemoryInterface:
         ...
 
     def read32(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Shorthand to read a 32-bit word."""
+        """@brief Shorthand to read a 32-bit word."""
         return self.read_memory(addr, 32, now)
 
     @overload
@@ -132,7 +132,7 @@ class MemoryInterface:
         ...
 
     def read16(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Shorthand to read a 16-bit halfword."""
+        """@brief Shorthand to read a 16-bit halfword."""
         return self.read_memory(addr, 16, now)
 
     @overload
@@ -152,11 +152,11 @@ class MemoryInterface:
         ...
 
     def read8(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
-        """! @brief Shorthand to read a byte."""
+        """@brief Shorthand to read a byte."""
         return self.read_memory(addr, 8, now)
 
     def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
-        """! @brief Read a block of unaligned bytes in memory.
+        """@brief Read a block of unaligned bytes in memory.
         @return an array of byte values
         """
         res = []
@@ -197,7 +197,7 @@ class MemoryInterface:
         return res
 
     def write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
-        """! @brief Write a block of unaligned bytes in memory."""
+        """@brief Write a block of unaligned bytes in memory."""
         size = len(data)
         idx = 0
 

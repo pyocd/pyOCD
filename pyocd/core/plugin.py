@@ -32,7 +32,7 @@ from .options import (
 LOG = logging.getLogger(__name__)
 
 class Plugin:
-    """! @brief Class that describes a plugin for pyOCD.
+    """@brief Class that describes a plugin for pyOCD.
 
     Each plugin vends a subclass of Plugin that describes itself and provides meta-actions.
 
@@ -42,11 +42,11 @@ class Plugin:
     """
 
     def should_load(self) -> bool:
-        """! @brief Whether the plugin should be loaded."""
+        """@brief Whether the plugin should be loaded."""
         return True
 
     def load(self) -> Any:
-        """! @brief Load the plugin and return the plugin implementation.
+        """@brief Load the plugin and return the plugin implementation.
 
         This method can perform any actions required to load the plugin beyond simply returning
         the implementation.
@@ -57,14 +57,14 @@ class Plugin:
 
     @property
     def options(self) -> List[OptionInfo]:
-        """! @brief A list of options added by the plugin.
+        """@brief A list of options added by the plugin.
         @return List of @ref pyocd.core.options.OptionInfo "OptionInfo" objects.
         """
         return []
 
     @property
     def version(self) -> str:
-        """! @brief Current release version of the plugin.
+        """@brief Current release version of the plugin.
 
         The default implementation returns pyOCD's version.
 
@@ -74,16 +74,16 @@ class Plugin:
 
     @property
     def name(self) -> str:
-        """! @brief Name of the plugin."""
+        """@brief Name of the plugin."""
         raise NotImplementedError()
 
     @property
     def description(self) -> str:
-        """! @brief Short description of the plugin."""
+        """@brief Short description of the plugin."""
         return ""
 
 def load_plugin_classes_of_type(plugin_group: str, plugin_dict: Dict[str, Any], base_class: type) -> None:
-    """! @brief Helper method to load plugins.
+    """@brief Helper method to load plugins.
 
     Plugins are expected to return an implementation class from their Plugin.load() method. This
     class must be derived from `base_class`.

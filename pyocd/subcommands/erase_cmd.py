@@ -29,7 +29,7 @@ from ..utility.cmdline import (
 LOG = logging.getLogger(__name__)
 
 class EraseSubcommand(SubcommandBase):
-    """! @brief `pyocd erase` subcommand."""
+    """@brief `pyocd erase` subcommand."""
 
     NAMES = ['erase']
     HELP = "Erase entire device flash or specified sectors."
@@ -46,7 +46,7 @@ class EraseSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         erase_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         erase_options = erase_parser.add_argument_group("erase options")
@@ -63,7 +63,7 @@ class EraseSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, erase_parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'erase' subcommand."""
+        """@brief Handle 'erase' subcommand."""
         self._increase_logging(["pyocd.flash.eraser"])
 
         # Display a nice, helpful error describing why nothing was done and how to correct it.

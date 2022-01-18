@@ -25,7 +25,7 @@ from ..utility.compatibility import to_str_safe
 LOG = logging.getLogger(__name__)
 
 def split_command(cmd: str) -> List[str]:
-    """! @brief Split command by whitespace, supporting quoted strings."""
+    """@brief Split command by whitespace, supporting quoted strings."""
     result: List[str] = []
     state = 0
     word = ''
@@ -82,7 +82,7 @@ def split_command(cmd: str) -> List[str]:
     return result
 
 def split_command_line(cmd_line: Union[str, List[str]]) -> List[str]:
-    """! @brief Split command line by whitespace, supporting quoted strings."""
+    """@brief Split command line by whitespace, supporting quoted strings."""
     result: List[str] = []
     if isinstance(cmd_line, str):
         args = [cmd_line]
@@ -108,7 +108,7 @@ VECTOR_CATCH_CHAR_MAP = {
     }
 
 def convert_vector_catch(vcvalue: Union[str, bytes]) -> int:
-    """! @brief Convert a vector catch string to a mask.
+    """@brief Convert a vector catch string to a mask.
 
     @exception ValueError Raised if an invalid vector catch character is encountered.
     """
@@ -129,7 +129,7 @@ def convert_vector_catch(vcvalue: Union[str, bytes]) -> int:
         raise ValueError("invalid vector catch option '{}'".format(e.args[0]))
 
 def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
-    """! @brief Convert a list of session option settings to a dictionary."""
+    """@brief Convert a list of session option settings to a dictionary."""
     options = {}
     if option_list is not None:
         for o in option_list:
@@ -201,7 +201,7 @@ RESET_TYPE_MAP: Dict[str, Optional[Target.ResetType]] = {
     }
 
 def convert_reset_type(value: str) -> Optional[Target.ResetType]:
-    """! @brief Convert a reset_type session option value to the Target.ResetType enum.
+    """@brief Convert a reset_type session option value to the Target.ResetType enum.
     @param value The value of the reset_type session option.
     @exception ValueError Raised if an unknown reset_type value is passed.
     """
@@ -211,7 +211,7 @@ def convert_reset_type(value: str) -> Optional[Target.ResetType]:
     return RESET_TYPE_MAP[value]
 
 def convert_frequency(value: str) -> int:
-    """! @brief Applies scale suffix to frequency value string.
+    """@brief Applies scale suffix to frequency value string.
     @param value String with a float and possible 'k' or 'm' suffix (case-insensitive). "Hz" may
         also follow. No space is allowed between the float and suffix. Leading and trailing
         whitespace is allowed.
@@ -233,11 +233,11 @@ def convert_frequency(value: str) -> int:
 
 
 def int_base_0(x: str) -> int:
-    """! @brief Converts a string to an int with support for base prefixes."""
+    """@brief Converts a string to an int with support for base prefixes."""
     return int(x, base=0)
 
 
 def flatten_args(args: Iterable[Iterable[Any]]) -> List[Any]:
-    """! @brief Converts a list of lists to a single list."""
+    """@brief Converts a list of lists to a single list."""
     return [item for sublist in args for item in sublist]
 

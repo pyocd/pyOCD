@@ -29,7 +29,7 @@ from ..utility.timeout import Timeout
 LOG = logging.getLogger(__name__)
 
 class CoreSightComponentID(object):
-    """! @brief Reads and parses CoreSight architectural component ID registers.
+    """@brief Reads and parses CoreSight architectural component ID registers.
 
     Reads the CIDR, PIDR, DEVID, and DEVARCH registers present at well known offsets
     in the memory map of all CoreSight components. The various fields from these
@@ -109,7 +109,7 @@ class CoreSightComponentID(object):
         self.valid = False
 
     def read_id_registers(self):
-        """! @brief Read Component ID, Peripheral ID, and DEVID/DEVARCH registers."""
+        """@brief Read Component ID, Peripheral ID, and DEVID/DEVARCH registers."""
         # Read registers as a single block read for performance reasons.
         regs = self.ap.read_memory_block32(self.top_address + self.IDR_READ_START, self.IDR_READ_COUNT)
         self.cidr = self._extract_id_register_value(regs, self.CIDR0_OFFSET)
@@ -193,7 +193,7 @@ class CoreSightComponentID(object):
 
 
 class ROMTable(CoreSightComponent):
-    """! @brief CoreSight ROM table base class.
+    """@brief CoreSight ROM table base class.
 
     This abstract class provides common functionality for ROM tables. Most importantly it has the
     static create() factory method.
@@ -214,7 +214,7 @@ class ROMTable(CoreSightComponent):
 
     @staticmethod
     def create(memif, cmpid, addr=None, parent_table=None):
-        """! @brief Factory method for creating ROM table components.
+        """@brief Factory method for creating ROM table components.
 
         This static method instantiates the appropriate subclass for the ROM table component
         described by the cmpid parameter.
@@ -235,7 +235,7 @@ class ROMTable(CoreSightComponent):
             raise exceptions.DebugError("unexpected ROM table device class (%s)" % cmpid)
 
     def __init__(self, ap, cmpid=None, addr=None, parent_table=None):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         assert cmpid is not None
         assert cmpid.is_rom_table
         super(ROMTable, self).__init__(ap, cmpid, addr)
@@ -249,12 +249,12 @@ class ROMTable(CoreSightComponent):
 
     @property
     def depth(self):
-        """! @brief Number of parent ROM tables."""
+        """@brief Number of parent ROM tables."""
         return self._depth
 
     @property
     def components(self):
-        """! @brief List of CoreSightComponentID instances for components found in this table.
+        """@brief List of CoreSightComponentID instances for components found in this table.
 
         This property contains only the components for this ROM table, not any child tables.
 
@@ -265,11 +265,11 @@ class ROMTable(CoreSightComponent):
 
     @property
     def depth_indent(self):
-        """! @brief String of whitespace with a width corresponding to the table's depth.'"""
+        """@brief String of whitespace with a width corresponding to the table's depth.'"""
         return "  " * self._depth
 
     def init(self):
-        """! @brief Read and parse the ROM table.
+        """@brief Read and parse the ROM table.
 
         As table entries for CoreSight components are read, a CoreSightComponentID instance will be
         created and the ID registers read. These ID objects are added to the _components_ property.
@@ -286,7 +286,7 @@ class ROMTable(CoreSightComponent):
         raise NotImplementedError()
 
     def for_each(self, action, filter=None):
-        """! @brief Apply an action to every component defined in the ROM table and child tables.
+        """@brief Apply an action to every component defined in the ROM table and child tables.
 
         This method iterates over every entry in the ROM table. For each entry it calls the
         filter function if provided. If the filter passes (returns True or was not provided) then
@@ -313,7 +313,7 @@ class ROMTable(CoreSightComponent):
             action(component)
 
 class Class1ROMTable(ROMTable):
-    """! @brief CoreSight Class 0x1 ROM table component and parser.
+    """@brief CoreSight Class 0x1 ROM table component and parser.
 
     An object of this class represents a CoreSight Class 0x1 ROM table. It supports reading the table
     and any child tables. For each entry in the table, a CoreSightComponentID object is created
@@ -433,7 +433,7 @@ class Class1ROMTable(ROMTable):
             self.components.append(cmp)
 
 class Class9ROMTable(ROMTable):
-    """! @brief CoreSight Class 0x9 ROM table component and parser.
+    """@brief CoreSight Class 0x9 ROM table component and parser.
 
     Handles parsing of class 0x9 ROM tables as defined in ADIv6.
 
@@ -491,7 +491,7 @@ class Class9ROMTable(ROMTable):
     POWER_REQUEST_TIMEOUT = 5.0
 
     def __init__(self, ap, cmpid=None, addr=None, parent_table=None):
-        """! @brief Component constructor."""
+        """@brief Component constructor."""
         super(Class9ROMTable, self).__init__(ap, cmpid, addr, parent_table)
 
         self._pridr_version = None
@@ -506,21 +506,21 @@ class Class9ROMTable(ROMTable):
 
     @property
     def has_com_port(self):
-        """! @brief Whether the ROM table includes COM Port functionality."""
+        """@brief Whether the ROM table includes COM Port functionality."""
         return self._has_com_port
 
     @property
     def has_prr(self):
-        """! @brief Whether the ROM table includes power and reset requesting functionality."""
+        """@brief Whether the ROM table includes power and reset requesting functionality."""
         return self._has_prr
 
     @property
     def is_sysmem(self):
-        """! @brief Whether the ROM table is present in system memory."""
+        """@brief Whether the ROM table is present in system memory."""
         return self._is_sysmem
 
     def _read_table(self):
-        """! @brief Reads and parses the ROM table."""
+        """@brief Reads and parses the ROM table."""
         # Compute multipliers for 32- or 64-bit.
         entrySizeMultiplier = self._width // 32
         actualMaxEntries = self.ROM_TABLE_MAX_ENTRIES // entrySizeMultiplier
@@ -563,7 +563,7 @@ class Class9ROMTable(ROMTable):
                 entryNumber += 1
 
     def _power_component(self, number, powerid, entry):
-        """! @brief Enable power to a component defined by a ROM table entry."""
+        """@brief Enable power to a component defined by a ROM table entry."""
         if not self._has_prr:
             # Attempt GPR method of power domain enabling.
             return super(Class9ROMTable, self)._power_component(number, powerid, entry)
@@ -583,7 +583,7 @@ class Class9ROMTable(ROMTable):
             return True
 
     def _handle_table_entry(self, entry, number):
-        """! @brief Parse one ROM table entry."""
+        """@brief Parse one ROM table entry."""
         # Get the component's top 4k address.
         offset = entry & self.ROM_TABLE_ADDR_OFFSET_MASK[self._width]
         if (entry & self.ROM_TABLE_ADDR_OFFSET_NEG_MASK[self._width]) != 0:
@@ -626,7 +626,7 @@ class Class9ROMTable(ROMTable):
             self._components.append(cmp)
 
     def check_power_request_version(self):
-        """! @brief Verify the power request functionality version."""
+        """@brief Verify the power request functionality version."""
         # Cache the PRIDR0 VERSION field the first time.
         if self._pridr_version is None:
             pridr = self.ap.read32(self.address + self.ROM_TABLE_PRIDR0)
@@ -635,7 +635,7 @@ class Class9ROMTable(ROMTable):
         return self._pridr_version == self.ROM_TABLE_PRIDR0_VERSION
 
     def power_debug_domain(self, domain_id, enable=True):
-        """! @brief Control power for a specified power domain managed by this ROM table."""
+        """@brief Control power for a specified power domain managed by this ROM table."""
         # Compute register addresses for this power domain.
         dbgpcr_addr = self.address + self.ROM_TABLE_DBGPCRn + (4 * domain_id)
         dbgpsr_addr = self.address + self.ROM_TABLE_DBGPSRn + (4 * domain_id)

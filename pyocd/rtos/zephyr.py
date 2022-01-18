@@ -46,7 +46,7 @@ class TargetList(object):
                 node = 0
 
 class ZephyrThreadContext(DebugContext):
-    """! @brief Thread context for Zephyr."""
+    """@brief Thread context for Zephyr."""
 
     STACK_FRAME_OFFSETS = {
                  0: 0, # r0
@@ -141,7 +141,7 @@ class ZephyrThreadContext(DebugContext):
         return reg_vals
 
 class ZephyrThread(TargetThread):
-    """! @brief A Zephyr task."""
+    """@brief A Zephyr task."""
 
     READY = 0
     PENDING = 1 << 1
@@ -241,7 +241,7 @@ class ZephyrThread(TargetThread):
         return str(self)
 
 class ZephyrThreadProvider(ThreadProvider):
-    """! @brief Thread provider for Zephyr."""
+    """@brief Thread provider for Zephyr."""
 
     ## Required Zephyr symbols.
     ZEPHYR_SYMBOLS = [
@@ -416,7 +416,7 @@ class ZephyrThreadProvider(ThreadProvider):
         return self._version
 
 class ZephyrPlugin(Plugin):
-    """! @brief Plugin class for the Zephyr RTOS."""
+    """@brief Plugin class for the Zephyr RTOS."""
 
     def load(self):
         return ZephyrThreadProvider

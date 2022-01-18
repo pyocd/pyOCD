@@ -23,7 +23,7 @@ from .base import SubcommandBase
 from ..commands.commander import PyOCDCommander
 
 class CommanderSubcommand(SubcommandBase):
-    """! @brief `pyocd commander` subcommand."""
+    """@brief `pyocd commander` subcommand."""
 
     NAMES = ['commander', 'cmd']
     HELP = "Interactive command console."
@@ -38,7 +38,7 @@ class CommanderSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         commander_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         commander_options = commander_parser.add_argument_group("commander options")
@@ -59,7 +59,7 @@ class CommanderSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, commander_parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'commander' subcommand."""
+        """@brief Handle 'commander' subcommand."""
         # Flatten commands list then extract primary command and its arguments.
         if self._args.commands is not None:
             cmds = []

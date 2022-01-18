@@ -193,7 +193,7 @@ class BoardTestConfig:
     test_list: List[Test]
 
 def test_board(config: BoardTestConfig):
-    """! @brief Run all tests on a given board.
+    """@brief Run all tests on a given board.
 
     When multiple test jobs are being used, this function is the entry point executed in
     child processes.
@@ -306,7 +306,7 @@ def test_board(config: BoardTestConfig):
     return result_list
 
 def filter_tests(args):
-    """! @brief Generate the list of tests to run based on arguments."""
+    """@brief Generate the list of tests to run based on arguments."""
     if args.exclude_tests and args.include_tests:
         print("Please only include or exclude tests, not both simultaneously.")
         sys.exit(1)

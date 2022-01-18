@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 ALL_COMMANDS: Dict[str, Set[Union["CommandBase", "ValueBase"]]] = {}
 
 class CommandMeta(type):
-    """! @brief Metaclass for commands.
+    """@brief Metaclass for commands.
 
     Examines the `INFO` attribute of the command class and builds the @ref pyocd.commands.commands.ALL_COMMANDS
     "ALL_COMMANDS" table.
@@ -56,7 +56,7 @@ class CommandMeta(type):
         return new_type
 
 class CommandBase(metaclass=CommandMeta):
-    """! @brief Base class for a command.
+    """@brief Base class for a command.
 
     Each command class must have an `INFO` attribute with the following keys:
     - `names`: List of names for the info. The first element is the primary name.
@@ -81,16 +81,16 @@ class CommandBase(metaclass=CommandMeta):
             }
 
     def __init__(self, context):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         self._context = context
 
     @property
     def context(self):
-        """! @brief The command execution context."""
+        """@brief The command execution context."""
         return self._context
 
     def check_arg_count(self, args):
-        """! @brief Verify the number of command arguments."""
+        """@brief Verify the number of command arguments."""
         nargs = self.INFO['nargs']
         if nargs == '*':
             pass
@@ -106,11 +106,11 @@ class CommandBase(metaclass=CommandMeta):
             raise exceptions.CommandError("too many arguments")
 
     def parse(self, args):
-        """! @brief Extract command arguments."""
+        """@brief Extract command arguments."""
         pass
 
     def execute(self):
-        """! @brief Perform the command."""
+        """@brief Perform the command."""
         raise NotImplementedError()
 
     def _format_core_register(self, info, value):
@@ -126,7 +126,7 @@ class CommandBase(metaclass=CommandMeta):
         return value_str
 
     def _convert_value(self, arg):
-        """! @brief Convert an argument to a 32-bit integer.
+        """@brief Convert an argument to a 32-bit integer.
 
         Handles the usual decimal, binary, and hex numbers with the appropriate prefix.
         Also recognizes register names and address dereferencing. Dereferencing using the
@@ -180,7 +180,7 @@ class CommandBase(metaclass=CommandMeta):
 
     @classmethod
     def format_help(cls, context, max_width=72):
-        """! @brief Return a string with the help text for this command."""
+        """@brief Return a string with the help text for this command."""
         text = "Usage: {cmd} {usage}\n".format(cmd=cls.INFO['names'][0], usage=cls.INFO['usage'])
         if len(cls.INFO['names']) > 1:
             text += "Aliases: {0}\n".format(", ".join(cls.INFO['names'][1:]))
@@ -190,7 +190,7 @@ class CommandBase(metaclass=CommandMeta):
         return text
 
 class ValueBase(CommandBase):
-    """! @brief Base class for value commands.
+    """@brief Base class for value commands.
 
     Value commands are special commands representing a value that can be read and/or written. They are used
     through the `show` and `set` commands. A value command has an associated access mode of read-only,
@@ -209,16 +209,16 @@ class ValueBase(CommandBase):
     """
 
     def display(self, args):
-        """! @brief Output the value of the info."""
+        """@brief Output the value of the info."""
         raise NotImplementedError()
 
     def modify(self, args):
-        """! @brief Change the info to a new value."""
+        """@brief Change the info to a new value."""
         raise NotImplementedError()
 
     @classmethod
     def format_help(cls, context, max_width=72):
-        """! @brief Return a string with the help text for this command."""
+        """@brief Return a string with the help text for this command."""
         first_name = cls.INFO['names'][0]
         text = "Usage: "
         did_print_on_usage_line = False

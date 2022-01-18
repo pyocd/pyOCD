@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 class CoreSightTarget(SoCTarget):
-    """! @brief Represents an SoC that uses CoreSight debug infrastructure.
+    """@brief Represents an SoC that uses CoreSight debug infrastructure.
 
     This class adds Arm CoreSight-specific discovery and initialization code to SoCTarget.
     """
@@ -62,14 +62,14 @@ class CoreSightTarget(SoCTarget):
 
     @property
     def svd_device(self) -> Optional["SVDDevice"]:
-        """! @brief Waits for SVD file to complete loading before returning."""
+        """@brief Waits for SVD file to complete loading before returning."""
         if not self._svd_device and self._svd_load_thread:
             LOG.debug("Waiting for SVD load to complete")
             self._svd_device = self._svd_load_thread.device
         return self._svd_device
 
     def _create_default_cortex_m_memory_map(self) -> MemoryMap:
-        """! @brief Create a MemoryMap for the Cortex-M system address map."""
+        """@brief Create a MemoryMap for the Cortex-M system address map."""
         return MemoryMap(
                 RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
                 RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
@@ -109,7 +109,7 @@ class CoreSightTarget(SoCTarget):
         return seq
 
     def disconnect(self, resume: bool = True) -> None:
-        """! @brief Disconnect from the target.
+        """@brief Disconnect from the target.
 
         Same as SoCTarget.disconnect(), except that it asks the DebugPort to power down.
         """
@@ -124,7 +124,7 @@ class CoreSightTarget(SoCTarget):
         self.call_delegate('did_disconnect', target=self, resume=resume)
 
     def create_discoverer(self) -> None:
-        """! @brief Init task to create the discovery object.
+        """@brief Init task to create the discovery object.
 
         Instantiates the appropriate @ref pyocd.coresight.discovery.CoreSightDiscovery
         CoreSightDiscovery subclass for the target's ADI version.
@@ -132,7 +132,7 @@ class CoreSightTarget(SoCTarget):
         self._discoverer = discovery.ADI_DISCOVERY_CLASS_MAP[self.dp.adi_version](self)
 
     def pre_connect(self) -> None:
-        """! @brief Handle some of the connect modes.
+        """@brief Handle some of the connect modes.
 
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
@@ -146,7 +146,7 @@ class CoreSightTarget(SoCTarget):
             self.dp.assert_reset(True)
 
     def perform_halt_on_connect(self) -> None:
-        """! @brief Halt cores.
+        """@brief Halt cores.
 
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
@@ -167,7 +167,7 @@ class CoreSightTarget(SoCTarget):
                         exc_info=self.session.log_tracebacks)
 
     def post_connect(self) -> None:
-        """! @brief Handle cleaning up some of the connect modes.
+        """@brief Handle cleaning up some of the connect modes.
 
         This init task de-asserts reset if the connect mode is under-reset.
         """
@@ -186,7 +186,7 @@ class CoreSightTarget(SoCTarget):
                         exc_info=self.session.log_tracebacks)
 
     def create_flash(self) -> None:
-        """! @brief Instantiates flash objects for memory regions.
+        """@brief Instantiates flash objects for memory regions.
 
         This init task iterates over flash memory regions and for each one creates the Flash
         instance. It uses the flash_algo and flash_class properties of the region to know how
@@ -247,7 +247,7 @@ class CoreSightTarget(SoCTarget):
             region.flash = obj
 
     def check_for_cores(self) -> None:
-        """! @brief Init task: verify that at least one core was discovered."""
+        """@brief Init task: verify that at least one core was discovered."""
         if not len(self.cores):
             # Allow the user to override the exception to enable uses like chip bringup.
             if self.session.options.get('allow_no_cores'):

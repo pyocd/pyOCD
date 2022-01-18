@@ -35,7 +35,7 @@ class HardwareBreakpoint(Breakpoint):
         self.type = Target.BreakpointType.HW
 
 class FPB(BreakpointProvider, CoreSightComponent):
-    """! @brief Flash Patch and Breakpoint unit"""
+    """@brief Flash Patch and Breakpoint unit"""
 
     # FPB registers
     #
@@ -65,7 +65,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         return self.fpb_rev
 
     def init(self) -> None:
-        """! @brief Inits the FPB.
+        """@brief Inits the FPB.
 
         Reads the number of hardware breakpoints available on the core and disable the FPB
         (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
@@ -105,7 +105,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         return len(self.hw_breakpoints) - self.num_hw_breakpoint_used
 
     def can_support_address(self, addr: int) -> bool:
-        """! @brief Test whether an address is supported by the FPB.
+        """@brief Test whether an address is supported by the FPB.
 
         For FPBv1, hardware breakpoints are only supported in the range 0x00000000 - 0x1fffffff.
         This was fixed for FPBv2, which supports hardware breakpoints at any address.
@@ -119,7 +119,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         return None
 
     def set_breakpoint(self, addr: int) -> Optional[Breakpoint]:
-        """! @brief Set a hardware breakpoint at a specific location in flash."""
+        """@brief Set a hardware breakpoint at a specific location in flash."""
         if not self.enabled:
             self.enable()
 
@@ -150,7 +150,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         return None
 
     def remove_breakpoint(self, bp: Breakpoint) -> None:
-        """! @brief Remove a hardware breakpoint at a specific location in flash."""
+        """@brief Remove a hardware breakpoint at a specific location in flash."""
         for hwbp in self.hw_breakpoints:
             if hwbp.enabled and hwbp.addr == bp.addr:
                 hwbp.enabled = False

@@ -53,7 +53,7 @@ class ManagedPacksStub:
         pass
 
 class ManagedPacksImpl:
-    """! @brief Namespace for managed CMSIS-Pack utilities.
+    """@brief Namespace for managed CMSIS-Pack utilities.
 
     By managed, we mean managed by the cmsis-pack-manager package. All the methods on this class
     apply only to those packs managed by cmsis-pack-manager, not any targets from packs specified
@@ -62,7 +62,7 @@ class ManagedPacksImpl:
 
     @staticmethod
     def get_installed_packs(cache: Optional[cmsis_pack_manager.Cache] = None) -> List["CmsisPackRef"]: # type:ignore
-        """! @brief Return a list containing CmsisPackRef objects for all installed packs."""
+        """@brief Return a list containing CmsisPackRef objects for all installed packs."""
         if cache is None:
             cache = cmsis_pack_manager.Cache(True, True)
         results = []
@@ -78,7 +78,7 @@ class ManagedPacksImpl:
 
     @staticmethod
     def get_installed_targets(cache: Optional[cmsis_pack_manager.Cache] = None) -> List[CmsisPackDevice]: # type:ignore
-        """! @brief Return a list of CmsisPackDevice objects for installed pack targets."""
+        """@brief Return a list of CmsisPackDevice objects for installed pack targets."""
         if cache is None:
             cache = cmsis_pack_manager.Cache(True, True)
         results = []
@@ -90,7 +90,7 @@ class ManagedPacksImpl:
 
     @staticmethod
     def populate_target(device_name: str) -> None:
-        """! @brief Add targets from cmsis-pack-manager matching the given name.
+        """@brief Add targets from cmsis-pack-manager matching the given name.
 
         Targets are added to the `#TARGET` list. A case-insensitive comparison against the
         device part number is used to find the target to populate. If multiple packs are installed
@@ -108,11 +108,11 @@ else:
     ManagedPacks = ManagedPacksStub
 
 class _PackTargetMethods:
-    """! @brief Container for methods added to the dynamically generated pack target subclass."""
+    """@brief Container for methods added to the dynamically generated pack target subclass."""
 
     @staticmethod
     def _pack_target__init__(self, session: "Session") -> None: # type:ignore
-        """! @brief Constructor for dynamically created target class."""
+        """@brief Constructor for dynamically created target class."""
         super(self.__class__, self).__init__(session, self._pack_device.memory_map)
 
         self.vendor = self._pack_device.vendor
@@ -123,7 +123,7 @@ class _PackTargetMethods:
 
     @staticmethod
     def _pack_target_create_init_sequence(self) -> "CallSequence": # type:ignore
-        """! @brief Creates an init task to set the default reset type."""
+        """@brief Creates an init task to set the default reset type."""
         seq = super(self.__class__, self).create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
@@ -134,16 +134,16 @@ class _PackTargetMethods:
 
     @staticmethod
     def _pack_target_set_default_reset_type(self) -> None: # type:ignore
-        """! @brief Set's the first core's default reset type to the one specified in the pack."""
+        """@brief Set's the first core's default reset type to the one specified in the pack."""
         if 0 in self.cores:
             self.cores[0].default_reset_type = self._pack_device.default_reset_type
 
 class PackTargets:
-    """! @brief Namespace for CMSIS-Pack target generation utilities. """
+    """@brief Namespace for CMSIS-Pack target generation utilities. """
 
     @staticmethod
     def _find_family_class(dev: CmsisPackDevice) -> Type[CoreSightTarget]:
-        """! @brief Search the families list for matching entry."""
+        """@brief Search the families list for matching entry."""
         for familyInfo in FAMILIES:
             # Skip if wrong vendor.
             if dev.vendor != familyInfo.vendor:
@@ -161,7 +161,7 @@ class PackTargets:
 
     @staticmethod
     def _generate_pack_target_class(dev: CmsisPackDevice) -> Optional[type]:
-        """! @brief Generates a new target class from a CmsisPackDevice.
+        """@brief Generates a new target class from a CmsisPackDevice.
 
         @param dev A CmsisPackDevice object.
         @return A new subclass of either CoreSightTarget or one of the family classes.
@@ -187,7 +187,7 @@ class PackTargets:
 
     @staticmethod
     def populate_device(dev: CmsisPackDevice) -> None:
-        """! @brief Generates and populates the target defined by a CmsisPackDevice.
+        """@brief Generates and populates the target defined by a CmsisPackDevice.
 
         The new target class is added to the `#TARGET` list.
 
@@ -211,7 +211,7 @@ class PackTargets:
 
     @staticmethod
     def populate_targets_from_pack(pack_list: Union[PackReferenceType, List[PackReferenceType], Tuple[PackReferenceType]]) -> None:
-        """! @brief Adds targets defined in the provided CMSIS-Pack.
+        """@brief Adds targets defined in the provided CMSIS-Pack.
 
         Targets are added to the `#TARGET` list.
 

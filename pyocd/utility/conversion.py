@@ -24,7 +24,7 @@ from .mask import align_up
 ByteList = Sequence[int]
 
 def byte_list_to_nbit_le_list(data: ByteList, bitwidth: int, pad: int = 0x00) -> Sequence[int]:
-    """! @brief Convert a list of bytes to a list of n-bit integers (little endian)
+    """@brief Convert a list of bytes to a list of n-bit integers (little endian)
 
     If the length of the data list is not a multiple of `bitwidth` // 8, then the pad value is used
     for the additional required bytes.
@@ -47,7 +47,7 @@ def byte_list_to_nbit_le_list(data: ByteList, bitwidth: int, pad: int = 0x00) ->
     return res
 
 def nbit_le_list_to_byte_list(data: Sequence[int], bitwidth: int) -> ByteList:
-    """! @brief Convert a list of n-bit values into a byte list.
+    """@brief Convert a list of n-bit values into a byte list.
 
     @param data List of n-bit values.
     @param bitwidth Width in bits of the input vales.
@@ -56,7 +56,7 @@ def nbit_le_list_to_byte_list(data: Sequence[int], bitwidth: int) -> ByteList:
     return [(x >> shift) & 0xff for x in data for shift in range(0, bitwidth, 8)]
 
 def byte_list_to_u32le_list(data: ByteList, pad: int = 0x00) -> Sequence[int]:
-    """! @brief Convert a list of bytes to a list of 32-bit integers (little endian)
+    """@brief Convert a list of bytes to a list of 32-bit integers (little endian)
 
     If the length of the data list is not a multiple of 4, then the pad value is used
     for the additional required bytes.
@@ -74,7 +74,7 @@ def byte_list_to_u32le_list(data: ByteList, pad: int = 0x00) -> Sequence[int]:
     return res
 
 def u32le_list_to_byte_list(data: Sequence[int]) -> ByteList:
-    """! @brief Convert a word array into a byte array"""
+    """@brief Convert a word array into a byte array"""
     res = []
     for x in data:
         res.append((x >> 0) & 0xff)
@@ -84,41 +84,41 @@ def u32le_list_to_byte_list(data: Sequence[int]) -> ByteList:
     return res
 
 def u16le_list_to_byte_list(data: Sequence[int]) -> ByteList:
-    """! @brief Convert a halfword array into a byte array"""
+    """@brief Convert a halfword array into a byte array"""
     byteData = []
     for h in data:
         byteData.extend([h & 0xff, (h >> 8) & 0xff])
     return byteData
 
 def byte_list_to_u16le_list(byteData: ByteList) -> Sequence[int]:
-    """! @brief Convert a byte array into a halfword array"""
+    """@brief Convert a byte array into a halfword array"""
     data = []
     for i in range(0, len(byteData), 2):
         data.append(byteData[i] | (byteData[i + 1] << 8))
     return data
 
 def u32_to_float32(data: int) -> float:
-    """! @brief Convert a 32-bit int to an IEEE754 float"""
+    """@brief Convert a 32-bit int to an IEEE754 float"""
     d = struct.pack(">I", data & 0xffff_ffff)
     return struct.unpack(">f", d)[0]
 
 def float32_to_u32(data: float) -> int:
-    """! @brief Convert an IEEE754 float to a 32-bit int"""
+    """@brief Convert an IEEE754 float to a 32-bit int"""
     d = struct.pack(">f", data)
     return struct.unpack(">I", d)[0]
 
 def u64_to_float64(data: int) -> float:
-    """! @brief Convert a 64-bit int to an IEEE754 float"""
+    """@brief Convert a 64-bit int to an IEEE754 float"""
     d = struct.pack(">Q", data & 0xffff_ffff_ffff_ffff)
     return struct.unpack(">d", d)[0]
 
 def float64_to_u64(data: float) -> int:
-    """! @brief Convert an IEEE754 float to a 64-bit int"""
+    """@brief Convert an IEEE754 float to a 64-bit int"""
     d = struct.pack(">d", data)
     return struct.unpack(">Q", d)[0]
 
 def uint_to_hex_le(value: int, width: int) -> str:
-    """! @brief Create an n-digit hexadecimal string from an integer value.
+    """@brief Create an n-digit hexadecimal string from an integer value.
     @param value Integer value to format.
     @param width The width in bits.
     @return A string with the number of hex bytes required to fit `width` bits, rounded up to the
@@ -128,7 +128,7 @@ def uint_to_hex_le(value: int, width: int) -> str:
     return ''.join("%02x" % ((value >> b) & 0xff) for b in range(0, align_up(width, 8), 8))
 
 def hex_le_to_uint(value: str, width: int) -> int:
-    """! @brief Create an an integer value from an n-digit hexadecimal string.
+    """@brief Create an an integer value from an n-digit hexadecimal string.
     @param value String consisting of pairs of hex digits with no intervening whitespace. Must have at least
         enough hex bytes to meet the desired width. The first hex byte is the LSB.
     @param width The width in bits. The width can be shorter then the input `value` width, in which case
@@ -138,55 +138,55 @@ def hex_le_to_uint(value: str, width: int) -> int:
     return sum((int(value[i:i+2], base=16) << (i * 4)) for i in range(0, align_up(width, 8) // 4, 2))
 
 def u32_to_hex8le(val: int) -> str:
-    """! @brief Create 8-digit hexadecimal string from 32-bit register value"""
+    """@brief Create 8-digit hexadecimal string from 32-bit register value"""
     return uint_to_hex_le(val, 32)
 
 def u64_to_hex16le(val: int) -> str:
-    """! @brief Create 16-digit hexadecimal string from 64-bit register value"""
+    """@brief Create 16-digit hexadecimal string from 64-bit register value"""
     return uint_to_hex_le(val, 64)
 
 def hex8_to_u32be(data: str) -> int:
-    """! @brief Build 32-bit register value from big-endian 8-digit hexadecimal string
+    """@brief Build 32-bit register value from big-endian 8-digit hexadecimal string
     @note Endianness in this function name is backwards.
     """
     return hex_le_to_uint(data, 32)
 
 def hex16_to_u64be(data: str) -> int:
-    """! @brief Build 64-bit register value from big-endian 16-digit hexadecimal string
+    """@brief Build 64-bit register value from big-endian 16-digit hexadecimal string
     @note Endianness in this function name is backwards.
     """
     return hex_le_to_uint(data, 64)
 
 def hex8_to_u32le(data: str) -> int:
-    """! @brief Build 32-bit register value from little-endian 8-digit hexadecimal string
+    """@brief Build 32-bit register value from little-endian 8-digit hexadecimal string
     @note Endianness in this function name is backwards.
     """
     return int(data[0:8], 16)
 
 def hex16_to_u64le(data: str) -> int:
-    """! @brief Build 64-bit register value from little-endian 16-digit hexadecimal string
+    """@brief Build 64-bit register value from little-endian 16-digit hexadecimal string
     @note Endianness in this function name is backwards.
     """
     return int(data[0:16], 16)
 
 def byte_to_hex2(val: int) -> str:
-    """! @brief Create 2-digit hexadecimal string from 8-bit value"""
+    """@brief Create 2-digit hexadecimal string from 8-bit value"""
     return "%02x" % int(val)
 
 def hex_to_byte_list(data: str) -> ByteList:
-    """! @brief Convert string of hex bytes to list of integers"""
+    """@brief Convert string of hex bytes to list of integers"""
     return list(binascii.unhexlify(data))
 
 def hex_decode(cmd: str) -> bytes:
-    """! @brief Return the binary data represented by the hexadecimal string."""
+    """@brief Return the binary data represented by the hexadecimal string."""
     return binascii.unhexlify(cmd)
 
 def hex_encode(string: bytes) -> bytes:
-    """! @brief Return the hexadecimal representation of the binary data."""
+    """@brief Return the hexadecimal representation of the binary data."""
     return binascii.hexlify(string)
 
 def pairwise(iterable: Iterator[Any]) -> Iterator[Tuple[Any, Any]]:
-    """! s -> (s0,s1), (s2,s3), (s3, s4), ..."""
+    """s -> (s0,s1), (s2,s3), (s3, s4), ..."""
     r = []
     for x in iterable:
         r.append(x)

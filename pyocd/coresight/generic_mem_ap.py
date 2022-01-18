@@ -27,7 +27,7 @@ DEAD_VALUE = 0
 
 
 class GenericMemAPTarget(Target, CoreSightComponent):
-    """! @brief This target represents ARM debug Access Port without a CPU
+    """@brief This target represents ARM debug Access Port without a CPU
 
     It may be used to access the address space of the target via Access Ports
     without real ARM CPU core behind it. For instance Cypress PSoC64 devices have

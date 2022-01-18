@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 class CommandSet:
-    """! @brief Holds a set of command classes."""
+    """@brief Holds a set of command classes."""
 
     ## Whether command and infos modules have been loaded yet.
     DID_LOAD_COMMAND_MODULES = False
@@ -85,7 +85,7 @@ class CommandSet:
         return self._value_matcher
 
     def add_command_group(self, group_name):
-        """! @brief Add commands belonging to a group to the command set.
+        """@brief Add commands belonging to a group to the command set.
         @param self The command set.
         @param group_name String with the name of the group to add.
         """
@@ -93,7 +93,7 @@ class CommandSet:
         self.add_commands(ALL_COMMANDS.get(group_name, set()))
 
     def add_commands(self, commands):
-        """! @brief Add some commands to the command set.
+        """@brief Add some commands to the command set.
         @param self The command set.
         @param commands List of command classes.
         """
@@ -111,7 +111,7 @@ class CommandSet:
         self._value_matcher.add_items(value_names.keys())
 
 class CommandInvocation(NamedTuple):
-    """! @brief Groups the command name with an iterable of args and a handler function.
+    """@brief Groups the command name with an iterable of args and a handler function.
 
     The handler is a callable that will evaluate the command. It accepts a single argument of the
     CommandInvocation instance.
@@ -121,14 +121,14 @@ class CommandInvocation(NamedTuple):
     handler: Callable[["CommandInvocation"], None] # type:ignore # mypy doesn't support recursive types yet!
 
 class CommandExecutionContext:
-    """! @brief Manages command execution.
+    """@brief Manages command execution.
 
     This class holds persistent state for command execution, and provides the interface for executing
     commands and command lines.
     """
 
     def __init__(self, no_init: bool = False, output_stream: Optional[IO[str]] = None):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self This object.
         @param no_init Whether the board and target will be initialized when attach_session() is called.
             Defaults to False.
@@ -152,7 +152,7 @@ class CommandExecutionContext:
         self._command_set.add_command_group('standard')
 
     def write(self, message='', **kwargs):
-        """! @brief Write a fixed message to the output stream.
+        """@brief Write a fixed message to the output stream.
 
         The message is written to the output stream passed to the constructor, terminated with
         a newline by default. The `end` keyword argument can be passed to change the terminator. No
@@ -170,7 +170,7 @@ class CommandExecutionContext:
         self._output.write(message + end)
 
     def writei(self, fmt, *args, **kwargs):
-        """! @brief Write an interpolated string to the output stream.
+        """@brief Write an interpolated string to the output stream.
 
         The formatted string is written to the output stream passed to the constructor, terminated with
         a newline by default. The `end` keyword argument can be passed to change the terminator.
@@ -183,7 +183,7 @@ class CommandExecutionContext:
         self.write(message, **kwargs)
 
     def writef(self, fmt, *args, **kwargs):
-        """! @brief Write a formatted string to the output stream.
+        """@brief Write a formatted string to the output stream.
 
         The formatted string is written to the output stream passed to the constructor, terminated with
         a newline by default. The `end` keyword argument can be passed to change the terminator.
@@ -196,7 +196,7 @@ class CommandExecutionContext:
         self.write(message, **kwargs)
 
     def attach_session(self, session):
-        """! @brief Associate a session with the command context.
+        """@brief Associate a session with the command context.
 
         Various data for the context are initialized. This includes selecting the initially selected core and MEM-AP,
         and getting an ELF file that was set on the target.
@@ -258,12 +258,12 @@ class CommandExecutionContext:
 
     @property
     def command_set(self):
-        """! @brief CommandSet with commands available in this context."""
+        """@brief CommandSet with commands available in this context."""
         return self._command_set
 
     @property
     def peripherals(self):
-        """! @brief Dict of SVD peripherals."""
+        """@brief Dict of SVD peripherals."""
         assert self.target
         if self.target.svd_device and not self._loaded_peripherals:
             for p in self.target.svd_device.peripherals:
@@ -281,7 +281,7 @@ class CommandExecutionContext:
 
     @property
     def selected_core(self):
-        """! @brief The Target instance for the selected core."""
+        """@brief The Target instance for the selected core."""
         return self._selected_core
 
     @selected_core.setter
@@ -305,7 +305,7 @@ class CommandExecutionContext:
             return self.target.aps[self.selected_ap_address]
 
     def process_command_line(self, line: str) -> None:
-        """! @brief Run a command line consisting of one or more semicolon-separated commands.
+        """@brief Run a command line consisting of one or more semicolon-separated commands.
 
         @param self
         @param line Complete command line string.
@@ -316,7 +316,7 @@ class CommandExecutionContext:
             invoc.handler(invoc)
 
     def process_command_file(self, cmd_file: IO[str]) -> None:
-        """! @brief Run commands contained in a file.
+        """@brief Run commands contained in a file.
 
         @param self
         @param cmd_file File object containing commands to run. Must be opened in text mode. When this method returns,
@@ -335,7 +335,7 @@ class CommandExecutionContext:
             cmd_file.close()
 
     def _split_commands(self, line: str) -> Iterator[List[str]]:
-        """! @brief Generator yielding commands separated by semicolons.
+        """@brief Generator yielding commands separated by semicolons.
 
         Python and system commands are handled specially. For these we yield a list of 2 elements: the command,
         either "$" or "!", followed by the unmodified remainder of the command line. For these commands,
@@ -367,7 +367,7 @@ class CommandExecutionContext:
             yield result
 
     def parse_command(self, cmdline: List[str]) -> CommandInvocation:
-        """! @brief Create a CommandInvocation from a single command."""
+        """@brief Create a CommandInvocation from a single command."""
         # Check for Python or system command lines.
         first_char = cmdline[0]
         if first_char in '$!':
@@ -401,7 +401,7 @@ class CommandExecutionContext:
         return CommandInvocation(matched_command, args, self.execute_command)
 
     def execute_command(self, invocation: CommandInvocation) -> None:
-        """! @brief Execute a single command."""
+        """@brief Execute a single command."""
         # Must have an attached session to run commands, except for certain commands.
         assert (self.session is not None) or (invocation.cmd in ('list', 'help', 'exit'))
 
@@ -419,7 +419,7 @@ class CommandExecutionContext:
             cmd_object.execute()
 
     def _build_python_namespace(self) -> None:
-        """! @brief Construct the dictionary used as the namespace for python commands."""
+        """@brief Construct the dictionary used as the namespace for python commands."""
         assert self.session
         assert self.target
         ns = self.session.user_script_proxy.namespace
@@ -430,7 +430,7 @@ class CommandExecutionContext:
         self._python_namespace = ns
 
     def handle_python(self, invocation: CommandInvocation) -> None:
-        """! @brief Evaluate a python expression."""
+        """@brief Evaluate a python expression."""
         assert self.session
         try:
             # Lazily build the python environment.
@@ -454,7 +454,7 @@ class CommandExecutionContext:
             raise exceptions.CommandError("exception while executing expression: %s" % e)
 
     def handle_system(self, invocation: CommandInvocation) -> None:
-        """! @brief Evaluate a system call command."""
+        """@brief Evaluate a system call command."""
         try:
             output = subprocess.check_output(invocation.cmd, stderr=subprocess.STDOUT, shell=True)
             self.write(six.ensure_str(output), end='')

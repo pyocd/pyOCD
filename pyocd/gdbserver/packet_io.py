@@ -33,11 +33,11 @@ def checksum(data: bytes) -> bytes:
     return ("%02x" % (sum(data) % 256)).encode()
 
 class ConnectionClosedException(Exception):
-    """! @brief Exception used to signal the GDB server connection closed."""
+    """@brief Exception used to signal the GDB server connection closed."""
     pass
 
 class GDBServerPacketIOThread(threading.Thread):
-    """! @brief Packet I/O thread.
+    """@brief Packet I/O thread.
 
     This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
     handles verifying checksums, acking, and receiving Ctrl-C interrupts. There is a queue
@@ -166,7 +166,7 @@ class GDBServerPacketIOThread(threading.Thread):
             LOG.debug("GDB: expected n/ack but got '%s'", c)
 
     def _process_data(self):
-        """! @brief Process all incoming data until there are no more complete packets."""
+        """@brief Process all incoming data until there are no more complete packets."""
         while len(self._buffer):
             if self._expecting_ack:
                 self._expecting_ack = False

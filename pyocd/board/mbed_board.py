@@ -21,7 +21,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 class MbedBoard(Board):
-    """! @brief Mbed board class.
+    """@brief Mbed board class.
 
     This class inherits from Board and is specific to mbed boards. Particularly, this class
     will dynamically determine the type of connected board based on the board ID encoded in
@@ -29,7 +29,7 @@ class MbedBoard(Board):
     firmware is generic and doesn't have an associated board.
     """
     def __init__(self, session, target=None, board_id=None):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         This constructor attempts to use the board ID from the serial number to determine
         the target type. See #BOARD_ID_TO_INFO.
@@ -72,11 +72,11 @@ class MbedBoard(Board):
 
     @property
     def name(self):
-        """! @brief Return board name."""
+        """@brief Return board name."""
         return self._name
 
     @property
     def description(self):
-        """! @brief Return description of the board."""
+        """@brief Return description of the board."""
         return self.name + " [" + self.target_type + "]"
 

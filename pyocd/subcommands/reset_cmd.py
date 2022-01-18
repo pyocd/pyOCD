@@ -31,7 +31,7 @@ from ..utility.cmdline import (
 LOG = logging.getLogger(__name__)
 
 class ResetSubcommand(SubcommandBase):
-    """! @brief `pyocd reset` subcommand."""
+    """@brief `pyocd reset` subcommand."""
 
     NAMES = ['reset']
     HELP = "Reset a target device."
@@ -39,7 +39,7 @@ class ResetSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         reset_parser = argparse.ArgumentParser(description='reset', add_help=False)
 
         reset_options = reset_parser.add_argument_group("reset options")
@@ -55,7 +55,7 @@ class ResetSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, reset_parser]
 
     def invoke(self) -> None:
-        """! @brief Handle 'reset' subcommand."""
+        """@brief Handle 'reset' subcommand."""
         # Verify selected reset type.
         try:
             the_reset_type = convert_reset_type(self._args.reset_type)

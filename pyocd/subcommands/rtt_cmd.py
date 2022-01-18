@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 
 
 class SEGGER_RTT_BUFFER_UP(Structure):
-    """! @brief `SEGGER RTT Ring Buffer` target to host."""
+    """@brief `SEGGER RTT Ring Buffer` target to host."""
 
     _fields_ = [
         ("sName", c_uint32),
@@ -45,7 +45,7 @@ class SEGGER_RTT_BUFFER_UP(Structure):
 
 
 class SEGGER_RTT_BUFFER_DOWN(Structure):
-    """! @brief `SEGGER RTT Ring Buffer` host to target."""
+    """@brief `SEGGER RTT Ring Buffer` host to target."""
 
     _fields_ = [
         ("sName", c_uint32),
@@ -58,7 +58,7 @@ class SEGGER_RTT_BUFFER_DOWN(Structure):
 
 
 class SEGGER_RTT_CB(Structure):
-    """! @brief `SEGGER RTT control block` structure. """
+    """@brief `SEGGER RTT control block` structure. """
 
     _fields_ = [
         ("acID", c_char * 16),
@@ -70,14 +70,14 @@ class SEGGER_RTT_CB(Structure):
 
 
 class RTTSubcommand(SubcommandBase):
-    """! @brief `pyocd rtt` subcommand."""
+    """@brief `pyocd rtt` subcommand."""
 
     NAMES = ["rtt"]
     HELP = "SEGGER RTT Viewer."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
 
         rtt_parser = argparse.ArgumentParser(cls.HELP, add_help=False)
 

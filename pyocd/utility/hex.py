@@ -26,7 +26,7 @@ from . import conversion
 _PRINTABLE = string.digits + string.ascii_letters + string.punctuation + ' '
 
 def format_hex_width(value: int, width: int) -> str:
-    """! @brief Formats the value as hex of the specified bit width.
+    """@brief Formats the value as hex of the specified bit width.
 
     @param value Integer value to be formatted.
     @param width Bit width, must be one of 8, 16, 32, 64.
@@ -50,7 +50,7 @@ def dump_hex_data(
         output: Optional[IO[str]] = None,
         print_ascii: bool = True
     ) -> None:
-    """! @brief Prints a canonical hex dump of the given data.
+    """@brief Prints a canonical hex dump of the given data.
 
     Each line of the output consists of an address column, the data as hex, and a printable ASCII
     representation of the data.
@@ -138,7 +138,7 @@ def dump_hex_data(
         output.write("\n")
 
 def dump_hex_data_to_str(data, **kwargs):
-    """! @brief Returns a string with data formatted as hex.
+    """@brief Returns a string with data formatted as hex.
     @see dump_hex_data()
     """
     sio = io.StringIO()

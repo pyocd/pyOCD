@@ -146,7 +146,7 @@ class GDBServerTool(object):
         logging.basicConfig(level=level, format=format)
 
     def process_commands(self, commands):
-        """! @brief Handle OpenOCD commands for compatibility."""
+        """@brief Handle OpenOCD commands for compatibility."""
         if commands is None:
             return
         for cmd_list in commands:

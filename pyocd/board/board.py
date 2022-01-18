@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 class Board(GraphNode):
-    """!@brief Represents the board containing the target and associated components.
+    """@brief Represents the board containing the target and associated components.
 
     The board is the root of the runtime object graph.
     """
@@ -111,7 +111,7 @@ class Board(GraphNode):
         self.add_child(self.target)
 
     def init(self) -> None:
-        """! @brief Initialize the board."""
+        """@brief Initialize the board."""
         # If we don't have a delegate set yet, see if there is a session delegate.
         if (self.delegate is None) and (self.session.delegate is not None):
             self.delegate = self.session.delegate
@@ -129,7 +129,7 @@ class Board(GraphNode):
             self.delegate.did_connect(board=self)
 
     def uninit(self) -> None:
-        """! @brief Uninitialize the board."""
+        """@brief Uninitialize the board."""
         if self._inited:
             LOG.debug("uninit board %s", self)
             try:

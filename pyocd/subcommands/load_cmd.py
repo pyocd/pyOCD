@@ -30,7 +30,7 @@ from ..utility.cmdline import (
 LOG = logging.getLogger(__name__)
 
 class LoadSubcommand(SubcommandBase):
-    """! @brief `pyocd load` and `flash` subcommand."""
+    """@brief `pyocd load` and `flash` subcommand."""
 
     NAMES = ['load', 'flash']
     HELP = "Load one or more images into target device memory."
@@ -46,7 +46,7 @@ class LoadSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         parser_options = parser.add_argument_group("load options")
@@ -70,7 +70,7 @@ class LoadSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'load' subcommand."""
+        """@brief Handle 'load' subcommand."""
         self._increase_logging(["pyocd.flash.loader", __name__])
 
         # Validate arguments.

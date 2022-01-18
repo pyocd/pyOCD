@@ -35,10 +35,10 @@ FDPROT_ADDR = 0x40f
 FDPROT_VAL = 0xFF
 
 class Flash_Kinetis(Flash):
-    """! @brief Base flash algorithm class for Freescale Kinetis devices."""
+    """@brief Base flash algorithm class for Freescale Kinetis devices."""
 
     def override_security_bits(self, address, data):
-        """! @brief Check security bytes.
+        """@brief Check security bytes.
 
         Override Flash Configuration Field bytes at address 0x400-0x40f to ensure that flash security
         won't be enabled. If flash security is enabled, then the chip is inaccessible via SWD.
