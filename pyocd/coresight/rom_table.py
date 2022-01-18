@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021 Jacob Berg Potter
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,10 +37,7 @@ class CoreSightComponentID(object):
     registers are made available as attributes.
     """
 
-    # CoreSight identification register offsets.
-    DEVARCH = 0xfbc
-    DEVID = 0xfc8
-    DEVTYPE = 0xfcc
+    # Component identification register offsets.
     PIDR4 = 0xfd0
     PIDR0 = 0xfe0
     CIDR0 = 0xff0
@@ -47,15 +45,26 @@ class CoreSightComponentID(object):
 
     # Range of identification registers to read at once and offsets in results.
     #
-    # To improve component identification performance, we read all of a components
-    # CoreSight ID registers in a single read. Reading starts at the DEVARCH register.
-    IDR_READ_START = DEVARCH
+    # To improve component identification performance, we read all of a component's
+    # ID registers in a single read.
+    IDR_READ_START = PIDR4
     IDR_READ_COUNT = (IDR_END - IDR_READ_START) // 4
-    DEVARCH_OFFSET = (DEVARCH - IDR_READ_START) // 4
-    DEVTYPE_OFFSET = (DEVTYPE - IDR_READ_START) // 4
     PIDR4_OFFSET = (PIDR4 - IDR_READ_START) // 4
     PIDR0_OFFSET = (PIDR0 - IDR_READ_START) // 4
     CIDR0_OFFSET = (CIDR0 - IDR_READ_START) // 4
+
+    # CoreSight identification register offsets.
+    DEVARCH = 0xfbc
+    DEVTYPE = 0xfcc
+    CORESIGHT_IDR_END = 0xfd0
+
+    # Range of CoreSight-specific registers to read. Non-CoreSight components may not
+    # implement these registers, and may even error on attempting to read them, so we
+    # only read them if the component's class is CORESIGHT_CLASS.
+    CORESIGHT_IDR_READ_START = DEVARCH
+    CORESIGHT_IDR_READ_COUNT = (CORESIGHT_IDR_END - CORESIGHT_IDR_READ_START) // 4
+    DEVARCH_OFFSET = (DEVARCH - CORESIGHT_IDR_READ_START) // 4
+    DEVTYPE_OFFSET = (DEVTYPE - CORESIGHT_IDR_READ_START) // 4
 
     # Component ID register fields.
     CIDR_PREAMBLE_MASK = 0xffff0fff
@@ -134,11 +143,14 @@ class CoreSightComponentID(object):
             # Class 0x1 ROM table.
             self.is_rom_table = True
         elif self.component_class == self.CORESIGHT_CLASS:
+             coresight_regs = self.ap.read_memory_block32(
+                 self.top_address + self.CORESIGHT_IDR_READ_START, self.CORESIGHT_IDR_READ_COUNT)
+
             # For CoreSight-class components, extract additional fields.
-             self.devarch = regs[self.DEVARCH_OFFSET]
-             self.devid = regs[1:4]
+             self.devarch = coresight_regs[self.DEVARCH_OFFSET]
+             self.devid = coresight_regs[1:4]
              self.devid.reverse()
-             self.devtype = regs[self.DEVTYPE_OFFSET]
+             self.devtype = coresight_regs[self.DEVTYPE_OFFSET]
 
              if self.devarch & self.DEVARCH_PRESENT_MASK:
                  self.archid = self.devarch & self.DEVARCH_ARCHID_MASK
