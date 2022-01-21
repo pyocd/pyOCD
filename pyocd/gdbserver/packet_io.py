@@ -18,6 +18,7 @@
 import logging
 import threading
 import queue
+import socket
 
 CTRL_C = b'\x03'
 
@@ -45,8 +46,11 @@ class GDBServerPacketIOThread(threading.Thread):
     method writes outgoing packets to the socket immediately.
     """
 
+    ## 100 ms timeout for socket and receive queue reads.
+    RECEIVE_TIMEOUT = 0.1
+
     def __init__(self, abstract_socket):
-        super(GDBServerPacketIOThread, self).__init__()
+        super().__init__()
         self.name = "gdb-packet-thread-port%d" % abstract_socket.port
         self._abstract_socket = abstract_socket
         self._receive_queue = queue.Queue()
@@ -89,7 +93,7 @@ class GDBServerPacketIOThread(threading.Thread):
                 # If block is false, we'll get an Empty exception immediately if there
                 # are no packets in the queue. Same if block is true and it times out
                 # waiting on an empty queue.
-                return self._receive_queue.get(block, 0.1)
+                return self._receive_queue.get(block, self.RECEIVE_TIMEOUT)
             except queue.Empty:
                 # Only exit the loop if block is false or connection closed.
                 if not block:
@@ -100,7 +104,7 @@ class GDBServerPacketIOThread(threading.Thread):
     def run(self):
         LOG.debug("Starting GDB server packet I/O thread")
 
-        self._abstract_socket.set_timeout(0.01)
+        self._abstract_socket.set_timeout(self.RECEIVE_TIMEOUT)
 
         while not self._shutdown_event.is_set():
             try:
@@ -119,6 +123,9 @@ class GDBServerPacketIOThread(threading.Thread):
                 LOG.warning("GDB packet thread: connection unexpectedly closed during receive (%s)", err)
                 self._closed = True
                 break
+            except socket.timeout:
+                # Ignore timeouts.
+                pass
             except OSError as err:
                 LOG.debug("Error in packet IO thread: %s", err)
 
