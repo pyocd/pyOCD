@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 David Runge
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@
 
 import logging
 import os
-from natsort import natsort
+from natsort import natsorted
 import textwrap
 from time import sleep
 from shutil import get_terminal_size
@@ -116,7 +117,7 @@ class StatusCommand(CommandBase):
 
 class RegisterCommandBase(CommandBase):
     def dump_register_group(self, group_name):
-        regs = natsort(self.context.selected_core.core_registers.iter_matching(
+        regs = natsorted(self.context.selected_core.core_registers.iter_matching(
                 lambda r: r.group == group_name), key=lambda r: r.name)
         reg_values = self.context.selected_core.read_core_registers_raw(r.name for r in regs)
         
