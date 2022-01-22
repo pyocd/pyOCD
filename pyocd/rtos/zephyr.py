@@ -243,8 +243,8 @@ class ZephyrThreadProvider(ThreadProvider):
     ## Required Zephyr symbols.
     ZEPHYR_SYMBOLS = [
         "_kernel",
-        "_kernel_openocd_offsets",
-        "_kernel_openocd_size_t_size",
+        "_kernel_thread_info_offsets",
+        "_kernel_thread_info_size_t_size",
         ]
 
     ZEPHYR_OFFSETS = [
@@ -283,15 +283,15 @@ class ZephyrThreadProvider(ThreadProvider):
 
     def _get_offsets(self):
         # Read the kernel and thread structure member offsets
-        size = self._target_context.read8(self._symbols["_kernel_openocd_size_t_size"])
-        LOG.debug("_kernel_openocd_size_t_size = %d", size)
+        size = self._target_context.read8(self._symbols["_kernel_thread_info_size_t_size"])
+        LOG.debug("_kernel_thread_info_size_t_size = %d", size)
         if size != 4:
-            LOG.error("Unsupported _kernel_openocd_size_t_size")
+            LOG.error("Unsupported _kernel_thread_info_size_t_size")
             return None
 
         offsets = {}
         for index, name in enumerate(self.ZEPHYR_OFFSETS):
-            offset = self._symbols["_kernel_openocd_offsets"] + index * size
+            offset = self._symbols["_kernel_thread_info_offsets"] + index * size
             offsets[name] = self._target_context.read32(offset)
             LOG.debug("%s = 0x%04x", name, offsets[name])
 
