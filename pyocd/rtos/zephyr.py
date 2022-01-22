@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -192,12 +193,8 @@ class ZephyrThread(TargetThread):
             self._state = self._target_context.read8(self._base + self._offsets["t_state"])
 
             if self._provider.version > 0:
-                addr = self._target_context.read32(self._base + self._offsets["t_name"])
-                if addr != 0:
-                    self._name = read_c_string(self._target_context, addr)
-                else:
-                    self._name = "Unnamed"
-
+                addr = self._base + self._offsets["t_name"]
+                self._name = read_c_string(self._target_context, addr)
 
         except exceptions.TransferError:
             LOG.debug("Transfer error while reading thread info")
