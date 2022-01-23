@@ -130,6 +130,7 @@ CSW_HPROT    =  0x0f000000
 CSW_MSTRTYPE =  0x20000000 # Only present in M3/M3 AHB-AP, RES0 in others
 CSW_MSTRCORE =  0x00000000
 CSW_MSTRDBG  =  0x20000000
+CSW_DBGSWEN  =  0x80000000 # Only present in CSSoC-400 APB-AP, RES0 in others
 
 DEFAULT_CSW_VALUE = CSW_SADDRINC
 
@@ -531,6 +532,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
         ## Base CSW value to use.
         self._csw: int = DEFAULT_CSW_VALUE
+
+        # Certain MEM-APs support a DBGSWEN control in the AP's CSW register. When set to zero, software running
+        # on the device is prevented from accessing the memory space downstream from the MEM-AP. This feature is
+        # deprecated in ADIv6, and Arm recommends to never clear the bit when implemented.
+        if self._flags & AP_DBGSWEN:
+            self._csw |= CSW_DBGSWEN
 
         ## Cached current CSW value.
         self._cached_csw: int = -1
@@ -1236,10 +1243,11 @@ AP_TYPE_AHB5_HPROT = 0x8
 AP_4K_WRAP = 0x1 # The AP has a 4 kB auto-increment modulus.
 AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers, *unless* Large Data is implemented.
 AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
+AP_DBGSWEN = 0x8 # The AP is known to support the DBGSWEN flag.
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
-# The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 2-tuple (name, class, flags).
+# The dict maps from a 4-tuple of (JEP106 code, AP class, variant, type) to 3-tuple (name, class, flags).
 #
 # Known AP IDRs:
 # 0x24770011 AHB-AP with 0x1000 wrap and MSTRTYPE
@@ -1255,7 +1263,8 @@ AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
 # 0x84770001 AHB-AP Used on K32W042
 # 0x14770005 AHB5-AP Used on M33. Note that M33 r0p0 incorrect fails to report this IDR.
 # 0x04770025 AHB5-AP Used on M23.
-# 0x54770002 APB-AP used on M33.
+# 0x54770002 APB-AP used on STM32H743, from CSSoC-400
+# 0x34770017 AXI5-AP from Corstone-700
 AP_TYPE_MAP: Dict[Tuple[int, int, int, int], Tuple[str, Type[AccessPort], int]] = {
 #   |JEP106        |Class              |Var|Type                    |Name      |Class
     (AP_JEP106_ARM, AP_CLASS_JTAG_AP,   0,  0):                     ("JTAG-AP", AccessPort, 0   ),
@@ -1265,12 +1274,13 @@ AP_TYPE_MAP: Dict[Tuple[int, int, int, int], Tuple[str, Type[AccessPort], int]] 
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    3,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    4,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB):           ("APB-AP",  MEM_AP,     0   ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB):           ("APB-AP",  MEM_AP,     AP_DBGSWEN   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI):           ("AXI-AP",  MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB4):          ("APB4-AP", MEM_AP,     0   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     }
