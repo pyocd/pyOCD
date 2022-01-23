@@ -100,7 +100,7 @@ def test_probeserver(board_id=None, n=0):
             board_id = board.unique_id
         target_type = board.target_type
 
-    # Run the test. We can't kill the server thread, so 
+    # Run the test. We can't kill the server thread, so
     LOG.info('Starting server on port %d', test_port)
     server_args = ['pyocd', 'server',
             '-v',
@@ -108,7 +108,7 @@ def test_probeserver(board_id=None, n=0):
             "--uid=%s" % board_id,
             ]
     server_program = Popen(server_args, stdout=PIPE, stderr=STDOUT)
-    
+
     try:
         # Read server output waiting for it to report that the server is running.
         with Timeout(TEST_TIMEOUT_SECONDS) as time_out:
@@ -121,7 +121,7 @@ def test_probeserver(board_id=None, n=0):
                     raise TestError("no more output from server")
             else:
                 raise TestError("server failed to start")
-    
+
         server_thread = threading.Thread(target=wait_with_deadline, args=[server_program, TEST_TIMEOUT_SECONDS])
         server_thread.daemon = True
         server_thread.start()
@@ -134,6 +134,7 @@ def test_probeserver(board_id=None, n=0):
                 binary_file
                 ]
         client = PyOCDTool()
+        client._setup_logging = lambda: None # Disable logging setup so we don't have duplicate log output.
         LOG.info('Starting client: %s', ' '.join(client_args))
         client_thread = threading.Thread(target=client.run, args=[client_args])
         client_thread.daemon = True

@@ -17,7 +17,6 @@
 
 import logging
 import collections
-from time import sleep
 
 from .interface import Interface
 from .common import (
@@ -30,6 +29,8 @@ from ....utility.timeout import Timeout
 OPEN_TIMEOUT_S = 60.0
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 try:
     import pywinusb.hid as hid
@@ -39,13 +40,12 @@ else:
     IS_AVAILABLE = True
 
 class PyWinUSB(Interface):
-    """! @brief CMSIS-DAP USB interface class using pyWinUSB for the backend.
-    """
+    """@brief CMSIS-DAP USB interface class using pyWinUSB for the backend."""
 
     isAvailable = IS_AVAILABLE
 
     def __init__(self):
-        super(PyWinUSB, self).__init__()
+        super().__init__()
         # Vendor page and usage_id = 2
         self.report = None
         # deque used here instead of synchronized Queue
@@ -56,7 +56,10 @@ class PyWinUSB(Interface):
 
     # handler called when a report is received
     def rx_handler(self, data):
-#         LOG.debug("rcv<(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
+        if TRACE.isEnabledFor(logging.DEBUG):
+            # Strip off trailing zero bytes to reduce clutter.
+            TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in bytes(data).rstrip(b'\x00')]))
+
         self.rcv_data.append(data[1:])
 
     def open(self):
@@ -66,7 +69,7 @@ class PyWinUSB(Interface):
         # Note - this operation must be retried since
         # other instances of pyOCD listing board can prevent
         # opening this device with exclusive access.
-        with Timeout(OPEN_TIMEOUT_S) as t_o:
+        with Timeout(OPEN_TIMEOUT_S, sleeptime=0.25) as t_o:
             while t_o.check():
                 # Attempt to open the device
                 try:
@@ -94,8 +97,7 @@ class PyWinUSB(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """! @brief Returns all the connected CMSIS-DAP devices
-        """
+        """@brief Returns all the connected CMSIS-DAP devices"""
         all_devices = hid.find_all_hid_devices()
 
         # find devices with good vid/pid
@@ -138,20 +140,20 @@ class PyWinUSB(Interface):
         return boards
 
     def write(self, data):
-        """! @brief Write data on the OUT endpoint associated to the HID interface
-        """
+        """@brief Write data on the OUT endpoint associated to the HID interface"""
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
         data.extend([0] * (self.packet_size - len(data)))
-#         LOG.debug("snd>(%d) %s" % (len(data), ' '.join(['%02x' % i for i in data])))
         self.report.send([0] + data)
 
-    def read(self, timeout=20.0):
-        """! @brief Read data on the IN endpoint associated to the HID interface
-        """
-        with Timeout(timeout) as t_o:
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+        """@brief Read data on the IN endpoint associated to the HID interface"""
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.rcv_data):
                     break
-                sleep(0)
             else:
                 # Read operations should typically take ~1-2ms.
                 # If this exception occurs, then it could indicate
@@ -160,11 +162,17 @@ class PyWinUSB(Interface):
                 # 2. CMSIS-DAP firmware problem cause a dropped read or write
                 # 3. CMSIS-DAP is performing a long operation or is being
                 #    halted in a debugger
-                raise DAPAccessIntf.DeviceError("Read timed out")
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
+
+        # Trace when the higher layer actually gets a packet previously read.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            # Strip off trailing zero bytes to reduce clutter.
+            TRACE.debug("  USB RD < (%d) %s", len(self.rcv_data[0]),
+                    ' '.join([f'{i:02x}' for i in bytes(self.rcv_data[0]).rstrip(b'\x00')]))
+
         return self.rcv_data.popleft()
 
     def close(self):
-        """! @brief Close the interface
-        """
+        """@brief Close the interface"""
         LOG.debug("closing interface")
         self.device.close()

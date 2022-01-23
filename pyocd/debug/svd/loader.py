@@ -38,7 +38,7 @@ class SVDFile(object):
             from ...core.session import Session
             LOG.warning("unable to open builtin SVD file: %s", err, exc_info=Session.get_current().log_tracebacks)
             return None
-    
+
     def __init__(self, filename=None):
         self.filename = filename
         self.device = None
@@ -47,7 +47,7 @@ class SVDFile(object):
         self.device = SVDParser.for_xml_file(self.filename).get_device()
 
 class SVDLoader(threading.Thread):
-    """! @brief Thread to read an SVD file in the background."""
+    """@brief Thread to read an SVD file in the background."""
 
     def __init__(self, svdFile, completionCallback):
         super(SVDLoader, self).__init__(name='load-svd')

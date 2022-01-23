@@ -66,8 +66,8 @@ class TargetList(object):
                 node = 0
 
 class FreeRTOSThreadContext(DebugContext):
-    """! @brief Thread context for FreeRTOS."""
-    
+    """@brief Thread context for FreeRTOS."""
+
     # SP/PSP are handled specially, so it is not in these dicts.
 
     COMMON_REGISTER_OFFSETS = {
@@ -233,7 +233,7 @@ class FreeRTOSThreadContext(DebugContext):
         return reg_vals
 
 class FreeRTOSThread(TargetThread):
-    """! @brief A FreeRTOS task."""
+    """@brief A FreeRTOS task."""
 
     RUNNING = 1
     READY = 2
@@ -310,7 +310,7 @@ class FreeRTOSThread(TargetThread):
         return str(self)
 
 class FreeRTOSThreadProvider(ThreadProvider):
-    """! @brief Thread provider for FreeRTOS."""
+    """@brief Thread provider for FreeRTOS."""
 
     ## Required FreeRTOS symbols.
     FREERTOS_SYMBOLS = [
@@ -534,15 +534,15 @@ class FreeRTOSThreadProvider(ThreadProvider):
         return calculated_size
 
 class FreeRTOSPlugin(Plugin):
-    """! @brief Plugin class for FreeRTOS."""
-    
+    """@brief Plugin class for FreeRTOS."""
+
     def load(self):
         return FreeRTOSThreadProvider
-    
+
     @property
     def name(self):
         return "freertos"
-    
+
     @property
     def description(self):
         return "FreeRTOS"

@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
-# Copyright (c) Chris Reed
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 
 import logging
 import threading
-from time import sleep
 import errno
 import platform
 
@@ -32,10 +31,14 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ... import common
+from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 try:
+    import libusb_package
     import usb.core
     import usb.util
 except ImportError:
@@ -44,14 +47,12 @@ else:
     IS_AVAILABLE = True
 
 class PyUSBv2(Interface):
-    """!
-    @brief CMSIS-DAPv2 interface using pyUSB.
-    """
+    """@brief CMSIS-DAPv2 interface using pyUSB."""
 
     isAvailable = IS_AVAILABLE
 
     def __init__(self):
-        super(PyUSBv2, self).__init__()
+        super().__init__()
         self.ep_out = None
         self.ep_in = None
         self.ep_swo = None
@@ -69,16 +70,21 @@ class PyUSBv2(Interface):
         self.read_sem = threading.Semaphore(0)
         self.packet_size = 512
         self.is_swo_running = False
-    
+
     @property
     def has_swo_ep(self):
         return self.ep_swo is not None
+
+    @property
+    def is_bulk(self):
+        """@brief Whether the interface uses CMSIS-DAP v2 bulk endpoints."""
+        return True
 
     def open(self):
         assert self.closed is True
 
         # Get device handle
-        dev = usb.core.find(custom_match=HasCmsisDapv2Interface(self.serial_number))
+        dev = libusb_package.find(custom_match=HasCmsisDapv2Interface(self.serial_number))
         if dev is None:
             raise DAPAccessIntf.DeviceError("Device %s not found" %
                                             self.serial_number)
@@ -134,7 +140,7 @@ class PyUSBv2(Interface):
         self.thread = threading.Thread(target=self.rx_task, name=thread_name)
         self.thread.daemon = True
         self.thread.start()
-    
+
     def start_swo(self):
         self.swo_stop_event = threading.Event()
         thread_name = "SWO receive (%s)" % self.serial_number
@@ -142,7 +148,7 @@ class PyUSBv2(Interface):
         self.swo_thread.daemon = True
         self.swo_thread.start()
         self.is_swo_running = True
-    
+
     def stop_swo(self):
         self.swo_stop_event.set()
         self.swo_thread.join()
@@ -155,7 +161,12 @@ class PyUSBv2(Interface):
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    self.rcv_data.append(self.ep_in.read(self.packet_size, 10 * 1000))
+                    read_data = self.ep_in.read(self.packet_size, 10 * 1000)
+
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in read_data]))
+
+                    self.rcv_data.append(read_data)
         finally:
             # Set last element of rcv_data to None on exit
             self.rcv_data.append(None)
@@ -173,10 +184,10 @@ class PyUSBv2(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """! @brief Returns all the connected devices with a CMSIS-DAPv2 interface."""
+        """@brief Returns all the connected devices with a CMSIS-DAPv2 interface."""
         # find all cmsis-dap devices
         try:
-            all_devices = usb.core.find(find_all=True, custom_match=HasCmsisDapv2Interface())
+            all_devices = libusb_package.find(find_all=True, custom_match=HasCmsisDapv2Interface())
         except usb.core.NoBackendError:
             common.show_no_libusb_warning()
             return []
@@ -196,24 +207,36 @@ class PyUSBv2(Interface):
         return boards
 
     def write(self, data):
-        """! @brief Write data on the OUT endpoint."""
+        """@brief Write data on the OUT endpoint."""
 
         if self.ep_out:
             if (len(data) > 0) and (len(data) < self.packet_size) and (len(data) % self.ep_out.wMaxPacketSize == 0):
                 data.append(0)
 
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
         self.read_sem.release()
 
         self.ep_out.write(data)
-        #logging.debug('sent: %s', data)
 
-    def read(self):
-        """! @brief Read data on the IN endpoint."""
-        while len(self.rcv_data) == 0:
-            sleep(0)
+    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+        """@brief Read data on the IN endpoint."""
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(timeout, sleeptime=0.0001) as t_o:
+            while t_o.check():
+                if len(self.rcv_data) != 0:
+                    break
+            else:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
 
         if self.rcv_data[0] is None:
             raise DAPAccessIntf.DeviceError("Device %s read thread exited unexpectedly" % self.serial_number)
+
+        # Trace when the higher layer actually gets a packet previously read.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB RD < (%d) %s", len(self.rcv_data[0]), ' '.join([f'{i:02x}' for i in self.rcv_data[0]]))
+
         return self.rcv_data.pop(0)
 
     def read_swo(self):
@@ -223,11 +246,11 @@ class PyUSBv2(Interface):
             if self.swo_data[0] is None:
                 raise DAPAccessIntf.DeviceError("Device %s SWO thread exited unexpectedly" % self.serial_number)
             data += self.swo_data.pop(0)
-        
+
         return data
 
     def close(self):
-        """! @brief Close the USB interface."""
+        """@brief Close the USB interface."""
         assert self.closed is False
 
         if self.is_swo_running:
@@ -249,12 +272,12 @@ class PyUSBv2(Interface):
         self.thread = None
 
 def _match_cmsis_dap_v2_interface(interface):
-    """! @brief Returns true for a CMSIS-DAP v2 interface.
-    
+    """@brief Returns true for a CMSIS-DAP v2 interface.
+
     This match function performs several tests on the provided USB interface descriptor, to
     determine whether it is a CMSIS-DAPv2 interface. These requirements must be met by the
     interface:
-    
+
     1. Have an interface name string containing "CMSIS-DAP".
     2. bInterfaceClass must be 0xff.
     3. bInterfaceSubClass must be 0.
@@ -263,7 +286,7 @@ def _match_cmsis_dap_v2_interface(interface):
     """
     try:
         interface_name = usb.util.get_string(interface.device, interface.iInterface)
-        
+
         # This tells us whether the interface is CMSIS-DAP, but not whether it's v1 or v2.
         if (interface_name is None) or ("CMSIS-DAP" not in interface_name):
             return False
@@ -276,20 +299,20 @@ def _match_cmsis_dap_v2_interface(interface):
         # Must have either 2 or 3 endpoints.
         if interface.bNumEndpoints not in (2, 3):
             return False
-        
+
         # Endpoint 0 must be bulk out.
         if not check_ep(interface, 0, usb.util.ENDPOINT_OUT, usb.util.ENDPOINT_TYPE_BULK):
             return False
-        
+
         # Endpoint 1 must be bulk in.
         if not check_ep(interface, 1, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_BULK):
             return False
-        
+
         # Endpoint 2 is optional. If present it must be bulk in.
         if (interface.bNumEndpoints == 3) \
             and not check_ep(interface, 2, usb.util.ENDPOINT_IN, usb.util.ENDPOINT_TYPE_BULK):
             return False
-        
+
         # All checks passed, this is a CMSIS-DAPv2 interface!
         return True
 
@@ -301,19 +324,19 @@ def _match_cmsis_dap_v2_interface(interface):
         # IndexError can be raised if an endpoint is missing.
         return False
 
-class HasCmsisDapv2Interface(object):
-    """! @brief CMSIS-DAPv2 match class to be used with usb.core.find"""
+class HasCmsisDapv2Interface:
+    """@brief CMSIS-DAPv2 match class to be used with usb.core.find"""
 
     def __init__(self, serial=None):
-        """! @brief Create a new FindDap object with an optional serial number"""
+        """@brief Create a new FindDap object with an optional serial number"""
         self._serial = serial
 
     def __call__(self, dev):
-        """! @brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
+        """@brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
         # Check if the device class is a valid one for CMSIS-DAP.
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
-        
+
         try:
             config = dev.get_active_configuration()
             cmsis_dap_interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_v2_interface)

@@ -75,7 +75,7 @@ ComponentFactory = Callable[["MemoryInterface", "CoreSightComponentID", int], "C
 APFactory = Callable[["DebugPort", APAddressBase, Optional["CoreSightComponentID"]], AccessPort]
 
 class CmpInfo(NamedTuple):
-    """! @brief Combines a component and product name with a factory method."""
+    """@brief Combines a component and product name with a factory method."""
     name: str
     product: Optional[str]
     factory: Optional[Union[ComponentFactory, APFactory]]
@@ -120,19 +120,19 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0x927, 0x11, 0)      : CmpInfo('TPIU',            'SC300',    None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x932, 0x31, 0x0a31) : CmpInfo('MTB',             'M0+',      None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x950, 0x13, 0)      : CmpInfo('PTM',             'A9',       None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x961, 0x32, 0)      : CmpInfo('ETF',             None,       None                ), # Trace Memory Controller ETF    
-    (ARM_ID, CORESIGHT_CLASS, 0x962, 0x63, 0x0a63) : CmpInfo('STM',             None,       None                ), # System Trace Macrocell 
-    (ARM_ID, CORESIGHT_CLASS, 0x963, 0x63, 0x0a63) : CmpInfo('STM-500',         None,       None                ), # System Trace Macrocell 
+    (ARM_ID, CORESIGHT_CLASS, 0x961, 0x32, 0)      : CmpInfo('ETF',             None,       None                ), # Trace Memory Controller ETF
+    (ARM_ID, CORESIGHT_CLASS, 0x962, 0x63, 0x0a63) : CmpInfo('STM',             None,       None                ), # System Trace Macrocell
+    (ARM_ID, CORESIGHT_CLASS, 0x963, 0x63, 0x0a63) : CmpInfo('STM-500',         None,       None                ), # System Trace Macrocell
     (ARM_ID, CORESIGHT_CLASS, 0x975, 0x13, 0x4a13) : CmpInfo('ETM',             'M7',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a0, 0x16, 0)      : CmpInfo('PMU',             'A9',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a1, 0x11, 0)      : CmpInfo('TPIU',            'M4',       TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a3, 0x13, 0x0)    : CmpInfo('MTB',             'M0',       None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x9a4, 0x34, 0x0a34) : CmpInfo('GPR',             None,       GPR.factory         ), # Granular Power Requestor   
+    (ARM_ID, CORESIGHT_CLASS, 0x9a4, 0x34, 0x0a34) : CmpInfo('GPR',             None,       GPR.factory         ), # Granular Power Requestor
     (ARM_ID, CORESIGHT_CLASS, 0x9a5, 0x16, 0)      : CmpInfo('PMU',             'A5',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a6, 0x14, 0x1a14) : CmpInfo('CTI',             'M0+',      None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a7, 0x16, 0)      : CmpInfo('PMU',             'A7',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a9, 0x11, 0)      : CmpInfo('TPIU',            'M7',       TPIU.factory        ),
-    (ARM_ID, CORESIGHT_CLASS, 0x9ba, 0x55, 0x0a55) : CmpInfo('PMC-100',         None,       None                ), # Programmable MBIST Controller  
+    (ARM_ID, CORESIGHT_CLASS, 0x9ba, 0x55, 0x0a55) : CmpInfo('PMC-100',         None,       None                ), # Programmable MBIST Controller
     (ARM_ID, CORESIGHT_CLASS, 0x9db, 0x13, 0x4a13) : CmpInfo('ETM',             'A32',      None                ), # ETMv4
     (ARM_ID, CORESIGHT_CLASS, 0x9db, 0x14, 0x1a14) : CmpInfo('CTI',             'A32',      None                ), # CTIv2
     (ARM_ID, CORESIGHT_CLASS, 0x9db, 0x16, 0x2a16) : CmpInfo('PMU',             'A32',      None                ), # PMUv3
@@ -213,7 +213,7 @@ COMPONENT_MAP = {
     (ARM_ID, GENERIC_CLASS,   0x00c, 0x00, 0)      : CmpInfo('SCS',             'v7-M',     CortexM.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x00d, 0x00, 0)      : CmpInfo('SCS',             'SC000',    CortexM.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x00e, 0x00, 0)      : CmpInfo('FPB',             'v7-M',     FPB.factory         ),
-    (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',           None,       None                ), # Timestamp Generator    
+    (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',           None,       None                ), # Timestamp Generator
     (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',          None,       None                ),
     }
 

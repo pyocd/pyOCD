@@ -24,6 +24,7 @@ import logging
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.core.memory_map import MemoryType
+from pyocd.commands.execution_context import CommandExecutionContext
 
 from test_util import (
     Test,
@@ -70,19 +71,51 @@ def user_script_test(board_id):
         boot_region = memory_map.get_boot_memory()
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         binary_file = get_test_binary_path(board.test_binary)
-        
+
         test_pass_count = 0
         test_count = 0
         result = UserScriptTestResult()
 
+        # TEST basic functionality
+        print("\n------ Testing delegates ------")
+
+        # TODO verify user script delegates were called
         target.reset_and_halt()
         target.resume()
         target.halt()
         target.step()
-        
+
         test_count += 1
         test_pass_count += 1
-        
+        print("TEST PASSED")
+
+        # TEST user defined commands
+        print("\n------ Testing user defined commands ------")
+        context = CommandExecutionContext()
+        context.attach_session(session)
+
+        def test_command(cmd):
+            try:
+                print("\nTEST: %s" % cmd)
+                context.process_command_line(cmd)
+            except:
+                print("TEST FAILED")
+                traceback.print_exc(file=sys.stdout)
+                return False
+            else:
+                print("TEST PASSED")
+                return True
+
+        # Verify command with float, int, str args.
+        if test_command("testcmd 3.14 0xbeef foobar"):
+            test_pass_count += 1
+        test_count += 1
+
+        # Verify varargs: all should be strings in the cmd's args
+        if test_command("anothertestcmd a b 1 2 fee fie foe"):
+            test_pass_count += 1
+        test_count += 1
+
         print("\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))
         if test_pass_count == test_count:

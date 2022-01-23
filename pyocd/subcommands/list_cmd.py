@@ -28,11 +28,11 @@ from ..utility.cmdline import convert_session_options
 LOG = logging.getLogger(__name__)
 
 class ListSubcommand(SubcommandBase):
-    """! @brief `pyocd list` subcommand."""
-    
+    """@brief `pyocd list` subcommand."""
+
     NAMES = ['list']
     HELP = "List information about probes, targets, or boards."
-    
+
     ## @brief Map to convert plugin groups to user friendly names.
     PLUGIN_GROUP_NAMES = {
         'pyocd.probe': "Debug Probe",
@@ -41,9 +41,9 @@ class ListSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         list_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
-        
+
         list_output = list_parser.add_argument_group("list output")
         list_output.add_argument('-p', '--probes', action='store_true',
             help="List available probes.")
@@ -53,7 +53,7 @@ class ListSubcommand(SubcommandBase):
             help="List all known boards.")
         list_output.add_argument('--plugins', action='store_true',
             help="List available plugins.")
-            
+
         list_options = list_parser.add_argument_group('list options')
         list_options.add_argument('-n', '--name',
             help="Restrict listing to items matching the given name substring. Applies to targets and boards.")
@@ -63,23 +63,23 @@ class ListSubcommand(SubcommandBase):
             help="Restrict listing to targets from the specified source. Applies to targets.")
         list_options.add_argument('-H', '--no-header', action='store_true',
             help="Don't print a table header.")
-        
+
         return [cls.CommonOptions.COMMON, list_parser]
-    
+
     def invoke(self) -> int:
-        """! @brief Handle 'list' subcommand."""
+        """@brief Handle 'list' subcommand."""
         all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.plugins)
-        
+
         # Default to listing probes.
         if not any(all_outputs):
             self._args.probes = True
-        
+
         # Check for more than one output option being selected.
         if sum(int(x) for x in all_outputs) > 1:
             LOG.error("Only one of the output options '--probes', '--targets', '--boards', "
                       "or '--plugins' may be selected at a time.")
             return 1
-        
+
         # Create a session with no device so we load any config.
         session = Session(None,
                             project_dir=self._args.project_dir,
@@ -88,7 +88,7 @@ class ListSubcommand(SubcommandBase):
                             pack=self._args.pack,
                             **convert_session_options(self._args.options)
                             )
-        
+
         if self._args.probes:
             ConnectHelper.list_connected_probes()
         elif self._args.targets:

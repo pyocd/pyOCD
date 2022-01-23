@@ -15,9 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import colorama
+import io
 import logging
 import os
 import traceback
+from typing import (IO, Optional, Sequence, TYPE_CHECKING, Union)
 
 from ..core.helpers import ConnectHelper
 from ..core import (exceptions, session)
@@ -26,45 +29,70 @@ from ..utility.cmdline import convert_session_options
 from ..commands.repl import (PyocdRepl, ToolExitException)
 from ..commands.execution_context import CommandExecutionContext
 
+if TYPE_CHECKING:
+    import argparse
+
 LOG = logging.getLogger(__name__)
 
 ## Default SWD clock in Hz.
 DEFAULT_CLOCK_FREQ_HZ = 1000000
 
-class PyOCDCommander(object):
-    """! @brief Manages the commander interface.
-    
+class PyOCDCommander:
+    """@brief Manages the commander interface.
+
     Responsible for connecting the execution context, REPL, and commands, and handles connection.
-    
+
     Exit codes:
     - 0 = no errors
     - 1 = command error
     - 2 = transfer error
     - 3 = failed to create session (probe might not exist)
     - 4 = failed to open probe
-    
+
     @todo Replace use of args from argparse with something cleaner.
     """
-    
-    def __init__(self, args, cmds=None):
-        """! @brief Constructor."""
+
+    CommandsListType = Sequence[Union[str, IO[str]]]
+
+    ## Commands that can run without requiring a connection.
+    _CONNECTIONLESS_COMMANDS = ('list', 'help', 'exit')
+
+    def __init__(
+                self,
+                args: "argparse.Namespace",
+                cmds: Optional[CommandsListType] = None
+            ) -> None:
+        """@brief Constructor."""
         # Read command-line arguments.
         self.args = args
-        self.cmds = cmds
-        
+        self.cmds: PyOCDCommander.CommandsListType = cmds or []
+
         self.context = CommandExecutionContext(no_init=self.args.no_init)
         self.context.command_set.add_command_group('commander')
-        self.session = None
-        self.exit_code = 0
-        
-    def run(self):
-        """! @brief Main entry point."""
+        self.session: Optional[session.Session] = None
+        self.exit_code: int = 0
+
+    def run(self) -> int:
+        """@brief Main entry point."""
         try:
-            # If no commands, enter interactive mode.
-            if self.cmds is None:
-                if not self.connect():
-                    return self.exit_code
-                
+            # If no commands, enter interactive mode. If there are commands, use the --interactive arg.
+            enter_interactive = (not self.cmds) or self.args.interactive
+
+            # Connect unless we are only running commands that don't require a connection.
+            do_connect = enter_interactive or self._commands_require_connect()
+            if do_connect and not self.connect():
+                return self.exit_code
+
+            # Run the list of commands we were given.
+            if self.cmds:
+                self.run_commands()
+
+            # Enter the interactive REPL.
+            if enter_interactive:
+                assert self.session
+                assert self.session.board
+                assert self.context.target
+
                 # Print connected message, unless not initing.
                 if not self.args.no_init:
                     try:
@@ -76,25 +104,20 @@ class PyOCDCommander(object):
                                 status = self.session.target.get_state().name.capitalize()
                             except (AttributeError, KeyError):
                                 status = "<no core>"
-
-                        # Say what we're connected to.
-                        print("Connected to %s [%s]: %s" % (self.context.target.part_number,
-                            status, self.session.board.unique_id))
                     except exceptions.TransferFaultError:
-                        pass
+                        status = "<error>"
                 else:
                     # Say what we're connected to, but without status.
-                    print("Connected to %s [no init mode]: %s" % (self.context.target.part_number,
-                        self.session.board.unique_id))
+                    status = "no init mode"
+
+                # Say what we're connected to.
+                print(colorama.Fore.GREEN + f"Connected to {self.session.target.part_number} " +
+                        colorama.Fore.CYAN + f"[{status}]" +
+                        colorama.Style.RESET_ALL + f": {self.session.board.unique_id}")
 
                 # Run the REPL interface.
                 console = PyocdRepl(self.context)
                 console.run()
-                
-            # Otherwise, run the list of commands we were given and exit. We only connect when
-            # there is a command that requires a connection (most do).
-            else:
-                self.run_commands()
 
         except ToolExitException:
             self.exit_code = 0
@@ -113,41 +136,49 @@ class PyOCDCommander(object):
                 self.session.close()
 
         return self.exit_code
-    
-    def run_commands(self):
-        """! @brief Run commands specified on the command line."""
-        did_connect = False
 
+    def _commands_require_connect(self) -> bool:
+        """@brief Determine whether a connection is needed to run commands."""
         for args in self.cmds:
-            # Extract the command name.
-            cmd = args[0].lower()
-            
-            # Handle certain commands without connecting.
-            needs_connect = (cmd not in ('list', 'help', 'exit'))
+            # Always assume connection required for command files.
+            if isinstance(args, io.IOBase):
+                return True
 
-            # For others, connect first.
-            if needs_connect and not did_connect:
-                if not self.connect():
-                    return self.exit_code
-                did_connect = True
-        
-            # Merge commands args back to one string.
-            # FIXME this is overly complicated
-            cmdline = " ".join('"{}"'.format(a) for a in args)
-        
-            # Invoke action handler.
-            result = self.context.process_command_line(cmdline)
-            if result is not None:
-                self.exit_code = result
-                break
+            # Check for connectionless commands.
+            else:
+                assert isinstance(args, str)
 
-    def connect(self):
-        """! @brief Connect to the probe."""
+                if not ((len(args) == 1) and (args[0].lower() in self._CONNECTIONLESS_COMMANDS)):
+                    return True
+
+        # No command was found that needs a connection.
+        return False
+
+    def run_commands(self) -> None:
+        """@brief Run commands specified on the command line."""
+        for args in self.cmds:
+            # Open file containing commands.
+            if isinstance(args, io.IOBase) and not isinstance(args, str):
+                self.context.process_command_file(args)
+
+            # List of command and argument strings.
+            else:
+                assert isinstance(args, str)
+
+                # Skip empty args lists.
+                if len(args) == 0:
+                    continue
+
+                # Run the command line.
+                self.context.process_command_line(args)
+
+    def connect(self) -> bool:
+        """@brief Connect to the probe."""
         if (self.args.frequency is not None) and (self.args.frequency != DEFAULT_CLOCK_FREQ_HZ):
             self.context.writei("Setting SWD clock to %d kHz", self.args.frequency // 1000)
 
         options = convert_session_options(self.args.options)
-        
+
         # Set connect mode. The --connect option takes precedence when set. Then, if --halt is set
         # then the connect mode is halt. If connect_mode is set through -O then use that.
         # Otherwise default to attach.
@@ -159,7 +190,7 @@ class PyOCDCommander(object):
             connect_mode = None
         else:
             connect_mode = 'attach'
-        
+
         # Connect to board.
         probe = ConnectHelper.choose_probe(
                         blocking=(not self.args.no_wait),
@@ -168,10 +199,10 @@ class PyOCDCommander(object):
         if probe is None:
             self.exit_code = 3
             return False
-        
+
         # Create a proxy so the probe can be shared between the session and a possible probe server.
         probe_proxy = SharedDebugProbeProxy(probe)
-        
+
         # Create the session.
         self.session = session.Session(probe_proxy,
                         project_dir=self.args.project_dir,
@@ -188,24 +219,24 @@ class PyOCDCommander(object):
                             resume_on_disconnect=False,
                             )
                         )
-        
+
         if not self._post_connect():
             self.exit_code = 4
             return False
-        
+
         result = self.context.attach_session(self.session)
         if not result:
             self.exit_code = 1
         return result
 
-    def _post_connect(self):
-        """! @brief Finish the connect process.
-        
+    def _post_connect(self) -> bool:
+        """@brief Finish the connect process.
+
         The session is opened. The `no_init` parameter passed to the constructor determines whether the
         board and target are initialized.
-        
+
         If an ELF file was provided on the command line, it is set on the target.
-        
+
         @param self This object.
         @param session A @ref pyocd.core.session.Session "Session" instance.
         @retval True Session attached and context state inited successfully.
@@ -213,7 +244,7 @@ class PyOCDCommander(object):
         """
         assert self.session is not None
         assert not self.session.is_open
-        
+
         # Open the session.
         try:
             self.session.open(init_board=not self.args.no_init)
@@ -237,6 +268,6 @@ class PyOCDCommander(object):
         if not self.args.no_init and self.session.target.is_locked():
             self.context.write("Warning: Target is locked, limited operations available. Use 'unlock' "
                                 "command to mass erase and unlock, then execute 'reinit'.")
-        
+
         return True
 

@@ -21,6 +21,7 @@ import traceback
 import logging
 from types import SimpleNamespace
 import os
+import tempfile
 
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.commands.commander import PyOCDCommander
@@ -58,24 +59,29 @@ def commander_test(board_id):
     test_count = 0
     failed_commands = []
     result = CommanderTestResult()
-    
+
     COMMANDS_TO_TEST = [
             # general commands
-            ["continue"],
-            ["status"],
-            ["halt"],
-            ["status"],
+            "continue",
+            "status",
+            "halt",
+            "status",
 
             # semicolon separated
-            ["status", ";", "halt", ";", "continue", ";", "halt"],
+            "status ; halt ; continue",
+            "halt;continue",
+            "halt; continue",
+
+            # Python and shell
+            "$ 2+2",
+            "!echo 'hi mom'",
+            " $ target.vendor",
 
             # commander command group - these are not tested by commands_test.py.
-            ["list"],
-            ["exit"], # Must be last command!
+            "list",
+            "exit", # Must be last command!
             ]
 
-    print("\n------ Testing commander ------\n")
-    
     # Set up commander args.
     args = SimpleNamespace()
     args.no_init = False
@@ -91,7 +97,13 @@ def commander_test(board_id):
     args.unique_id = board_id
     args.target_override = None
     args.elf = GDB_TEST_ELF
-    
+    args.interactive = False
+
+    #
+    # Test basic functionality.
+    #
+    print("\n------ Testing basic functionality ------\n")
+
     test_count += 1
     try:
         cmdr = PyOCDCommander(args, COMMANDS_TO_TEST)
@@ -110,6 +122,49 @@ def commander_test(board_id):
     except Exception:
         print("TEST FAILED")
         traceback.print_exc()
+
+    #
+    # Test running command files.
+    #
+    print("\n------ Testing command files ------\n")
+
+    with tempfile.NamedTemporaryFile('w+') as cmdfile:
+        cmdfile.write("""# here is a comment
+halt
+reg
+continue
+
+# semicolons
+halt ; status
+
+# Python and system
+$ {'a': 1, 'b': 2}
+!echo "hello, world!"
+$target.part_number
+!echo first ; echo second
+""")
+
+        # Jump back to the start of the file.
+        cmdfile.seek(0, 0)
+
+        test_count += 1
+        try:
+            cmdr = PyOCDCommander(args, [cmdfile.file])
+            cmdr.run()
+            test_pass_count += 1
+            print("TEST PASSED")
+
+            test_count += 1
+            print("Testing exit code")
+            print("Exit code:", cmdr.exit_code)
+            if cmdr.exit_code == 0:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED")
+        except Exception:
+            print("TEST FAILED")
+            traceback.print_exc()
 
     print("\n\nTest Summary:")
     print("Pass count %i of %i tests" % (test_pass_count, test_count))

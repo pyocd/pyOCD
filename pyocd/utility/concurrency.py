@@ -15,14 +15,15 @@
 # limitations under the License.
 
 from functools import wraps
+from typing import (Any, Callable)
 
-def locked(func):
-    """! @brief Decorator to automatically lock a method of a class.
-    
+def locked(func: Callable) -> Callable:
+    """@brief Decorator to automatically lock a method of a class.
+
     The class is required to have `lock()` and `unlock()` methods.
     """
     @wraps(func)
-    def _locking(self, *args, **kwargs):
+    def _locking(self, *args: Any, **kwargs: Any) -> Any:
         try:
             self.lock()
             return func(self, *args, **kwargs)

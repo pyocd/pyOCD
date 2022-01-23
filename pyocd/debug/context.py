@@ -20,31 +20,31 @@ from ..coresight.component import CoreSightCoreComponent
 from ..coresight.cortex_m_core_registers import CortexMCoreRegisterInfo
 
 class DebugContext(MemoryInterface):
-    """! @brief Viewport for inspecting the system being debugged.
-    
+    """@brief Viewport for inspecting the system being debugged.
+
     A debug context is used to access target registers and memory. It enables these accesses to be
     redirected to different locations. For instance, if you want to read registers from a call frame
     that is not the topmost, then a context would redirect those reads to locations on the stack.
-    
+
     A context always has both a parent context and a specific core associated with it, neither of
     which can be changed after the context is created. The parent context is passed into the
     constructor. For the top-level debug context, the parent *is* the core. For other contexts that
     have a context as their parent, the core is set to the topmost parent's core.
-    
+
     The DebugContext class itself is meant to be used as a base class. It's primary purpose is to
     provide the default implementation of methods to forward calls up to the parent and eventually
     to the core.
     """
-    
+
     def __init__(self, parent):
-        """! @brief Debug context constructor.
-        
+        """@brief Debug context constructor.
+
         @param self
         @param parent The parent of this context. Can be either a core (CoreSightCoreComponent) or
             another DebugContext instance.
         """
         self._parent = parent
-        
+
         if isinstance(self._parent, CoreSightCoreComponent):
             self._core = parent
         else:
@@ -57,7 +57,7 @@ class DebugContext(MemoryInterface):
     @property
     def core(self):
         return self._core
-    
+
     @property
     def session(self):
         return self.core.session
@@ -81,13 +81,13 @@ class DebugContext(MemoryInterface):
         return self._parent.read_memory_block32(addr, size)
 
     def read_core_register(self, reg):
-        """! @brief Read one core register.
-        
+        """@brief Read one core register.
+
         @param self The debug context.
         @param reg Either the register's name in lowercase or an integer register index.
         @return The current value of the register. Most core registers return an integer value,
             while the floating point single and double precision register return a float value.
-        
+
         @exception KeyError Invalid or unsupported register was requested.
         @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
             read the register.
@@ -97,13 +97,13 @@ class DebugContext(MemoryInterface):
         return reg_info.from_raw(regValue)
 
     def read_core_register_raw(self, reg):
-        """! @brief Read a core register without type conversion.
-        
+        """@brief Read a core register without type conversion.
+
         @param self The debug context.
         @param reg Either the register's name in lowercase or an integer register index.
         @return The current integer value of the register. Even float register values are returned
             as integers (thus the "raw").
-        
+
         @exception KeyError Invalid or unsupported register was requested.
         @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
             read the register.
@@ -112,14 +112,14 @@ class DebugContext(MemoryInterface):
         return vals[0]
 
     def read_core_registers_raw(self, reg_list):
-        """! @brief Read one or more core registers.
-        
+        """@brief Read one or more core registers.
+
         @param self The debug context.
         @param reg_list List of registers to read. Each element in the list can be either the
             register's name in lowercase or the integer register index.
         @return List of integer values of the registers requested to be read. The result list will
             be the same length as _reg_list_.
-        
+
         @exception KeyError Invalid or unsupported register was requested.
         @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
             read one or more registers.
@@ -127,12 +127,12 @@ class DebugContext(MemoryInterface):
         return self._parent.read_core_registers_raw(reg_list)
 
     def write_core_register(self, reg, data):
-        """! @brief Write a CPU register.
-        
+        """@brief Write a CPU register.
+
         @param self The debug context.
         @param reg The name of the register to write.
         @param data New value of the register. Float registers accept float values.
-        
+
         @exception KeyError Invalid or unsupported register was requested.
         @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
             write the register.
@@ -141,12 +141,12 @@ class DebugContext(MemoryInterface):
         self.write_core_register_raw(reg_info.index, reg_info.to_raw(data))
 
     def write_core_register_raw(self, reg, data):
-        """! @brief Write a CPU register without type conversion.
-        
+        """@brief Write a CPU register without type conversion.
+
         @param self The debug context.
         @param reg The name of the register to write.
         @param data New value of the register. Must be an integer, even for float registers.
-        
+
         @exception KeyError Invalid or unsupported register was requested.
         @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
             write the register.
@@ -154,14 +154,14 @@ class DebugContext(MemoryInterface):
         self.write_core_registers_raw([reg], [data])
 
     def write_core_registers_raw(self, reg_list, data_list):
-        """! @brief Write one or more core registers.
+        """@brief Write one or more core registers.
 
         @param self The debug context.
         @param reg_list List of registers to read. Each element in the list can be either the
             register's name in lowercase or the integer register index.
         @param data_list List of values for the registers in the corresponding positions of
             _reg_list_. All values must be integers, even for float registers.
-        
+
         @exception KeyError Invalid or unsupported register was requested.
         @exception @ref pyocd.core.exceptions.CoreRegisterAccessError "CoreRegisterAccessError" Failed to
             write one or more registers.

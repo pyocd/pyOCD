@@ -23,21 +23,21 @@ from .metrics import CacheMetrics
 LOG = logging.getLogger(__name__)
 
 class RegisterCache(object):
-    """! @brief Cache of a core's register values.
-    
+    """@brief Cache of a core's register values.
+
     The only interesting part of this cache is how it handles the special registers: CONTROL,
     FAULTMASK, BASEPRI, PRIMASK, and CFBP. The values of the first four registers are read and written
     all at once as the CFBP register through the hardware DCRSR register. On reads of any of these
     registers, or the combined CFBP, the cache will ask the underlying context to read CFBP. It will
     then update the cache entries for all five registers. Writes to any of these registers just
     invalidate all five.
-    
+
     Same logic applies for XPSR submasks.
     """
 
     CFBP_INDEX = index_for_reg('cfbp')
     XPSR_INDEX = index_for_reg('xpsr')
-    
+
     CFBP_REGS = [index_for_reg(name) for name in [
                 'cfbp',
                 'control',
@@ -73,7 +73,7 @@ class RegisterCache(object):
             LOG.debug("no accesses")
 
     def _check_cache(self):
-        """! @brief Invalidates the cache if needed and returns whether the core is running."""
+        """@brief Invalidates the cache if needed and returns whether the core is running."""
         if self._core.is_running():
             LOG.debug("core is running; invalidating cache")
             self._reset_cache()
@@ -116,7 +116,7 @@ class RegisterCache(object):
                 read_list.append(self.XPSR_INDEX)
             xpsr_index = read_list.index(self.XPSR_INDEX)
         self._metrics.misses += len(read_list)
-        
+
         # Read registers not in the cache from the target.
         if read_list:
             try:

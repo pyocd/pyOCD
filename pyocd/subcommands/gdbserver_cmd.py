@@ -37,11 +37,11 @@ from ..utility.notification import Notification
 LOG = logging.getLogger(__name__)
 
 class GdbserverSubcommand(SubcommandBase):
-    """! @brief `pyocd gdbserver` subcommand."""
-    
+    """@brief `pyocd gdbserver` subcommand."""
+
     NAMES = ['gdbserver', 'gdb']
     HELP = "Run the gdb remote server(s)."
-    
+
     ## @brief Valid erase mode options.
     ERASE_OPTIONS = [
         'auto',
@@ -51,7 +51,7 @@ class GdbserverSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         gdbserver_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         gdbserver_options = gdbserver_parser.add_argument_group("gdbserver options")
@@ -89,16 +89,16 @@ class GdbserverSubcommand(SubcommandBase):
             help="Allow single stepping to step into interrupts.")
         gdbserver_options.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+',
             help="Run command (OpenOCD compatibility).")
-        
+
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, gdbserver_parser]
-    
+
     def __init__(self, args: argparse.Namespace):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         super().__init__(args)
         self._echo_msg = None
-        
+
     def _process_commands(self, commands: Optional[List[str]]):
-        """! @brief Handle OpenOCD commands for compatibility."""
+        """@brief Handle OpenOCD commands for compatibility."""
         if commands is None:
             return
         for cmd_list in commands:
@@ -123,13 +123,13 @@ class GdbserverSubcommand(SubcommandBase):
                 pass
 
     def _gdbserver_listening_cb(self, note: Notification):
-        """! @brief Callback invoked when the gdbserver starts listening on its port."""
+        """@brief Callback invoked when the gdbserver starts listening on its port."""
         if self._echo_msg is not None:
             print(self._echo_msg, file=sys.stderr)
             sys.stderr.flush()
-    
+
     def invoke(self) -> int:
-        """! @brief Handle 'gdbserver' subcommand."""
+        """@brief Handle 'gdbserver' subcommand."""
         self._process_commands(self._args.commands)
 
         probe_server = None
@@ -148,7 +148,7 @@ class GdbserverSubcommand(SubcommandBase):
                 'serve_local_only' : self._args.serve_local_only,
                 'vector_catch' : self._args.vector_catch,
                 })
-            
+
             # Split list of cores to serve.
             if self._args.core is not None:
                 try:
@@ -158,7 +158,7 @@ class GdbserverSubcommand(SubcommandBase):
                     return 1
             else:
                 core_list = None
-            
+
             # Get the probe.
             probe = ConnectHelper.choose_probe(
                         blocking=(not self._args.no_wait),
@@ -168,10 +168,10 @@ class GdbserverSubcommand(SubcommandBase):
             if probe is None:
                 LOG.error("No probe selected.")
                 return 1
-            
+
             # Create a proxy so the probe can be shared between the session and probe server.
             probe_proxy = SharedDebugProbeProxy(probe)
-            
+
             # Create the session.
             session = Session(probe_proxy,
                 project_dir=self._args.project_dir,
@@ -198,21 +198,21 @@ class GdbserverSubcommand(SubcommandBase):
                         "s" if len(bad_cores) > 1 else "",
                         ", ".join(str(x) for x in bad_cores))
                     return 1
-                
+
                 # Set ELF if provided.
                 if self._args.elf:
                     session.board.target.elf = os.path.expanduser(self._args.elf)
-                    
+
                 # Run the probe server is requested.
                 if self._args.enable_probe_server:
                     probe_server = DebugProbeServer(session, session.probe,
                             self._args.probe_server_port, self._args.serve_local_only)
                     session.probeserver = probe_server
                     probe_server.start()
-                    
+
                 # Start up the gdbservers.
                 for core_number, core in session.board.target.cores.items():
-                    # Don't create a server for CPU-less memory Access Port. 
+                    # Don't create a server for CPU-less memory Access Port.
                     if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                         continue
                     # Don't create a server if this core is not listed by the user.

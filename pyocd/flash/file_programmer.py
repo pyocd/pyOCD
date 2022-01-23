@@ -35,10 +35,9 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 def ranges(i: List[int]) -> List[Tuple[int, int]]:
-    """!
-    Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
+    """Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
     Yields 2-tuples of the start and end address for each contiguous range.
-    
+
     For instance, the input [0, 1, 2, 3, 32, 33, 34, 35] will yield the following 2-tuples:
     (0, 3) and (32, 35).
     """
@@ -47,13 +46,13 @@ def ranges(i: List[int]) -> List[Tuple[int, int]]:
         yield b[0][1], b[-1][1]
 
 class FileProgrammer(object):
-    """! @brief Class to manage programming a file in any supported format with many options.
-    
+    """@brief Class to manage programming a file in any supported format with many options.
+
     Most specifically, this class implements the behaviour provided by the command-line flash
     programming tool. The code in this class simply extracts data from the given file, potentially
     respecting format-specific options such as the base address for binary files. Then the heavy
     lifting of flash programming is handled by FlashLoader, and beneath that, FlashBuilder.
-    
+
     Support file formats are:
     - Binary (.bin)
     - Intel Hex (.hex)
@@ -67,8 +66,8 @@ class FileProgrammer(object):
             trust_crc: Optional[bool] = None,
             keep_unwritten: Optional[bool] = None
         ):
-        """! @brief Constructor.
-        
+        """@brief Constructor.
+
         @param self
         @param session The session object.
         @param progress A progress report handler as a callable that takes a percentage completed.
@@ -94,64 +93,64 @@ class FileProgrammer(object):
         self._keep_unwritten = keep_unwritten
         self._progress = progress
         self._loader = None
-        
+
         self._format_handlers: Dict[str, Callable[..., None]] = {
             'axf': self._program_elf,
             'bin': self._program_bin,
             'elf': self._program_elf,
             'hex': self._program_hex,
             }
-    
+
     def program(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any):
-        """! @brief Program a file into flash.
-        
+        """@brief Program a file into flash.
+
         @param self
         @param file_or_path Either a string that is a path to a file, or a file-like object.
         @param file_format Optional file format name, one of "bin", "hex", "elf", "axf". If not provided,
             the file's extension will be used. If a file object is passed for _file_or_path_ then
             this parameter must be used to set the format.
         @param kwargs Optional keyword arguments for format-specific parameters.
-        
+
         The only current format-specific keyword parameters are for the binary format:
         - `base_address`: Memory address at which to program the binary data. If not set, the base
             of the boot memory will be used.
         - `skip`: Number of bytes to skip at the start of the binary file. Does not affect the
             base address.
-        
+
         @exception FileNotFoundError Provided file_or_path string does not reference a file.
         @exception ValueError Invalid argument value, for instance providing a file object but
             not setting file_format.
         """
         is_path = isinstance(file_or_path, str)
-        
+
         # Check for valid path first.
-        if is_path and not os.path.isfile(file_or_path): # type: ignore (type checker doesn't use is_path)
+        if is_path and not os.path.isfile(file_or_path): # type: ignore # (type checker doesn't use is_path)
             raise FileNotFoundError(errno.ENOENT, "No such file: '{}'".format(file_or_path))
-        
+
         # If no format provided, use the file's extension.
         if not file_format:
             if is_path:
                 # Extract the extension from the path.
-                file_format = os.path.splitext(file_or_path)[1][1:] # type: ignore (type checker doesn't use is_path)
-                
+                file_format = os.path.splitext(file_or_path)[1][1:] # type: ignore # (type checker doesn't use is_path)
+
                 # Explicitly check for no extension.
                 if file_format == '':
                     raise ValueError("file path '{}' does not have an extension and "
                                         "no format is set".format(file_or_path))
             else:
                 raise ValueError("file object provided but no format is set")
-        
+
         # Check the format is one we understand.
         if file_format is None or file_format not in self._format_handlers:
             raise ValueError("unknown file format '%s'" % file_format)
-            
+
         self._loader = FlashLoader(self._session,
                                     progress=self._progress,
                                     chip_erase=self._chip_erase,
                                     smart_flash=self._smart_flash,
                                     trust_crc=self._trust_crc,
                                     keep_unwritten=self._keep_unwritten)
-        
+
         # file_obj = None
         # Open the file if a path was provided.
         if is_path:
@@ -174,7 +173,7 @@ class FileProgrammer(object):
                 file_obj.close()
 
     def _program_bin(self, file_obj: IO[bytes], **kwargs: Any) -> None:
-        """! @brief Binary file format loader"""
+        """@brief Binary file format loader"""
         assert self._loader
 
         # If no base address is specified use the start of the boot memory.
@@ -185,17 +184,17 @@ class FileProgrammer(object):
                 raise exceptions.TargetSupportError("No boot memory is defined for this device")
             address = boot_memory.start
         assert isinstance(address, int)
-        
+
         skip_offset = kwargs.get('skip', 0)
         if not isinstance(skip_offset, int):
             raise TypeError("skip argument must be an integer")
         file_obj.seek(skip_offset, os.SEEK_SET)
         data = list(bytearray(file_obj.read()))
-        
+
         self._loader.add_data(address, data)
 
     def _program_hex(self, file_obj: IO[bytes], **kwargs: Any) -> None:
-        """! Intel hex file format loader"""
+        """Intel hex file format loader"""
         assert self._loader
 
         hexfile = IntelHex(file_obj)
@@ -208,7 +207,7 @@ class FileProgrammer(object):
             data = list(hexfile.tobinarray(start=start, size=size))
             # Ignore invalid addresses for HEX files only
             # Binary files (obviously) don't contain addresses
-            # For ELF files, any metadata that's not part of the application code 
+            # For ELF files, any metadata that's not part of the application code
             # will be held in a section that doesn't have the SHF_WRITE flag set
             try:
                 self._loader.add_data(start, data)
@@ -223,7 +222,7 @@ class FileProgrammer(object):
             addr = segment['p_paddr']
             if segment.header.p_type == 'PT_LOAD' and segment.header.p_filesz != 0:
                 data = bytearray(segment.data())
-                LOG.debug("Writing segment LMA:0x%08x, VMA:0x%08x, size %d", addr, 
+                LOG.debug("Writing segment LMA:0x%08x, VMA:0x%08x, size %d", addr,
                           segment['p_vaddr'], segment.header.p_filesz)
                 try:
                     self._loader.add_data(addr, data)

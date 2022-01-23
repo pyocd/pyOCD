@@ -173,14 +173,14 @@ class FaultValue(ValueBase):
 
     def display(self, args):
         showAll = ('-a' in args)
-        
+
         CFSR = 0xe000ed28
         HFSR = 0xe000ed2c
         DFSR = 0xe000ed30
         MMFAR = 0xe000ed34
         BFAR = 0xe000ed38
 #         AFSR = 0xe000ed3c
-        
+
         MMFSR_fields = [
                 ('IACCVIOL', 0),
                 ('DACCVIOL', 1),
@@ -218,7 +218,7 @@ class FaultValue(ValueBase):
                 ('VCATCH', 3),
                 ('EXTERNAL', 4),
             ]
-        
+
         def print_fields(regname, value, fields, showAll):
             if value == 0 and not showAll:
                 return
@@ -227,7 +227,7 @@ class FaultValue(ValueBase):
                 bit = (value >> bitpos) & 1
                 if showAll or bit != 0:
                     self.context.writei("    %s = 0x%x", name, bit)
-        
+
         if self.context.selected_core is None:
             self.context.write("No core is selected")
             return
@@ -240,7 +240,7 @@ class FaultValue(ValueBase):
         dfsr = self.context.selected_core.read32(DFSR)
         mmfar = self.context.selected_core.read32(MMFAR)
         bfar = self.context.selected_core.read32(BFAR)
-        
+
         print_fields('MMFSR', mmfsr, MMFSR_fields, showAll)
         if showAll or mmfsr & (1 << 7): # MMFARVALID
             self.context.writei("  MMFAR = 0x%08x", mmfar)
@@ -270,7 +270,7 @@ class NresetValue(ValueBase):
             raise exceptions.CommandError("missing reset state")
         state = int(args[0], base=0)
         self.context.writef("nRESET = {}", state)
-        
+
         # Use the probe to assert reset if the DP doesn't exist for some reason, otherwise
         # use the DP so reset notifications are sent.
         if self.context.target.dp is None:
@@ -327,7 +327,7 @@ class MemApValue(ValueBase):
     def modify(self, args):
         if len(args) == 0:
             raise exceptions.CommandError("missing argument")
-            
+
         ap_num = int(args[0], base=0)
         if self.context.target.dp.adi_version == coresight.dap.ADIVersion.ADIv5:
             ap_addr = coresight.ap.APv1Address(ap_num)
@@ -415,7 +415,7 @@ class TargetGraphValue(ValueBase):
 
     def display(self, args):
         self.context.board.dump()
-    
+
 class LockedValue(ValueBase):
     INFO = {
             'names': ['locked'],
@@ -479,7 +479,7 @@ class VectorCatchValue(ValueBase):
         if self.context.selected_core is None:
             self.context.write("No core is selected")
             return
-    
+
         try:
             self.context.selected_core.set_vector_catch(convert_vector_catch(args[0]))
         except ValueError as e:

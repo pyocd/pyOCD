@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,20 +18,21 @@
 import sys
 import logging
 from shutil import get_terminal_size
+from typing import (IO, Iterable, List, Optional, Tuple)
 
 LOG = logging.getLogger(__name__)
 
-class ColumnFormatter(object):
-    """! @brief Formats a set of values in multiple columns.
-    
+class ColumnFormatter:
+    """@brief Formats a set of values in multiple columns.
+
     The value_list must be a list of bi-tuples (name, value) sorted in the desired display order.
-    
+
     The number of columns will be determined by the terminal width and maximum value width. The values
     will be printed in column major order.
     """
-    
-    def __init__(self, maxwidth=None, inset=2):
-        """! @brief Constructor.
+
+    def __init__(self, maxwidth: Optional[int] = None, inset: int = 2) -> None:
+        """@brief Constructor.
         @param self The object.
         @param maxwidth Number of characters to which the output width must be constrained. If not provided,
             then the width of the stdout terminal is used. If getting the terminal width fails, for instance
@@ -39,31 +41,31 @@ class ColumnFormatter(object):
         """
         self._inset = inset
         self._term_width = (maxwidth or get_terminal_size()[0]) - inset * 4
-        self._items = []
+        self._items: List[Tuple[str, str]] = []
         self._max_name_width = 0
         self._max_value_width = 0
-    
-    def add_items(self, item_list):
-        """! @brief Add items to the output.
+
+    def add_items(self, item_list: Iterable[Tuple[str, str]]) -> None:
+        """@brief Add items to the output.
         @param self The object.
         @param item_list Must be a list of bi-tuples (name, value) sorted in the desired display order.
         """
         self._items.extend(item_list)
-        
+
         # Update max widths.
         for name, value in item_list:
             self._max_name_width = max(self._max_name_width, len(name))
             self._max_value_width = max(self._max_value_width, len(value))
-    
-    def format(self):
-        """! @brief Return the formatted columns as a string.
+
+    def format(self) -> str:
+        """@brief Return the formatted columns as a string.
         @param self The object.
         @return String containing the output of the column printer.
         """
         item_width = self._max_name_width + self._max_value_width  + self._inset * 2 + 2
         column_count = self._term_width // item_width
         row_count = (len(self._items) + column_count - 1) // column_count
-        
+
         rows = [[i for i in self._items[r::row_count]]
                 for r in range(row_count)]
 
@@ -77,9 +79,9 @@ class ColumnFormatter(object):
                     inset=(" " * self._inset))
             txt += "\n"
         return txt
-    
-    def write(self, output_file=None):
-        """! @brief Write the formatted columns to stdout or the specified file.
+
+    def write(self, output_file: IO[str] = None) -> None:
+        """@brief Write the formatted columns to stdout or the specified file.
         @param self The object.
         @param output_file Optional file to which the column printer output will be written. If no specified,
             then sys.stdout is used.
@@ -87,5 +89,5 @@ class ColumnFormatter(object):
         if output_file is None:
             output_file = sys.stdout
         output_file.write(self.format())
-        
+
 

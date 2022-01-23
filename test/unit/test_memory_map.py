@@ -94,27 +94,27 @@ class TestRange:
         assert range.start == 0x1000
         assert range.end == 0xfff
         assert range.length == 0
-    
+
     def test_empty_range_2(self):
         range = MemoryRange(start=0x1000, end=0xfff)
         assert range.start == 0x1000
         assert range.end == 0xfff
         assert range.length == 0
-    
+
     def test_eq(self):
         assert MemoryRange(0, length=1000) == MemoryRange(0, length=1000)
-    
+
     def test_lt(self):
         assert MemoryRange(0, length=1000) < MemoryRange(1000, length=1000)
-    
+
     def test_gt(self):
         assert MemoryRange(1000, length=1000) > MemoryRange(0, length=1000)
-    
+
     def test_sort(self, ram1, ram2, flash, rom):
         regionList = [ram2, rom, flash, ram1]
         sortedRegionList = sorted(regionList)
         assert sortedRegionList == [flash, rom, ram1, ram2]
-    
+
     def test_inplace_sort(self, ram1, ram2, flash, rom):
         regionList = [ram2, rom, flash, ram1]
         regionList.sort()
@@ -135,7 +135,7 @@ class TestHash:
         a = MemoryRange(0, 0x1000, region=ram1)
         b = MemoryRange(0x5000, length=200, region=rom)
         assert hash(a) != hash(b)
-        
+
         a = MemoryRange(0, 0x1000, region=ram1)
         b = MemoryRange(0, 0x1000, region=rom)
         assert hash(a) != hash(b)
@@ -150,11 +150,11 @@ class TestMemoryRegion:
     def test_empty_region_1(self):
         with pytest.raises(AssertionError):
             rgn = MemoryRegion(start=0x1000, length=0)
-    
+
     def test_empty_region_2(self):
         with pytest.raises(AssertionError):
             rgn = MemoryRegion(start=0x1000, end=0xfff)
-    
+
     def test_default_name(self):
         rgn = RamRegion(start=0x1000, end=0x1fff)
         assert rgn.name == 'ram'
@@ -167,7 +167,7 @@ class TestMemoryRegion:
 
         rgn = DeviceRegion(start=0x1000, end=0x1fff)
         assert rgn.name == 'device'
-    
+
     def test_block_sector_size(self):
         rgn = FlashRegion(start=0x1000, end=0x1fff, blocksize=256)
         assert rgn.blocksize == 256
@@ -176,7 +176,7 @@ class TestMemoryRegion:
         rgn = FlashRegion(start=0x1000, end=0x1fff, sector_size=256)
         assert rgn.blocksize == 256
         assert rgn.sector_size == 256
-    
+
     def test_flash_attrs(self, flash):
         assert flash.type == MemoryType.FLASH
         assert flash.start == 0
@@ -299,7 +299,7 @@ class TestMemoryRegion:
         assert ram1.intersects_range(0x20000020, length=0x10)
         assert ram1.intersects_range(0x1fff0000, end=0x20001000)
         assert ram1.intersects_range(0x1ffff000, length=0x40000)
-    
+
     def test_copy_ram(self, ram1):
         ramcpy = copy.copy(ram1)
         assert ramcpy.type == ram1.type
@@ -308,20 +308,20 @@ class TestMemoryRegion:
         assert ramcpy.length == ram1.length
         assert ramcpy.name == ram1.name
         assert ramcpy == ram1
-    
+
     def test_copy_flash(self, flash):
         flashcpy = copy.copy(flash)
         assert flashcpy == flash
-    
+
     def test_copy_flash_with_flm(self, flash_with_flm):
         flashcpy = copy.copy(flash_with_flm)
         assert flashcpy == flash_with_flm
-    
+
     def test_copy_flash_with_assigned_flm(self, flash):
         flash.flm = FLM_PATH
         flashcpy = copy.copy(flash)
         assert flashcpy == flash
-    
+
     def test_clone_with_changes(self, flash, ram1):
         flashcpy = flash.clone_with_changes(name='another flash')
         assert flashcpy.name == 'another flash'
@@ -333,10 +333,10 @@ class TestMemoryRegion:
         assert acopy.start == 0x30000000
         assert acopy.length == ram1.length
         assert acopy.end == 0x30000000 + ram1.length - 1
-    
+
     def test_eq(self, flash, ram1):
         assert flash != ram1
-        
+
         a = RamRegion(name='a', start=0x1000, length=0x2000)
         b = RamRegion(name='a', start=0x1000, length=0x2000)
         assert a == b
@@ -420,23 +420,23 @@ class TestMemoryMap:
             )
         rgns = dualMap.get_intersecting_regions(0x1fffc9f8, end=0x1fffc9fc)
         assert len(rgns) > 0
-    
+
     def test_get_type_iter(self, memmap, flash, rom, ram1, ram2):
         assert list(memmap.iter_matching_regions(type=MemoryType.FLASH)) == [flash]
         assert list(memmap.iter_matching_regions(type=MemoryType.ROM)) == [rom]
         assert list(memmap.iter_matching_regions(type=MemoryType.RAM)) == [ram1, ram2]
-    
+
     def test_match_iter(self, memmap, flash, ram1, ram2, ram_alias):
         assert list(memmap.iter_matching_regions(blocksize=0x100)) == [flash]
         assert list(memmap.iter_matching_regions(start=0x20000000)) == [ram1]
-    
+
     def test_first_match(self, memmap, flash, ram2):
         assert memmap.get_first_matching_region(blocksize=0x100) == flash
         assert memmap.get_first_matching_region(length=1024, is_cacheable=False) == ram2
-    
+
     def test_alias(self, memmap2, ram2, ram_alias):
         assert ram_alias.alias is ram2
-    
+
     def test_get_default(self, memmap, flash, ram2):
         assert memmap.get_default_region_of_type(MemoryType.FLASH) == flash
         assert memmap.get_default_region_of_type(MemoryType.RAM) == ram2
@@ -448,14 +448,14 @@ class TestMemoryMap:
     def test_index_by_name(self, memmap, rom, ram2):
         assert memmap['rom'] == rom
         assert memmap['ram2'] == ram2
-    
+
     def test_clone(self, memmap):
         mapcpy = memmap.clone()
         assert id(mapcpy) != id(memmap)
         assert id(mapcpy.get_first_matching_region(type=MemoryType.RAM)) != \
             id(memmap.get_first_matching_region(type=MemoryType.RAM))
         assert mapcpy == memmap
-    
+
     def test_contains_int(self, memmap):
         assert 0x200 in memmap
         assert 0x20000100 in memmap
@@ -463,32 +463,32 @@ class TestMemoryMap:
         assert 0x1c000040 in memmap
         assert 0x80000000 not in memmap
         assert 0xffffffff not in memmap
-    
+
     def test_contains_name(self, memmap):
         assert 'rom' in memmap
         assert 'flash' in memmap
         assert 'funky' not in memmap
         assert '' not in memmap
-    
+
     def test_contains_region(self, memmap, flash):
         assert flash in memmap
-    
+
     def test_len(self, memmap):
         assert len(memmap) == 4
-    
+
     def test_iter(self, memmap):
         assert [r.name for r in memmap] == ['flash', 'rom', 'ram', 'ram2']
-    
+
     def test_reversed(self, memmap):
         assert [r.name for r in reversed(memmap)] == ['ram2', 'ram', 'rom', 'flash']
-    
+
     def test_abc(self):
         assert isinstance(MemoryMap(), collections.abc.Sequence)
-    
+
     def test_name_uniquing(self, memmap):
         memmap.add_region(RomRegion(0x01000000, length=0x8000, name="rom"))
         assert memmap.get_first_matching_region(name="rom_1").start == 0x01000000
-    
+
     def test_multiple_unnamed_regions(self):
         map = MemoryMap(RomRegion(0x01000000, length=0x8000),
                 RamRegion(0x20000000, length=0x8000))

@@ -31,15 +31,15 @@ from ..utility.cmdline import (
 LOG = logging.getLogger(__name__)
 
 class ResetSubcommand(SubcommandBase):
-    """! @brief `pyocd reset` subcommand."""
-    
+    """@brief `pyocd reset` subcommand."""
+
     NAMES = ['reset']
     HELP = "Reset a target device."
     DEFAULT_LOG_LEVEL = logging.WARNING
-    
+
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         reset_parser = argparse.ArgumentParser(description='reset', add_help=False)
 
         reset_options = reset_parser.add_argument_group("reset options")
@@ -51,18 +51,18 @@ class ResetSubcommand(SubcommandBase):
                  "Default is core 0.")
         reset_options.add_argument("-l", "--halt", action="store_true",
             help="Halt the core on the first instruction after reset. Defaults to disabled.")
-        
+
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, reset_parser]
-    
+
     def invoke(self) -> None:
-        """! @brief Handle 'reset' subcommand."""
+        """@brief Handle 'reset' subcommand."""
         # Verify selected reset type.
         try:
             the_reset_type = convert_reset_type(self._args.reset_type)
         except ValueError:
             LOG.error("Invalid reset method: %s", self._args.reset_type)
             return
-        
+
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
@@ -82,10 +82,10 @@ class ResetSubcommand(SubcommandBase):
             # Handle hw reset specially using the probe, so we don't need a valid connection
             # and can skip discovery. If we're halting we need a connection even if performing a hardware reset.
             is_hw_reset = (the_reset_type == Target.ResetType.HW) and not self._args.halt
-            
+
             # Only init the board if performing a sw reset.
             session.open(init_board=(not is_hw_reset))
-            
+
             LOG.info("Performing '%s' reset...", self._args.reset_type)
             if is_hw_reset:
                 session.probe.reset()

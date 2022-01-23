@@ -85,7 +85,7 @@ class NRF52(CoreSightTarget):
         LOG.debug("CTRL-AP version %d", ctrl_ap_version)
 
     def check_flash_security(self):
-        """! @brief Check security and unlock device.
+        """@brief Check security and unlock device.
 
         This init task determines whether the device is locked (APPROTECT enabled). If it is,
         and if auto unlock is enabled, then perform a mass erase to unlock the device.

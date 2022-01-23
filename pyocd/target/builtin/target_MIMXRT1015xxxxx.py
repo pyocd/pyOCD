@@ -727,7 +727,7 @@ class MIMXRT1015xxxxx(IMXRT):
     VENDOR = "NXP"
 
     # Note: by default there are 64 KB ITCM, 64 KB DTCM and 128 KB OCRAM available for MIMXRT1015.
-    # And it also has 256 KB FlexRAM that can be enabled and configured by GPR17, customers can 
+    # And it also has 256 KB FlexRAM that can be enabled and configured by GPR17, customers can
     # allocate this 256 KB FlexRAM to ITCM/DTCM/OCRAM, but the FlexRAM is not available by default.
     MEMORY_MAP = MemoryMap(
         RamRegion(name="itcm",      start=0x00000000, length=0x10000), # 64 KB

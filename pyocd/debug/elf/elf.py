@@ -22,19 +22,19 @@ from ...core.memory_map import (MemoryRange, MemoryMap)
 from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder)
 
 class ELFSection(MemoryRange):
-    """! @brief Memory range for a section of an ELF file.
-    
+    """@brief Memory range for a section of an ELF file.
+
     Objects of this class represent sections of an ELF file. See the ELFBinaryFile class documentation
     for details of how sections are selected and how to get instances of this class.
-    
+
     If a region in the target's memory map can be found that contains the section, it will be
     accessible via the instance's _region_ attribute. Otherwise _region_ will be `None`. A maximum of
     one associated memory region is supported, even if the section spans multiple regions.
-    
+
     The contents of the ELF section can be read via the `data` property as a `bytearray`. The data is
     read from the file only once and cached.
     """
-    
+
     def __init__(self, elf, sect):
         self._elf = elf
         self._section = sect
@@ -52,7 +52,7 @@ class ELFSection(MemoryRange):
     @property
     def name(self):
         return self._name
-        
+
     @property
     def type(self):
         return self._section['sh_type']
@@ -80,7 +80,7 @@ class ELFSection(MemoryRange):
         if flagsDesc[-1] == '|':
             flagsDesc = flagsDesc[:-1]
         return flagsDesc
-    
+
     def __eq__(self, other):
         # Include section name in equality test.
         return super(ELFSection, self).__eq__(other) and self.name == other.name
@@ -90,24 +90,24 @@ class ELFSection(MemoryRange):
             id(self), self.name, self.type, self.flags_description, hex(self.start), hex(self.length))
 
 class ELFBinaryFile(object):
-    """! @brief An ELF binary executable file.
-    
+    """@brief An ELF binary executable file.
+
     Examines the ELF and provides several lists of useful data: section objects, and both used
     and unused ranges of memory.
-    
+
     An ELFSection object is created for each of the sections of the file that are loadable code or
     data, or otherwise occupy memory. These are normally the .text, .rodata, .data, and .bss
     sections. More specifically, the list of sections contains any section with a type of
     `SHT_PROGBITS` or `SHT_NOBITS`. Also, at least one of the `SHF_WRITE`, `SHF_ALLOC`, or
     `SHF_EXECINSTR` flags must be set.
-    
+
     The set of sections is compared with the target's memory map to produce a lists of the used
     (occupied) and unused (unoccupied) ranges of memory. Note that if the executable uses ranges
     of memory not mapped with a section of the ELF file, those ranges will not be considered in
     the used/unused lists. Also, only ranges completely contained within a region of the memory
     map are considered.
     """
-    
+
     def __init__(self, elf, memory_map=None):
         self._owns_file = False
         if isinstance(elf, str):
@@ -125,12 +125,12 @@ class ELFBinaryFile(object):
         self._compute_regions()
 
     def __del__(self):
-        """! @brief Close the ELF file if it is owned by this instance."""
+        """@brief Close the ELF file if it is owned by this instance."""
         if hasattr(self, '_owns_file') and self._owns_file:
             self.close()
 
     def _extract_sections(self):
-        """! Get list of interesting sections."""
+        """Get list of interesting sections."""
         self._sections = []
         sections = self._elf.iter_sections()
         for s in sections:
@@ -183,7 +183,7 @@ class ELFBinaryFile(object):
         self._owns_file = False
 
     def read(self, addr, size):
-        """! @brief Read program data from the elf file.
+        """@brief Read program data from the elf file.
 
         @param addr Physical address (load address) to read from.
         @param size Number of bytes to read.
@@ -206,21 +206,21 @@ class ELFBinaryFile(object):
 
     @property
     def sections(self):
-        """! @brief Access the list of sections in the ELF file.
+        """@brief Access the list of sections in the ELF file.
         @return A list of ELFSection objects sorted by start address.
         """
         return self._sections
 
     @property
     def used_ranges(self):
-        """! @brief Access the list of used ranges of memory in the ELF file.
+        """@brief Access the list of used ranges of memory in the ELF file.
         @return A list of MemoryRange objects sorted by start address.
         """
         return self._used
 
     @property
     def unused_ranges(self):
-        """! @brief Access the list of unused ranges of memory in the ELF file.
+        """@brief Access the list of unused ranges of memory in the ELF file.
         @return A list of MemoryRange objects sorted by start address.
         """
         return self._unused

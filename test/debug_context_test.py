@@ -88,24 +88,24 @@ def debug_context_test(board_id):
         with open(binary_file, "rb") as f:
             test_binary_data = bytearray(f.read())
         test_binary_data_length = len(test_binary_data)
-        
+
         # Generate ELF file from the binary test file.
         temp_test_elf_name = binary_to_elf_file(binary_file, boot_region.start)
 
         test_pass_count = 0
         test_count = 0
         result = DebugContextTestResult()
-        
+
         target.reset_and_halt()
-        
+
         # Reproduce a gdbserver failure.
         print("\n------ Test 1: Mem cache ------")
-        
+
         ctx = target.get_target_context()
 
         print("Writing gdb test binary")
         ctx.write_memory_block8(ram_base, gdb_test_binary_data)
-        
+
         print("Reading first chunk")
         data = ctx.read_memory_block8(ram_base, 64)
         if data == gdb_test_binary_data[:64]:
@@ -114,7 +114,7 @@ def debug_context_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-            
+
         print("Reading N chunks")
         did_pass = True
         for n in range(8):
@@ -129,20 +129,20 @@ def debug_context_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
-        
+
         # Force a memory cache clear.
         target.step()
-        
+
         # ELF reader test goals:
         # 1. Verify correct data is read without accessing the target memory.
         # 2. Test null interval failure.
         #
         print("\n------ Test 2: ELF reader ------")
-        
+
         # Set the elf on the target, which will add a context to read from the elf.
         target.elf = temp_test_elf_name
         ctx = target.get_target_context()
-        
+
         print("Check that ElfReaderContext was created")
         if isinstance(ctx, ElfReaderContext):
             test_pass_count += 1
@@ -150,7 +150,7 @@ def debug_context_test(board_id):
         else:
             print("TEST FAILED")
         test_count += 1
-        
+
         # Program the test binary.
         print("Programming test binary to boot memory")
         FileProgrammer(session).program(binary_file, base_address=boot_region.start)

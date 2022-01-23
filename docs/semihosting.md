@@ -78,11 +78,13 @@ Defaults are for console to be routed to telnet and syscalls handled by gdb.
 
 ### Building into firmware
 
-The blog articles listed earlier have details of how to include semihosting support when linking firmware with gcc
-and newlib. These are the steps in short:
+These are the steps, in short, for how to include semihosting support when linking firmware with gcc
+and newlib.
 
 - On the linker command line, add `--specs=rdimon.specs` and ensure `-nostartfiles` is not present.
 - Call `initialise_monitor_handles()` from your firmware before using semihosting.
+
+The C runtime stdio will now be connected with semihosting.
 
 This small example shows how to init and use semihosting from gcc.
 
@@ -100,7 +102,7 @@ void main(void) {
 }
 ```
 
-These blog articles are also very helpful for gcc:
+These blog articles are also very helpful guides for using semihosting with gcc:
 
 - [Introduction to ARM Semihosting](https://interrupt.memfault.com/blog/arm-semihosting) is an excellent
     overall introduction, including how to link in semihosting support for gcc and newlib-based projects.

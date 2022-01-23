@@ -29,15 +29,15 @@ def process_dir(dotted_path: str, dir_path: Path) -> None:
     for entry in sorted(dir_path.iterdir(), key=lambda v: v.name):
         is_subpackage = (entry.is_dir() and (entry / "__init__.py").exists())
         is_module = entry.suffix == ".py"
-        
+
         if not (is_subpackage or is_module):
             continue
-        
+
         module_path = dotted_path + '.' + entry.stem
         print(f"Importing: {module_path}")
         import_module(module_path)
         import_count += 1
-        
+
         # Recursive into valid sub-packages.
         if is_subpackage:
             process_dir(module_path, entry)

@@ -17,7 +17,7 @@
 from .component import CoreSightComponent
 
 class TPIU(CoreSightComponent):
-    """! @brief Trace Port Interface Unit"""
+    """@brief Trace Port Interface Unit"""
 
     # Register definitions.
     #
@@ -36,30 +36,30 @@ class TPIU(CoreSightComponent):
     DEVID_NRZ_MASK = (1 << 11)
 
     def __init__(self, ap, cmpid=None, addr=None):
-        """! @brief Standard CoreSight component constructor."""
+        """@brief Standard CoreSight component constructor."""
         super(TPIU, self).__init__(ap, cmpid, addr)
         self._has_swo_uart = False
-    
+
     @property
     def has_swo_uart(self):
-        """! @brief Whether SWO UART mode is supported by the TPIU."""
+        """@brief Whether SWO UART mode is supported by the TPIU."""
         return self._has_swo_uart
 
     def init(self):
-        """! @brief Reads TPIU capabilities.
-        
+        """@brief Reads TPIU capabilities.
+
         Currently this method simply checks whether the TPIU supports SWO in asynchronous
         UART mode. The result of this check is available via the has_swo_uart property.
         """
         devid = self.ap.read32(self.address + TPIU.DEVID)
         self._has_swo_uart = (devid & TPIU.DEVID_NRZ_MASK) != 0
-        
+
     def set_swo_clock(self, swo_clock, system_clock):
-        """! @brief Prepare TPIU for transmitting SWO at a given baud rate.
-        
+        """@brief Prepare TPIU for transmitting SWO at a given baud rate.
+
         Configures the TPIU for SWO UART mode, then sets the SWO clock frequency based on
         the provided system clock.
-        
+
         @param self
         @param swo_clock Desired SWO baud rate in Hertz.
         @param system_clock The frequency of the SWO clock source in Hertz. This is almost always
@@ -70,11 +70,11 @@ class TPIU(CoreSightComponent):
         # First check whether SWO UART is supported.
         if not self.has_swo_uart:
             return False
-            
+
         # Go ahead and configure for SWO.
         self.ap.write32(self.address + TPIU.SPPR, TPIU.SPPR_TXMODE_NRZ) # Select SWO UART mode.
         self.ap.write32(self.address + TPIU.FFCR, 0) # Disable formatter.
-    
+
         # Compute the divider.
         div = (system_clock // swo_clock) - 1
         actual = system_clock // (div + 1)

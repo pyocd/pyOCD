@@ -17,6 +17,7 @@
 
 import logging
 import textwrap
+from typing import (Any, Dict, Set, Tuple, Type, Union)
 
 from ..core import exceptions
 from ..utility import conversion
@@ -25,23 +26,23 @@ from ..utility.mask import round_up_div
 LOG = logging.getLogger(__name__)
 
 ## @brief Dict of command group names to a set of command classes.
-ALL_COMMANDS = {}
+ALL_COMMANDS: Dict[str, Set[Union["CommandBase", "ValueBase"]]] = {}
 
 class CommandMeta(type):
-    """! @brief Metaclass for commands.
-    
+    """@brief Metaclass for commands.
+
     Examines the `INFO` attribute of the command class and builds the @ref pyocd.commands.commands.ALL_COMMANDS
     "ALL_COMMANDS" table.
     """
 
-    def __new__(mcs, name, bases, dict):
+    def __new__(mcs: Type, name: str, bases: Tuple[type, ...], objdict: Dict[str, Any]) -> "CommandMeta":
         # Create the new type.
-        new_type = type.__new__(mcs, name, bases, dict)
-        
+        new_type = type.__new__(mcs, name, bases, objdict)
+
         # The Command base class won't have an INFO.
-        if 'INFO' in dict:
-            info = dict['INFO']
-            
+        if 'INFO' in objdict:
+            info = objdict['INFO']
+
             # Validate the INFO dict.
             assert (('names' in info)
                     and ('group' in info)
@@ -49,14 +50,14 @@ class CommandMeta(type):
                     and ('help' in info)
                     and ((('nargs' in info) and ('usage' in info)) # Required for commands.
                         or ('access' in info))) # Required for values.
-            
+
             # Add this command to our table of commands by group.
             ALL_COMMANDS.setdefault(info['group'], set()).add(new_type)
         return new_type
 
 class CommandBase(metaclass=CommandMeta):
-    """! @brief Base class for a command.
-    
+    """@brief Base class for a command.
+
     Each command class must have an `INFO` attribute with the following keys:
     - `names`: List of names for the info. The first element is the primary name.
     - `group`: Optional name for the command group. The group is meant to be a context group, not type of
@@ -69,17 +70,27 @@ class CommandBase(metaclass=CommandMeta):
     - `extra_help`: Optional key for a string with more detailed help.
     """
 
+    ## Default, empty info dict.
+    INFO = {
+            'names': [],
+            'group': '',
+            'category': '',
+            'nargs': 0,
+            'usage': "",
+            'help': "",
+            }
+
     def __init__(self, context):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         self._context = context
-    
+
     @property
     def context(self):
-        """! @brief The command execution context."""
+        """@brief The command execution context."""
         return self._context
 
     def check_arg_count(self, args):
-        """! @brief Verify the number of command arguments."""
+        """@brief Verify the number of command arguments."""
         nargs = self.INFO['nargs']
         if nargs == '*':
             pass
@@ -95,11 +106,11 @@ class CommandBase(metaclass=CommandMeta):
             raise exceptions.CommandError("too many arguments")
 
     def parse(self, args):
-        """! @brief Extract command arguments."""
+        """@brief Extract command arguments."""
         pass
 
     def execute(self):
-        """! @brief Perform the command."""
+        """@brief Perform the command."""
         raise NotImplementedError()
 
     def _format_core_register(self, info, value):
@@ -115,8 +126,8 @@ class CommandBase(metaclass=CommandMeta):
         return value_str
 
     def _convert_value(self, arg):
-        """! @brief Convert an argument to a 32-bit integer.
-        
+        """@brief Convert an argument to a 32-bit integer.
+
         Handles the usual decimal, binary, and hex numbers with the appropriate prefix.
         Also recognizes register names and address dereferencing. Dereferencing using the
         ARM assembler syntax. To dereference, put the value in brackets, i.e. '[r0]' or
@@ -124,6 +135,7 @@ class CommandBase(metaclass=CommandMeta):
         '[r3,8]'. The offset can be positive or negative, and any supported base.
         """
         try:
+            offset = 0
             deref = (arg[0] == '[')
             if deref:
                 if not self.context.selected_core:
@@ -168,7 +180,7 @@ class CommandBase(metaclass=CommandMeta):
 
     @classmethod
     def format_help(cls, context, max_width=72):
-        """! @brief Return a string with the help text for this command."""
+        """@brief Return a string with the help text for this command."""
         text = "Usage: {cmd} {usage}\n".format(cmd=cls.INFO['names'][0], usage=cls.INFO['usage'])
         if len(cls.INFO['names']) > 1:
             text += "Aliases: {0}\n".format(", ".join(cls.INFO['names'][1:]))
@@ -178,13 +190,13 @@ class CommandBase(metaclass=CommandMeta):
         return text
 
 class ValueBase(CommandBase):
-    """! @brief Base class for value commands.
-    
+    """@brief Base class for value commands.
+
     Value commands are special commands representing a value that can be read and/or written. They are used
     through the `show` and `set` commands. A value command has an associated access mode of read-only,
     write-only, or read-write. The access mode sets which of the `show` and `set` commands may be used with
     the value.
-    
+
     Each value class must have an `INFO` attribute with the following keys:
     - `names`: List of names for the value. The first element is the primary name.
     - `group`: Optional name for the command group. The group is meant to be a context group, not type of
@@ -195,18 +207,18 @@ class ValueBase(CommandBase):
     - `help`: String for the short help. Typically should be no more than one sentence.
     - `extra_help`: Optional key for a string with more detailed help.
     """
-    
+
     def display(self, args):
-        """! @brief Output the value of the info."""
+        """@brief Output the value of the info."""
         raise NotImplementedError()
-    
+
     def modify(self, args):
-        """! @brief Change the info to a new value."""
+        """@brief Change the info to a new value."""
         raise NotImplementedError()
 
     @classmethod
     def format_help(cls, context, max_width=72):
-        """! @brief Return a string with the help text for this command."""
+        """@brief Return a string with the help text for this command."""
         first_name = cls.INFO['names'][0]
         text = "Usage: "
         did_print_on_usage_line = False

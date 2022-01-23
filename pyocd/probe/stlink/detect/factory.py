@@ -20,7 +20,7 @@ import platform
 from . import base  # noqa: F401 # lgtm[py/unused-import]
 
 def create_mbed_detector(**kwargs):
-    """! Factory used to create host OS specific mbed-lstools object
+    """Factory used to create host OS specific mbed-lstools object
 
     :param kwargs: keyword arguments to pass along to the constructors
     @return Returns MbedLsTools object or None if host OS is not supported

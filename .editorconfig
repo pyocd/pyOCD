@@ -1,14 +1,27 @@
+# EditorConfig: https://editorconfig.org/
+
 # top-most EditorConfig file
 root = true
 
 # Unix-style newlines with a newline ending every file
+# 4 space indentation for all files
+# No trailing whitespace
 [*]
-end_of_line = lf
-insert_final_newline = true
 charset = utf-8
-
-# 4 space indentation for Python
-[*.py]
 indent_style = space
 indent_size = 4
-trim_trailing_whitespace = false
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 120
+
+# Exceptions to the rule...
+
+[Makefile]
+indent_style = tab
+
+[*.bat]
+end_of_line = crlf
+
+[*.{yaml,yml,xml,svd}]
+indent_size = 2

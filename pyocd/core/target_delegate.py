@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
+# COpyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,86 +15,103 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class TargetDelegateInterface(object):
-    """! @brief Abstract class defining the delegate interface for targets.
-    
+from typing import (Optional, TYPE_CHECKING)
+
+if TYPE_CHECKING:
+    from .session import Session
+    from .soc_target import SoCTarget
+    from .target import Target
+    from ..board.board import Board
+    from ..utility.sequencer import CallSequence
+
+## @brief Return type for some delegate methods.
+#
+# For certain delegate method, the delegate can reply with a boolean or None, where True means that
+# it handled the actions and no further action is to be performed, and False or None means to continue
+# processing.
+DelegateResult = Optional[bool]
+
+class TargetDelegateInterface:
+    """@brief Abstract class defining the delegate interface for targets.
+
     Note that delegates don't actually have to derive from this class due to Python's
-    dynamic method dispatching.
+    dynamic method dispatching. The primary purpose of this class is for documentation
+    and type checking.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: "Session") -> None:
         self._session = session
-    
-    def will_connect(self, board):
-        """! @brief Pre-init hook for the board.
+
+    def will_connect(self, board: "Board") -> None:
+        """@brief Pre-init hook for the board.
         @param self
         @param board A Board instance that is about to be initialized.
         @return Ignored.
         """
         pass
-    
-    def did_connect(self, board):
-        """! @brief Post-initialization hook for the board.
+
+    def did_connect(self, board: "Board") -> None:
+        """@brief Post-initialization hook for the board.
         @param self
         @param board A Board instance.
         @return Ignored.
         """
         pass
 
-    def will_init_target(self, target, init_sequence):
-        """! @brief Hook to review and modify init call sequence prior to execution.
+    def will_init_target(self, target: "SoCTarget", init_sequence: "CallSequence") -> None:
+        """@brief Hook to review and modify init call sequence prior to execution.
         @param self
-        @param target A CoreSightTarget object about to be initialized.
+        @param target An SoCTarget object about to be initialized.
         @param init_sequence The CallSequence that will be invoked. Because call sequences are
             mutable, this parameter can be modified before return to change the init calls.
         @return Ignored.
         """
         pass
-    
-    def did_init_target(self, target):
-        """! @brief Post-initialization hook.
+
+    def did_init_target(self, target: "SoCTarget") -> None:
+        """@brief Post-initialization hook.
         @param self
-        @param target A CoreSightTarget.
+        @param target An SoCTarget.
         @return Ignored.
         """
         pass
 
-    def will_start_debug_core(self, core):
-        """! @brief Hook to enable debug for the given core.
+    def will_start_debug_core(self, core: "Target") -> DelegateResult:
+        """@brief Hook to enable debug for the given core.
         @param self
         @param core A CortexM object about to be initialized.
         @retval True Do not perform the normal procedure to start core debug.
         @retval "False or None" Continue with normal behaviour.
         """
         pass
-    
-    def did_start_debug_core(self, core):
-        """! @brief Post-initialization hook.
+
+    def did_start_debug_core(self, core: "Target") -> None:
+        """@brief Post-initialization hook.
         @param self
         @param core A CortexM object.
         @return Ignored.
         """
         pass
 
-    def will_stop_debug_core(self, core):
-        """! @brief Pre-cleanup hook for the core.
+    def will_stop_debug_core(self, core: "Target") -> DelegateResult:
+        """@brief Pre-cleanup hook for the core.
         @param self
         @param core A CortexM object.
         @retval True Do not perform the normal procedure to disable core debug.
         @retval "False or None" Continue with normal behaviour.
         """
         pass
-    
-    def did_stop_debug_core(self, core):
-        """! @brief Post-cleanup hook for the core.
+
+    def did_stop_debug_core(self, core: "Target") -> None:
+        """@brief Post-cleanup hook for the core.
         @param self
         @param core A CortexM object.
         @return Ignored.
         """
         pass
 
-    def will_disconnect(self, target, resume):
-        """! @brief Pre-disconnect hook.
+    def will_disconnect(self, target: "SoCTarget", resume: bool) -> None:
+        """@brief Pre-disconnect hook.
         @param self
         @param target Either a CoreSightTarget or CortexM object.
         @param resume The value of the `disconnect_on_resume` option.
@@ -101,16 +119,16 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_disconnect(self, target, resume):
-        """! @brief Post-disconnect hook.
+    def did_disconnect(self, target: "SoCTarget", resume: bool) -> None:
+        """@brief Post-disconnect hook.
         @param self
         @param target Either a CoreSightTarget or CortexM object.
         @param resume The value of the `disconnect_on_resume` option.
         @return Ignored."""
         pass
 
-    def will_reset(self, core, reset_type):
-        """! @brief Pre-reset hook.
+    def will_reset(self, core: "Target", reset_type: "Target.ResetType") -> DelegateResult:
+        """@brief Pre-reset hook.
         @param self
         @param core A CortexM instance.
         @param reset_type One of the Target.ResetType enumerations.
@@ -119,8 +137,8 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def did_reset(self, core, reset_type):
-        """! @brief Post-reset hook.
+    def did_reset(self, core: "Target", reset_type: "Target.ResetType") -> None:
+        """@brief Post-reset hook.
         @param self
         @param core A CortexM instance.
         @param reset_type One of the Target.ResetType enumerations.
@@ -128,8 +146,8 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def set_reset_catch(self, core, reset_type):
-        """! @brief Hook to prepare target for halting on reset.
+    def set_reset_catch(self, core: "Target", reset_type: "Target.ResetType") -> DelegateResult:
+        """@brief Hook to prepare target for halting on reset.
         @param self
         @param core A CortexM instance.
         @param reset_type One of the Target.ResetType enumerations.
@@ -138,8 +156,8 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def clear_reset_catch(self, core, reset_type):
-        """! @brief Hook to clean up target after a reset and halt.
+    def clear_reset_catch(self, core: "Target", reset_type: "Target.ResetType") -> None:
+        """@brief Hook to clean up target after a reset and halt.
         @param self
         @param core A CortexM instance.
         @param reset_type
@@ -147,8 +165,8 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def mass_erase(self, target):
-        """! @brief Hook to override mass erase.
+    def mass_erase(self, target: "SoCTarget") -> DelegateResult:
+        """@brief Hook to override mass erase.
         @param self
         @param target A CoreSightTarget object.
         @retval True Indicate that mass erase was performed by the hook.
@@ -157,8 +175,8 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def trace_start(self, target, mode):
-        """! @brief Hook to prepare for tracing the target.
+    def trace_start(self, target: "SoCTarget", mode: int) -> None:
+        """@brief Hook to prepare for tracing the target.
         @param self
         @param target A CoreSightTarget object.
         @param mode The trace mode. Currently always 0 to indicate SWO.
@@ -166,13 +184,13 @@ class TargetDelegateInterface(object):
         """
         pass
 
-    def trace_stop(self, target, mode):
-        """! @brief Hook to clean up after tracing the target.
+    def trace_stop(self, target: "SoCTarget", mode: int) -> None:
+        """@brief Hook to clean up after tracing the target.
         @param self
         @param target A CoreSightTarget object.
         @param mode The trace mode. Currently always 0 to indicate SWO.
         @return Ignored.
         """
         pass
-    
+
 

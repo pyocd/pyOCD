@@ -20,16 +20,16 @@ from ..utility.timeout import Timeout
 ACK_TIMEOUT = 5.0
 
 class GPR(CoreSightComponent):
-    """! @brief Granular Power Requestor.
-    
+    """@brief Granular Power Requestor.
+
     Currently only supports enabling power domains.
     """
-    
+
     CPWRUPREQ = 0x0
     CPWRUPACK = 0x0
-    
+
     CPWRUPM_COUNT_MASK = 0x3f
-    
+
     @classmethod
     def factory(cls, ap, cmpid, address):
         # Attempt to return the same instance that was created during ROM table scanning.
@@ -37,7 +37,7 @@ class GPR(CoreSightComponent):
             rom_gpr = cmpid.parent_rom_table.gpr
             if rom_gpr is not None and rom_gpr.address == address:
                 return rom_gpr
-        
+
         # No luck, create a new instance.
         gpr = cls(ap, cmpid, address)
         return gpr
@@ -47,11 +47,11 @@ class GPR(CoreSightComponent):
         self.domain_count = 0
 
     def init(self):
-        """! @brief Inits the GPR."""
+        """@brief Inits the GPR."""
         self.domain_count = self.cmpid.devid[2] & self.CPWRUPM_COUNT_MASK
-    
+
     def _power_up(self, mask):
-        """! @brief Enable power to a power domaind by mask.
+        """@brief Enable power to a power domaind by mask.
         @param self
         @param mask Bitmask of the domains to power up.
         @retval True Requested domains were successfully powered on.
@@ -59,7 +59,7 @@ class GPR(CoreSightComponent):
         """
         # Enable power up request bits.
         self.ap.write32(self.address + self.CPWRUPREQ, mask)
-        
+
         # Wait for ack bits to set.
         with Timeout(ACK_TIMEOUT) as t_o:
             while t_o.check():
@@ -67,18 +67,18 @@ class GPR(CoreSightComponent):
                 if (value & mask) == mask:
                     return True
             return False
-    
+
     def power_up_all(self):
-        """! @brief Enable power to all available power domains.
+        """@brief Enable power to all available power domains.
         @param self
         @retval True All domains were successfully powered on.
         @return False Timeout waiting for power ack bit(s) to set.
         """
         mask = (1 << self.domain_count) - 1
         return self._power_up(mask)
-    
+
     def power_up_one(self, domain_id):
-        """! @brief Power up a single power domain by domain ID.
+        """@brief Power up a single power domain by domain ID.
         @param self
         @param domain_id Integer power domain ID.
         @retval True Requested domain was powered on successfully.
@@ -86,9 +86,9 @@ class GPR(CoreSightComponent):
         """
         mask = 1 << domain_id
         return self._power_up(mask)
-    
+
     def __repr__(self):
         return "<GPR @ %x: count=%d>" % (id(self), self.domain_count)
-        
+
 
 

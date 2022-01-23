@@ -16,14 +16,25 @@
 # limitations under the License.
 
 from enum import Enum
+from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING)
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
+from ..utility.graph import GraphNode
+
+if TYPE_CHECKING:
+    from .session import Session
+    from .core_registers import (CoreRegistersIndex, CoreRegisterNameOrNumberType, CoreRegisterValueType)
+    from ..debug.breakpoints.provider import Breakpoint
+    from ..debug.context import DebugContext
+    from ..debug.svd.loader import SVDFile
+    from ..debug.svd.model import SVDDevice
+    from ..utility.sequencer import CallSequence
 
 class Target(MemoryInterface):
 
     class State(Enum):
-        """! @brief States a target processor can be in."""
+        """@brief States a target processor can be in."""
         ## Core is executing code.
         RUNNING = 1
         ## Core is halted in debug mode.
@@ -34,16 +45,16 @@ class Target(MemoryInterface):
         SLEEPING = 4
         ## Core is locked up.
         LOCKUP = 5
-    
+
     class SecurityState(Enum):
-        """! @brief Security states for a processor with the Security extension."""
+        """@brief Security states for a processor with the Security extension."""
         ## PE is in the Non-secure state.
         NONSECURE = 0
         ## PE is in the Secure state.
         SECURE = 1
 
     class ResetType(Enum):
-        """! @brief Available reset methods."""
+        """@brief Available reset methods."""
         ## Hardware reset via the nRESET signal.
         HW = 1
         ## Software reset using the core's default software reset method.
@@ -62,7 +73,7 @@ class Target(MemoryInterface):
         SW_EMULATED = 5
 
     class BreakpointType(Enum):
-        """! @brief Types of breakpoints."""
+        """@brief Types of breakpoints."""
         ## Hardware breakpoint.
         HW = 1
         ## Software breakpoint.
@@ -71,7 +82,7 @@ class Target(MemoryInterface):
         AUTO = 3
 
     class WatchpointType(Enum):
-        """! @brief Types of watchpoints."""
+        """@brief Types of watchpoints."""
         ## Watchpoint on read accesses.
         READ = 1
         ## Watchpoint on write accesses.
@@ -80,8 +91,8 @@ class Target(MemoryInterface):
         READ_WRITE = 3
 
     class VectorCatch:
-        """! Vector catch option masks.
-        
+        """Vector catch option masks.
+
         These constants can be OR'd together to form any combination of vector catch settings.
         """
         ## Disable vector catch.
@@ -110,7 +121,7 @@ class Target(MemoryInterface):
                     | SECURE_FAULT)
 
     class Event(Enum):
-        """! Target notification events."""
+        """Target notification events."""
         ## Sent after completing the initialisation sequence.
         POST_CONNECT = 1
         ## Sent prior to disconnecting cores and powering down the DP.
@@ -144,8 +155,8 @@ class Target(MemoryInterface):
         POST_FLASH_PROGRAM = 10
 
     class RunType(Enum):
-        """! Run type for run notifications.
-        
+        """Run type for run notifications.
+
         An enum of this type is set as the data attribute on PRE_RUN and POST_RUN notifications.
         """
         ## Target is being resumed.
@@ -154,8 +165,8 @@ class Target(MemoryInterface):
         STEP = 2
 
     class HaltReason(Enum):
-        """! Halt type for halt notifications.
-        
+        """Halt type for halt notifications.
+
         An value of this type is returned from Target.get_halt_reason(). It is also used as the data
         attribute on PRE_HALT and POST_HALT notifications.
         """
@@ -174,31 +185,31 @@ class Target(MemoryInterface):
         ## PMU event. v8.1-M only.
         PMU = 7
 
-    def __init__(self, session, memory_map=None):
+    def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
         self._session = session
-        self._delegate = None
+        self._delegate: Any = None
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
         self.memory_map = memory_map.clone() if memory_map else MemoryMap()
-        self._svd_location = None
-        self._svd_device = None
+        self._svd_location: Optional[SVDFile] = None
+        self._svd_device: Optional[SVDDevice] = None
 
     @property
-    def session(self):
+    def session(self) -> "Session":
         return self._session
-    
+
     @property
-    def delegate(self):
+    def delegate(self) -> Any:
         return self._delegate
-    
+
     @delegate.setter
-    def delegate(self, the_delegate):
+    def delegate(self, the_delegate: Any) -> None:
         self._delegate = the_delegate
-    
-    def delegate_implements(self, method_name):
+
+    def delegate_implements(self, method_name: str) -> bool:
         return (self._delegate is not None) and (hasattr(self._delegate, method_name))
-    
-    def call_delegate(self, method_name, *args, **kwargs):
+
+    def call_delegate(self, method_name: str, *args, **kwargs) -> None:
         if self.delegate_implements(method_name):
             return getattr(self._delegate, method_name)(*args, **kwargs)
         else:
@@ -206,113 +217,122 @@ class Target(MemoryInterface):
             return None
 
     @property
-    def svd_device(self):
+    def svd_device(self) -> Optional["SVDDevice"]:
         return self._svd_device
-    
+
     @property
-    def supported_security_states(self):
-        raise NotImplementedError()
-    
-    @property
-    def core_registers(self):
+    def supported_security_states(self) -> Sequence[SecurityState]:
         raise NotImplementedError()
 
-    def is_locked(self):
+    @property
+    def core_registers(self) -> "CoreRegistersIndex":
+        raise NotImplementedError()
+
+    def is_locked(self) -> bool:
         return False
 
-    def create_init_sequence(self):
+    def create_init_sequence(self) -> "CallSequence":
         raise NotImplementedError()
 
-    def init(self):
+    def init(self) -> None:
         raise NotImplementedError()
 
-    def disconnect(self, resume=True):
+    def disconnect(self, resume: bool = True) -> None:
         pass
 
-    def flush(self):
-        self.session.probe.flush()
+    def flush(self) -> None:
+        if self.session.probe:
+            self.session.probe.flush()
 
-    def halt(self):
+    def halt(self) -> None:
         raise NotImplementedError()
 
-    def step(self, disable_interrupts=True, start=0, end=0, hook_cb=None):
+    def step(self, disable_interrupts: bool = True, start: int = 0, end: int = 0,
+            hook_cb: Optional[Callable[[], bool]] = None) -> None:
         raise NotImplementedError()
 
-    def resume(self):
+    def resume(self) -> None:
         raise NotImplementedError()
 
-    def mass_erase(self):
+    def mass_erase(self) -> None:
         raise NotImplementedError()
 
-    def read_core_register(self, id):
+    def read_core_register(self, id: "CoreRegisterNameOrNumberType") -> "CoreRegisterValueType":
         raise NotImplementedError()
 
-    def write_core_register(self, id, data):
+    def write_core_register(self, id: "CoreRegisterNameOrNumberType", data: "CoreRegisterValueType") -> None:
         raise NotImplementedError()
 
-    def read_core_register_raw(self, reg):
+    def read_core_register_raw(self, reg: "CoreRegisterNameOrNumberType") -> int:
         raise NotImplementedError()
 
-    def read_core_registers_raw(self, reg_list):
+    def read_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"]) -> List[int]:
         raise NotImplementedError()
 
-    def write_core_register_raw(self, reg, data):
+    def write_core_register_raw(self, reg: "CoreRegisterNameOrNumberType", data: int) -> None:
         raise NotImplementedError()
 
-    def write_core_registers_raw(self, reg_list, data_list):
+    def write_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"], data_list: Sequence[int]) -> None:
         raise NotImplementedError()
 
-    def find_breakpoint(self, addr):
+    def find_breakpoint(self, addr: int) -> Optional["Breakpoint"]:
         raise NotImplementedError()
 
-    def set_breakpoint(self, addr, type=BreakpointType.AUTO):
+    def set_breakpoint(self, addr: int, type: BreakpointType = BreakpointType.AUTO) -> bool:
         raise NotImplementedError()
 
-    def get_breakpoint_type(self, addr):
+    def get_breakpoint_type(self, addr: int) -> Optional[BreakpointType]:
         raise NotImplementedError()
 
-    def remove_breakpoint(self, addr):
+    def remove_breakpoint(self, addr: int) -> None:
         raise NotImplementedError()
 
-    def set_watchpoint(self, addr, size, type):
+    def set_watchpoint(self, addr: int, size: int, type: WatchpointType) -> bool:
         raise NotImplementedError()
 
-    def remove_watchpoint(self, addr, size, type):
+    def remove_watchpoint(self, addr: int, size: int, type: WatchpointType) -> None:
         raise NotImplementedError()
 
-    def reset(self, reset_type=None):
+    def reset(self, reset_type: Optional[ResetType] = None) -> None:
         raise NotImplementedError()
 
-    def reset_and_halt(self, reset_type=None):
+    def reset_and_halt(self, reset_type: Optional[ResetType] = None) -> None:
         raise NotImplementedError()
 
-    def get_state(self):
-        raise NotImplementedError()
-        
-    def get_security_state(self):
+    def get_state(self) -> State:
         raise NotImplementedError()
 
-    def get_halt_reason(self):
+    def get_security_state(self) -> SecurityState:
+        raise NotImplementedError()
+
+    def get_halt_reason(self) -> HaltReason:
         raise NotImplementedError()
 
     @property
-    def run_token(self):
+    def run_token(self) -> int:
         return 0
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return self.get_state() == Target.State.RUNNING
 
-    def is_halted(self):
+    def is_halted(self) -> bool:
         return self.get_state() == Target.State.HALTED
 
-    def get_memory_map(self):
+    def get_memory_map(self) -> MemoryMap:
         return self.memory_map
 
-    def set_vector_catch(self, enableMask):
+    def set_vector_catch(self, enable_mask: int) -> None:
         raise NotImplementedError()
 
-    def get_vector_catch(self):
+    def get_vector_catch(self) -> int:
         raise NotImplementedError()
 
-    def get_target_context(self, core=None):
+    def get_target_context(self, core: Optional[int] = None) -> "DebugContext":
         raise NotImplementedError()
+
+class TargetGraphNode(Target, GraphNode):
+    """@brief Abstract class for a target that is a graph node."""
+
+    def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
+        Target.__init__(self, session, memory_map)
+        GraphNode.__init__(self)

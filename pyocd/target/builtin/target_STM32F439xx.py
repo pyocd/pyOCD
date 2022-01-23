@@ -67,10 +67,10 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 class STM32F439xG(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000,  sector_size=0x4000,
-                                                        page_size=0x1000, 
+                                                        page_size=0x1000,
                                                         is_boot_memory=True,
                                                         erase_all_weight=CHIP_ERASE_WEIGHT,
                                                         algo=FLASH_ALGO),
@@ -97,7 +97,7 @@ class STM32F439xG(CoreSightTarget):
 class STM32F439xI(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
-    
+
     MEMORY_MAP = MemoryMap(
         FlashRegion( start=0x08000000, length=0x10000,  sector_size=0x4000,
                                                         page_size=0x1000,

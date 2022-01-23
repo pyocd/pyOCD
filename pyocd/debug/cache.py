@@ -19,7 +19,7 @@ from ..cache.memory import MemoryCache
 from ..cache.register import RegisterCache
 
 class CachingDebugContext(DebugContext):
-    """! @brief Debug context combining register and memory caches."""
+    """@brief Debug context combining register and memory caches."""
 
     def __init__(self, parent):
         super(CachingDebugContext, self).__init__(parent)

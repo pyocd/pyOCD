@@ -26,10 +26,11 @@ from pyocd.core.exceptions import TimeoutError
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.debug import semihost
+from pyocd.utility.server import StreamServer
 
 @pytest.fixture(scope='module')
 def tgt(request):
-    board = None
+    session = None
     try:
         session = ConnectHelper.session_with_chosen_probe(blocking=False, return_first=True)
     except Exception as error:
@@ -38,15 +39,15 @@ def tgt(request):
         pytest.skip("No probe present")
         return
     session.open()
-    board = session.board
     session.options['resume_on_disconnect'] = False
-    board.target.reset_and_halt()
+    assert session.target
+    session.target.reset_and_halt()
 
-    def cleanup():
-        board.uninit()
+    def close_session():
+        session.close()
 
-    request.addfinalizer(cleanup)
-    return board.target
+    request.addfinalizer(close_session)
+    return session.target
 
 @pytest.fixture(scope='module')
 def ctx(tgt):
@@ -97,8 +98,8 @@ BKPT_00 = 0xbe00
 BKPT_AB = 0xbeab
 
 class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
-    """! @brief Semihost IO handler that records output.
-    
+    """@brief Semihost IO handler that records output.
+
     This handler is only meant to be used for console I/O since it doesn't implement
     open() or close().
     """
@@ -141,7 +142,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
             return -1
 
 class SemihostRequestBuilder:
-    """! @brief Utility to build code and set registers to perform a semihost request."""
+    """@brief Utility to build code and set registers to perform a semihost request."""
     def __init__(self, tgt, semihostagent, ramrgn):
         self.tgt = tgt
         self.ctx = tgt.get_target_context()
@@ -323,7 +324,7 @@ def delete_testfile(request):
     request.addfinalizer(delete_it)
 
 class TestSemihosting:
-    """! @brief Tests for semihost requests."""
+    """@brief Tests for semihost requests."""
     def test_open_stdio(self, semihost_builder):
         fd = semihost_builder.do_open(":tt", 'r') # stdin
         assert fd == 1
@@ -472,80 +473,88 @@ class TestSemihosting:
         result = semihost_builder.do_close(fd)
         assert result == 0
 
-# @pytest.fixture(scope='function')
-# def telnet(request):
-#     telnet = semihost.TelnetSemihostIOHandler(4444)
-#     def stopit():
-#         telnet.stop()
-#     request.addfinalizer(stopit)
-#     return telnet
-# 
-# @pytest.fixture(scope='function')
-# def semihost_telnet_agent(ctx, telnet, request):
-#     agent = semihost.SemihostAgent(ctx, console=telnet)
-#     def cleanup():
-#         agent.cleanup()
-#     request.addfinalizer(cleanup)
-#     return agent
-# 
-# @pytest.fixture(scope='function')
-# def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
-#     return SemihostRequestBuilder(tgt, semihost_telnet_agent, ramrgn)
-# 
-# @pytest.fixture(scope='function')
-# def telnet_conn(request):
-#     from time import sleep
-#     # Sleep for a bit to ensure the semihost telnet server has started up in its own thread.
-#     sleep(0.25)
-#     telnet = telnetlib.Telnet('localhost', 4444, 10.0)
-#     def cleanup():
-#         telnet.close()
-#     request.addfinalizer(cleanup)
-#     return telnet
-# 
-# class TestSemihostingTelnet:
-#     def test_connect(self, semihost_telnet_builder, telnet_conn):
-#         result = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
-#         assert result == 0
-# 
-#     def test_write(self, semihost_telnet_builder, telnet_conn):
-#         result = semihost_telnet_builder.do_write(semihost.STDOUT_FD, 'hello world')
-#         assert result == 0
-# 
-#         index, _, text = telnet_conn.expect(['hello world'])
-#         assert index != -1
-#         assert text == 'hello world'
-# 
-#     def test_writec(self, semihost_telnet_builder, telnet_conn):
-#         for c in 'xyzzy':
-#             result = semihost_telnet_builder.do_writec(c)
-#             assert result == 0
-# 
-#             index, _, text = telnet_conn.expect([c])
-#             assert index != -1
-#             assert text == c
-# 
-#     def test_write0(self, semihost_telnet_builder, telnet_conn):
-#         result = semihost_telnet_builder.do_write0('hello world')
-#         assert result == 0
-# 
-#         index, _, text = telnet_conn.expect(['hello world'])
-#         assert index != -1
-#         assert text == 'hello world'
-# 
-#     def test_read(self, semihost_telnet_builder, telnet_conn):
-#         telnet_conn.write('hello world')
-# 
-#         result, data = semihost_telnet_builder.do_read(semihost.STDIN_FD, 11)
-#         assert result == 0
-#         assert data == 'hello world'
-# 
-#     def test_readc(self, semihost_telnet_builder, telnet_conn):
-#         telnet_conn.write('xyz')
-# 
-#         for c in 'xyz':
-#             rc = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_READC)
-#             assert chr(rc) == c
+@pytest.fixture(scope='function')
+def telnet_server(request):
+    telnet_server = StreamServer(
+            0,          # port 0 to automatically allocate a free port
+            True,       # local only
+            "Semihost", # name
+            False,      # is read only
+            extra_info="test"
+            )
+    def stopit():
+        telnet_server.stop()
+    request.addfinalizer(stopit)
+    return telnet_server
+
+@pytest.fixture(scope='function')
+def semihost_telnet_agent(ctx, telnet_server, request):
+    semihost_console = semihost.ConsoleIOHandler(telnet_server)
+    agent = semihost.SemihostAgent(ctx, console=semihost_console)
+    def cleanup():
+        agent.cleanup()
+    request.addfinalizer(cleanup)
+    return agent
+
+@pytest.fixture(scope='function')
+def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
+    return SemihostRequestBuilder(tgt, semihost_telnet_agent, ramrgn)
+
+@pytest.fixture(scope='function')
+def telnet_conn(request, telnet_server):
+    from time import sleep
+    # Sleep for a bit to ensure the semihost telnet server has started up in its own thread.
+    while not telnet_server.is_running:
+        sleep(0.005)
+    telnet = telnetlib.Telnet('localhost', telnet_server.port, 10.0)
+    def cleanup():
+        telnet.close()
+    request.addfinalizer(cleanup)
+    return telnet
+
+class TestSemihostingTelnet:
+    def test_connect(self, semihost_telnet_builder, telnet_conn):
+        result = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
+        assert result == 0
+
+    def test_write(self, semihost_telnet_builder, telnet_conn):
+        result = semihost_telnet_builder.do_write(semihost.STDOUT_FD, b'hello world')
+        assert result == 0
+
+        index, _, text = telnet_conn.expect([b'hello world'])
+        assert index != -1
+        assert text == b'hello world'
+
+    def test_writec(self, semihost_telnet_builder, telnet_conn):
+        for c in (bytes([i]) for i in b'xyzzy'):
+            result = semihost_telnet_builder.do_writec(c)
+            assert result == 0
+
+            index, _, text = telnet_conn.expect([c])
+            assert index != -1
+            assert text == c
+
+    def test_write0(self, semihost_telnet_builder, telnet_conn):
+        result = semihost_telnet_builder.do_write0(b'hello world')
+        assert result == 0
+
+        index, _, text = telnet_conn.expect([b'hello world'])
+        assert index != -1
+        assert text == b'hello world'
+
+    def test_read(self, semihost_telnet_builder, telnet_conn):
+        telnet_conn.write(b'hello world')
+
+        result, data = semihost_telnet_builder.do_read(semihost.STDIN_FD, 11)
+        assert result == 0
+        assert data == b'hello world'
+
+    def test_readc(self, semihost_telnet_builder, telnet_conn):
+        telnet_conn.write(b'xyz')
+
+        for c in 'xyz':
+            rc = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_READC)
+            assert chr(rc) == c
 
 class TestSemihostAgent:
     def test_no_io_handler(self, ctx):

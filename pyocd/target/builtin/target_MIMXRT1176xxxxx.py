@@ -21,7 +21,7 @@ from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...coresight.ap import AccessPort, APv1Address
-from ...coresight.cortex_m import CortexM 
+from ...coresight.cortex_m import CortexM
 
 LOG = logging.getLogger(__name__)
 FCFB = 0x42464346
@@ -777,7 +777,7 @@ FLASH_ALGO = {
 class MIMXRT1176xxxxx_CM7(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
@@ -857,7 +857,7 @@ class MIMXRT1176xxxxx_CM7(CoreSightTarget):
 class MIMXRT1176xxxxx_CM4(CoreSightTarget):
 
     VENDOR = "NXP"
-    
+
     # Note: itcm, dtcm, and ocram share a single 512 KB block of RAM that can be configurably
     # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
     # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and

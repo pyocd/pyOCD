@@ -35,14 +35,14 @@ FDPROT_ADDR = 0x40f
 FDPROT_VAL = 0xFF
 
 class Flash_Kinetis(Flash):
-    """! @brief Base flash algorithm class for Freescale Kinetis devices."""
+    """@brief Base flash algorithm class for Freescale Kinetis devices."""
 
     def override_security_bits(self, address, data):
-        """! @brief Check security bytes.
-        
+        """@brief Check security bytes.
+
         Override Flash Configuration Field bytes at address 0x400-0x40f to ensure that flash security
         won't be enabled. If flash security is enabled, then the chip is inaccessible via SWD.
-        
+
         FCF bytes:
         [0x0-0x7]=backdoor key
         [0x8-0xb]=flash protection bytes
@@ -54,14 +54,14 @@ class Flash_Kinetis(Flash):
         [0xd]=FOPT
         [0xe]=EEPROM protection bytes (FlexNVM devices only)
         [0xf]=data flash protection bytes (FlexNVM devices only)
-        
+
         This function enforces that:
         - 0x8-0xb==0xff
         - 0xe-0xf==0xff
         - FSEC=0xfe
-        
+
         FOPT can be set to any value except 0x00.
-        
+
         @retval Data with modified security bits
         """
         # Check if the data passed in contains the security bits

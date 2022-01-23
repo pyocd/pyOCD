@@ -15,19 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-
-# iter_single_bytes() returns an iterator over a bytes object that produces
-# single-byte bytes objects for each byte in the passed in value. Normally on
-# py3 iterating over a bytes will give you ints for each byte, while on py3
-# you'll get single-char strs.
-iter_single_bytes = functools.partial(map, lambda v: bytes((v,))) # pylint: disable=invalid-name
+from typing import Union
 
 # to_bytes_safe() converts a unicode string to a bytes object by encoding as
 # latin-1. It will also accept a value that is already a bytes object and
 # return it unmodified.
-def to_bytes_safe(v):
-    if type(v) is str:
+def to_bytes_safe(v: Union[str, bytes]) -> bytes:
+    if isinstance(v, str):
         return v.encode('utf-8')
     else:
         return v
@@ -35,8 +29,8 @@ def to_bytes_safe(v):
 # to_str_safe() converts a bytes object to a unicode string by decoding from
 # latin-1. It will also accept a value that is already a str object and
 # return it unmodified.
-def to_str_safe(v):
-    if type(v) is str:
+def to_str_safe(v: Union[str, bytes]) -> str:
+    if isinstance(v, str):
         return v
     else:
         return v.decode('utf-8')

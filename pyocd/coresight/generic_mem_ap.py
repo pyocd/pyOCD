@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Cypress Semiconductor Corporation
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +17,7 @@
 
 import logging
 
-from .component import CoreSightCoreComponent
+from .component import CoreSightComponent
 from ..core.target import Target
 from ..core.core_registers import CoreRegistersIndex
 
@@ -25,9 +26,9 @@ LOG = logging.getLogger(__name__)
 DEAD_VALUE = 0
 
 
-class GenericMemAPTarget(Target, CoreSightCoreComponent):
-    """! @brief This target represents ARM debug Access Port without a CPU
-    
+class GenericMemAPTarget(Target, CoreSightComponent):
+    """@brief This target represents ARM debug Access Port without a CPU
+
     It may be used to access the address space of the target via Access Ports
     without real ARM CPU core behind it. For instance Cypress PSoC64 devices have
     three APs implemented in the hardware:
@@ -35,14 +36,14 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
     * AP #1 -> Cortex-M0+ AP
     * AP #2 -> Cortex-M4F AP
     Depending on the protection state, AP #1 and AP #2 can be permanently disabled.
-    This class allows to communicate with Secure FW running on the target via AP #0. 
-    
+    This class allows to communicate with Secure FW running on the target via AP #0.
+
     Most of the methods in this class (except memory access methods) are empty/dummy.
     """
-    
+
     def __init__(self, session, ap, memory_map=None, core_num=0, cmpid=None, address=None):
         Target.__init__(self, session, memory_map)
-        CoreSightCoreComponent.__init__(self, ap, cmpid, address)
+        CoreSightComponent.__init__(self, ap, cmpid, address)
         self.core_number = core_num
         self.core_type = DEAD_VALUE
         self._core_registers = CoreRegistersIndex()

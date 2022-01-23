@@ -39,12 +39,12 @@ SECTIONS
     . = ALIGN(4);
     *(.data)           /* .data sections */
     *(.data*)          /* .data* sections */
-    
+
     . = ALIGN(4);
     *(.bss)
     *(.bss*)
     *(COMMON)
-    
+
     . = ALIGN(4);
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,69 +17,77 @@
 
 import pkg_resources
 import logging
+from typing import (
+    Any,
+    Dict,
+    List,
+    )
 
 from .._version import version as pyocd_version
-from .options import add_option_set
+from .options import (
+    add_option_set,
+    OptionInfo,
+    )
 
 LOG = logging.getLogger(__name__)
 
-class Plugin(object):
-    """! @brief Class that describes a plugin for pyOCD.
-    
+class Plugin:
+    """@brief Class that describes a plugin for pyOCD.
+
     Each plugin vends a subclass of Plugin that describes itself and provides meta-actions.
-    
+
     An instance is created and queried for whether the plugin can be loaded by calling
     should_load(). If this method returns True, then load() is called. The default implementation
     will always load, and does nothing when loaded.
     """
-    
-    def should_load(self):
-        """! @brief Whether the plugin should be loaded."""
+
+    def should_load(self) -> bool:
+        """@brief Whether the plugin should be loaded."""
         return True
-    
-    def load(self):
-        """! @brief Load the plugin and return the plugin implementation.
-        
+
+    def load(self) -> Any:
+        """@brief Load the plugin and return the plugin implementation.
+
         This method can perform any actions required to load the plugin beyond simply returning
         the implementation.
-        
+
         @return An object appropriate for the plugin type, which normally would be a class object.
         """
         pass
-    
+
     @property
-    def options(self):
-        """! @brief A list of options added by the plugin.
+    def options(self) -> List[OptionInfo]:
+        """@brief A list of options added by the plugin.
         @return List of @ref pyocd.core.options.OptionInfo "OptionInfo" objects.
         """
         return []
-    
+
     @property
-    def version(self):
-        """! @brief Current version of the plugin.
-        
+    def version(self) -> str:
+        """@brief Current release version of the plugin.
+
         The default implementation returns pyOCD's version.
-        
+
         @return String with the plugin's version, such as '2.13.4'.
         """
         return pyocd_version
-    
+
     @property
-    def name(self):
-        """! @brief Name of the plugin."""
+    def name(self) -> str:
+        """@brief Name of the plugin."""
         raise NotImplementedError()
-    
+
     @property
-    def description(self):
-        """! @brief Short description of the plugin."""
+    def description(self) -> str:
+        """@brief Short description of the plugin."""
         return ""
 
-def load_plugin_classes_of_type(plugin_group, plugin_dict, base_class):
-    """! @brief Helper method to load plugins.
-    
+def load_plugin_classes_of_type(plugin_group: str, plugin_dict: Dict[str, Any], base_class: type) -> None:
+    """@brief Helper method to load plugins.
+
     Plugins are expected to return an implementation class from their Plugin.load() method. This
     class must be derived from `base_class`.
-    
+
     @param plugin_group String of the plugin group, e.g. 'pyocd.probe'.
     @param plugin_dict Dictionary to fill with loaded plugin classes.
     @param base_class The required superclass for plugin implementation classes.
@@ -90,7 +99,7 @@ def load_plugin_classes_of_type(plugin_group, plugin_dict, base_class):
             LOG.warning("Plugin '%s' of type '%s' has an invalid plugin object",
                     entry_point.name, plugin_group)
             continue
-        
+
         # Ask the plugin whether it should be loaded.
         if plugin.should_load():
             # Load the plugin and stuff the implementation class it gives
@@ -100,7 +109,7 @@ def load_plugin_classes_of_type(plugin_group, plugin_dict, base_class):
                         plugin.name, plugin_group)
                 continue
             plugin_dict[plugin.name] = impl_class
-            
+
             # Add any plugin options.
             add_option_set(plugin.options)
-                
+

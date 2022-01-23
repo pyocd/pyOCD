@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,13 @@
 # limitations under the License.
 
 
-class Interface(object):
+class Interface:
+
+    @staticmethod
+    def get_all_connected_interfaces():
+        raise NotImplementedError()
+
+    DEFAULT_READ_TIMEOUT = 20
 
     def __init__(self):
         self.vid = 0
@@ -25,22 +32,30 @@ class Interface(object):
         self.serial_number = ""
         self.packet_count = 1
         self.packet_size = 64
-    
+
     @property
     def has_swo_ep(self):
         return False
 
+    @property
+    def is_bulk(self):
+        """@brief Whether the interface uses CMSIS-DAP v2 bulk endpoints."""
+        return False
+
     def open(self):
-        return
+        raise NotImplementedError()
 
     def close(self):
-        return
+        raise NotImplementedError()
 
     def write(self, data):
-        return
+        raise NotImplementedError()
 
-    def read(self, size=-1, timeout=-1):
-        return
+    def read(self, timeout=DEFAULT_READ_TIMEOUT):
+        raise NotImplementedError()
+
+    def read_swo(self):
+        raise NotImplementedError()
 
     def get_info(self):
         return self.vendor_name + " " + \
@@ -63,3 +78,6 @@ class Interface(object):
 
     def get_serial_number(self):
         return self.serial_number
+
+    def __repr__(self):
+        return f"<{type(self).__name__}@{id(self):x} {self.get_info()} {self.serial_number}>"

@@ -366,20 +366,31 @@ init
 Ignored; for OpenOCD compatibility.
 </td></tr>
 
+<tr><td colspan="3"><b>Probe</b></td></tr>
+
+<tr><td>
+<a href="#flushprobe"><tt>flushprobe</tt></a>
+</td><td>
+</td><td>
+Ensure all debug probe requests have been completed.
+</td></tr>
+
 <tr><td colspan="3"><b>Registers</b></td></tr>
 
 <tr><td>
-<a href="#reg"><tt>reg</tt></a>
+<a href="#reg"><tt>reg</tt></a>,
+<a href="#reg"><tt>rr</tt></a>
 </td><td>
-[-f] [REG]
+[-p] [-f] [REG...]
 </td><td>
 Print core or peripheral register(s).
 </td></tr>
 
 <tr><td>
-<a href="#wreg"><tt>wreg</tt></a>
+<a href="#wreg"><tt>wreg</tt></a>,
+<a href="#wreg"><tt>wr</tt></a>
 </td><td>
-[-r] REG VALUE
+[-r] [-p] [-f] REG VALUE
 </td><td>
 Set the value of a core or peripheral register.
 </td></tr>
@@ -914,21 +925,31 @@ Write 8-bit bytes to memory. The data arguments are 8-bit bytes. Can write to bo
 ##### `init`
 
 **Usage**: init \
-Ignored; for OpenOCD compatibility. 
+Ignored; for OpenOCD compatibility.
+
+
+### Probe
+
+##### `flushprobe`
+
+**Usage**:  \
+Ensure all debug probe requests have been completed.
 
 
 ### Registers
 
 ##### `reg`
 
-**Usage**: [-f] [REG] \
-Print core or peripheral register(s). If no arguments are provided, all core registers will be printed. Either a core register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral name is provided without a register, all registers in the peripheral will be printed. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
+**Aliases**: `rr` \
+**Usage**: [-p] [-f] [REG...] \
+Print core or peripheral register(s). If no arguments are provided, the 'general' core register group will be printed. Either a core register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral name is provided without a register, all registers in the peripheral will be printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
 ##### `wreg`
 
-**Usage**: [-r] REG VALUE \
-Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed.
+**Aliases**: `wr` \
+**Usage**: [-r] [-p] [-f] REG VALUE \
+Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
 ### Semihosting

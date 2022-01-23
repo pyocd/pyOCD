@@ -47,7 +47,9 @@ Disabling the security features on supported targets is very straight-forward. I
 performing a mass erase of all device memory. For those pyOCD targets with support for security
 features, pyOCD can perform this unlock procedure for you.
 
-***WARNING:** Unlocking a locked device will erase all data on the chip!*
+<div class="alert alert-warning">
+Unlocking a locked device will erase all data on the chip!
+</div>
 
 You can add the option `auto_unlock` to your [configuration]({% link _docs/configuration.md %}):
 

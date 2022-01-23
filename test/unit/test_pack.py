@@ -109,14 +109,14 @@ class Disabled_TestPack(object):
     def test_get_installed(self, pack_ref):
         p = pack_target.ManagedPacks.get_installed_packs()
         assert p == [pack_ref]
-    
+
     def test_get_targets(self, k64dev):
         assert k64dev.part_number == K64F
-    
+
     def test_pop_managed_k64(self):
         pack_target.ManagedPacks.populate_target(K64F)
         assert K64F.lower() in TARGET
-    
+
     def test_k64_mem_map(self, k64dev):
         map = k64dev.memory_map
         raml = map.get_region_for_address(0x1fff0000)
@@ -126,14 +126,14 @@ class Disabled_TestPack(object):
         assert ramu.start == 0x20000000 and ramu.length == 0x30000
         assert flash.start == 0 and flash.length == 0x100000
         assert flash.sector_size == 0x1000
-        
+
 class TestPack(object):
     def test_devices(self, k64pack):
         devs = k64pack.devices
         pns = [x.part_number for x in devs]
         assert "MK64FN1M0xxx12" in pns
         assert "MK64FX512xxx12" in pns
-    
+
     # Make sure CmsisPack can open a zip file too.
     def test_zipfile(self):
         z = zipfile.ZipFile(K64F_PACK_PATH, 'r')
@@ -145,19 +145,19 @@ class TestPack(object):
         assert k64f1m0.vendor == "NXP"
         assert k64f1m0.families == ["MK64F12"]
         assert k64f1m0.default_reset_type == target.Target.ResetType.SW
-    
+
     def test_get_svd(self, k64f1m0):
         svd = k64f1m0.svd
         x = ElementTree.parse(svd)
         assert x.getroot().tag == 'device'
-    
+
     def test_mem_map(self, k64f1m0):
         map = k64f1m0.memory_map
         bm = map.get_boot_memory()
         assert bm.start == 0 and bm.length == 1 * 1024 * 1024
         ram = map.get_default_region_of_type(memory_map.MemoryType.RAM)
         assert ram.start == 0x20000000 and ram.length == 0x30000
-    
+
     # Verify the flash region was converted correctly.
     def test_flash(self, k64f1m0):
         map = k64f1m0.memory_map
@@ -165,7 +165,7 @@ class TestPack(object):
         assert isinstance(flash, memory_map.FlashRegion)
         assert flash.start == 0 and flash.length == 1 * 1024 * 1024
         assert flash.sector_size == 4096
-    
+
 class TestFLM(object):
     def test_algo(self, k64algo):
         i = k64algo.flash_info
@@ -175,7 +175,7 @@ class TestFLM(object):
         assert i.size == 1 * 1024 * 1024
         assert i.page_size == 512
         assert i.sector_info_list == [(0, 4 * 1024)]
-    
+
     def test_algo_dict(self, k64algo, k64f1m0):
         map = k64f1m0.memory_map
         ram = map.get_default_region_of_type(memory_map.MemoryType.RAM)
@@ -185,12 +185,12 @@ class TestFLM(object):
 #         print(d)
         STACK_SIZE = 0x200
         assert d['load_address'] == ram.start + STACK_SIZE
-        assert d['pc_init'] == ram.start + STACK_SIZE + 0x21
-        assert d['pc_unInit'] == ram.start + STACK_SIZE + 0x71
-        assert d['pc_eraseAll'] == ram.start + STACK_SIZE + 0x95
-        assert d['pc_erase_sector'] == ram.start + STACK_SIZE + 0xcb
-        assert d['pc_program_page'] == ram.start + STACK_SIZE + 0xdf
-        
+        assert d['pc_init'] == ram.start + STACK_SIZE + 0x5
+        assert d['pc_unInit'] == ram.start + STACK_SIZE + 0x55
+        assert d['pc_eraseAll'] == ram.start + STACK_SIZE + 0x79
+        assert d['pc_erase_sector'] == ram.start + STACK_SIZE + 0xaf
+        assert d['pc_program_page'] == ram.start + STACK_SIZE + 0xc3
+
 def has_overlapping_regions(memmap):
     return any((len(memmap.get_intersecting_regions(r.start, r.end)) > 1) for r in memmap.regions)
 
@@ -198,7 +198,7 @@ class TestNRF():
     def test_regions(self, nrf5340):
         memmap = nrf5340.memory_map
         assert not has_overlapping_regions(memmap)
-        
+
 class TestSTM32L4():
     def test_regions(self, stm32l4r5):
         memmap = stm32l4r5.memory_map

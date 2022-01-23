@@ -35,8 +35,8 @@ class Watchpoint(HardwareBreakpoint):
         self.func = 0
 
 class DWT(CoreSightComponent):
-    """! @brief Data Watchpoint and Trace version 1.0"""
-    
+    """@brief Data Watchpoint and Trace version 1.0"""
+
     # DWT registers
     #
     # The addresses are offsets from the base address.
@@ -52,7 +52,7 @@ class DWT(CoreSightComponent):
     DWT_MASK_OFFSET = 4
     DWT_FUNCTION_OFFSET = 8
     DWT_COMP_BLOCK_SIZE = 0x10
-    
+
     DWT_CTRL_NUM_COMP_MASK = (0xF << 28)
     DWT_CTRL_NUM_COMP_SHIFT = 28
     DWT_CTRL_CYCEVTENA_MASK = (1 << 22)
@@ -90,14 +90,14 @@ class DWT(CoreSightComponent):
         self.watchpoints = []
         self.watchpoint_used = 0
         self.dwt_configured = False
-    
+
     @property
     def watchpoint_count(self):
         return len(self.watchpoints)
 
     def init(self):
-        """! @brief Inits the DWT.
-        
+        """@brief Inits the DWT.
+
         Reads the number of hardware watchpoints available on the core and makes sure that they
         are all disabled and ready for future use.
         """
@@ -106,7 +106,7 @@ class DWT(CoreSightComponent):
         if (demcr & DEMCR_TRCENA) == 0:
             demcr |= DEMCR_TRCENA
             self.ap.write_memory(DEMCR, demcr)
-        
+
         dwt_ctrl = self.ap.read_memory(self.address + self.DWT_CTRL)
         watchpoint_count = (dwt_ctrl & self.DWT_CTRL_NUM_COMP_MASK) >> self.DWT_CTRL_NUM_COMP_SHIFT
         LOG.info("%d hardware watchpoints", watchpoint_count)
@@ -114,7 +114,7 @@ class DWT(CoreSightComponent):
             comparatorAddress = self.address + self.DWT_COMP_BASE + self.DWT_COMP_BLOCK_SIZE * i
             self.watchpoints.append(Watchpoint(comparatorAddress, self))
             self.ap.write_memory(comparatorAddress + self.DWT_FUNCTION_OFFSET, 0)
-        
+
         # Enable cycle counter.
         self.ap.write32(self.address + self.DWT_CTRL, self.DWT_CTRL_CYCCNTENA_MASK)
         self.dwt_configured = True
@@ -126,7 +126,7 @@ class DWT(CoreSightComponent):
         return None
 
     def set_watchpoint(self, addr, size, type):
-        """! @brief Set a hardware watchpoint."""
+        """@brief Set a hardware watchpoint."""
         if self.dwt_configured is False:
             self.init()
 
@@ -163,7 +163,7 @@ class DWT(CoreSightComponent):
         return False
 
     def remove_watchpoint(self, addr, size, type):
-        """! @brief Remove a hardware watchpoint."""
+        """@brief Remove a hardware watchpoint."""
         watch = self.find_watchpoint(addr, size, type)
         if watch is None:
             return
@@ -171,34 +171,34 @@ class DWT(CoreSightComponent):
         watch.func = 0
         self.ap.write_memory(watch.comp_register_addr + self.DWT_FUNCTION_OFFSET, 0)
         self.watchpoint_used -= 1
-    
+
     def remove_all_watchpoints(self):
         for watch in self.watchpoints:
             if watch.func != 0:
                 self.remove_watchpoint(watch.addr, watch.size, self.WATCH_TYPE_TO_FUNCT[watch.func])
-    
+
     def get_watchpoints(self):
         return [watch for watch in self.watchpoints if watch.func != 0]
-    
+
     @property
     def cycle_count(self):
         return self.ap.read32(self.address + self.DWT_CYCCNT)
-    
+
     @cycle_count.setter
     def cycle_count(self, value):
         self.ap.write32(self.address + self.DWT_CYCCNT, value)
 
 class DWTv2(DWT):
-    """! @brief Data Watchpoint and Trace version 2.x
-    
+    """@brief Data Watchpoint and Trace version 2.x
+
     This version is present in v8-M platforms.
-    
+
     - DWT 2.0 appears in v8.0-M
     - DWT 2.1 appears in v8.1-M and adds the VMASKn registers.
     """
-    
+
     DWT_ACTION_DEBUG_EVENT = 0x00000010
-    
+
     ## Map from watchpoint type to FUNCTIONn.MATCH field value.
     WATCH_TYPE_TO_FUNCT = {
                             Target.WatchpointType.READ: 0b0110,
@@ -208,16 +208,16 @@ class DWTv2(DWT):
                             0b0101: Target.WatchpointType.WRITE,
                             0b0100: Target.WatchpointType.READ_WRITE,
                             }
-    
+
     ## Map from data access size to pre-shifted DATAVSIZE field value.
     DATAVSIZE_MAP = {
                         1: (0 << 10),
                         2: (1 << 10),
                         4: (2 << 10),
                     }
-    
+
     def set_watchpoint(self, addr, size, type):
-        """! @brief Set a hardware watchpoint."""
+        """@brief Set a hardware watchpoint."""
         if self.dwt_configured is False:
             self.init()
 
@@ -228,7 +228,7 @@ class DWTv2(DWT):
         if type not in self.WATCH_TYPE_TO_FUNCT:
             LOG.error("Invalid watchpoint type %i", type)
             return False
-        
+
         # Only support sizes that can be handled with a single comparator.
         if size not in (1, 2, 4):
             LOG.error("Invalid watchpoint size %d", size)

@@ -77,7 +77,7 @@ INTEGER_INFOS = [
     ]
 
 class CMSISDAPVersion:
-    """! @brief Known CMSIS-DAP versions.
+    """@brief Known CMSIS-DAP versions.
 
     The tuple fields are major, minor, patch. Generally, patch release versions are excluded from this
     list, unless there is a specific reason to know about a particular patch release.
@@ -88,6 +88,14 @@ class CMSISDAPVersion:
     V1_3_0 = (1, 3, 0)
     V2_0_0 = (2, 0, 0)
     V2_1_0 = (2, 1, 0)
+
+    @classmethod
+    def major_versions(cls) -> Set[int]:
+        """@brief Returns a set of major versions."""
+        return {
+            v[0] for k, v in cls.__dict__.items()
+            if k.startswith('V')
+            }
 
     @classmethod
     def minor_versions(cls) -> Set[Tuple[int, int]]:
@@ -136,11 +144,11 @@ DAP_OK = 0
 DAP_ERROR = 0xff
 
 class DAPTransferResponse:
-    """! Responses to DAP_Transfer and DAP_TransferBlock"""
+    """Responses to DAP_Transfer and DAP_TransferBlock"""
     ACK_MASK = 0x07 # Bits [2:0]
     PROTOCOL_ERROR_MASK = 0x08 # Bit [3]
     VALUE_MISMATCH_MASK = 0x08 # Bit [4]
-    
+
     # Values for ACK bitfield.
     ACK_OK = 1
     ACK_WAIT = 2
@@ -148,13 +156,13 @@ class DAPTransferResponse:
     ACK_NO_ACK = 7
 
 class CMSISDAPProtocol(object):
-    """! @brief This class implements the CMSIS-DAP wire protocol."""
+    """@brief This class implements the CMSIS-DAP wire protocol."""
 
     def __init__(self, interface):
         self.interface = interface
 
     def dap_info(self, id_):
-        """! @brief Sends the DAP_Info command to read info from the CMSIS-DAP probe.
+        """@brief Sends the DAP_Info command to read info from the CMSIS-DAP probe.
         @param self This object.
         @param id_ One of the @ref pyocd.probe.pydapaccess.dap_access_api.DAPAcessIntf.ID "DAPAcessIntf.ID" constants.
         @return The `id_` parameter determines the return value data type. For those IDs defined as integer values
@@ -166,7 +174,7 @@ class CMSISDAPProtocol(object):
             - A string-type info was requested, but the returned value length is greater than the response packet size minus response header and terminating null byte on the string.
         """
         assert type(id_) is DAPAccessIntf.ID
-            
+
         cmd = []
         cmd.append(Command.DAP_INFO)
         cmd.append(id_.value)
@@ -348,7 +356,7 @@ class CMSISDAPProtocol(object):
     def swd_configure(self, turnaround=1, always_send_data_phase=False):
         assert 1 <= turnaround <= 4
         conf = (turnaround - 1) | (int(always_send_data_phase) << 2)
-    
+
         cmd = []
         cmd.append(Command.DAP_SWD_CONFIGURE)
         cmd.append(conf)
@@ -366,14 +374,14 @@ class CMSISDAPProtocol(object):
         return resp[1]
 
     def swd_sequence(self, sequences):
-        """! @brief Send the DAP_SWD_Sequence command.
-        
+        """@brief Send the DAP_SWD_Sequence command.
+
         Each sequence in the _sequences_ parameter is a tuple with 1 or 2 members:
         - 0: int: number of TCK cycles from 1-64
         - 1: int: the SWDIO bit values to transfer. The presence of this tuple member indicates the sequence is
             an output sequence; the absence means that the specified number of TCK cycles of SWDIO data will be
             read and returned.
-        
+
         The DAP_SWD_Sequence command expects this data for each sequence:
         - 0: sequence info byte
             - bit [7]: mode, 0=output, 1=input
@@ -381,10 +389,10 @@ class CMSISDAPProtocol(object):
             - bits [5:0]: number of TCK cycles from 1-64, with 64 encoded as 0
         - 1: (only present if element 0 bit 7 == 0, for output mode) bytes of data to send, one bit per TCK cycle,
             transmitted LSB first.
-        
+
         @param self
         @param sequences A sequence of sequence description tuples as described above.
-        
+
         @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
             sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
         """
@@ -397,7 +405,7 @@ class CMSISDAPProtocol(object):
             is_output = len(seq) == 2
             info = (0x00 if is_output else 0x80) | (0 if (tck_count == 64) else tck_count)
             cmd.append(info)
-            
+
             # Append SWDIO output data.
             if is_output:
                 bits = seq[1]
@@ -456,7 +464,7 @@ class CMSISDAPProtocol(object):
         info = (((0 if (cycles == 64) else cycles) & 0x3f)
                 | ((tms & 1) << 6)
                 | (int(read_tdo) << 7))
-        
+
         cmd = []
         cmd.append(Command.DAP_JTAG_SEQUENCE)
         cmd.append(1)
@@ -481,7 +489,7 @@ class CMSISDAPProtocol(object):
         # Default to a single device with an IRLEN of 4.
         if devices_irlen is None:
             devices_irlen = [4]
-        
+
         cmd = []
         cmd.append(Command.DAP_JTAG_CONFIGURE)
         cmd.append(len(devices_irlen))

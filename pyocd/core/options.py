@@ -39,6 +39,9 @@ BUILTIN_OPTIONS = [
         "Whether the CMSIS-DAP probe backend will use deferred transfers for improved performance."),
     OptionInfo('cmsis_dap.limit_packets', bool, False,
         "Restrict CMSIS-DAP backend to using a single in-flight command at a time."),
+    OptionInfo('cmsis_dap.prefer_v1', bool, False,
+        "If a device provides both CMSIS-DAP v1 and v2 interfaces, use the v1 interface in preference of v2. "
+        "Normal behaviour is to prefer the v2 interface. This option is primarily intended for testing."),
     OptionInfo('commander.history_length', int, 1000,
         "Number of entries in the pyOCD Commander command history. Set to -1 for unlimited. Default is 1000."),
     OptionInfo('config_file', str, None,
@@ -76,9 +79,9 @@ BUILTIN_OPTIONS = [
         "SWD/JTAG frequency in Hertz."),
     OptionInfo('hide_programming_progress', bool, False,
         "Disables flash programming progress bar."),
-    OptionInfo('keep_unwritten', bool, True,
-        "Whether to load existing flash content for ranges of sectors that will be erased but not "
-        "written with new data. Default is True."),
+    OptionInfo('keep_unwritten', bool, False,
+        "Whether to preserve existing flash content for ranges of sectors that will be erased but not "
+        "written with new data. Default is False."),
     OptionInfo('logging', (str, dict), None,
         "Logging configuration dictionary, or path to YAML file containing logging configuration."),
     OptionInfo('no_config', bool, False,
@@ -133,6 +136,10 @@ BUILTIN_OPTIONS = [
         "Whether to enable SWV printf output over the semihosting console. Requires the "
         "swv_system_clock option to be set. The SWO baud rate can be controlled with the "
         "swv_clock option."),
+    OptionInfo('debug.status_fault_retry_timeout', float, 1.0,
+        "Duration in seconds that a failed target status check will be retried before an error is raised. "
+        "Only applies while the target is running after a resume operation in the debugger and pyOCD is waiting "
+        "for it to halt again."),
     OptionInfo('gdbserver_port', int, 3333,
         "Base TCP port for the gdbserver."),
     OptionInfo('persist', bool, False,
@@ -173,7 +180,7 @@ BUILTIN_OPTIONS = [
 OPTIONS_INFO = {}
 
 def add_option_set(options):
-    """! @brief Merge a list of OptionInfo objects into OPTIONS_INFO."""
+    """@brief Merge a list of OptionInfo objects into OPTIONS_INFO."""
     OPTIONS_INFO.update({oi.name: oi for oi in options})
 
 # Start with only builtin options.

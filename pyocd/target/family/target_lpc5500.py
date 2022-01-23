@@ -2,6 +2,7 @@
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (C) 2020 Ted Tawara
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021 Matthias Wauer
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,7 +81,7 @@ class LPC5500Family(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super(LPC5500Family, self).create_init_sequence()
-        
+
         seq.wrap_task('discovery', self.modify_discovery)
         return seq
 
@@ -96,40 +97,44 @@ class LPC5500Family(CoreSightTarget):
                         ) \
            .append(('restore_max_invalid_aps', self.restore_max_invalid_aps))
         return seq
-    
+
     def set_max_invalid_aps(self):
         # Save current option and make sure it is set to at least 3.
         self._saved_max_invalid_aps = self.session.options.get('adi.v5.max_invalid_ap_count')
         if self._saved_max_invalid_aps < self._MIN_INVALID_APS:
             self.session.options.set('adi.v5.max_invalid_ap_count', self._MIN_INVALID_APS)
-    
+
     def restore_max_invalid_aps(self):
         # Only restore if we changed it.
         if self._saved_max_invalid_aps < self._MIN_INVALID_APS:
             self.session.options.set('adi.v5.max_invalid_ap_count', self._saved_max_invalid_aps)
-    
+
     def _modify_ap1(self, seq):
         # If AP#1 exists we need to adjust it before we can read the ROM.
         if seq.has_task('init_ap.1'):
             seq.insert_before('init_ap.1',
                 ('set_ap1_nonsec',        self._set_ap1_nonsec),
                 )
-        
+
         return seq
 
     def check_locked_state(self, seq):
-        """! @brief Attempt to unlock cores if they are locked (flash is empty etc.)"""
+        """@brief Attempt to unlock cores if they are locked (flash is empty etc.)"""
         # The device is not locked if AP#0 was found and is enabled.
         if (0 in self.aps) and self.aps[0].is_enabled:
             return
-        
+
         # The debugger mailbox should always be present.
         if not DM_AP in self.aps:
             LOG.error("cannot request debug unlock; no debugger mailbox AP was found")
             return
-        
+
         # Perform the unlock procedure using the debugger mailbox.
         self.unlock(self.aps[DM_AP])
+
+        # Finished, if not called from init sequence
+        if seq is None:
+            return
 
         # re-run discovery
         LOG.info("re-running discovery")
@@ -160,7 +165,7 @@ class LPC5500Family(CoreSightTarget):
             self.add_core(core0)
         except exceptions.Error as err:
             LOG.error("Error creating core 0: %s", err, exc_info=self.session.log_tracebacks)
-        
+
         # Create core 1 if the AP is present. It uses the standard Cortex-M core class for v8-M.
         if (1 in self.aps) and (self.aps[0].is_enabled):
             try:
@@ -171,22 +176,22 @@ class LPC5500Family(CoreSightTarget):
                 self.add_core(core1)
             except exceptions.Error as err:
                 LOG.error("Error creating core 1: %s", err, exc_info=self.session.log_tracebacks)
-    
+
     def _enable_traceclk(self):
         # Don't make it worse if no APs were found.
         if (0 not in self.aps) or (not self.aps[0].is_enabled):
             return
-        
+
         SYSCON_NS_Base_Addr = 0x40000000
         IOCON_NS_Base_Addr  = 0x40001000
         TRACECLKSEL_Addr    = SYSCON_NS_Base_Addr + 0x268
         TRACECLKDIV_Addr    = SYSCON_NS_Base_Addr + 0x308
         AHBCLKCTRLSET0_Addr = IOCON_NS_Base_Addr  + 0x220
-        
+
         clksel = self.read32(TRACECLKSEL_Addr)  # Read current TRACECLKSEL value
         if clksel > 2:
             self.write32(TRACECLKSEL_Addr, 0x0) # Select Trace divided clock
-        
+
         clkdiv = self.read32(TRACECLKDIV_Addr) & 0xFF # Read current TRACECLKDIV value, preserve divider but clear rest to enable
         self.write32(TRACECLKDIV_Addr, clkdiv)
 
@@ -195,7 +200,7 @@ class LPC5500Family(CoreSightTarget):
     def trace_start(self):
         # Configure PIO0_10: FUNC - 6, MODE - 0, SLEW - 1, INVERT - 0, DIGMODE - 0, OD - 0
         self.write32(0x40001028, 0x00000046)
-        
+
         self.call_delegate('trace_start', target=self, mode=0)
 
         # On a reset when ITM is enabled, TRACECLKDIV/TRACECLKSEL will be reset
@@ -205,7 +210,7 @@ class LPC5500Family(CoreSightTarget):
         self._enable_traceclk()
 
     def unlock(self, dm_ap):
-        """! @brief Unlock Cores. See UM11126 51.6.1 """
+        """@brief Unlock Cores. See UM11126 51.6.1 """
         assert self.dp.probe.is_open
 
         LOG.info("attempting unlock procedure")
@@ -213,20 +218,20 @@ class LPC5500Family(CoreSightTarget):
         # Set RESYNCH_REQ (0x1) and CHIP_RESET_REQ (0x20) in DM.CSW.
         dm_ap.write_reg(addr=DM_CSW, data=(DM_CSW_RESYNCH_REQ_MASK | DM_CSW_CHIP_RESET_REQ_MASK))
         dm_ap.dp.flush()
-        
+
         # Wait for reset to complete.
         sleep(0.1)
-        
+
         # Read CSW to verify the reset happened and the register is cleared.
         retval = dm_ap.read_reg(addr=DM_CSW)
         if retval != 0:
             LOG.error("debugger mailbox failed to reset the device")
             return
-        
+
         # Write debug unlock request.
         dm_ap.write_reg(addr=DM_REQUEST, data=DM_START_DBG_SESSION)
         dm_ap.dp.flush()
-        
+
         # Read reply from boot ROM. The return status is the low half-word.
         retval = dm_ap.read_reg(addr=DM_RETURN) & 0xffff
         if retval != 0:
@@ -237,12 +242,12 @@ class LPC5500Family(CoreSightTarget):
 class CortexM_LPC5500(CortexM_v8M):
 
     def reset_and_halt(self, reset_type=None):
-        """! @brief Perform a reset and stop the core on the reset handler. """
+        """@brief Perform a reset and stop the core on the reset handler. """
         halt_only = False
         catch_mode = 0
 
         delegateResult = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
-        
+
         # Save CortexM.DEMCR
         demcr = self.read_memory(CortexM.DEMCR)
 
@@ -250,10 +255,10 @@ class CortexM_LPC5500(CortexM_v8M):
         if not delegateResult:
             # This sequence is copied from the NXP LPC55S69_DFP debug sequence.
             reset_vector = 0xFFFFFFFF
-            
+
             # Clear reset vector catch.
             self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
-            
+
             # If the processor is in Secure state, we have to access the flash controller
             # through the secure alias.
             if self.get_security_state() == Target.SecurityState.SECURE:
@@ -297,7 +302,7 @@ class CortexM_LPC5500(CortexM_v8M):
                         if (self.read32(base + FLASH_INT_STATUS) & 0x00000004) != 0:
                             break
                         sleep(0.01)
-            
+
                 # Check for error reading flash word.
                 if (self.read32(base + FLASH_INT_STATUS) & 0xB) == 0:
                     # Read the reset vector address.
@@ -348,3 +353,9 @@ class CortexM_LPC5500(CortexM_v8M):
 
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
+
+    def reset(self, reset_type):
+        # unlock debug access after reset
+        super(CortexM_LPC5500, self).reset(reset_type)
+
+        self.session.target.check_locked_state(None)

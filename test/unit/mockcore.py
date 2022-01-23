@@ -59,7 +59,7 @@ class MockCore(CoreSightCoreComponent, MemoryInterface):
         if has_fpu:
             self.core_registers.add_group(CoreRegisterGroups.VFP_V5)
         self.clear_all_regs()
-    
+
     def clear_all_regs(self):
         self.regs = {i:0 for i in self.core_registers.by_index.keys()} # r0-15, xpsr, msp, psp
         self.regs[CFBP_INDEX] = 0

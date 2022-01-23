@@ -28,14 +28,14 @@ from ..probe.tcp_probe_server import DebugProbeServer
 LOG = logging.getLogger(__name__)
 
 class ServerSubcommand(SubcommandBase):
-    """! @brief `pyocd server` subcommand."""
-    
+    """@brief `pyocd server` subcommand."""
+
     NAMES = ['server']
     HELP = "Run debug probe server."
-    
+
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         server_parser = argparse.ArgumentParser(description='server', add_help=False)
 
         server_config_options = server_parser.add_argument_group('configuration')
@@ -63,11 +63,11 @@ class ServerSubcommand(SubcommandBase):
             "'<probe-type>:' where <probe-type> is the name of a probe plugin.")
         server_options.add_argument("-W", "--no-wait", action="store_true",
             help="Do not wait for a probe to be connected if none are available.")
-        
+
         return [cls.CommonOptions.LOGGING, server_parser]
-    
+
     def invoke(self) -> None:
-        """! @brief Handle 'server' subcommand."""
+        """@brief Handle 'server' subcommand."""
         # Create a session to load config, particularly logging config. Even though we do have a
         # probe, we don't set it in the session because we don't want the board, target, etc objects
         # to be created.
@@ -75,22 +75,22 @@ class ServerSubcommand(SubcommandBase):
         session = Session(probe=None,
                 serve_local_only=self._args.serve_local_only,
                 options=session_options)
-        
+
         # The ultimate intent is to serve all available probes by default. For now we just serve
         # a single probe.
         probe = ConnectHelper.choose_probe(unique_id=self._args.unique_id)
         if probe is None:
             return
-        
+
         # Assign the session to the probe.
         probe.session = session
-        
+
         # Create the server instance.
         server = DebugProbeServer(session, probe, self._args.port_number, self._args.serve_local_only)
         session.probeserver = server
         LOG.debug("Starting debug probe server")
         server.start()
-        
+
         # Loop as long as the probe is running. The server thread is a daemon, so the main thread
         # must continue to exist.
         try:

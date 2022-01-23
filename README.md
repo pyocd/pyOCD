@@ -1,12 +1,14 @@
 pyOCD
 =====
 
-[\[pyocd.io\]](https://pyocd.io/) [\[Docs\]](https://pyocd.io/docs) [\[Slack\]](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) [\[Mailing list\]](https://groups.google.com/g/pyocd)
+[\[pyocd.io\]](https://pyocd.io/) [\[Docs\]](https://pyocd.io/docs) [\[Slack\]](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) [\[Mailing list\]](https://groups.google.com/g/pyocd) [\[CI results\]](https://dev.azure.com/pyocd/pyocd/_build?definitionId=1&_a=summary)
 
 <table><tr><td>
 
 ### News
 
+- A new CI pipeline for functional tests is now running on a new test farm. Full results are [publicly
+    accessible](https://dev.azure.com/pyocd/pyocd/_build?definitionId=1&_a=summary) on Azure Pipelines.
 - pyOCD has several new community resources: the [pyocd.io](https://pyocd.io/) website,
     a [Slack workspace](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA),
     and a [mailing list](https://groups.google.com/g/pyocd) for announcements.
@@ -16,12 +18,11 @@ See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recen
 
 </td></tr></table>
 
-pyOCD is an open source Python package for programming and debugging Arm Cortex-M microcontrollers
-using multiple supported types of USB debug probes. It is fully cross-platform, with support for
-Linux, macOS, Windows, and FreeBSD.
+pyOCD is an open source Python based tool and package for programming and debugging Arm Cortex-M microcontrollers
+with a wide range of debug probes. It is fully cross-platform, with support for Linux, macOS, Windows, and FreeBSD.
 
 A command line tool is provided that covers most use cases, or you can make use of the Python
-API to enable low-level target control. A common use for the Python API is to run and control CI
+API to facilitate custom target control. A common use for the Python API is to run and control CI
 tests.
 
 Support for more than 70 popular MCUs is built-in. In addition, through the use of CMSIS Device
@@ -38,6 +39,7 @@ The `pyocd` command line tool gives you total control over your device with thes
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `server`: Share a debug probe with a TCP/IP server.
 - `reset`: Hardware or software reset of a device.
+- `rtt`: Stream Segger RTT IO with _any_ debug probe.
 - `list`: Show connected devices.
 
 The API and tools provide these features:
@@ -140,22 +142,6 @@ You have a few options here:
 3. Specify the `--user` option to install local to your user account.
 4. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
    local to a specific project working set.
-
-### libusb installation
-
-[pyusb](https://github.com/pyusb/pyusb) and its backend library [libusb](https://libusb.info/) are
-dependencies on all supported operating systems. pyusb is a regular Python package and will be
-installed along with pyOCD. However, libusb is a binary shared library that does not get installed
-automatically via pip dependency management.
-
-How to install libusb depends on your OS:
-
-- macOS: use Homebrew: `brew install libusb`
-- Linux and BSD: should already be installed.
-- Windows: download libusb from [libusb.info](https://libusb.info/) and place the .dll file in your Python
-  installation folder next to python.exe. Make sure to use the same 32- or 64-bit architecture as
-  your Python installation. The latest release is [available on GitHub](https://github.com/libusb/libusb/releases);
-  download the .7z archive under Assets. Use the library from the VS2019 folder in the archive.
 
 ### udev rules on Linux
 

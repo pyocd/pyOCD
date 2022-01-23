@@ -29,8 +29,8 @@ from ..utility.cmdline import (
 LOG = logging.getLogger(__name__)
 
 class EraseSubcommand(SubcommandBase):
-    """! @brief `pyocd erase` subcommand."""
-    
+    """@brief `pyocd erase` subcommand."""
+
     NAMES = ['erase']
     HELP = "Erase entire device flash or specified sectors."
     EPILOG = ("If no position arguments are listed, then no action will be taken unless the --chip or "
@@ -43,10 +43,10 @@ class EraseSubcommand(SubcommandBase):
             "0x800-0x2000 (erase sectors starting at 0x800 up to but not including 0x2000) "
             "0+8192 (erase 8 kB starting at address 0)")
     DEFAULT_LOG_LEVEL = logging.WARNING
-    
+
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         erase_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         erase_options = erase_parser.add_argument_group("erase options")
@@ -59,13 +59,13 @@ class EraseSubcommand(SubcommandBase):
 
         erase_parser.add_argument("addresses", metavar="<sector-address>", action='append', nargs='*',
             help="List of sector addresses or ranges to erase.")
-        
+
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, erase_parser]
-    
+
     def invoke(self) -> int:
-        """! @brief Handle 'erase' subcommand."""
+        """@brief Handle 'erase' subcommand."""
         self._increase_logging(["pyocd.flash.eraser"])
-        
+
         # Display a nice, helpful error describing why nothing was done and how to correct it.
         if (self._args.erase_mode is None) or not self._args.addresses:
             LOG.error("No erase operation specified. Please specify one of '--chip', '--sector', "
@@ -73,7 +73,7 @@ class EraseSubcommand(SubcommandBase):
                         "of sector addresses to erase must be provided. "
                         "See 'pyocd erase --help' for more.")
             return 1
-        
+
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
@@ -92,7 +92,7 @@ class EraseSubcommand(SubcommandBase):
         with session:
             mode = self._args.erase_mode or FlashEraser.Mode.SECTOR
             eraser = FlashEraser(session, mode)
-            
+
             addresses = flatten_args(self._args.addresses)
             eraser.erase(addresses)
 

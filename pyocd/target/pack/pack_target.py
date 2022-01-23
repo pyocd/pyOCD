@@ -17,12 +17,19 @@
 
 import logging
 import os
+from typing import (IO, TYPE_CHECKING, List, Optional, Tuple, Type, Union)
 
-from .cmsis_pack import (CmsisPack, MalformedCmsisPackError)
+from .cmsis_pack import (CmsisPack, CmsisPackDevice, MalformedCmsisPackError)
 from ..family import FAMILIES
 from .. import TARGET
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
+
+if TYPE_CHECKING:
+    from zipfile import ZipFile
+    from cmsis_pack_manager import CmsisPackRef
+    from ...core.session import Session
+    from ...utility.sequencer import CallSequence
 
 try:
     import cmsis_pack_manager
@@ -32,19 +39,30 @@ except ImportError:
 
 LOG = logging.getLogger(__name__)
 
-class ManagedPacks(object):
-    """! @brief Namespace for managed CMSIS-Pack utilities.
-    
+class ManagedPacksStub:
+    @staticmethod
+    def get_installed_packs(cache: Optional[object] = None) -> List:
+        return []
+
+    @staticmethod
+    def get_installed_targets(cache: Optional[object] = None) -> List:
+        return []
+
+    @staticmethod
+    def populate_target(device_name: str) -> None:
+        pass
+
+class ManagedPacksImpl:
+    """@brief Namespace for managed CMSIS-Pack utilities.
+
     By managed, we mean managed by the cmsis-pack-manager package. All the methods on this class
     apply only to those packs managed by cmsis-pack-manager, not any targets from packs specified
     by the user.
     """
 
     @staticmethod
-    def get_installed_packs(cache=None):
-        """! @brief Return a list containing CmsisPackRef objects for all installed packs."""
-        if not CPM_AVAILABLE:
-            return []
+    def get_installed_packs(cache: Optional[cmsis_pack_manager.Cache] = None) -> List["CmsisPackRef"]: # type:ignore
+        """@brief Return a list containing CmsisPackRef objects for all installed packs."""
         if cache is None:
             cache = cmsis_pack_manager.Cache(True, True)
         results = []
@@ -52,17 +70,15 @@ class ManagedPacks(object):
         for pack in cache.packs_for_devices(cache.index.values()):
             # Generate full path to the .pack file.
             pack_path = os.path.join(cache.data_path, pack.get_pack_name())
-            
+
             # If the .pack file exists, the pack is installed.
             if os.path.isfile(pack_path):
                 results.append(pack)
         return results
 
     @staticmethod
-    def get_installed_targets(cache=None):
-        """! @brief Return a list of CmsisPackDevice objects for installed pack targets."""
-        if not CPM_AVAILABLE:
-            return []
+    def get_installed_targets(cache: Optional[cmsis_pack_manager.Cache] = None) -> List[CmsisPackDevice]: # type:ignore
+        """@brief Return a list of CmsisPackDevice objects for installed pack targets."""
         if cache is None:
             cache = cmsis_pack_manager.Cache(True, True)
         results = []
@@ -73,8 +89,8 @@ class ManagedPacks(object):
         return sorted(results, key=lambda dev:dev.part_number)
 
     @staticmethod
-    def populate_target(device_name):
-        """! @brief Add targets from cmsis-pack-manager matching the given name.
+    def populate_target(device_name: str) -> None:
+        """@brief Add targets from cmsis-pack-manager matching the given name.
 
         Targets are added to the `#TARGET` list. A case-insensitive comparison against the
         device part number is used to find the target to populate. If multiple packs are installed
@@ -86,12 +102,17 @@ class ManagedPacks(object):
             if device_name == dev.part_number.lower():
                 PackTargets.populate_device(dev)
 
-class _PackTargetMethods(object):
-    """! @brief Container for methods added to the dynamically generated pack target subclass."""
+if CPM_AVAILABLE:
+    ManagedPacks = ManagedPacksImpl
+else:
+    ManagedPacks = ManagedPacksStub
+
+class _PackTargetMethods:
+    """@brief Container for methods added to the dynamically generated pack target subclass."""
 
     @staticmethod
-    def _pack_target__init__(self, session):
-        """! @brief Constructor for dynamically created target class."""
+    def _pack_target__init__(self, session: "Session") -> None: # type:ignore
+        """@brief Constructor for dynamically created target class."""
         super(self.__class__, self).__init__(session, self._pack_device.memory_map)
 
         self.vendor = self._pack_device.vendor
@@ -101,8 +122,8 @@ class _PackTargetMethods(object):
         self._svd_location = SVDFile(filename=self._pack_device.svd)
 
     @staticmethod
-    def _pack_target_create_init_sequence(self):
-        """! @brief Creates an init task to set the default reset type."""
+    def _pack_target_create_init_sequence(self) -> "CallSequence": # type:ignore
+        """@brief Creates an init task to set the default reset type."""
         seq = super(self.__class__, self).create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
@@ -112,17 +133,17 @@ class _PackTargetMethods(object):
         return seq
 
     @staticmethod
-    def _pack_target_set_default_reset_type(self):
-        """! @brief Set's the first core's default reset type to the one specified in the pack."""
+    def _pack_target_set_default_reset_type(self) -> None: # type:ignore
+        """@brief Set's the first core's default reset type to the one specified in the pack."""
         if 0 in self.cores:
             self.cores[0].default_reset_type = self._pack_device.default_reset_type
 
-class PackTargets(object):
-    """! @brief Namespace for CMSIS-Pack target generation utilities. """
+class PackTargets:
+    """@brief Namespace for CMSIS-Pack target generation utilities. """
 
     @staticmethod
-    def _find_family_class(dev):
-        """! @brief Search the families list for matching entry."""
+    def _find_family_class(dev: CmsisPackDevice) -> Type[CoreSightTarget]:
+        """@brief Search the families list for matching entry."""
         for familyInfo in FAMILIES:
             # Skip if wrong vendor.
             if dev.vendor != familyInfo.vendor:
@@ -139,8 +160,8 @@ class PackTargets(object):
         return CoreSightTarget
 
     @staticmethod
-    def _generate_pack_target_class(dev):
-        """! @brief Generates a new target class from a CmsisPackDevice.
+    def _generate_pack_target_class(dev: CmsisPackDevice) -> Optional[type]:
+        """@brief Generates a new target class from a CmsisPackDevice.
 
         @param dev A CmsisPackDevice object.
         @return A new subclass of either CoreSightTarget or one of the family classes.
@@ -165,8 +186,8 @@ class PackTargets(object):
             return None
 
     @staticmethod
-    def populate_device(dev):
-        """! @brief Generates and populates the target defined by a CmsisPackDevice.
+    def populate_device(dev: CmsisPackDevice) -> None:
+        """@brief Generates and populates the target defined by a CmsisPackDevice.
 
         The new target class is added to the `#TARGET` list.
 
@@ -186,9 +207,11 @@ class PackTargets(object):
         except (MalformedCmsisPackError, FileNotFoundError) as err:
             LOG.warning(err)
 
+    PackReferenceType = Union[CmsisPack, str, "ZipFile", IO[bytes]]
+
     @staticmethod
-    def populate_targets_from_pack(pack_list):
-        """! @brief Adds targets defined in the provided CMSIS-Pack.
+    def populate_targets_from_pack(pack_list: Union[PackReferenceType, List[PackReferenceType], Tuple[PackReferenceType]]) -> None:
+        """@brief Adds targets defined in the provided CMSIS-Pack.
 
         Targets are added to the `#TARGET` list.
 

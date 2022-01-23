@@ -20,7 +20,7 @@ from ...core.memory_map import (RamRegion, MemoryMap)
 class AN540(CoreSightTarget):
 
     VENDOR = "Arm"
-    
+
     MEMORY_MAP = MemoryMap(
         RamRegion(  name='itcm_ns',     start=0x00000000, length=0x00100000, access='rwx'),
         RamRegion(  name='itcm_s',      start=0x10000000, length=0x00100000, access='rwxs'),

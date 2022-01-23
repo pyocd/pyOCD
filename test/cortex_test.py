@@ -56,7 +56,7 @@ class CortexTestResult(TestResult):
         "run_halt",
         "gdb_step",
         ]
-    
+
     def __init__(self):
         super(CortexTestResult, self).__init__(None, None, None)
         self.name = "cortex"
@@ -218,7 +218,7 @@ def cortex_test(board_id):
             print("Software reset (default=emulated)")
             target.selected_core.default_reset_type = Target.ResetType.SW_EMULATED
             fnc(reset_type=None)
-            
+
             print("(Default) Software reset (SYSRESETREQ)")
             target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSRESETREQ
             fnc(reset_type=Target.ResetType.SW)
@@ -228,7 +228,7 @@ def cortex_test(board_id):
             print("(Default) Software reset (emulated)")
             target.selected_core.default_software_reset_type = Target.ResetType.SW_EMULATED
             fnc(reset_type=Target.ResetType.SW)
-            
+
             print("Software reset (option=default)")
             target.selected_core.default_reset_type = Target.ResetType.SW
             target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSRESETREQ
@@ -251,7 +251,7 @@ def cortex_test(board_id):
             fnc(reset_type=None)
 
         reset_methods(target.reset)
-        
+
         # Test passes if there are no exceptions
         test_pass_count += 1
         test_count += 1
@@ -312,11 +312,11 @@ def cortex_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
-            
+
         # Restore regs
         origRegs[0] = origR0
         target.write_core_registers_raw(['r0', 'r1', 'r2', 'r3'], origRegs)
-        
+
         print("Verify exception is raised while core is running")
         target.resume()
         try:
@@ -331,7 +331,7 @@ def cortex_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
-        
+
         print("Verify failure to write core register while running raises exception")
         try:
             target.write_core_register('r0', 0x1234)
@@ -345,7 +345,7 @@ def cortex_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
-        
+
         # Resume execution.
         target.halt()
 
@@ -404,22 +404,81 @@ def cortex_test(board_id):
             else:
                 print("TEST FAILED (0x%08x==0x%08x, %f==%f, 0x%08x==0x%08x, %f==%f)" \
                     % (vals[0], _1p1, s0, 1.1, vals[1], _2p2, s1, 2.2))
-            
+
             # Restore s0
             origRegs[0] = origRawS0
             target.write_core_registers_raw(['s0', 's1'], origRegs)
-        
+
         print("Verify that all listed core registers can be accessed")
+
+        def test_reg_rw(r, new_value: int, test_write: bool) -> bool:
+            did_pass = True
+            try:
+                # Read original value.
+                original_val = target.read_core_register_raw(r.name)
+
+                if not test_write:
+                    return did_pass
+
+                # Make sure the new value changes.
+                if new_value == original_val:
+                    new_value = 0
+
+                # Change the value.
+                target.write_core_register_raw(r.name, new_value)
+                read_val = target.read_core_register_raw(r.name)
+                if read_val != new_value:
+                    print(f"Failed to change value of register {r.name} to {new_value:#x}; read {read_val:#x}")
+                    did_pass = False
+
+                target.write_core_register_raw(r.name, original_val)
+                read_val = target.read_core_register_raw(r.name)
+                if read_val != original_val:
+                    print(f"Failed to restore value of register {r.name} back to original {original_val:#x}; read {read_val:#x}")
+                    did_pass = False
+            except exceptions.CoreRegisterAccessError:
+                did_pass = False
+            return did_pass
+
         reg_count = 0
         passed_reg_count = 0
         for r in target.selected_core.core_registers.as_set:
-            try:
-                reg_count += 1
-                val = target.read_core_register(r.name)
-                target.write_core_register(r.name, val)
+            test_write = True
+
+            # Decide on a new value, ensuring it changes and taking into account register specifics.
+            r_mask = (1 << r.bitsize) - 1
+            if 'sp' in r.name:
+                r_mask &= ~0x3
+            elif r.name == 'pc':
+                r_mask &= ~0x1
+            elif 'xpsr' in r.name:
+                r_mask = 0xd0000000
+            elif 'control' == r.name:
+                # SPSEL is available on all cores.
+                r_mask = 0x2
+            elif r.name in ('primask', 'faultmask'):
+                r_mask = 0x1
+            elif r.name == 'basepri':
+                r_mask = 0x80
+            elif r.name == 'fpscr':
+                # v7-M bits
+                r_mask = 0xf7c0009f
+            new_value = 0xdeadbeef & r_mask
+
+            # Skip write tests on some regs:
+            # - combined CFBP
+            # - PSR variants not including XPSR
+            # - all _NS and _S variants
+            if ((r.name in ('cfbp',))
+                    or (('psr' in r.name) and (r.name != 'xpsr'))
+                    or ('_ns' in r.name) or ('_s' in r.name)
+                    ):
+                test_write = False
+
+            reg_count += 1
+            if test_reg_rw(r, new_value, test_write):
                 passed_reg_count += 1
-            except exceptions.CoreRegisterAccessError:
-                pass
+
         test_count += 1
         if passed_reg_count == reg_count:
             test_pass_count += 1

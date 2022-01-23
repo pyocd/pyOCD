@@ -84,24 +84,24 @@ def _parity32(value):
     return parity & 1
 
 class RP2040Base(CoreSightTarget):
-    """! @brief Raspberry Pi RP2040.
-    
+    """@brief Raspberry Pi RP2040.
+
     This device is very strange in that it as three DPs. The first two DPs each have a single AHB-AP
     for the two Cortex-M0+ cores. The third DP is a "Rescue DP" that has no APs, but the CDBGPWRUPREQ
     signal is repurposed as a rescue signal.
     """
-    
+
     class Targetsel:
-        """! @brief DP TARGETEL values for each DP."""
+        """@brief DP TARGETEL values for each DP."""
         CORE_0 = 0x01002927
         CORE_1 = 0x11002927
         RESCUE_DP = 0xf1002927
 
     VENDOR = "Raspberry Pi"
-    
+
     MEMORY_MAP = MemoryMap(
         RomRegion(  start=0,            length=0x4000,      name="bootrom",             ),
-        FlashRegion(start=0x10000000,   length=0x1000000,   name="xip",                 
+        FlashRegion(start=0x10000000,   length=0x1000000,   name="xip",
             sector_size=4096,
             page_size=256,
             algo=FLASH_ALGO,
@@ -127,12 +127,12 @@ class RP2040Base(CoreSightTarget):
 
     def create_init_sequence(self):
         seq = super().create_init_sequence()
-        
+
         seq.insert_before('load_svd', ('check_probe', self._check_probe)) \
             .insert_before('dp_init', ('select_core0', self._select_core))
 
         return seq
-    
+
     def _check_probe(self):
         # Have to import here to avoid a circular import
         from ...probe.debug_probe import DebugProbe
@@ -143,9 +143,9 @@ class RP2040Base(CoreSightTarget):
         self.select_dp(self._core_targetsel)
 
     def select_dp(self, targetsel):
-        """! @brief Select the DP with the matching TARGETSEL."""
+        """@brief Select the DP with the matching TARGETSEL."""
         probe = self.session.probe
-        
+
         # Have to connect the probe first, or SWCLK will not be enabled.
         probe.connect(DebugProbe.Protocol.SWD)
 
@@ -157,7 +157,7 @@ class RP2040Base(CoreSightTarget):
         # SWD line reset to activate all DPs.
         swj.line_reset()
         swj.idle_cycles(2)
-        
+
         # Send multi-drop SWD target selection sequence to select the requested DP.
         probe.swd_sequence([
             # DP TARGETSEL write
@@ -171,10 +171,10 @@ class RP2040Base(CoreSightTarget):
             #   - Park = 1
             # -> LSB first, that's 0b10011001 or 0x99
             (8, 0x99),
-            
+
             # 5 cycles with SWDIO as input
             (5,),
-            
+
             # DP TARGETSEL value
             # output 32 + 1 cycles
             (33, targetsel | mask.parity32_high(targetsel)),
@@ -186,27 +186,27 @@ class RP2040Base(CoreSightTarget):
         DP_IDR = 0x00
         dpidr = probe.read_dp(DP_IDR)
         LOG.debug("DP IDR after writing TARGETSEL: 0x%08x", dpidr)
-        
+
         probe.write_dp(0x8, 0x2) # DPBANKSEL=2 to select TARGETID
         targetid = probe.read_dp(0x4)
         LOG.debug("DP TARGETID: 0x%08x", targetid)
-        
+
         probe.write_dp(0x8, 0x3) # DPBANKSEL=3 to select DLPIDR
         dlpidr = probe.read_dp(0x4)
         LOG.debug("DP DLPIDR: 0x%08x", dlpidr)
-        
+
         probe.write_dp(0x8, 0x0) # restore DPBANKSEL=0
 
 class RP2040Core0(RP2040Base):
-    """! @brief RP2040 target for core 0."""
+    """@brief RP2040 target for core 0."""
 
     def __init__(self, session):
         super().__init__(session)
         self._core_targetsel = self.Targetsel.CORE_0
 
 class RP2040Core1(RP2040Base):
-    """! @brief RP2040 target for core 1."""
-    
+    """@brief RP2040 target for core 1."""
+
     def __init__(self, session):
         super().__init__(session)
         self._core_targetsel = self.Targetsel.CORE_1

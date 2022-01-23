@@ -20,6 +20,7 @@ import sys
 import traceback
 import logging
 import tempfile
+import platform
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
@@ -59,6 +60,13 @@ class CommandsTest(Test):
         result.test = self
         return result
 
+def fix_windows_path(path: str) -> str:
+    """Double backslashes in paths on Windows."""
+    if platform.system() == "Windows":
+        return path.replace('\\', '\\\\')
+    else:
+        return path
+
 def commands_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
@@ -81,7 +89,7 @@ def commands_test(board_id):
         temp_test_hex_name = binary_to_hex_file(binary_file, boot_region.start)
 
         temp_bin_file = tempfile.mktemp('.bin')
-        
+
         with open(binary_file, "rb") as f:
             test_data = list(bytearray(f.read()))
         test_data_length = len(test_data)
@@ -93,10 +101,10 @@ def commands_test(board_id):
         test_count = 0
         failed_commands = []
         result = CommandsTestResult()
-        
+
         context = CommandExecutionContext()
         context.attach_session(session)
-        
+
         COMMANDS_TO_TEST = [
                 "status",
                 "reset",
@@ -106,24 +114,27 @@ def commands_test(board_id):
                 "reg all",
                 "reg r0",
                 "wreg r0 0x12345678",
-#                 "d pc", # Disable disasm because capstone is not installed by default.
-#                 "d --center pc 32",
-                "read32 0x%08x" % (boot_start_addr + boot_blocksize),
-                "read16 0x%08x" % (boot_start_addr + boot_blocksize),
+                "d pc",
+                "d --center pc 32",
+                "read64 0x%08x" % ((boot_start_addr + boot_blocksize) & ~7),
+                "read32 0x%08x" % ((boot_start_addr + boot_blocksize) & ~3),
+                "read16 0x%08x" % ((boot_start_addr + boot_blocksize) & ~1),
                 "read8 0x%08x" % (boot_start_addr + boot_blocksize),
+                "rd 0x%08x 16" % ram_base,
                 "rw 0x%08x 16" % ram_base,
                 "rh 0x%08x 16" % ram_base,
                 "rb 0x%08x 16" % ram_base,
+                "write64 0x%08x 0x1122334455667788 0xaabbccddeeff0011" % ram_base,
                 "write32 0x%08x 0x11223344 0x55667788" % ram_base,
                 "write16 0x%08x 0xabcd" % (ram_base + 8),
                 "write8 0x%08x 0 1 2 3 4 5 6" % (ram_base + 10),
-                "savemem 0x%08x 128 '%s'" % (boot_start_addr, temp_bin_file),
-                "loadmem 0x%08x '%s'" % (ram_base, temp_bin_file),
-                "loadmem 0x%08x '%s'" % (boot_start_addr, binary_file),
-                "load '%s'" % temp_test_hex_name,
-                "load '%s' 0x%08x" % (binary_file, boot_start_addr),
-                "compare 0x%08x '%s'" % (ram_base, temp_bin_file),
-                "compare 0x%08x 32 '%s'" % (ram_base, temp_bin_file),
+                "savemem 0x%08x 128 '%s'" % (boot_start_addr, fix_windows_path(temp_bin_file)),
+                "loadmem 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
+                "loadmem 0x%08x '%s'" % (boot_start_addr, fix_windows_path(binary_file)),
+                "load '%s'" % fix_windows_path(temp_test_hex_name),
+                "load '%s' 0x%08x" % (fix_windows_path(binary_file), boot_start_addr),
+                "compare 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
+                "compare 0x%08x 32 '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
                 "fill 0x%08x 128 0xa5" % ram_base,
                 "fill 16 0x%08x 64 0x55aa" % (ram_base + 64),
                 "find 0x%08x 128 0xaa 0x55" % ram_base, # find that will pass
@@ -183,14 +194,19 @@ def commands_test(board_id):
                 "set step-into-interrupts 1",
                 "set log info",
                 "set frequency %d" % test_params['test_clock'],
-                
+
                 # Semicolon-separated commands.
                 'rw 0x%08x ; rw 0x%08x' % (ram_base, ram_base + 4),
-                
+                'rb 0x%08x;rb 0x%08x' % (ram_base, ram_base + 1),
+                'rb 0x%08x; rb 0x%08x' % (ram_base, ram_base + 1),
+
                 # Python and system commands.
                 '$2+ 2',
+                '$ target',
                 '!echo hello',
-                '!echo hi \; echo there', # using escaped semicolon in a sytem command
+                '!echo hi ; echo there', # semicolon in a sytem command (because semicolon separation is not supported for Python/system command lines)
+                ' $ " ".join(["hello", "there"])',
+                '  !   echo "yo dude" ',
 
                 # Commands not tested:
 #                 "list",
@@ -203,10 +219,10 @@ def commands_test(board_id):
 #                 "where",
 #                 "symbol",
                 ]
-        
+
         # For now we just verify that the commands run without raising an exception.
         print("\n------ Testing commands ------")
-        
+
         def test_command(cmd):
             try:
                 print("\nTEST: %s" % cmd)

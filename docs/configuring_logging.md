@@ -36,6 +36,7 @@ Subcommand     | Default level
 `list`         | INFO
 `pack`         | INFO
 `reset`        | WARNING
+`rtt`          | INFO
 `server`       | INFO
 
 
@@ -45,6 +46,18 @@ For most users, the command line `--verbose`/`-v` and `--quiet`/`-q` arguments p
 over logging. These arguments can be listed multiple times. Each use increases or decreases the
 logging verbosity level. For example, a single `--verbose` moves `pyocd flash` from the default
 level of WARNING to INFO.
+
+
+## Color logging
+
+By default, log output to a tty is colorised. Control over colorised log output is possible two ways.
+
+The command-line `--color` argument accepts an optional parameter that must be one of `auto`, `always`, or `never`.
+The default is `auto`, which will enable color only when outputting to a tty.
+
+Another option for controlling color output is the `PYOCD_COLOR` environment variable. It should be set to one of the
+same values supported by `--color`. This environment variable changes the default color output setting, and is
+overridden by `--color` on the command line.
 
 
 ## Loggers
@@ -61,7 +74,7 @@ its package structure.
 ### Trace loggers
 
 Certain modules define additional sub-module loggers that output debug trace logs. These loggers always have the
-suffix ".trace" and are set to critical log level by default.
+suffix ".trace" and are disabled by default. This ensures the trace messages won't be seen unless explicitly enabled by the `--log-level` / `-L` argument described in the following section.
 
 Currently defined trace loggers:
 
@@ -74,6 +87,10 @@ Trace logger                                            | Trace output
 `pyocd.probe.cmsis_dap_probe.trace`                     | CMSIS-DAP probe API calls
 `pyocd.probe.jlink_probe.trace`                         | Log output from JLink library
 `pyocd.probe.pydapaccess.dap_access_cmsis_dap.trace`    | CMSIS-DAP packet building
+`pyocd.probe.pydapaccess.interface.hidapi_backend.trace` | CMSIS-DAP v1 hidapi backend USB transfers
+`pyocd.probe.pydapaccess.interface.pyusb_backend.trace` | CMSIS-DAP v1 pyusb backend USB transfers
+`pyocd.probe.pydapaccess.interface.pyusb_v2_backend.trace` | CMSIS-DAP v2 pyusb backend USB transfers
+`pyocd.probe.pydapaccess.interface.pywinusb_backend.trace` | CMSIS-DAP v1 pywinusb backend USB transfers
 `pyocd.probe.stlink.usb.trace`                          | STLink USB transfers
 `pyocd.probe.tcp_client_probe.trace`                    | Remote probe client requests and responses
 `pyocd.probe.tcp_probe_server.trace`                    | Remote probe server requests and responses

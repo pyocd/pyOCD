@@ -72,7 +72,7 @@ class TargetList(object):
 
 
 class ThreadXThreadContext(DebugContext):
-    """! @brief Thread context for ThreadX."""
+    """@brief Thread context for ThreadX."""
 
     # SP/PSP are handled specially, so it is not in these dicts.
 
@@ -258,7 +258,7 @@ class ThreadXThreadContext(DebugContext):
 
 
 class ThreadXThread(TargetThread):
-    """! @brief A ThreadX task."""
+    """@brief A ThreadX task."""
 
     STATE_NAMES = {
         0: "Ready",
@@ -361,7 +361,7 @@ class ThreadXThread(TargetThread):
 
 
 class ThreadXThreadProvider(ThreadProvider):
-    """! @brief Thread provider for ThreadX.
+    """@brief Thread provider for ThreadX.
 
         To successfully initialize, the following ThreadX symbols are needed:
             _tx_thread_created_ptr:     pointer to list of created processes
@@ -514,7 +514,7 @@ class ThreadXThreadProvider(ThreadProvider):
 
 
 class ThreadXPlugin(Plugin):
-    """! @brief Plugin class for ThreadX."""
+    """@brief Plugin class for ThreadX."""
 
     def load(self):
         return ThreadXThreadProvider

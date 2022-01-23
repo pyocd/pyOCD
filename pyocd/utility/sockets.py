@@ -78,23 +78,23 @@ class ListenerSocket(object):
         self.conn.settimeout(timeout)
 
 class ClientSocket(object):
-    """! @brief Simple client-side TCP socket.
-    
+    """@brief Simple client-side TCP socket.
+
     Provides a file-like interface to a TCP socket. Blocking and timeout are configurable.
     """
-    
+
     DEFAULT_TIMEOUT = 10.0
-    
+
     def __init__(self, host, port, packet_size=4096, timeout=None):
         self._address = (host, port)
         self._packet_size = packet_size
         self._timeout = timeout or self.DEFAULT_TIMEOUT
         self._socket = None
         self._buffer = bytearray()
-    
+
     def connect(self):
         self._socket = socket.create_connection(self._address, self._timeout)
-    
+
     def close(self):
         if self._socket is not None:
             # Close both ends of the connection, then close the socket itself.
@@ -106,7 +106,7 @@ class ClientSocket(object):
         self._socket.setblocking(blocking)
 
     def set_timeout(self, timeout):
-        """! @brief Change the socket to blocking with timeout mode."""
+        """@brief Change the socket to blocking with timeout mode."""
         self._socket.settimeout(timeout)
 
     def read(self, packet_size=None):
@@ -122,7 +122,7 @@ class ClientSocket(object):
 
     def write(self, data):
         return self._socket.sendall(data)
-    
+
     def readline(self):
         while True:
             # Try to extract a line from the buffer.
