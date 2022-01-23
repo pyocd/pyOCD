@@ -26,9 +26,6 @@ from ..probe.aggregator import DebugProbeAggregator
 if TYPE_CHECKING:
     from ..probe.debug_probe import DebugProbe
 
-from .session import Session
-from ..probe.aggregator import DebugProbeAggregator
-
 class ConnectHelper:
     """@brief Helper class for streamlining the probe discovery and session creation process.
 
