@@ -133,7 +133,7 @@ class STLink(object):
                 if self._jtag_version < self.MIN_JTAG_VERSION_GET_BOARD_IDS[self._hw_version]:
                     return None
                 response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_GET_BOARD_IDENTIFIERS],
-                        readSize=36)
+                        readSize=128)
                 self._check_status(response[:2])
 
                 # Extract and return the board ID. If the ID field consists of all 0 bytes then we didn't
