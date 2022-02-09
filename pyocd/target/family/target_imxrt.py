@@ -96,6 +96,8 @@ class CortexM7_IMXRT(CortexM):
         return None
 
     def set_reset_catch(self, reset_type=None):
+        reset_type = self.ResetType.SW
+
         self.did_normal_reset_catch = True
         bootmode = self.get_boot_mode()
         bootdevice = self.get_boot_device()
