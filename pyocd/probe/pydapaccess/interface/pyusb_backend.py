@@ -343,7 +343,7 @@ class FindDap:
 
             # Now read the product name string.
             device_string = dev.product
-            if (device_string is None) or ("CMSIS-DAP" not in device_string):
+            if ((device_string is None) or ("CMSIS-DAP" not in device_string)) and ("ESLinkII" not in device_string):
                 return False
 
             # Get count of HID interfaces.
