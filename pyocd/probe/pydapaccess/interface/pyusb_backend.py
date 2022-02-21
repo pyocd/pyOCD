@@ -336,14 +336,16 @@ class FindDap:
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
 
+        known_cmsis_dap = is_known_cmsis_dap_vid_pid(dev.idVendor, dev.idProduct)
         try:
             # First attempt to get the active config. This produces a more direct error
             # when you don't have device permissions on Linux
             config = dev.get_active_configuration()
 
+
             # Now read the product name string.
             device_string = dev.product
-            if ((device_string is None) or ("CMSIS-DAP" not in device_string)) and ("ESLinkII" not in device_string):
+            if ((device_string is None) or ("CMSIS-DAP" not in device_string)) and (not known_cmsis_dap):
                 return False
 
             # Get count of HID interfaces.
@@ -360,7 +362,7 @@ class FindDap:
                    (error, dev.idVendor, dev.idProduct))
                 # If we recognize this device as one that should be CMSIS-DAP, we can raise
                 # the level of the log message since it's almost certainly a permissions issue.
-                if is_known_cmsis_dap_vid_pid(dev.idVendor, dev.idProduct):
+                if known_cmsis_dap:
                     LOG.warning(msg)
                 else:
                     LOG.debug(msg)
