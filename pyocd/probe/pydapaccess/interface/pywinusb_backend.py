@@ -103,7 +103,8 @@ class PyWinUSB(Interface):
         # find devices with good vid/pid
         all_mbed_devices = []
         for d in all_devices:
-            if ("CMSIS-DAP" in d.product_name):
+            known_cmsis_dap = is_known_cmsis_dap_vid_pid(d.vendor_id, d.product_id)
+            if ("CMSIS-DAP" in d.product_name) or known_cmsis_dap:
                 all_mbed_devices.append(d)
 
         boards = []
