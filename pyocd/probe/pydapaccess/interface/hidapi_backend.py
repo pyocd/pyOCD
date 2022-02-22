@@ -115,7 +115,8 @@ class HidApiUSB(Interface):
 
         for deviceInfo in devices:
             product_name = to_str_safe(deviceInfo['product_string'])
-            if ("CMSIS-DAP" not in product_name):
+            known_cmsis_dap = is_known_cmsis_dap_vid_pid(deviceInfo['vendor_id'], deviceInfo['product_id'])
+            if ("CMSIS-DAP" not in product_name) and (not known_cmsis_dap):
                 # Check the device path as a backup. Even though we can't get the interface name from
                 # hidapi, it may appear in the path. At least, it does on macOS.
                 device_path = to_str_safe(deviceInfo['path'])

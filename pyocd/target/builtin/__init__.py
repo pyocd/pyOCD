@@ -74,6 +74,7 @@ from . import target_MAX32600
 from . import target_MAX32620
 from . import target_MAX32625
 from . import target_MAX32630
+from . import target_MAX32660
 from . import target_w7500
 from . import target_s5js100
 from . import target_LPC1114FN28_102
@@ -117,7 +118,6 @@ from . import target_HC32L07x
 from . import target_MPS3_AN522
 from . import target_MPS3_AN540
 from . import target_RP2040
-from . import target_VT32F0283LT
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -165,6 +165,7 @@ BUILTIN_TARGETS = {
           'max32620': target_MAX32620.MAX32620,
           'max32625': target_MAX32625.MAX32625,
           'max32630': target_MAX32630.MAX32630,
+          'max32660': target_MAX32660.MAX32660,
           'mimxrt1010': target_MIMXRT1011xxxxx.MIMXRT1011xxxxx,
           'mimxrt1015': target_MIMXRT1015xxxxx.MIMXRT1015xxxxx,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
@@ -267,5 +268,4 @@ BUILTIN_TARGETS = {
           'rp2040' : target_RP2040.RP2040Core0,
           'rp2040_core0' : target_RP2040.RP2040Core0,
           'rp2040_core1' : target_RP2040.RP2040Core1,
-          'vt32f0283lt' : target_VT32F0283LT.VT32F0283LT,
          }
