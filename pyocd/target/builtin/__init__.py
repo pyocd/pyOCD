@@ -104,6 +104,7 @@ from . import target_LPC55S36
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
 from . import target_M261
+from . import target_M460
 from . import target_M480
 from . import target_M2354
 from . import target_HC32F460
@@ -240,6 +241,7 @@ BUILTIN_TARGETS = {
           'cy8c64x5_cm4_full_flash' : target_CY8C64x5.cy8c64x5_cm4_full_flash,
           'm252kg6ae' : target_M251.M252KG6AE,
           'm263kiaae' : target_M261.M263KIAAE,
+          'm467hjhae' : target_M460.M467HJHAE,
           'm487jidae' : target_M480.M487JIDAE,
           'm2354kjfae' : target_M2354.M2354KJFAE,
           'hc32f460xc' : target_HC32F460.HC32F460xC,
