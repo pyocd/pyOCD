@@ -75,6 +75,7 @@ from . import target_MAX32620
 from . import target_MAX32625
 from . import target_MAX32630
 from . import target_MAX32660
+from . import target_MAX32670
 from . import target_w7500
 from . import target_s5js100
 from . import target_LPC1114FN28_102
@@ -166,6 +167,7 @@ BUILTIN_TARGETS = {
           'max32625': target_MAX32625.MAX32625,
           'max32630': target_MAX32630.MAX32630,
           'max32660': target_MAX32660.MAX32660,
+          'max32670': target_MAX32670.MAX32670,
           'mimxrt1010': target_MIMXRT1011xxxxx.MIMXRT1011xxxxx,
           'mimxrt1015': target_MIMXRT1015xxxxx.MIMXRT1015xxxxx,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
