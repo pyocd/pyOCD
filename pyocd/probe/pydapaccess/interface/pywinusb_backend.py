@@ -23,6 +23,7 @@ from .interface import Interface
 from .common import (
     filter_device_by_usage_page,
     generate_device_unique_id,
+    is_known_cmsis_dap_vid_pid,
     )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
