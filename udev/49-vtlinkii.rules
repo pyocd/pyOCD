@@ -1,0 +1,3 @@
+# 30cc:9527 Essemi ESLinkII
+ATTR{idVendor}=="30cc", ATTR{idProduct}=="9527", MODE="666"
+

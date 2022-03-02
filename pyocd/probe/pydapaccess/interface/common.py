@@ -2,6 +2,7 @@
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,6 +47,7 @@ ATMEL_VID = 0x03eb
 CYPRESS_VID = 0x04b4
 KEIL_VID = 0xc251
 NXP_VID = 0x1fc9
+VEGA_VID = 0x30cc
 
 # USB VID/PID pairs.
 ARM_DAPLINK_ID: VidPidPair = (ARM_VID, 0x0204) # Arm DAPLink firmware
@@ -72,6 +74,7 @@ KNOWN_CMSIS_DAP_IDS: List[VidPidPair] = [
     (CYPRESS_VID, 0xf155), # Cypress KitProg3 bulk
     (CYPRESS_VID, 0xf166), # Cypress KitProg3 bulk with 2x UART
     (KEIL_VID, 0x2750), # Keil ULINKplus
+    (VEGA_VID, 0x9527), # Vega VT-LinkII
     NXP_LPCLINK2_ID,
     NXP_MCULINK_ID,
     ]

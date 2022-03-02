@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +23,7 @@ from .interface import Interface
 from .common import (
     filter_device_by_usage_page,
     generate_device_unique_id,
+    is_known_cmsis_dap_vid_pid,
     )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
@@ -103,7 +105,8 @@ class PyWinUSB(Interface):
         # find devices with good vid/pid
         all_mbed_devices = []
         for d in all_devices:
-            if ("CMSIS-DAP" in d.product_name):
+            known_cmsis_dap = is_known_cmsis_dap_vid_pid(d.vendor_id, d.product_id)
+            if ("CMSIS-DAP" in d.product_name) or known_cmsis_dap:
                 all_mbed_devices.append(d)
 
         boards = []
