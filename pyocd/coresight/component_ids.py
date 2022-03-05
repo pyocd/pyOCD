@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (Callable, Optional, NamedTuple, Union, TYPE_CHECKING)
+from typing import (Callable, Dict, Optional, NamedTuple, Tuple, Union, TYPE_CHECKING)
 
 from .ap import (APAddressBase, AccessPort)
 from .cortex_m import CortexM
@@ -82,7 +82,7 @@ class CmpInfo(NamedTuple):
     factory: Optional[Union[ComponentFactory, APFactory]]
 
 ## Map from (designer, class, part, devtype, archid) to component name, product name, and factory.
-COMPONENT_MAP = {
+COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo] = {
   # Archid-only entries
   # Designer|Component Class |Part  |Type |Archid           |Name              |Product    |Factory
     (ARM_ID, CORESIGHT_CLASS, None,  None, 0x0a00) : CmpInfo('RASv1',           None,       None                ),
