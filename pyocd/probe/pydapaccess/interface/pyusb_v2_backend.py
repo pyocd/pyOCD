@@ -362,8 +362,11 @@ class HasCmsisDapv2Interface:
             return False
 
         if self._serial is not None:
-            if self._serial == "" and dev.serial_number is None:
-                return True
+            if dev.serial_number is None:
+                if self._serial == "":
+                    return True
+                if self._serial == generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address):
+                    return True
             if self._serial != dev.serial_number:
                 return False
         return True
