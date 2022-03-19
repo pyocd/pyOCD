@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 # limitations under the License.
 
 from time import sleep
-from typing import (List, Optional)
+from typing import (Any, Callable, List, Optional, Sequence, Union)
 
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
@@ -251,45 +251,101 @@ class STLinkMemoryInterface(MemoryInterface):
         self._link = link
         self._apsel = apsel
 
-    def write_memory(self, addr, data, transfer_size=32):
+    def write_memory(self, addr: int, data: int, transfer_size: int=32, **attrs: Any) -> None:
         """@brief Write a single memory location.
 
         By default the transfer size is a word.
         """
         assert transfer_size in (8, 16, 32)
         addr &= 0xffffffff
+        csw = attrs.get('csw', 0)
         if transfer_size == 32:
-            self._link.write_mem32(addr, conversion.u32le_list_to_byte_list([data]), self._apsel)
+            self._link.write_mem32(addr, conversion.u32le_list_to_byte_list([data]), self._apsel, csw)
         elif transfer_size == 16:
-            self._link.write_mem16(addr, conversion.u16le_list_to_byte_list([data]), self._apsel)
+            self._link.write_mem16(addr, conversion.u16le_list_to_byte_list([data]), self._apsel, csw)
         elif transfer_size == 8:
-            self._link.write_mem8(addr, [data], self._apsel)
+            self._link.write_mem8(addr, [data], self._apsel, csw)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr: int, transfer_size: int=32, now: bool=True, **attrs: Any) \
+            -> Union[int, Callable[[], int]]:
         """@brief Read a memory location.
 
         By default, a word will be read.
         """
         assert transfer_size in (8, 16, 32)
         addr &= 0xffffffff
+        csw = attrs.get('csw', 0)
         if transfer_size == 32:
-            result = conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, 4, self._apsel))[0]
+            result = conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, 4, self._apsel, csw))[0]
         elif transfer_size == 16:
-            result = conversion.byte_list_to_u16le_list(self._link.read_mem16(addr, 2, self._apsel))[0]
+            result = conversion.byte_list_to_u16le_list(self._link.read_mem16(addr, 2, self._apsel, csw))[0]
         elif transfer_size == 8:
-            result = self._link.read_mem8(addr, 1, self._apsel)[0]
+            result = self._link.read_mem8(addr, 1, self._apsel, csw)[0]
 
         def read_callback():
             return result
         return result if now else read_callback
 
-    def write_memory_block32(self, addr, data):
+    def write_memory_block32(self, addr: int, data: Sequence[int], **attrs: Any) -> None:
         addr &= 0xffffffff
-        self._link.write_mem32(addr, conversion.u32le_list_to_byte_list(data), self._apsel)
+        csw = attrs.get('csw', 0)
+        self._link.write_mem32(addr, conversion.u32le_list_to_byte_list(data), self._apsel, csw)
 
-    def read_memory_block32(self, addr, size):
+    def read_memory_block32(self, addr: int, size: int, **attrs: Any) -> Sequence[int]:
         addr &= 0xffffffff
-        return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
+        csw = attrs.get('csw', 0)
+        return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel, csw))
+
+    def read_memory_block8(self, addr: int, size: int, **attrs: Any) -> Sequence[int]:
+        addr &= 0xffffffff
+        csw = attrs.get('csw', 0)
+        res = []
+
+        # read leading unaligned bytes
+        unaligned_count = 4 - (addr & 3)
+        if (size > 0) and (unaligned_count > 0):
+            res += self._link.read_mem8(addr, unaligned_count, self._apsel, csw)
+            size -= unaligned_count
+            addr += unaligned_count
+
+        # read aligned block of 32 bits
+        if (size >= 4):
+            aligned_size = size & ~3
+            res += self._link.read_mem32(addr, aligned_size, self._apsel, csw)
+            size -= aligned_size
+            addr += aligned_size
+
+        # read trailing unaligned bytes
+        if (size > 0):
+            res += self._link.read_mem8(addr, size, self._apsel, csw)
+
+        return res
+
+    def write_memory_block8(self, addr: int, data: Sequence[int], **attrs: Any) -> None:
+        addr &= 0xffffffff
+        csw = attrs.get('csw', 0)
+        size = len(data)
+        idx = 0
+
+        # write leading unaligned bytes
+        unaligned_count = 4 - (addr & 3)
+        if (size > 0) and (unaligned_count > 0):
+            self._link.write_mem8(addr, data[:unaligned_count], self._apsel, csw)
+            size -= unaligned_count
+            addr += unaligned_count
+            idx += unaligned_count
+
+        # write aligned block of 32 bits
+        if (size >= 4):
+            aligned_size = size & ~3
+            self._link.write_mem32(addr, data[idx:idx + aligned_size], self._apsel, csw)
+            size -= aligned_size
+            addr += aligned_size
+            idx += aligned_size
+
+        # write trailing unaligned bytes
+        if (size > 0):
+            self._link.write_mem8(addr, data[idx:], self._apsel, csw)
 
 class StlinkProbePlugin(Plugin):
     """@brief Plugin class for StlLinkProbe."""
