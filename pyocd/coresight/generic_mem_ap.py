@@ -71,7 +71,7 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
         self.ap.write_memory(addr, value, transfer_size)
 
     def read_memory(self, addr, transfer_size=32, now=True):
-        return self.ap.read_memory(addr, transfer_size, True)
+        return self.ap.read_memory(addr, transfer_size, now)
 
     def read_memory_block8(self, addr, size):
         return self.ap.read_memory_block8(addr, size)
