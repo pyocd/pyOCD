@@ -15,8 +15,13 @@
 # limitations under the License.
 
 from enum import Enum
+from typing import (Dict, Tuple)
 
 # pylint: disable=invalid_name
+
+# CPUID IMPLEMENTER values
+CPUID_ARM = 0x41
+CPUID_ARM_CHINA = 0x63
 
 # CPUID PARTNO values
 ARM_SC000 = 0xC30
@@ -31,24 +36,26 @@ ARM_CortexM23 = 0xD20
 ARM_CortexM33 = 0xD21
 ARM_CortexM35P = 0xD31
 ARM_CortexM55 = 0xD22
+ARM_China_StarMC1 = 0x132
 
 # pylint: enable=invalid_name
 
 ## @brief User-friendly names for core types.
-CORE_TYPE_NAME = {
-                 ARM_SC000 : "SecurCore SC000",
-                 ARM_SC300 : "SecurCore SC300",
-                 ARM_CortexM0 : "Cortex-M0",
-                 ARM_CortexM1 : "Cortex-M1",
-                 ARM_CortexM3 : "Cortex-M3",
-                 ARM_CortexM4 : "Cortex-M4",
-                 ARM_CortexM7 : "Cortex-M7",
-                 ARM_CortexM0p : "Cortex-M0+",
-                 ARM_CortexM23 : "Cortex-M23",
-                 ARM_CortexM33 : "Cortex-M33",
-                 ARM_CortexM35P : "Cortex-M35P",
-                 ARM_CortexM55 : "Cortex-M55",
-               }
+CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
+        (CPUID_ARM,        ARM_SC000):         "SecurCore SC000",
+        (CPUID_ARM,        ARM_SC300):         "SecurCore SC300",
+        (CPUID_ARM,        ARM_CortexM0):      "Cortex-M0",
+        (CPUID_ARM,        ARM_CortexM1):      "Cortex-M1",
+        (CPUID_ARM,        ARM_CortexM3):      "Cortex-M3",
+        (CPUID_ARM,        ARM_CortexM4):      "Cortex-M4",
+        (CPUID_ARM,        ARM_CortexM7):      "Cortex-M7",
+        (CPUID_ARM,        ARM_CortexM0p):     "Cortex-M0+",
+        (CPUID_ARM,        ARM_CortexM23):     "Cortex-M23",
+        (CPUID_ARM,        ARM_CortexM33):     "Cortex-M33",
+        (CPUID_ARM,        ARM_CortexM35P):    "Cortex-M35P",
+        (CPUID_ARM,        ARM_CortexM55):     "Cortex-M55",
+        (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
+    }
 
 class CoreArchitecture(Enum):
     """@brief CPU architectures."""

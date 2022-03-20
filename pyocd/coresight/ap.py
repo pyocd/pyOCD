@@ -1225,6 +1225,12 @@ class AHB_AP(MEM_AP):
 # - [12:7] = 4, the number of JEP106 continuation codes for Arm
 AP_JEP106_ARM = 0x23b
 
+## @brief Arm China JEP106 code
+#
+# - [6:0] = 0x75, JEP106 identification code
+# - [12:7] = 10, number of JEP106 continuation codes
+AP_JEP106_ARM_CHINA = 0x575
+
 # AP classes
 AP_CLASS_JTAG_AP = 0x0
 AP_CLASS_COM_AP = 0x1 # SDC-600 (Chaucer)
@@ -1283,4 +1289,6 @@ AP_TYPE_MAP: Dict[Tuple[int, int, int, int], Tuple[str, Type[AccessPort], int]] 
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM_CHINA,
+                    AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     }

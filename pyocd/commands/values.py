@@ -95,7 +95,7 @@ class CoresValue(ValueBase):
             self.context.writei("Cores:        %d", len(self.context.target.cores))
             for i, core in self.context.target.cores.items():
                 self.context.writei("Core %d type:  %s%s", i,
-                        coresight.core_ids.CORE_TYPE_NAME[core.core_type],
+                        core.name,
                         " (selected)" if ((self.context.selected_core is not None) \
                                             and (self.context.selected_core.core_number == i)) else "")
 

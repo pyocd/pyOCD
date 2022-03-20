@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -109,7 +109,6 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     CPUID_REVISION_MASK = 0x0000000f
     CPUID_REVISION_POS = 0
 
-    CPUID_IMPLEMENTER_ARM = 0x41
     ARMv6M = 0xC
     ARMv7M = 0xF
 
@@ -220,6 +219,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.core_type = 0
         self.has_fpu: bool = False
         self._core_number: int = core_num
+        self._core_name: str = "Unknown"
         self._run_token: int = 0
         self._target_context: Optional["DebugContext"] = None
         self._elf = None
@@ -254,6 +254,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             self.bp_manager.add_provider(cmp)
         elif isinstance(cmp, DWT):
             self.dwt = cmp
+
+    @property
+    def name(self) -> str:
+        """@brief CPU type name."""
+        return self._core_name
 
     @property
     def core_number(self) -> int:
@@ -370,12 +375,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         cpuid = self.read32(CortexM.CPUID)
 
         implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
-        if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
-            LOG.warning("CPU implementer is not ARM!")
-
         arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
-
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
 
@@ -386,10 +387,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         else:
             self._architecture = CoreArchitecture.ARMv6M
 
-        if self.core_type in CORE_TYPE_NAME:
-            LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
-        else:
-            LOG.warning("CPU core #%d type is unrecognized", self.core_number)
+        self._core_name = CORE_TYPE_NAME.get((implementer, self.core_type), f"Unknown (CPUID={cpuid:#010x})")
+
+        LOG.info("CPU core #%d is %s r%dp%d", self.core_number, self._core_name, self.cpu_revision, self.cpu_patch)
 
     def _check_for_fpu(self) -> None:
         """@brief Determine if a core has an FPU.
