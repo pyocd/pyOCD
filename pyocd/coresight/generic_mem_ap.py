@@ -18,6 +18,7 @@
 import logging
 
 from .component import CoreSightCoreComponent
+from ..core import exceptions
 from ..core.target import Target
 from ..core.core_registers import CoreRegistersIndex
 
@@ -115,22 +116,22 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
         return None
 
     def read_core_register(self, reg):
-        return DEAD_VALUE
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def read_core_register_raw(self, reg):
-        return DEAD_VALUE
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def read_core_registers_raw(self, reg_list):
-        return [DEAD_VALUE] * len(reg_list)
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def write_core_register(self, reg, data):
-        pass
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def write_core_register_raw(self, reg, data):
-        pass
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def write_core_registers_raw(self, reg_list, data_list):
-        pass
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         return False
