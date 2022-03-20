@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Cypress Semiconductor Corporation
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 import logging
 
-from .component import CoreSightComponent
+from .component import CoreSightCoreComponent
 from ..core.target import Target
 from ..core.core_registers import CoreRegistersIndex
 
@@ -26,7 +26,7 @@ LOG = logging.getLogger(__name__)
 DEAD_VALUE = 0
 
 
-class GenericMemAPTarget(Target, CoreSightComponent):
+class GenericMemAPTarget(Target, CoreSightCoreComponent):
     """@brief This target represents ARM debug Access Port without a CPU
 
     It may be used to access the address space of the target via Access Ports
@@ -43,7 +43,7 @@ class GenericMemAPTarget(Target, CoreSightComponent):
 
     def __init__(self, session, ap, memory_map=None, core_num=0, cmpid=None, address=None):
         Target.__init__(self, session, memory_map)
-        CoreSightComponent.__init__(self, ap, cmpid, address)
+        CoreSightCoreComponent.__init__(self, ap, cmpid, address)
         self.core_number = core_num
         self.core_type = DEAD_VALUE
         self._core_registers = CoreRegistersIndex()
