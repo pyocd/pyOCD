@@ -217,13 +217,13 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',           None,       None                ), # Timestamp Generator
     (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',          None,       None                ),
   # Designer      |Component Class |Part  |Type |Archid           |Name        |Product    |Factory
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x31, 0x0a31) : CmpInfo('MTB',       'Star-MC1', None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x43, 0x1a01) : CmpInfo('ITM',       'Star-MC1', ITM.factory         ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a02) : CmpInfo('DWT',       'Star-MC1', DWTv2.factory       ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a03) : CmpInfo('BPU',       'Star-MC1', FPB.factory         ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x14, 0x1a14) : CmpInfo('CTI',       'Star-MC1', None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS',       'Star-MC1', CortexM_v8M.factory ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM',       'Star-MC1', None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd21, 0x11, 0)      : CmpInfo('TPIU',      'Star-MC1', TPIU.factory        ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x31, 0x0a31) : CmpInfo('MTB',       'Star-MC1', None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x43, 0x1a01) : CmpInfo('ITM',       'Star-MC1', ITM.factory         ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x00, 0x1a02) : CmpInfo('DWT',       'Star-MC1', DWTv2.factory       ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x00, 0x1a03) : CmpInfo('BPU',       'Star-MC1', FPB.factory         ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x14, 0x1a14) : CmpInfo('CTI',       'Star-MC1', None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x00, 0x2a04) : CmpInfo('SCS',       'Star-MC1', CortexM_v8M.factory ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x13, 0x4a13) : CmpInfo('ETM',       'Star-MC1', None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x11, 0)      : CmpInfo('TPIU',      'Star-MC1', TPIU.factory        ),
     }
 
