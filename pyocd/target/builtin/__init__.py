@@ -75,6 +75,7 @@ from . import target_MAX32620
 from . import target_MAX32625
 from . import target_MAX32630
 from . import target_MAX32660
+from . import target_MAX32670
 from . import target_w7500
 from . import target_s5js100
 from . import target_LPC1114FN28_102
@@ -104,6 +105,7 @@ from . import target_LPC55S36
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
 from . import target_M261
+from . import target_M460
 from . import target_M480
 from . import target_M2354
 from . import target_HC32F460
@@ -166,6 +168,7 @@ BUILTIN_TARGETS = {
           'max32625': target_MAX32625.MAX32625,
           'max32630': target_MAX32630.MAX32630,
           'max32660': target_MAX32660.MAX32660,
+          'max32670': target_MAX32670.MAX32670,
           'mimxrt1010': target_MIMXRT1011xxxxx.MIMXRT1011xxxxx,
           'mimxrt1015': target_MIMXRT1015xxxxx.MIMXRT1015xxxxx,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
@@ -240,6 +243,7 @@ BUILTIN_TARGETS = {
           'cy8c64x5_cm4_full_flash' : target_CY8C64x5.cy8c64x5_cm4_full_flash,
           'm252kg6ae' : target_M251.M252KG6AE,
           'm263kiaae' : target_M261.M263KIAAE,
+          'm467hjhae' : target_M460.M467HJHAE,
           'm487jidae' : target_M480.M487JIDAE,
           'm2354kjfae' : target_M2354.M2354KJFAE,
           'hc32f460xc' : target_HC32F460.HC32F460xC,

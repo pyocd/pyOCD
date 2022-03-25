@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,17 +17,15 @@
 
 import pytest
 import os
-import sys
 import logging
-from elapsedtimer import ElapsedTimer
 import telnetlib
 import six
 
-from pyocd.core.exceptions import TimeoutError
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.debug import semihost
 from pyocd.utility.server import StreamServer
+from pyocd.utility.timeout import Timeout
 
 @pytest.fixture(scope='module')
 def tgt(request):
@@ -71,27 +70,22 @@ def ramrgn(tgt):
     pytest.skip("No RAM available to load test")
 
 def run_til_halt(tgt, semihostagent):
-    with ElapsedTimer('run_til_halt', logger=logging.getLogger('root'), loglevel=logging.INFO) as t:
+    with Timeout(2.0) as t:
         logging.info("Resuming target")
         tgt.resume()
 
-        try:
-            while True:
-                if t.elapsed >= 2.0:
-                    raise TimeoutError()
-                if tgt.get_state() == Target.State.HALTED:
-                    logging.info("Target halted")
-                    didHandle = semihostagent.check_and_handle_semihost_request()
-                    if didHandle:
-                        logging.info("Semihost request handled")
-                    else:
-                        logging.info("Non-semihost break")
-                    return didHandle
-        except TimeoutError:
-            tgt.halt()
-            return False
-        finally:
-            assert tgt.get_state() == Target.State.HALTED
+        while True:
+            if not t.check():
+                tgt.halt()
+                return False
+            if tgt.get_state() == Target.State.HALTED:
+                logging.info("Target halted")
+                didHandle = semihostagent.check_and_handle_semihost_request()
+                if didHandle:
+                    logging.info("Semihost request handled")
+                else:
+                    logging.info("Non-semihost break")
+                return didHandle
 
 NOP = 0x46c0
 BKPT_00 = 0xbe00
