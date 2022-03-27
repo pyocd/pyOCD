@@ -44,6 +44,15 @@ SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no stan
 ARM_ID = 0x43b
 ARM_CHINA_ID = 0xa75
 FSL_ID = 0x00e
+STM_ID = 0x020
+
+## Map of JEP106 IDs to vendor name.
+VENDOR_NAMES_MAP: Dict[int, str] = {
+    ARM_ID: "Arm",
+    ARM_CHINA_ID: "Arm China",
+    FSL_ID: "NXP",
+    STM_ID: "ST",
+}
 
 # CoreSight devtype
 #  Major Type [3:0]
@@ -216,6 +225,7 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_ID, GENERIC_CLASS,   0x00e, 0x00, 0)      : CmpInfo('FPB',             'v7-M',     FPB.factory         ),
     (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',           None,       None                ), # Timestamp Generator
     (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',          None,       None                ),
+    (STM_ID, SYSTEM_CLASS,    0x000, 0x00, 0)      : CmpInfo('DBGMCU',          None,       None                ),
   # Designer      |Component Class |Part  |Type |Archid           |Name        |Product    |Factory
     (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x31, 0x0a31) : CmpInfo('MTB',       'Star-MC1', None                ),
     (ARM_CHINA_ID, CORESIGHT_CLASS, 0x132, 0x43, 0x1a01) : CmpInfo('ITM',       'Star-MC1', ITM.factory         ),
