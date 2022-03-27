@@ -1,3 +1,5 @@
+# Copyright (c) 2021-2022 Chris Reed
+
 # pyocd workflow for:
 # - checking code with flake8
 # - running unit tests
@@ -9,21 +11,28 @@ on: [push, pull_request]
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
         python-version:
-        - 3.6
-        - 3.7
-        - 3.8
-        - 3.9
+        - "3.6"
+        - "3.7"
+        - "3.8"
+        - "3.9"
         - "3.10"
 
     steps:
-    - uses: actions/checkout@v2
+    # Only check out HEAD. We don't need the full history.
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -35,16 +44,16 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
 
     - name: Setup pip cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt', '**/setup.py') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.cfg') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade setuptools pip wheel
+        python -m pip install --upgrade setuptools pip wheel build twine
         pip install -e .[test]
 
     - name: Setup flake8 annotations
@@ -58,7 +67,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        pytest --junitxml=test-results-${{ matrix.python-version }}.xml --cov=pyocd --cov-report=xml
+        pytest --junitxml=test-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=pyocd
 
     - name: Test importing all modules
       run: |
@@ -66,14 +75,18 @@ jobs:
 
     - name: Test build
       run: |
-        python setup.py sdist bdist_wheel
+        python -mbuild
+
+    - name: Check packages
+      run: |
+        twine check dist/*
 
     - name: Upload pytest test results
       uses: actions/upload-artifact@v2
       with:
         name: pytest-results-${{ matrix.python-version }}
         path: |
-          test-results-${{ matrix.python-version }}.xml
-          coverage.xml
+          test-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
+          .coverage*
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
