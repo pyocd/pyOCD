@@ -144,6 +144,23 @@ The Microchip (previously Atmel) EDBG probe firmware, at the time of this writin
 On macOS, reading command responses always times out. The probe works on other OSes, however.
 
 
+### PE Micro Cyclone and Multilink
+
+The Cyclone and Multilink debug probes from PE Micro are supported through the use of a separate probe driver
+plugin called `pyocd-pemicro`. This plugin can be installed at any time using `pip`:
+
+    pip install pyocd-pemicro
+
+It can also be installed at the same time as pyOCD by adding the `pemicro` install extra:
+
+    pip install pyocd[pemicro]
+
+Once the PE Micro probe driver is installed, Cyclone and Multilink probes connected by USB will immediately
+be available for use.
+
+Currently, PE Micro probes connected via the network are not accessible.
+
+
 ### STLink
 
 <div class="alert alert-warning">
