@@ -16,15 +16,33 @@
 
 from time import (time, sleep)
 import pytest
+from unittest.mock import Mock
 
 from pyocd.utility.timeout import Timeout
 
+@pytest.fixture(scope='function')
+def mock_time(monkeypatch):
+    mtime = Mock()
+    mtime.return_value = 0
+    monkeypatch.setattr('pyocd.utility.timeout.time', mtime)
+    return mtime
+
+@pytest.fixture(scope='function')
+def mock_sleep(monkeypatch, mock_time):
+    def inc_time(offset):
+        mock_time.return_value += offset
+    msleep = Mock()
+    msleep.side_effect = inc_time
+    msleep.return_value = None
+    monkeypatch.setattr('pyocd.utility.timeout.sleep', msleep)
+    return msleep
+
 class TestTimeout:
-    def test_no_timeout(self):
+    def test_no_timeout(self, mock_time, mock_sleep):
         with Timeout(0.05) as to:
             cnt = 0
             while to.check():
-                sleep(0.01)
+                mock_sleep(0.01)
                 cnt += 1
                 if cnt == 2:
                     break
@@ -32,29 +50,26 @@ class TestTimeout:
                 assert False
         assert not to.did_time_out
 
-    def test_timeout_a(self):
-        s = time()
+    def test_timeout_a(self, mock_time, mock_sleep):
         with Timeout(0.05) as to:
             while to.check():
-                sleep(0.01)
+                mock_sleep(0.01)
         assert to.did_time_out
-        assert (time() - s) >= 0.05
 
-    def test_timeout_b(self):
+    def test_timeout_b(self, mock_time, mock_sleep):
         timedout = False
-        s = time()
+        print(repr(time))
         with Timeout(0.05) as to:
             cnt = 0
             while cnt < 10:
                 if to.did_time_out:
                     timedout = True
-                sleep(0.02)
+                mock_sleep(0.02)
                 cnt += 1
         assert timedout
         assert to.did_time_out
-        assert (time() - s) >= 0.05
 
-    def test_timeout_c(self):
+    def test_timeout_c(self, mock_time, mock_sleep):
         timedout = False
         with Timeout(0.05) as to:
             cnt = 0
@@ -65,7 +80,7 @@ class TestTimeout:
         assert not timedout
         assert not to.did_time_out
 
-    def test_timeout_reset(self):
+    def test_timeout_reset(self, mock_time, mock_sleep):
         cnt = 0
         cnta = 0
         with Timeout(0.05) as to:
@@ -73,7 +88,7 @@ class TestTimeout:
             while cnta < 3:
                 cnt = 0
                 while to.check():
-                    sleep(0.01)
+                    mock_sleep(0.01)
                     if cnta > 1:
                         break
                     cnt += 1
