@@ -1,0 +1,12 @@
+[run]
+branch = false
+parallel = true
+source_pkgs = pyocd
+
+[paths]
+equiv_source =
+    pyocd/
+
+[report]
+skip_empty = true
+precision = 1
