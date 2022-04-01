@@ -32,6 +32,7 @@ class ListSubcommand(SubcommandBase):
 
     NAMES = ['list']
     HELP = "List information about probes, targets, or boards."
+    DEFAULT_LOG_LEVEL = logging.ERROR
 
     ## @brief Map to convert plugin groups to user friendly names.
     PLUGIN_GROUP_NAMES = {
