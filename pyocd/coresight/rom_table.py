@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2021 Jacob Berg Potter
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -22,7 +22,7 @@ from time import sleep
 from ..core import exceptions
 from .component import CoreSightComponent
 from .gpr import GPR
-from .component_ids import COMPONENT_MAP
+from .component_ids import (COMPONENT_MAP, VENDOR_NAMES_MAP)
 from ..utility.conversion import pairwise
 from ..utility.mask import (bit_invert, align_down)
 from ..utility.timeout import Timeout
@@ -107,6 +107,7 @@ class CoreSightComponentID(object):
         self.cidr = 0
         self.pidr = 0
         self.designer = 0
+        self.designer_name = ""
         self.part = 0
         self.devarch = 0
         self.archid = 0
@@ -136,6 +137,9 @@ class CoreSightComponentID(object):
         # Extract JEP106 designer ID.
         self.designer = ((self.pidr & self.PIDR_DESIGNER_MASK) >> self.PIDR_DESIGNER_SHIFT) \
                         | ((self.pidr & self.PIDR_DESIGNER2_MASK) >> (self.PIDR_DESIGNER2_SHIFT - 8))
+        if self.designer in VENDOR_NAMES_MAP:
+            self.designer_name = VENDOR_NAMES_MAP[self.designer]
+
         self.part = self.pidr & self.PIDR_PART_MASK
 
         # Handle Class 0x1 and Type 0x9 components.
@@ -185,23 +189,32 @@ class CoreSightComponentID(object):
             result |= (value & 0xff) << (i * 8)
         return result
 
+    @property
+    def designer_desc(self) -> str:
+        """@brief Build string with designer JEP106 code plus name, if available."""
+        designer = f"{self.designer:03x}"
+        if self.designer_name:
+            designer += f":{self.designer_name}"
+        return designer
+
     def __repr__(self):
         name = self.name
         if self.product_name:
             name += " " + self.product_name
         if not self.valid:
-            return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, name, self.cidr, self.pidr)
+            return f"{self.address:08x}:{name} cidr={self.cidr:x}, pidr={self.pidr:x}, component invalid>"
         if self.power_id is not None:
-            pwrid = " pwrid=%d" % self.power_id
+            pwrid = f" pwrid={self.power_id:d}"
         else:
             pwrid = ""
         if self.component_class == self.CORESIGHT_CLASS:
-            return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x%s>" % (
-                self.address, name, self.component_class, self.designer, self.part,
-                self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2], pwrid)
+            return f"<{self.address:08x}:{name} class={self.component_class:d} " \
+                    f"designer={self.designer_desc} part={self.part:03x} " \
+                    f"devtype={self.devtype:02x} archid={self.archid:04x} " \
+                    f"devid={self.devid[0]:x}:{self.devid[1]:x}:{self.devid[2]:x}{pwrid}>"
         else:
-            return "<%08x:%s class=%d designer=%03x part=%03x%s>" % (
-                self.address, name,self.component_class, self.designer, self.part, pwrid)
+            return f"<{self.address:08x}:{name} class={self.component_class:d} " \
+                    f"designer={self.designer_desc} part={self.part:03x}{pwrid}>"
 
 
 class ROMTable(CoreSightComponent):
@@ -287,9 +300,9 @@ class ROMTable(CoreSightComponent):
         created and the ID registers read. These ID objects are added to the _components_ property.
         If any child ROM tables are discovered, they will automatically be created and inited.
         """
-        LOG.info("%s%s Class 0x%x ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
-            self.depth_indent, self.ap.short_description, self.cmpid.component_class, self.depth,
-            self.address, self.cmpid.designer, self.cmpid.part)
+        LOG.info(f"{self.depth_indent}{self.ap.short_description} Class {self.cmpid.component_class:#x} " \
+            f"ROM table #{self.depth} @ {self.address:#08x} (designer={self.cmpid.designer_desc} " \
+            f"part={self.cmpid.part:03x})")
         self._components = []
 
         self._read_table()
