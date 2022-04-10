@@ -19,6 +19,7 @@ from dataclasses import dataclass
 import logging
 from enum import Enum
 
+from ..core import exceptions
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
 from ..utility.mask import (align_down, msb)
@@ -608,18 +609,37 @@ class Flash:
 
     def wait_for_completion(self, timeout=None):
         """@brief Wait until the breakpoint is hit.
+
+        Checks for:
+        - Timeout, using the _timeout_ parameter.
+        - The target is halted after executing the flash operation.
+        - Stack overflow.
         """
+        # TODO Commonise the method to report timeout, halted, and stack canary errors resulting from here.
+
+        # This setting of state isn't strictly necessary, but pyright sees it as possibly unbound when used
+        # below. Otoh, lgtm sees it as unnecessary! So we disable the lgtm warning.
+        state = Target.State.RUNNING # lgtm[py/multiple-definition]
         with Timeout(timeout) as time_out:
             while time_out.check():
-                if self.target.get_state() != Target.State.RUNNING:
+                state = self.target.get_state()
+                if state != Target.State.RUNNING:
                     break
             else:
                 # Operation timed out.
                 self.target.halt()
+                ipsr = self.target.read_core_register('ipsr')
+                LOG.debug("flash operation timed out; IPSR=%d", ipsr)
                 return self.TIMEOUT_ERROR
 
         if self.flash_algo_debug:
             self._flash_algo_debug_check()
+
+        if state != Target.State.HALTED:
+            self.target.halt()
+            ipsr = self.target.read_core_register('ipsr')
+            raise exceptions.FlashFailure("target was not halted as expected after calling "
+                                          "flash algorithm routine (IPSR=%d)", ipsr)
 
         # Check stack canary if we have one.
         if self.end_stack is not None:
