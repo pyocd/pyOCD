@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2016-2020 Arm Limited
 # Copyright (c) 2022 Intel Corporation
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
 from ..core import exceptions
@@ -22,7 +25,7 @@ from ..core.target import Target
 from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m_core_registers import index_for_reg
-import logging
+from ..utility.mask import twos_complement
 
 # Create a logger for this module.
 LOG = logging.getLogger(__name__)
@@ -189,7 +192,7 @@ class ZephyrThread(TargetThread):
 
     def update_info(self):
         try:
-            self._priority = self._target_context.read8(self._base + self._offsets["t_prio"])
+            self._priority = twos_complement(self._target_context.read8(self._base + self._offsets["t_prio"]), width=8)
             self._state = self._target_context.read8(self._base + self._offsets["t_state"])
 
             if self._provider.version > 0:
