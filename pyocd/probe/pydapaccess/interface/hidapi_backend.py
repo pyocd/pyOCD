@@ -202,4 +202,10 @@ class HidApiUSB(Interface):
             self.read_sem.release()
             self.thread.join()
             self.thread = None
+
+            # Clear closed event, recreate read sem and receiveed data deque so they
+            # are cleared and ready if we're re-opened.
+            self.closed_event.clear()
+            self.read_sem = threading.Semaphore(0)
+            self.received_data = collections.deque()
         self.device.close()
