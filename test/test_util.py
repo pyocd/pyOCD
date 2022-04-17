@@ -35,6 +35,10 @@ TEST_DATA_DIR = os.path.join(TEST_DIR, "data")
 TEST_OUTPUT_DIR = os.path.join(TEST_DIR, "output")
 
 def get_test_binary_path(binary_name):
+    if binary_name is None:
+        binary_name = os.environ.get('PYOCD_TEST_BINARY')
+        if binary_name is None:
+            raise RuntimeError("no test binary available")
     return os.path.join(TEST_DATA_DIR, "binaries", binary_name)
 
 def get_env_name():
