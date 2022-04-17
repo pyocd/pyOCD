@@ -834,15 +834,22 @@ class FindCommand(CommandBase):
             'group': 'standard',
             'category': 'memory',
             'nargs': '*',
-            'usage': "ADDR LEN BYTE+",
+            'usage': "[-n] ADDR LEN BYTE+",
             'help': "Search for a value in memory within the given address range.",
             'extra_help': "A pattern of any number of bytes can be searched for. Each BYTE "
-                           "parameter must be an 8-bit value.",
+                           "parameter must be an 8-bit value. If the -n argument is passed, "
+                           "the search is negated and looks for the first set of bytes that "
+                           "does not match the provided values.",
             }
 
     def parse(self, args):
         if len(args) < 3:
             raise exceptions.CommandError("missing argument")
+        if args[0] == '-n':
+            self.negate = True
+            args.pop(0)
+        else:
+            self.negate = False
         self.addr = self._convert_value(args[0])
         self.length = self._convert_value(args[1])
         self.pattern = bytearray()
@@ -868,7 +875,7 @@ class FindCommand(CommandBase):
             data = bytearray(self.context.selected_ap.read_memory_block8(addr, chunk_size))
 
             offset = data.find(self.pattern)
-            if offset != -1:
+            if (offset != -1) ^ self.negate:
                 match = True
                 self.context.writei("Found pattern at address 0x%08x", addr + offset)
                 break

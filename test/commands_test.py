@@ -139,6 +139,7 @@ def commands_test(board_id):
                 "fill 16 0x%08x 64 0x55aa" % (ram_base + 64),
                 "find 0x%08x 128 0xaa 0x55" % ram_base, # find that will pass
                 "find 0x%08x 128 0xff" % ram_base, # find that will fail
+                "find -n 0x%08x 128 0xff" % ram_base, # inverted find that will now pass
                 "erase 0x%08x" % (boot_first_free_block_addr),
                 "erase 0x%08x 1" % (boot_first_free_block_addr + boot_blocksize),
                 "go",
