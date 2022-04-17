@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,15 @@
 
 import logging
 import textwrap
-from typing import (Any, Dict, Set, Tuple, Type, Union)
+from typing import (Any, Dict, List, Set, Tuple, Type, Union, TYPE_CHECKING)
 
 from ..core import exceptions
 from ..utility import conversion
 from ..utility.mask import round_up_div
+
+if TYPE_CHECKING:
+    from .execution_context import CommandExecutionContext
+    from ..core.core_registers import CoreRegisterInfo
 
 LOG = logging.getLogger(__name__)
 
@@ -80,7 +84,7 @@ class CommandBase(metaclass=CommandMeta):
             'help': "",
             }
 
-    def __init__(self, context):
+    def __init__(self, context: "CommandExecutionContext") -> None:
         """@brief Constructor."""
         self._context = context
 
@@ -89,7 +93,7 @@ class CommandBase(metaclass=CommandMeta):
         """@brief The command execution context."""
         return self._context
 
-    def check_arg_count(self, args):
+    def check_arg_count(self, args: List[str]) -> None:
         """@brief Verify the number of command arguments."""
         nargs = self.INFO['nargs']
         if nargs == '*':
@@ -105,15 +109,15 @@ class CommandBase(metaclass=CommandMeta):
         elif len(args) > nargs:
             raise exceptions.CommandError("too many arguments")
 
-    def parse(self, args):
+    def parse(self, args: List[str]) -> None:
         """@brief Extract command arguments."""
         pass
 
-    def execute(self):
+    def execute(self) -> None:
         """@brief Perform the command."""
         raise NotImplementedError()
 
-    def _format_core_register(self, info, value):
+    def _format_core_register(self, info: "CoreRegisterInfo", value: int) -> str:
         hex_width = round_up_div(info.bitsize, 4) + 2 # add 2 for the "0x" prefix
         if info.is_double_float_register:
             value_str = "{f:g} ({i:#0{w}x})".format(f=conversion.u64_to_float64(value), i=value, w=hex_width)
@@ -125,7 +129,7 @@ class CommandBase(metaclass=CommandMeta):
             value_str = "{h:#0{w}x} ({d:d})".format(h=value, w=hex_width, d=value)
         return value_str
 
-    def _convert_value(self, arg):
+    def _convert_value(self, arg: str) -> int:
         """@brief Convert an argument to a 32-bit integer.
 
         Handles the usual decimal, binary, and hex numbers with the appropriate prefix.
@@ -169,9 +173,9 @@ class CommandBase(metaclass=CommandMeta):
                 arg = arg.lower().replace('_', '')
                 value = int(arg, base=0)
 
-            if deref:
+            if deref and (self.context.selected_ap is not None):
                 value = conversion.byte_list_to_u32le_list(
-                        self.context.selected_core.read_memory_block8(value + offset, 4))[0]
+                        self.context.selected_ap.read_memory_block8(value + offset, 4))[0]
                 self.context.writei("[%s,%d] = 0x%08x", arg, offset, value)
 
             return value
@@ -179,7 +183,7 @@ class CommandBase(metaclass=CommandMeta):
             raise exceptions.CommandError("invalid argument '{}'".format(arg)) from None
 
     @classmethod
-    def format_help(cls, context, max_width=72):
+    def format_help(cls, context, max_width: int = 72) -> str:
         """@brief Return a string with the help text for this command."""
         text = "Usage: {cmd} {usage}\n".format(cmd=cls.INFO['names'][0], usage=cls.INFO['usage'])
         if len(cls.INFO['names']) > 1:
@@ -208,16 +212,16 @@ class ValueBase(CommandBase):
     - `extra_help`: Optional key for a string with more detailed help.
     """
 
-    def display(self, args):
+    def display(self, args: List[str]) -> None:
         """@brief Output the value of the info."""
         raise NotImplementedError()
 
-    def modify(self, args):
+    def modify(self, args: List[str]) -> None:
         """@brief Change the info to a new value."""
         raise NotImplementedError()
 
     @classmethod
-    def format_help(cls, context, max_width=72):
+    def format_help(cls, context, max_width: int = 72) -> str:
         """@brief Return a string with the help text for this command."""
         first_name = cls.INFO['names'][0]
         text = "Usage: "
