@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
 from ..utility.cmdline import (
-    convert_session_options,
+    convert_one_session_option,
     convert_frequency,
     convert_vector_catch,
     )
@@ -301,10 +301,24 @@ class SessionOptionValue(ValueBase):
                 self.context.writei("No option with name '%s'", name)
 
     def modify(self, args):
+        """Extract and apply option setting arguments.
+
+        The syntax for each option is "name[=value]". The args are pre-split into individual tokens,
+        where the '=' is a separate token. So a single "foo=bar" is split into "foo", "=", "bar" args.
+        """
         if len(args) < 1:
             raise exceptions.CommandError("missing session option setting")
-        opts = convert_session_options(args)
-        self.context.session.options.update(opts)
+        while args:
+            name = args.pop(0)
+            if args and args[0] == "=":
+                args.pop(0) # Remove "="
+                if not args:
+                    raise exceptions.CommandError("expected option value after '='")
+                value = args.pop(0)
+            else:
+                value = None
+            name, converted_value = convert_one_session_option(name, value)
+            self.context.session.options[name] = converted_value
 
 class MemApValue(ValueBase):
     INFO = {

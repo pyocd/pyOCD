@@ -223,23 +223,41 @@ def commands_test(board_id):
         # For now we just verify that the commands run without raising an exception.
         print("\n------ Testing commands ------")
 
-        def test_command(cmd):
+        def test_command(cmd, print_result=True):
             try:
                 print("\nTEST: %s" % cmd)
                 context.process_command_line(cmd)
             except:
-                print("TEST FAILED")
+                if print_result:
+                    print("TEST FAILED")
                 failed_commands.append(cmd)
                 traceback.print_exc(file=sys.stdout)
                 return False
             else:
-                print("TEST PASSED")
+                if print_result:
+                    print("TEST PASSED")
                 return True
 
         for cmd in COMMANDS_TO_TEST:
             if test_command(cmd):
                 test_pass_count += 1
             test_count += 1
+
+        #
+        # Special command tests.
+        #
+        print("\n------ Additional command tests ------")
+
+        # set option
+        session.options['auto_unlock'] = False
+        if test_command('set option auto_unlock=on', print_result=False):
+            if session.options['auto_unlock'] is True:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED")
+
+        test_count += 1
 
         print("\n\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))
