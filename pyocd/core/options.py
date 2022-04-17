@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +16,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import namedtuple
+from typing import (Any, Dict, List, NamedTuple, Tuple, Union)
 
-OptionInfo = namedtuple('OptionInfo', 'name type default help')
+class OptionInfo(NamedTuple):
+    # TODO Change 'type' field's type Any, and use Union for multi-typed options instead of a tuple of types.
+    name: str
+    type: Union[type, Tuple[type, ...]]
+    default: Any
+    help: str
 
 ## @brief Definitions of the builtin options.
 BUILTIN_OPTIONS = [
@@ -177,9 +183,9 @@ BUILTIN_OPTIONS = [
     ]
 
 ## @brief The runtime dictionary of options.
-OPTIONS_INFO = {}
+OPTIONS_INFO: Dict[str, OptionInfo] = {}
 
-def add_option_set(options):
+def add_option_set(options: List[OptionInfo]) -> None:
     """@brief Merge a list of OptionInfo objects into OPTIONS_INFO."""
     OPTIONS_INFO.update({oi.name: oi for oi in options})
 
