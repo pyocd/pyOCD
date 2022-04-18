@@ -96,7 +96,10 @@ class TestConvertSessionOptions(object):
         assert convert_session_options([]) == {}
 
     def test_unknown_option(self):
+        # No value.
         assert convert_session_options(['dumkopf']) == {}
+        # With a value
+        assert convert_session_options(['dumkopf=123']) == {'dumkopf': "123"}
 
     def test_bool(self):
         assert convert_session_options(['auto_unlock']) == {'auto_unlock': True}
