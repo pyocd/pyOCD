@@ -394,8 +394,10 @@ class DisassembleCommand(CommandBase):
             'nargs': [1, 2, 3],
             'usage': "[-c/--center] ADDR [LEN]",
             'help': "Disassemble instructions at an address.",
-            'extra_help': "Only available if the capstone library is installed. To install "
-                           "capstone, run 'pip install capstone'.",
+            'extra_help':
+                "The length argument is in bytes and is optional, with a default of 6. If the -c option "
+                "is used, the disassembly is centered on the given address. Otherwise the disassembly "
+                "begins at the given address.",
             }
 
     def parse(self, args):
