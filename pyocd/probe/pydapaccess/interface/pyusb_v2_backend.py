@@ -51,14 +51,19 @@ class PyUSBv2(Interface):
 
     isAvailable = IS_AVAILABLE
 
-    def __init__(self):
+    def __init__(self, dev):
         super().__init__()
+        self.vid = dev.idVendor
+        self.pid = dev.idProduct
+        self.product_name = dev.product or f"{dev.idProduct:#06x}"
+        self.vendor_name = dev.manufacturer or f"{dev.idVendor:#06x}"
+        self.serial_number = dev.serial_number \
+                or generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address)
         self.ep_out = None
         self.ep_in = None
         self.ep_swo = None
         self.dev = None
         self.intf_number = None
-        self.serial_number = None
         self.kernel_driver_was_attached = False
         self.closed = True
         self.thread = None
@@ -196,13 +201,7 @@ class PyUSBv2(Interface):
         # iterate on all devices found
         boards = []
         for board in all_devices:
-            new_board = PyUSBv2()
-            new_board.vid = board.idVendor
-            new_board.pid = board.idProduct
-            new_board.product_name = board.product or f"{board.idProduct:#06x}"
-            new_board.vendor_name = board.manufacturer or f"{board.idVendor:#06x}"
-            new_board.serial_number = board.serial_number \
-                    or generate_device_unique_id(board.idProduct, board.idVendor, board.bus, board.address)
+            new_board = PyUSBv2(board)
             boards.append(new_board)
 
         return boards

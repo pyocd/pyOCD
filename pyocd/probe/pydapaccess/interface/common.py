@@ -128,7 +128,7 @@ def check_ep(interface: "Interface", ep_index: int, ep_dir: int, ep_type: int) -
     return ((usb.util.endpoint_direction(ep.bEndpointAddress) == ep_dir) # type:ignore
         and (usb.util.endpoint_type(ep.bmAttributes) == ep_type)) # type:ignore
 
-def generate_device_unique_id(vid: int, pid: int, *locations: List[Union[int, str]]) -> str:
+def generate_device_unique_id(vid: int, pid: int, *locations: Union[int, str]) -> str:
     """@brief Generate a semi-stable unique ID from USB device properties.
 
     This function is intended to be used in cases where a device does not provide a serial number

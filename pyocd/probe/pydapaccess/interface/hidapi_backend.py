@@ -54,11 +54,17 @@ class HidApiUSB(Interface):
 
     HIDAPI_MAX_PACKET_COUNT = 30
 
-    def __init__(self):
+    def __init__(self, dev, info: dict):
         super().__init__()
         # Vendor page and usage_id = 2
-        self.device = None
-        self.device_info = None
+        self.vid = info['vendor_id']
+        self.pid = info['product_id']
+        self.vendor_name = info['manufacturer_string'] or f"{self.vid:#06x}"
+        self.product_name = info['product_string'] or f"{self.pid:#06x}"
+        self.serial_number = info['serial_number'] \
+                or generate_device_unique_id(self.vid, self.pid, six.ensure_str(info['path']))
+        self.device_info = info
+        self.device = dev
         self.thread = None
         self.read_sem = threading.Semaphore(0)
         self.closed_event = threading.Event()
@@ -140,15 +146,7 @@ class HidApiUSB(Interface):
                 continue
 
             # Create the USB interface object for this device.
-            new_board = HidApiUSB()
-            new_board.vid = vid
-            new_board.pid = pid
-            new_board.vendor_name = deviceInfo['manufacturer_string'] or f"{vid:#06x}"
-            new_board.product_name = deviceInfo['product_string'] or f"{pid:#06x}"
-            new_board.serial_number = deviceInfo['serial_number'] \
-                    or generate_device_unique_id(vid, pid, six.ensure_str(deviceInfo['path']))
-            new_board.device_info = deviceInfo
-            new_board.device = dev
+            new_board = HidApiUSB(dev, deviceInfo)
             boards.append(new_board)
 
         return boards
