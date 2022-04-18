@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -150,10 +150,10 @@ class PyWinUSB(Interface):
         data.extend([0] * (self.packet_size - len(data)))
         self.report.send([0] + data)
 
-    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+    def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(timeout, sleeptime=0.0001) as t_o:
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.rcv_data):
                     break

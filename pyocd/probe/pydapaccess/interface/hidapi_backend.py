@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -162,7 +162,7 @@ class HidApiUSB(Interface):
             self.read_sem.release()
         self.device.write([0] + data)
 
-    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+    def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
@@ -176,7 +176,7 @@ class HidApiUSB(Interface):
 
         # Other OSes use the read thread, so we check for and pull data from the queue.
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(timeout, sleeptime=0.0001) as t_o:
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.received_data) != 0:
                     break

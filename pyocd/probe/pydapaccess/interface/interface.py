@@ -22,7 +22,8 @@ class Interface:
     def get_all_connected_interfaces():
         raise NotImplementedError()
 
-    DEFAULT_READ_TIMEOUT = 20
+    DEFAULT_USB_TIMEOUT_S = 10
+    DEFAULT_USB_TIMEOUT_MS = DEFAULT_USB_TIMEOUT_S * 1000
 
     def __init__(self):
         self.vid = 0
@@ -51,7 +52,7 @@ class Interface:
     def write(self, data):
         raise NotImplementedError()
 
-    def read(self, timeout=DEFAULT_READ_TIMEOUT):
+    def read(self):
         raise NotImplementedError()
 
     def read_swo(self):

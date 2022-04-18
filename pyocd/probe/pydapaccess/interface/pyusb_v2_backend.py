@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -161,7 +161,7 @@ class PyUSBv2(Interface):
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    read_data = self.ep_in.read(self.packet_size, 10 * 1000)
+                    read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
                     if TRACE.isEnabledFor(logging.DEBUG):
                         TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in read_data]))
@@ -175,7 +175,8 @@ class PyUSBv2(Interface):
         try:
             while not self.swo_stop_event.is_set():
                 try:
-                    self.swo_data.append(self.ep_swo.read(self.ep_swo.wMaxPacketSize, 10 * 1000))
+                    self.swo_data.append(self.ep_swo.read(self.ep_swo.wMaxPacketSize,
+                            timeout=self.DEFAULT_USB_TIMEOUT_MS))
                 except usb.core.USBError:
                     pass
         finally:
@@ -218,12 +219,12 @@ class PyUSBv2(Interface):
 
         self.read_sem.release()
 
-        self.ep_out.write(data)
+        self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
-    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+    def read(self):
         """@brief Read data on the IN endpoint."""
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(timeout, sleeptime=0.0001) as t_o:
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.rcv_data) != 0:
                     break
