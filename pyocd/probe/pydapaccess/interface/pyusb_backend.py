@@ -2,7 +2,7 @@
 # Copyright (c) 2006-2021 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2021 mentha
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -53,19 +53,23 @@ class PyUSB(Interface):
 
     did_show_no_libusb_warning = False
 
-    def __init__(self):
+    def __init__(self, dev):
         super().__init__()
+        self.vid = dev.idVendor
+        self.pid = dev.idProduct
+        self.product_name = dev.product or f"{dev.idProduct:#06x}"
+        self.vendor_name = dev.manufacturer or f"{dev.idVendor:#06x}"
+        self.serial_number = dev.serial_number \
+                or generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address)
         self.ep_out = None
         self.ep_in = None
         self.dev = None
         self.intf_number = None
-        self.serial_number = None
         self.kernel_driver_was_attached = False
         self.closed = True
         self.thread = None
         self.rcv_data = []
         self.read_sem = threading.Semaphore(0)
-        self.packet_size = 64
 
     def open(self):
         assert self.closed is True
@@ -143,7 +147,8 @@ class PyUSB(Interface):
             while not self.closed:
                 self.read_sem.acquire()
                 if not self.closed:
-                    read_data = self.ep_in.read(self.ep_in.wMaxPacketSize, 10 * 1000)
+                    read_data = self.ep_in.read(self.ep_in.wMaxPacketSize,
+                            timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
                     if TRACE.isEnabledFor(logging.DEBUG):
                         # Strip off trailing zero bytes to reduce clutter.
@@ -172,13 +177,7 @@ class PyUSB(Interface):
         # iterate on all devices found
         boards = []
         for board in all_devices:
-            new_board = PyUSB()
-            new_board.vid = board.idVendor
-            new_board.pid = board.idProduct
-            new_board.product_name = board.product or f"{board.idProduct:#06x}"
-            new_board.vendor_name = board.manufacturer or f"{board.idVendor:#06x}"
-            new_board.serial_number = board.serial_number \
-                    or generate_device_unique_id(board.idProduct, board.idVendor, board.bus, board.address)
+            new_board = PyUSB(board)
             boards.append(new_board)
 
         return boards
@@ -204,15 +203,16 @@ class PyUSB(Interface):
             bmRequest = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
             wValue = 0x200             #Issuing an OUT report
             wIndex = self.intf_number  #mBed Board interface number for HID
-            self.dev.ctrl_transfer(bmRequestType, bmRequest, wValue, wIndex, data)
+            self.dev.ctrl_transfer(bmRequestType, bmRequest, wValue, wIndex, data,
+                    timeout=self.DEFAULT_USB_TIMEOUT_MS)
             return
 
-        self.ep_out.write(data)
+        self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
-    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+    def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(timeout, sleeptime=0.0001) as t_o:
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.rcv_data) != 0:
                     break
@@ -342,7 +342,6 @@ class FindDap:
             # First attempt to get the active config. This produces a more direct error
             # when you don't have device permissions on Linux
             config = dev.get_active_configuration()
-
 
             # Now read the product name string.
             device_string = dev.product
