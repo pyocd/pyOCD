@@ -63,6 +63,8 @@ class ResetSubcommand(SubcommandBase):
             LOG.error("Invalid reset method: %s", self._args.reset_type)
             return
 
+        # Note that resume_on_disconnect is set to the inverse of the --halt argument. Obviously if
+        # the target is resumed, halt won't stay in effect.
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
@@ -74,23 +76,31 @@ class ResetSubcommand(SubcommandBase):
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
                             connect_mode=self._args.connect_mode,
+                            resume_on_disconnect=not self._args.halt,
+                            reset_type=the_reset_type,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No target device available to reset")
             sys.exit(1)
         try:
-            # Handle hw reset specially using the probe, so we don't need a valid connection
-            # and can skip discovery. If we're halting we need a connection even if performing a hardware reset.
+            # Handle hw reset more efficiently using the probe directly, so we don't need can skip
+            # discovery. However, if halting was requested we need full init even if performing a
+            # hardware reset.
             is_hw_reset = (the_reset_type == Target.ResetType.HW) and not self._args.halt
 
             # Only init the board if performing a sw reset.
             session.open(init_board=(not is_hw_reset))
+            assert session.probe
+            assert session.target
 
             LOG.info("Performing '%s' reset...", self._args.reset_type)
             if is_hw_reset:
+                # For some probe types the probe still has to be connected to drive reset.
+                session.probe.connect()
                 session.probe.reset()
+                session.probe.disconnect()
             else:
-                session.selected_core = self._args.core
+                session.target.selected_core = self._args.core
                 if self._args.halt:
                     session.target.reset_and_halt(reset_type=the_reset_type)
                 else:
