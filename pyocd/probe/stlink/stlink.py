@@ -19,7 +19,7 @@ import logging
 import struct
 import threading
 from enum import Enum
-from typing import (List, Optional, Sequence, Tuple)
+from typing import (List, Optional, Sequence, Tuple, Union)
 import usb.core
 
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
@@ -262,7 +262,7 @@ class STLink(object):
             if response[0] != Status.JTAG_CONF_CHANGED:
                 self._check_status(response[0:2])
 
-    def set_swd_frequency(self, freq=1800000):
+    def set_swd_frequency(self, freq: Union[int, float] = 1800000):
         with self._lock:
             if self._hw_version >= 3:
                 self.set_com_frequency(self.Protocol.SWD, freq)
@@ -274,7 +274,7 @@ class STLink(object):
                         return
                 raise exceptions.ProbeError("Selected SWD frequency is too low")
 
-    def set_jtag_frequency(self, freq=1120000):
+    def set_jtag_frequency(self, freq: Union[int, float] = 1120000):
         with self._lock:
             if self._hw_version >= 3:
                 self.set_com_frequency(self.Protocol.JTAG, freq)
@@ -286,7 +286,7 @@ class STLink(object):
                         return
                 raise exceptions.ProbeError("Selected JTAG frequency is too low")
 
-    def get_com_frequencies(self, protocol):
+    def get_com_frequencies(self, protocol: "STLink.Protocol"):
         assert self._hw_version >= 3
 
         with self._lock:
@@ -299,7 +299,7 @@ class STLink(object):
             freqCount = freqs.pop(0)
             return currentFreq, freqs[:freqCount]
 
-    def set_com_frequency(self, protocol, freq):
+    def set_com_frequency(self, protocol: "STLink.Protocol", freq: Union[int, float]):
         assert self._hw_version >= 3
 
         with self._lock:

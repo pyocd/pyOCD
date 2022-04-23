@@ -22,7 +22,7 @@ from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
-from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT)
+from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT, APv1Address)
 from .stlink.usb import STLinkUSBInterface
 from .stlink.stlink import STLink
 from .stlink.detect.factory import create_mbed_detector
@@ -229,6 +229,7 @@ class StlinkProbe(DebugProbe):
         # STLink memory access commands only support an 8-bit APSEL.
         if ap_address.ap_version != APVersion.APv1:
             return None
+        assert isinstance(ap_address, APv1Address)
         apsel = ap_address.apsel
         if apsel not in self._memory_interfaces:
             self._link.open_ap(apsel)
