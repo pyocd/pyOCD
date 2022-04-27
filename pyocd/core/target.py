@@ -290,7 +290,7 @@ class Target(MemoryInterface):
     def set_watchpoint(self, addr: int, size: int, type: WatchpointType) -> bool:
         raise NotImplementedError()
 
-    def remove_watchpoint(self, addr: int, size: int, type: WatchpointType) -> None:
+    def remove_watchpoint(self, addr: int, size: Optional[int], type: Optional[WatchpointType]) -> None:
         raise NotImplementedError()
 
     def reset(self, reset_type: Optional[ResetType] = None) -> None:

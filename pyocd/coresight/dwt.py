@@ -162,15 +162,19 @@ class DWT(CoreSightComponent):
         LOG.error('No more watchpoints are available, dropped watchpoint at 0x%08x', addr)
         return False
 
-    def remove_watchpoint(self, addr, size, type):
-        """@brief Remove a hardware watchpoint."""
-        watch = self.find_watchpoint(addr, size, type)
-        if watch is None:
-            return
+    def remove_watchpoint(self, addr, size=None, type=None):
+        """@brief Remove a hardware watchpoint.
 
-        watch.func = 0
-        self.ap.write_memory(watch.comp_register_addr + self.DWT_FUNCTION_OFFSET, 0)
-        self.watchpoint_used -= 1
+        size and type are optional. If not specified, all watchpoints matching other parameters, or only
+        the address if neither size nor type are specified, will be removed.
+        """
+        for watch in self.watchpoints:
+            if (watch.addr == addr
+                    and (size is None or watch.size == size)
+                    and (type is None or watch.func == self.WATCH_TYPE_TO_FUNCT[type])):
+                watch.func = 0
+                self.ap.write_memory(watch.comp_register_addr + self.DWT_FUNCTION_OFFSET, 0)
+                self.watchpoint_used -= 1
 
     def remove_all_watchpoints(self):
         for watch in self.watchpoints:
