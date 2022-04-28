@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,6 +62,8 @@ class SWVEventSink(TraceEventSink):
                     + chr((event.data >> 8) & 0xff)
                     + chr((event.data >> 16) & 0xff)
                     + chr((event.data >> 24) & 0xff))
+        else:
+            return
 
         self._console.write(data)
 
@@ -85,7 +87,7 @@ class SWVReader(threading.Thread):
 
         self._session.subscribe(self._reset_handler, Target.Event.POST_RESET, self._session.target.cores[core_number])
 
-    def init(self, sys_clock, swo_clock, console):
+    def init(self, sys_clock, swo_clock, console) -> bool:
         """@brief Configures trace graph and starts thread.
 
         This method performs all steps required to start up SWV. It first calls the target's
@@ -93,23 +95,32 @@ class SWVReader(threading.Thread):
         configures the TPIU and ITM modules. A simple trace data processing graph is created that
         connects an SWVEventSink with a SWOParser. Finally, the reader thread is started.
 
-        If the debug probe does not support SWO, a warning is printed but nothing else is done.
+        If the debug probe or target do not support SWO, a warning is printed and False returns,
+        but nothing else is done (no exception raised).
 
         @param self
-        @param sys_clock
-        @param swo_clock
-        @param console
+        @param sys_clock System clock frequency in Hertz, from which the SWO clock is derived.
+        @param swo_clock Desired SWO output frequency in Hertz.
+        @param console File-like object to which SWV data will be written.
+
+        @return Boolean indicating whether the SWV reader was successfully started.
         """
         self._swo_clock = swo_clock
 
         if DebugProbe.Capability.SWO not in self._session.probe.capabilities:
-            LOG.warning("Probe %s does not support SWO", self._session.probe.unique_id)
-            return
-
-        self._session.target.trace_start()
+            LOG.warning(f"SWV not initalized: Probe {self._session.probe.unique_id} does not support SWO")
+            return False
 
         itm = self._session.target.get_first_child_of_type(ITM)
+        if not itm:
+            LOG.warning("SWV not initalized: Target does not have ITM component")
+            return False
         tpiu = self._session.target.get_first_child_of_type(TPIU)
+        if not itm:
+            LOG.warning("SWV not initalized: Target does not have TPIU component")
+            return False
+
+        self._session.target.trace_start()
 
         itm.init()
         itm.enable()
@@ -118,14 +129,16 @@ class SWVReader(threading.Thread):
         if tpiu.set_swo_clock(swo_clock, sys_clock):
             LOG.info("Set SWO clock to %d", swo_clock)
         else:
-            LOG.warning("Failed to set SWO clock rate")
-            return
+            LOG.warning("SWV not initalized: Failed to set SWO clock rate")
+            return False
 
         self._parser = SWOParser(self._session.target.cores[self._core_number])
         self._sink = SWVEventSink(console)
         self._parser.connect(self._sink)
 
         self.start()
+
+        return True
 
     def stop(self):
         """@brief Stops processing SWV data.
@@ -141,7 +154,9 @@ class SWVReader(threading.Thread):
         self._shutdown_event.set()
         self.join()
 
+        # init() should never have started the SWV thread unless the target has ITM and TPIU.
         itm = self._session.target.get_first_child_of_type(ITM)
+        assert itm
         itm.disable()
 
         self._session.target.trace_stop()
