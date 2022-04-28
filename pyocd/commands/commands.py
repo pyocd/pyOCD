@@ -1124,20 +1124,44 @@ class RemoveWatchpointCommand(CommandBase):
             'names': ['rmwatch'],
             'group': 'standard',
             'category': 'breakpoints',
-            'nargs': 1,
-            'usage': "ADDR",
-            'help': "Remove a watchpoint.",
+            'nargs': [1, 2, 3],
+            'usage': "ADDR [r|w|rw] [1|2|4]",
+            'help': "Remove watchpoint(s).",
+            'extra_help':
+                    "Access type and size are optional. All watchpoints matching the specified parameters "
+                    "will be removed."
             }
 
     def parse(self, args):
         self.addr = self._convert_value(args[0])
+        if len(args) > 1:
+            try:
+                self.wptype = WATCHPOINT_FUNCTION_NAME_MAP[args[1]]
+            except KeyError:
+                raise exceptions.CommandError(f"unsupported watchpoint type '{args[1]}'")
+        else:
+            self.wptype = None
+        if len(args) > 2:
+            self.sz = self._convert_value(args[2])
+            if self.sz not in (1, 2, 4):
+                raise exceptions.CommandError(f"unsupported watchpoint size ({self.sz})")
+        else:
+            self.sz = None
 
     def execute(self):
         if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
         try:
-            self.context.selected_core.remove_watchpoint(self.addr)
-            self.context.writei("Removed watchpoint at 0x%08x", self.addr)
+            self.context.selected_core.remove_watchpoint(self.addr, self.size, self.wptype)
+            if self.size is not None:
+                wp_desc = f" ({self.size} bytes"
+                if self.wptype is not None:
+                    type_name = WATCHPOINT_FUNCTION_NAME_MAP[self.wptype]
+                    wp_desc += f", {type_name}"
+                wp_desc += ")"
+            else:
+                wp_desc = ""
+            self.context.write(f"Removed watchpoint(s) at {self.addr:#010x}{wp_desc}")
         except Exception:
             self.context.writei("Failed to remove watchpoint at 0x%08x", self.addr)
 

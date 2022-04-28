@@ -1268,7 +1268,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         if self.dwt is not None:
             return self.dwt.set_watchpoint(addr, size, type)
 
-    def remove_watchpoint(self, addr, size, type):
+    def remove_watchpoint(self, addr, size=None, type=None):
         """@brief Remove a hardware watchpoint.
         """
         if self.dwt is not None:

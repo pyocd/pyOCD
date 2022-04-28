@@ -247,7 +247,7 @@ class SoCTarget(TargetGraphNode):
     def set_watchpoint(self, addr: int, size: int, type: Target.WatchpointType) -> bool:
         return self.selected_core_or_raise.set_watchpoint(addr, size, type)
 
-    def remove_watchpoint(self, addr: int, size: int, type: Target.WatchpointType) -> None:
+    def remove_watchpoint(self, addr: int, size: Optional[int], type: Optional[Target.WatchpointType]) -> None:
         return self.selected_core_or_raise.remove_watchpoint(addr, size, type)
 
     def reset(self, reset_type: Optional[Target.ResetType] = None) -> None:
