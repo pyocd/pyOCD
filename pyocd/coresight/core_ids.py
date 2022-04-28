@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +37,7 @@ ARM_CortexM23 = 0xD20
 ARM_CortexM33 = 0xD21
 ARM_CortexM35P = 0xD31
 ARM_CortexM55 = 0xD22
+ARM_CortexM85 = 0xD23
 ARM_China_StarMC1 = 0x132
 
 # pylint: enable=invalid_name
@@ -54,6 +56,7 @@ CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
         (CPUID_ARM,        ARM_CortexM33):     "Cortex-M33",
         (CPUID_ARM,        ARM_CortexM35P):    "Cortex-M35P",
         (CPUID_ARM,        ARM_CortexM55):     "Cortex-M55",
+        (CPUID_ARM,        ARM_CortexM85):     "Cortex-M85",
         (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
     }
 
@@ -83,3 +86,4 @@ class CortexMExtension(Enum):
     MPU = "MPU" # Memory Protection Unit
     DIT = "DIT" # Data-Independent Timing
     FPCXT = "FPCXT" # Floating Point Context
+    PACBTI = "PACBTI" # Pointer Authentication and Branch Target Identification
