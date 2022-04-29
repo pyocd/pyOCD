@@ -59,9 +59,9 @@ Remove a breakpoint.
 <tr><td>
 <a href="#rmwatch"><tt>rmwatch</tt></a>
 </td><td>
-ADDR
+ADDR [r|w|rw] [1|2|4]
 </td><td>
-Remove a watchpoint.
+Remove watchpoint(s).
 </td></tr>
 
 <tr><td>
@@ -547,15 +547,16 @@ Print the target object graph.
 </td><td>
 read-write
 </td><td>
-The current HNONSEC value used by the selected MEM-AP.
+The current HNONSEC attribute value used by the selected MEM-AP.
 </td></tr>
 
 <tr><td>
-<a href="#hprot"><tt>hprot</tt></a>
+<a href="#hprot"><tt>hprot</tt></a>,
+<a href="#hprot"><tt>memap_attr</tt></a>
 </td><td>
 read-write
 </td><td>
-The current HPROT value used by the selected MEM-AP.
+The current memory transfer attributes value used by the selected MEM-AP.
 </td></tr>
 
 <tr><td>
@@ -692,8 +693,8 @@ Remove a breakpoint.
 
 ##### `rmwatch`
 
-**Usage**: rmwatch ADDR \
-Remove a watchpoint.
+**Usage**: rmwatch ADDR [r|w|rw] [1|2|4] \
+Remove watchpoint(s). Access type and size are optional. All watchpoints matching the specified parameters will be removed.
 
 
 ##### `watch`
@@ -1074,13 +1075,18 @@ Print the target object graph.
 
 **Access**: read-write \
 **Usage**: show hnonsec, set hnonsec VALUE \
-The current HNONSEC value used by the selected MEM-AP.
+The current HNONSEC attribute value used by the selected MEM-AP. This value controls whether memory transactions are secure or nonsecure. The value is an integer, either 0 or secure or 1 for nonsecure.
 
 ##### `hprot`
 
+**Aliases**: `memap_attr` \
 **Access**: read-write \
 **Usage**: show hprot, set hprot VALUE \
-The current HPROT value used by the selected MEM-AP.
+The current memory transfer attributes value used by the selected MEM-AP. This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
+or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
+For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+Manual for your device's MEM-AP for details.
 
 ##### `locked`
 

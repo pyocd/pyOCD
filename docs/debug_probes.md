@@ -129,7 +129,8 @@ In addition, there are numerous other commercial and open source debug probes ut
 PyOCD supports automatic target type identification for debug probes built with the widely used
 [DAPLink](https://github.com/ARMmbed/DAPLink) firmware.
 
-[DAPLink firmware updates](https://daplink.io/)
+DAPLink firmware updates are available on the [daplink.io](https://daplink.io/) site and on the project's
+[releases page](https://github.com/ARMmbed/DAPLink/releases) on GitHub.
 
 #### Session options
 
@@ -156,12 +157,15 @@ No host resident drivers need to be installed to use STLink probes; only libusb 
 The minimum supported STLink firmware version is V2J24, or any V3 version. However, upgrading to the latest version
 is strongly recommended. Numerous bugs have been fixed, and new commands added for feature and performance improvements.
 
-- V2J26: Adds 16-bit transfer support. If not supported, pyOCD will fall back to 8-bit transfers—it is possible this
+- V2J26: Adds 16-bit transfer support. If not supported, pyOCD will fall back to 8-bit transfers. It is possible this
     will produce unexpected behaviour if used to access Device memory (e.g. memory mapped registers).
 - V2J28: Minimum version for multicore target support.
-- V2J32/V3J6: Allows access to banked DP registers. Usually not needed.
+- V2J32/V3J2: Allows access to banked DP registers. Usually not needed.
+- V2J32/V3J2: Supports setting the AHB and AXI transfer attributes. See
+    [`set hnonsec`]({% link _docs/command_reference.md#hnonsec %}) and
+    [`set hprot`]({% link command_reference.md_docs/#hprot %}).
 
-[Firmware updates](https://www.st.com/en/development-tools/stsw-link007.html)
+[STLink firmware updates on www.st.com](https://www.st.com/en/development-tools/stsw-link007.html).
 
 PyOCD supports automatic target type identification for on-board STLink probes that report a board ID.
 
@@ -195,7 +199,7 @@ These are the SWD/JTAG frequencies available with different values of `stlink.v3
 To use a Segger J-Link probe, the driver package must be installed. Segger makes drivers available for Linux, macOS,
 and Windows.
 
-[Firmware and driver installer and updates](https://www.segger.com/downloads/jlink/)
+[J-Link firmware and driver installer and updates on www.segger.com](https://www.segger.com/downloads/jlink/)
 
 On macOS, you can install the `segger-jlink` cask with Homebrew to get managed driver updates.
 

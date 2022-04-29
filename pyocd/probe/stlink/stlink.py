@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ import logging
 import struct
 import threading
 from enum import Enum
-from typing import Optional
+from typing import (List, Optional, Sequence, Tuple, Union)
 import usb.core
 
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
@@ -41,8 +41,8 @@ class STLink(object):
 
     ## Maximum number of bytes to send or receive for 32- and 16- bit transfers.
     #
-    # 8-bit transfers have a maximum size of the maximum USB packet size (64 bytes for full speed).
-    MAXIMUM_TRANSFER_SIZE = 1024
+    # 8-bit transfers have a maximum size of the maximum USB packet size (64 bytes for full speed, 512 for HS).
+    MAXIMUM_TRANSFER_SIZE = 6144
 
     ## Minimum required STLink firmware version (hw version 2).
     MIN_JTAG_VERSION = 24
@@ -62,6 +62,11 @@ class STLink(object):
     #
     # Keys are the hardware version, value is the minimum JTAG version.
     MIN_JTAG_VERSION_GET_BOARD_IDS = {2: 36, 3: 6}
+
+    ## Firmware versions that support CSW settings on memory access commands.
+    #
+    # Keys are the hardware version, value is the minimum JTAG version.
+    MIN_JTAG_VERSION_MEM_CSW = {2: 32, 3: 2}
 
     ## Port number to use to indicate DP registers.
     DP_PORT = 0xffff
@@ -257,7 +262,7 @@ class STLink(object):
             if response[0] != Status.JTAG_CONF_CHANGED:
                 self._check_status(response[0:2])
 
-    def set_swd_frequency(self, freq=1800000):
+    def set_swd_frequency(self, freq: Union[int, float] = 1800000):
         with self._lock:
             if self._hw_version >= 3:
                 self.set_com_frequency(self.Protocol.SWD, freq)
@@ -269,7 +274,7 @@ class STLink(object):
                         return
                 raise exceptions.ProbeError("Selected SWD frequency is too low")
 
-    def set_jtag_frequency(self, freq=1120000):
+    def set_jtag_frequency(self, freq: Union[int, float] = 1120000):
         with self._lock:
             if self._hw_version >= 3:
                 self.set_com_frequency(self.Protocol.JTAG, freq)
@@ -281,7 +286,7 @@ class STLink(object):
                         return
                 raise exceptions.ProbeError("Selected JTAG frequency is too low")
 
-    def get_com_frequencies(self, protocol):
+    def get_com_frequencies(self, protocol: "STLink.Protocol"):
         assert self._hw_version >= 3
 
         with self._lock:
@@ -294,7 +299,7 @@ class STLink(object):
             freqCount = freqs.pop(0)
             return currentFreq, freqs[:freqCount]
 
-    def set_com_frequency(self, protocol, freq):
+    def set_com_frequency(self, protocol: "STLink.Protocol", freq: Union[int, float]):
         assert self._hw_version >= 3
 
         with self._lock:
@@ -368,14 +373,34 @@ class STLink(object):
                 self.write_dap_register(self.DP_PORT, dap.DP_CTRL_STAT,
                     dap.CTRLSTAT_STICKYERR | dap.CTRLSTAT_STICKYCMP | dap.CTRLSTAT_STICKYORUN)
 
-    def _read_mem(self, addr, size, memcmd, maxrx, apsel):
+    def _get_csw_bytes(self, csw: int) -> Tuple[int, int, int]:
+        """@brief Return the 3 bytes in little endian order for CSW[31:8] sent in the mem command.
+        @param csw CSW to use for the MEM-AP. Only the top 24 bits are used.
+        """
+        if self._check_version(self.MIN_JTAG_VERSION_MEM_CSW[self._hw_version]):
+            return ((csw >> 8) & 0xff), ((csw >> 16) & 0xff), ((csw >> 24) & 0xff)
+        else:
+            # This version of STLink firmware doesn't support nonstandard CSW.
+            # TODO should we log a warning here or elsewhere if csw is set to other than
+            # Secure,Priv,Noncacheable,Nonbufferable,Data?
+            return 0, 0, 0
+
+    def _read_mem(self, addr: int, size: int, memcmd: int, maxrx: int, apsel: int, csw: int) -> List[int]:
         with self._lock:
             result = []
             while size:
                 thisTransferSize = min(size, maxrx)
 
+                # Read Memory {8,16,32} command bytes
+                #   0:      JTAG_COMMAND
+                #   1:      JTAG_READMEM_{8,16,32}BIT
+                #   2-5:    address
+                #   6-7:    length in bytes <= 6144 (except 8-bit must <= USB packet size)
+                #   8:      APSEL
+                #   9-11:   CSW[31:8]
+                #   12-15:  TCP unique ID (not used by pyocd)
                 cmd = [Commands.JTAG_COMMAND, memcmd]
-                cmd.extend(struct.pack('<IHB', addr, thisTransferSize, apsel))
+                cmd.extend(struct.pack('<IHBBBB', addr, thisTransferSize, apsel, *self._get_csw_bytes(csw)))
                 result += self._device.transfer(cmd, readSize=thisTransferSize)
 
                 addr += thisTransferSize
@@ -402,14 +427,22 @@ class STLink(object):
                         raise exceptions.ProbeError(error_message)
             return result
 
-    def _write_mem(self, addr, data, memcmd, maxtx, apsel):
+    def _write_mem(self, addr: int, data: Sequence[int], memcmd: int, maxtx: int, apsel: int, csw: int) -> None:
         with self._lock:
             while len(data):
                 thisTransferSize = min(len(data), maxtx)
                 thisTransferData = data[:thisTransferSize]
 
+                # Write Memory {8,16,32} command bytes
+                #   0:      JTAG_COMMAND
+                #   1:      JTAG_WRITEMEM_{8,16,32}BIT
+                #   2-5:    address
+                #   6-7:    length in bytes <= 6144 (except 8-bit must <= USB packet size)
+                #   8:      APSEL
+                #   9-11:   CSW[31:8]
+                #   12-15:  TCP unique ID (not used by pyocd)
                 cmd = [Commands.JTAG_COMMAND, memcmd]
-                cmd.extend(struct.pack('<IHB', addr, thisTransferSize, apsel))
+                cmd.extend(struct.pack('<IHBBBB', addr, thisTransferSize, apsel, *self._get_csw_bytes(csw)))
                 self._device.transfer(cmd, writeData=thisTransferData)
 
                 addr += thisTransferSize
@@ -435,38 +468,38 @@ class STLink(object):
                     elif status != Status.JTAG_OK:
                         raise exceptions.ProbeError(error_message)
 
-    def read_mem32(self, addr, size, apsel):
+    def read_mem32(self, addr: int, size: int, apsel: int, csw: int):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"
-        return self._read_mem(addr, size, Commands.JTAG_READMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel)
+        return self._read_mem(addr, size, Commands.JTAG_READMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
 
-    def write_mem32(self, addr, data, apsel):
+    def write_mem32(self, addr: int, data: Sequence[int], apsel: int, csw: int):
         assert (addr & 0x3) == 0 and (len(data) & 3) == 0, "address and size must be word aligned"
-        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel)
+        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
 
-    def read_mem16(self, addr, size, apsel):
+    def read_mem16(self, addr: int, size: int, apsel: int, csw: int):
         assert (addr & 0x1) == 0 and (size & 0x1) == 0, "address and size must be half-word aligned"
 
         if not self._check_version(self.MIN_JTAG_VERSION_16BIT_XFER):
             # 16-bit r/w is only available from J26, so revert to 8-bit accesses.
-            return self.read_mem8(addr, size, apsel)
+            return self.read_mem8(addr, size, apsel, csw)
 
-        return self._read_mem(addr, size, Commands.JTAG_READMEM_16BIT, self.MAXIMUM_TRANSFER_SIZE, apsel)
+        return self._read_mem(addr, size, Commands.JTAG_READMEM_16BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
 
-    def write_mem16(self, addr, data, apsel):
+    def write_mem16(self, addr: int, data: Sequence[int], apsel: int, csw: int):
         assert (addr & 0x1) == 0 and (len(data) & 1) == 0, "address and size must be half-word aligned"
 
         if not self._check_version(self.MIN_JTAG_VERSION_16BIT_XFER):
             # 16-bit r/w is only available from J26, so revert to 8-bit accesses.
-            self.write_mem8(addr, data, apsel)
+            self.write_mem8(addr, data, apsel, csw)
             return
 
-        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_16BIT, self.MAXIMUM_TRANSFER_SIZE, apsel)
+        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_16BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
 
-    def read_mem8(self, addr, size, apsel):
-        return self._read_mem(addr, size, Commands.JTAG_READMEM_8BIT, self._device.max_packet_size, apsel)
+    def read_mem8(self, addr: int, size: int, apsel: int, csw: int):
+        return self._read_mem(addr, size, Commands.JTAG_READMEM_8BIT, self._device.max_packet_size, apsel, csw)
 
-    def write_mem8(self, addr, data, apsel):
-        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_8BIT, self._device.max_packet_size, apsel)
+    def write_mem8(self, addr: int, data: Sequence[int], apsel: int, csw: int):
+        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_8BIT, self._device.max_packet_size, apsel, csw)
 
     def _check_dp_bank(self, port, addr):
         """@brief Check if attempting to access a banked DP register with a firmware version that

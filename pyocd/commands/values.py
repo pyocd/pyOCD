@@ -362,7 +362,10 @@ class HnonsecValue(ValueBase):
             'group': 'standard',
             'category': 'memory',
             'access': 'rw',
-            'help': "The current HNONSEC value used by the selected MEM-AP.",
+            'help': "The current HNONSEC attribute value used by the selected MEM-AP.",
+            'extra_help':
+                "This value controls whether memory transactions are secure or nonsecure. The value is an "
+                "integer, either 0 or secure or 1 for nonsecure."
             }
 
     def display(self, args):
@@ -385,11 +388,17 @@ class HnonsecValue(ValueBase):
 
 class HprotValue(ValueBase):
     INFO = {
-            'names': ['hprot'],
+            'names': ['hprot', 'memap_attr'],
             'group': 'standard',
             'category': 'memory',
             'access': 'rw',
-            'help': "The current HPROT value used by the selected MEM-AP.",
+            'help': "The current memory transfer attributes value used by the selected MEM-AP.",
+            'extra_help':
+"""This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
+or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
+For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+Manual for your device's MEM-AP for details."""
             }
 
     def display(self, args):
