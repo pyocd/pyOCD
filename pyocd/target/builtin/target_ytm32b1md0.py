@@ -82,15 +82,15 @@ class YTM32B1MD0(CoreSightTarget):
         super().__init__(session, self.MEMORY_MAP)
 
     def create_init_sequence(self):
-        # pyOCD won't find core, connect core manually
+        # Insert init task to correct the ROM table base address value that incorrectly has the
+        # P (preset) bit 0 cleared in hardware.
+
+        def fixup_rom_base():
+            self.aps[0].rom_addr = 0xE00FF000
+            self.aps[0].has_rom_table = True
+        
         seq = super().create_init_sequence()
         seq.wrap_task('discovery',
-            lambda seq: seq.replace_task('create_cores', self.create_cores)
+            lambda seq: seq.insert_after('create_aps', ('fixup_rom_base', fixup_rom_base))
             )
         return seq
-
-    def create_cores(self):
-        core0 = CortexM(self.session, self.aps[0], self.memory_map, 0)
-        self.aps[0].core = core0
-        core0.init()
-        self.add_core(core0)
