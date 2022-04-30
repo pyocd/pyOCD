@@ -20,6 +20,7 @@ import sys
 import traceback
 import logging
 import tempfile
+import platform
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
@@ -58,6 +59,13 @@ class CommandsTest(Test):
         result.board = board
         result.test = self
         return result
+
+def fix_windows_path(path: str) -> str:
+    """Double backslashes in paths on Windows."""
+    if platform.system() == "Windows":
+        return path.replace('\\', '\\\\')
+    else:
+        return path
 
 def commands_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
@@ -106,28 +114,32 @@ def commands_test(board_id):
                 "reg all",
                 "reg r0",
                 "wreg r0 0x12345678",
-#                 "d pc", # Disable disasm because capstone is not installed by default.
-#                 "d --center pc 32",
-                "read32 0x%08x" % (boot_start_addr + boot_blocksize),
-                "read16 0x%08x" % (boot_start_addr + boot_blocksize),
+                "d pc",
+                "d --center pc 32",
+                "read64 0x%08x" % ((boot_start_addr + boot_blocksize) & ~7),
+                "read32 0x%08x" % ((boot_start_addr + boot_blocksize) & ~3),
+                "read16 0x%08x" % ((boot_start_addr + boot_blocksize) & ~1),
                 "read8 0x%08x" % (boot_start_addr + boot_blocksize),
+                "rd 0x%08x 16" % ram_base,
                 "rw 0x%08x 16" % ram_base,
                 "rh 0x%08x 16" % ram_base,
                 "rb 0x%08x 16" % ram_base,
+                "write64 0x%08x 0x1122334455667788 0xaabbccddeeff0011" % ram_base,
                 "write32 0x%08x 0x11223344 0x55667788" % ram_base,
                 "write16 0x%08x 0xabcd" % (ram_base + 8),
                 "write8 0x%08x 0 1 2 3 4 5 6" % (ram_base + 10),
-                "savemem 0x%08x 128 '%s'" % (boot_start_addr, temp_bin_file),
-                "loadmem 0x%08x '%s'" % (ram_base, temp_bin_file),
-                "loadmem 0x%08x '%s'" % (boot_start_addr, binary_file),
-                "load '%s'" % temp_test_hex_name,
-                "load '%s' 0x%08x" % (binary_file, boot_start_addr),
-                "compare 0x%08x '%s'" % (ram_base, temp_bin_file),
-                "compare 0x%08x 32 '%s'" % (ram_base, temp_bin_file),
+                "savemem 0x%08x 128 '%s'" % (boot_start_addr, fix_windows_path(temp_bin_file)),
+                "loadmem 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
+                "loadmem 0x%08x '%s'" % (boot_start_addr, fix_windows_path(binary_file)),
+                "load '%s'" % fix_windows_path(temp_test_hex_name),
+                "load '%s' 0x%08x" % (fix_windows_path(binary_file), boot_start_addr),
+                "compare 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
+                "compare 0x%08x 32 '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
                 "fill 0x%08x 128 0xa5" % ram_base,
                 "fill 16 0x%08x 64 0x55aa" % (ram_base + 64),
                 "find 0x%08x 128 0xaa 0x55" % ram_base, # find that will pass
                 "find 0x%08x 128 0xff" % ram_base, # find that will fail
+                "find -n 0x%08x 128 0xff" % ram_base, # inverted find that will now pass
                 "erase 0x%08x" % (boot_first_free_block_addr),
                 "erase 0x%08x 1" % (boot_first_free_block_addr + boot_blocksize),
                 "go",
@@ -186,11 +198,16 @@ def commands_test(board_id):
 
                 # Semicolon-separated commands.
                 'rw 0x%08x ; rw 0x%08x' % (ram_base, ram_base + 4),
+                'rb 0x%08x;rb 0x%08x' % (ram_base, ram_base + 1),
+                'rb 0x%08x; rb 0x%08x' % (ram_base, ram_base + 1),
 
                 # Python and system commands.
                 '$2+ 2',
+                '$ target',
                 '!echo hello',
-                '!echo hi \; echo there', # using escaped semicolon in a sytem command
+                '!echo hi ; echo there', # semicolon in a sytem command (because semicolon separation is not supported for Python/system command lines)
+                ' $ " ".join(["hello", "there"])',
+                '  !   echo "yo dude" ',
 
                 # Commands not tested:
 #                 "list",
@@ -207,23 +224,41 @@ def commands_test(board_id):
         # For now we just verify that the commands run without raising an exception.
         print("\n------ Testing commands ------")
 
-        def test_command(cmd):
+        def test_command(cmd, print_result=True):
             try:
                 print("\nTEST: %s" % cmd)
                 context.process_command_line(cmd)
             except:
-                print("TEST FAILED")
+                if print_result:
+                    print("TEST FAILED")
                 failed_commands.append(cmd)
                 traceback.print_exc(file=sys.stdout)
                 return False
             else:
-                print("TEST PASSED")
+                if print_result:
+                    print("TEST PASSED")
                 return True
 
         for cmd in COMMANDS_TO_TEST:
             if test_command(cmd):
                 test_pass_count += 1
             test_count += 1
+
+        #
+        # Special command tests.
+        #
+        print("\n------ Additional command tests ------")
+
+        # set option
+        session.options['auto_unlock'] = False
+        if test_command('set option auto_unlock=on', print_result=False):
+            if session.options['auto_unlock'] is True:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED")
+
+        test_count += 1
 
         print("\n\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))

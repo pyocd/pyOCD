@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
 from ..utility.cmdline import (
-    convert_session_options,
+    convert_one_session_option,
     convert_frequency,
     convert_vector_catch,
     )
@@ -95,7 +95,7 @@ class CoresValue(ValueBase):
             self.context.writei("Cores:        %d", len(self.context.target.cores))
             for i, core in self.context.target.cores.items():
                 self.context.writei("Core %d type:  %s%s", i,
-                        coresight.core_ids.CORE_TYPE_NAME[core.core_type],
+                        core.name,
                         " (selected)" if ((self.context.selected_core is not None) \
                                             and (self.context.selected_core.core_number == i)) else "")
 
@@ -301,10 +301,24 @@ class SessionOptionValue(ValueBase):
                 self.context.writei("No option with name '%s'", name)
 
     def modify(self, args):
+        """Extract and apply option setting arguments.
+
+        The syntax for each option is "name[=value]". The args are pre-split into individual tokens,
+        where the '=' is a separate token. So a single "foo=bar" is split into "foo", "=", "bar" args.
+        """
         if len(args) < 1:
             raise exceptions.CommandError("missing session option setting")
-        opts = convert_session_options(args)
-        self.context.session.options.update(opts)
+        while args:
+            name = args.pop(0)
+            if args and args[0] == "=":
+                args.pop(0) # Remove "="
+                if not args:
+                    raise exceptions.CommandError("expected option value after '='")
+                value = args.pop(0)
+            else:
+                value = None
+            name, converted_value = convert_one_session_option(name, value)
+            self.context.session.options[name] = converted_value
 
 class MemApValue(ValueBase):
     INFO = {
@@ -348,7 +362,10 @@ class HnonsecValue(ValueBase):
             'group': 'standard',
             'category': 'memory',
             'access': 'rw',
-            'help': "The current HNONSEC value used by the selected MEM-AP.",
+            'help': "The current HNONSEC attribute value used by the selected MEM-AP.",
+            'extra_help':
+                "This value controls whether memory transactions are secure or nonsecure. The value is an "
+                "integer, either 0 or secure or 1 for nonsecure."
             }
 
     def display(self, args):
@@ -371,11 +388,17 @@ class HnonsecValue(ValueBase):
 
 class HprotValue(ValueBase):
     INFO = {
-            'names': ['hprot'],
+            'names': ['hprot', 'memap_attr'],
             'group': 'standard',
             'category': 'memory',
             'access': 'rw',
-            'help': "The current HPROT value used by the selected MEM-AP.",
+            'help': "The current memory transfer attributes value used by the selected MEM-AP.",
+            'extra_help':
+"""This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
+or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
+For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+Manual for your device's MEM-AP for details."""
             }
 
     def display(self, args):

@@ -23,7 +23,7 @@ from ..core.memory_map import MemoryType
 LOG = logging.getLogger(__name__)
 
 class FlashEraser(object):
-    """! @brief Class that manages high level flash erasing.
+    """@brief Class that manages high level flash erasing.
 
     Can erase a target in one of three modes:
     - chip erase: Erase all flash on the target.
@@ -39,7 +39,7 @@ class FlashEraser(object):
         SECTOR = 3
 
     def __init__(self, session, mode):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self
         @param session The session instance.
@@ -49,7 +49,7 @@ class FlashEraser(object):
         self._mode = mode
 
     def erase(self, addresses=None):
-        """! @brief Perform the type of erase operation selected when the object was created.
+        """@brief Perform the type of erase operation selected when the object was created.
 
         For sector erase mode, an iterable of sector addresses specifications must be provided via
         the _addresses_ parameter. The address iterable elements can be either strings, tuples,

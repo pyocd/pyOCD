@@ -15,54 +15,54 @@
 # limitations under the License.
 
 class Error(RuntimeError):
-    """! @brief Parent of all errors pyOCD can raise"""
+    """@brief Parent of all errors pyOCD can raise"""
     pass
 
 class InternalError(Error):
-    """! @brief Internal consistency or logic error.
+    """@brief Internal consistency or logic error.
 
     This error indicates that something has happened that shouldn't be possible.
     """
     pass
 
 class TimeoutError(Error):
-    """! @brief Any sort of timeout"""
+    """@brief Any sort of timeout"""
     pass
 
 class TargetSupportError(Error):
-    """! @brief Error related to target support"""
+    """@brief Error related to target support"""
     pass
 
 class ProbeError(Error):
-    """! @brief Error communicating with the debug probe"""
+    """@brief Error communicating with the debug probe"""
     pass
 
 class ProbeDisconnected(ProbeError):
-    """! @brief The connection to the debug probe was lost"""
+    """@brief The connection to the debug probe was lost"""
     pass
 
 class TargetError(Error):
-    """! @brief An error that happens on the target"""
+    """@brief An error that happens on the target"""
     pass
 
 class DebugError(TargetError):
-    """! @brief Error controlling target debug resources"""
+    """@brief Error controlling target debug resources"""
     pass
 
 class CoreRegisterAccessError(DebugError):
-    """! @brief Failure to read or write a core register."""
+    """@brief Failure to read or write a core register."""
     pass
 
 class TransferError(DebugError):
-    """! @brief Error ocurred with a transfer over SWD or JTAG"""
+    """@brief Error ocurred with a transfer over SWD or JTAG"""
     pass
 
 class TransferTimeoutError(TransferError):
-    """! @brief An SWD or JTAG timeout occurred"""
+    """@brief An SWD or JTAG timeout occurred"""
     pass
 
 class TransferFaultError(TransferError):
-    """! @brief A memory fault occurred.
+    """@brief A memory fault occurred.
 
     This exception class is extended to optionally record the start address and an optional length of the
     attempted memory access that caused the fault. The address and length, if available, will be included
@@ -113,7 +113,7 @@ class TransferFaultError(TransferError):
         return desc
 
 class FlashFailure(TargetError):
-    """! @brief Exception raised when flashing fails for some reason.
+    """@brief Exception raised when flashing fails for some reason.
 
     Positional arguments passed to the constructor are passed through to the superclass'
     constructor, and thus operate like any other standard exception class. The flash address that
@@ -147,14 +147,14 @@ class FlashFailure(TargetError):
         return desc
 
 class FlashEraseFailure(FlashFailure):
-    """! @brief An attempt to erase flash failed. """
+    """@brief An attempt to erase flash failed. """
     pass
 
 class FlashProgramFailure(FlashFailure):
-    """! @brief An attempt to program flash failed. """
+    """@brief An attempt to program flash failed. """
     pass
 
 class CommandError(Error):
-    """! @brief Raised when a command encounters an error."""
+    """@brief Raised when a command encounters an error."""
     pass
 

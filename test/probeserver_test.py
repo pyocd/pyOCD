@@ -134,6 +134,7 @@ def test_probeserver(board_id=None, n=0):
                 binary_file
                 ]
         client = PyOCDTool()
+        client._setup_logging = lambda: None # Disable logging setup so we don't have duplicate log output.
         LOG.info('Starting client: %s', ' '.join(client_args))
         client_thread = threading.Thread(target=client.run, args=[client_args])
         client_thread.daemon = True

@@ -28,7 +28,7 @@ class ITMOptions(object):
         pass
 
 class ITM(CoreSightComponent):
-    """! @brief Instrumentation Trace Macrocell"""
+    """@brief Instrumentation Trace Macrocell"""
 
     # Register definitions.
     #

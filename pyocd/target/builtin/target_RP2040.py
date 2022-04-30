@@ -84,7 +84,7 @@ def _parity32(value):
     return parity & 1
 
 class RP2040Base(CoreSightTarget):
-    """! @brief Raspberry Pi RP2040.
+    """@brief Raspberry Pi RP2040.
 
     This device is very strange in that it as three DPs. The first two DPs each have a single AHB-AP
     for the two Cortex-M0+ cores. The third DP is a "Rescue DP" that has no APs, but the CDBGPWRUPREQ
@@ -92,7 +92,7 @@ class RP2040Base(CoreSightTarget):
     """
 
     class Targetsel:
-        """! @brief DP TARGETEL values for each DP."""
+        """@brief DP TARGETEL values for each DP."""
         CORE_0 = 0x01002927
         CORE_1 = 0x11002927
         RESCUE_DP = 0xf1002927
@@ -143,7 +143,7 @@ class RP2040Base(CoreSightTarget):
         self.select_dp(self._core_targetsel)
 
     def select_dp(self, targetsel):
-        """! @brief Select the DP with the matching TARGETSEL."""
+        """@brief Select the DP with the matching TARGETSEL."""
         probe = self.session.probe
 
         # Have to connect the probe first, or SWCLK will not be enabled.
@@ -198,14 +198,14 @@ class RP2040Base(CoreSightTarget):
         probe.write_dp(0x8, 0x0) # restore DPBANKSEL=0
 
 class RP2040Core0(RP2040Base):
-    """! @brief RP2040 target for core 0."""
+    """@brief RP2040 target for core 0."""
 
     def __init__(self, session):
         super().__init__(session)
         self._core_targetsel = self.Targetsel.CORE_0
 
 class RP2040Core1(RP2040Base):
-    """! @brief RP2040 target for core 1."""
+    """@brief RP2040 target for core 1."""
 
     def __init__(self, session):
         super().__init__(session)

@@ -28,10 +28,11 @@ from ..utility.cmdline import convert_session_options
 LOG = logging.getLogger(__name__)
 
 class ListSubcommand(SubcommandBase):
-    """! @brief `pyocd list` subcommand."""
+    """@brief `pyocd list` subcommand."""
 
     NAMES = ['list']
     HELP = "List information about probes, targets, or boards."
+    DEFAULT_LOG_LEVEL = logging.ERROR
 
     ## @brief Map to convert plugin groups to user friendly names.
     PLUGIN_GROUP_NAMES = {
@@ -41,7 +42,7 @@ class ListSubcommand(SubcommandBase):
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
         list_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         list_output = list_parser.add_argument_group("list output")
@@ -67,7 +68,7 @@ class ListSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, list_parser]
 
     def invoke(self) -> int:
-        """! @brief Handle 'list' subcommand."""
+        """@brief Handle 'list' subcommand."""
         all_outputs = (self._args.probes, self._args.targets, self._args.boards, self._args.plugins)
 
         # Default to listing probes.

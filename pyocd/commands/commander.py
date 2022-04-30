@@ -16,9 +16,11 @@
 # limitations under the License.
 
 import colorama
+import io
 import logging
 import os
 import traceback
+from typing import (IO, Optional, Sequence, TYPE_CHECKING, Union)
 
 from ..core.helpers import ConnectHelper
 from ..core import (exceptions, session)
@@ -27,13 +29,16 @@ from ..utility.cmdline import convert_session_options
 from ..commands.repl import (PyocdRepl, ToolExitException)
 from ..commands.execution_context import CommandExecutionContext
 
+if TYPE_CHECKING:
+    import argparse
+
 LOG = logging.getLogger(__name__)
 
 ## Default SWD clock in Hz.
 DEFAULT_CLOCK_FREQ_HZ = 1000000
 
-class PyOCDCommander(object):
-    """! @brief Manages the commander interface.
+class PyOCDCommander:
+    """@brief Manages the commander interface.
 
     Responsible for connecting the execution context, REPL, and commands, and handles connection.
 
@@ -47,24 +52,46 @@ class PyOCDCommander(object):
     @todo Replace use of args from argparse with something cleaner.
     """
 
-    def __init__(self, args, cmds=None):
-        """! @brief Constructor."""
+    CommandsListType = Sequence[Union[str, IO[str]]]
+
+    ## Commands that can run without requiring a connection.
+    _CONNECTIONLESS_COMMANDS = ('list', 'help', 'exit')
+
+    def __init__(
+                self,
+                args: "argparse.Namespace",
+                cmds: Optional[CommandsListType] = None
+            ) -> None:
+        """@brief Constructor."""
         # Read command-line arguments.
         self.args = args
-        self.cmds = cmds
+        self.cmds: PyOCDCommander.CommandsListType = cmds or []
 
         self.context = CommandExecutionContext(no_init=self.args.no_init)
         self.context.command_set.add_command_group('commander')
-        self.session = None
-        self.exit_code = 0
+        self.session: Optional[session.Session] = None
+        self.exit_code: int = 0
 
-    def run(self):
-        """! @brief Main entry point."""
+    def run(self) -> int:
+        """@brief Main entry point."""
         try:
-            # If no commands, enter interactive mode.
-            if self.cmds is None:
-                if not self.connect():
-                    return self.exit_code
+            # If no commands, enter interactive mode. If there are commands, use the --interactive arg.
+            enter_interactive = (not self.cmds) or self.args.interactive
+
+            # Connect unless we are only running commands that don't require a connection.
+            do_connect = enter_interactive or self._commands_require_connect()
+            if do_connect and not self.connect():
+                return self.exit_code
+
+            # Run the list of commands we were given.
+            if self.cmds:
+                self.run_commands()
+
+            # Enter the interactive REPL.
+            if enter_interactive:
+                assert self.session
+                assert self.session.board
+                assert self.context.target
 
                 # Print connected message, unless not initing.
                 if not self.args.no_init:
@@ -84,18 +111,13 @@ class PyOCDCommander(object):
                     status = "no init mode"
 
                 # Say what we're connected to.
-                print(colorama.Fore.GREEN + f"Connected to {self.context.target.part_number} " +
+                print(colorama.Fore.GREEN + f"Connected to {self.session.target.part_number} " +
                         colorama.Fore.CYAN + f"[{status}]" +
                         colorama.Style.RESET_ALL + f": {self.session.board.unique_id}")
 
                 # Run the REPL interface.
                 console = PyocdRepl(self.context)
                 console.run()
-
-            # Otherwise, run the list of commands we were given and exit. We only connect when
-            # there is a command that requires a connection (most do).
-            else:
-                self.run_commands()
 
         except ToolExitException:
             self.exit_code = 0
@@ -115,35 +137,43 @@ class PyOCDCommander(object):
 
         return self.exit_code
 
-    def run_commands(self):
-        """! @brief Run commands specified on the command line."""
-        did_connect = False
-
+    def _commands_require_connect(self) -> bool:
+        """@brief Determine whether a connection is needed to run commands."""
         for args in self.cmds:
-            # Extract the command name.
-            cmd = args[0].lower()
+            # Always assume connection required for command files.
+            if isinstance(args, io.IOBase):
+                return True
 
-            # Handle certain commands without connecting.
-            needs_connect = (cmd not in ('list', 'help', 'exit'))
+            # Check for connectionless commands.
+            else:
+                assert isinstance(args, str)
 
-            # For others, connect first.
-            if needs_connect and not did_connect:
-                if not self.connect():
-                    return self.exit_code
-                did_connect = True
+                if not ((len(args) == 1) and (args[0].lower() in self._CONNECTIONLESS_COMMANDS)):
+                    return True
 
-            # Merge commands args back to one string.
-            # FIXME this is overly complicated
-            cmdline = " ".join('"{}"'.format(a) for a in args)
+        # No command was found that needs a connection.
+        return False
 
-            # Invoke action handler.
-            result = self.context.process_command_line(cmdline)
-            if result is not None:
-                self.exit_code = result
-                break
+    def run_commands(self) -> None:
+        """@brief Run commands specified on the command line."""
+        for args in self.cmds:
+            # Open file containing commands.
+            if isinstance(args, io.IOBase) and not isinstance(args, str):
+                self.context.process_command_file(args)
 
-    def connect(self):
-        """! @brief Connect to the probe."""
+            # List of command and argument strings.
+            else:
+                assert isinstance(args, str)
+
+                # Skip empty args lists.
+                if len(args) == 0:
+                    continue
+
+                # Run the command line.
+                self.context.process_command_line(args)
+
+    def connect(self) -> bool:
+        """@brief Connect to the probe."""
         if (self.args.frequency is not None) and (self.args.frequency != DEFAULT_CLOCK_FREQ_HZ):
             self.context.writei("Setting SWD clock to %d kHz", self.args.frequency // 1000)
 
@@ -199,8 +229,8 @@ class PyOCDCommander(object):
             self.exit_code = 1
         return result
 
-    def _post_connect(self):
-        """! @brief Finish the connect process.
+    def _post_connect(self) -> bool:
+        """@brief Finish the connect process.
 
         The session is opened. The `no_init` parameter passed to the constructor determines whether the
         board and target are initialized.

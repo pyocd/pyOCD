@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 David Runge
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@
 
 import logging
 import os
-from natsort import natsort
+from natsort import natsorted
 import textwrap
 from time import sleep
 from shutil import get_terminal_size
@@ -116,7 +117,7 @@ class StatusCommand(CommandBase):
 
 class RegisterCommandBase(CommandBase):
     def dump_register_group(self, group_name):
-        regs = natsort(self.context.selected_core.core_registers.iter_matching(
+        regs = natsorted(self.context.selected_core.core_registers.iter_matching(
                 lambda r: r.group == group_name), key=lambda r: r.name)
         reg_values = self.context.selected_core.read_core_registers_raw(r.name for r in regs)
 
@@ -125,7 +126,7 @@ class RegisterCommandBase(CommandBase):
             value_str = self._format_core_register(info, value)
             col_printer.add_items([(info.name, value_str)])
 
-        col_printer.write()
+        col_printer.write(self.context.output_stream)
 
     def dump_registers(self, show_all=False, show_group=None):
         if not self.context.selected_core.is_halted():
@@ -176,110 +177,132 @@ class RegisterCommandBase(CommandBase):
                 f_value_bin_str = bin(f_value)[2:]
                 f_value_bin_str = "0" * (f.bit_width - len(f_value_bin_str)) + f_value_bin_str
                 if v_enum:
-                    f_value_enum_str = " %s: %s" % (v.name, v_enum.description)
+                    if v_enum.name and v_enum.description:
+                        f_value_enum_str = f" {v_enum.name}: {v_enum.description}"
+                    elif v_enum.name or v_enum.description:
+                        f_value_enum_str = f" {v_enum.name or v_enum.description}"
+                    else:
+                        f_value_enum_str = ""
                 else:
                     f_value_enum_str = ""
                 self.context.writei("  %s[%s] = %s (%s)%s", f.name, bits_str, f_value_str, f_value_bin_str, f_value_enum_str)
 
 class RegCommand(RegisterCommandBase):
     INFO = {
-            'names': ['reg'],
+            'names': ['reg', 'rr'],
             'group': 'standard',
             'category': 'registers',
-            'nargs': [0, 1, 2],
-            'usage': "[-f] [REG]",
+            'nargs': '*',
+            'usage': "[-p] [-f] [REG...]",
             'help': "Print core or peripheral register(s).",
-            'extra_help': "If no arguments are provided, all core registers will be printed. "
-                           "Either a core register name, the name of a peripheral, or a "
-                           "peripheral.register can be provided. When a peripheral name is "
-                           "provided without a register, all registers in the peripheral will "
-                           "be printed. If the -f option is passed, then individual fields of "
-                           "peripheral registers will be printed in addition to the full value.",
+            'extra_help':
+                "If no arguments are provided, the 'general' core register group will be printed. Either a core "
+                "register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral "
+                "name is provided without a register, all registers in the peripheral will be printed. The -p option "
+                "forces evaluating the register name as a peripheral register name. If the -f option is passed, then "
+                "individual fields of peripheral registers will be printed in addition to the full value.",
             }
 
+    show_all = False
+    show_fields = False
+    show_peripheral = False
+
     def parse(self, args):
-        self.show_all = False
-        self.reg = None
-        self.show_fields = False
-
         if len(args) == 0:
-            self.reg = "general"
+            self.regs = ["general"]
         else:
-            reg_idx = 0
-            if len(args) == 2 and args[0] == '-f':
-                reg_idx = 1
-                self.show_fields = True
+            while (len(args) >= 2) and args[0].startswith('-'):
+                opt = args.pop(0)
+                if opt == '-f':
+                    self.show_fields = True
+                elif opt == '-p':
+                    self.show_peripheral = True
+                else:
+                    raise exceptions.CommandError(f"unrecognized option {opt}")
 
-            self.reg = args[reg_idx].lower()
-            self.show_all = (self.reg == "all")
+            self.regs = args
+            self.show_all = (not self.show_peripheral and self.regs[0].lower() == "all")
 
     def execute(self):
         if self.show_all:
             self.dump_registers(show_all=True)
             return
 
-        # Check register names first.
-        if self.reg in self.context.selected_core.core_registers.by_name:
-            if not self.context.selected_core.is_halted():
-                self.context.write("Core is not halted; cannot read core registers")
-                return
-
-            info = self.context.selected_core.core_registers.by_name[self.reg]
-            value = self.context.selected_core.read_core_register(self.reg)
-            value_str = self._format_core_register(info, value)
-            self.context.writei("%s = %s", self.reg, value_str)
-            return
-
-        # Now look for matching group name.
         matcher = UniquePrefixMatcher(self.context.selected_core.core_registers.groups)
-        group_matches = matcher.find_all(self.reg)
-        if len(group_matches) == 1:
-            self.dump_registers(show_group=group_matches[0])
-            return
 
-        # And finally check for peripherals.
-        subargs = self.reg.split('.')
-        if subargs[0] in self.context.peripherals:
-            p = self.context.peripherals[subargs[0]]
-            if len(subargs) > 1:
-                r = [x for x in p.registers if x.name.lower() == subargs[1]]
-                if len(r):
-                    self._dump_peripheral_register(p, r[0], self.show_fields)
+        for reg in self.regs:
+            reg = reg.lower()
+            if not self.show_peripheral:
+                # Check register names first.
+                if reg in self.context.selected_core.core_registers.by_name:
+                    if not self.context.selected_core.is_halted():
+                        self.context.write("Core is not halted; cannot read core registers")
+                        return
+
+                    info = self.context.selected_core.core_registers.by_name[reg]
+                    value = self.context.selected_core.read_core_register(reg)
+                    value_str = self._format_core_register(info, value)
+                    self.context.writei("%s = %s", reg, value_str)
+                    continue
+
+                # Now look for matching group name.
+                group_matches = matcher.find_all(reg)
+                if len(group_matches) == 1:
+                    self.dump_registers(show_group=group_matches[0])
+                    continue
+
+            # And finally check for peripherals.
+            subargs = reg.split('.')
+            if subargs[0] in self.context.peripherals:
+                p = self.context.peripherals[subargs[0]]
+                if len(subargs) > 1:
+                    r = [x for x in p.registers if x.name.lower() == subargs[1]]
+                    if len(r):
+                        self._dump_peripheral_register(p, r[0], self.show_fields)
+                    else:
+                        raise exceptions.CommandError("invalid register '%s' for %s" % (subargs[1], p.name))
                 else:
-                    raise exceptions.CommandError("invalid register '%s' for %s" % (subargs[1], p.name))
+                    for r in p.registers:
+                        self._dump_peripheral_register(p, r, self.show_fields)
             else:
-                for r in p.registers:
-                    self._dump_peripheral_register(p, r, self.show_fields)
-        else:
-            raise exceptions.CommandError("invalid peripheral '%s'" % (subargs[0]))
+                raise exceptions.CommandError("invalid peripheral '%s'" % (subargs[0]))
 
 class WriteRegCommand(RegisterCommandBase):
     INFO = {
-            'names': ['wreg'],
+            'names': ['wreg', 'wr'],
             'group': 'standard',
             'category': 'registers',
-            'nargs': [2, 3],
-            'usage': "[-r] REG VALUE",
+            'nargs': '*',
+            'usage': "[-r] [-p] [-f] REG VALUE",
             'help': "Set the value of a core or peripheral register.",
-            'extra_help': "The REG parameter must be a core register name or a peripheral.register. "
-                           "When a peripheral register is written, if the -r option is passed then "
-                           "it is read back and the updated value printed.",
+            'extra_help':
+                "The REG parameter must be a core register name or a peripheral.register. When a peripheral register "
+                "is written, if the -r option is passed then it is read back and the updated value printed. The -p "
+                "option forces evaluating the register name as a peripheral register name. If the -f option is passed, "
+                "then individual fields of peripheral registers will be printed in addition to the full value.",
             }
 
+    select_peripheral = False
+    do_readback = False
+    show_fields = False
+
     def parse(self, args):
-        idx = 0
-        if len(args) == 3:
-            if args[0] != '-r':
-                raise exceptions.CommandError("invalid arguments")
-            idx = 1
-            self.do_readback = True
-        else:
-            self.do_readback = False
-        self.reg = args[idx].lower()
-        self.value = args[idx + 1]
+        while (len(args) >= 2) and args[0].startswith('-'):
+            opt = args.pop(0)
+            if opt == '-r':
+                self.do_readback = True
+            elif opt == '-p':
+                self.select_peripheral = True
+            elif opt == '-f':
+                self.show_fields = True
+            else:
+                raise exceptions.CommandError(f"unrecognized option {opt}")
+
+        self.reg = args[0].lower()
+        self.value = args[1]
 
     def execute(self):
-        if self.reg in self.context.selected_core.core_registers.by_name:
+        if not self.select_peripheral and self.reg in self.context.selected_core.core_registers.by_name:
             if not self.context.selected_core.is_halted():
                 self.context.write("Core is not halted; cannot write core registers")
                 return
@@ -319,7 +342,7 @@ class WriteRegCommand(RegisterCommandBase):
                         raise exceptions.CommandError("too many dots")
                     self.context.target.flush()
                     if self.do_readback:
-                        self._dump_peripheral_register(p, r, True)
+                        self._dump_peripheral_register(p, r, self.show_fields)
                 else:
                     raise exceptions.CommandError("invalid register '%s' for %s" % (subargs[1], p.name))
             else:
@@ -371,8 +394,10 @@ class DisassembleCommand(CommandBase):
             'nargs': [1, 2, 3],
             'usage': "[-c/--center] ADDR [LEN]",
             'help': "Disassemble instructions at an address.",
-            'extra_help': "Only available if the capstone library is installed. To install "
-                           "capstone, run 'pip install capstone'.",
+            'extra_help':
+                "The length argument is in bytes and is optional, with a default of 6. If the -c option "
+                "is used, the disassembly is centered on the given address. Otherwise the disassembly "
+                "begins at the given address.",
             }
 
     def parse(self, args):
@@ -811,15 +836,22 @@ class FindCommand(CommandBase):
             'group': 'standard',
             'category': 'memory',
             'nargs': '*',
-            'usage': "ADDR LEN BYTE+",
+            'usage': "[-n] ADDR LEN BYTE+",
             'help': "Search for a value in memory within the given address range.",
             'extra_help': "A pattern of any number of bytes can be searched for. Each BYTE "
-                           "parameter must be an 8-bit value.",
+                           "parameter must be an 8-bit value. If the -n argument is passed, "
+                           "the search is negated and looks for the first set of bytes that "
+                           "does not match the provided values.",
             }
 
     def parse(self, args):
         if len(args) < 3:
             raise exceptions.CommandError("missing argument")
+        if args[0] == '-n':
+            self.negate = True
+            args.pop(0)
+        else:
+            self.negate = False
         self.addr = self._convert_value(args[0])
         self.length = self._convert_value(args[1])
         self.pattern = bytearray()
@@ -845,7 +877,7 @@ class FindCommand(CommandBase):
             data = bytearray(self.context.selected_ap.read_memory_block8(addr, chunk_size))
 
             offset = data.find(self.pattern)
-            if offset != -1:
+            if (offset != -1) ^ self.negate:
                 match = True
                 self.context.writei("Found pattern at address 0x%08x", addr + offset)
                 break
@@ -1092,20 +1124,44 @@ class RemoveWatchpointCommand(CommandBase):
             'names': ['rmwatch'],
             'group': 'standard',
             'category': 'breakpoints',
-            'nargs': 1,
-            'usage': "ADDR",
-            'help': "Remove a watchpoint.",
+            'nargs': [1, 2, 3],
+            'usage': "ADDR [r|w|rw] [1|2|4]",
+            'help': "Remove watchpoint(s).",
+            'extra_help':
+                    "Access type and size are optional. All watchpoints matching the specified parameters "
+                    "will be removed."
             }
 
     def parse(self, args):
         self.addr = self._convert_value(args[0])
+        if len(args) > 1:
+            try:
+                self.wptype = WATCHPOINT_FUNCTION_NAME_MAP[args[1]]
+            except KeyError:
+                raise exceptions.CommandError(f"unsupported watchpoint type '{args[1]}'")
+        else:
+            self.wptype = None
+        if len(args) > 2:
+            self.sz = self._convert_value(args[2])
+            if self.sz not in (1, 2, 4):
+                raise exceptions.CommandError(f"unsupported watchpoint size ({self.sz})")
+        else:
+            self.sz = None
 
     def execute(self):
         if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
         try:
-            self.context.selected_core.remove_watchpoint(self.addr)
-            self.context.writei("Removed watchpoint at 0x%08x", self.addr)
+            self.context.selected_core.remove_watchpoint(self.addr, self.size, self.wptype)
+            if self.size is not None:
+                wp_desc = f" ({self.size} bytes"
+                if self.wptype is not None:
+                    type_name = WATCHPOINT_FUNCTION_NAME_MAP[self.wptype]
+                    wp_desc += f", {type_name}"
+                wp_desc += ")"
+            else:
+                wp_desc = ""
+            self.context.write(f"Removed watchpoint(s) at {self.addr:#010x}{wp_desc}")
         except Exception:
             self.context.writei("Failed to remove watchpoint at 0x%08x", self.addr)
 
@@ -1278,6 +1334,19 @@ class MakeApCommand(CommandBase):
         ap = coresight.ap.AccessPort.create(self.context.target.dp, self.ap_addr)
         self.context.target.dp.aps[self.ap_addr] = ap # Same mutable dict as target.aps
         self.context.writef("AP#{:d} IDR = {:#010x}", self.apsel, ap.idr)
+
+class FlushProbeCommand(CommandBase):
+    INFO = {
+            'names': ['flushprobe'],
+            'group': 'commander',
+            'category': 'probe',
+            'nargs': 0,
+            'usage': "",
+            'help': "Ensure all debug probe requests have been completed.",
+            }
+
+    def execute(self):
+        self.context.probe.flush()
 
 class ReinitCommand(CommandBase):
     INFO = {
@@ -1546,8 +1615,7 @@ class HelpCommand(CommandBase):
             }
 
     HELP_ADDENDUM = """
-All register names are also available as commands that print the register's value.
-Any ADDR or LEN argument will accept a register name.
+Any integer argument will accept a register name.
 Prefix line with $ to execute a Python expression.
 Prefix line with ! to execute a shell command."""
 

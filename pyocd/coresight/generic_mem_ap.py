@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Cypress Semiconductor Corporation
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 import logging
 
 from .component import CoreSightCoreComponent
+from ..core import exceptions
 from ..core.target import Target
 from ..core.core_registers import CoreRegistersIndex
 
@@ -26,7 +28,7 @@ DEAD_VALUE = 0
 
 
 class GenericMemAPTarget(Target, CoreSightCoreComponent):
-    """! @brief This target represents ARM debug Access Port without a CPU
+    """@brief This target represents ARM debug Access Port without a CPU
 
     It may be used to access the address space of the target via Access Ports
     without real ARM CPU core behind it. For instance Cypress PSoC64 devices have
@@ -69,7 +71,7 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
         self.ap.write_memory(addr, value, transfer_size)
 
     def read_memory(self, addr, transfer_size=32, now=True):
-        return self.ap.read_memory(addr, transfer_size, True)
+        return self.ap.read_memory(addr, transfer_size, now)
 
     def read_memory_block8(self, addr, size):
         return self.ap.read_memory_block8(addr, size)
@@ -114,22 +116,22 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
         return None
 
     def read_core_register(self, reg):
-        return DEAD_VALUE
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def read_core_register_raw(self, reg):
-        return DEAD_VALUE
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def read_core_registers_raw(self, reg_list):
-        return [DEAD_VALUE] * len(reg_list)
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def write_core_register(self, reg, data):
-        pass
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def write_core_register_raw(self, reg, data):
-        pass
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def write_core_registers_raw(self, reg_list, data_list):
-        pass
+        raise exceptions.CoreRegisterAccessError("GenericMemAPTarget does not support core register access")
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
         return False

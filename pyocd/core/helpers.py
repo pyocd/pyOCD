@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,15 +18,16 @@
 from time import sleep
 import colorama
 import prettytable
+from typing import (Any, List, Mapping, Optional, Sequence, TYPE_CHECKING)
 
 from .session import Session
 from ..probe.aggregator import DebugProbeAggregator
 
-# Init colorama here since this is currently the only module that uses it.
-colorama.init()
+if TYPE_CHECKING:
+    from ..probe.debug_probe import DebugProbe
 
-class ConnectHelper(object):
-    """! @brief Helper class for streamlining the probe discovery and session creation process.
+class ConnectHelper:
+    """@brief Helper class for streamlining the probe discovery and session creation process.
 
     This class provides several static methods that wrap the DebugProbeAggregator methods
     with a simple command-line user interface, or provide a single method that performs
@@ -34,8 +35,13 @@ class ConnectHelper(object):
     """
 
     @staticmethod
-    def get_sessions_for_all_connected_probes(blocking=True, unique_id=None, options=None, **kwargs):
-        """! @brief Return a list of Session objects for all connected debug probes.
+    def get_sessions_for_all_connected_probes(
+            blocking: bool = True,
+            unique_id: Optional[str] = None,
+            options: Optional[Mapping[str, Any]] = None,
+            **kwargs
+            ) -> List[Session]:
+        """@brief Return a list of Session objects for all connected debug probes.
 
         This method is useful for listing detailed information about connected probes, especially
         those that have associated boards, as the Session object will have a Board instance.
@@ -60,8 +66,12 @@ class ConnectHelper(object):
         return sessions
 
     @staticmethod
-    def get_all_connected_probes(blocking=True, unique_id=None, print_wait_message=True):
-        """! @brief Return a list of DebugProbe objects for all connected debug probes.
+    def get_all_connected_probes(
+            blocking: bool = True,
+            unique_id: Optional[str] = None,
+            print_wait_message: bool = True
+            ) -> List["DebugProbe"]:
+        """@brief Return a list of DebugProbe objects for all connected debug probes.
 
         The returned list of debug probes is always sorted by the combination of the probe's
         description and unique ID.
@@ -100,8 +110,8 @@ class ConnectHelper(object):
         return sortedProbes
 
     @staticmethod
-    def list_connected_probes():
-        """! @brief List the connected debug probes.
+    def list_connected_probes() -> None:
+        """@brief List the connected debug probes.
 
         Prints a list of all connected probes to stdout. If no probes are connected, a message
         saying as much is printed instead.
@@ -114,8 +124,12 @@ class ConnectHelper(object):
         print(colorama.Style.RESET_ALL, end='')
 
     @staticmethod
-    def choose_probe(blocking=True, return_first=False, unique_id=None):
-        """! @brief Return a debug probe possibly chosen by the user.
+    def choose_probe(
+            blocking: bool = True,
+            return_first: bool = False,
+            unique_id: str = None
+            ) -> Optional["DebugProbe"]:
+        """@brief Return a debug probe possibly chosen by the user.
 
         This method provides an easy to use command line interface for selecting one of the
         connected debug probes. It has parameters that control filtering of probes by unique ID and
@@ -164,6 +178,7 @@ class ConnectHelper(object):
 
         # Ask user to select boards if there is more than 1 left
         if len(allProbes) > 1:
+            ch = 0
             ConnectHelper._print_probe_list(allProbes)
             while True:
                 print(colorama.Style.RESET_ALL)
@@ -179,7 +194,7 @@ class ConnectHelper(object):
                     pass
                 if not valid:
                     print(colorama.Fore.YELLOW + "Invalid choice: %s\n" % line)
-                    Session._print_probe_list(allProbes)
+                    ConnectHelper._print_probe_list(allProbes)
                 else:
                     break
             allProbes = allProbes[ch:ch + 1]
@@ -188,9 +203,15 @@ class ConnectHelper(object):
         return allProbes[0]
 
     @staticmethod
-    def session_with_chosen_probe(blocking=True, return_first=False, unique_id=None,
-                    auto_open=True, options=None, **kwargs):
-        """! @brief Create a session with a probe possibly chosen by the user.
+    def session_with_chosen_probe(
+            blocking: bool = True,
+            return_first: bool = False,
+            unique_id: Optional[str] = None,
+            auto_open: bool = True,
+            options: Optional[Mapping[str, Any]] = None,
+            **kwargs
+            ) -> Optional[Session]:
+        """@brief Create a session with a probe possibly chosen by the user.
 
         This method provides an easy to use command line interface for selecting one of the
         connected debug probes, then creating and opening a Session instance. It has several
@@ -242,7 +263,7 @@ class ConnectHelper(object):
             return Session(probe, auto_open=auto_open, options=options, **kwargs)
 
     @staticmethod
-    def _print_probe_list(probes):
+    def _print_probe_list(probes: Sequence["DebugProbe"]) -> None:
         pt = prettytable.PrettyTable(["#", "Probe", "Unique ID"])
         pt.align = 'l'
         pt.header = True

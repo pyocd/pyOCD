@@ -23,7 +23,7 @@ from ..core import exceptions
 LOG = logging.getLogger(__name__)
 
 class SharedDebugProbeProxy(object):
-    """! @brief Proxy for a DebugProbe that allows it to be shared by multiple clients.
+    """@brief Proxy for a DebugProbe that allows it to be shared by multiple clients.
 
     The main purpose of this class is to keep track of the number of times the probe has been
     opened and connected, and to perform checks to ensure that probes don't interfere with each
@@ -38,7 +38,7 @@ class SharedDebugProbeProxy(object):
 
     @property
     def session(self):
-        """! @brief Session associated with this probe."""
+        """@brief Session associated with this probe."""
         return self._session
 
     @session.setter
@@ -77,7 +77,7 @@ class SharedDebugProbeProxy(object):
         self._probe.swj_sequence(length, bits)
 
     def __getattr__(self, name):
-        """! @brief Redirect to underlying probe object methods."""
+        """@brief Redirect to underlying probe object methods."""
         if hasattr(self._probe, name):
             return getattr(self._probe, name)
         else:

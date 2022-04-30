@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +17,10 @@
 
 import operator
 from functools import reduce
+from typing import (Any, Optional, Sequence, Tuple, Union)
 
-def bitmask(*args):
-    """! @brief Returns a mask with specified bit ranges set.
+def bitmask(*args: Union[int, Sequence[int], Tuple[int, int]]) -> int:
+    """@brief Returns a mask with specified bit ranges set.
 
     An integer mask is generated based on the bits and bit ranges specified by the
     arguments. Any number of arguments can be provided. Each argument may be either
@@ -54,8 +56,8 @@ def bitmask(*args):
 
     return mask
 
-def bit_invert(value, width=32):
-    """! @brief Return the bitwise inverted value of the argument given a specified width.
+def bit_invert(value: int, width: int = 32) -> int:
+    """@brief Return the bitwise inverted value of the argument given a specified width.
 
     @param value Integer value to be inverted.
     @param width Bit width of both the input and output. If not supplied, this defaults to 32.
@@ -64,48 +66,48 @@ def bit_invert(value, width=32):
     return ((1 << width) - 1) & (~value)
 
 invert32 = bit_invert
-"""! @brief Return the 32-bit inverted value of the argument."""
+"""@brief Return the 32-bit inverted value of the argument."""
 
-def bfx(value, msb, lsb):
-    """! @brief Extract a value from a bitfield."""
+def bfx(value: int, msb: int, lsb: int) -> int:
+    """@brief Extract a value from a bitfield."""
     mask = bitmask((msb, lsb))
     return (value & mask) >> lsb
 
-def bfxw(value, lsb, width):
-    """! @brief Extract a value from a bitfield given the LSb and width."""
+def bfxw(value: int, lsb: int, width: int) -> int:
+    """@brief Extract a value from a bitfield given the LSb and width."""
     mask = bitmask((lsb + width, lsb))
     return (value & mask) >> lsb
 
-def bfi(value, msb, lsb, field):
-    """! @brief Change a bitfield value."""
+def bfi(value: int, msb: int, lsb: int, field: int) -> int:
+    """@brief Change a bitfield value."""
     mask = bitmask((msb, lsb))
     value &= ~mask
     value |= (field << lsb) & mask
     return value
 
-class Bitfield(object):
-    """! @brief Represents a bitfield of a register."""
+class Bitfield:
+    """@brief Represents a bitfield of a register."""
 
-    def __init__(self, msb, lsb=None, name=None):
+    def __init__(self, msb: int, lsb: Optional[int] = None, name: Optional[str] = None):
         self._msb = msb
         self._lsb = lsb if (lsb is not None) else msb
         self._name = name
         assert self._msb >= self._lsb
 
     @property
-    def width(self):
+    def width(self) -> int:
         return self._msb - self._lsb + 1
 
-    def get(self, value):
-        """! @brief Extract the bitfield value from a register value.
+    def get(self, value: int) -> int:
+        """@brief Extract the bitfield value from a register value.
         @param self The Bitfield object.
         @param value Integer register value.
         @return Integer value of the bitfield extracted from `value`.
         """
         return bfx(value, self._msb, self._lsb)
 
-    def set(self, register_value, field_value):
-        """! @brief Modified the bitfield in a register value.
+    def set(self, register_value: int, field_value: int) -> int:
+        """@brief Modified the bitfield in a register value.
         @param self The Bitfield object.
         @param register_value Integer register value.
         @param field_value New value for the bitfield. Must not be shifted into place already.
@@ -113,19 +115,19 @@ class Bitfield(object):
         """
         return bfi(register_value, self._msb, self._lsb, field_value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<{}@{:x} name={} {}:{}>".format(self.__class__.__name__, id(self), self._name, self._msb, self._lsb)
 
-def msb(n):
-    """! @brief Return the bit number of the highest set bit."""
+def msb(n: int) -> int:
+    """@brief Return the bit number of the highest set bit."""
     ndx = 0
     while ( 1 < n ):
         n = ( n >> 1 )
         ndx += 1
     return ndx
 
-def same(d1, d2):
-    """! @brief Test whether two sequences contain the same values.
+def same(d1: Sequence[Any], d2: Sequence[Any]) -> bool:
+    """@brief Test whether two sequences contain the same values.
 
     Unlike a simple equality comparison, this function works as expected when the two sequences
     are of different types, such as a list and bytearray. The sequences must return
@@ -138,20 +140,20 @@ def same(d1, d2):
             return False
     return True
 
-def align_down(value, multiple):
-    """! @brief Return value aligned down to multiple."""
+def align_down(value: int, multiple: int) -> int:
+    """@brief Return value aligned down to multiple."""
     return value // multiple * multiple
 
-def align_up(value, multiple):
-    """! @brief Return value aligned up to multiple."""
+def align_up(value: int, multiple: int) -> int:
+    """@brief Return value aligned up to multiple."""
     return (value + multiple - 1) // multiple * multiple
 
-def round_up_div(value, divisor):
-    """! @brief Return value divided by the divisor, rounding up to the nearest multiple of the divisor."""
+def round_up_div(value: int, divisor: int) -> int:
+    """@brief Return value divided by the divisor, rounding up to the nearest multiple of the divisor."""
     return (value + divisor - 1) // divisor
 
-def parity32_high(n):
-    """! @brief Compute parity over a 32-bit value.
+def parity32_high(n: int) -> int:
+    """@brief Compute parity over a 32-bit value.
 
     This function is intended to be used for computing parity over a 32-bit value transferred in an Arm
     ADI AP/DP register transfer. The result is returned in bit 32, ready to be OR'd into the register
@@ -165,3 +167,18 @@ def parity32_high(n):
     n ^= n >> 4
     n &= 0xf
     return (0xD32C0000 << n) & (1 << 32)
+
+def twos_complement(value: int, width: int) -> int:
+    """@brief Convert an unsigned int to signed.
+
+    @param value Signed value as an unsigned int.
+    @param width Bit width of _value_.
+    @return Signed version of _value_.
+    """
+    signmask = 1 << (width - 1)
+    if (value & signmask) == 0:
+        # Mask off sign bit.
+        return value & (signmask - 1)
+    else:
+        # Two's complement.
+        return -bit_invert(value, width - 1) - 1

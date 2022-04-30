@@ -15,11 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class BoardInfo(object):
-    def __init__(self, name, target, binary):
-        self.name = name
-        self.target = target
-        self.binary = binary
+from typing import (NamedTuple, Optional)
+
+class BoardInfo(NamedTuple):
+    name: str
+    target: str
+    binary: Optional[str] = None
+    vendor: Optional[str] = None
 
 BOARD_ID_TO_INFO = {
   # Note: please keep board list sorted by ID!
@@ -105,6 +107,7 @@ BOARD_ID_TO_INFO = {
     "0418": BoardInfo(  "MAX32620FTHR",         "max32620",         "max32620fthr.bin",     ),
     "0420": BoardInfo(  "MAX32630HSP3",         "max32630",         None                    ),
     "0421": BoardInfo(  "MAX32660EVSYS",        "max32660",         "max32660evsys.bin",    ),
+    "0424": BoardInfo(  "MAX32670EVKIT",        "max32670",         "max32670evkit.bin",    ),
     "0451": BoardInfo(  "MTB MXChip EMW3166",   "stm32f412xg",      "mtb_mxchip_emw3166.bin",),
     "0459": BoardInfo(  "MTB Advantech WISE-1530", "stm32f412xg",   "mtb_wise-1530.bin",    ),
     "0462": BoardInfo(  "MTB USI WM-BN-BM-22",  "stm32f412xg",      "mtb_usi_wm-bn-bm-22.bin",),
@@ -224,6 +227,7 @@ BOARD_ID_TO_INFO = {
     "1309": BoardInfo(  "NuMaker-M252KG",       "m252kg6ae",        None,                   ),
     "1310": BoardInfo(  "NuMaker-IoT-M263A",    "m263kiaae",        None,                   ),
     "1312": BoardInfo(  "NuMaker-M2354",        "m2354kjfae",       None,                   ),
+    "1313": BoardInfo(  "NuMaker-IoT-M467",     "m467hjhae",        None,                   ),
     "1549": BoardInfo(  "LPC1549",              "lpc1549jbd100",    None,                   ),
     "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
     "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),
@@ -271,6 +275,8 @@ BOARD_ID_TO_INFO = {
     "9901": BoardInfo(  "micro:bit",            "nrf51",            "l1_microbit.bin",      ),
     "9903": BoardInfo(  "micro:bit v2",         "nrf52833",         "microbitv2.bin",       ),
     "9904": BoardInfo(  "micro:bit v2",         "nrf52833",         "microbitv2.bin",       ),
+    "9905": BoardInfo(  "micro:bit v2",         "nrf52833",         "microbitv2.bin",       ),
+    "9906": BoardInfo(  "micro:bit v2",         "nrf52833",         "microbitv2.bin",       ),
     "C004": BoardInfo(  "tinyK20",              "k20d50m",          "l1_k20d50m.bin",       ),
     "C006": BoardInfo(  "VBLUno51",             "nrf51",            "l1_nrf51.bin",         ),
 }

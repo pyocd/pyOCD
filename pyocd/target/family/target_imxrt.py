@@ -28,7 +28,7 @@ class IMXRT(CoreSightTarget):
     VENDOR = "NXP"
 
     def create_init_sequence(self):
-        seq = super(IMXRT, self).create_init_sequence()
+        seq = super().create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.replace_task('create_cores', self.create_cores)
             )
@@ -63,7 +63,7 @@ class CortexM7_IMXRT(CortexM):
     }
 
     def __init__(self, *args, **kwargs):
-        super(CortexM7_IMXRT, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.get_boot_mode()
 
     def get_boot_mode(self):
@@ -134,11 +134,11 @@ class CortexM7_IMXRT(CortexM):
         # normal reset catch
         LOG.debug("normal_set_reset_catch")
         self.did_normal_reset_catch = True
-        super(CortexM7_IMXRT, self).set_reset_catch()
+        super().set_reset_catch(reset_type)
 
     def clear_reset_catch(self, reset_type=None):
         if self.did_normal_reset_catch:
-            super(CortexM7_IMXRT, self).clear_reset_catch()
+            super().clear_reset_catch(reset_type)
         else:
             # Disable Reset Vector Catch in DEMCR
             value = self.read_memory(CortexM.DEMCR)

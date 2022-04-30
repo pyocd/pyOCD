@@ -22,7 +22,7 @@ TRACE = LOG.getChild("trace")
 TRACE.setLevel(logging.CRITICAL)
 
 class Notification(object):
-    """!@brief Holds information about a notification to subscribers."""
+    """@brief Holds information about a notification to subscribers."""
 
     def __init__(self, event, source, data=None):
         self._event = event
@@ -45,7 +45,7 @@ class Notification(object):
         return "<Notification@0x%08x event=%s source=%s data=%s>" % (id(self), repr(self.event), repr(self.source), repr(self.data))
 
 class Notifier(object):
-    """!@brief Mix-in class that provides notification broadcast capabilities.
+    """@brief Mix-in class that provides notification broadcast capabilities.
 
     In this notification model, subscribers register callbacks for one or more events. The events
     are simply a Python object of any kind, as long as it is hashable. Typically integers or Enums
@@ -74,7 +74,7 @@ class Notifier(object):
         self._subscribers = {}
 
     def subscribe(self, cb, events, source=None):
-        """!@brief Subscribe to selection of events from an optional source.
+        """@brief Subscribe to selection of events from an optional source.
 
         @param self
         @param cb The callable that will be invoked when a matching notification is sent. Must
@@ -101,7 +101,7 @@ class Notifier(object):
                 event_info[1][source].append(cb)
 
     def unsubscribe(self, cb, events=None):
-        """!@brief Remove a callback from the subscribers list.
+        """@brief Remove a callback from the subscribers list.
 
         @param self
         @param cb The callback to remove from all subscriptions.
@@ -126,7 +126,7 @@ class Notifier(object):
                     source_info.remove(cb)
 
     def notify(self, event, source=None, data=None):
-        """!@brief Notify subscribers of an event.
+        """@brief Notify subscribers of an event.
 
         @param self
         @param event Event to send. Must be a hashable object. It is acceptable to notify for an

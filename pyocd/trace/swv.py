@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,17 +33,17 @@ from ..utility.server import StreamServer
 LOG = logging.getLogger(__name__)
 
 class SWVEventSink(TraceEventSink):
-    """! @brief Trace event sink that converts ITM packets to a text stream."""
+    """@brief Trace event sink that converts ITM packets to a text stream."""
 
     def __init__(self, console):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self
         @param console File-like object to which SWV data will be written.
         """
         self._console = console
 
     def receive(self, event):
-        """! @brief Handle an SWV trace event.
+        """@brief Handle an SWV trace event.
         @param self
         @param event An instance of TraceITMEvent. If the event is not this class, or isn't
             for ITM port 0, then it will be ignored. The individual bytes of 16- or 32-bit events
@@ -62,14 +62,16 @@ class SWVEventSink(TraceEventSink):
                     + chr((event.data >> 8) & 0xff)
                     + chr((event.data >> 16) & 0xff)
                     + chr((event.data >> 24) & 0xff))
+        else:
+            return
 
         self._console.write(data)
 
 class SWVReader(threading.Thread):
-    """! @brief Sets up SWV and processes data in a background thread."""
+    """@brief Sets up SWV and processes data in a background thread."""
 
     def __init__(self, session, core_number=0, lock=None):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self
         @param session The Session instance.
         @param core_number The number of the core being traced. Default is core 0.
@@ -85,31 +87,40 @@ class SWVReader(threading.Thread):
 
         self._session.subscribe(self._reset_handler, Target.Event.POST_RESET, self._session.target.cores[core_number])
 
-    def init(self, sys_clock, swo_clock, console):
-        """! @brief Configures trace graph and starts thread.
+    def init(self, sys_clock, swo_clock, console) -> bool:
+        """@brief Configures trace graph and starts thread.
 
         This method performs all steps required to start up SWV. It first calls the target's
         trace_start() method, which allows for target-specific trace initialization. Then it
         configures the TPIU and ITM modules. A simple trace data processing graph is created that
         connects an SWVEventSink with a SWOParser. Finally, the reader thread is started.
 
-        If the debug probe does not support SWO, a warning is printed but nothing else is done.
+        If the debug probe or target do not support SWO, a warning is printed and False returns,
+        but nothing else is done (no exception raised).
 
         @param self
-        @param sys_clock
-        @param swo_clock
-        @param console
+        @param sys_clock System clock frequency in Hertz, from which the SWO clock is derived.
+        @param swo_clock Desired SWO output frequency in Hertz.
+        @param console File-like object to which SWV data will be written.
+
+        @return Boolean indicating whether the SWV reader was successfully started.
         """
         self._swo_clock = swo_clock
 
         if DebugProbe.Capability.SWO not in self._session.probe.capabilities:
-            LOG.warning("Probe %s does not support SWO", self._session.probe.unique_id)
-            return
-
-        self._session.target.trace_start()
+            LOG.warning(f"SWV not initalized: Probe {self._session.probe.unique_id} does not support SWO")
+            return False
 
         itm = self._session.target.get_first_child_of_type(ITM)
+        if not itm:
+            LOG.warning("SWV not initalized: Target does not have ITM component")
+            return False
         tpiu = self._session.target.get_first_child_of_type(TPIU)
+        if not itm:
+            LOG.warning("SWV not initalized: Target does not have TPIU component")
+            return False
+
+        self._session.target.trace_start()
 
         itm.init()
         itm.enable()
@@ -118,8 +129,8 @@ class SWVReader(threading.Thread):
         if tpiu.set_swo_clock(swo_clock, sys_clock):
             LOG.info("Set SWO clock to %d", swo_clock)
         else:
-            LOG.warning("Failed to set SWO clock rate")
-            return
+            LOG.warning("SWV not initalized: Failed to set SWO clock rate")
+            return False
 
         self._parser = SWOParser(self._session.target.cores[self._core_number])
         self._sink = SWVEventSink(console)
@@ -127,8 +138,10 @@ class SWVReader(threading.Thread):
 
         self.start()
 
+        return True
+
     def stop(self):
-        """! @brief Stops processing SWV data.
+        """@brief Stops processing SWV data.
 
         The reader thread is terminated first, then the ITM is disabled. The last step is to call
         the target's trace_stop() method.
@@ -141,13 +154,15 @@ class SWVReader(threading.Thread):
         self._shutdown_event.set()
         self.join()
 
+        # init() should never have started the SWV thread unless the target has ITM and TPIU.
         itm = self._session.target.get_first_child_of_type(ITM)
+        assert itm
         itm.disable()
 
         self._session.target.trace_stop()
 
     def run(self):
-        """! @brief SWV reader thread routine.
+        """@brief SWV reader thread routine.
 
         Starts the probe receiving SWO data by calling DebugProbe.swo_start(). For as long as the
         thread runs, it reads SWO data from the probe and passes it to the SWO parser created in
@@ -195,7 +210,7 @@ class SWVReader(threading.Thread):
             self._lock.release()
 
     def _reset_handler(self, notification):
-        """! @brief Reset notification handler.
+        """@brief Reset notification handler.
 
         If the target is reset while the SWV reader is running, then the Target::trace_start()
         method is called to reinit trace output.

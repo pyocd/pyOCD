@@ -1,5 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2022 Intel Corporation
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from .provider import (TargetThread, ThreadProvider)
 from .common import (read_c_string, HandlerModeThread)
 from ..core import exceptions
@@ -21,7 +25,7 @@ from ..core.target import Target
 from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m_core_registers import index_for_reg
-import logging
+from ..utility.mask import twos_complement
 
 # Create a logger for this module.
 LOG = logging.getLogger(__name__)
@@ -46,7 +50,7 @@ class TargetList(object):
                 node = 0
 
 class ZephyrThreadContext(DebugContext):
-    """! @brief Thread context for Zephyr."""
+    """@brief Thread context for Zephyr."""
 
     STACK_FRAME_OFFSETS = {
                  0: 0, # r0
@@ -141,7 +145,7 @@ class ZephyrThreadContext(DebugContext):
         return reg_vals
 
 class ZephyrThread(TargetThread):
-    """! @brief A Zephyr task."""
+    """@brief A Zephyr task."""
 
     READY = 0
     PENDING = 1 << 1
@@ -188,16 +192,12 @@ class ZephyrThread(TargetThread):
 
     def update_info(self):
         try:
-            self._priority = self._target_context.read8(self._base + self._offsets["t_prio"])
+            self._priority = twos_complement(self._target_context.read8(self._base + self._offsets["t_prio"]), width=8)
             self._state = self._target_context.read8(self._base + self._offsets["t_state"])
 
             if self._provider.version > 0:
-                addr = self._target_context.read32(self._base + self._offsets["t_name"])
-                if addr != 0:
-                    self._name = read_c_string(self._target_context, addr)
-                else:
-                    self._name = "Unnamed"
-
+                addr = self._base + self._offsets["t_name"]
+                self._name = read_c_string(self._target_context, addr)
 
         except exceptions.TransferError:
             LOG.debug("Transfer error while reading thread info")
@@ -241,13 +241,13 @@ class ZephyrThread(TargetThread):
         return str(self)
 
 class ZephyrThreadProvider(ThreadProvider):
-    """! @brief Thread provider for Zephyr."""
+    """@brief Thread provider for Zephyr."""
 
     ## Required Zephyr symbols.
     ZEPHYR_SYMBOLS = [
         "_kernel",
-        "_kernel_openocd_offsets",
-        "_kernel_openocd_size_t_size",
+        "_kernel_thread_info_offsets",
+        "_kernel_thread_info_size_t_size",
         ]
 
     ZEPHYR_OFFSETS = [
@@ -286,15 +286,15 @@ class ZephyrThreadProvider(ThreadProvider):
 
     def _get_offsets(self):
         # Read the kernel and thread structure member offsets
-        size = self._target_context.read8(self._symbols["_kernel_openocd_size_t_size"])
-        LOG.debug("_kernel_openocd_size_t_size = %d", size)
+        size = self._target_context.read8(self._symbols["_kernel_thread_info_size_t_size"])
+        LOG.debug("_kernel_thread_info_size_t_size = %d", size)
         if size != 4:
-            LOG.error("Unsupported _kernel_openocd_size_t_size")
+            LOG.error("Unsupported _kernel_thread_info_size_t_size")
             return None
 
         offsets = {}
         for index, name in enumerate(self.ZEPHYR_OFFSETS):
-            offset = self._symbols["_kernel_openocd_offsets"] + index * size
+            offset = self._symbols["_kernel_thread_info_offsets"] + index * size
             offsets[name] = self._target_context.read32(offset)
             LOG.debug("%s = 0x%04x", name, offsets[name])
 
@@ -416,7 +416,7 @@ class ZephyrThreadProvider(ThreadProvider):
         return self._version
 
 class ZephyrPlugin(Plugin):
-    """! @brief Plugin class for the Zephyr RTOS."""
+    """@brief Plugin class for the Zephyr RTOS."""
 
     def load(self):
         return ZephyrThreadProvider

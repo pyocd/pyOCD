@@ -18,9 +18,10 @@
 import logging
 from inspect import getfullargspec
 from pathlib import PurePath
+from typing import (Callable, Dict, Optional, TYPE_CHECKING, cast)
 
 from ..core.target import Target
-from ..core.memory_map import (MemoryType, RamRegion, DeviceRegion, MemoryMap)
+from ..core.memory_map import (FlashRegion, MemoryType, RamRegion, DeviceRegion, MemoryMap)
 from ..core.soc_target import SoCTarget
 from ..core import exceptions
 from . import (dap, discovery)
@@ -28,40 +29,47 @@ from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
 from ..target.pack.flash_algo import PackFlashAlgo
 
+if TYPE_CHECKING:
+    from ..core.session import Session
+    from ..core.memory_map import MemoryMap
+    from .ap import (APAddressBase, AccessPort)
+    from ..debug.svd.model import SVDDevice
+
 LOG = logging.getLogger(__name__)
 
 class CoreSightTarget(SoCTarget):
-    """! @brief Represents an SoC that uses CoreSight debug infrastructure.
+    """@brief Represents an SoC that uses CoreSight debug infrastructure.
 
     This class adds Arm CoreSight-specific discovery and initialization code to SoCTarget.
     """
 
-    def __init__(self, session, memory_map=None):
+    def __init__(self, session: "Session", memory_map: Optional["MemoryMap"] = None) -> None:
         # Supply a default memory map.
         if (memory_map is None) or (memory_map.region_count == 0):
             memory_map = self._create_default_cortex_m_memory_map()
             LOG.debug("Using default Cortex-M memory map (no memory map supplied)")
 
-        super(CoreSightTarget, self).__init__(session, memory_map)
+        super().__init__(session, memory_map)
+        assert session.probe
         self.dp = dap.DebugPort(session.probe, self)
-        self._svd_load_thread = None
-        self._irq_table = None
-        self._discoverer = None
+        self._svd_load_thread: Optional[SVDLoader] = None
+        self._irq_table: Optional[Dict[int, str]] = None
+        self._discoverer: Optional[Callable] = None
 
     @property
-    def aps(self):
+    def aps(self) -> Dict["APAddressBase", "AccessPort"]:
         return self.dp.aps
 
     @property
-    def svd_device(self):
-        """! @brief Waits for SVD file to complete loading before returning."""
+    def svd_device(self) -> Optional["SVDDevice"]:
+        """@brief Waits for SVD file to complete loading before returning."""
         if not self._svd_device and self._svd_load_thread:
             LOG.debug("Waiting for SVD load to complete")
             self._svd_device = self._svd_load_thread.device
         return self._svd_device
 
-    def _create_default_cortex_m_memory_map(self):
-        """! @brief Create a MemoryMap for the Cortex-M system address map."""
+    def _create_default_cortex_m_memory_map(self) -> MemoryMap:
+        """@brief Create a MemoryMap for the Cortex-M system address map."""
         return MemoryMap(
                 RamRegion(name="Code",          start=0x00000000, length=0x20000000, access='rwx'),
                 RamRegion(name="SRAM",          start=0x20000000, length=0x20000000, access='rwx'),
@@ -73,7 +81,7 @@ class CoreSightTarget(SoCTarget):
                 DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
                 )
 
-    def load_svd(self):
+    def load_svd(self) -> None:
         def svd_load_completed_cb(svdDevice):
             self._svd_device = svdDevice
             self._svd_load_thread = None
@@ -83,13 +91,13 @@ class CoreSightTarget(SoCTarget):
             self._svd_load_thread = SVDLoader(self._svd_location, svd_load_completed_cb)
             self._svd_load_thread.load()
 
-    def create_init_sequence(self):
+    def create_init_sequence(self) -> CallSequence:
         seq = CallSequence(
             ('load_svd',            self.load_svd),
             ('pre_connect',         self.pre_connect),
             ('dp_init',             self.dp.create_connect_sequence),
             ('create_discoverer',   self.create_discoverer),
-            ('discovery',           lambda : self._discoverer.discover()),
+            ('discovery',           lambda : self._discoverer.discover() if self._discoverer else None),
             ('check_for_cores',     self.check_for_cores),
             ('halt_on_connect',     self.perform_halt_on_connect),
             ('post_connect',        self.post_connect),
@@ -100,8 +108,8 @@ class CoreSightTarget(SoCTarget):
 
         return seq
 
-    def disconnect(self, resume=True):
-        """! @brief Disconnect from the target.
+    def disconnect(self, resume: bool = True) -> None:
+        """@brief Disconnect from the target.
 
         Same as SoCTarget.disconnect(), except that it asks the DebugPort to power down.
         """
@@ -109,19 +117,22 @@ class CoreSightTarget(SoCTarget):
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
-        self.dp.disconnect()
+        # Only disconnect the DP if resuming; otherwise it will power down debug and potentially
+        # let the core continue running.
+        if resume:
+            self.dp.disconnect()
         self.call_delegate('did_disconnect', target=self, resume=resume)
 
-    def create_discoverer(self):
-        """! @brief Init task to create the discovery object.
+    def create_discoverer(self) -> None:
+        """@brief Init task to create the discovery object.
 
         Instantiates the appropriate @ref pyocd.coresight.discovery.CoreSightDiscovery
         CoreSightDiscovery subclass for the target's ADI version.
         """
         self._discoverer = discovery.ADI_DISCOVERY_CLASS_MAP[self.dp.adi_version](self)
 
-    def pre_connect(self):
-        """! @brief Handle some of the connect modes.
+    def pre_connect(self) -> None:
+        """@brief Handle some of the connect modes.
 
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
@@ -134,8 +145,8 @@ class CoreSightTarget(SoCTarget):
             LOG.info("Asserting reset prior to connect")
             self.dp.assert_reset(True)
 
-    def perform_halt_on_connect(self):
-        """! @brief Halt cores.
+    def perform_halt_on_connect(self) -> None:
+        """@brief Halt cores.
 
         This init task performs a connect pre-reset or asserts reset if the connect mode is
         under-reset.
@@ -148,15 +159,15 @@ class CoreSightTarget(SoCTarget):
             for core in self.cores.values():
                 try:
                     if mode == 'under-reset':
-                        core.set_reset_catch()
+                        core.set_reset_catch(Target.ResetType.HW)
                     else:
                         core.halt()
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
 
-    def post_connect(self):
-        """! @brief Handle cleaning up some of the connect modes.
+    def post_connect(self) -> None:
+        """@brief Handle cleaning up some of the connect modes.
 
         This init task de-asserts reset if the connect mode is under-reset.
         """
@@ -169,24 +180,25 @@ class CoreSightTarget(SoCTarget):
             # Apply to all cores.
             for core in self.cores.values():
                 try:
-                    core.clear_reset_catch()
+                    core.clear_reset_catch(Target.ResetType.HW)
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
 
-    def create_flash(self):
-        """! @brief Instantiates flash objects for memory regions.
+    def create_flash(self) -> None:
+        """@brief Instantiates flash objects for memory regions.
 
         This init task iterates over flash memory regions and for each one creates the Flash
         instance. It uses the flash_algo and flash_class properties of the region to know how
         to construct the flash object.
         """
         for region in self.memory_map.iter_matching_regions(type=MemoryType.FLASH):
+            region = cast(FlashRegion, region)
             # If the region doesn't have an algo dict but does have an FLM file, try to load
             # the FLM and create the algo dict.
             if (region.algo is None) and (region.flm is not None):
                 if isinstance(region.flm, (str, PurePath)):
-                    flm_path = self.session.find_user_file(None, [region.flm])
+                    flm_path = self.session.find_user_file(None, [str(region.flm)])
                     if flm_path is not None:
                         LOG.info("creating flash algo from: %s", flm_path)
                         pack_algo = PackFlashAlgo(flm_path)
@@ -226,7 +238,7 @@ class CoreSightTarget(SoCTarget):
                     LOG.warning("flash region '%s' has no flash algo" % region.name)
                     continue
             else:
-                obj = klass(self)
+                obj = klass(self) # type:ignore
 
             # Set the region in the flash instance.
             obj.region = region
@@ -234,16 +246,17 @@ class CoreSightTarget(SoCTarget):
             # Store the flash object back into the memory region.
             region.flash = obj
 
-    def check_for_cores(self):
-        """! @brief Init task: verify that at least one core was discovered."""
+    def check_for_cores(self) -> None:
+        """@brief Init task: verify that at least one core was discovered."""
         if not len(self.cores):
             # Allow the user to override the exception to enable uses like chip bringup.
             if self.session.options.get('allow_no_cores'):
                 LOG.error("No cores were discovered!")
             else:
                 raise exceptions.DebugError("No cores were discovered!")
+
     @property
-    def irq_table(self):
+    def irq_table(self) -> Dict[int, str]:
         if (self._irq_table is None):
             if (self.svd_device is not None) and (self.svd_device.peripherals is not None):
                 peripherals = [

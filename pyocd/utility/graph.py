@@ -15,49 +15,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class GraphNode(object):
-    """! @brief Simple graph node.
+from typing import (Callable, List, Optional, Sequence, Type, Union)
+
+class GraphNode:
+    """@brief Simple graph node.
 
     All nodes have a parent, which is None for a root node, and zero or more children.
 
     Supports indexing and iteration over children.
     """
 
-    def __init__(self):
-        """! @brief Constructor."""
-        super(GraphNode, self).__init__()
-        self._parent = None
-        self._children = []
+    def __init__(self) -> None:
+        """@brief Constructor."""
+        super().__init__()
+        self._parent: Optional[GraphNode] = None
+        self._children: List[GraphNode] = []
 
     @property
-    def parent(self):
-        """! @brief This node's parent in the object graph."""
+    def parent(self) -> Optional["GraphNode"]:
+        """@brief This node's parent in the object graph."""
         return self._parent
 
     @property
-    def children(self):
-        """! @brief Child nodes in the object graph."""
+    def children(self) -> Sequence["GraphNode"]:
+        """@brief Child nodes in the object graph."""
         return self._children
 
     @property
-    def is_leaf(self):
-        """! @brief Returns true if the node has no children."""
+    def is_leaf(self) -> bool:
+        """@brief Returns true if the node has no children."""
         return len(self.children) == 0
 
-    def add_child(self, node):
-        """! @brief Link a child node onto this object."""
+    def add_child(self, node: "GraphNode") -> None:
+        """@brief Link a child node onto this object."""
         node._parent = self
         self._children.append(node)
 
-    def find_root(self):
-        """! @brief Returns the root node of the object graph."""
+    def find_root(self) -> "GraphNode":
+        """@brief Returns the root node of the object graph."""
         root = self
         while root.parent is not None:
             root = root.parent
         return root
 
-    def find_children(self, predicate, breadth_first=True):
-        """! @brief Recursively search for children that match a given predicate.
+    def find_children(self,
+            predicate: Callable[["GraphNode"], bool],
+            breadth_first: bool = True
+        ) -> Sequence["GraphNode"]:
+        """@brief Recursively search for children that match a given predicate.
         @param self
         @param predicate A callable accepting a single argument for the node to examine. If the
             predicate returns True, then that node is added to the result list and no further
@@ -66,26 +71,26 @@ class GraphNode(object):
         @param breadth_first Whether to search breadth first. Pass False to search depth first.
         @returns List of matching child nodes, or an empty list if no matches were found.
         """
-        def _search(node, klass):
-            results = []
-            childrenToExamine = []
+        def _search(node: GraphNode):
+            results: List[GraphNode] = []
+            childrenToExamine: List[GraphNode] = []
             for child in node.children:
                 if predicate(child):
                     results.append(child)
                 elif not breadth_first:
-                    results.extend(_search(child, klass))
+                    results.extend(_search(child))
                 elif breadth_first:
                     childrenToExamine.append(child)
 
             if breadth_first:
                 for child in childrenToExamine:
-                    results.extend(_search(child, klass))
+                    results.extend(_search(child))
             return results
 
-        return _search(self, predicate)
+        return _search(self)
 
-    def get_first_child_of_type(self, klass):
-        """! @brief Breadth-first search for a child of the given class.
+    def get_first_child_of_type(self, klass: Type) -> Optional["GraphNode"]:
+        """@brief Breadth-first search for a child of the given class.
         @param self
         @param klass The class type to search for. The first child at any depth that is an instance
             of this class or a subclass thereof will be returned. Matching children at more shallow
@@ -98,23 +103,23 @@ class GraphNode(object):
         else:
             return None
 
-    def __getitem__(self, key):
-        """! @brief Returns the indexed child.
+    def __getitem__(self, key: Union[int, slice]) -> Union["GraphNode", List["GraphNode"]]:
+        """@brief Returns the indexed child.
 
         Slicing is supported.
         """
         return self._children[key]
 
     def __iter__(self):
-        """! @brief Iterate over the node's children."""
+        """@brief Iterate over the node's children."""
         return iter(self.children)
 
-    def _dump_desc(self):
-        """! @brief Similar to __repr__ by used for dump_to_str()."""
+    def _dump_desc(self) -> str:
+        """@brief Similar to __repr__ by used for dump_to_str()."""
         return str(self)
 
-    def dump_to_str(self):
-        """! @brief Returns a string describing the object graph."""
+    def dump_to_str(self) -> str:
+        """@brief Returns a string describing the object graph."""
 
         def _dump(node, level):
             result = ("  " * level) + "- " + node._dump_desc() + "\n"
@@ -124,6 +129,6 @@ class GraphNode(object):
 
         return _dump(self, 0)
 
-    def dump(self):
-        """! @brief Pretty print the object graph to stdout."""
+    def dump(self) -> None:
+        """@brief Pretty print the object graph to stdout."""
         print(self.dump_to_str())

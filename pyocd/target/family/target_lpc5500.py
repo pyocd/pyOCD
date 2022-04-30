@@ -2,6 +2,7 @@
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (C) 2020 Ted Tawara
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021 Matthias Wauer
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -118,7 +119,7 @@ class LPC5500Family(CoreSightTarget):
         return seq
 
     def check_locked_state(self, seq):
-        """! @brief Attempt to unlock cores if they are locked (flash is empty etc.)"""
+        """@brief Attempt to unlock cores if they are locked (flash is empty etc.)"""
         # The device is not locked if AP#0 was found and is enabled.
         if (0 in self.aps) and self.aps[0].is_enabled:
             return
@@ -130,6 +131,10 @@ class LPC5500Family(CoreSightTarget):
 
         # Perform the unlock procedure using the debugger mailbox.
         self.unlock(self.aps[DM_AP])
+
+        # Finished, if not called from init sequence
+        if seq is None:
+            return
 
         # re-run discovery
         LOG.info("re-running discovery")
@@ -205,7 +210,7 @@ class LPC5500Family(CoreSightTarget):
         self._enable_traceclk()
 
     def unlock(self, dm_ap):
-        """! @brief Unlock Cores. See UM11126 51.6.1 """
+        """@brief Unlock Cores. See UM11126 51.6.1 """
         assert self.dp.probe.is_open
 
         LOG.info("attempting unlock procedure")
@@ -237,7 +242,7 @@ class LPC5500Family(CoreSightTarget):
 class CortexM_LPC5500(CortexM_v8M):
 
     def reset_and_halt(self, reset_type=None):
-        """! @brief Perform a reset and stop the core on the reset handler. """
+        """@brief Perform a reset and stop the core on the reset handler. """
         halt_only = False
         catch_mode = 0
 
@@ -348,3 +353,9 @@ class CortexM_LPC5500(CortexM_v8M):
 
         # restore vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
+
+    def reset(self, reset_type):
+        # unlock debug access after reset
+        super(CortexM_LPC5500, self).reset(reset_type)
+
+        self.session.target.check_locked_state(None)

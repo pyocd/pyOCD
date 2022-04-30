@@ -18,24 +18,24 @@ import re
 from typing import (Iterable, Sequence, Optional, Tuple)
 
 class UniquePrefixMatcher:
-    """! @brief Manages detection of shortest unique prefix match of a set of strings."""
+    """@brief Manages detection of shortest unique prefix match of a set of strings."""
 
     def __init__(self, items: Optional[Iterable[str]] = None):
-        """! @brief Constructor.
+        """@brief Constructor.
         @param self This object.
         @param items Optional sequence of strings.
         """
         self._items = set(items) if (items is not None) else set()
 
     def add_items(self, items: Iterable[str]) -> None:
-        """! @brief Add some items to be matched.
+        """@brief Add some items to be matched.
         @param self This object.
         @param items Sequence of strings.
         """
         self._items.update(items)
 
     def find_all(self, prefix: str) -> Tuple[str, ...]:
-        """! @brief Return all items matching the given prefix.
+        """@brief Return all items matching the given prefix.
         @param self This object.
         @param prefix String that is compared as a prefix against the items passed to the constructor.
             Must not be the empty string.
@@ -50,7 +50,7 @@ class UniquePrefixMatcher:
         return tuple(i for i in self._items if i.startswith(prefix))
 
     def find_one(self, prefix: str) -> Optional[str]:
-        """! @brief Return the item matching the given prefix, or None.
+        """@brief Return the item matching the given prefix, or None.
         @param self This object.
         @param prefix String that is compared as a prefix against the items passed to the constructor.
         @return The full value of the matching item where `prefix` is a valid prefix.

@@ -53,7 +53,7 @@ ACCESS_TEST_ATTEMPTS = 10
 LOG = logging.getLogger(__name__)
 
 class Kinetis(CoreSightTarget):
-    """! @brief Family class for NXP Kinetis devices.
+    """@brief Family class for NXP Kinetis devices.
     """
 
     VENDOR = "NXP"
@@ -89,7 +89,7 @@ class Kinetis(CoreSightTarget):
         LOG.debug("MDM-AP version %d", self.mdm_ap_version)
 
     def check_flash_security(self):
-        """! @brief Check security and unlock device.
+        """@brief Check security and unlock device.
 
         This init task determines whether the device is locked (flash security enabled). If it is,
         and if auto unlock is enabled, then perform a mass erase to unlock the device.
@@ -171,7 +171,7 @@ class Kinetis(CoreSightTarget):
             LOG.info("%s not in secure state", self.part_number)
 
     def perform_halt_on_connect(self):
-        """! This init task runs *after* cores are created."""
+        """This init task runs *after* cores are created."""
         if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
             if not self.mdm_ap:
                 return
@@ -239,7 +239,7 @@ class Kinetis(CoreSightTarget):
         return not to.did_time_out
 
     def mass_erase(self):
-        """! @brief Perform a mass erase operation.
+        """@brief Perform a mass erase operation.
         @note Reset is held for the duration of this function.
         @return True Mass erase succeeded.
         @return False Mass erase failed or is disabled.
@@ -258,7 +258,7 @@ class Kinetis(CoreSightTarget):
         return result
 
     def _mass_erase(self):
-        """! @brief Private mass erase routine."""
+        """@brief Private mass erase routine."""
         # Flash must finish initing before we can mass erase.
         if not self._wait_for_flash_init():
             LOG.error("Mass erase timeout waiting for flash to finish init")

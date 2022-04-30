@@ -25,14 +25,14 @@ from ..core import (session, exceptions)
 LOG = logging.getLogger(__name__)
 
 class ToolExitException(Exception):
-    """! @brief Special exception indicating the tool should exit.
+    """@brief Special exception indicating the tool should exit.
 
     This exception is only raised by the `exit` command.
     """
     pass
 
 class PyocdRepl(object):
-    """! @brief Read-Eval-Print-Loop for pyOCD commander."""
+    """@brief Read-Eval-Print-Loop for pyOCD commander."""
 
     PROMPT = 'pyocd> '
 
@@ -72,7 +72,7 @@ class PyocdRepl(object):
             pass
 
     def run(self):
-        """! @brief Runs the REPL loop until EOF is encountered."""
+        """@brief Runs the REPL loop until EOF is encountered."""
         try:
             while True:
                 try:
@@ -89,7 +89,7 @@ class PyocdRepl(object):
             pass
 
     def run_one_command(self, line):
-        """! @brief Execute a single command line and handle exceptions."""
+        """@brief Execute a single command line and handle exceptions."""
         try:
             line = line.strip()
             if line:

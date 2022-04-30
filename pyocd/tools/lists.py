@@ -27,10 +27,17 @@ from ..target.builtin import BUILTIN_TARGETS
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..target.pack import pack_target
 
+from ..probe.debug_probe import DebugProbe
+
+class StubProbe(DebugProbe):
+    @property
+    def unique_id(self) -> str:
+        return "0"
+
 class ListGenerator(object):
     @staticmethod
     def list_probes():
-        """! @brief Generate dictionary with info about the connected debug probes.
+        """@brief Generate dictionary with info about the connected debug probes.
 
         Output version history:
         - 1.0, initial version
@@ -70,7 +77,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_boards(name_filter=None):
-        """! @brief Generate dictionary with info about supported boards.
+        """@brief Generate dictionary with info about supported boards.
 
         Output version history:
         - 1.0, initial version
@@ -111,7 +118,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_targets(name_filter=None, vendor_filter=None, source_filter=None):
-        """! @brief Generate dictionary with info about all supported targets.
+        """@brief Generate dictionary with info about all supported targets.
 
         Output version history:
         - 1.0, initial version
@@ -137,7 +144,9 @@ class ListGenerator(object):
             if name_filter and name_filter not in name.lower():
                 continue
 
-            s = Session(None) # Create empty session
+            # Create session with a stub probe that allows us to instantiate the target. This will create
+            # Board and Target instances of its own, so set some options to control that.
+            s = Session(StubProbe(), no_config=True, target_override='cortex_m')
             t = TARGET[name](s)
 
             # Filter by vendor.
@@ -186,7 +195,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_plugins():
-        """! @brief Generate dictionary with lists of available plugins.
+        """@brief Generate dictionary with lists of available plugins.
 
         Output version history:
         - 1.0, initial version with debug probe and RTOS plugins
@@ -229,7 +238,7 @@ class ListGenerator(object):
 
     @staticmethod
     def list_features():
-        """! @brief Generate dictionary with info about supported features and options.
+        """@brief Generate dictionary with info about supported features and options.
 
         Output version history:
         - 1.1, added 'plugins' feature

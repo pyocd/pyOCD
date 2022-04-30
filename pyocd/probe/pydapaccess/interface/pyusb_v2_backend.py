@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
-# Copyright (c) Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 
 import logging
 import threading
-from time import sleep
 import errno
 import platform
 
@@ -32,8 +31,11 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ... import common
+from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
+TRACE = LOG.getChild("trace")
+TRACE.setLevel(logging.CRITICAL)
 
 try:
     import libusb_package
@@ -45,20 +47,23 @@ else:
     IS_AVAILABLE = True
 
 class PyUSBv2(Interface):
-    """!
-    @brief CMSIS-DAPv2 interface using pyUSB.
-    """
+    """@brief CMSIS-DAPv2 interface using pyUSB."""
 
     isAvailable = IS_AVAILABLE
 
-    def __init__(self):
-        super(PyUSBv2, self).__init__()
+    def __init__(self, dev):
+        super().__init__()
+        self.vid = dev.idVendor
+        self.pid = dev.idProduct
+        self.product_name = dev.product or f"{dev.idProduct:#06x}"
+        self.vendor_name = dev.manufacturer or f"{dev.idVendor:#06x}"
+        self.serial_number = dev.serial_number \
+                or generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address)
         self.ep_out = None
         self.ep_in = None
         self.ep_swo = None
         self.dev = None
         self.intf_number = None
-        self.serial_number = None
         self.kernel_driver_was_attached = False
         self.closed = True
         self.thread = None
@@ -74,6 +79,11 @@ class PyUSBv2(Interface):
     @property
     def has_swo_ep(self):
         return self.ep_swo is not None
+
+    @property
+    def is_bulk(self):
+        """@brief Whether the interface uses CMSIS-DAP v2 bulk endpoints."""
+        return True
 
     def open(self):
         assert self.closed is True
@@ -156,7 +166,12 @@ class PyUSBv2(Interface):
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    self.rcv_data.append(self.ep_in.read(self.packet_size, 10 * 1000))
+                    read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in read_data]))
+
+                    self.rcv_data.append(read_data)
         finally:
             # Set last element of rcv_data to None on exit
             self.rcv_data.append(None)
@@ -165,7 +180,8 @@ class PyUSBv2(Interface):
         try:
             while not self.swo_stop_event.is_set():
                 try:
-                    self.swo_data.append(self.ep_swo.read(self.ep_swo.wMaxPacketSize, 10 * 1000))
+                    self.swo_data.append(self.ep_swo.read(self.ep_swo.wMaxPacketSize,
+                            timeout=self.DEFAULT_USB_TIMEOUT_MS))
                 except usb.core.USBError:
                     pass
         finally:
@@ -174,7 +190,7 @@ class PyUSBv2(Interface):
 
     @staticmethod
     def get_all_connected_interfaces():
-        """! @brief Returns all the connected devices with a CMSIS-DAPv2 interface."""
+        """@brief Returns all the connected devices with a CMSIS-DAPv2 interface."""
         # find all cmsis-dap devices
         try:
             all_devices = libusb_package.find(find_all=True, custom_match=HasCmsisDapv2Interface())
@@ -185,36 +201,42 @@ class PyUSBv2(Interface):
         # iterate on all devices found
         boards = []
         for board in all_devices:
-            new_board = PyUSBv2()
-            new_board.vid = board.idVendor
-            new_board.pid = board.idProduct
-            new_board.product_name = board.product or f"{board.idProduct:#06x}"
-            new_board.vendor_name = board.manufacturer or f"{board.idVendor:#06x}"
-            new_board.serial_number = board.serial_number \
-                    or generate_device_unique_id(board.idProduct, board.idVendor, board.bus, board.address)
+            new_board = PyUSBv2(board)
             boards.append(new_board)
 
         return boards
 
     def write(self, data):
-        """! @brief Write data on the OUT endpoint."""
+        """@brief Write data on the OUT endpoint."""
 
         if self.ep_out:
             if (len(data) > 0) and (len(data) < self.packet_size) and (len(data) % self.ep_out.wMaxPacketSize == 0):
                 data.append(0)
 
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
         self.read_sem.release()
 
-        self.ep_out.write(data)
-        #logging.debug('sent: %s', data)
+        self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
     def read(self):
-        """! @brief Read data on the IN endpoint."""
-        while len(self.rcv_data) == 0:
-            sleep(0)
+        """@brief Read data on the IN endpoint."""
+        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
+            while t_o.check():
+                if len(self.rcv_data) != 0:
+                    break
+            else:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
 
         if self.rcv_data[0] is None:
             raise DAPAccessIntf.DeviceError("Device %s read thread exited unexpectedly" % self.serial_number)
+
+        # Trace when the higher layer actually gets a packet previously read.
+        if TRACE.isEnabledFor(logging.DEBUG):
+            TRACE.debug("  USB RD < (%d) %s", len(self.rcv_data[0]), ' '.join([f'{i:02x}' for i in self.rcv_data[0]]))
+
         return self.rcv_data.pop(0)
 
     def read_swo(self):
@@ -228,7 +250,7 @@ class PyUSBv2(Interface):
         return data
 
     def close(self):
-        """! @brief Close the USB interface."""
+        """@brief Close the USB interface."""
         assert self.closed is False
 
         if self.is_swo_running:
@@ -250,7 +272,7 @@ class PyUSBv2(Interface):
         self.thread = None
 
 def _match_cmsis_dap_v2_interface(interface):
-    """! @brief Returns true for a CMSIS-DAP v2 interface.
+    """@brief Returns true for a CMSIS-DAP v2 interface.
 
     This match function performs several tests on the provided USB interface descriptor, to
     determine whether it is a CMSIS-DAPv2 interface. These requirements must be met by the
@@ -302,15 +324,15 @@ def _match_cmsis_dap_v2_interface(interface):
         # IndexError can be raised if an endpoint is missing.
         return False
 
-class HasCmsisDapv2Interface(object):
-    """! @brief CMSIS-DAPv2 match class to be used with usb.core.find"""
+class HasCmsisDapv2Interface:
+    """@brief CMSIS-DAPv2 match class to be used with usb.core.find"""
 
     def __init__(self, serial=None):
-        """! @brief Create a new FindDap object with an optional serial number"""
+        """@brief Create a new FindDap object with an optional serial number"""
         self._serial = serial
 
     def __call__(self, dev):
-        """! @brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
+        """@brief Return True if this is a CMSIS-DAPv2 device, False otherwise"""
         # Check if the device class is a valid one for CMSIS-DAP.
         if filter_device_by_class(dev.idVendor, dev.idProduct, dev.bDeviceClass):
             return False
@@ -340,8 +362,11 @@ class HasCmsisDapv2Interface(object):
             return False
 
         if self._serial is not None:
-            if self._serial == "" and dev.serial_number is None:
-                return True
+            if dev.serial_number is None:
+                if self._serial == "":
+                    return True
+                if self._serial == generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address):
+                    return True
             if self._serial != dev.serial_number:
                 return False
         return True

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,28 +14,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
 
 import argparse
 import sys
 import traceback
 import logging
-import six
+from types import SimpleNamespace
 import os
-from collections import UserDict
+import tempfile
 
-from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
-from pyocd.utility.mask import round_up_div
-from pyocd.utility import conversion
-from pyocd.core.memory_map import MemoryType
 from pyocd.commands.commander import PyOCDCommander
-from pyocd.commands import commands
 from test_util import (
     Test,
     TestResult,
-    get_session_options,
-    binary_to_elf_file,
     PYOCD_DIR,
     )
 
@@ -69,20 +62,28 @@ def commander_test(board_id):
 
     COMMANDS_TO_TEST = [
             # general commands
-            ["continue"],
-            ["status"],
-            ["halt"],
-            ["status"],
+            "continue",
+            "status",
+            "halt",
+            "status",
+
+            # semicolon separated
+            "status ; halt ; continue",
+            "halt;continue",
+            "halt; continue",
+
+            # Python and shell
+            "$ 2+2",
+            "!echo 'hi mom'",
+            " $ target.vendor",
 
             # commander command group - these are not tested by commands_test.py.
-            ["list"],
-            ["exit"], # Must be last command!
+            "list",
+            "exit", # Must be last command!
             ]
 
-    print("\n------ Testing commander ------\n")
-
     # Set up commander args.
-    args = UserDict()
+    args = SimpleNamespace()
     args.no_init = False
     args.frequency = 1000000
     args.options = {} #get_session_options()
@@ -96,6 +97,12 @@ def commander_test(board_id):
     args.unique_id = board_id
     args.target_override = None
     args.elf = GDB_TEST_ELF
+    args.interactive = False
+
+    #
+    # Test basic functionality.
+    #
+    print("\n------ Testing basic functionality ------\n")
 
     test_count += 1
     try:
@@ -103,18 +110,61 @@ def commander_test(board_id):
         cmdr.run()
         test_pass_count += 1
         print("TEST PASSED")
+
+        test_count += 1
+        print("Testing exit code")
+        print("Exit code:", cmdr.exit_code)
+        if cmdr.exit_code == 0:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
     except Exception:
         print("TEST FAILED")
         traceback.print_exc()
 
-    test_count += 1
-    print("Testing exit code")
-    print("Exit code:", cmdr.exit_code)
-    if cmdr.exit_code == 0:
-        test_pass_count += 1
-        print("TEST PASSED")
-    else:
-        print("TEST FAILED")
+    #
+    # Test running command files.
+    #
+    print("\n------ Testing command files ------\n")
+
+    with tempfile.NamedTemporaryFile('w+') as cmdfile:
+        cmdfile.write("""# here is a comment
+halt
+reg
+continue
+
+# semicolons
+halt ; status
+
+# Python and system
+$ {'a': 1, 'b': 2}
+!echo "hello, world!"
+$target.part_number
+!echo first ; echo second
+""")
+
+        # Jump back to the start of the file.
+        cmdfile.seek(0, 0)
+
+        test_count += 1
+        try:
+            cmdr = PyOCDCommander(args, [cmdfile.file])
+            cmdr.run()
+            test_pass_count += 1
+            print("TEST PASSED")
+
+            test_count += 1
+            print("Testing exit code")
+            print("Exit code:", cmdr.exit_code)
+            if cmdr.exit_code == 0:
+                test_pass_count += 1
+                print("TEST PASSED")
+            else:
+                print("TEST FAILED")
+        except Exception:
+            print("TEST FAILED")
+            traceback.print_exc()
 
     print("\n\nTest Summary:")
     print("Pass count %i of %i tests" % (test_pass_count, test_count))

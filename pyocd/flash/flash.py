@@ -193,8 +193,7 @@ class Flash:
         self._region = flashRegion
 
     def init(self, operation, address=None, clock=0, reset=True):
-        """!
-        @brief Prepare the flash algorithm for performing operations.
+        """@brief Prepare the flash algorithm for performing operations.
 
         First, the target is prepared to execute flash algo operations, including loading the algo
         to target RAM. This step is skipped if the target is already prepared, i.e., init() has been
@@ -255,7 +254,7 @@ class Flash:
         self._active_operation = operation
 
     def cleanup(self):
-        """! @brief Deinitialize the flash algo and restore the target.
+        """@brief Deinitialize the flash algo and restore the target.
 
         Before further operations are executed, the algo must be reinited. Unlike uninit(), this
         method marks the target and unprepared to execute flash algo functions. So on the next call
@@ -266,7 +265,7 @@ class Flash:
         self._did_prepare_target = False
 
     def uninit(self):
-        """! @brief Uninitialize the flash algo.
+        """@brief Uninitialize the flash algo.
 
         Before further operations are executed, the algo must be reinited. The target is left in
         a state where algo does not have to be reloaded when init() is called.
@@ -294,11 +293,11 @@ class Flash:
         self._active_operation = None
 
     def prepare_target(self):
-        """! @brief Subclasses can override this method to perform special target configuration."""
+        """@brief Subclasses can override this method to perform special target configuration."""
         pass
 
     def restore_target(self):
-        """! @brief Subclasses can override this method to undo any target configuration changes."""
+        """@brief Subclasses can override this method to undo any target configuration changes."""
         pass
 
     def compute_crcs(self, sectors):
@@ -333,8 +332,7 @@ class Flash:
         return data
 
     def erase_all(self):
-        """!
-        @brief Erase all the flash.
+        """@brief Erase all the flash.
 
         @exception FlashEraseFailure
         """
@@ -354,8 +352,7 @@ class Flash:
             raise FlashEraseFailure('flash erase all failure', result_code=result)
 
     def erase_sector(self, address):
-        """!
-        @brief Erase one sector.
+        """@brief Erase one sector.
 
         @exception FlashEraseFailure
         """
@@ -374,8 +371,7 @@ class Flash:
             raise FlashEraseFailure('flash erase sector failure', address=address, result_code=result)
 
     def program_page(self, address, bytes):
-        """!
-        @brief Flash one or more pages.
+        """@brief Flash one or more pages.
 
         @exception FlashProgramFailure
         """
@@ -400,8 +396,7 @@ class Flash:
             raise FlashProgramFailure('flash program page failure', address=address, result_code=result)
 
     def start_program_page_with_buffer(self, buffer_number, address):
-        """!
-        @brief Start flashing one or more pages.
+        """@brief Start flashing one or more pages.
         """
         assert self.region is not None
         assert buffer_number < len(self.page_buffers), "Invalid buffer number"
@@ -413,8 +408,7 @@ class Flash:
         self._call_function(self.flash_algo['pc_program_page'], address, self.region.page_size, self.page_buffers[buffer_number])
 
     def load_page_buffer(self, buffer_number, address, bytes):
-        """!
-        @brief Load data to a numbered page buffer.
+        """@brief Load data to a numbered page buffer.
 
         This method is used in conjunction with start_program_page_with_buffer() to implement
         double buffered programming.
@@ -428,8 +422,7 @@ class Flash:
         self.target.write_memory_block8(self.page_buffers[buffer_number], bytes)
 
     def program_phrase(self, address, bytes):
-        """!
-        @brief Flash a portion of a page.
+        """@brief Flash a portion of a page.
 
         @exception FlashFailure The address or data length is not aligned to the minimum
             programming length specified in the flash algorithm.
@@ -464,8 +457,7 @@ class Flash:
             raise FlashProgramFailure('flash program phrase failure', address=address, result_code=result)
 
     def get_sector_info(self, addr):
-        """!
-        @brief Get info about the sector that contains this address.
+        """@brief Get info about the sector that contains this address.
         """
         assert self.region is not None
         if not self.region.contains_address(addr):
@@ -479,8 +471,7 @@ class Flash:
         return info
 
     def get_page_info(self, addr):
-        """!
-        @brief Get info about the page that contains this address.
+        """@brief Get info about the page that contains this address.
         """
         assert self.region is not None
         if not self.region.contains_address(addr):
@@ -494,8 +485,7 @@ class Flash:
         return info
 
     def get_flash_info(self):
-        """!
-        @brief Get info about the flash.
+        """@brief Get info about the flash.
 
         Override this method to return different values.
         """
@@ -512,8 +502,7 @@ class Flash:
         return FlashBuilder(self)
 
     def flash_block(self, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
-        """!
-        @brief Flash a block of data.
+        """@brief Flash a block of data.
 
         @note Deprecated. Will be removed in v1.0.
         """
@@ -610,8 +599,7 @@ class Flash:
         self.target.set_vector_catch(self._saved_vector_catch)
 
     def wait_for_completion(self, timeout=None):
-        """!
-        @brief Wait until the breakpoint is hit.
+        """@brief Wait until the breakpoint is hit.
         """
         with Timeout(timeout) as time_out:
             while time_out.check():
@@ -632,8 +620,7 @@ class Flash:
         return self.wait_for_completion(timeout=timeout)
 
     def set_flash_algo_debug(self, enable):
-        """!
-        @brief Turn on extra flash algorithm checking
+        """@brief Turn on extra flash algorithm checking
 
         When set this may slow down flash algo performance.
         """

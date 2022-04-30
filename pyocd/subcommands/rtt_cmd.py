@@ -2,6 +2,7 @@
 # Copyright (c) 2021 mikisama
 # Copyright (C) 2021 Ciro Cattuto <ciro.cattuto@gmail.com>
 # Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
+# Copyright (C) 2022 Johan Carlsson <johan.carlsson@teenage.engineering>
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +33,7 @@ LOG = logging.getLogger(__name__)
 
 
 class SEGGER_RTT_BUFFER_UP(Structure):
-    """! @brief `SEGGER RTT Ring Buffer` target to host."""
+    """@brief `SEGGER RTT Ring Buffer` target to host."""
 
     _fields_ = [
         ("sName", c_uint32),
@@ -45,7 +46,7 @@ class SEGGER_RTT_BUFFER_UP(Structure):
 
 
 class SEGGER_RTT_BUFFER_DOWN(Structure):
-    """! @brief `SEGGER RTT Ring Buffer` host to target."""
+    """@brief `SEGGER RTT Ring Buffer` host to target."""
 
     _fields_ = [
         ("sName", c_uint32),
@@ -58,7 +59,7 @@ class SEGGER_RTT_BUFFER_DOWN(Structure):
 
 
 class SEGGER_RTT_CB(Structure):
-    """! @brief `SEGGER RTT control block` structure. """
+    """@brief `SEGGER RTT control block` structure. """
 
     _fields_ = [
         ("acID", c_char * 16),
@@ -70,14 +71,14 @@ class SEGGER_RTT_CB(Structure):
 
 
 class RTTSubcommand(SubcommandBase):
-    """! @brief `pyocd rtt` subcommand."""
+    """@brief `pyocd rtt` subcommand."""
 
     NAMES = ["rtt"]
     HELP = "SEGGER RTT Viewer."
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object."""
+        """@brief Add this subcommand to the subparsers object."""
 
         rtt_parser = argparse.ArgumentParser(cls.HELP, add_help=False)
 
@@ -92,6 +93,7 @@ class RTTSubcommand(SubcommandBase):
     def invoke(self) -> int:
 
         session = None
+        kb = None
 
         try:
             session = ConnectHelper.session_with_chosen_probe(
@@ -127,16 +129,25 @@ class RTTSubcommand(SubcommandBase):
 
                 LOG.info(f"RTT control block search range [{rtt_range_start:#08x}, {rtt_range_size:#08x}]")
 
-                data = target.read_memory_block8(rtt_range_start, rtt_range_size)
-                pos = bytes(data).find(b"SEGGER RTT")
+                rtt_cb_addr = -1
+                data = bytearray(b'0000000000')
+                chunk_size = 1024
+                while rtt_range_size > 0:
+                    read_size = min(chunk_size, rtt_range_size)
+                    data += bytearray(target.read_memory_block8(rtt_range_start, read_size))
+                    pos = data[-(read_size + 10):].find(b"SEGGER RTT")
+                    if pos != -1:
+                        rtt_cb_addr = rtt_range_start + pos - 10
+                        break
+                    rtt_range_start += read_size
+                    rtt_range_size -= read_size
 
-                if pos == -1:
+                if rtt_cb_addr == -1:
                     LOG.error("No RTT control block available")
-                    return
+                    return 1
 
-                rtt_cb_addr = rtt_range_start + pos
-
-                rtt_cb = SEGGER_RTT_CB.from_buffer(bytearray(data[pos:]))
+                data = target.read_memory_block8(rtt_cb_addr, sizeof(SEGGER_RTT_CB))
+                rtt_cb = SEGGER_RTT_CB.from_buffer(bytearray(data))
                 up_addr = rtt_cb_addr + SEGGER_RTT_CB.aUp.offset
                 down_addr = up_addr + sizeof(SEGGER_RTT_BUFFER_UP) * rtt_cb.MaxNumUpBuffers
 
@@ -230,6 +241,7 @@ class RTTSubcommand(SubcommandBase):
         finally:
             if session:
                 session.close()
+            if kb:
                 kb.set_normal_term()
 
         return 0

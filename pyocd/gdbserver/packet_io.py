@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,8 @@
 
 import logging
 import threading
-import socket
-import six
 import queue
+import socket
 
 CTRL_C = b'\x03'
 
@@ -31,15 +30,15 @@ TRACE_ACK.setLevel(logging.CRITICAL)
 TRACE_PACKETS = LOG.getChild("trace.packet")
 TRACE_PACKETS.setLevel(logging.CRITICAL)
 
-def checksum(data):
-    return ("%02x" % (sum(six.iterbytes(data)) % 256)).encode()
+def checksum(data: bytes) -> bytes:
+    return ("%02x" % (sum(data) % 256)).encode()
 
 class ConnectionClosedException(Exception):
-    """! @brief Exception used to signal the GDB server connection closed."""
+    """@brief Exception used to signal the GDB server connection closed."""
     pass
 
 class GDBServerPacketIOThread(threading.Thread):
-    """! @brief Packet I/O thread.
+    """@brief Packet I/O thread.
 
     This class is a thread used by the GDBServer class to perform all RSP packet I/O. It
     handles verifying checksums, acking, and receiving Ctrl-C interrupts. There is a queue
@@ -47,8 +46,11 @@ class GDBServerPacketIOThread(threading.Thread):
     method writes outgoing packets to the socket immediately.
     """
 
+    ## 100 ms timeout for socket and receive queue reads.
+    RECEIVE_TIMEOUT = 0.1
+
     def __init__(self, abstract_socket):
-        super(GDBServerPacketIOThread, self).__init__()
+        super().__init__()
         self.name = "gdb-packet-thread-port%d" % abstract_socket.port
         self._abstract_socket = abstract_socket
         self._receive_queue = queue.Queue()
@@ -91,7 +93,7 @@ class GDBServerPacketIOThread(threading.Thread):
                 # If block is false, we'll get an Empty exception immediately if there
                 # are no packets in the queue. Same if block is true and it times out
                 # waiting on an empty queue.
-                return self._receive_queue.get(block, 0.1)
+                return self._receive_queue.get(block, self.RECEIVE_TIMEOUT)
             except queue.Empty:
                 # Only exit the loop if block is false or connection closed.
                 if not block:
@@ -102,7 +104,7 @@ class GDBServerPacketIOThread(threading.Thread):
     def run(self):
         LOG.debug("Starting GDB server packet I/O thread")
 
-        self._abstract_socket.set_timeout(0.01)
+        self._abstract_socket.set_timeout(self.RECEIVE_TIMEOUT)
 
         while not self._shutdown_event.is_set():
             try:
@@ -117,8 +119,15 @@ class GDBServerPacketIOThread(threading.Thread):
                 TRACE_PACKETS.debug('-->>>> GDB read %d bytes: %s', len(data), data)
 
                 self._buffer += data
-            except socket.error:
+            except (ConnectionAbortedError, ConnectionResetError) as err:
+                LOG.warning("GDB packet thread: connection unexpectedly closed during receive (%s)", err)
+                self._closed = True
+                break
+            except socket.timeout:
+                # Ignore timeouts.
                 pass
+            except OSError as err:
+                LOG.debug("Error in packet IO thread: %s", err)
 
             if self._shutdown_event.is_set():
                 break
@@ -131,12 +140,16 @@ class GDBServerPacketIOThread(threading.Thread):
         TRACE_PACKETS.debug('--<<<< GDB send %d bytes: %s', len(packet), packet)
 
         # Make sure the entire packet is sent.
-        remaining = len(packet)
-        while remaining:
-            written = self._abstract_socket.write(packet)
-            remaining -= written
-            if remaining:
-                packet = packet[written:]
+        try:
+            remaining = len(packet)
+            while remaining:
+                written = self._abstract_socket.write(packet)
+                remaining -= written
+                if remaining:
+                    packet = packet[written:]
+        except (ConnectionAbortedError, ConnectionResetError) as err:
+            LOG.warning("GDB packet thread: connection unexpectedly closed during send (%s)", err)
+            self._closed = True
 
         if self.send_acks:
             self._expecting_ack = True
@@ -160,7 +173,7 @@ class GDBServerPacketIOThread(threading.Thread):
             LOG.debug("GDB: expected n/ack but got '%s'", c)
 
     def _process_data(self):
-        """! @brief Process all incoming data until there are no more complete packets."""
+        """@brief Process all incoming data until there are no more complete packets."""
         while len(self._buffer):
             if self._expecting_ack:
                 self._expecting_ack = False

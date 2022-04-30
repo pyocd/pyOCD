@@ -20,7 +20,7 @@ from ..coresight.component import CoreSightCoreComponent
 from ..coresight.cortex_m_core_registers import CortexMCoreRegisterInfo
 
 class DebugContext(MemoryInterface):
-    """! @brief Viewport for inspecting the system being debugged.
+    """@brief Viewport for inspecting the system being debugged.
 
     A debug context is used to access target registers and memory. It enables these accesses to be
     redirected to different locations. For instance, if you want to read registers from a call frame
@@ -37,7 +37,7 @@ class DebugContext(MemoryInterface):
     """
 
     def __init__(self, parent):
-        """! @brief Debug context constructor.
+        """@brief Debug context constructor.
 
         @param self
         @param parent The parent of this context. Can be either a core (CoreSightCoreComponent) or
@@ -81,7 +81,7 @@ class DebugContext(MemoryInterface):
         return self._parent.read_memory_block32(addr, size)
 
     def read_core_register(self, reg):
-        """! @brief Read one core register.
+        """@brief Read one core register.
 
         @param self The debug context.
         @param reg Either the register's name in lowercase or an integer register index.
@@ -97,7 +97,7 @@ class DebugContext(MemoryInterface):
         return reg_info.from_raw(regValue)
 
     def read_core_register_raw(self, reg):
-        """! @brief Read a core register without type conversion.
+        """@brief Read a core register without type conversion.
 
         @param self The debug context.
         @param reg Either the register's name in lowercase or an integer register index.
@@ -112,7 +112,7 @@ class DebugContext(MemoryInterface):
         return vals[0]
 
     def read_core_registers_raw(self, reg_list):
-        """! @brief Read one or more core registers.
+        """@brief Read one or more core registers.
 
         @param self The debug context.
         @param reg_list List of registers to read. Each element in the list can be either the
@@ -127,7 +127,7 @@ class DebugContext(MemoryInterface):
         return self._parent.read_core_registers_raw(reg_list)
 
     def write_core_register(self, reg, data):
-        """! @brief Write a CPU register.
+        """@brief Write a CPU register.
 
         @param self The debug context.
         @param reg The name of the register to write.
@@ -141,7 +141,7 @@ class DebugContext(MemoryInterface):
         self.write_core_register_raw(reg_info.index, reg_info.to_raw(data))
 
     def write_core_register_raw(self, reg, data):
-        """! @brief Write a CPU register without type conversion.
+        """@brief Write a CPU register without type conversion.
 
         @param self The debug context.
         @param reg The name of the register to write.
@@ -154,7 +154,7 @@ class DebugContext(MemoryInterface):
         self.write_core_registers_raw([reg], [data])
 
     def write_core_registers_raw(self, reg_list, data_list):
-        """! @brief Write one or more core registers.
+        """@brief Write one or more core registers.
 
         @param self The debug context.
         @param reg_list List of registers to read. Each element in the list can be either the

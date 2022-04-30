@@ -345,10 +345,16 @@ def run_test():
         if not is_event_breakpoint(event, breakpoint):
             fail_count += 1
             print("Error - breakpoint 1 test failed")
-        func_name = gdb.selected_frame().function().name
-        if rmt_func != func_name:
+        func = gdb.selected_frame().function()
+        if func is None:
             fail_count += 1
-            print("ERROR - break occurred at wrong function %s" % func_name)
+            print("ERROR - selected frame has no function!?")
+            print(gdb.selected_frame())
+        else:
+            func_name = func.name
+            if rmt_func != func_name:
+                fail_count += 1
+                print("ERROR - break occurred at wrong function %s" % func_name)
         breakpoint.delete()
         gdb_execute("set var run_breakpoint_test = 0")
 
@@ -371,10 +377,16 @@ def run_test():
 #         if not is_event_breakpoint(event):
 #             fail_count += 1
 #             print("Error - breakpoint 2 test failed")
-        func_name = gdb.selected_frame().function().name
-        if rmt_func != func_name and not ignore_hw_bkpt_result:
+        func = gdb.selected_frame().function()
+        if func is None:
             fail_count += 1
-            print("ERROR - break occurred at wrong function %s" % func_name)
+            print("ERROR - selected frame has no function!?")
+            print(gdb.selected_frame())
+        else:
+            func_name = func.name
+            if rmt_func != func_name and not ignore_hw_bkpt_result:
+                fail_count += 1
+                print("ERROR - break occurred at wrong function %s" % func_name)
         gdb_execute("clear %s" % rmt_func)
         gdb_execute("set var run_breakpoint_test = 0")
 
@@ -478,7 +490,11 @@ def run_test():
         test_result_filename = os.path.join("output", "gdb_test_results%s_%d.txt" % (env_file_name, testn))
         with open(test_result_filename, "wb") as f:
             f.write(json.dumps(test_result))
-        gdb_execute("detach")
+        # Ignore errors detaching, in case connecting failed.
+        try:
+            gdb_execute("detach")
+        except gdb.error:
+            pass
         gdb_execute("quit %i" % fail_count)
 
 

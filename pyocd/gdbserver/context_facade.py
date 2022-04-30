@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import logging
-import six
 from xml.etree import ElementTree
 from itertools import groupby
 
@@ -57,7 +56,7 @@ GDB_TYPE_MAP = {
     }
 
 class GDBDebugContextFacade(object):
-    """! @brief Provides GDB specific transformations to a DebugContext."""
+    """@brief Provides GDB specific transformations to a DebugContext."""
 
     ## The order certain target features should appear in target XML.
     REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.vfp")
@@ -91,7 +90,7 @@ class GDBDebugContextFacade(object):
         self._context = new_context
 
     def get_register_context(self):
-        """! @brief Return hexadecimal dump of registers as expected by GDB.
+        """@brief Return hexadecimal dump of registers as expected by GDB.
 
         @exception CoreRegisterAccessError
         """
@@ -107,7 +106,7 @@ class GDBDebugContextFacade(object):
             if reg_value is None:
                 r = b"xx" * round_up_div(reg.bitsize, 8)
             else:
-                r = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
+                r = conversion.uint_to_hex_le(reg_value, reg.bitsize).encode()
             resp += r
             LOG.debug("GDB get_reg_context: %s = %s -> %s", reg.name,
                     "None" if (reg_value is None) else ("0x%08X" % reg_value), r)
@@ -115,7 +114,7 @@ class GDBDebugContextFacade(object):
         return resp
 
     def set_register_context(self, data):
-        """! @brief Set registers from GDB hexadecimal string.
+        """@brief Set registers from GDB hexadecimal string.
 
         @exception CoreRegisterAccessError
         """
@@ -136,7 +135,7 @@ class GDBDebugContextFacade(object):
         self._context.write_core_registers_raw(reg_num_list, reg_data_list)
 
     def set_register(self, gdb_regnum, data):
-        """! @brief Set single register from GDB hexadecimal string.
+        """@brief Set single register from GDB hexadecimal string.
 
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
@@ -153,7 +152,7 @@ class GDBDebugContextFacade(object):
             LOG.warning("GDB: attempt to set invalid register (regnum %d)", gdb_regnum)
 
     def gdb_get_register(self, gdb_regnum):
-        """! @brief Set single core register.
+        """@brief Set single core register.
 
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
@@ -167,7 +166,7 @@ class GDBDebugContextFacade(object):
 
         try:
             reg_value = self._context.read_core_register_raw(reg.name)
-            resp = six.b(conversion.uint_to_hex_le(reg_value, reg.bitsize))
+            resp = conversion.uint_to_hex_le(reg_value, reg.bitsize).encode()
             LOG.debug("GDB reg: %s = 0x%X", reg.name, reg_value)
         except exceptions.CoreRegisterAccessError:
             # Return x's if the register read failed.
@@ -176,16 +175,16 @@ class GDBDebugContextFacade(object):
         return resp
 
     def get_t_response(self, force_signal=None):
-        """! @brief Returns a GDB T response string.
+        """@brief Returns a GDB T response string.
 
         This includes:
         - The signal encountered.
         - The current value of the important registers (sp, lr, pc).
         """
         if force_signal is not None:
-            response = six.b('T' + conversion.byte_to_hex2(force_signal))
+            response = ('T' + conversion.byte_to_hex2(force_signal)).encode()
         else:
-            response = six.b('T' + conversion.byte_to_hex2(self.get_signal_value()))
+            response = ('T' + conversion.byte_to_hex2(self.get_signal_value())).encode()
 
         # Append fp(r7), sp(r13), lr(r14), pc(r15)
         response += self._get_reg_index_value_pairs(['r7', 'sp', 'lr', 'pc'])
@@ -211,7 +210,7 @@ class GDBDebugContextFacade(object):
         return signal
 
     def _get_reg_index_value_pairs(self, reg_list):
-        """! @brief Return register values as pairs.
+        """@brief Return register values as pairs for the T response.
 
         Returns a string like NN:MMMMMMMM;NN:MMMMMMMM;...
         for the T response string.  NN is the index of the
@@ -221,20 +220,19 @@ class GDBDebugContextFacade(object):
         try:
             reg_values = self._context.read_core_registers_raw(reg_list)
         except exceptions.CoreRegisterAccessError:
-            reg_values = [None] * len(reg_list)
+            # If we cannot read registers, return an empty string. We mustn't return 'x's like the other
+            # register read methods do, because gdb terribly dislikes 'x's in a T response.
+            return result
 
         for reg_name, reg_value in zip(reg_list, reg_values):
             reg = self._context.core.core_registers.by_name[reg_name]
-            # Return x's if the register read failed.
-            if reg_value is None:
-                encoded_reg = "xx" * round_up_div(reg.bitsize, 8)
-            else:
-                encoded_reg = conversion.uint_to_hex_le(reg_value, reg.bitsize)
-            result += six.b(conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';')
+            assert reg_value is not None
+            encoded_reg = conversion.uint_to_hex_le(reg_value, reg.bitsize)
+            result += (conversion.byte_to_hex2(reg.gdb_regnum) + ':' + encoded_reg + ';').encode()
         return result
 
     def get_memory_map_xml(self):
-        """! @brief Generate GDB memory map XML.
+        """@brief Generate GDB memory map XML.
         """
         root = ElementTree.Element('memory-map')
         for r in  self._context.core.memory_map:
@@ -251,7 +249,7 @@ class GDBDebugContextFacade(object):
         return MAP_XML_HEADER + ElementTree.tostring(root)
 
     def _define_xpsr_control_fields(self, xml_feature):
-        """! @brief Define XPSR and CONTROL register types with fields."""
+        """@brief Define XPSR and CONTROL register types with fields."""
         control = ElementTree.SubElement(xml_feature, 'flags', id="control", size="4")
         ElementTree.SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
         ElementTree.SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")

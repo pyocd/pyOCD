@@ -31,12 +31,11 @@ LOG = logging.getLogger(__name__)
 FLASH_ALGO_STACK_SIZE = 512
 
 class FlashAlgoException(exceptions.TargetSupportError):
-    """! @brief Exception class for errors parsing an FLM file."""
+    """@brief Exception class for errors parsing an FLM file."""
     pass
 
 class PackFlashAlgo(object):
-    """!
-    @brief Class to wrap a flash algo
+    """@brief Class to wrap a flash algo
 
     This class is intended to provide easy access to the information
     provided by a flash algorithm, such as symbols and the flash
@@ -80,7 +79,7 @@ class PackFlashAlgo(object):
     _FLASH_BLOB_HEADER_SIZE = len(_FLASH_BLOB_HEADER) * 4
 
     def __init__(self, data):
-        """! @brief Construct a PackFlashAlgo from a file-like object."""
+        """@brief Construct a PackFlashAlgo from a file-like object."""
         self.elf = ELFBinaryFile(data)
         self.flash_info = PackFlashInfo(self.elf)
 
@@ -112,7 +111,7 @@ class PackFlashAlgo(object):
         self.algo_data = self._create_algo_bin(ro_rw_zi)
 
     def get_pyocd_flash_algo(self, blocksize, ram_region):
-        """! @brief Return a dictionary representing a pyOCD flash algorithm, or None.
+        """@brief Return a dictionary representing a pyOCD flash algorithm, or None.
 
         The most interesting operation this method performs is dynamically allocating memory
         for the flash algo from a given RAM region. Note that the .data and .bss sections are
@@ -182,7 +181,7 @@ class PackFlashAlgo(object):
         return flash_algo
 
     def _extract_symbols(self, symbols, default=None):
-        """! @brief Fill 'symbols' field with required flash algo symbols"""
+        """@brief Fill 'symbols' field with required flash algo symbols"""
         to_ret = {}
         for symbol in symbols:
             symbolInfo = self.elf.symbol_decoder.get_symbol_for_name(symbol)
@@ -195,7 +194,7 @@ class PackFlashAlgo(object):
         return to_ret
 
     def _find_sections(self, name_type_pairs):
-        """! @brief Return a list of sections the same length and order of the input list"""
+        """@brief Return a list of sections the same length and order of the input list"""
         sections = [None] * len(name_type_pairs)
         for section in self.elf.sections:
             section_name = to_str_safe(section.name)
@@ -210,7 +209,7 @@ class PackFlashAlgo(object):
         return sections
 
     def _algo_fill_zi_if_missing(self, ro_rw_zi):
-        """! @brief Create an empty zi section if it is missing"""
+        """@brief Create an empty zi section if it is missing"""
         s_ro, s_rw, s_zi = ro_rw_zi
         if s_rw is None:
             return ro_rw_zi
@@ -220,7 +219,7 @@ class PackFlashAlgo(object):
         return s_ro, s_rw, s_zi
 
     def _algo_check_for_section_problems(self, ro_rw_zi):
-        """! @brief Return a string describing any errors with the layout or None if good"""
+        """@brief Return a string describing any errors with the layout or None if good"""
         s_ro, s_rw, s_zi = ro_rw_zi
         if s_ro is None:
             return "RO section is missing"
@@ -251,7 +250,7 @@ class PackFlashAlgo(object):
 
 
 class PackFlashInfo(object):
-    """! @brief Wrapper class for the non-executable information in an FLM file"""
+    """@brief Wrapper class for the non-executable information in an FLM file"""
 
     FLASH_DEVICE_STRUCT = "<H128sHLLLLBxxxLL"
     FLASH_DEVICE_STRUCT_SIZE = struct.calcsize(FLASH_DEVICE_STRUCT)

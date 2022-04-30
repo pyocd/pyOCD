@@ -17,25 +17,25 @@
 import argparse
 import logging
 import prettytable
-from typing import (List, Optional)
+from typing import (List, Optional, Type)
 
 from ..utility.cmdline import convert_frequency
 
 class SubcommandBase:
-    """! @brief Base class for pyocd command line subcommand."""
+    """@brief Base class for pyocd command line subcommand."""
 
     # Subcommand descriptors.
     NAMES: List[str] = []
     HELP: str = ""
     EPILOG: Optional[str] = None
     DEFAULT_LOG_LEVEL = logging.INFO
-    SUBCOMMANDS: List["SubcommandBase"] = []
+    SUBCOMMANDS: List[Type["SubcommandBase"]] = []
 
     ## Class attribute to store the built subcommand argument parser.
     parser: Optional[argparse.ArgumentParser] = None
 
     class CommonOptions:
-        """! @brief Namespace with parsers for repeated option groups."""
+        """@brief Namespace with parsers for repeated option groups."""
 
         # Define logging related options.
         LOGGING = argparse.ArgumentParser(description='logging', add_help=False)
@@ -94,7 +94,7 @@ class SubcommandBase:
 
     @classmethod
     def add_subcommands(cls, parser: argparse.ArgumentParser) -> None:
-        """! @brief Add declared subcommands to the given parser."""
+        """@brief Add declared subcommands to the given parser."""
         if cls.SUBCOMMANDS:
             subparsers = parser.add_subparsers(title="subcommands", metavar="", dest='cmd')
             for subcmd_class in cls.SUBCOMMANDS:
@@ -112,7 +112,7 @@ class SubcommandBase:
 
     @classmethod
     def get_args(cls) -> List[argparse.ArgumentParser]:
-        """! @brief Add this subcommand to the subparsers object.
+        """@brief Add this subcommand to the subparsers object.
         @return List of argument parsers. The last element in the list _must_ be the parser for the subcommand
             class itself, as it is saved by the caller in cls.parser.
         """
@@ -120,11 +120,11 @@ class SubcommandBase:
 
     @classmethod
     def customize_subparser(cls, subparser: argparse.ArgumentParser) -> None:
-        """! @brief Optionally modify a subparser after it is created."""
+        """@brief Optionally modify a subparser after it is created."""
         pass
 
     def __init__(self, args: argparse.Namespace):
-        """! @brief Constructor.
+        """@brief Constructor.
 
         @param self This object.
         @param args Namespace of parsed argument values.
@@ -132,7 +132,7 @@ class SubcommandBase:
         self._args = args
 
     def invoke(self) -> int:
-        """! @brief Run the subcommand.
+        """@brief Run the subcommand.
         @return Process status code for the command.
         """
         if self.parser is not None:
@@ -140,11 +140,11 @@ class SubcommandBase:
         return 0
 
     def _get_log_level_delta(self) -> int:
-        """! @brief Compute the logging level delta sum from quiet and verbose counts."""
+        """@brief Compute the logging level delta sum from quiet and verbose counts."""
         return (self._args.quiet * 10) - (self._args.verbose * 10)
 
     def _increase_logging(self, loggers: List[str]) -> None:
-        """! @brief Increase logging level for a set of subloggers.
+        """@brief Increase logging level for a set of subloggers.
         @param self This object.
         @param loggers
         """
@@ -155,7 +155,7 @@ class SubcommandBase:
                 logging.getLogger(logger).setLevel(level)
 
     def _get_pretty_table(self, fields: List[str], header: bool = None) -> prettytable.PrettyTable:
-        """! @brief Returns a PrettyTable object with formatting options set."""
+        """@brief Returns a PrettyTable object with formatting options set."""
         pt = prettytable.PrettyTable(fields)
         pt.align = 'l'
         if header is not None:

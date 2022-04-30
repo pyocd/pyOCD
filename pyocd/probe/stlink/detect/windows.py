@@ -68,7 +68,7 @@ def _is_mbed_volume(volume_string):
 
 
 def _get_cached_mounted_points():
-    """! Get the volumes present on the system
+    """Get the volumes present on the system
     @return List of mount points and their associated target id
       Ex. [{ 'mount_point': 'D:', 'target_id_usb_id': 'xxxx'}, ...]
     """
@@ -193,7 +193,7 @@ def _determine_subdevice_capability(key):
 
 
 def _vid_pid_path_to_usb_info(vid_pid_path):
-    """! Provide the vendor ID and product ID of a device based on its entry in the registry
+    """Provide the vendor ID and product ID of a device based on its entry in the registry
     @return Returns {'vendor_id': '<vendor ID>', 'product': '<product ID>'}
     @details If the vendor ID or product ID can't be determined, they will be returned
     as None.
@@ -216,21 +216,21 @@ def _vid_pid_path_to_usb_info(vid_pid_path):
 
 
 def _iter_keys_as_str(key):
-    """! Iterate over subkeys of a key returning subkey as string
+    """Iterate over subkeys of a key returning subkey as string
     """
     for i in range(winreg.QueryInfoKey(key)[0]):
         yield winreg.EnumKey(key, i)
 
 
 def _iter_keys(key):
-    """! Iterate over subkeys of a key
+    """Iterate over subkeys of a key
     """
     for i in range(winreg.QueryInfoKey(key)[0]):
         yield winreg.OpenKey(key, winreg.EnumKey(key, i))
 
 
 def _iter_vals(key):
-    """! Iterate over values of a key
+    """Iterate over values of a key
     """
     for i in range(winreg.QueryInfoKey(key)[1]):
         yield winreg.EnumValue(key, i)
@@ -482,7 +482,7 @@ class StlinkDetectWindows(StlinkDetectBase):
         return final_candidates
 
     def mount_point_ready(self, path):
-        """! Check if a mount point is ready for file operations
+        """Check if a mount point is ready for file operations
         @return Returns True if the given path exists, False otherwise
         @details Calling the Windows command `dir` instead of using the python
         `os.path.exists`. The latter causes a Python error box to appear claiming

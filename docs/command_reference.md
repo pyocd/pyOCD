@@ -59,9 +59,9 @@ Remove a breakpoint.
 <tr><td>
 <a href="#rmwatch"><tt>rmwatch</tt></a>
 </td><td>
-ADDR
+ADDR [r|w|rw] [1|2|4]
 </td><td>
-Remove a watchpoint.
+Remove watchpoint(s).
 </td></tr>
 
 <tr><td>
@@ -205,6 +205,15 @@ Reset the target, optionally specifying the reset type.
 Unlock security on the target.
 </td></tr>
 
+<tr><td colspan="3"><b>Gdbserver</b></td></tr>
+
+<tr><td>
+<a href="#exit"><tt>exit</tt></a>
+</td><td>
+</td><td>
+Terminate running gdbservers in this session.
+</td></tr>
+
 <tr><td colspan="3"><b>General</b></td></tr>
 
 <tr><td>
@@ -255,7 +264,7 @@ Fill a range of memory with a pattern.
 <tr><td>
 <a href="#find"><tt>find</tt></a>
 </td><td>
-ADDR LEN BYTE+
+[-n] ADDR LEN BYTE+
 </td><td>
 Search for a value in memory within the given address range.
 </td></tr>
@@ -361,25 +370,35 @@ Write 8-bit bytes to memory.
 <tr><td>
 <a href="#init"><tt>init</tt></a>
 </td><td>
-init
 </td><td>
 Ignored; for OpenOCD compatibility.
+</td></tr>
+
+<tr><td colspan="3"><b>Probe</b></td></tr>
+
+<tr><td>
+<a href="#flushprobe"><tt>flushprobe</tt></a>
+</td><td>
+</td><td>
+Ensure all debug probe requests have been completed.
 </td></tr>
 
 <tr><td colspan="3"><b>Registers</b></td></tr>
 
 <tr><td>
-<a href="#reg"><tt>reg</tt></a>
+<a href="#reg"><tt>reg</tt></a>,
+<a href="#reg"><tt>rr</tt></a>
 </td><td>
-[-f] [REG]
+[-p] [-f] [REG...]
 </td><td>
 Print core or peripheral register(s).
 </td></tr>
 
 <tr><td>
-<a href="#wreg"><tt>wreg</tt></a>
+<a href="#wreg"><tt>wreg</tt></a>,
+<a href="#wreg"><tt>wr</tt></a>
 </td><td>
-[-r] REG VALUE
+[-r] [-p] [-f] REG VALUE
 </td><td>
 Set the value of a core or peripheral register.
 </td></tr>
@@ -528,15 +547,16 @@ Print the target object graph.
 </td><td>
 read-write
 </td><td>
-The current HNONSEC value used by the selected MEM-AP.
+The current HNONSEC attribute value used by the selected MEM-AP.
 </td></tr>
 
 <tr><td>
-<a href="#hprot"><tt>hprot</tt></a>
+<a href="#hprot"><tt>hprot</tt></a>,
+<a href="#hprot"><tt>memap_attr</tt></a>
 </td><td>
 read-write
 </td><td>
-The current HPROT value used by the selected MEM-AP.
+The current memory transfer attributes value used by the selected MEM-AP.
 </td></tr>
 
 <tr><td>
@@ -642,45 +662,45 @@ Show current vector catch settings.
 </table>
 
 
-Commands
---------
+Command details
+---------------
 
 ### Breakpoints
 
 ##### `break`
 
-**Usage**: ADDR \
-Set a breakpoint address. 
+**Usage**: break ADDR \
+Set a breakpoint address.
 
 
 ##### `lsbreak`
 
-**Usage**:  \
-List breakpoints. 
+**Usage**: lsbreak  \
+List breakpoints.
 
 
 ##### `lswatch`
 
-**Usage**:  \
-List watchpoints. 
+**Usage**: lswatch  \
+List watchpoints.
 
 
 ##### `rmbreak`
 
-**Usage**: ADDR \
-Remove a breakpoint. 
+**Usage**: rmbreak ADDR \
+Remove a breakpoint.
 
 
 ##### `rmwatch`
 
-**Usage**: ADDR \
-Remove a watchpoint. 
+**Usage**: rmwatch ADDR [r|w|rw] [1|2|4] \
+Remove watchpoint(s). Access type and size are optional. All watchpoints matching the specified parameters will be removed.
 
 
 ##### `watch`
 
-**Usage**: ADDR [r|w|rw] [1|2|4] \
-Set a watchpoint address, and optional access type (default rw) and size (4). 
+**Usage**: watch ADDR [r|w|rw] [1|2|4] \
+Set a watchpoint address, and optional access type (default rw) and size (4).
 
 
 ### Bringup
@@ -688,20 +708,20 @@ These commands are meant to be used when starting up Commander in no-init mode. 
 
 ##### `initdp`
 
-**Usage**:  \
-Init DP and power up debug. 
+**Usage**: initdp  \
+Init DP and power up debug.
 
 
 ##### `makeap`
 
-**Usage**: APSEL \
+**Usage**: makeap APSEL \
 Creates a new AP object for the given APSEL. The type of AP, MEM-AP or generic, is autodetected.
 
 
 ##### `reinit`
 
-**Usage**:  \
-Reinitialize the target object. 
+**Usage**: reinit  \
+Reinitialize the target object.
 
 
 ### Commander
@@ -709,14 +729,14 @@ Reinitialize the target object.
 ##### `exit`
 
 **Aliases**: `quit` \
-**Usage**:  \
-Quit pyocd commander. 
+**Usage**: exit  \
+Quit pyocd commander.
 
 
 ##### `list`
 
-**Usage**:  \
-Show available targets. 
+**Usage**: list  \
+Show available targets.
 
 
 ### Core
@@ -724,28 +744,28 @@ Show available targets.
 ##### `continue`
 
 **Aliases**: `c`, `go`, `g` \
-**Usage**:  \
+**Usage**: continue  \
 Resume execution of the target. The target's state is read back after resuming. If the target is not running, then it's state is reported. For instance, if the target is halted immediately after resuming, a debug event such as a breakpoint most likely occurred.
 
 
 ##### `core`
 
-**Usage**: [NUM] \
-Select CPU core by number or print selected core. 
+**Usage**: core [NUM] \
+Select CPU core by number or print selected core.
 
 
 ##### `halt`
 
 **Aliases**: `h` \
-**Usage**:  \
-Halt the target. 
+**Usage**: halt  \
+Halt the target.
 
 
 ##### `step`
 
 **Aliases**: `s` \
-**Usage**: [COUNT] \
-Step one or more instructions. 
+**Usage**: step [COUNT] \
+Step one or more instructions.
 
 
 ### Dap
@@ -753,43 +773,51 @@ Step one or more instructions.
 ##### `readap`
 
 **Aliases**: `rap` \
-**Usage**: [APSEL] ADDR \
-Read AP register. 
+**Usage**: readap [APSEL] ADDR \
+Read AP register.
 
 
 ##### `readdp`
 
 **Aliases**: `rdp` \
-**Usage**: ADDR \
-Read DP register. 
+**Usage**: readdp ADDR \
+Read DP register.
 
 
 ##### `writeap`
 
 **Aliases**: `wap` \
-**Usage**: [APSEL] ADDR DATA \
-Write AP register. 
+**Usage**: writeap [APSEL] ADDR DATA \
+Write AP register.
 
 
 ##### `writedp`
 
 **Aliases**: `wdp` \
-**Usage**: ADDR DATA \
-Write DP register. 
+**Usage**: writedp ADDR DATA \
+Write DP register.
 
 
 ### Device
 
 ##### `reset`
 
-**Usage**: [halt|-halt|-h] [TYPE] \
+**Usage**: reset [halt|-halt|-h] [TYPE] \
 Reset the target, optionally specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', or 'emulated'.
 
 
 ##### `unlock`
 
-**Usage**:  \
-Unlock security on the target. 
+**Usage**: unlock  \
+Unlock security on the target.
+
+
+### Gdbserver
+
+##### `exit`
+
+**Usage**: exit  \
+Terminate running gdbservers in this session. For the pyocd gdbserver subcommand, terminating gdbservers will cause the process to exit. The effect when the gdbserver(s) are running in a different environment depends on that program. Note that gdb will still believe the connection to be valid after this command completes, so executing the 'disconnect' command is a necessity.
 
 
 ### General
@@ -797,8 +825,8 @@ Unlock security on the target.
 ##### `help`
 
 **Aliases**: `?` \
-**Usage**: [CMD] \
-Show help for commands. 
+**Usage**: help [CMD] \
+Show help for commands.
 
 
 ### Memory
@@ -806,136 +834,146 @@ Show help for commands.
 ##### `compare`
 
 **Aliases**: `cmp` \
-**Usage**: ADDR [LEN] FILENAME \
+**Usage**: compare ADDR [LEN] FILENAME \
 Compare a memory range against a binary file. If the length is not provided, then the length of the file is used.
 
 
 ##### `disasm`
 
 **Aliases**: `d` \
-**Usage**: [-c/--center] ADDR [LEN] \
-Disassemble instructions at an address. Only available if the capstone library is installed. To install capstone, run 'pip install capstone'.
+**Usage**: disasm [-c/--center] ADDR [LEN] \
+Disassemble instructions at an address. The length argument is in bytes and is optional, with a default of 6. If the -c option is used, the disassembly is centered on the given address. Otherwise the disassembly begins at the given address.
 
 
 ##### `erase`
 
-**Usage**: [ADDR] [COUNT] \
-Erase all internal flash or a range of sectors. 
+**Usage**: erase [ADDR] [COUNT] \
+Erase all internal flash or a range of sectors.
 
 
 ##### `fill`
 
-**Usage**: [SIZE] ADDR LEN PATTERN \
+**Usage**: fill [SIZE] ADDR LEN PATTERN \
 Fill a range of memory with a pattern. The optional SIZE parameter must be one of 8, 16, or 32. If not provided, the size is determined by the pattern value's most significant set bit. Only RAM regions may be filled.
 
 
 ##### `find`
 
-**Usage**: ADDR LEN BYTE+ \
-Search for a value in memory within the given address range. A pattern of any number of bytes can be searched for. Each BYTE parameter must be an 8-bit value.
+**Usage**: find [-n] ADDR LEN BYTE+ \
+Search for a value in memory within the given address range. A pattern of any number of bytes can be searched for. Each BYTE parameter must be an 8-bit value. If the -n argument is passed, the search is negated and looks for the first set of bytes that does not match the provided values.
 
 
 ##### `load`
 
-**Usage**: FILENAME [ADDR] \
-Load a binary, hex, or elf file with optional base address. 
+**Usage**: load FILENAME [ADDR] \
+Load a binary, hex, or elf file with optional base address.
 
 
 ##### `loadmem`
 
-**Usage**: ADDR FILENAME \
+**Usage**: loadmem ADDR FILENAME \
 Load a binary file to an address in memory (RAM or flash). This command is deprecated in favour of the more flexible 'load'.
 
 
 ##### `read16`
 
 **Aliases**: `rh` \
-**Usage**: ADDR [LEN] \
+**Usage**: read16 ADDR [LEN] \
 Read 16-bit halfwords. Optional length parameter is the number of bytes (not half-words) to read. It must be divisible by 2. If the length is not provided, one halfword is read. The address may be unaligned.
 
 
 ##### `read32`
 
 **Aliases**: `rw` \
-**Usage**: ADDR [LEN] \
+**Usage**: read32 ADDR [LEN] \
 Read 32-bit words. Optional length parameter is the number of bytes (not words) to read. It must be divisible by 4. If the length is not provided, one word is read. The address may be unaligned.
 
 
 ##### `read64`
 
 **Aliases**: `rd` \
-**Usage**: ADDR [LEN] \
+**Usage**: read64 ADDR [LEN] \
 Read 64-bit words. Optional length parameter is the number of bytes (not double-words!) to read. It must be divisible by 8. If the length is not provided, one word is read. The address may be unaligned.
 
 
 ##### `read8`
 
 **Aliases**: `rb` \
-**Usage**: ADDR [LEN] \
+**Usage**: read8 ADDR [LEN] \
 Read 8-bit bytes. Optional length parameter is the number of bytes to read. If the length is not provided, one byte is read.
 
 
 ##### `savemem`
 
-**Usage**: ADDR LEN FILENAME \
-Save a range of memory to a binary file. 
+**Usage**: savemem ADDR LEN FILENAME \
+Save a range of memory to a binary file.
 
 
 ##### `write16`
 
 **Aliases**: `wh` \
-**Usage**: ADDR DATA+ \
+**Usage**: write16 ADDR DATA+ \
 Write 16-bit halfwords to memory. The data arguments are 16-bit halfwords in big-endian format and are written as little-endian. The address may be unaligned. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
 
 
 ##### `write32`
 
 **Aliases**: `ww` \
-**Usage**: ADDR DATA+ \
+**Usage**: write32 ADDR DATA+ \
 Write 32-bit words to memory. The data arguments are 32-bit words in big-endian format and are written as little-endian. The address may be unaligned. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
 
 
 ##### `write64`
 
 **Aliases**: `wd` \
-**Usage**: ADDR DATA... \
+**Usage**: write64 ADDR DATA... \
 Write 64-bit double-words to memory. The data arguments are 64-bit words in big-endian format and are written as little-endian. The address may be unaligned. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
 
 
 ##### `write8`
 
 **Aliases**: `wb` \
-**Usage**: ADDR DATA+ \
+**Usage**: write8 ADDR DATA+ \
 Write 8-bit bytes to memory. The data arguments are 8-bit bytes. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
 
 
-### Openocd_compatibility
+### Openocd compatibility
 
 ##### `init`
 
-**Usage**: init \
-Ignored; for OpenOCD compatibility. 
+**Usage**: init  \
+Ignored; for OpenOCD compatibility.
+
+
+### Probe
+
+##### `flushprobe`
+
+**Usage**: flushprobe  \
+Ensure all debug probe requests have been completed.
 
 
 ### Registers
 
 ##### `reg`
 
-**Usage**: [-f] [REG] \
-Print core or peripheral register(s). If no arguments are provided, all core registers will be printed. Either a core register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral name is provided without a register, all registers in the peripheral will be printed. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
+**Aliases**: `rr` \
+**Usage**: reg [-p] [-f] [REG...] \
+Print core or peripheral register(s). If no arguments are provided, the 'general' core register group will be printed. Either a core register name, the name of a peripheral, or a peripheral.register can be provided. When a peripheral name is provided without a register, all registers in the peripheral will be printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
 ##### `wreg`
 
-**Usage**: [-r] REG VALUE \
-Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed.
+**Aliases**: `wr` \
+**Usage**: wreg [-r] [-p] [-f] REG VALUE \
+Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
 ### Semihosting
 
 ##### `arm`
 
-**Usage**: semihosting {enable,disable} \
+**Usage**: arm semihosting {enable,disable} \
 Enable or disable semihosting. Provided for compatibility with OpenOCD. The same functionality can be achieved by setting the 'enable_semihosting' session option.
 
 
@@ -943,13 +981,13 @@ Enable or disable semihosting. Provided for compatibility with OpenOCD. The same
 
 ##### `gdbserver`
 
-**Usage**: {start,stop,status} \
+**Usage**: gdbserver {start,stop,status} \
 Control the gdbserver for the selected core. The action argument should be either 'start', 'stop', or 'status'. Use the 'gdbserver_port' and 'telnet_port' session options to control the ports the gdbserver uses.
 
 
 ##### `probeserver`
 
-**Usage**: {start,stop,status} \
+**Usage**: probeserver {start,stop,status} \
 Control the debug probe server. The action argument should be either 'start', 'stop', or 'status. Use the 'probeserver.port' option to control the TCP port the server uses.
 
 
@@ -958,13 +996,13 @@ These commands require an ELF to be set.
 
 ##### `symbol`
 
-**Usage**: NAME \
+**Usage**: symbol NAME \
 Show a symbol's value. An ELF file must have been specified with the --elf option.
 
 
 ##### `where`
 
-**Usage**: [ADDR] \
+**Usage**: where [ADDR] \
 Show symbol, file, and line for address. The symbol name, source file path, and line number are displayed for the specified address. If no address is given then current PC is used. An ELF file must have been specified with the --elf option.
 
 
@@ -973,28 +1011,154 @@ Show symbol, file, and line for address. The symbol name, source file path, and 
 ##### `status`
 
 **Aliases**: `st` \
-**Usage**:  \
-Show the target's current state. 
+**Usage**: status  \
+Show the target's current state.
 
 
 ### Threads
 
 ##### `threads`
 
-**Usage**: {flush,enable,disable,status} \
-Control thread awareness. 
+**Usage**: threads {flush,enable,disable,status} \
+Control thread awareness.
 
 
 ### Values
 
 ##### `set`
 
-**Usage**: NAME VALUE \
-Set a value. 
+**Usage**: set NAME VALUE \
+Set a value.
 
 
 ##### `show`
 
-**Usage**: NAME \
-Display a value. 
+**Usage**: show NAME \
+Display a value.
 
+
+
+Value details
+-------------
+
+##### `aps`
+
+**Access**: read-only \
+**Usage**: show aps \
+List discovered Access Ports.
+
+##### `cores`
+
+**Access**: read-only \
+**Usage**: show cores \
+Information about CPU cores in the target.
+
+##### `fault`
+
+**Access**: read-only \
+**Usage**: show fault \
+Fault status information. By default, only asserted fields are shown. Add -a to command to show all fields.
+
+##### `frequency`
+
+**Access**: write-only \
+**Usage**: set frequency VALUE \
+Set SWD or JTAG clock frequency in Hertz. A case-insensitive metric scale suffix of either 'k' or 'm' is allowed, as well as a trailing "Hz". There must be no space between the frequency and the suffix. For example, "2.5MHz" sets the clock to 2.5 MHz.
+
+##### `graph`
+
+**Access**: read-only \
+**Usage**: show graph \
+Print the target object graph.
+
+##### `hnonsec`
+
+**Access**: read-write \
+**Usage**: show hnonsec, set hnonsec VALUE \
+The current HNONSEC attribute value used by the selected MEM-AP. This value controls whether memory transactions are secure or nonsecure. The value is an integer, either 0 or secure or 1 for nonsecure.
+
+##### `hprot`
+
+**Aliases**: `memap_attr` \
+**Access**: read-write \
+**Usage**: show hprot, set hprot VALUE \
+The current memory transfer attributes value used by the selected MEM-AP. This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
+or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
+For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+Manual for your device's MEM-AP for details.
+
+##### `locked`
+
+**Access**: read-only \
+**Usage**: show locked \
+Report whether the target is locked.
+
+##### `log`
+
+**Access**: write-only \
+**Usage**: set log VALUE \
+Set log level to one of 'debug', 'info', 'warning', 'error', 'critical'. If pyocd module names are provided as arguments after the log level then only those modules will have their log level changed.
+
+##### `map`
+
+**Access**: read-only \
+**Usage**: show map \
+Target memory map.
+
+##### `mem-ap`
+
+**Access**: read-write \
+**Usage**: show mem-ap, set mem-ap VALUE \
+The currently selected MEM-AP used for memory read/write commands. When the selected core is changed by the 'core' command, the selected MEM-AP is changed to match. This overrides a user-selected MEM-AP if different from the AP for the newly selected core.
+
+##### `nreset`
+
+**Access**: read-write \
+**Usage**: show nreset, set nreset VALUE \
+Current nRESET signal state. Accepts a value of 0 or 1.
+
+##### `option`
+
+**Access**: read-write \
+**Usage**: show option, set option VALUE \
+The current value of one or more session options. When setting, each argument should follow the form "NAME[=VALUE]".
+
+##### `peripherals`
+
+**Access**: read-only \
+**Usage**: show peripherals \
+List of target peripheral instances.
+
+##### `probe-uid`
+
+**Aliases**: `uid` \
+**Access**: read-only \
+**Usage**: show probe-uid \
+Target's unique ID.
+
+##### `register-groups`
+
+**Access**: read-only \
+**Usage**: show register-groups \
+Display available register groups for the selected core.
+
+##### `step-into-interrupts`
+
+**Aliases**: `si` \
+**Access**: read-write \
+**Usage**: show step-into-interrupts, set step-into-interrupts VALUE \
+Display whether interrupts are enabled when single stepping. Set to 1 to enable.
+
+##### `target`
+
+**Access**: read-only \
+**Usage**: show target \
+General target information.
+
+##### `vector-catch`
+
+**Aliases**: `vc` \
+**Access**: read-write \
+**Usage**: show vector-catch, set vector-catch VALUE \
+Show current vector catch settings. When setting, the alue is a concatenation of one letter per enabled source in any order, or 'all' or 'none'. (h=hard fault, b=bus fault, m=mem fault, i=irq err, s=state err, c=check err, p=nocp, r=reset, a=all, n=none).

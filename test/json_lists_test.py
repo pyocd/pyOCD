@@ -37,7 +37,7 @@ from random import randrange
 class JsonListsTestResult(TestResult):
     def __init__(self):
         super(JsonListsTestResult, self).__init__(None, None, None)
-        self.name = "json_lsits"
+        self.name = "json_lists"
 
 class JsonListsTest(Test):
     def __init__(self):

@@ -26,10 +26,10 @@ from ..utility.sequencer import CallSequence
 LOG = logging.getLogger(__name__)
 
 class CoreSightDiscovery(object):
-    """! @brief Base class for discovering CoreSight components in a target."""
+    """@brief Base class for discovering CoreSight components in a target."""
 
     def __init__(self, target):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         self._target = target
 
     @property
@@ -45,7 +45,7 @@ class CoreSightDiscovery(object):
         return self.target.session
 
     def discover(self):
-        """! @brief Init task for component discovery.
+        """@brief Init task for component discovery.
         @return CallSequence for the discovery process.
         """
         raise NotImplementedError()
@@ -74,7 +74,7 @@ class CoreSightDiscovery(object):
             ap.rom_table.for_each(action, filter)
 
 class ADIv5Discovery(CoreSightDiscovery):
-    """! @brief Component discovery process for ADIv5.
+    """@brief Component discovery process for ADIv5.
 
     Component discovery for ADIv5 proceeds as follows. Each of the steps is labeled with the name
     of the init task for that step.
@@ -103,7 +103,7 @@ class ADIv5Discovery(CoreSightDiscovery):
             )
 
     def _find_aps(self):
-        """! @brief Find valid APs using the ADIv5 method.
+        """@brief Find valid APs using the ADIv5 method.
 
         Scans for valid APs starting at APSEL=0. The default behaviour is to stop after reading
         0 for the AP's IDR twice in succession. If the `scan_all_aps` session option is set to True,
@@ -143,7 +143,7 @@ class ADIv5Discovery(CoreSightDiscovery):
         self.dp.valid_aps = ap_list
 
     def _create_aps(self):
-        """! @brief Init task that returns a call sequence to create APs.
+        """@brief Init task that returns a call sequence to create APs.
 
         For each AP in the #valid_aps list, an AccessPort object is created. The new objects
         are added to the #aps dict, keyed by their AP number.
@@ -156,7 +156,7 @@ class ADIv5Discovery(CoreSightDiscovery):
         return seq
 
     def _create_1_ap(self, apsel):
-        """! @brief Init task to create a single AP object."""
+        """@brief Init task to create a single AP object."""
         try:
             ap_address = APv1Address(apsel)
             ap = AccessPort.create(self.dp, ap_address)
@@ -166,7 +166,7 @@ class ADIv5Discovery(CoreSightDiscovery):
                 exc_info=self.session.log_tracebacks)
 
     def _find_components(self):
-        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
+        """@brief Init task that generates a call sequence to ask each AP to find its components."""
         seq = CallSequence()
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
             seq.append(
@@ -175,7 +175,7 @@ class ADIv5Discovery(CoreSightDiscovery):
         return seq
 
 class ADIv6Discovery(CoreSightDiscovery):
-    """! @brief Component discovery process for ADIv6.
+    """@brief Component discovery process for ADIv6.
 
     The process for discovering components in ADIv6 proceeds as follows. Each of the steps is
     labeled with the name of the init task for that step.
@@ -193,7 +193,7 @@ class ADIv6Discovery(CoreSightDiscovery):
     """
 
     def __init__(self, target):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         super(ADIv6Discovery, self).__init__(target)
         self._top_rom_table = None
 
@@ -206,7 +206,7 @@ class ADIv6Discovery(CoreSightDiscovery):
             )
 
     def _find_root_components(self):
-        """! @brief Read top-level ROM table pointed to by the DP."""
+        """@brief Read top-level ROM table pointed to by the DP."""
         # There's not much we can do if we don't have a base address.
         if self.dp.base_address is None:
             return
@@ -236,7 +236,7 @@ class ADIv6Discovery(CoreSightDiscovery):
             self._create_root_component(cmpid)
 
     def _create_1_ap(self, cmpid):
-        """! @brief Init task to create a single AP object."""
+        """@brief Init task to create a single AP object."""
         try:
             ap_address = APv2Address(cmpid.address)
             ap = AccessPort.create(self.dp, ap_address, cmpid=cmpid)
@@ -246,7 +246,7 @@ class ADIv6Discovery(CoreSightDiscovery):
                     exc_info=self.session.log_tracebacks)
 
     def _create_root_component(self, cmpid):
-        """! @brief Init task to create a component attached directly to the DP.
+        """@brief Init task to create a component attached directly to the DP.
 
         The newly created component is attached directly to the target instance (i.e.,
         CoreSightTarget or subclass) in the object graph.
@@ -265,7 +265,7 @@ class ADIv6Discovery(CoreSightDiscovery):
                     exc_info=self.session.log_tracebacks)
 
     def _find_components_on_aps(self):
-        """! @brief Init task that generates a call sequence to ask each AP to find its components."""
+        """@brief Init task that generates a call sequence to ask each AP to find its components."""
         seq = CallSequence()
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
             seq.append(

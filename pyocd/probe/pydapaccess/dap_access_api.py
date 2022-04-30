@@ -16,18 +16,18 @@
 
 
 from enum import Enum
-
+from typing import (Tuple, Sequence)
 
 class DAPAccessIntf(object):
 
     class PORT(Enum):
-        """! @brief Physical access ports"""
+        """@brief Physical access ports"""
         DEFAULT = 0
         SWD = 1
         JTAG = 2
 
     class REG(Enum):
-        """! @brief Register for DAP access functions"""
+        """@brief Register for DAP access functions"""
         DP_0x0 = 0
         DP_0x4 = 1
         DP_0x8 = 2
@@ -38,7 +38,7 @@ class DAPAccessIntf(object):
         AP_0xC = 7
 
     class ID(Enum):
-        """! @brief Information ID used for call to identify"""
+        """@brief Information ID used for call to identify"""
         VENDOR = 1
         PRODUCT = 2
         SER_NUM = 3
@@ -57,51 +57,51 @@ class DAPAccessIntf(object):
         MAX_PACKET_SIZE = 0xff
 
     class Error(Exception):
-        """! @brief Parent of all error DAPAccess can raise"""
+        """@brief Parent of all error DAPAccess can raise"""
         pass
 
     class DeviceError(Error):
-        """! @brief Error communicating with device"""
+        """@brief Error communicating with device"""
         pass
 
     class CommandError(DeviceError):
-        """! @brief The host debugger reported failure for the given command"""
+        """@brief The host debugger reported failure for the given command"""
         pass
 
     class TransferError(CommandError):
-        """! @brief Error occurred with a transfer over SWD or JTAG"""
+        """@brief Error occurred with a transfer over SWD or JTAG"""
         pass
 
     class TransferTimeoutError(TransferError):
-        """! @brief A SWD or JTAG timeout occurred"""
+        """@brief A SWD or JTAG timeout occurred"""
         pass
 
     class TransferFaultError(TransferError):
-        """! @brief A SWD Fault occurred"""
+        """@brief A SWD Fault occurred"""
         pass
 
     class TransferProtocolError(TransferError):
-        """! @brief A SWD protocol error occurred"""
+        """@brief A SWD protocol error occurred"""
         pass
 
     @staticmethod
     def get_connected_devices():
-        """! @brief Return a list of DAPAccess devices"""
+        """@brief Return a list of DAPAccess devices"""
         raise NotImplementedError()
 
     @staticmethod
     def get_device(device_id):
-        """! @brief Return the DAPAccess device with the give ID"""
+        """@brief Return the DAPAccess device with the give ID"""
         raise NotImplementedError()
 
     @staticmethod
     def set_args(arg_list):
-        """! @brief Set arguments to configure behavior"""
+        """@brief Set arguments to configure behavior"""
         raise NotImplementedError()
 
     @property
     def protocol_version(self):
-        """! @brief CMSIS-DAP protocol version.
+        """@brief CMSIS-DAP protocol version.
 
         The version is represented as 3-tuple with elements, in order, of major version,
         minor version, and patch version.
@@ -120,12 +120,12 @@ class DAPAccessIntf(object):
 
     @property
     def vidpid(self):
-        """! @brief A tuple of USB VID and PID, in that order."""
+        """@brief A tuple of USB VID and PID, in that order."""
         raise NotImplementedError()
 
     @property
     def has_swd_sequence(self):
-        """! @brief Boolean indicating whether the DAP_SWD_Sequence command is supported.
+        """@brief Boolean indicating whether the DAP_SWD_Sequence command is supported.
 
         This property is only valid after the probe is opened. Until then, the value will be None.
         """
@@ -135,33 +135,33 @@ class DAPAccessIntf(object):
     #          Host control functions
     # ------------------------------------------- #
     def open(self):
-        """! @brief Open device and lock it for exclusive access"""
+        """@brief Open device and lock it for exclusive access"""
         raise NotImplementedError()
 
     def close(self):
-        """! @brief Close device and unlock it"""
+        """@brief Close device and unlock it"""
         raise NotImplementedError()
 
     def get_unique_id(self):
-        """! @brief Get the unique ID of this device which can be used in get_device
+        """@brief Get the unique ID of this device which can be used in get_device
 
         This function is safe to call before open is called.
         """
         raise NotImplementedError()
 
     def identify(self, item):
-        """! @brief Return the requested information for this device"""
+        """@brief Return the requested information for this device"""
         raise NotImplementedError()
 
     # ------------------------------------------- #
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, port=None):
-        """! @brief Initialize DAP IO pins for JTAG or SWD"""
+        """@brief Initialize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
-        """! @brief Modify SWD configuration.
+        """@brief Modify SWD configuration.
 
         @param self
         @param turnaround Number of turnaround phase clocks, from 1-4.
@@ -171,7 +171,7 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     def configure_jtag(self, devices_irlen=None):
-        """! @brief Modify JTAG configuration.
+        """@brief Modify JTAG configuration.
 
         @param self
         @param devices_irlen Sequence of IR lengths for each device, thus also specifying the
@@ -180,7 +180,7 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     def swj_sequence(self, length, bits):
-        """! @brief Send sequence to activate JTAG or SWD on the target.
+        """@brief Send sequence to activate JTAG or SWD on the target.
 
         @param self
         @param length Number of bits to transfer on TCK/TMS.
@@ -188,8 +188,8 @@ class DAPAccessIntf(object):
         """
         raise NotImplementedError()
 
-    def swd_sequence(self, sequences):
-        """! @brief Send a sequences of bits on the SWDIO signal.
+    def swd_sequence(self, sequences) -> Tuple[int, Sequence[bytes]]:
+        """@brief Send a sequences of bits on the SWDIO signal.
 
         This method sends the DAP_SWD_Sequence CMSIS-DAP command.
 
@@ -205,9 +205,10 @@ class DAPAccessIntf(object):
         @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
             sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
         """
+        raise NotImplementedError()
 
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
-        """! @brief Send JTAG sequence.
+        """@brief Send JTAG sequence.
 
         @param self
         @param cycles Number of TCK cycles, from 1-64.
@@ -221,63 +222,63 @@ class DAPAccessIntf(object):
         raise NotImplementedError()
 
     def disconnect(self):
-        """! @brief Deinitialize the DAP I/O pins"""
+        """@brief Deinitialize the DAP I/O pins"""
         raise NotImplementedError()
 
     def set_clock(self, frequency):
-        """! @brief Set the frequency for JTAG and SWD in Hz
+        """@brief Set the frequency for JTAG and SWD in Hz
 
         This function is safe to call before connect is called.
         """
         raise NotImplementedError()
 
     def get_swj_mode(self):
-        """! @brief Return the current port type - SWD or JTAG"""
+        """@brief Return the current port type - SWD or JTAG"""
         raise NotImplementedError()
 
     def reset(self):
-        """! @brief Reset the target"""
+        """@brief Reset the target"""
         raise NotImplementedError()
 
     def assert_reset(self, asserted):
-        """! @brief Assert or de-assert target reset line"""
+        """@brief Assert or de-assert target reset line"""
         raise NotImplementedError()
 
     def is_reset_asserted(self):
-        """! @brief Returns True if the target reset line is asserted or False if de-asserted"""
+        """@brief Returns True if the target reset line is asserted or False if de-asserted"""
         raise NotImplementedError()
 
     def set_deferred_transfer(self, enable):
-        """! @brief Allow reads and writes to be buffered for increased speed"""
+        """@brief Allow reads and writes to be buffered for increased speed"""
         raise NotImplementedError()
 
     def flush(self):
-        """! @brief Write out all unsent commands"""
+        """@brief Write out all unsent commands"""
         raise NotImplementedError()
 
     def vendor(self, index, data=None):
-        """! @brief Send a vendor specific command"""
+        """@brief Send a vendor specific command"""
         raise NotImplementedError()
 
     def has_swo(self):
-        """! @brief Returns bool indicating whether the link supports SWO."""
+        """@brief Returns bool indicating whether the link supports SWO."""
         raise NotImplementedError()
 
     def swo_configure(self, enabled, rate):
-        """! @brief Enable or disable SWO and set the baud rate."""
+        """@brief Enable or disable SWO and set the baud rate."""
         raise NotImplementedError()
 
     def swo_control(self, start):
-        """! @brief Pass True to start recording SWO data, False to stop."""
+        """@brief Pass True to start recording SWO data, False to stop."""
         raise NotImplementedError()
 
     def get_swo_status(self):
-        """! @brief Returns a 2-tuple with a status mask at index 0, and the number of buffered
+        """@brief Returns a 2-tuple with a status mask at index 0, and the number of buffered
         SWO data bytes at index 1."""
         raise NotImplementedError()
 
     def swo_read(self, count=None):
-        """! @brief Read buffered SWO data from the target.
+        """@brief Read buffered SWO data from the target.
 
         The count parameter is optional. If
         provided, it is the number of bytes to read, which must be less than the packet size.
@@ -291,17 +292,17 @@ class DAPAccessIntf(object):
     #          DAP Access functions
     # ------------------------------------------- #
     def write_reg(self, reg_id, value, dap_index=0):
-        """! @brief Write a single word to a DP or AP register"""
+        """@brief Write a single word to a DP or AP register"""
         raise NotImplementedError()
 
     def read_reg(self, reg_id, dap_index=0, now=True):
-        """! @brief Read a single word to a DP or AP register"""
+        """@brief Read a single word to a DP or AP register"""
         raise NotImplementedError()
 
     def reg_write_repeat(self, num_repeats, reg_id, data_array, dap_index=0):
-        """! @brief Write one or more words to the same DP or AP register"""
+        """@brief Write one or more words to the same DP or AP register"""
         raise NotImplementedError()
 
     def reg_read_repeat(self, num_repeats, reg_id, dap_index=0, now=True):
-        """! @brief Read one or more words from the same DP or AP register"""
+        """@brief Read one or more words from the same DP or AP register"""
         raise NotImplementedError()

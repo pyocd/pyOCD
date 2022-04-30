@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2017 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,48 +15,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 from ...core.target import Target
 
-class Breakpoint(object):
+class Breakpoint:
     def __init__(self, provider):
-        self.type = Target.BreakpointType.HW
-        self.enabled = False
-        self.addr = 0
-        self.original_instr = 0
-        self.provider = provider
+        self.type: Target.BreakpointType = Target.BreakpointType.HW
+        self.enabled: bool = False
+        self.addr: int = 0
+        self.original_instr: int = 0
+        self.provider: BreakpointProvider = provider
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s@0x%08x type=%s addr=0x%08x>" % (self.__class__.__name__, id(self), self.type.name, self.addr)
 
-class BreakpointProvider(object):
-    """! @brief Abstract base class for breakpoint providers."""
-    def init(self):
+class BreakpointProvider:
+    """@brief Abstract base class for breakpoint providers."""
+    def init(self) -> None:
         raise NotImplementedError()
 
-    def bp_type(self):
-        return 0
+    @property
+    def bp_type(self) -> Target.BreakpointType:
+        raise NotImplementedError()
 
     @property
-    def do_filter_memory(self):
+    def do_filter_memory(self) -> bool:
         return False
 
     @property
-    def available_breakpoints(self):
+    def available_breakpoints(self) -> int:
         raise NotImplementedError()
 
-    def find_breakpoint(self, addr):
+    def can_support_address(self, addr: int) -> bool:
         raise NotImplementedError()
 
-    def set_breakpoint(self, addr):
+    def find_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         raise NotImplementedError()
 
-    def remove_breakpoint(self, bp):
+    def set_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         raise NotImplementedError()
 
-    def filter_memory(self, addr, size, data):
+    def remove_breakpoint(self, bp: Breakpoint) -> None:
+        raise NotImplementedError()
+
+    def filter_memory(self, addr: int, size: int, data: int) -> int:
         return data
 
-    def flush(self):
+    def flush(self) -> None:
         pass
 
 

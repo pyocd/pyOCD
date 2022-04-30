@@ -68,7 +68,7 @@ class TargetList(object):
                 is_valid = False
 
 class ArgonThreadContext(DebugContext):
-    """! @brief Thread context for Argon."""
+    """@brief Thread context for Argon."""
 
     # SP is handled specially, so it is not in these dicts.
 
@@ -225,7 +225,7 @@ class ArgonThreadContext(DebugContext):
         return reg_vals
 
 class ArgonThread(TargetThread):
-    """! @brief Base class representing a thread on the target."""
+    """@brief Base class representing a thread on the target."""
 
     UNKNOWN = 0
     SUSPENDED = 1
@@ -329,7 +329,7 @@ class ArgonThread(TargetThread):
         return str(self)
 
 class ArgonThreadProvider(ThreadProvider):
-    """! @brief Base class for RTOS support plugins."""
+    """@brief Base class for RTOS support plugins."""
 
     def __init__(self, target):
         super(ArgonThreadProvider, self).__init__(target)
@@ -444,7 +444,7 @@ class ArgonThreadProvider(ThreadProvider):
         return (flags & IS_RUNNING_MASK) != 0
 
 class ArgonTraceEvent(events.TraceEvent):
-    """! @brief Argon kernel trace event."""
+    """@brief Argon kernel trace event."""
 
     kArTraceThreadSwitch = 1 # 2 value: 0=previous thread's new state, 1=new thread id
     kArTraceThreadCreated = 2 # 1 value
@@ -486,7 +486,7 @@ class ArgonTraceEvent(events.TraceEvent):
         return "[{}] Argon: {}".format(self.timestamp, desc)
 
 class ArgonTraceEventFilter(TraceEventFilter):
-    """! @brief Trace event filter to identify Argon kernel trace events sent via ITM.
+    """@brief Trace event filter to identify Argon kernel trace events sent via ITM.
 
     As Argon kernel trace events are identified, the ITM trace events are replaced with instances
     of ArgonTraceEvent.
@@ -521,7 +521,7 @@ class ArgonTraceEventFilter(TraceEventFilter):
         return event
 
 class ArgonPlugin(Plugin):
-    """! @brief Plugin class for the Argon RTOS."""
+    """@brief Plugin class for the Argon RTOS."""
 
     def load(self):
         return ArgonThreadProvider

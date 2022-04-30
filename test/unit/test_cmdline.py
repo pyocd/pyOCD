@@ -50,12 +50,23 @@ class TestSplitCommandLine(object):
         (r'\h\e\l\l\o', ['hello']),
         (r'"\"hello\""', ['"hello"']),
         ('x "a\\"b" y', ['x', 'a"b', 'y']),
-        ('hello"there"', ['hellothere']),
+        ('hello"there"', ['hello', 'there']),
         (r"'raw\string'", [r'raw\string']),
-        ('"foo said \\"hi\\"" and \'C:\\baz\'', ['foo said "hi"', 'and', 'C:\\baz'])
+        ('"foo said \\"hi\\"" and \'C:\\baz\'', ['foo said "hi"', 'and', 'C:\\baz']),
+        ("foo;bar", ["foo", ";", "bar"]),
         ])
     def test_em(self, input, result):
         assert split_command_line(input) == result
+
+    # ;!@#$%^&*()+=[]{}|<>,?
+    @pytest.mark.parametrize("sep",
+        list(c for c in ';!@#$%^&*()+=[]{}|<>,?')
+        )
+    def test_word_separators(self, sep):
+        assert split_command_line(f"foo{sep}bar") == ["foo", sep, "bar"]
+        assert split_command_line(f"foo{sep} bar") == ["foo", sep, "bar"]
+        assert split_command_line(f"foo {sep}bar") == ["foo", sep, "bar"]
+        assert split_command_line(f"foo {sep} bar") == ["foo", sep, "bar"]
 
 class TestConvertVectorCatch(object):
     def test_none_str(self):
@@ -85,7 +96,10 @@ class TestConvertSessionOptions(object):
         assert convert_session_options([]) == {}
 
     def test_unknown_option(self):
+        # No value.
         assert convert_session_options(['dumkopf']) == {}
+        # With a value
+        assert convert_session_options(['dumkopf=123']) == {'dumkopf': "123"}
 
     def test_bool(self):
         assert convert_session_options(['auto_unlock']) == {'auto_unlock': True}
@@ -96,7 +110,11 @@ class TestConvertSessionOptions(object):
         assert convert_session_options(['auto_unlock=on']) == {'auto_unlock': True}
         assert convert_session_options(['auto_unlock=0']) == {'auto_unlock': False}
         assert convert_session_options(['auto_unlock=false']) == {'auto_unlock': False}
-        assert convert_session_options(['auto_unlock=anything-goes-here']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=True']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=False']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=YES']) == {'auto_unlock': True}
+        assert convert_session_options(['auto_unlock=oFF']) == {'auto_unlock': False}
+        assert convert_session_options(['auto_unlock=anything-goes-here']) == {}
 
     def test_noncasesense(self):
         # Test separate paths for with and without a value.

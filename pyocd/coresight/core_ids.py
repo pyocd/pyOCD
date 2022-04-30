@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +16,13 @@
 # limitations under the License.
 
 from enum import Enum
+from typing import (Dict, Tuple)
 
 # pylint: disable=invalid_name
+
+# CPUID IMPLEMENTER values
+CPUID_ARM = 0x41
+CPUID_ARM_CHINA = 0x63
 
 # CPUID PARTNO values
 ARM_SC000 = 0xC30
@@ -31,34 +37,38 @@ ARM_CortexM23 = 0xD20
 ARM_CortexM33 = 0xD21
 ARM_CortexM35P = 0xD31
 ARM_CortexM55 = 0xD22
+ARM_CortexM85 = 0xD23
+ARM_China_StarMC1 = 0x132
 
 # pylint: enable=invalid_name
 
 ## @brief User-friendly names for core types.
-CORE_TYPE_NAME = {
-                 ARM_SC000 : "SecurCore SC000",
-                 ARM_SC300 : "SecurCore SC300",
-                 ARM_CortexM0 : "Cortex-M0",
-                 ARM_CortexM1 : "Cortex-M1",
-                 ARM_CortexM3 : "Cortex-M3",
-                 ARM_CortexM4 : "Cortex-M4",
-                 ARM_CortexM7 : "Cortex-M7",
-                 ARM_CortexM0p : "Cortex-M0+",
-                 ARM_CortexM23 : "Cortex-M23",
-                 ARM_CortexM33 : "Cortex-M33",
-                 ARM_CortexM35P : "Cortex-M35P",
-                 ARM_CortexM55 : "Cortex-M55",
-               }
+CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
+        (CPUID_ARM,        ARM_SC000):         "SecurCore SC000",
+        (CPUID_ARM,        ARM_SC300):         "SecurCore SC300",
+        (CPUID_ARM,        ARM_CortexM0):      "Cortex-M0",
+        (CPUID_ARM,        ARM_CortexM1):      "Cortex-M1",
+        (CPUID_ARM,        ARM_CortexM3):      "Cortex-M3",
+        (CPUID_ARM,        ARM_CortexM4):      "Cortex-M4",
+        (CPUID_ARM,        ARM_CortexM7):      "Cortex-M7",
+        (CPUID_ARM,        ARM_CortexM0p):     "Cortex-M0+",
+        (CPUID_ARM,        ARM_CortexM23):     "Cortex-M23",
+        (CPUID_ARM,        ARM_CortexM33):     "Cortex-M33",
+        (CPUID_ARM,        ARM_CortexM35P):    "Cortex-M35P",
+        (CPUID_ARM,        ARM_CortexM55):     "Cortex-M55",
+        (CPUID_ARM,        ARM_CortexM85):     "Cortex-M85",
+        (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
+    }
 
 class CoreArchitecture(Enum):
-    """! @brief CPU architectures."""
+    """@brief CPU architectures."""
     ARMv6M = 1
     ARMv7M = 2
     ARMv8M_BASE = 3
     ARMv8M_MAIN = 4
 
 class CortexMExtension(Enum):
-    """! @brief Extensions for the Cortex-M architecture."""
+    """@brief Extensions for the Cortex-M architecture."""
     FPU = "FPU" # Single-Precision floating point
     DSP = "DSP" # Digital Signal Processing instructions
     FPU_DP = "FPU_DP" # Double-Precision floating point
@@ -76,3 +86,4 @@ class CortexMExtension(Enum):
     MPU = "MPU" # Memory Protection Unit
     DIT = "DIT" # Data-Independent Timing
     FPCXT = "FPCXT" # Floating Point Context
+    PACBTI = "PACBTI" # Pointer Authentication and Branch Target Identification

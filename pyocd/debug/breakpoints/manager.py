@@ -17,18 +17,24 @@
 
 import logging
 from copy import copy
+from typing import (Dict, List, TYPE_CHECKING, Iterable, MutableSequence, Optional, Sequence, Tuple)
 
 from .provider import Breakpoint
 from ...core.target import Target
 
+if TYPE_CHECKING:
+    from .provider import BreakpointProvider
+    from ...core.core_target import CoreTarget
+    from ...utility.notification import Notification
+
 LOG = logging.getLogger(__name__)
 
 class UnrealizedBreakpoint(Breakpoint):
-    """! @brief Breakpoint class used until a breakpoint's type is decided."""
+    """@brief Breakpoint class used until a breakpoint's type is decided."""
     pass
 
-class BreakpointManager(object):
-    """! @brief Manages all breakpoints for one core.
+class BreakpointManager:
+    """@brief Manages all breakpoints for one core.
 
     The most important function of the breakpoint manager is to decide which breakpoint provider
     to use when a breakpoint is added. The caller can request a particular breakpoint type, but
@@ -45,33 +51,33 @@ class BreakpointManager(object):
     ## Number of hardware breakpoints to try to keep available.
     MIN_HW_BREAKPOINTS = 0
 
-    def __init__(self, core):
-        self._breakpoints = {}
-        self._updated_breakpoints = {}
+    def __init__(self, core: "CoreTarget") -> None:
+        self._breakpoints: Dict[int, Breakpoint] = {}
+        self._updated_breakpoints: Dict[int, Breakpoint] = {}
         self._session = core.session
         self._core = core
-        self._fpb = None
-        self._providers = {}
-        self._ignore_notifications = False
+        self._fpb: Optional["BreakpointProvider"] = None
+        self._providers: Dict[Target.BreakpointType, "BreakpointProvider"] = {}
+        self._ignore_notifications: bool = False
 
         # Subscribe to some notifications.
         self._session.subscribe(self._pre_run_handler, Target.Event.PRE_RUN)
         self._session.subscribe(self._pre_disconnect_handler, Target.Event.PRE_DISCONNECT)
 
-    def add_provider(self, provider):
+    def add_provider(self, provider: "BreakpointProvider") -> None:
         self._providers[provider.bp_type] = provider
         if provider.bp_type == Target.BreakpointType.HW:
             self._fpb = provider
 
-    def get_breakpoints(self):
-        """! @brief Return a list of all breakpoint addresses."""
+    def get_breakpoints(self) -> Iterable[int]:
+        """@brief Return a list of all breakpoint addresses."""
         return self._breakpoints.keys()
 
-    def find_breakpoint(self, addr):
+    def find_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         return self._updated_breakpoints.get(addr, None)
 
     def set_breakpoint(self, addr, type=Target.BreakpointType.AUTO):
-        """! @brief Set a hardware or software breakpoint at a specific location in memory.
+        """@brief Set a hardware or software breakpoint at a specific location in memory.
 
         @retval True Breakpoint was set.
         @retval False Breakpoint could not be set.
@@ -103,8 +109,8 @@ class BreakpointManager(object):
         self._updated_breakpoints[addr] = bp
         return True
 
-    def _check_added_breakpoint(self, bp):
-        """! @brief Check whether a new breakpoint is likely to actually be added when we flush.
+    def _check_added_breakpoint(self, bp: Breakpoint) -> bool:
+        """@brief Check whether a new breakpoint is likely to actually be added when we flush.
 
         First, software breakpoints are assumed to always be addable. For hardware breakpoints,
         the current free hardware breakpoint count is updated based on the current set of to-be
@@ -133,8 +139,8 @@ class BreakpointManager(object):
 
         return free_hw_bp_count > self.MIN_HW_BREAKPOINTS
 
-    def remove_breakpoint(self, addr):
-        """! @brief Remove a breakpoint at a specific location."""
+    def remove_breakpoint(self, addr: int) -> None:
+        """@brief Remove a breakpoint at a specific location."""
         try:
             LOG.debug("remove bkpt at 0x%x", addr)
 
@@ -146,8 +152,8 @@ class BreakpointManager(object):
         except KeyError:
             LOG.debug("Tried to remove breakpoint 0x%08x that wasn't set" % addr)
 
-    def _get_updated_breakpoints(self):
-        """! @brief Compute added and removed breakpoints since last flush.
+    def _get_updated_breakpoints(self) -> Tuple[List[Breakpoint], List[Breakpoint]]:
+        """@brief Compute added and removed breakpoints since last flush.
         @return Bi-tuple of (added breakpoint list, removed breakpoint list).
         """
         added = []
@@ -166,7 +172,7 @@ class BreakpointManager(object):
         # Return the list of pages to update.
         return added, removed
 
-    def _select_breakpoint_type(self, bp, allow_all_hw_bps):
+    def _select_breakpoint_type(self, bp: Breakpoint, allow_all_hw_bps: bool) -> Optional[Target.BreakpointType]:
         type = bp.type
 
         # Look up the memory type for the requested address.
@@ -223,7 +229,7 @@ class BreakpointManager(object):
         LOG.debug("selected bkpt type %s for addr 0x%x", type.name, bp.addr)
         return type
 
-    def flush(self, is_step=False):
+    def flush(self, is_step: bool = False) -> None:
         try:
             # Ignore any notifications while we modify breakpoints.
             self._ignore_notifications = True
@@ -267,45 +273,45 @@ class BreakpointManager(object):
         finally:
             self._ignore_notifications = False
 
-    def get_breakpoint_type(self, addr):
+    def get_breakpoint_type(self, addr: int) -> Optional[Target.BreakpointType]:
         bp = self.find_breakpoint(addr)
         return bp.type if (bp is not None) else None
 
-    def filter_memory(self, addr, size, data):
+    def filter_memory(self, addr: int, size: int, data: int) -> int:
         for provider in [p for p in self._providers.values() if p.do_filter_memory]:
             data = provider.filter_memory(addr, size, data)
         return data
 
-    def filter_memory_unaligned_8(self, addr, size, data):
+    def filter_memory_unaligned_8(self, addr: int, size: int, data: MutableSequence[int]) -> Sequence[int]:
         for provider in [p for p in self._providers.values() if p.do_filter_memory]:
             for i, d in enumerate(data):
                 data[i] = provider.filter_memory(addr + i, 8, d)
         return data
 
-    def filter_memory_aligned_32(self, addr, size, data):
+    def filter_memory_aligned_32(self, addr: int, size: int, data: MutableSequence[int]) -> Sequence[int]:
         for provider in [p for p in self._providers.values() if p.do_filter_memory]:
             for i, d in enumerate(data):
                 data[i] = provider.filter_memory(addr + i, 32, d)
         return data
 
-    def remove_all_breakpoints(self):
-        """! @brief Remove all breakpoints immediately."""
+    def remove_all_breakpoints(self) -> None:
+        """@brief Remove all breakpoints immediately."""
         for bp in self._breakpoints.values():
             bp.provider.remove_breakpoint(bp)
         self._breakpoints = {}
         self._flush_all()
 
-    def _flush_all(self):
+    def _flush_all(self) -> None:
         # Flush all providers.
         for provider in self._providers.values():
             provider.flush()
 
-    def _pre_run_handler(self, notification):
+    def _pre_run_handler(self, notification: "Notification") -> None:
         if not self._ignore_notifications:
             is_step = notification.data == Target.RunType.STEP
             self.flush(is_step)
 
-    def _pre_disconnect_handler(self, notification):
+    def _pre_disconnect_handler(self, notification: "Notification") -> None:
         pass
 
 

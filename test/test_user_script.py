@@ -1,9 +1,21 @@
 # Test user script.
-#
+
+@command(help="test command")
+def testcmd(f: float, i: int, s: str):
+    assert isinstance(f, float)
+    assert isinstance(i, int)
+    assert isinstance(s, str)
+
+@command("anothertestcmd", help="second test command")
+def testcmd2(*args):
+    assert isinstance(args, tuple)
+    assert all(isinstance(s, str) for s in args)
+
+
 # Provides stub implementations of all hooks.
 
 def will_connect(board):
-    """! @brief Pre-init hook for the board.
+    """@brief Pre-init hook for the board.
     @param self
     @param board A Board instance that is about to be initialized.
     @return Ignored.
@@ -11,7 +23,7 @@ def will_connect(board):
     pass
 
 def did_connect(board):
-    """! @brief Post-initialization hook for the board.
+    """@brief Post-initialization hook for the board.
     @param self
     @param board A Board instance.
     @return Ignored.
@@ -19,7 +31,7 @@ def did_connect(board):
     pass
 
 def will_init_target(target, init_sequence):
-    """! @brief Hook to review and modify init call sequence prior to execution.
+    """@brief Hook to review and modify init call sequence prior to execution.
     @param self
     @param target A CoreSightTarget object about to be initialized.
     @param init_sequence The CallSequence that will be invoked. Because call sequences are
@@ -29,7 +41,7 @@ def will_init_target(target, init_sequence):
     pass
 
 def did_init_target(target):
-    """! @brief Post-initialization hook.
+    """@brief Post-initialization hook.
     @param self
     @param target A CoreSightTarget.
     @return Ignored.
@@ -37,7 +49,7 @@ def did_init_target(target):
     pass
 
 def will_start_debug_core(core):
-    """! @brief Hook to enable debug for the given core.
+    """@brief Hook to enable debug for the given core.
     @param self
     @param core A CortexM object about to be initialized.
     @retval True Do not perform the normal procedure to start core debug.
@@ -46,7 +58,7 @@ def will_start_debug_core(core):
     pass
 
 def did_start_debug_core(core):
-    """! @brief Post-initialization hook.
+    """@brief Post-initialization hook.
     @param self
     @param core A CortexM object.
     @return Ignored.
@@ -54,7 +66,7 @@ def did_start_debug_core(core):
     pass
 
 def will_stop_debug_core(core):
-    """! @brief Pre-cleanup hook for the core.
+    """@brief Pre-cleanup hook for the core.
     @param self
     @param core A CortexM object.
     @retval True Do not perform the normal procedure to disable core debug.
@@ -63,7 +75,7 @@ def will_stop_debug_core(core):
     pass
 
 def did_stop_debug_core(core):
-    """! @brief Post-cleanup hook for the core.
+    """@brief Post-cleanup hook for the core.
     @param self
     @param core A CortexM object.
     @return Ignored.
@@ -71,7 +83,7 @@ def did_stop_debug_core(core):
     pass
 
 def will_disconnect(target, resume):
-    """! @brief Pre-disconnect hook.
+    """@brief Pre-disconnect hook.
     @param self
     @param target Either a CoreSightTarget or CortexM object.
     @param resume The value of the `disconnect_on_resume` option.
@@ -80,7 +92,7 @@ def will_disconnect(target, resume):
     pass
 
 def did_disconnect(target, resume):
-    """! @brief Post-disconnect hook.
+    """@brief Post-disconnect hook.
     @param self
     @param target Either a CoreSightTarget or CortexM object.
     @param resume The value of the `disconnect_on_resume` option.
@@ -88,7 +100,7 @@ def did_disconnect(target, resume):
     pass
 
 def will_reset(core, reset_type):
-    """! @brief Pre-reset hook.
+    """@brief Pre-reset hook.
     @param self
     @param core A CortexM instance.
     @param reset_type One of the Target.ResetType enumerations.
@@ -98,7 +110,7 @@ def will_reset(core, reset_type):
     pass
 
 def did_reset(core, reset_type):
-    """! @brief Post-reset hook.
+    """@brief Post-reset hook.
     @param self
     @param core A CortexM instance.
     @param reset_type One of the Target.ResetType enumerations.
@@ -107,7 +119,7 @@ def did_reset(core, reset_type):
     pass
 
 def set_reset_catch(core, reset_type):
-    """! @brief Hook to prepare target for halting on reset.
+    """@brief Hook to prepare target for halting on reset.
     @param self
     @param core A CortexM instance.
     @param reset_type One of the Target.ResetType enumerations.
@@ -117,7 +129,7 @@ def set_reset_catch(core, reset_type):
     pass
 
 def clear_reset_catch(core, reset_type):
-    """! @brief Hook to clean up target after a reset and halt.
+    """@brief Hook to clean up target after a reset and halt.
     @param self
     @param core A CortexM instance.
     @param reset_type
@@ -126,7 +138,7 @@ def clear_reset_catch(core, reset_type):
     pass
 
 def mass_erase(target):
-    """! @brief Hook to override mass erase.
+    """@brief Hook to override mass erase.
     @param self
     @param target A CoreSightTarget object.
     @retval True Indicate that mass erase was performed by the hook.
@@ -136,7 +148,7 @@ def mass_erase(target):
     pass
 
 def trace_start(target, mode):
-    """! @brief Hook to prepare for tracing the target.
+    """@brief Hook to prepare for tracing the target.
     @param self
     @param target A CoreSightTarget object.
     @param mode The trace mode. Currently always 0 to indicate SWO.
@@ -145,7 +157,7 @@ def trace_start(target, mode):
     pass
 
 def trace_stop(target, mode):
-    """! @brief Hook to clean up after tracing the target.
+    """@brief Hook to clean up after tracing the target.
     @param self
     @param target A CoreSightTarget object.
     @param mode The trace mode. Currently always 0 to indicate SWO.

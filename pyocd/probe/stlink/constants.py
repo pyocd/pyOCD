@@ -16,7 +16,7 @@
 # limitations under the License.
 
 class Commands:
-    """!
+    """
     @brief STLink V2 and V3 commands.
     """
 
@@ -90,7 +90,7 @@ class Commands:
     JTAG_STLINK_JTAG_COM = 0x01
 
 class Status:
-    """!
+    """
     @brief STLink status codes and messages.
     """
     # Status codes.
@@ -120,7 +120,9 @@ class Status:
     SWD_AP_WDATA_ERROR = 0x18
     SWD_AP_STICKY_ERROR = 0x19
     SWD_AP_STICKYORUN_ERROR = 0x1a
+    BAD_AP = 0x1d
     SWV_NOT_AVAILABLE = 0x20
+    JTAG_CONF_CHANGED = 0x40
     JTAG_FREQ_NOT_SUPPORTED = 0x41
     JTAG_UNKNOWN_CMD = 0x42
 
@@ -151,13 +153,15 @@ class Status:
         SWD_AP_WDATA_ERROR : "AP WDATA error",
         SWD_AP_STICKY_ERROR : "AP sticky error",
         SWD_AP_STICKYORUN_ERROR : "AP sticky overrun error",
+        BAD_AP : "Bad AP",
         SWV_NOT_AVAILABLE : "SWV not available",
+        JTAG_CONF_CHANGED : "Configuration changed",
         JTAG_FREQ_NOT_SUPPORTED : "Frequency not supported",
         JTAG_UNKNOWN_CMD : "Unknown command",
     }
 
     @staticmethod
-    def get_error_message(status):
+    def get_error_message(status: int) -> str:
         return "STLink error ({}): {}".format(status, Status.MESSAGES.get(status, "Unknown error"))
 
 ## Map from SWD frequency in Hertz to delay loop count.

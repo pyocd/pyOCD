@@ -63,7 +63,7 @@ class MAX32630(CoreSightTarget):
 
     MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0,           length=0x200000,  blocksize=0x2000, is_boot_memory=True, algo=FLASH_ALGO),
-        RamRegion(      start=0x20000000,  length=0x40000),
+        RamRegion(      start=0x20000000,  length=0x80000),
         )
 
     def __init__(self, session):

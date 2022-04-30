@@ -17,26 +17,29 @@
 
 import logging
 from functools import partial
-from collections import namedtuple
+from typing import (Any, Callable, Dict, List, Mapping, NamedTuple, Optional)
 
 from .options import OPTIONS_INFO
 from ..utility.notification import Notifier
 
 LOG = logging.getLogger(__name__)
 
-## @brief Data for an option value change notification.
-#
-# Instances of this class are used for the data attribute of the @ref
-# pyocd.utility.notification.Notification "Notification" sent to subscribers when an option's value
-# is changed.
-#
-# An instance of this class has two attributes:
-# - `new_value`: The new, current value of the option.
-# - `old_value`: The previous value of the option.
-OptionChangeInfo = namedtuple('OptionChangeInfo', 'new_value old_value')
+class OptionChangeInfo(NamedTuple):
+    """@brief Data for an option value change notification.
+
+    Instances of this class are used for the data attribute of the @ref
+    pyocd.utility.notification.Notification "Notification" sent to subscribers when an option's value
+    is changed.
+
+    An instance of this class has two attributes:
+    - `new_value`: The new, current value of the option.
+    - `old_value`: The previous value of the option.
+    """
+    new_value: Any
+    old_value: Any
 
 class OptionsManager(Notifier):
-    """! @brief Handles session option management for a session.
+    """@brief Handles session option management for a session.
 
     The options manager supports multiple layers of option priority. When an option's value is
     accessed, the highest priority layer that contains a value for the option is used. This design
@@ -50,14 +53,18 @@ class OptionsManager(Notifier):
     old value is the option's default.
     """
 
-    def __init__(self):
-        """! @brief Option manager constructor.
+    LayerType = Mapping[str, Any]
+
+    _layers: List[Dict[str, Any]]
+
+    def __init__(self) -> None:
+        """@brief Option manager constructor.
         """
-        super(OptionsManager, self).__init__()
+        super().__init__()
         self._layers = []
 
-    def _update_layers(self, new_options, update_operation):
-        """! @brief Internal method to add a new layer dictionary.
+    def _update_layers(self, new_options: Optional[LayerType], update_operation: Callable[[LayerType], None]) -> None:
+        """@brief Internal method to add a new layer dictionary.
 
         @param self
         @param new_options Dictionary of option values.
@@ -72,24 +79,24 @@ class OptionsManager(Notifier):
         new_values = {name: self.get(name) for name in filtered_options.keys()}
         self._notify_changes(previous_values, new_values)
 
-    def add_front(self, new_options):
-        """! @brief Add a new highest priority layer of option values.
+    def add_front(self, new_options: Optional[LayerType]) -> None:
+        """@brief Add a new highest priority layer of option values.
 
         @param self
         @param new_options Dictionary of option values.
         """
         self._update_layers(new_options, partial(self._layers.insert, 0))
 
-    def add_back(self, new_options):
-        """! @brief Add a new lowest priority layer of option values.
+    def add_back(self, new_options: Optional[LayerType]) -> None:
+        """@brief Add a new lowest priority layer of option values.
 
         @param self
         @param new_options Dictionary of option values.
         """
         self._update_layers(new_options, self._layers.append)
 
-    def _convert_options(self, new_options):
-        """! @brief Prepare a dictionary of session options for use by the manager.
+    def _convert_options(self, new_options: LayerType) -> LayerType:
+        """@brief Prepare a dictionary of session options for use by the manager.
 
         1. Strip dictionary entries with a value of None.
         2. Replace double-underscores ("__") with a dot (".").
@@ -104,8 +111,8 @@ class OptionsManager(Notifier):
                 output[name] = value
         return output
 
-    def is_set(self, key):
-        """! @brief Return whether a value is set for the specified option.
+    def is_set(self, key: str) -> bool:
+        """@brief Return whether a value is set for the specified option.
 
         This method returns True as long as any layer has a value set for the option, even if the
         value is the same as the default value. If the option is not set in any layer, then False is
@@ -116,46 +123,46 @@ class OptionsManager(Notifier):
                 return True
         return False
 
-    def get_default(self, key):
-        """! @brief Return the default value for the specified option."""
+    def get_default(self, key: str) -> Any:
+        """@brief Return the default value for the specified option."""
         if key in OPTIONS_INFO:
             return OPTIONS_INFO[key].default
         else:
             return None
 
-    def get(self, key):
-        """! @brief Return the highest priority value for the option, or its default."""
+    def get(self, key: str) -> Any:
+        """@brief Return the highest priority value for the option, or its default."""
         for layer in self._layers:
             if key in layer:
                 return layer[key]
         return self.get_default(key)
 
-    def set(self, key, value):
-        """! @brief Set an option in the current highest priority layer."""
+    def set(self, key: str, value: Any) -> None:
+        """@brief Set an option in the current highest priority layer."""
         self.update({key: value})
 
-    def update(self, new_options):
-        """! @brief Set multiple options in the current highest priority layer."""
+    def update(self, new_options: LayerType) -> None:
+        """@brief Set multiple options in the current highest priority layer."""
         filtered_options = self._convert_options(new_options)
         previous_values = {name: self.get(name) for name in filtered_options.keys()}
         self._layers[0].update(filtered_options)
         self._notify_changes(previous_values, filtered_options)
 
-    def _notify_changes(self, previous, options):
-        """! @brief Send notifications that the specified options have changed."""
+    def _notify_changes(self, previous: LayerType, options: LayerType) -> None:
+        """@brief Send notifications that the specified options have changed."""
         for name, new_value in options.items():
             previous_value = previous[name]
             if new_value != previous_value:
                 self.notify(name, data=OptionChangeInfo(new_value, previous_value))
 
-    def __contains__(self, key):
-        """! @brief Returns whether the named option has a non-default value."""
+    def __contains__(self, key: str) -> bool:
+        """@brief Returns whether the named option has a non-default value."""
         return self.is_set(key)
 
-    def __getitem__(self, key):
-        """! @brief Return the highest priority value for the option, or its default."""
+    def __getitem__(self, key: str) -> Any:
+        """@brief Return the highest priority value for the option, or its default."""
         return self.get(key)
 
-    def __setitem__(self, key, value):
-        """! @brief Set an option in the current highest priority layer."""
+    def __setitem__(self, key: str, value: Any) -> None:
+        """@brief Set an option in the current highest priority layer."""
         self.set(key, value)

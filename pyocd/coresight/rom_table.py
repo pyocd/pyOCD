@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021 Jacob Berg Potter
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +22,7 @@ from time import sleep
 from ..core import exceptions
 from .component import CoreSightComponent
 from .gpr import GPR
-from .component_ids import COMPONENT_MAP
+from .component_ids import (COMPONENT_MAP, VENDOR_NAMES_MAP)
 from ..utility.conversion import pairwise
 from ..utility.mask import (bit_invert, align_down)
 from ..utility.timeout import Timeout
@@ -29,17 +30,14 @@ from ..utility.timeout import Timeout
 LOG = logging.getLogger(__name__)
 
 class CoreSightComponentID(object):
-    """! @brief Reads and parses CoreSight architectural component ID registers.
+    """@brief Reads and parses CoreSight architectural component ID registers.
 
     Reads the CIDR, PIDR, DEVID, and DEVARCH registers present at well known offsets
     in the memory map of all CoreSight components. The various fields from these
     registers are made available as attributes.
     """
 
-    # CoreSight identification register offsets.
-    DEVARCH = 0xfbc
-    DEVID = 0xfc8
-    DEVTYPE = 0xfcc
+    # Component identification register offsets.
     PIDR4 = 0xfd0
     PIDR0 = 0xfe0
     CIDR0 = 0xff0
@@ -47,15 +45,26 @@ class CoreSightComponentID(object):
 
     # Range of identification registers to read at once and offsets in results.
     #
-    # To improve component identification performance, we read all of a components
-    # CoreSight ID registers in a single read. Reading starts at the DEVARCH register.
-    IDR_READ_START = DEVARCH
+    # To improve component identification performance, we read all of a component's
+    # ID registers in a single read.
+    IDR_READ_START = PIDR4
     IDR_READ_COUNT = (IDR_END - IDR_READ_START) // 4
-    DEVARCH_OFFSET = (DEVARCH - IDR_READ_START) // 4
-    DEVTYPE_OFFSET = (DEVTYPE - IDR_READ_START) // 4
     PIDR4_OFFSET = (PIDR4 - IDR_READ_START) // 4
     PIDR0_OFFSET = (PIDR0 - IDR_READ_START) // 4
     CIDR0_OFFSET = (CIDR0 - IDR_READ_START) // 4
+
+    # CoreSight identification register offsets.
+    DEVARCH = 0xfbc
+    DEVTYPE = 0xfcc
+    CORESIGHT_IDR_END = 0xfd0
+
+    # Range of CoreSight-specific registers to read. Non-CoreSight components may not
+    # implement these registers, and may even error on attempting to read them, so we
+    # only read them if the component's class is CORESIGHT_CLASS.
+    CORESIGHT_IDR_READ_START = DEVARCH
+    CORESIGHT_IDR_READ_COUNT = (CORESIGHT_IDR_END - CORESIGHT_IDR_READ_START) // 4
+    DEVARCH_OFFSET = (DEVARCH - CORESIGHT_IDR_READ_START) // 4
+    DEVTYPE_OFFSET = (DEVTYPE - CORESIGHT_IDR_READ_START) // 4
 
     # Component ID register fields.
     CIDR_PREAMBLE_MASK = 0xffff0fff
@@ -98,6 +107,7 @@ class CoreSightComponentID(object):
         self.cidr = 0
         self.pidr = 0
         self.designer = 0
+        self.designer_name = ""
         self.part = 0
         self.devarch = 0
         self.archid = 0
@@ -109,7 +119,7 @@ class CoreSightComponentID(object):
         self.valid = False
 
     def read_id_registers(self):
-        """! @brief Read Component ID, Peripheral ID, and DEVID/DEVARCH registers."""
+        """@brief Read Component ID, Peripheral ID, and DEVID/DEVARCH registers."""
         # Read registers as a single block read for performance reasons.
         regs = self.ap.read_memory_block32(self.top_address + self.IDR_READ_START, self.IDR_READ_COUNT)
         self.cidr = self._extract_id_register_value(regs, self.CIDR0_OFFSET)
@@ -127,6 +137,9 @@ class CoreSightComponentID(object):
         # Extract JEP106 designer ID.
         self.designer = ((self.pidr & self.PIDR_DESIGNER_MASK) >> self.PIDR_DESIGNER_SHIFT) \
                         | ((self.pidr & self.PIDR_DESIGNER2_MASK) >> (self.PIDR_DESIGNER2_SHIFT - 8))
+        if self.designer in VENDOR_NAMES_MAP:
+            self.designer_name = VENDOR_NAMES_MAP[self.designer]
+
         self.part = self.pidr & self.PIDR_PART_MASK
 
         # Handle Class 0x1 and Type 0x9 components.
@@ -134,11 +147,14 @@ class CoreSightComponentID(object):
             # Class 0x1 ROM table.
             self.is_rom_table = True
         elif self.component_class == self.CORESIGHT_CLASS:
+             coresight_regs = self.ap.read_memory_block32(
+                 self.top_address + self.CORESIGHT_IDR_READ_START, self.CORESIGHT_IDR_READ_COUNT)
+
             # For CoreSight-class components, extract additional fields.
-             self.devarch = regs[self.DEVARCH_OFFSET]
-             self.devid = regs[1:4]
+             self.devarch = coresight_regs[self.DEVARCH_OFFSET]
+             self.devid = coresight_regs[1:4]
              self.devid.reverse()
-             self.devtype = regs[self.DEVTYPE_OFFSET]
+             self.devtype = coresight_regs[self.DEVTYPE_OFFSET]
 
              if self.devarch & self.DEVARCH_PRESENT_MASK:
                  self.archid = self.devarch & self.DEVARCH_ARCHID_MASK
@@ -173,27 +189,36 @@ class CoreSightComponentID(object):
             result |= (value & 0xff) << (i * 8)
         return result
 
+    @property
+    def designer_desc(self) -> str:
+        """@brief Build string with designer JEP106 code plus name, if available."""
+        designer = f"{self.designer:03x}"
+        if self.designer_name:
+            designer += f":{self.designer_name}"
+        return designer
+
     def __repr__(self):
         name = self.name
         if self.product_name:
             name += " " + self.product_name
         if not self.valid:
-            return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, name, self.cidr, self.pidr)
+            return f"{self.address:08x}:{name} cidr={self.cidr:x}, pidr={self.pidr:x}, component invalid>"
         if self.power_id is not None:
-            pwrid = " pwrid=%d" % self.power_id
+            pwrid = f" pwrid={self.power_id:d}"
         else:
             pwrid = ""
         if self.component_class == self.CORESIGHT_CLASS:
-            return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x%s>" % (
-                self.address, name, self.component_class, self.designer, self.part,
-                self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2], pwrid)
+            return f"<{self.address:08x}:{name} class={self.component_class:d} " \
+                    f"designer={self.designer_desc} part={self.part:03x} " \
+                    f"devtype={self.devtype:02x} archid={self.archid:04x} " \
+                    f"devid={self.devid[0]:x}:{self.devid[1]:x}:{self.devid[2]:x}{pwrid}>"
         else:
-            return "<%08x:%s class=%d designer=%03x part=%03x%s>" % (
-                self.address, name,self.component_class, self.designer, self.part, pwrid)
+            return f"<{self.address:08x}:{name} class={self.component_class:d} " \
+                    f"designer={self.designer_desc} part={self.part:03x}{pwrid}>"
 
 
 class ROMTable(CoreSightComponent):
-    """! @brief CoreSight ROM table base class.
+    """@brief CoreSight ROM table base class.
 
     This abstract class provides common functionality for ROM tables. Most importantly it has the
     static create() factory method.
@@ -214,7 +239,7 @@ class ROMTable(CoreSightComponent):
 
     @staticmethod
     def create(memif, cmpid, addr=None, parent_table=None):
-        """! @brief Factory method for creating ROM table components.
+        """@brief Factory method for creating ROM table components.
 
         This static method instantiates the appropriate subclass for the ROM table component
         described by the cmpid parameter.
@@ -235,7 +260,7 @@ class ROMTable(CoreSightComponent):
             raise exceptions.DebugError("unexpected ROM table device class (%s)" % cmpid)
 
     def __init__(self, ap, cmpid=None, addr=None, parent_table=None):
-        """! @brief Constructor."""
+        """@brief Constructor."""
         assert cmpid is not None
         assert cmpid.is_rom_table
         super(ROMTable, self).__init__(ap, cmpid, addr)
@@ -249,12 +274,12 @@ class ROMTable(CoreSightComponent):
 
     @property
     def depth(self):
-        """! @brief Number of parent ROM tables."""
+        """@brief Number of parent ROM tables."""
         return self._depth
 
     @property
     def components(self):
-        """! @brief List of CoreSightComponentID instances for components found in this table.
+        """@brief List of CoreSightComponentID instances for components found in this table.
 
         This property contains only the components for this ROM table, not any child tables.
 
@@ -265,19 +290,19 @@ class ROMTable(CoreSightComponent):
 
     @property
     def depth_indent(self):
-        """! @brief String of whitespace with a width corresponding to the table's depth.'"""
+        """@brief String of whitespace with a width corresponding to the table's depth.'"""
         return "  " * self._depth
 
     def init(self):
-        """! @brief Read and parse the ROM table.
+        """@brief Read and parse the ROM table.
 
         As table entries for CoreSight components are read, a CoreSightComponentID instance will be
         created and the ID registers read. These ID objects are added to the _components_ property.
         If any child ROM tables are discovered, they will automatically be created and inited.
         """
-        LOG.info("%s%s Class 0x%x ROM table #%d @ 0x%08x (designer=%03x part=%03x)",
-            self.depth_indent, self.ap.short_description, self.cmpid.component_class, self.depth,
-            self.address, self.cmpid.designer, self.cmpid.part)
+        LOG.info(f"{self.depth_indent}{self.ap.short_description} Class {self.cmpid.component_class:#x} " \
+            f"ROM table #{self.depth} @ {self.address:#08x} (designer={self.cmpid.designer_desc} " \
+            f"part={self.cmpid.part:03x})")
         self._components = []
 
         self._read_table()
@@ -286,7 +311,7 @@ class ROMTable(CoreSightComponent):
         raise NotImplementedError()
 
     def for_each(self, action, filter=None):
-        """! @brief Apply an action to every component defined in the ROM table and child tables.
+        """@brief Apply an action to every component defined in the ROM table and child tables.
 
         This method iterates over every entry in the ROM table. For each entry it calls the
         filter function if provided. If the filter passes (returns True or was not provided) then
@@ -313,7 +338,7 @@ class ROMTable(CoreSightComponent):
             action(component)
 
 class Class1ROMTable(ROMTable):
-    """! @brief CoreSight Class 0x1 ROM table component and parser.
+    """@brief CoreSight Class 0x1 ROM table component and parser.
 
     An object of this class represents a CoreSight Class 0x1 ROM table. It supports reading the table
     and any child tables. For each entry in the table, a CoreSightComponentID object is created
@@ -384,9 +409,11 @@ class Class1ROMTable(ROMTable):
     def _handle_table_entry(self, entry, number):
         # Nonzero entries can still be disabled, so check the present bit before handling.
         if (entry & self.ROM_TABLE_ENTRY_PRESENT_MASK) == 0:
+            LOG.debug("%s[%d]<%08x not present>", self.depth_indent, number, entry)
             return
         # Verify the entry format is 32-bit.
         if (entry & self.ROM_TABLE_32BIT_FORMAT_MASK) == 0:
+            LOG.debug("%s[%d]<%08x unsupported 8-bit format>", self.depth_indent, number, entry)
             return
 
         # Get the component's top 4k address.
@@ -394,6 +421,9 @@ class Class1ROMTable(ROMTable):
         if (entry & self.ROM_TABLE_ADDR_OFFSET_NEG_MASK) != 0:
             offset = ~bit_invert(offset)
         address = self.address + offset
+        # Handle address going negative, since python doesn't have unsigned ints.
+        if address < 0:
+            address = 0x100000000 + address
 
         # Check power ID.
         if (entry & self.ROM_TABLE_POWERIDVALID_MASK) != 0:
@@ -428,7 +458,7 @@ class Class1ROMTable(ROMTable):
             self.components.append(cmp)
 
 class Class9ROMTable(ROMTable):
-    """! @brief CoreSight Class 0x9 ROM table component and parser.
+    """@brief CoreSight Class 0x9 ROM table component and parser.
 
     Handles parsing of class 0x9 ROM tables as defined in ADIv6.
 
@@ -486,7 +516,7 @@ class Class9ROMTable(ROMTable):
     POWER_REQUEST_TIMEOUT = 5.0
 
     def __init__(self, ap, cmpid=None, addr=None, parent_table=None):
-        """! @brief Component constructor."""
+        """@brief Component constructor."""
         super(Class9ROMTable, self).__init__(ap, cmpid, addr, parent_table)
 
         self._pridr_version = None
@@ -501,21 +531,21 @@ class Class9ROMTable(ROMTable):
 
     @property
     def has_com_port(self):
-        """! @brief Whether the ROM table includes COM Port functionality."""
+        """@brief Whether the ROM table includes COM Port functionality."""
         return self._has_com_port
 
     @property
     def has_prr(self):
-        """! @brief Whether the ROM table includes power and reset requesting functionality."""
+        """@brief Whether the ROM table includes power and reset requesting functionality."""
         return self._has_prr
 
     @property
     def is_sysmem(self):
-        """! @brief Whether the ROM table is present in system memory."""
+        """@brief Whether the ROM table is present in system memory."""
         return self._is_sysmem
 
     def _read_table(self):
-        """! @brief Reads and parses the ROM table."""
+        """@brief Reads and parses the ROM table."""
         # Compute multipliers for 32- or 64-bit.
         entrySizeMultiplier = self._width // 32
         actualMaxEntries = self.ROM_TABLE_MAX_ENTRIES // entrySizeMultiplier
@@ -551,12 +581,14 @@ class Class9ROMTable(ROMTable):
                         LOG.error("Error attempting to probe CoreSight component referenced by "
                                 "ROM table entry #%d: %s", entryNumber, err,
                                 exc_info=self.ap.dp.session.get_current().log_tracebacks)
+                else:
+                    LOG.debug("%s[%d]<%08x not present>", self.depth_indent, entryNumber, entry)
 
                 entryAddress += 4 * entrySizeMultiplier
                 entryNumber += 1
 
     def _power_component(self, number, powerid, entry):
-        """! @brief Enable power to a component defined by a ROM table entry."""
+        """@brief Enable power to a component defined by a ROM table entry."""
         if not self._has_prr:
             # Attempt GPR method of power domain enabling.
             return super(Class9ROMTable, self)._power_component(number, powerid, entry)
@@ -576,12 +608,15 @@ class Class9ROMTable(ROMTable):
             return True
 
     def _handle_table_entry(self, entry, number):
-        """! @brief Parse one ROM table entry."""
+        """@brief Parse one ROM table entry."""
         # Get the component's top 4k address.
         offset = entry & self.ROM_TABLE_ADDR_OFFSET_MASK[self._width]
         if (entry & self.ROM_TABLE_ADDR_OFFSET_NEG_MASK[self._width]) != 0:
             offset = ~bit_invert(offset, width=self._width)
         address = self.address + offset
+        # Handle address going negative, since python doesn't have unsigned ints.
+        if address < 0:
+            address = (1 << self._width) + address
 
         # Check power ID.
         if (entry & self.ROM_TABLE_ENTRY_POWERIDVALID_MASK) != 0:
@@ -616,7 +651,7 @@ class Class9ROMTable(ROMTable):
             self._components.append(cmp)
 
     def check_power_request_version(self):
-        """! @brief Verify the power request functionality version."""
+        """@brief Verify the power request functionality version."""
         # Cache the PRIDR0 VERSION field the first time.
         if self._pridr_version is None:
             pridr = self.ap.read32(self.address + self.ROM_TABLE_PRIDR0)
@@ -625,7 +660,7 @@ class Class9ROMTable(ROMTable):
         return self._pridr_version == self.ROM_TABLE_PRIDR0_VERSION
 
     def power_debug_domain(self, domain_id, enable=True):
-        """! @brief Control power for a specified power domain managed by this ROM table."""
+        """@brief Control power for a specified power domain managed by this ROM table."""
         # Compute register addresses for this power domain.
         dbgpcr_addr = self.address + self.ROM_TABLE_DBGPCRn + (4 * domain_id)
         dbgpsr_addr = self.address + self.ROM_TABLE_DBGPSRn + (4 * domain_id)

@@ -40,7 +40,7 @@ class STLinkInfo(NamedTuple):
     swv_ep: int
 
 class STLinkUSBInterface:
-    """!@brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices."""
+    """@brief Provides low-level USB enumeration and transfers for STLinkV2/3 devices."""
 
     ## Command packet size.
     CMD_SIZE = 16
@@ -49,14 +49,18 @@ class STLinkUSBInterface:
     USB_VID = 0x0483
 
     ## Map of USB PID to firmware version name and device endpoints.
+    #
+    # Other PIDs:
+    # - 0x3744: STLink V1
+    # - 0x374d: STLink V3 DFU
     USB_PID_EP_MAP = {
         # PID              Version  OUT     IN      SWV
         0x3748: STLinkInfo('V2',    0x02,   0x81,   0x83),
-        0x374b: STLinkInfo('V2-1',  0x01,   0x81,   0x82),
         0x374a: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # Audio
-        0x3742: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # No MSD
+        0x374b: STLinkInfo('V2-1',  0x01,   0x81,   0x82),
         0x374e: STLinkInfo('V3',    0x01,   0x81,   0x82),
         0x374f: STLinkInfo('V3',    0x01,   0x81,   0x82),  # Bridge
+        0x3752: STLinkInfo('V2-1',  0x01,   0x81,   0x82),  # No MSD
         0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP, No MSD
         0x3754: STLinkInfo('V3',    0x01,   0x81,   0x82),  # No MSD
         0x3755: STLinkInfo('V3',    0x01,   0x81,   0x82),
@@ -233,21 +237,31 @@ class STLinkUSBInterface:
 
         try:
             # Command phase.
-            TRACE.debug("  USB CMD> %s" % ' '.join(['%02x' % i for i in paddedCmd]))
+            if TRACE.isEnabledFor(logging.DEBUG):
+                TRACE.debug("  USB CMD> (%d) %s", len(paddedCmd), ' '.join([f'{i:02x}' for i in paddedCmd]))
             count = self._ep_out.write(paddedCmd, timeout)
             assert count == len(paddedCmd)
 
             # Optional data out phase.
             if writeData is not None:
-                TRACE.debug("  USB OUT> %s" % ' '.join(['%02x' % i for i in writeData]))
+                if TRACE.isEnabledFor(logging.DEBUG):
+                    TRACE.debug("  USB OUT> (%d) %s", len(writeData), ' '.join([f'{i:02x}' for i in writeData]))
                 count = self._ep_out.write(writeData, timeout)
                 assert count == len(writeData)
 
             # Optional data in phase.
             if readSize is not None:
-                TRACE.debug("  USB IN < (%d bytes)" % readSize)
+                if TRACE.isEnabledFor(logging.DEBUG):
+                    TRACE.debug("  USB IN < (req %d bytes)", readSize)
                 data = self._read(readSize)
-                TRACE.debug("  USB IN < %s" % ' '.join(['%02x' % i for i in data]))
+                if TRACE.isEnabledFor(logging.DEBUG):
+                    TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
+                # Verify we got all requested data.
+                if len(data) < readSize:
+                    raise exceptions.ProbeError("received incomplete command response from STLink "
+                            f"(got {len(data)}, expected {readSize}")
+
                 return data
         except usb.core.USBError as exc:
             raise exceptions.ProbeError("USB Error: %s" % exc) from exc

@@ -70,6 +70,14 @@ Restrict CMSIS-DAP backend to using a single in-flight command at a time. This i
 where USB is problematic, in particular virtual machines.
 </td></tr>
 
+<tr><td>cmsis_dap.prefer_v1</td>
+<td>bool</td>
+<td>False</td>
+<td>
+If a device provides both CMSIS-DAP v1 and v2 interfaces, use the v1 interface in preference of v2.
+Normal behaviour is to prefer the v2 interface. This option is primarily intended for testing.
+</td></tr>
+
 <tr><td>commander.history_length</td>
 <td>int</td>
 <td>1000</td>
@@ -217,9 +225,9 @@ Disables flash programming progress bar when True.
 
 <tr><td>keep_unwritten</td>
 <td>bool</td>
-<td>True</td>
+<td>False</td>
 <td>
-Whether to load existing flash content for ranges of sectors that will be erased but not written
+Whether to preserve existing flash content for ranges of sectors that will be erased but not written
 with new data.
 </td></tr>
 
@@ -587,6 +595,24 @@ These session options are available when the Picoprobe debug probe plugin is act
 <td>
 Use safer but slower SWD transfer function with Picoprobe.
 Default is False, so possible WAIT or FAULT SWD acknowldeges and protocol errors will not be caught immediately.
+</td></tr>
+
+</table>
+
+## STLink options
+
+These session options are available when the STLink debug probe plugin is active.
+
+<table>
+
+<tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
+
+<tr><td>stlink.v3_prescaler</td>
+<td>int</td>
+<td>1</td>
+<td>
+Sets the HCLK prescaler of an STLinkV3, changing performance versus power tradeoff.
+The value must be one of 1=high performance (default), 2=normal, or 4=low power.
 </td></tr>
 
 </table>

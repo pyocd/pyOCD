@@ -15,17 +15,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from contextlib import contextmanager
 import logging
 import logging.config
 import yaml
 import os
+from pathlib import Path
 import weakref
-from inspect import getfullargspec
+from inspect import (getfullargspec, signature)
+from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
 
 from . import exceptions
 from .options_manager import OptionsManager
 from ..board.board import Board
 from ..utility.notification import Notifier
+
+if TYPE_CHECKING:
+    from types import TracebackType
+    from .soc_target import SoCTarget
+    from ..probe.debug_probe import DebugProbe
+    from ..probe.tcp_probe_server import DebugProbeServer
+    from ..gdbserver.gdbserver import GDBServer
 
 LOG = logging.getLogger(__name__)
 
@@ -44,7 +54,7 @@ _USER_SCRIPT_NAMES = [
     ]
 
 class Session(Notifier):
-    """! @brief Top-level object for a debug session.
+    """@brief Top-level object for a debug session.
 
     This class represents a debug session with a single debug probe. It is the root of the object
     graph, where it owns the debug probe and the board objects.
@@ -81,11 +91,11 @@ class Session(Notifier):
     """
 
     ## @brief Weak reference to the most recently created session.
-    _current_session = None
+    _current_session: Optional[weakref.ref] = None
 
     @classmethod
-    def get_current(cls):
-        """! @brief Return the most recently created Session instance or a default Session.
+    def get_current(cls) -> "Session":
+        """@brief Return the most recently created Session instance or a default Session.
 
         By default this method will return the most recently created Session object that is
         still alive. If no live session exists, a new default session will be created and returned.
@@ -96,12 +106,21 @@ class Session(Notifier):
         or for debug or other purposes.
         """
         if cls._current_session is not None:
-            return cls._current_session()
-        else:
-            return Session(None)
+            session = cls._current_session()
+            if session is not None:
+                return session
 
-    def __init__(self, probe, auto_open=True, options=None, option_defaults=None, **kwargs):
-        """! @brief Session constructor.
+        return Session(None)
+
+    def __init__(
+            self,
+            probe: Optional["DebugProbe"],
+            auto_open: bool = True,
+            options: Optional[Mapping[str, Any]] = None,
+            option_defaults: Optional[Mapping[str, Any]] = None,
+            **kwargs
+            ) -> None:
+        """@brief Session constructor.
 
         Creates a new session using the provided debug probe. Session options are merged from the
         _options_ parameter and any keyword arguments. Normally a board instance is created that can
@@ -123,20 +142,21 @@ class Session(Notifier):
             defaults for option if they are not set through any other method.
         @param kwargs Session options passed as keyword arguments.
         """
-        super(Session, self).__init__()
+        super().__init__()
 
         Session._current_session = weakref.ref(self)
 
         self._probe = probe
-        self._closed = True
-        self._inited = False
-        self._user_script_namespace = None
-        self._user_script_proxy = None
-        self._delegate = None
+        self._closed: bool = True
+        self._inited: bool = False
+        self._user_script_namespace: Dict[str, Any] = {}
+        self._user_script_proxy: Optional[UserScriptDelegateProxy] = None
+        self._user_script_print_proxy = PrintProxy()
+        self._delegate: Optional[Any] = None
         self._auto_open = auto_open
         self._options = OptionsManager()
-        self._gdbservers = {}
-        self._probeserver = None
+        self._gdbservers: Dict[int, "GDBServer"] = {}
+        self._probeserver: Optional["DebugProbeServer"] = None
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -148,22 +168,32 @@ class Session(Notifier):
 
         # Init project directory.
         if self.options.get('project_dir') is None:
-            self._project_dir = os.environ.get('PYOCD_PROJECT_DIR') or os.getcwd()
+            self._project_dir: str = os.environ.get('PYOCD_PROJECT_DIR') or os.getcwd()
         else:
-            self._project_dir = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
+            self._project_dir: str = os.path.abspath(os.path.expanduser(self.options.get('project_dir')))
         LOG.debug("Project directory: %s", self.project_dir)
 
-        # Apply common configuration settings from the config file.
-        config = self._get_config()
-        probesConfig = config.pop('probes', None)
-        self._options.add_back(config)
+        # Switch the working dir to the project dir.
+        os.chdir(self.project_dir)
 
-        # Pick up any config file options for this board.
-        if (probe is not None) and (probesConfig is not None):
-            for uid, settings in probesConfig.items():
+        # Load options from the config file.
+        config = self._get_config()
+        probes_config = config.pop('probes', None)
+
+        # Pick up any config file options for this probe. These have priority over global options.
+        if (probe is not None) and (probes_config is not None):
+            did_match_probe = False
+            for uid, settings in probes_config.items():
                 if str(uid).lower() in probe.unique_id.lower():
-                    LOG.info("Using config settings for probe %s" % (probe.unique_id))
+                    if did_match_probe:
+                        LOG.warning("Multiple probe config options match probe ID %s", probe.unique_id)
+                        break
+                    LOG.info("Using config options for probe %s" % (probe.unique_id))
                     self._options.add_back(settings)
+                    did_match_probe = True
+
+        # Add global config options.
+        self._options.add_back(config)
 
         # Merge in lowest priority options.
         self._options.add_back(option_defaults)
@@ -182,7 +212,7 @@ class Session(Notifier):
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board() or Board(self)
 
-    def _get_config(self):
+    def _get_config(self) -> Dict[str, Any]:
         # Load config file if one was provided via options, and no_config option was not set.
         if not self.options.get('no_config'):
             configPath = self.find_user_file('config_file', _CONFIG_FILE_NAMES)
@@ -205,8 +235,8 @@ class Session(Notifier):
 
         return {}
 
-    def find_user_file(self, option_name, filename_list):
-        """! @brief Search the project directory for a file.
+    def find_user_file(self, option_name: Optional[str], filename_list: List[str]) -> Optional[str]:
+        """@brief Search the project directory for a file.
 
         @retval None No matching file was found.
         @retval string An absolute path to the requested file.
@@ -232,14 +262,14 @@ class Session(Notifier):
 
         return filePath
 
-    def _configure_logging(self):
-        """! @brief Load a logging config dict or file."""
+    def _configure_logging(self) -> None:
+        """@brief Load a logging config dict or file."""
         # Get logging config that could have been loaded from the config file.
-        config = self.options.get('logging')
+        config_value = self.options.get('logging')
 
         # Allow logging setting to refer to another file.
-        if isinstance(config, str):
-            loggingConfigPath = self.find_user_file(None, [config])
+        if isinstance(config_value, str):
+            loggingConfigPath = self.find_user_file(None, [config_value])
 
             if loggingConfigPath is not None:
                 try:
@@ -247,8 +277,13 @@ class Session(Notifier):
                         config = yaml.safe_load(configFile)
                         LOG.debug("Using logging configuration from: %s", config)
                 except IOError as err:
-                    LOG.warning("Error attempting to load logging config file '%s': %s", config, err)
+                    LOG.warning("Error attempting to load logging config file '%s': %s", config_value, err)
                     return
+            else:
+                LOG.warning("Logging config file '%s' does not exist", config_value)
+                return
+        else:
+            config = config_value
 
         if config is not None:
             # Stuff a version key if it's missing, to make it easier to use.
@@ -267,74 +302,84 @@ class Session(Notifier):
                 LOG.warning("Error applying logging configuration: %s", err)
 
     @property
-    def is_open(self):
-        """! @brief Boolean of whether the session has been opened."""
+    def is_open(self) -> bool:
+        """@brief Boolean of whether the session has been opened."""
         return self._inited and not self._closed
 
     @property
-    def probe(self):
-        """! @brief The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" instance."""
+    def probe(self) -> Optional["DebugProbe"]:
+        """@brief The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" instance."""
         return self._probe
 
     @property
-    def board(self):
-        """! @brief The @ref pyocd.board.board.Board "Board" object."""
+    def board(self) -> Optional[Board]:
+        """@brief The @ref pyocd.board.board.Board "Board" object."""
         return self._board
 
     @property
-    def target(self):
-        """! @brief The @ref pyocd.core.target.soc_target "SoCTarget" object representing the SoC.
+    def target(self) -> Optional["SoCTarget"]:
+        """@brief The @ref pyocd.core.target.soc_target "SoCTarget" object representing the SoC.
 
         This is the @ref pyocd.core.target.soc_target "SoCTarget" instance owned by the board.
         """
-        return self.board.target
+        return self.board.target if self.board else None
 
     @property
-    def options(self):
-        """! @brief The @ref pyocd.core.options_manager.OptionsManager "OptionsManager" object."""
+    def options(self) -> OptionsManager:
+        """@brief The @ref pyocd.core.options_manager.OptionsManager "OptionsManager" object."""
         return self._options
 
     @property
-    def project_dir(self):
-        """! @brief Path to the project directory."""
+    def project_dir(self) -> str:
+        """@brief Path to the project directory."""
         return self._project_dir
 
     @property
-    def delegate(self):
-        """! @brief An optional delegate object for customizing behaviour."""
+    def delegate(self) -> Any:
+        """@brief An optional delegate object for customizing behaviour."""
         return self._delegate
 
     @delegate.setter
-    def delegate(self, new_delegate):
-        """! @brief Setter for the `delegate` property."""
+    def delegate(self, new_delegate: Any) -> None:
+        """@brief Setter for the `delegate` property."""
         self._delegate = new_delegate
 
     @property
-    def user_script_proxy(self):
-        """! @brief The UserScriptDelegateProxy object for a loaded user script."""
+    def user_script_proxy(self) -> "UserScriptDelegateProxy":
+        """@brief The UserScriptDelegateProxy object for a loaded user script."""
+        # Create a proxy if there isn't already one. This is a fallback in case there isn't a user script,
+        # yet a Python $-command is executed and needs the user script namespace in which to run.
+        if not self._user_script_proxy:
+            self._init_user_script_namespace('__script__', '<none>')
+            self._update_user_script_namespace()
+            self._user_script_proxy = UserScriptDelegateProxy(self._user_script_namespace)
         return self._user_script_proxy
 
     @property
-    def gdbservers(self):
-        """! @brief Dictionary of core numbers to @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances."""
+    def user_script_print_proxy(self) -> "PrintProxy":
+        return self._user_script_print_proxy
+
+    @property
+    def gdbservers(self) -> Dict[int, "GDBServer"]:
+        """@brief Dictionary of core numbers to @ref pyocd.gdbserver.gdbserver.GDBServer "GDBServer" instances."""
         return self._gdbservers
 
     @property
-    def probeserver(self):
-        """! @brief A @ref pyocd.probe.tcp_probe_server.DebugProbeServer "DebugProbeServer" instance."""
+    def probeserver(self) -> Optional["DebugProbeServer"]:
+        """@brief A @ref pyocd.probe.tcp_probe_server.DebugProbeServer "DebugProbeServer" instance."""
         return self._probeserver
 
     @probeserver.setter
-    def probeserver(self, server):
-        """! @brief Setter for the `probeserver` property."""
+    def probeserver(self, server: "DebugProbeServer") -> None:
+        """@brief Setter for the `probeserver` property."""
         self._probeserver = server
 
     @property
-    def log_tracebacks(self):
-        """! @brief Quick access to debug.traceback option since it is widely used."""
-        return self.options.get('debug.traceback')
+    def log_tracebacks(self) -> bool:
+        """@brief Quick access to debug.traceback option since it is widely used."""
+        return cast(bool, self.options.get('debug.traceback'))
 
-    def __enter__(self):
+    def __enter__(self) -> "Session":
         assert self._probe is not None
         if self._auto_open:
             try:
@@ -344,12 +389,12 @@ class Session(Notifier):
                 raise
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type: type, value: Any, traceback: "TracebackType") -> bool:
         self.close()
         return False
 
-    def _init_user_script_namespace(self, user_script_path):
-        """! @brief Create the namespace dict used for user scripts.
+    def _init_user_script_namespace(self, script_name: str, script_path: str) -> None:
+        """@brief Create the namespace dict used for user scripts.
 
         This initial namespace has only those objects that are available very early in the
         session init process. For instance, the Target instance isn't available yet. The
@@ -357,71 +402,90 @@ class Session(Notifier):
         later on.
         """
         import pyocd
-        import pyocd.flash.file_programmer
+        from . import target
+        from . import memory_map
+        from ..flash import file_programmer
+        from ..flash import eraser
+        from ..flash import loader
+
+        # Duplicate builtins and override print() without our proxy.
+        import builtins
+        bi = builtins.__dict__.copy()
+        bi['print'] = self._user_script_print_proxy
+
+        user_script_logger = logging.getLogger('pyocd.user_script')
+
         self._user_script_namespace = {
+            '__builtins__': bi,
             # Modules and classes
             'pyocd': pyocd,
-            'exceptions': pyocd.core.exceptions,
-            'Error': pyocd.core.exceptions.Error,
-            'TransferError': pyocd.core.exceptions.TransferError,
-            'TransferFaultError': pyocd.core.exceptions.TransferFaultError,
-            'Target': pyocd.core.target.Target,
-            'State': pyocd.core.target.Target.State,
-            'SecurityState': pyocd.core.target.Target.SecurityState,
-            'BreakpointType': pyocd.core.target.Target.BreakpointType,
-            'WatchpointType': pyocd.core.target.Target.WatchpointType,
-            'VectorCatch': pyocd.core.target.Target.VectorCatch,
-            'Event': pyocd.core.target.Target.Event,
-            'RunType': pyocd.core.target.Target.RunType,
-            'HaltReason': pyocd.core.target.Target.HaltReason,
-            'ResetType': pyocd.core.target.Target.ResetType,
-            'MemoryType': pyocd.core.memory_map.MemoryType,
-            'MemoryMap': pyocd.core.memory_map.MemoryMap,
-            'RamRegion': pyocd.core.memory_map.RamRegion,
-            'RomRegion': pyocd.core.memory_map.RomRegion,
-            'FlashRegion': pyocd.core.memory_map.FlashRegion,
-            'DeviceRegion': pyocd.core.memory_map.DeviceRegion,
-            'FileProgrammer': pyocd.flash.file_programmer.FileProgrammer,
-            'FlashEraser': pyocd.flash.eraser.FlashEraser,
-            'FlashLoader': pyocd.flash.loader.FlashLoader,
+            'exceptions': exceptions,
+            'Error': exceptions.Error,
+            'TransferError': exceptions.TransferError,
+            'TransferFaultError': exceptions.TransferFaultError,
+            'Target': target.Target,
+            'State': target.Target.State,
+            'SecurityState': target.Target.SecurityState,
+            'BreakpointType': target.Target.BreakpointType,
+            'WatchpointType': target.Target.WatchpointType,
+            'VectorCatch': target.Target.VectorCatch,
+            'Event': target.Target.Event,
+            'RunType': target.Target.RunType,
+            'HaltReason': target.Target.HaltReason,
+            'ResetType': target.Target.ResetType,
+            'MemoryType': memory_map.MemoryType,
+            'MemoryMap': memory_map.MemoryMap,
+            'RamRegion': memory_map.RamRegion,
+            'RomRegion': memory_map.RomRegion,
+            'FlashRegion': memory_map.FlashRegion,
+            'DeviceRegion': memory_map.DeviceRegion,
+            'FileProgrammer': file_programmer.FileProgrammer,
+            'FlashEraser': eraser.FlashEraser,
+            'FlashLoader': loader.FlashLoader,
             # User script info
-            '__name__': os.path.splitext(os.path.basename(user_script_path))[0],
-            '__file__': user_script_path,
+            '__name__': script_name,
+            '__file__': script_path,
             # Objects
             'session': self,
             'options': self.options,
-            'LOG': logging.getLogger('pyocd.user_script'),
+            'LOG': user_script_logger,
+            # Functions
+            'command': new_command_decorator,
+            'debug': user_script_logger.debug,
+            'info': user_script_logger.info,
+            'warning': user_script_logger.warning,
+            'error': user_script_logger.error,
             }
 
-    def _update_user_script_namespace(self):
-        """! @brief Add objects available only after init to the user script namespace."""
+    def _update_user_script_namespace(self) -> None:
+        """@brief Add objects available only after init to the user script namespace."""
         if self._user_script_namespace is not None:
             self._user_script_namespace.update({
                 'probe': self.probe,
                 'board': self.board,
                 'target': self.target,
-                'dp': self.target.dp,
-                'aps': self.target.aps,
+                'dp': getattr(self.target, "dp", None),
+                'aps': getattr(self.target, "aps", None),
                 })
 
-    def _load_user_script(self):
-        scriptPath = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
+    def _load_user_script(self) -> None:
+        script_path = self.find_user_file('user_script', _USER_SCRIPT_NAMES)
 
-        if scriptPath is not None:
+        if script_path is not None:
             try:
                 # Read the script source.
-                with open(scriptPath, 'r') as scriptFile:
-                    LOG.debug("Loading user script: %s", scriptPath)
-                    scriptSource = scriptFile.read()
+                with open(script_path, 'r') as script_file:
+                    LOG.debug("Loading user script: %s", script_path)
+                    script_source = script_file.read()
 
-                self._init_user_script_namespace(scriptPath)
+                self._init_user_script_namespace(Path(script_path).stem, script_path)
 
-                scriptCode = compile(scriptSource, scriptPath, 'exec')
+                script_code = compile(script_source, script_path, 'exec')
                 # Executing the code will create definitions in the namespace for any
                 # functions or classes. A single namespace is shared for both globals and
                 # locals so that script-level definitions are available within the
                 # script functions.
-                exec(scriptCode, self._user_script_namespace, self._user_script_namespace)
+                exec(script_code, self._user_script_namespace)
 
                 # Create the proxy for the user script. It becomes the delegate unless
                 # another delegate was already set.
@@ -429,10 +493,10 @@ class Session(Notifier):
                 if self._delegate is None:
                     self._delegate = self._user_script_proxy
             except IOError as err:
-                LOG.warning("Error attempting to load user script '%s': %s", scriptPath, err)
+                LOG.warning("Error attempting to load user script '%s': %s", script_path, err)
 
-    def open(self, init_board=True):
-        """! @brief Open the session.
+    def open(self, init_board: bool = True) -> None:
+        """@brief Open the session.
 
         This method does everything necessary to begin a debug session. It first loads the user
         script, if there is one. The user script will be available via the _user_script_proxy_
@@ -459,8 +523,8 @@ class Session(Notifier):
                 self._board.init()
                 self._inited = True
 
-    def close(self):
-        """! @brief Close the session.
+    def close(self) -> None:
+        """@brief Close the session.
 
         Uninits the board and disconnects then closes the probe.
         """
@@ -468,10 +532,13 @@ class Session(Notifier):
             return
         self._closed = True
 
+        # Should not have been able to open the session with either _probe or _board being None.
+        assert (self._probe is not None) and (self._board is not None)
+
         LOG.debug("uninit session %s", self)
         if self._inited:
             try:
-                self.board.uninit()
+                self._board.uninit()
                 self._inited = False
             except exceptions.Error:
                 LOG.error("exception during board uninit:", exc_info=self.log_tracebacks)
@@ -486,33 +553,182 @@ class Session(Notifier):
             except exceptions.Error:
                 LOG.error("probe exception during close:", exc_info=self.log_tracebacks)
 
-class UserScriptFunctionProxy(object):
-    """! @brief Proxy for user script functions.
+class UserScriptFunctionProxy:
+    """@brief Proxy for user script functions.
 
     This proxy makes arguments to user script functions optional.
     """
 
-    def __init__(self, fn):
+    def __init__(self, fn: Callable) -> None:
+        assert isinstance(fn, Callable)
         self._fn = fn
         self._spec = getfullargspec(fn)
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs: Any) -> Any:
         args = {}
         for arg in self._spec.args:
             if arg in kwargs:
                 args[arg] = kwargs[arg]
         self._fn(**args)
 
-class UserScriptDelegateProxy(object):
-    """! @brief Delegate proxy for user scripts."""
+class UserScriptDelegateProxy:
+    """@brief Delegate proxy for user scripts."""
 
-    def __init__(self, script_namespace):
-        super(UserScriptDelegateProxy, self).__init__()
+    def __init__(self, script_namespace: Dict) -> None:
+        super().__init__()
         self._script = script_namespace
 
-    def __getattr__(self, name):
+    @property
+    def namespace(self) -> Dict:
+        return self._script
+
+    def __getattr__(self, name: str) -> Any:
         if name in self._script:
-            fn = self._script[name]
-            return UserScriptFunctionProxy(fn)
+            obj = self._script[name]
+            # Only return the function proxy if the object is indeed callable.
+            if isinstance(obj, Callable):
+                return UserScriptFunctionProxy(obj)
+            else:
+                return obj
         else:
             raise AttributeError(name)
+
+def new_command_decorator(name: Optional[Union[str, Sequence[str]]] = None, help: str = ""):
+    """@brief User script decorator for creating new commands.
+
+    Supported parameter types:
+    - `str`
+    - `int`
+    - `float`
+    - Extra args, e.g. `*args`.
+
+    Keyword parameters and extra keyword args (**args) are not allowed.
+
+    The decorated function remains accessible as a regular function in the namespace in which it was defined.
+    This is true even if the function definition is not compatible with the command decorator, for instance
+    if it has invalid parameter types.
+
+    This is an example of defining a command with this decorator.
+    ```py
+    @command('cmdname', help='Optional help')
+    def mycommand(s: str, i: int, f: float, *args):
+        print("Hello")
+    ```
+    """
+    import types
+    from ..commands.base import CommandBase
+    def _command_decorator(fn: Callable):
+        if name is None:
+            names_list: Sequence[str] = [getattr(fn, '__name__')]
+        else:
+            names_list: Sequence[str] = [name] if isinstance(name, str) else name[0]
+        classname = names_list[0].capitalize() + "Command"
+
+        # Examine the command function's signature to extract arguments and their types.
+        sig = signature(fn)
+        arg_converters = []
+        has_var_args = False
+        usage_fields: List[str] = []
+        for parm in sig.parameters.values():
+            typ = parm.annotation
+
+            # Check if this is a *args kind of argument.
+            if parm.kind == parm.VAR_POSITIONAL:
+                has_var_args = True
+                usage_fields.append("*")
+                continue
+            # Disallow keyword params.
+            elif parm.kind in (parm.KEYWORD_ONLY, parm.VAR_KEYWORD):
+                LOG.error("ser command function '%s' uses unsupported keyword parameters", fn.__name__)
+                return fn
+
+            # Require type annotations.
+            if typ is parm.empty:
+                LOG.error("user command function '%s' is missing type annotation for parameter '%s'",
+                        fn.__name__, parm.name)
+                return fn
+
+            # Otherwise add to param converter list.
+            if issubclass(typ, str):
+                arg_converters.append(lambda _, x: x)
+            elif issubclass(typ, float):
+                arg_converters.append(lambda _, x: float(x))
+            elif issubclass(typ, int):
+                arg_converters.append(CommandBase._convert_value)
+            else:
+                LOG.error("parameter '%s' of user command function '%s' has an unsupported type",
+                        parm.name, fn.__name__)
+                return fn
+            usage_fields.append(parm.name.upper())
+
+        # parse() method of the new command class.
+        def parse(self, args: List[str]):
+            arg_values: List[Any] = []
+
+            if len(args) > len(arg_converters):
+                assert has_var_args
+                extra_args = args[len(arg_converters):]
+                args = args[:len(arg_converters)]
+            else:
+                extra_args = []
+
+            for arg, converter in zip(args, arg_converters):
+                arg_values.append(converter(self, arg))
+            if has_var_args:
+                arg_values += extra_args
+
+            self._args = arg_values
+
+        # execute() method of the new command class.
+        def execute(self):
+            fn(*self._args)
+
+        # Callback to populate the new command class' namespace dict.
+        def populate_command_class(ns: Dict[str, Any]) -> None:
+            ns['INFO'] = {
+                'names': names_list,
+                'group': 'user',
+                'category': 'user',
+                'nargs': "*" if has_var_args else len(sig.parameters),
+                'usage': " ".join(usage_fields),
+                'help': help,
+                }
+            ns['parse'] = parse
+            ns['execute'] = execute
+
+        types.new_class(classname, bases=(CommandBase,), exec_body=populate_command_class)
+
+        # Return original function. This makes it accessible from the rest of the user script
+        # and Python expression commands.
+        return fn
+    return _command_decorator
+
+class PrintProxy:
+    """@brief Proxy for print() that can be retargeted to different functions.
+
+    When the object is created, the target function is initially the real print(). This can be changed by calling
+    `set_target()`.
+
+    To simplify requirements of the target function when it isn't the real print(), all positional parameters are
+    converted to strings and joined with spaces. The target function is then called with a single string argument
+    plus any keyword arguments.
+    """
+    _target: Callable = print
+
+    def set_target(self, new_target: Callable) -> None:
+        self._target = new_target
+
+    def __call__(self, *args: Any, **kwds: Any) -> None:
+        # Convert all args to strings and concatenate, to simplify requirements of the target function
+        # when it isn't the real print().
+        combined_args = " ".join(str(a) for a in args)
+        self._target(combined_args, **kwds)
+
+    @contextmanager
+    def push_target(self, new_target: Callable) -> Generator:
+        save_target = self._target
+        try:
+            self._target = new_target
+            yield
+        finally:
+            self._target = save_target
