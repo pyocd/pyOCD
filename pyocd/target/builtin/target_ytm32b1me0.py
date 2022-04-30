@@ -16,7 +16,6 @@
 # limitations under the License.
 
 from ...coresight.coresight_target import CoreSightTarget
-from ...coresight.cortex_m import CortexM 
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
 FLASH_ALGO = {
