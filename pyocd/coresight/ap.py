@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -195,15 +195,19 @@ class APAddressBase:
     version-specific subclasses. This is the value used by the DP hardware and passed to the
     DebugPort's read_ap() and write_ap() methods.
 
+    AP addresses include the index of the DP to which the AP is connected. On most systems there is only
+    one DP with index 0.
+
     The class also indicates which version of AP is targeted: either APv1 or APv2. The _ap_version_
     property reports this version number, though it is also encoded by the subclass. The AP version
     is coupled with the address because the two are intrinsically connected; the version defines the
     address format.
     """
 
-    def __init__(self, address: int) -> None:
+    def __init__(self, address: int, dp: int = 0) -> None:
         """@brief Constructor accepting the nominal address."""
         self._nominal_address = address
+        self._dp = dp
 
     @property
     def ap_version(self) -> APVersion:
@@ -230,22 +234,42 @@ class APAddressBase:
         """@brief Address of the IDR register."""
         raise NotImplementedError()
 
+    @property
+    def dp_index(self) -> int:
+        """@brief Index of the DP to which this AP is attached."""
+        return self._dp
+
     def __hash__(self) -> int:
-        return hash(self.nominal_address)
+        return hash(self.nominal_address | (self._dp << 64))
 
     def __eq__(self, other: Any) -> bool:
-        return (self.nominal_address == other.nominal_address) \
-                if isinstance(other, APAddressBase) else (self.nominal_address == other)
+        """Equality tests against other APAddressBase or subclass instances also compare the DP index.
+        Supports comparing against raw (int) nominal addresses, in which case the DP index is ignored.
+        """
+        if isinstance(other, APAddressBase):
+            return (self.nominal_address == other.nominal_address) and (self.dp_index == other.dp_index)
+        elif isinstance(other, int):
+            return (self.nominal_address == other)
+        else:
+            return False
 
     def __lt__(self, other: Any) -> bool:
-        return (self.nominal_address < other.nominal_address) \
-                if isinstance(other, APAddressBase) else (self.nominal_address < other)
+        """Ordering tests against other APAddressBase or subclass instances include the DP index, such that
+        instances with equal nominal addresses but different DP indices will be ordered by DP index.
+        Supports comparing against raw (int) nominal addresses, in which case the DP index is ignored.
+        """
+        if isinstance(other, APAddressBase):
+            return (self.nominal_address < other.nominal_address) and (self.dp_index < other.dp_index)
+        elif isinstance(other, int):
+            return (self.nominal_address < other)
+        else:
+            return False
 
     def __str__(self) -> str:
         raise NotImplementedError()
 
     def __repr__(self) -> str:
-        return "<{}@{:#x} {}>".format(self.__class__.__name__, id(self), str(self))
+        return "<{}@{:#x} {} dp={}>".format(self.__class__.__name__, id(self), str(self), self.dp_index)
 
 class APv1Address(APAddressBase):
     """@brief Represents the address for an APv1.
