@@ -102,7 +102,7 @@ class Board(GraphNode):
             raise exceptions.TargetSupportError(
                 f"Target type {self._target_type} not recognized. Use 'pyocd list --targets' to see currently "
                 "available target types. "
-                "See <https://github.com/pyocd/pyOCD/blob/master/docs/target_support.md> "
+                "See <https://pyocd.io/docs/target_support.html> "
                 "for how to install additional target support.") from exc
 
         # Tell the user what target type is selected.
