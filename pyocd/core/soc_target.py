@@ -178,7 +178,9 @@ class SoCTarget(TargetGraphNode):
     def mass_erase(self) -> None:
         if not self.call_delegate('mass_erase', target=self):
             # The default mass erase implementation is to simply perform a chip erase.
-            FlashEraser(self.session, FlashEraser.Mode.CHIP).erase()
+            eraser = FlashEraser(self.session, FlashEraser.Mode.CHIP)
+            eraser._log_chip_erase = False
+            eraser.erase()
 
     def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
         return self.selected_core_or_raise.write_memory(addr, data, transfer_size)

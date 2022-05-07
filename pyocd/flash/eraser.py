@@ -48,6 +48,11 @@ class FlashEraser(object):
         self._session = session
         self._mode = mode
 
+        ## Control used by the default Target.mass_erase() implementation to disable logging
+        # inside ._chip_erase(), so the user doesn't see both mass- and chip-erase log messages
+        # when chip-erase is used as the fallback.
+        self._log_chip_erase = True
+
     def erase(self, addresses=None):
         """@brief Perform the type of erase operation selected when the object was created.
 
@@ -79,13 +84,12 @@ class FlashEraser(object):
 
     def _mass_erase(self):
         LOG.info("Mass erasing device...")
-        if self._session.target.mass_erase():
-            LOG.info("Successfully erased.")
-        else:
-            LOG.error("Mass erase failed.")
+        self._session.target.mass_erase()
+        LOG.info("Mass erase complete")
 
     def _chip_erase(self):
-        LOG.info("Erasing chip...")
+        if self._log_chip_erase:
+            LOG.info("Erasing chip...")
         # Erase all flash regions. This may be overkill if either each region's algo erases
         # all regions on the chip. But there's no current way to know whether this will happen,
         # so prefer to be certain.
@@ -97,7 +101,8 @@ class FlashEraser(object):
                     region.flash.cleanup()
                 else:
                     self._sector_erase([(region.start, region.end)])
-        LOG.info("Done")
+        if self._log_chip_erase:
+                LOG.info("Chip erase complete")
 
     def _sector_erase(self, addresses):
         flash = None
