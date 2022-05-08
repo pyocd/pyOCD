@@ -132,12 +132,9 @@ class Board(GraphNode):
         """@brief Uninitialize the board."""
         if self._inited:
             LOG.debug("uninit board %s", self)
-            try:
-                resume = self.session.options.get('resume_on_disconnect')
-                self.target.disconnect(resume)
-                self._inited = False
-            except exceptions.Error as err:
-                LOG.error("link exception during target disconnect: %s", err, exc_info=self._session.log_tracebacks)
+            resume = self.session.options.get('resume_on_disconnect')
+            self.target.disconnect(resume)
+            self._inited = False
 
     @property
     def session(self) -> "Session":
