@@ -229,7 +229,7 @@ class Flash:
             TRACE.debug("algo init and load to %#010x", self.flash_algo['load_address'])
 
             if reset:
-                self.target.reset_and_halt(Target.ResetType.SW)
+                self.target.reset_and_halt()
             self.prepare_target()
 
             # Load flash algo code into target RAM.
