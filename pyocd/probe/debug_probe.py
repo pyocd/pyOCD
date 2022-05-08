@@ -115,7 +115,11 @@ class DebugProbe:
         JTAG_SEQUENCE = 7
 
     @classmethod
-    def get_all_connected_probes(cls, unique_id: str = None, is_explicit: bool = False) -> Sequence["DebugProbe"]:
+    def get_all_connected_probes(
+                cls,
+                unique_id: Optional[str] = None,
+                is_explicit: bool = False
+            ) -> Sequence["DebugProbe"]:
         """@brief Returns a list of DebugProbe instances.
 
         To filter the list of returned probes, the `unique_id` parameter may be set to a string with a full or

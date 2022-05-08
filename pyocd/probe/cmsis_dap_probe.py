@@ -85,7 +85,11 @@ class CMSISDAPProbe(DebugProbe):
     DAPLINK_VIDPID = (0x0d28, 0x0204)
 
     @classmethod
-    def get_all_connected_probes(cls, unique_id: str = None, is_explicit: bool = False) -> Sequence["DebugProbe"]:
+    def get_all_connected_probes(
+                cls,
+                unique_id: Optional[str] = None,
+                is_explicit: bool = False
+            ) -> Sequence["DebugProbe"]:
         try:
             return [cls(dev) for dev in DAPAccess.get_connected_devices()]
         except DAPAccess.Error as exc:
