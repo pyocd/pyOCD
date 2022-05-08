@@ -612,7 +612,7 @@ class GDBServer(threading.Thread):
                     # Note: if the target is not actually halted, gdb can get confused from this point on.
                     # But there's not much we can do if we're getting faults attempting to control it.
                     if not fault_retry_timeout.is_running:
-                        LOG.error('Exception reading target status: %s', e, exc_info=self.session.log_tracebacks)
+                        LOG.error('Error reading target status: %s', e, exc_info=self.session.log_tracebacks)
                     val = ('S%02x' % signals.SIGINT).encode()
                 break
 
@@ -653,7 +653,7 @@ class GDBServer(threading.Thread):
                     self.target.halt()
                 except exceptions.Error:
                     pass
-                LOG.warning('Exception while target was running: %s', e, exc_info=self.session.log_tracebacks)
+                LOG.warning('Error while target was running: %s', e, exc_info=self.session.log_tracebacks)
                 # This exception was not a transfer error, so reading the target state should be ok.
                 val = ('S%02x' % self.target_facade.get_signal_value()).encode()
                 break
@@ -1068,7 +1068,7 @@ class GDBServer(threading.Thread):
                     exc_info=self.session.log_tracebacks)
         except Exception as err:
             stream.write("Unexpected error: %s\n" % err)
-            LOG.error("Exception while executing remote command '%s': %s", cmd, err,
+            LOG.error("Error while executing remote command '%s': %s", cmd, err,
                     exc_info=self.session.log_tracebacks)
 
         # Convert back to bytes, hex encode, then return the response packet.
