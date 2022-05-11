@@ -32,6 +32,7 @@ from .common import (
 from ..dap_access_api import DAPAccessIntf
 from ... import common
 from ....utility.timeout import Timeout
+from ....utility.signals import ThreadSignalBlocker
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -162,6 +163,9 @@ class PyUSBv2(Interface):
         self.is_swo_running = False
 
     def rx_task(self):
+        # Block all signals on this thread to prevent broken USB transfers.
+        ThreadSignalBlocker()
+
         try:
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
@@ -177,6 +181,9 @@ class PyUSBv2(Interface):
             self.rcv_data.append(None)
 
     def swo_rx_task(self):
+        # Block all signals on this thread to prevent broken USB transfers.
+        ThreadSignalBlocker()
+
         try:
             while not self.swo_stop_event.is_set():
                 try:
@@ -218,7 +225,8 @@ class PyUSBv2(Interface):
 
         self.read_sem.release()
 
-        self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+        with ThreadSignalBlocker():
+            self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
     def read(self):
         """@brief Read data on the IN endpoint."""

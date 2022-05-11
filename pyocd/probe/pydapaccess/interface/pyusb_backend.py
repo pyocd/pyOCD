@@ -33,6 +33,7 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
+from ....utility.signals import ThreadSignalBlocker
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -144,6 +145,9 @@ class PyUSB(Interface):
         self.thread.start()
 
     def rx_task(self):
+        # Block all signals on this thread.
+        ThreadSignalBlocker()
+
         try:
             while not self.closed:
                 self.read_sem.acquire()
@@ -204,11 +208,13 @@ class PyUSB(Interface):
             bmRequest = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
             wValue = 0x200             #Issuing an OUT report
             wIndex = self.intf_number  #mBed Board interface number for HID
-            self.dev.ctrl_transfer(bmRequestType, bmRequest, wValue, wIndex, data,
-                    timeout=self.DEFAULT_USB_TIMEOUT_MS)
+            with ThreadSignalBlocker():
+                self.dev.ctrl_transfer(bmRequestType, bmRequest, wValue, wIndex, data,
+                        timeout=self.DEFAULT_USB_TIMEOUT_MS)
             return
 
-        self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+        with ThreadSignalBlocker():
+            self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
     def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""

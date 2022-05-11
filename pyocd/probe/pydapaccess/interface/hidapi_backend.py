@@ -31,6 +31,7 @@ from .common import (
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
 from ....utility.timeout import Timeout
+from ....utility.signals import ThreadSignalBlocker
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -95,6 +96,9 @@ class HidApiUSB(Interface):
             self.thread.start()
 
     def rx_task(self):
+        # Block all signals on this thread.
+        ThreadSignalBlocker()
+
         try:
             while not self.closed_event.is_set():
                 self.read_sem.acquire()
@@ -158,12 +162,15 @@ class HidApiUSB(Interface):
         data.extend([0] * (self.packet_size - len(data)))
         if not _IS_WINDOWS:
             self.read_sem.release()
-        self.device.write([0] + data)
+        with ThreadSignalBlocker():
+            self.device.write([0] + data)
 
     def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
+            # Note that we don't use ThreadSignalBlocker here because signals cannot be blocked
+            # at the thread level on Windows (at least via the python API ThreadSignalBlocker uses).
             read_data = self.device.read(self.packet_size)
 
             if TRACE.isEnabledFor(logging.DEBUG):
