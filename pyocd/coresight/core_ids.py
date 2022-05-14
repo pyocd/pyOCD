@@ -73,6 +73,8 @@ class CortexMExtension(Enum):
     DSP = "DSP" # Digital Signal Processing instructions
     FPU_DP = "FPU_DP" # Double-Precision floating point
     FPU_HP = "FPU_HP" # Half-Precision floating point
+    FPU_V4 = "FPUv4" # FPv4, only present in Cortex-M4F
+    FPU_V5 = "FPUv5" # FPv5 single or double precision
     SEC = "SEC" # Security Extension
     SEC_V81 = "SEC_V81" # v8.1-M additions to the Security Extension
     MVE = "MVE" # M-profile Vector Extension, with integer support
@@ -80,10 +82,5 @@ class CortexMExtension(Enum):
     UDE = "UDE" # Unprivileged Debug Extension
     RAS = "RAS" # Reliability, Serviceability, and Availability
     PMU = "PMU" # Performance Monitoring Unit
-    LOB = "LOB" # Low-Overhead loops and Branch Future
-    PXN = "PXN" # Privileged eXecute-Never
-    MAIN = "MAIN" # Main Extension
     MPU = "MPU" # Memory Protection Unit
-    DIT = "DIT" # Data-Independent Timing
-    FPCXT = "FPCXT" # Floating Point Context
     PACBTI = "PACBTI" # Pointer Authentication and Branch Target Identification
