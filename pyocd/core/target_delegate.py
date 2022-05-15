@@ -20,6 +20,7 @@ from typing import (Optional, TYPE_CHECKING)
 if TYPE_CHECKING:
     from .session import Session
     from .soc_target import SoCTarget
+    from .core_target import CoreTarget
     from .target import Target
     from ..board.board import Board
     from ..utility.sequencer import CallSequence
@@ -76,36 +77,61 @@ class TargetDelegateInterface:
         """
         pass
 
-    def will_start_debug_core(self, core: "Target") -> DelegateResult:
-        """@brief Hook to enable debug for the given core.
+    def will_start_debug_core(self, core: "CoreTarget") -> None:
+        """@brief Notification hook for before core debug is enabled.
+
+        This hook is called during connection, prior to any register accesses being performed on the
+        indicated core (aside from the CoreSight peripheral ID registers that were read to identify
+        the core's presence during discovery).
+
         @param self
-        @param core A CortexM object about to be initialized.
+        @param core A CoreTarget object about to be initialized.
+        @return Ignored.
+        """
+        pass
+
+    def start_debug_core(self, core: "CoreTarget") -> DelegateResult:
+        """@brief Core debug initialization hook.
+        @param self
+        @param core A CoreTarget object.
         @retval True Do not perform the normal procedure to start core debug.
         @retval "False or None" Continue with normal behaviour.
         """
         pass
 
-    def did_start_debug_core(self, core: "Target") -> None:
-        """@brief Post-initialization hook.
+    def did_start_debug_core(self, core: "CoreTarget") -> None:
+        """@brief Notification hook that core debug has been enabled.
+
+        This hook method is called once a debug has been enabled for a core, and it has been fully
+        identified.
+
         @param self
-        @param core A CortexM object.
+        @param core A CoreTarget object.
         @return Ignored.
         """
         pass
 
-    def will_stop_debug_core(self, core: "Target") -> DelegateResult:
-        """@brief Pre-cleanup hook for the core.
+    def will_stop_debug_core(self, core: "CoreTarget") -> None:
+        """@brief Pre core disconnect notification hook for the core.
         @param self
-        @param core A CortexM object.
+        @param core A CoreTarget object.
+        @return Ignored.
+        """
+        pass
+
+    def stop_debug_core(self, core: "CoreTarget") -> DelegateResult:
+        """@brief Core debug disable hook.
+        @param self
+        @param core A CoreTarget object.
         @retval True Do not perform the normal procedure to disable core debug.
         @retval "False or None" Continue with normal behaviour.
         """
         pass
 
-    def did_stop_debug_core(self, core: "Target") -> None:
-        """@brief Post-cleanup hook for the core.
+    def did_stop_debug_core(self, core: "CoreTarget") -> None:
+        """@brief Post core disconnect notification hook for the core.
         @param self
-        @param core A CortexM object.
+        @param core A CoreTarget object.
         @return Ignored.
         """
         pass
@@ -146,7 +172,7 @@ class TargetDelegateInterface:
         """
         pass
 
-    def set_reset_catch(self, core: "Target", reset_type: "Target.ResetType") -> DelegateResult:
+    def set_reset_catch(self, core: "CoreTarget", reset_type: "Target.ResetType") -> DelegateResult:
         """@brief Hook to prepare target for halting on reset.
         @param self
         @param core A CortexM instance.
@@ -156,7 +182,7 @@ class TargetDelegateInterface:
         """
         pass
 
-    def clear_reset_catch(self, core: "Target", reset_type: "Target.ResetType") -> None:
+    def clear_reset_catch(self, core: "CoreTarget", reset_type: "Target.ResetType") -> None:
         """@brief Hook to clean up target after a reset and halt.
         @param self
         @param core A CortexM instance.
