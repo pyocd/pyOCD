@@ -161,13 +161,14 @@ both target related objects, as well as parts of the pyOCD Python API.
 This section documents all functions that user scripts can provide to modify pyOCD's behaviour. Some are simply
 notifications, while others allow for overriding of default behaviour. Collectively, these are called delegate functions.
 
-All parameters of script delegate functions are optional. Parameters can be declared in any order, and that are not
-needed can be excluded. In fact, most parameters are not necessary because the same objects are available as script
-globals, for instance `session` and `target`.
+All parameters of user script delegate functions are optional. Parameters can be declared in any order, and
+those that are not needed can be excluded. In fact, most parameters are not necessary because the same objects
+are available as [script globals](#script_globals), for instance `session` and `target`.
 
-Those parameters that are present must have names matching the specification below, and there must not be unspecified,
-required parameters (those without a default value). (Extra optional parameters are allowed but will never be passed any
-value other than the default, unless you call the function yourself from within the script.)
+Those parameters that are present must have names matching the specification below, and there must not be
+additional unspecified, required parameters (those without a default value). Extra optional parameters are
+allowed but will never be passed any value other than the default, unless you call the function yourself from
+within the script.
 
 
 ### will_connect
@@ -222,9 +223,26 @@ Ignored.
 
 ### will_start_debug_core
 
+Notification hook for before core debug is enabled.
+
+```
+will_start_debug_core(core: CoreTarget) -> None
+```
+
+**Parameters** \
+*core* - A `CoreTarget` object about to be initialized. \
+**Result** \
+Ignored.
+
+This hook is called during connection, prior to any register accesses being performed on the
+indicated core (aside from the CoreSight peripheral ID registers that were read to identify
+the core's presence during discovery).
+
+### start_debug_core
+
 Hook to enable debug for the given core.
 ```
-will_start_debug_core(core: CoreTarget) -> Optional[bool]
+start_debug_core(core: CoreTarget) -> Optional[bool]
 ```
 
 **Parameters** \
@@ -235,7 +253,7 @@ will_start_debug_core(core: CoreTarget) -> Optional[bool]
 
 ### did_start_debug_core
 
-Post-initialization hook.
+Notification hook that core debug has been enabled.
 ```
 did_start_debug_core(core: CoreTarget) -> None
 ```
@@ -245,11 +263,26 @@ did_start_debug_core(core: CoreTarget) -> None
 **Result** \
 Ignored.
 
+This hook method is called once a debug has been enabled for a core, and it has been fully
+identified.
+
 ### will_stop_debug_core
 
-Pre-cleanup hook for the core.
+Pre core disconnect notification hook for the core.
 ```
-will_stop_debug_core(core: CoreTarget) -> Optional[bool]
+will_stop_debug_core(core: CoreTarget) -> None
+```
+
+**Parameters** \
+*core* - A `CoreTarget` object. \
+**Result** \
+Ignored.
+
+### stop_debug_core
+
+Core debug disable hook.
+```
+stop_debug_core(core: CoreTarget) -> Optional[bool]
 ```
 
 **Parameters** \
@@ -260,7 +293,7 @@ will_stop_debug_core(core: CoreTarget) -> Optional[bool]
 
 ### did_stop_debug_core
 
-Post-cleanup notification for the core.
+Post core disconnect notification hook for the core.
 ```
 did_stop_debug_core(core: CoreTarget) -> None
 ```
