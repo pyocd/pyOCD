@@ -200,7 +200,7 @@ class CoreSightTarget(SoCTarget):
                 if isinstance(region.flm, (str, PurePath)):
                     flm_path = self.session.find_user_file(None, [str(region.flm)])
                     if flm_path is not None:
-                        LOG.info("creating flash algo from: %s", flm_path)
+                        LOG.info("creating flash algo for region %s from: %s", region.name, flm_path)
                         pack_algo = PackFlashAlgo(flm_path)
                     else:
                         LOG.warning("Failed to find FLM file: %s", region.flm)
