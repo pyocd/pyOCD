@@ -436,6 +436,7 @@ class Session(Notifier):
             'RunType': target.Target.RunType,
             'HaltReason': target.Target.HaltReason,
             'ResetType': target.Target.ResetType,
+            'MemoryLoader': loader.MemoryLoader,
             'MemoryType': memory_map.MemoryType,
             'MemoryMap': memory_map.MemoryMap,
             'RamRegion': memory_map.RamRegion,
@@ -444,7 +445,7 @@ class Session(Notifier):
             'DeviceRegion': memory_map.DeviceRegion,
             'FileProgrammer': file_programmer.FileProgrammer,
             'FlashEraser': eraser.FlashEraser,
-            'FlashLoader': loader.FlashLoader,
+            'FlashLoader': loader.FlashLoader, # deprecated
             # User script info
             '__name__': script_name,
             '__file__': script_path,
