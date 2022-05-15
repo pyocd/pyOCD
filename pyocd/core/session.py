@@ -252,7 +252,9 @@ class Session(Notifier):
         # Look for default filenames if a path wasn't provided.
         if filePath is None:
             for filename in filename_list:
-                thisPath = os.path.join(self.project_dir, filename)
+                thisPath = os.path.expanduser(filename)
+                if not os.path.isabs(thisPath):
+                    thisPath = os.path.join(self.project_dir, filename)
                 if os.path.isfile(thisPath):
                     filePath = thisPath
                     break
