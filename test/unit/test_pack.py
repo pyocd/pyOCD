@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +16,7 @@
 # limitations under the License.
 
 import pytest
-import six
 import cmsis_pack_manager
-import os
 import zipfile
 from xml.etree import ElementTree
 from pathlib import Path
@@ -26,6 +24,7 @@ from pathlib import Path
 from pyocd.target.pack import (cmsis_pack, flash_algo, pack_target)
 from pyocd.target import TARGET
 from pyocd.core import (memory_map, target)
+from pyocd.utility.mask import align_up
 
 K64F = "MK64FN1M0VDC12"
 NRF5340 = "nRF5340_xxAA"
@@ -176,20 +175,26 @@ class TestFLM(object):
         assert i.page_size == 512
         assert i.sector_info_list == [(0, 4 * 1024)]
 
-    def test_algo_dict(self, k64algo, k64f1m0):
-        map = k64f1m0.memory_map
-        ram = map.get_default_region_of_type(memory_map.MemoryType.RAM)
+    def test_algo_dict_entry_points(self, k64algo):
+        # Create the RAM region where we want the algo to be placed.
+        ram = memory_map.RamRegion(0x20000000, length=0x10000)
         d = k64algo.get_pyocd_flash_algo(4096, ram)
-#         print(len(d['instructions']) * 4)
-#         del d['instructions']
-#         print(d)
-        STACK_SIZE = 0x200
-        assert d['load_address'] == ram.start + STACK_SIZE
-        assert d['pc_init'] == ram.start + STACK_SIZE + 0x5
-        assert d['pc_unInit'] == ram.start + STACK_SIZE + 0x55
-        assert d['pc_eraseAll'] == ram.start + STACK_SIZE + 0x79
-        assert d['pc_erase_sector'] == ram.start + STACK_SIZE + 0xaf
-        assert d['pc_program_page'] == ram.start + STACK_SIZE + 0xc3
+        assert d['load_address'] == ram.start
+        assert d['pc_init'] == ram.start + 0x5
+        assert d['pc_unInit'] == ram.start + 0x55
+        assert d['pc_eraseAll'] == ram.start + 0x79
+        assert d['pc_erase_sector'] == ram.start + 0xaf
+        assert d['pc_program_page'] == ram.start + 0xc3
+
+    def test_algo_dict_full_mem(self, k64algo):
+        # Create the RAM region where we want the algo to be placed.
+        ram = memory_map.RamRegion(0x20000000, length=0x10000)
+        d = k64algo.get_pyocd_flash_algo(k64algo.page_size, ram)
+        instr_len = len(d['instructions']) * 4
+        buf_base = align_up(instr_len, 0x10)
+        buf1 = ram.start + buf_base
+        buf2 = buf1 + k64algo.page_size
+        assert d['page_buffers'] == [buf1, buf2]
 
 def has_overlapping_regions(memmap):
     return any((len(memmap.get_intersecting_regions(r.start, r.end)) > 1) for r in memmap.regions)

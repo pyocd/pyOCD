@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,10 +25,9 @@ from ...utility.compatibility import to_str_safe
 from ...core.memory_map import MemoryRange
 from ...core import exceptions
 from ...utility.conversion import byte_list_to_u32le_list
+from ...utility.mask import align_up
 
 LOG = logging.getLogger(__name__)
-
-FLASH_ALGO_STACK_SIZE = 512
 
 class FlashAlgoException(exceptions.TargetSupportError):
     """@brief Exception class for errors parsing an FLM file."""
@@ -63,7 +62,7 @@ class PackFlashAlgo(object):
         ("PrgData", "SHT_NOBITS"),
         )
 
-    ## @brief Standard flash blob header a breakpoint instruction.
+    ## @brief Standard flash blob header with a breakpoint instruction.
     #
     # This header consists of two instructions:
     #
@@ -77,6 +76,13 @@ class PackFlashAlgo(object):
     _FLASH_BLOB_HEADER = [ 0xE7FDBE00 ]
     ## @brief Size of the flash blob header in bytes.
     _FLASH_BLOB_HEADER_SIZE = len(_FLASH_BLOB_HEADER) * 4
+
+    # Minimum and maximum sizes allocated for the flash algo stack.
+    _MIN_STACK_SIZE = 512
+    _MAX_STACK_SIZE = 8192
+
+    # Alignment for page buffers.
+    _PAGE_BUFFER_ALIGN = 16
 
     def __init__(self, data):
         """@brief Construct a PackFlashAlgo from a file-like object."""
@@ -121,7 +127,7 @@ class PackFlashAlgo(object):
 
         Memory layout:
         ```
-        [stack] [code] [buf1] [buf2]
+        [code] [buf1] [buf2] [<--stack]
         ```
 
         @param self
@@ -134,17 +140,14 @@ class PackFlashAlgo(object):
 
         offset = 0
 
-        # Stack
-        offset += FLASH_ALGO_STACK_SIZE
-        addr_stack = ram_region.start + offset
-
         # Load address
         addr_load = ram_region.start + offset
         offset += len(instructions) * 4
 
         # Data buffer 1
-        addr_data = ram_region.start + offset
-        offset += blocksize
+        unaligned_buffer_addr = ram_region.start + offset
+        addr_data = align_up(unaligned_buffer_addr, self._PAGE_BUFFER_ALIGN)
+        offset += blocksize + (addr_data - unaligned_buffer_addr)
 
         if offset > ram_region.length:
             # Not enough space for flash algorithm
@@ -152,13 +155,62 @@ class PackFlashAlgo(object):
             return None
 
         # Data buffer 2
-        addr_data2 = ram_region.start + offset
-        offset += blocksize
+        unaligned_buffer_addr = ram_region.start + offset
+        addr_data2 = align_up(unaligned_buffer_addr, self._PAGE_BUFFER_ALIGN)
+        data2_offset = offset + blocksize + (addr_data2 - unaligned_buffer_addr)
 
-        if offset > ram_region.length:
-            page_buffers = [addr_data]
+        # Stack
+        # Select best fit for one or two data buffers and a variable size stack.
+        # TODO Switching down from two to one buffer should probably be done with the stack size around
+        #   mid-level instead of going all the way down to minimum first.
+        min_stack_offset_one_buf = offset + self._MIN_STACK_SIZE
+        max_stack_offset_one_buf = offset + self._MAX_STACK_SIZE
+        min_stack_offset_two_bufs = data2_offset + self._MIN_STACK_SIZE
+        max_stack_offset_two_bufs = data2_offset + self._MAX_STACK_SIZE
+
+        stack_size = self._MAX_STACK_SIZE
+
+        # Max stack with double buffering
+        if max_stack_offset_two_bufs <= ram_region.length:
+            stack_offset = max_stack_offset_two_bufs
+        # Between min and max stack with double buffering
+        elif min_stack_offset_two_bufs <= ram_region.length:
+            stack_size = ram_region.length - min_stack_offset_two_bufs
+            stack_offset = data2_offset + stack_size
+        # Max stack with single buffer
+        elif max_stack_offset_one_buf <= ram_region.length:
+            stack_offset = max_stack_offset_one_buf
+        # Between min and max stack with single buffer
+        elif min_stack_offset_one_buf <= ram_region.length:
+            stack_size = ram_region.length - min_stack_offset_one_buf
+            stack_offset = offset + stack_size
         else:
+            # Cannot fit single buffer and minimum stack.
+            LOG.warning("Not enough space for flash algorithm")
+            return None
+
+        addr_stack = ram_region.start + stack_offset
+
+        # Data buffer list
+        if stack_offset > data2_offset:
             page_buffers = [addr_data, addr_data2]
+
+            LOG.debug("flash algo: [code=%#x] [b1=%#x,%#x] [b2=%#x,%#x] [stack=%#x; %#x b] (ram=%#010x, %#x b)",
+                len(instructions) * 4,
+                addr_data - ram_region.start, offset,
+                addr_data2 - ram_region.start, data2_offset,
+                stack_offset, stack_size,
+                ram_region.start, ram_region.length
+            )
+        else:
+            page_buffers = [addr_data]
+
+            LOG.debug("flash algo: [code=%#x] [b1=%#x,%#x] [stack=%#x; %#x b] (ram=%#010x, %#x b)",
+                len(instructions) * 4,
+                addr_data - ram_region.start, offset,
+                stack_offset, stack_size,
+                ram_region.start, ram_region.length
+            )
 
         # TODO - analyzer support
 
