@@ -226,6 +226,7 @@ class PackFlashAlgo(object):
             "page_buffers": page_buffers,
             "begin_data": page_buffers[0],
             "begin_stack": addr_stack,
+            "end_stack": addr_stack - stack_size,
             "static_base": code_start + self.rw_start,
             "min_program_length": self.page_size,
             "analyzer_supported": False

@@ -122,6 +122,9 @@ class Flash:
     # as unsigned.
     TIMEOUT_ERROR = -1
 
+    ## Canary value used for checking stack overflow.
+    _STACK_CANARY = 0xdeadf00d
+
     def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
@@ -137,6 +140,7 @@ class Flash:
             self.begin_data = flash_algo['begin_data']
             self.static_base = flash_algo['static_base']
             self.min_program_length = flash_algo.get('min_program_length', 0)
+            self.end_stack = flash_algo.get('end_stack')
 
             # Validate required APIs.
             assert self._is_api_valid('pc_erase_sector')
@@ -234,6 +238,10 @@ class Flash:
 
             # Load flash algo code into target RAM.
             self.target.write_memory_block32(self.flash_algo['load_address'], self.flash_algo['instructions'])
+
+            # Write stack canary if we know the expected end of stack address.
+            if self.end_stack is not None:
+                self.target.write32(self.end_stack, self._STACK_CANARY)
 
             self._did_prepare_target = True
 
@@ -612,6 +620,12 @@ class Flash:
 
         if self.flash_algo_debug:
             self._flash_algo_debug_check()
+
+        # Check stack canary if we have one.
+        if self.end_stack is not None:
+            canary = self.target.read32(self.end_stack)
+            if canary != self._STACK_CANARY:
+                raise exceptions.FlashFailure(f"flash algorithm overflowed stack ({self.begin_stack - self.end_stack} bytes)")
 
         return self.target.read_core_register('r0')
 
