@@ -19,6 +19,7 @@ from dataclasses import dataclass
 import logging
 from enum import Enum
 
+from ..core import exceptions
 from ..core.target import Target
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
 from ..utility.mask import (align_down, msb)
@@ -122,6 +123,9 @@ class Flash:
     # as unsigned.
     TIMEOUT_ERROR = -1
 
+    ## Canary value used for checking stack overflow.
+    _STACK_CANARY = 0xdeadf00d
+
     def __init__(self, target, flash_algo):
         self.target = target
         self.flash_algo = flash_algo
@@ -137,6 +141,7 @@ class Flash:
             self.begin_data = flash_algo['begin_data']
             self.static_base = flash_algo['static_base']
             self.min_program_length = flash_algo.get('min_program_length', 0)
+            self.end_stack = flash_algo.get('end_stack')
 
             # Validate required APIs.
             assert self._is_api_valid('pc_erase_sector')
@@ -234,6 +239,10 @@ class Flash:
 
             # Load flash algo code into target RAM.
             self.target.write_memory_block32(self.flash_algo['load_address'], self.flash_algo['instructions'])
+
+            # Write stack canary if we know the expected end of stack address.
+            if self.end_stack is not None:
+                self.target.write32(self.end_stack, self._STACK_CANARY)
 
             self._did_prepare_target = True
 
@@ -600,18 +609,43 @@ class Flash:
 
     def wait_for_completion(self, timeout=None):
         """@brief Wait until the breakpoint is hit.
+
+        Checks for:
+        - Timeout, using the _timeout_ parameter.
+        - The target is halted after executing the flash operation.
+        - Stack overflow.
         """
+        # TODO Commonise the method to report timeout, halted, and stack canary errors resulting from here.
+
+        # This setting of state isn't strictly necessary, but pyright sees it as possibly unbound when used
+        # below. Otoh, lgtm sees it as unnecessary! So we disable the lgtm warning.
+        state = Target.State.RUNNING # lgtm[py/multiple-definition]
         with Timeout(timeout) as time_out:
             while time_out.check():
-                if self.target.get_state() != Target.State.RUNNING:
+                state = self.target.get_state()
+                if state != Target.State.RUNNING:
                     break
             else:
                 # Operation timed out.
                 self.target.halt()
+                ipsr = self.target.read_core_register('ipsr')
+                LOG.debug("flash operation timed out; IPSR=%d", ipsr)
                 return self.TIMEOUT_ERROR
 
         if self.flash_algo_debug:
             self._flash_algo_debug_check()
+
+        if state != Target.State.HALTED:
+            self.target.halt()
+            ipsr = self.target.read_core_register('ipsr')
+            raise exceptions.FlashFailure("target was not halted as expected after calling "
+                                          "flash algorithm routine (IPSR=%d)", ipsr)
+
+        # Check stack canary if we have one.
+        if self.end_stack is not None:
+            canary = self.target.read32(self.end_stack)
+            if canary != self._STACK_CANARY:
+                raise exceptions.FlashFailure(f"flash algorithm overflowed stack ({self.begin_stack - self.end_stack} bytes)")
 
         return self.target.read_core_register('r0')
 

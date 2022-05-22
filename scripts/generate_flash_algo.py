@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # pyOCD debugger
 # Copyright (c) 2011-2021 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +24,7 @@ import struct
 import binascii
 import jinja2
 from pyocd.target.pack.flash_algo import PackFlashAlgo
+from pyocd.utility.mask import align_up
 
 # This header consists of two instructions:
 #
@@ -37,7 +38,7 @@ from pyocd.target.pack.flash_algo import PackFlashAlgo
 BLOB_HEADER = '0xe7fdbe00,'
 HEADER_SIZE = 4
 
-STACK_SIZE = 0x200
+STACK_SIZE = 0x1000
 
 PYOCD_TEMPLATE = \
 """# pyOCD debugger
@@ -74,19 +75,24 @@ FLASH_ALGO = {
 
     'static_base' : {{'0x%08x' % entry}} + {{'0x%08x' % header_size}} + {{'0x%08x' % algo.rw_start}},
     'begin_stack' : {{'0x%08x' % stack_pointer}},
+    'end_stack' : {{'0x%08x' % stack_base}},
     'begin_data' : {{'0x%08x' % entry}} + 0x1000,
     'page_size' : {{'0x%x' % algo.page_size}},
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [{{'0x%08x' % (entry + 4096)}}, {{'0x%08x' % (entry + 4096 + algo.page_size)}}],   # Enable double buffering
+    # Enable double buffering
+    'page_buffers' : [
+        {{'0x%08x' % (page_buffers[0])}},
+        {{'0x%08x' % (page_buffers[1])}}
+    ],
     'min_program_length' : {{'0x%x' % algo.page_size}},
 
     # Relative region addresses and sizes
-    'ro_start': {{'0x%x' % algo.ro_start}},
+    'ro_start': {{'0x%x' % (header_size + algo.ro_start)}},
     'ro_size': {{'0x%x' % algo.ro_size}},
-    'rw_start': {{'0x%x' % algo.rw_start}},
+    'rw_start': {{'0x%x' % (header_size + algo.rw_start)}},
     'rw_size': {{'0x%x' % algo.rw_size}},
-    'zi_start': {{'0x%x' % algo.zi_start}},
+    'zi_start': {{'0x%x' % (header_size + algo.zi_start)}},
     'zi_size': {{'0x%x' % algo.zi_size}},
 
     # Flash information
@@ -128,7 +134,7 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
         """
         padding = " " * spaces
         if fmt == "hex":
-            blob = binascii.b2a_hex(self.algo_data)
+            blob = binascii.b2a_hex(self.algo_data).decode()
             line_list = []
             for i in range(0, len(blob), group_size):
                 line_list.append('"' + blob[i:i + group_size] + '"')
@@ -145,7 +151,7 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
                 line_list.append(", ".join(group))
             return (",\n" + padding).join(line_list)
         else:
-            raise Exception("Unsupported format %s" % fmt)
+            raise ValueError("Unsupported format %s" % fmt)
 
     def process_template(self, template_text, data_dict=None):
         """
@@ -172,9 +178,9 @@ def main():
     parser = argparse.ArgumentParser(description="Blob generator")
     parser.add_argument("elf_path", help="Elf, axf, or flm to extract flash algo from")
     parser.add_argument("--blob-start", default=0x20000000, type=str_to_num, help="Starting "
-                        "address of the flash blob in target RAM.")
-    parser.add_argument("--stack-size", default=STACK_SIZE, type=str_to_num, help="Stack size for the algo "
-                        f"(default {STACK_SIZE}).")
+                        "address of the flash blob in target RAM. (default 0x20000000)")
+    parser.add_argument("--stack-size", default=STACK_SIZE, type=str_to_num, help="Stack size for the algo. "
+                        f"(default {STACK_SIZE})")
     parser.add_argument("-i", "--info-only", action="store_true", help="Only print information about the flash "
                         "algo, do not generate a blob.")
     parser.add_argument("-o", "--output", default="pyocd_blob.py", help="Path of output file "
@@ -184,7 +190,7 @@ def main():
     parser.add_argument('-c', '--copyright', help="Set copyright owner.")
     args = parser.parse_args()
 
-    if not args.copyright:
+    if not args.copyright and not args.info_only:
         print(f"{colorama.Fore.YELLOW}Warning! No copyright owner was specified. Defaulting to \"PyOCD Authors\". "
             f"Please set via --copyright, or edit output.{colorama.Style.RESET_ALL}")
 
@@ -199,21 +205,48 @@ def main():
 
         print(algo.flash_info)
 
+        # Page buffer base begins after algo and its rw/zi data, rounded up to 16 bytes.
+        buffer_base = align_up(args.blob_start + HEADER_SIZE
+                        + algo.ro_size + algo.rw_size + algo.zi_size, 0x10)
+
+        page_buffers = [
+            buffer_base,
+            buffer_base + algo.page_size,
+        ]
+
+        # Allocate stack after buffers, with top and bottom rounded to 8 bytes.
+        stack_base = align_up(buffer_base + algo.page_size * 2, 8)
+        sp = align_up(stack_base + args.stack_size, 8)
+
+        header_end = args.blob_start + HEADER_SIZE
+        print(f"load addr:   {args.blob_start:#010x}")
+        print(f"data:        {HEADER_SIZE + len(algo.algo_data):#x} bytes")
+        print(f"  header:    {args.blob_start:#010x} + {HEADER_SIZE:#x} bytes")
+        print(f"  ro:        {header_end + algo.ro_start:#010x} + {algo.ro_size:#x} bytes")
+        print(f"  rw:        {header_end + algo.rw_start:#010x} + {algo.rw_size:#x} bytes")
+        print(f"  zi:        {header_end + algo.zi_start:#010x} + {algo.zi_size:#x} bytes")
+        print(f"buffer[0]:   {page_buffers[0]:#010x}")
+        print(f"buffer[1]:   {page_buffers[1]:#010x}")
+        print(f"stack:       {stack_base:#010x} .. {sp:#010x} ({sp - stack_base:#x} bytes)")
+
+        print("\nSymbol offsets:")
+        for n, v in algo.symbols.items():
+            print(f"{n}:{' ' * (11 - len(n))} {v:#010x}")
+
         if args.info_only:
             return
 
-        # Allocate stack after algo and its rw data, with top and bottom rounded to 8 bytes.
-        stack_base = args.blob_start + HEADER_SIZE + algo.rw_start + algo.rw_size
-        stack_base = (stack_base + 7) // 8 * 8
-        sp = stack_base + args.stack_size
-        sp = (sp + 7) // 8 * 8
+        if len(algo.sector_sizes) > 1:
+            print(f"{colorama.Fore.YELLOW}Warning! Flash has more than one sector size. Remember to create one flash memory region for each sector size range.{colorama.Style.RESET_ALL}")
 
         data_dict = {
             'name': os.path.splitext(os.path.split(args.elf_path)[-1])[0],
             'prog_header': BLOB_HEADER,
             'header_size': HEADER_SIZE,
             'entry': args.blob_start,
+            'stack_base': stack_base,
             'stack_pointer': sp,
+            'page_buffers': page_buffers,
             'year': datetime.now().year,
             'copyright_owner': args.copyright or "PyOCD Authors",
         }
