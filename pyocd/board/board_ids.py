@@ -19,7 +19,7 @@ from typing import (NamedTuple, Optional)
 
 class BoardInfo(NamedTuple):
     name: str
-    target: str
+    target: Optional[str] = None
     binary: Optional[str] = None
     vendor: Optional[str] = None
 

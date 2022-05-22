@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,69 +15,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .board import Board
-from .board_ids import BOARD_ID_TO_INFO
 import logging
+from typing import (Optional, TYPE_CHECKING)
+
+from .board import Board
+from .board_ids import (BoardInfo, BOARD_ID_TO_INFO)
+
+if TYPE_CHECKING:
+    from ..core.session import Session
 
 LOG = logging.getLogger(__name__)
 
 class MbedBoard(Board):
     """@brief Mbed board class.
 
-    This class inherits from Board and is specific to mbed boards. Particularly, this class
-    will dynamically determine the type of connected board based on the board ID encoded in
-    the debug probe's serial number. If the board ID is all "0" characters, it indicates the
-    firmware is generic and doesn't have an associated board.
+    This class used to implement the lookup of board name and other info based on the board ID contained
+    in the probe's serial number string. With CMSIS-DAP v2.1 now having support for reporting the board
+    and target info, the logic is much more complex and is mostly performed in CMSISDAPProbe. This
+    class now simply verifies that the given board_id is known and logs a warning if not.
+
+    If the board ID is all "0" characters, it indicates the firmware is generic and doesn't have an
+    associated board.
     """
-    def __init__(self, session, target=None, board_id=None):
+    def __init__(self,
+            session: "Session",
+            target: Optional[str] = None,
+            board_info: Optional["BoardInfo"] = None,
+            board_id: Optional[str] = None,
+            ) -> None:
         """@brief Constructor.
 
-        This constructor attempts to use the board ID from the serial number to determine
-        the target type. See #BOARD_ID_TO_INFO.
+        Validates the given board_id, if any.
         """
-        target = session.options.get('target_override')
-        unique_id = session.probe.unique_id
-        if board_id is None:
-            board_id = unique_id[0:4]
-
-        # Check for null board ID. This indicates a standalone probe or generic firmware.
+        # Check for an all-zero board ID. This indicates a standalone probe or generic firmware.
         if board_id == "0000":
-            board_info = None
-            self._name = "Generic Board"
-            self.native_target = None
-        else:
+            pass
+        elif board_id:
             # Attempt to look up the board ID in our table.
             try:
-                board_info = BOARD_ID_TO_INFO[board_id]
-                self._name = board_info.name
-                self.native_target = board_info.target
+                info_from_table = BOARD_ID_TO_INFO[board_id]
+                if not board_info:
+                    board_info = info_from_table
             except KeyError:
-                board_info = None
-                self._name = "Unknown Board"
-                self.native_target = None
+                LOG.warning("Board ID %s is not recognized", board_id)
 
-            # Unless overridden use the native target
-            if target is None:
-                target = self.native_target
+                # If we don't have board info, then construct one indicating the board is unknown.
+                if not board_info:
+                    board_info = BoardInfo("Unknown Board")
 
-            # If there still isn't a known target, tell the user about it. Leaving target
-            # set to None will cause cortex_m to be selected by the Board ctor.
-            if target is None:
-                LOG.warning("Board ID %s is not recognized, using generic cortex_m target.", board_id)
+        self._board_id = board_id
 
-        super(MbedBoard, self).__init__(session, target)
-
-        # Set test binary if not already set.
-        if (board_info is not None) and (self._test_binary is None):
-            self._test_binary = board_info.binary
+        super().__init__(session, target, board_info)
 
     @property
-    def name(self):
-        """@brief Return board name."""
-        return self._name
-
-    @property
-    def description(self):
-        """@brief Return description of the board."""
-        return self.name + " [" + self.target_type + "]"
-
+    def board_id(self) -> Optional[str]:
+        return self._board_id

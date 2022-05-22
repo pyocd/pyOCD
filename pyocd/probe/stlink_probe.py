@@ -16,7 +16,7 @@
 # limitations under the License.
 
 from time import sleep
-from typing import (Any, Callable, List, Optional, Sequence, Union)
+from typing import (Any, Callable, List, Optional, Sequence, Union, TYPE_CHECKING)
 
 from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
@@ -29,6 +29,9 @@ from .stlink.detect.factory import create_mbed_detector
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..utility import conversion
+
+if TYPE_CHECKING:
+    from ..board.board_ids import BoardInfo
 
 class StlinkProbe(DebugProbe):
     """@brief Wraps an STLink as a DebugProbe."""
@@ -79,15 +82,7 @@ class StlinkProbe(DebugProbe):
 
     @property
     def description(self) -> str:
-        if self._board_id is None:
-            return self.product_name
-
-        try:
-            board_info = BOARD_ID_TO_INFO[self._board_id]
-        except KeyError:
-            return self.product_name
-        else:
-            return "{0} [{1}]".format(board_info.name, board_info.target)
+        return self.product_name
 
     @property
     def vendor_name(self):
@@ -117,10 +112,18 @@ class StlinkProbe(DebugProbe):
     def capabilities(self):
         return self._caps
 
+    @property
+    def associated_board_info(self) -> Optional["BoardInfo"]:
+        if (self._board_id is not None) and (self._board_id in BOARD_ID_TO_INFO):
+            return BOARD_ID_TO_INFO[self._board_id]
+        else:
+            return None
+
     def create_associated_board(self):
         assert self.session is not None
-        if self._board_id is not None:
-            return MbedBoard(self.session, board_id=self._board_id)
+        board_info = self.associated_board_info
+        if board_info or self._board_id:
+            return MbedBoard(self.session, board_info=board_info, board_id=self._board_id)
         else:
             return None
 

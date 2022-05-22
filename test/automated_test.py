@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -241,7 +241,8 @@ def test_board(config: BoardTestConfig):
 
     # Open board-specific output file. This is done after skipping so a skipped board doesn't have a
     # log file created for it (but a previous log file will be removed, above).
-    log_file = open(log_filename, "w", buffering=1) # 1=Line buffered
+    # buffering=1=Line buffered
+    log_file = open(log_filename, "w", buffering=1, encoding='utf-8', errors='backslashreplace')
 
     # Setup logging.
     log_handler = RecordingLogHandler(None)
