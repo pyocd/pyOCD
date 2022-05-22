@@ -22,6 +22,7 @@ from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 import logging
 import io
+from pathlib import Path
 from typing import (Any, Callable, Dict, List, IO, Iterator, Optional, Tuple, TypeVar, Union)
 
 from .flash_algo import PackFlashAlgo
@@ -79,30 +80,54 @@ class CmsisPack:
         and variants defined within the pack.
 
         @param self
-        @param file_or_path The .pack file to open. May be a string that is the path to the pack,
-            or may be a ZipFile, or a file-like object that is already opened.
+        @param file_or_path The .pack file to open. These values are supported:
+            - String that is the path to a .pack file (a Zip file).
+            - String that is the path to the root directory of an expanded pack.
+            - `ZipFile` object.
+            - File-like object that is already opened.
 
         @exception MalformedCmsisPackError The pack is not a zip file, or the .pdsc file is missing
             from within the pack.
         """
+        self._is_dir = False
         if isinstance(file_or_path, zipfile.ZipFile):
             self._pack_file = file_or_path
         else:
-            try:
-                self._pack_file = zipfile.ZipFile(file_or_path, 'r')
-            except zipfile.BadZipFile as err:
-                raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
+            # Check for an expanded pack as a directory.
+            if isinstance(file_or_path, str):
+                path = Path(file_or_path)
+                self._is_dir = path.is_dir()
+                if self._is_dir:
+                    self._dir_path = path
+
+            if not self._is_dir:
+                try:
+                    self._pack_file = zipfile.ZipFile(file_or_path, 'r')
+                except zipfile.BadZipFile as err:
+                    raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
 
         # Find the .pdsc file.
-        for name in self._pack_file.namelist():
-            if name.endswith('.pdsc'):
-                self._pdscName = name
-                break
+        if self._is_dir:
+            for child_path in self._dir_path.iterdir():
+                if child_path.suffix == '.pdsc':
+                    self._pdsc_name = child_path.name
+                    break
+            else:
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
         else:
-            raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
+            for name in self._pack_file.namelist():
+                if name.endswith('.pdsc'):
+                    self._pdsc_name = name
+                    break
+            else:
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
 
-        with self._pack_file.open(self._pdscName) as pdscFile:
-            self._pdsc = CmsisPackDescription(self, pdscFile)
+        if self._is_dir:
+            with (self._dir_path / self._pdsc_name).open() as pdsc_file:
+                self._pdsc = CmsisPackDescription(self, pdsc_file)
+        else:
+            with self._pack_file.open(self._pdsc_name) as pdsc_file:
+                self._pdsc = CmsisPackDescription(self, pdsc_file)
 
     @property
     def filename(self) -> Optional[str]:
@@ -119,7 +144,7 @@ class CmsisPack:
         """@brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._pdsc.devices
 
-    def get_file(self, filename) -> IO[bytes]:
+    def get_file(self, filename: str) -> IO[bytes]:
         """@brief Return file-like object for a file within the pack.
 
         @param self
@@ -129,7 +154,11 @@ class CmsisPack:
             opened (due to particularities of the ZipFile implementation).
         """
         filename = filename.replace('\\', '/')
-        return io.BytesIO(self._pack_file.read(filename))
+        if self._is_dir:
+            path = self._dir_path / filename
+            return io.BytesIO(path.read_bytes())
+        else:
+            return io.BytesIO(self._pack_file.read(filename))
 
 class CmsisPackDescription:
     """@brief Parser for the PDSC XML file describing a CMSIS-Pack.
