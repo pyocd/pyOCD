@@ -21,15 +21,14 @@ from typing import (IO, TYPE_CHECKING, Callable, Iterable, List, Optional, Type,
 
 from .cmsis_pack import (CmsisPack, CmsisPackDevice, MalformedCmsisPackError)
 from ..family import FAMILIES
-from .. import TARGET
+from .. import (normalise_target_type_name, TARGET)
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
-from .. import normalise_target_type_name
+from ...core.session import Session
 
 if TYPE_CHECKING:
     from zipfile import ZipFile
     from cmsis_pack_manager import CmsisPackRef
-    from ...core.session import Session
     from ...utility.sequencer import CallSequence
 
 try:
@@ -84,9 +83,13 @@ class ManagedPacksImpl:
             cache = cmsis_pack_manager.Cache(True, True)
         results = []
         for pack in ManagedPacks.get_installed_packs(cache=cache):
-            pack_path = os.path.join(cache.data_path, pack.get_pack_name())
-            pack = CmsisPack(pack_path)
-            results += list(pack.devices)
+            try:
+                pack_path = os.path.join(cache.data_path, pack.get_pack_name())
+                pack = CmsisPack(pack_path)
+                results += list(pack.devices)
+            except Exception as err:
+                LOG.error("failure to access managed CMSIS-Pack: %s",
+                        err, exc_info=Session.get_current().log_tracebacks)
         return sorted(results, key=lambda dev:dev.part_number)
 
     @staticmethod
@@ -112,7 +115,7 @@ class _PackTargetMethods:
     """@brief Container for methods added to the dynamically generated pack target subclass."""
 
     @staticmethod
-    def _pack_target__init__(self, session: "Session") -> None: # type:ignore
+    def _pack_target__init__(self, session: Session) -> None: # type:ignore
         """@brief Constructor for dynamically created target class."""
         super(self.__class__, self).__init__(session, self._pack_device.memory_map)
 
@@ -244,7 +247,7 @@ class PackTargets:
         """
         PackTargets.process_targets_from_pack(pack_list, PackTargets.populate_device)
 
-def is_pack_target_available(target_name: str, session: "Session") -> bool:
+def is_pack_target_available(target_name: str, session: Session) -> bool:
     """@brief Test whether a given target type is available."""
     # Create targets from provided CMSIS pack.
     if session.options['pack'] is not None:
