@@ -335,9 +335,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """
         self.call_delegate('will_start_debug_core', core=self)
 
-        # Enable debug
+        # Enable debug, preserving any current debug state.
         if not self.call_delegate('start_debug_core', core=self):
-            self.write32(self.DHCSR, self.DBGKEY | self.C_DEBUGEN)
+            self.write32(self.DHCSR, (self.read32(self.DHCSR) & 0xffff) | self.DBGKEY | self.C_DEBUGEN)
 
         # Examine this CPU.
         self._read_core_type()
