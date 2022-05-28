@@ -587,15 +587,15 @@ class Flash:
             error = True
         if final_fp != expected_fp:
             # Frame pointer should not change
-            LOG.error("Frame pointer should be 0x%x but is 0x%x" % (expected_fp, final_fp))
+            LOG.error("Frame pointer should be 0x%x but is 0x%x", expected_fp, final_fp)
             error = True
         if final_sp != expected_sp:
             # Stack pointer should return to original value after function call
-            LOG.error("Stack pointer should be 0x%x but is 0x%x" % (expected_sp, final_sp))
+            LOG.error("Stack pointer should be 0x%x but is 0x%x", expected_sp, final_sp)
             error = True
         if final_pc != expected_pc:
             # PC should be pointing to breakpoint address
-            LOG.error("PC should be 0x%x but is 0x%x" % (expected_pc, final_pc))
+            LOG.error("PC should be 0x%x but is 0x%x", expected_pc, final_pc)
             error = True
         #TODO - uncomment if Read/write and zero init sections can be moved into a separate flash algo section
         #if not _same(expected_flash_algo, final_flash_algo):
@@ -639,7 +639,7 @@ class Flash:
             self.target.halt()
             ipsr = self.target.read_core_register('ipsr')
             raise exceptions.FlashFailure("target was not halted as expected after calling "
-                                          "flash algorithm routine (IPSR=%d)", ipsr)
+                                          f"flash algorithm routine (IPSR={ipsr})")
 
         # Check stack canary if we have one.
         if self.end_stack is not None:
