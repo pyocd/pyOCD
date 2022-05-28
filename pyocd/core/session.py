@@ -207,15 +207,16 @@ class Session(Notifier):
         self._configure_logging()
 
         # Bail early if we weren't provided a probe.
+        # TODO Should the user script still be loaded?
         if probe is None:
             self._board = None
             return
 
-        # Load the user script.
-        self._load_user_script()
-
         # Ask the probe if it has an associated board, and if not then we create a generic one.
         self._board = probe.create_associated_board() or Board(self)
+
+        # Load the user script.
+        self._load_user_script()
 
     def _get_config(self) -> Dict[str, Any]:
         # Load config file if one was provided via options, and no_config option was not set.
