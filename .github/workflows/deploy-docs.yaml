@@ -1,0 +1,39 @@
+name: Deploy docs
+
+# Only run when docs are modified on the main branch.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: docs-deployment
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: 'pyocd/pyocd-website-source'
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          submodules: true
+
+      - name: Configure user
+        run: |
+            git config --global user.email "pyocd-bot-noreply@pyocd.io"
+            git config --global user.name "pyocd-bot"
+
+      - name: Update pyocd submodule
+        run: |
+          cd pyocd
+          git fetch origin
+          git switch --detach ${{ github.event.after }}
+
+      - name: Commit and push
+        run: |
+          git add pyocd
+          git commit -m "submodule: pyocd: sync to commit ${{ github.event.after }}"
+          git push origin
+
