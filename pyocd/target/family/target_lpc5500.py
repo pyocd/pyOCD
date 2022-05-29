@@ -256,8 +256,8 @@ class CortexM_LPC5500(CortexM_v8M):
             # This sequence is copied from the NXP LPC55S69_DFP debug sequence.
             reset_vector = 0xFFFFFFFF
 
-            # Clear reset vector catch.
-            self.write32(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
+            # Clear reset vector catch, make sure the DWT is enabled.
+            self.write32(CortexM.DEMCR, (demcr & ~CortexM.DEMCR_VC_CORERESET) | CortexM.DEMCR_TRCENA)
 
             # If the processor is in Secure state, we have to access the flash controller
             # through the secure alias.
@@ -330,11 +330,15 @@ class CortexM_LPC5500(CortexM_v8M):
                 self.halt()
 
         # wait until the unit resets
-        with timeout.Timeout(2.0) as t_o:
+        with timeout.Timeout(1.0) as t_o:
             while t_o.check():
                 if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
                     break
                 sleep(0.01)
+
+        if self.get_state() != Target.State.HALTED:
+            self.halt()
+            LOG.warning("had to forcibly halt core after reset")
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
         # points to an invalid address.
@@ -346,7 +350,7 @@ class CortexM_LPC5500(CortexM_v8M):
 
         # Clear breakpoint or watchpoint.
         if catch_mode == 1:
-            self.write32(0xE0002008, 0)
+            self.write32(FPB_COMP0, 0)
         elif catch_mode == 2:
             self.write32(DWT_COMP0, 0)
             self.write32(DWT_FUNCTION0, 0)
