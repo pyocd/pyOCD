@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -109,7 +109,6 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     CPUID_REVISION_MASK = 0x0000000f
     CPUID_REVISION_POS = 0
 
-    CPUID_IMPLEMENTER_ARM = 0x41
     ARMv6M = 0xC
     ARMv7M = 0xF
 
@@ -174,13 +173,18 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     # Media and FP Feature Register 0
     MVFR0 = 0xE000EF40
+    MVFR0_SINGLE_PRECISION_MASK = 0x000000f0
+    MVFR0_SINGLE_PRECISION_SHIFT = 4
+    MVFR0_SINGLE_PRECISION_SUPPORTED = 2
     MVFR0_DOUBLE_PRECISION_MASK = 0x00000f00
     MVFR0_DOUBLE_PRECISION_SHIFT = 8
+    MVFR0_DOUBLE_PRECISION_SUPPORTED = 2
 
     # Media and FP Feature Register 2
     MVFR2 = 0xE000EF48
     MVFR2_VFP_MISC_MASK = 0x000000f0
     MVFR2_VFP_MISC_SHIFT = 4
+    MVFR2_VFP_MISC_SUPPORTED = 4
 
     _RESET_RECOVERY_SLEEP_INTERVAL = 0.01 # 10 ms
 
@@ -220,6 +224,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.core_type = 0
         self.has_fpu: bool = False
         self._core_number: int = core_num
+        self._core_name: str = "Unknown"
         self._run_token: int = 0
         self._target_context: Optional["DebugContext"] = None
         self._elf = None
@@ -254,6 +259,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             self.bp_manager.add_provider(cmp)
         elif isinstance(cmp, DWT):
             self.dwt = cmp
+
+    @property
+    def name(self) -> str:
+        """@brief CPU type name."""
+        return self._core_name
 
     @property
     def core_number(self) -> int:
@@ -323,21 +333,30 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         The bus must be accessible when this method is called.
         """
-        if not self.call_delegate('will_start_debug_core', core=self):
-            self._read_core_type()
-            self._check_for_fpu()
-            self._build_registers()
-            self.sw_bp.init()
+        self.call_delegate('will_start_debug_core', core=self)
+
+        # Enable debug, preserving any current debug state.
+        if not self.call_delegate('start_debug_core', core=self):
+            self.write32(self.DHCSR, (self.read32(self.DHCSR) & 0xffff) | self.DBGKEY | self.C_DEBUGEN)
+
+        # Examine this CPU.
+        self._read_core_type()
+        self._check_for_fpu()
+        self._build_registers()
+
+        self.sw_bp.init()
 
         self.call_delegate('did_start_debug_core', core=self)
 
     def disconnect(self, resume: bool = True) -> None:
-        if not self.call_delegate('will_stop_debug_core', core=self):
-            # Remove breakpoints and watchpoints.
-            self.bp_manager.remove_all_breakpoints()
-            if self.dwt is not None:
-                self.dwt.remove_all_watchpoints()
+        self.call_delegate('will_stop_debug_core', core=self)
 
+        # Remove breakpoints and watchpoints.
+        self.bp_manager.remove_all_breakpoints()
+        if self.dwt is not None:
+            self.dwt.remove_all_watchpoints()
+
+        if not self.call_delegate('stop_debug_core', core=self):
             # Disable other debug blocks.
             self.write32(CortexM.DEMCR, 0)
 
@@ -370,12 +389,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         cpuid = self.read32(CortexM.CPUID)
 
         implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
-        if implementer != CortexM.CPUID_IMPLEMENTER_ARM:
-            LOG.warning("CPU implementer is not ARM!")
-
         arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
-
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
 
@@ -386,10 +401,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         else:
             self._architecture = CoreArchitecture.ARMv6M
 
-        if self.core_type in CORE_TYPE_NAME:
-            LOG.info("CPU core #%d is %s r%dp%d", self.core_number, CORE_TYPE_NAME[self.core_type], self.cpu_revision, self.cpu_patch)
-        else:
-            LOG.warning("CPU core #%d type is unrecognized", self.core_number)
+        self._core_name = CORE_TYPE_NAME.get((implementer, self.core_type), f"Unknown (CPUID={cpuid:#010x})")
+
+        LOG.info("CPU core #%d is %s r%dp%d", self.core_number, self._core_name, self.cpu_revision, self.cpu_patch)
 
     def _check_for_fpu(self) -> None:
         """@brief Determine if a core has an FPU.
@@ -401,34 +415,37 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             self.has_fpu = False
             return
 
-        originalCpacr = self.read32(CortexM.CPACR)
-        cpacr = originalCpacr | CortexM.CPACR_CP10_CP11_MASK
-        self.write32(CortexM.CPACR, cpacr)
-
-        cpacr = self.read32(CortexM.CPACR)
-        self.has_fpu = (cpacr & CortexM.CPACR_CP10_CP11_MASK) != 0
-
-        # Restore previous value.
-        self.write32(CortexM.CPACR, originalCpacr)
+        # Determine presence of an FPU by checking if single- and/or double-precision floating
+        # point operations are supported.
+        #
+        # Note that one of the recommended tests for an FPU was to attempt enabling the FPU via a
+        # write to CPACR and checking the result. This test has the unfortunate property of not
+        # working on certain cores when the core is held in reset, because CPACR is not accessible
+        # under reset on all cores. Thus we use MVFR0.
+        mvfr0 = self.read32(CortexM.MVFR0)
+        sp_val = (mvfr0 & CortexM.MVFR0_SINGLE_PRECISION_MASK) >> CortexM.MVFR0_SINGLE_PRECISION_SHIFT
+        dp_val = (mvfr0 & CortexM.MVFR0_DOUBLE_PRECISION_MASK) >> CortexM.MVFR0_DOUBLE_PRECISION_SHIFT
+        self.has_fpu = ((sp_val == self.MVFR0_SINGLE_PRECISION_SUPPORTED) or
+                (dp_val == self.MVFR0_DOUBLE_PRECISION_SUPPORTED))
 
         if self.has_fpu:
             self._extensions.append(CortexMExtension.FPU)
 
-            # Now check whether double-precision is supported.
-            # (Minimal tests to distinguish current permitted ARMv7-M and
-            # ARMv8-M FPU types; used for printing only).
-            mvfr0 = self.read32(CortexM.MVFR0)
-            dp_val = (mvfr0 & CortexM.MVFR0_DOUBLE_PRECISION_MASK) >> CortexM.MVFR0_DOUBLE_PRECISION_SHIFT
+            # Now check the VFP version by looking for support for the misc FP instructions added in
+            # FPv5 (VMINNM, VMAXNM, etc).
 
             mvfr2 = self.read32(CortexM.MVFR2)
             vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
 
-            if dp_val >= 2:
+            if dp_val == self.MVFR0_DOUBLE_PRECISION_SUPPORTED:
+                # FPv5 with double-precision
                 fpu_type = "FPv5-D16-M"
                 self._extensions.append(CortexMExtension.FPU_DP)
-            elif vfp_misc_val >= 4:
+            elif vfp_misc_val == self.MVFR2_VFP_MISC_SUPPORTED:
+                # FPv5 with only single-precision
                 fpu_type = "FPv5-SP-D16-M"
             else:
+                # FPv4 has only single-precision, only present on the CM4F.
                 fpu_type = "FPv4-SP-D16-M"
             LOG.info("FPU present: " + fpu_type)
 
@@ -1268,7 +1285,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         if self.dwt is not None:
             return self.dwt.set_watchpoint(addr, size, type)
 
-    def remove_watchpoint(self, addr, size, type):
+    def remove_watchpoint(self, addr, size=None, type=None):
         """@brief Remove a hardware watchpoint.
         """
         if self.dwt is not None:

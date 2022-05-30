@@ -256,6 +256,12 @@ class STLinkUSBInterface:
                 data = self._read(readSize)
                 if TRACE.isEnabledFor(logging.DEBUG):
                     TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+
+                # Verify we got all requested data.
+                if len(data) < readSize:
+                    raise exceptions.ProbeError("received incomplete command response from STLink "
+                            f"(got {len(data)}, expected {readSize}")
+
                 return data
         except usb.core.USBError as exc:
             raise exceptions.ProbeError("USB Error: %s" % exc) from exc

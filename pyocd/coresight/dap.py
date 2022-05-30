@@ -117,26 +117,24 @@ class ADIVersion(Enum):
     ADIv5 = 5
     ADIv6 = 6
 
-class DPConnector:
-    """@brief Establishes a connection to the DP for a given wire protocol.
+class ProbeConnector:
+    """@brief Configures the debug probe for a given wire protocol.
 
-    This class will ask the probe to connect using a given wire protocol. Then it makes multiple
-    attempts at sending the SWJ sequence to select the wire protocol and read the DP IDR register.
+    This class will ask the probe to connect using a given wire protocol, unless the probe is already
+    connected.
     """
 
     def __init__(self, probe: DebugProbe) -> None:
+        """@brief Constructor.
+        @param self
+        @param probe The DebugProbe instance to connect.
+        """
         self._probe = probe
-        self._idr = DPIDR(0, 0, 0, 0, 0)
 
         # Make sure we have a session, since we get the session from the probe and probes have their session set
         # after creation.
-        assert probe.session is not None, "DPConnector requires the probe to have a session"
+        assert probe.session is not None, "ProbeConnector requires the probe to have a session"
         self._session = probe.session
-
-    @property
-    def idr(self) -> DPIDR:
-        """@brief DPIDR instance containing values read from the DP IDR register."""
-        return self._idr
 
     def _get_protocol(self, protocol: Optional[DebugProbe.Protocol]) -> DebugProbe.Protocol:
         # Convert protocol from setting if not passed as parameter.
@@ -148,9 +146,7 @@ class DPConnector:
         return protocol
 
     def connect(self, protocol: Optional[DebugProbe.Protocol] = None) -> None:
-        """@brief Establish a connection to the DP.
-
-        This method causes the debug probe to connect using the wire protocol.
+        """@brief Cause the debug probe to connect using the wire protocol.
 
         @param self
         @param protocol One of the @ref pyocd.probe.debug_probe.DebugProbe.Protocol
@@ -170,14 +166,9 @@ class DPConnector:
             already_connected = current_wire_protocol is not None
 
             if already_connected:
-                assert current_wire_protocol
                 self._check_protocol(current_wire_protocol, protocol)
             else:
                 self._connect_probe(protocol)
-
-            protocol = self._probe.wire_protocol
-            assert protocol
-            self._connect_dp(protocol)
         finally:
             self._probe.unlock()
 
@@ -202,48 +193,78 @@ class DPConnector:
             assert actual_protocol
             LOG.debug("Default wire protocol selected; using %s", actual_protocol.name)
 
-    def _connect_dp(self, protocol: DebugProbe.Protocol) -> None:
-        # Get SWJ settings.
-        use_dormant = self._session.options.get('dap_swj_use_dormant')
-        send_swj = self._session.options.get('dap_swj_enable') \
-                and (DebugProbe.Capability.SWJ_SEQUENCE in self._probe.capabilities)
+class DPConnector:
+    """@brief Establishes a connection to the DP for a given wire protocol.
 
-        # Create object to send SWJ sequences.
-        swj = SWJSequenceSender(self._probe, use_dormant)
+    This class will make multiple attempts at sending the SWJ sequence to select the wire protocol and read the
+    DP IDR register. The probe must be already connected for the desired wire protocol.
+    """
 
-        # Multiple attempts to select protocol and read DP IDR.
-        for attempt in range(4):
-            try:
-                if send_swj:
-                    swj.select_protocol(protocol)
+    def __init__(self, probe: DebugProbe) -> None:
+        self._probe = probe
+        self._idr = DPIDR(0, 0, 0, 0, 0)
 
-                # Attempt to read the DP IDR register.
-                self._idr = self.read_idr()
+        # Make sure we have a session, since we get the session from the probe and probes have their session set
+        # after creation.
+        assert probe.session is not None, "DPConnector requires the probe to have a session"
+        self._session = probe.session
 
-                # Successful connection so exit the loop.
-                break
-            except exceptions.TransferError:
-                # If not sending the SWJ sequence, just reraise; there's nothing more to do.
-                if not send_swj:
-                    raise
+    @property
+    def idr(self) -> DPIDR:
+        """@brief DPIDR instance containing values read from the DP IDR register."""
+        return self._idr
 
-                # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
-                # in a state where it thought the SWJ sequence was an invalid transfer. We also
-                # try enabling use of dormant state if it wasn't already enabled.
-                LOG.debug("DP IDCODE read failed; resending SWJ sequence (use dormant=%s)", use_dormant)
+    def connect(self) -> None:
+        """@brief Establish a connection to the DP."""
+        try:
+            self._probe.lock()
 
-                if attempt == 1:
-                    # If already using dormant mode, just raise, we don't need to retry the same mode.
-                    if use_dormant:
+            protocol = self._probe.wire_protocol
+            assert protocol is not None, "the probe must already be connected"
+
+            # Get SWJ settings.
+            use_dormant = self._session.options.get('dap_swj_use_dormant')
+            send_swj = self._session.options.get('dap_swj_enable') \
+                    and (DebugProbe.Capability.SWJ_SEQUENCE in self._probe.capabilities)
+
+            # Create object to send SWJ sequences.
+            swj = SWJSequenceSender(self._probe, use_dormant)
+
+            # Multiple attempts to select protocol and read DP IDR.
+            for attempt in range(4):
+                try:
+                    if send_swj:
+                        swj.select_protocol(protocol)
+
+                    # Attempt to read the DP IDR register.
+                    self._idr = self.read_idr()
+
+                    # Successful connection so exit the loop.
+                    break
+                except exceptions.TransferError:
+                    # If not sending the SWJ sequence, just reraise; there's nothing more to do.
+                    if not send_swj:
                         raise
 
-                    # After the second attempt, switch to enabling dormant mode.
-                    swj.use_dormant = True
-                elif attempt == 3:
-                    # After 4 attempts, we let the exception propagate.
-                    raise
+                    # If the read of the DP IDCODE fails, retry SWJ sequence. The DP may have been
+                    # in a state where it thought the SWJ sequence was an invalid transfer. We also
+                    # try enabling use of dormant state if it wasn't already enabled.
+                    LOG.debug("DP IDCODE read failed; resending SWJ sequence (use dormant=%s)", use_dormant)
 
-    def read_idr(self):
+                    if attempt == 1:
+                        # If already using dormant mode, just raise, we don't need to retry the same mode.
+                        if use_dormant:
+                            raise
+
+                        # After the second attempt, switch to enabling dormant mode.
+                        swj.use_dormant = True
+                    elif attempt == 3:
+                        # After 4 attempts, we let the exception propagate.
+                        raise
+        finally:
+            self._probe.unlock()
+
+    def read_idr(self) -> DPIDR:
         """@brief Read IDR register and get DP version"""
         dpidr = self._probe.read_dp(DP_IDR, now=True)
         dp_partno = (dpidr & DPIDR_PARTNO_MASK) >> DPIDR_PARTNO_SHIFT
@@ -401,9 +422,13 @@ class DebugPort:
         self._have_probe_capabilities = True
 
     def _connect(self) -> None:
-        # Attempt to connect.
+        # Connect the probe.
+        probe_conn = ProbeConnector(self.probe)
+        probe_conn.connect(self._protocol)
+
+        # Attempt to connect DP.
         connector = DPConnector(self.probe)
-        connector.connect(self._protocol)
+        connector.connect()
 
         # Report on DP version.
         self.dpidr = connector.idr

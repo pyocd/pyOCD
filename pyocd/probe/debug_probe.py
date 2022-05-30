@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from ..core.session import Session
     from ..core.memory_interface import MemoryInterface
     from ..board.board import Board
+    from ..board.board_ids import BoardInfo
     from ..coresight.ap import APAddressBase
 
 class DebugProbe:
@@ -115,7 +116,11 @@ class DebugProbe:
         JTAG_SEQUENCE = 7
 
     @classmethod
-    def get_all_connected_probes(cls, unique_id: str = None, is_explicit: bool = False) -> Sequence["DebugProbe"]:
+    def get_all_connected_probes(
+                cls,
+                unique_id: Optional[str] = None,
+                is_explicit: bool = False
+            ) -> Sequence["DebugProbe"]:
         """@brief Returns a list of DebugProbe instances.
 
         To filter the list of returned probes, the `unique_id` parameter may be set to a string with a full or
@@ -218,6 +223,11 @@ class DebugProbe:
         """
         raise NotImplementedError()
 
+    @property
+    def associated_board_info(self) -> Optional["BoardInfo"]:
+        """@brief Info about the board associated with this probe, if known."""
+        return None
+
     def create_associated_board(self) -> Optional["Board"]:
         """@brief Create a board instance representing the board of which the probe is a component.
 
@@ -227,7 +237,6 @@ class DebugProbe:
         does not have an associated board, then this method returns None.
 
         @param self
-        @param session Session to pass to the board upon construction.
         """
         return None
 

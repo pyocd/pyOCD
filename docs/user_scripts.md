@@ -11,9 +11,9 @@ completely override the default behaviour.
 
 If a file named `pyocd_user.py` or `.pyocd_user.py` is placed in the project directory, pyOCD will
 automatically detect it and load it as a user script. If you prefer another name, you can set the
-`user_script` option. Another alternative is to provide the filename using the `--script` command
-line argument. If a relative path is set either with the option or command line, it will be searched
-for in the project directory.
+`user_script` session option, for example in a [config file]({% link _docs/configuration.md %}), or
+by passing the `--script=<path>` command line argument. If a relative path is set either with the
+option or command line, it will be searched for in the project directory.
 
 
 ## Examples
@@ -113,46 +113,54 @@ def vectable(base: int):
 A number of useful symbols are made available in the global namespace of user scripts. These include
 both target related objects, as well as parts of the pyOCD Python API.
 
+The usual Python builtins are available.
+
+### Objects and functions
+
 | Symbol | Description |
 |--------|-------------|
-| `__file__` | Path to the user script. |
-| `__name__` | Module name of the user script. |
 | `aps` | Dictionary of CoreSight Access Port (AP) objects. The keys are the APSEL value. |
 | `board` | The `Board` object. |
-| `BreakpointType` | Enumeration of breakpoint types. |
 | `command` | Decorator for defining new commands. See [user-defined commands](#user_defined_commands) for details. |
-| `DeviceRegion` | Device-type memory region class. |
 | `debug` | Log a debug message. |
 | `dp` | The CoreSight Debug Port (DP) object. |
+| `error` | Output an error log. |
+| `info` | Output an info-level log message. |
+| `LOG` | `Logger` object for the user script. |
+| `options` | The session options dictionary. |
+| `probe` | The connected debug probe object. |
+| `session` | The session object, which is the root of the connection object graph. |
+| `target` | The `CoreSightTarget` or subclass instance representing the MCU. |
+| `warning` | Log a warning. |
+
+### Modules and classes
+
+| Symbol | Description |
+|--------|-------------|
+| `BreakpointType` | Enumeration of breakpoint types. |
+| `DeviceRegion` | Device-type memory region class. |
 | `Error` | The base class for all pyOCD exceptions. |
 | `Event` | Enumeration of notification event types. |
 | `exceptions` | Module containing the exception classes. |
-| `error` | Output an error log. |
-| `info` | Output an info-level log message. |
 | `FileProgrammer` | Utility class to program files to target flash. |
 | `FlashEraser` | Utility class to erase target flash. |
-| `FlashLoader` | Utility class to program raw binary data to target flash. |
+| `FlashLoader` | Utility class to program raw binary data to target memory. Deprecated, use `MemoryLoader` instead. |
 | `FlashRegion` | Flash memory region. |
 | `HaltReason` | Enumeration of halt reasons. |
-| `LOG` | `Logger` object for the user script. |
+| `MemoryLoader` | Utility class to program raw binary data to target memory. |
 | `MemoryMap` | Class representing the device's memory map. |
 | `MemoryType` | Memory region type enumeration. |
-| `options` | The session options dictionary. |
-| `probe` | The connected debug probe object. |
-| `pyocd` | The root pyOCD package. |
+| `pyocd` | The root pyOCD module. |
 | `RamRegion` | RAM memory region. |
 | `ResetType` | Reset type enumeration. |
 | `RomRegion` | ROM memory region. |
 | `RunType` | Enumeration of types of run operations (step or run). |
 | `SecurityState` | Enumeration of core security states. |
-| `session` | The session object, which is the root of the connection object graph. |
 | `State` | Enumeration of target state. |
-| `Target` | Base class, mostly useful for numerous constants that are defined within the class. |
-| `target` | The `CoreSightTarget` or subclass instance representing the MCU. |
+| `Target` | Base target class. |
 | `TransferError` | Exception class for all transfer errors. |
-| `TransferFaultError` | Exception subclass of `TransferError` for bus faults. |
+| `TransferFaultError` | Exception subclass of `TransferError` for memory transfer faults. |
 | `VectorCatch` | Namespace class containing bit mask constants for vector catch options. |
-| `warning` | Log a warning. |
 | `WatchpointType` | Enumeration of watchpoint types. |
 
 
@@ -161,13 +169,14 @@ both target related objects, as well as parts of the pyOCD Python API.
 This section documents all functions that user scripts can provide to modify pyOCD's behaviour. Some are simply
 notifications, while others allow for overriding of default behaviour. Collectively, these are called delegate functions.
 
-All parameters of script delegate functions are optional. Parameters can be declared in any order, and that are not
-needed can be excluded. In fact, most parameters are not necessary because the same objects are available as script
-globals, for instance `session` and `target`.
+All parameters of user script delegate functions are optional. Parameters can be declared in any order, and
+those that are not needed can be excluded. In fact, most parameters are not necessary because the same objects
+are available as [script globals](#script_globals), for instance `session` and `target`.
 
-Those parameters that are present must have names matching the specification below, and there must not be unspecified,
-required parameters (those without a default value). (Extra optional parameters are allowed but will never be passed any
-value other than the default, unless you call the function yourself from within the script.)
+Those parameters that are present must have names matching the specification below, and there must not be
+additional unspecified, required parameters (those without a default value). Extra optional parameters are
+allowed but will never be passed any value other than the default, unless you call the function yourself from
+within the script.
 
 
 ### will_connect
@@ -222,9 +231,26 @@ Ignored.
 
 ### will_start_debug_core
 
+Notification hook for before core debug is enabled.
+
+```
+will_start_debug_core(core: CoreTarget) -> None
+```
+
+**Parameters** \
+*core* - A `CoreTarget` object about to be initialized. \
+**Result** \
+Ignored.
+
+This hook is called during connection, prior to any register accesses being performed on the
+indicated core (aside from the CoreSight peripheral ID registers that were read to identify
+the core's presence during discovery).
+
+### start_debug_core
+
 Hook to enable debug for the given core.
 ```
-will_start_debug_core(core: CoreTarget) -> Optional[bool]
+start_debug_core(core: CoreTarget) -> Optional[bool]
 ```
 
 **Parameters** \
@@ -235,7 +261,7 @@ will_start_debug_core(core: CoreTarget) -> Optional[bool]
 
 ### did_start_debug_core
 
-Post-initialization hook.
+Notification hook that core debug has been enabled.
 ```
 did_start_debug_core(core: CoreTarget) -> None
 ```
@@ -245,11 +271,26 @@ did_start_debug_core(core: CoreTarget) -> None
 **Result** \
 Ignored.
 
+This hook method is called once a debug has been enabled for a core, and it has been fully
+identified.
+
 ### will_stop_debug_core
 
-Pre-cleanup hook for the core.
+Pre core disconnect notification hook for the core.
 ```
-will_stop_debug_core(core: CoreTarget) -> Optional[bool]
+will_stop_debug_core(core: CoreTarget) -> None
+```
+
+**Parameters** \
+*core* - A `CoreTarget` object. \
+**Result** \
+Ignored.
+
+### stop_debug_core
+
+Core debug disable hook.
+```
+stop_debug_core(core: CoreTarget) -> Optional[bool]
 ```
 
 **Parameters** \
@@ -260,7 +301,7 @@ will_stop_debug_core(core: CoreTarget) -> Optional[bool]
 
 ### did_stop_debug_core
 
-Post-cleanup notification for the core.
+Post core disconnect notification hook for the core.
 ```
 did_stop_debug_core(core: CoreTarget) -> None
 ```

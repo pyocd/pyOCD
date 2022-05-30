@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +23,7 @@ from .interface import Interface
 from .common import (
     filter_device_by_usage_page,
     generate_device_unique_id,
+    is_known_cmsis_dap_vid_pid,
     )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.timeout import Timeout
@@ -44,15 +46,24 @@ class PyWinUSB(Interface):
 
     isAvailable = IS_AVAILABLE
 
-    def __init__(self):
+    def __init__(self, dev):
         super().__init__()
         # Vendor page and usage_id = 2
-        self.report = None
+        reports = dev.find_output_reports()
+        assert len(reports) == 1
+        self.report = reports[0]
+        self.packet_size = len(self.report.get_raw_data()) - 1
+        self.vendor_name = dev.vendor_name or f"{dev.vendor_id:#06x}"
+        self.product_name = dev.product_name or f"{dev.product_id:#06x}"
+        self.serial_number = dev.serial_number \
+                or generate_device_unique_id(dev.vendor_id, dev.product_id, dev.device_path)
+        self.vid = dev.vendor_id
+        self.pid = dev.product_id
+        self.device = dev
         # deque used here instead of synchronized Queue
         # since read speeds are ~10-30% faster and are
         # comparable to a list based implementation.
         self.rcv_data = collections.deque()
-        self.device = None
 
     # handler called when a report is received
     def rx_handler(self, data):
@@ -103,7 +114,8 @@ class PyWinUSB(Interface):
         # find devices with good vid/pid
         all_mbed_devices = []
         for d in all_devices:
-            if ("CMSIS-DAP" in d.product_name):
+            known_cmsis_dap = is_known_cmsis_dap_vid_pid(d.vendor_id, d.product_id)
+            if ("CMSIS-DAP" in d.product_name) or known_cmsis_dap:
                 all_mbed_devices.append(d)
 
         boards = []
@@ -120,16 +132,7 @@ class PyWinUSB(Interface):
                 if len(report) != 1:
                     dev.close()
                     continue
-                new_board = PyWinUSB()
-                new_board.report = report[0]
-                new_board.packet_size = len(new_board.report.get_raw_data()) - 1
-                new_board.vendor_name = dev.vendor_name or f"{dev.vendor_id:#06x}"
-                new_board.product_name = dev.product_name or f"{dev.product_id:#06x}"
-                new_board.serial_number = dev.serial_number \
-                        or generate_device_unique_id(dev.vendor_id, dev.product_id, dev.device_path)
-                new_board.vid = dev.vendor_id
-                new_board.pid = dev.product_id
-                new_board.device = dev
+                new_board = PyWinUSB(dev)
                 boards.append(new_board)
             except Exception as e:
                 if (str(e) != "Failure to get HID pre parsed data"):
@@ -147,10 +150,10 @@ class PyWinUSB(Interface):
         data.extend([0] * (self.packet_size - len(data)))
         self.report.send([0] + data)
 
-    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+    def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(timeout, sleeptime=0.0001) as t_o:
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.rcv_data):
                     break

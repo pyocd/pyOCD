@@ -47,7 +47,8 @@ class _DeviceInfo:
 def _get_part_number_from_element(element: Element) -> str:
     """@brief Extract the part number from a device or variant XML element."""
     assert element.tag in ("device", "variant")
-    if element.tag == "device":
+    # Both device and variant may have 'Dname' according to the latest spec.
+    if 'Dname' in element.attrib:
         return element.attrib['Dname']
     elif element.tag == "variant":
         return element.attrib['Dvariant']

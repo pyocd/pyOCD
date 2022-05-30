@@ -75,6 +75,7 @@ from . import target_MAX32620
 from . import target_MAX32625
 from . import target_MAX32630
 from . import target_MAX32660
+from . import target_MAX32670
 from . import target_w7500
 from . import target_s5js100
 from . import target_LPC1114FN28_102
@@ -104,8 +105,10 @@ from . import target_LPC55S36
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
 from . import target_M261
+from . import target_M460
 from . import target_M480
 from . import target_M2354
+from . import target_HC32F45x
 from . import target_HC32F460
 from . import target_HC32F4A0
 from . import target_HC32M423
@@ -166,6 +169,7 @@ BUILTIN_TARGETS = {
           'max32625': target_MAX32625.MAX32625,
           'max32630': target_MAX32630.MAX32630,
           'max32660': target_MAX32660.MAX32660,
+          'max32670': target_MAX32670.MAX32670,
           'mimxrt1010': target_MIMXRT1011xxxxx.MIMXRT1011xxxxx,
           'mimxrt1015': target_MIMXRT1015xxxxx.MIMXRT1015xxxxx,
           'mimxrt1020': target_MIMXRT1021xxxxx.MIMXRT1021xxxxx,
@@ -240,8 +244,13 @@ BUILTIN_TARGETS = {
           'cy8c64x5_cm4_full_flash' : target_CY8C64x5.cy8c64x5_cm4_full_flash,
           'm252kg6ae' : target_M251.M252KG6AE,
           'm263kiaae' : target_M261.M263KIAAE,
+          'm467hjhae' : target_M460.M467HJHAE,
           'm487jidae' : target_M480.M487JIDAE,
           'm2354kjfae' : target_M2354.M2354KJFAE,
+          'hc32f451xc' : target_HC32F45x.HC32F451xC,
+          'hc32f451xe' : target_HC32F45x.HC32F451xE,
+          'hc32f452xc' : target_HC32F45x.HC32F452xC,
+          'hc32f452xe' : target_HC32F45x.HC32F452xE,
           'hc32f460xc' : target_HC32F460.HC32F460xC,
           'hc32f460xe' : target_HC32F460.HC32F460xE,
           'hc32f4a0xg' : target_HC32F4A0.HC32F4A0xG,
@@ -250,6 +259,7 @@ BUILTIN_TARGETS = {
           'hc32f120x6' : target_HC32x120.HC32F120x6TA,
           'hc32f120x8' : target_HC32x120.HC32F120x8TA,
           'hc32m120' : target_HC32x120.HC32M120,
+          'hc32m120x6' : target_HC32x120.HC32M120,
           'hc32f160xa' : target_HC32F160.HC32F160xA,
           'hc32f160xc' : target_HC32F160.HC32F160xC,
           'hc32l110' : target_HC32L110.HC32L110,

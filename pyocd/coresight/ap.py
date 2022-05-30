@@ -564,13 +564,15 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         # Ask the probe for an accelerated memory interface for this AP. If it provides one,
         # then bind our memory interface APIs to its methods. Otherwise use our standard
         # memory interface based on AP register accesses.
-        memoryInterface = self.dp.probe.get_memory_interface_for_ap(self.address)
-        if memoryInterface is not None:
-            LOG.debug("Using accelerated memory access interface")
-            self.write_memory = memoryInterface.write_memory
-            self.read_memory = memoryInterface.read_memory
-            self.write_memory_block32 = memoryInterface.write_memory_block32
-            self.read_memory_block32 = memoryInterface.read_memory_block32
+        self._accelerated_memory_interface = self.dp.probe.get_memory_interface_for_ap(self.address)
+        if self._accelerated_memory_interface is not None:
+            LOG.debug("Using accelerated memory access interface for %s", self.short_description)
+            self.write_memory = self._accelerated_write_memory
+            self.read_memory = self._accelerated_read_memory
+            self.write_memory_block32 = self._accelerated_write_memory_block32
+            self.read_memory_block32 = self._accelerated_read_memory_block32
+            self.write_memory_block8 = self._accelerated_write_memory_block8
+            self.read_memory_block8 = self._accelerated_read_memory_block8
         else:
             self.write_memory = self._write_memory
             self.read_memory = self._read_memory
@@ -1173,6 +1175,67 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             addr += n
         return resp
 
+    @locked
+    def _accelerated_write_memory(self, addr: int, data: int, transfer_size: int=32) -> None:
+        """@brief Write one memory location using the probe's accelerated memory interface.
+
+        The current CSW value is passed to the accelerted interface, primarily for STLink.
+        """
+        assert self._accelerated_memory_interface is not None
+        self._accelerated_memory_interface.write_memory(addr, data, transfer_size,
+                csw=self._csw)
+
+    @locked
+    def _accelerated_read_memory(self, addr: int, transfer_size: int=32, now: bool=True) \
+            -> Union[int, Callable[[], int]]:
+        """@brief Read one memory location using the probe's accelerated memory interface.
+
+        The current CSW value is passed to the accelerted interface, primarily for STLink.
+        """
+        assert self._accelerated_memory_interface is not None
+        return self._accelerated_memory_interface.read_memory(addr, transfer_size, now,
+                csw=self._csw)
+
+    @locked
+    def _accelerated_write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
+        """@brief Write a memory block using the probe's accelerated memory interface.
+
+        The current CSW value is passed to the accelerted interface, primarily for STLink.
+        """
+        assert self._accelerated_memory_interface is not None
+        self._accelerated_memory_interface.write_memory_block32(addr, data,
+                csw=self._csw)
+
+    @locked
+    def _accelerated_read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
+        """@brief Read a memory block using the probe's accelerated memory interface.
+
+        The current CSW value is passed to the accelerted interface, primarily for STLink.
+        """
+        assert self._accelerated_memory_interface is not None
+        return self._accelerated_memory_interface.read_memory_block32(addr, size,
+                csw=self._csw)
+
+    @locked
+    def _accelerated_write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
+        """@brief Write a memory block using the probe's accelerated memory interface.
+
+        The current CSW value is passed to the accelerted interface, primarily for STLink.
+        """
+        assert self._accelerated_memory_interface is not None
+        self._accelerated_memory_interface.write_memory_block8(addr, data,
+                csw=self._csw)
+
+    @locked
+    def _accelerated_read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
+        """@brief Read a memory block using the probe's accelerated memory interface.
+
+        The current CSW value is passed to the accelerted interface, primarily for STLink.
+        """
+        assert self._accelerated_memory_interface is not None
+        return self._accelerated_memory_interface.read_memory_block8(addr, size,
+                csw=self._csw)
+
     def _handle_error(self, error: Exception, num: int) -> None:
         self.dp._handle_error(error, num)
         self._invalidate_cache()
@@ -1224,6 +1287,12 @@ class AHB_AP(MEM_AP):
 # - [6:0] = 0x3B, Arm's JEP106 identification code
 # - [12:7] = 4, the number of JEP106 continuation codes for Arm
 AP_JEP106_ARM = 0x23b
+
+## @brief Arm China JEP106 code
+#
+# - [6:0] = 0x75, JEP106 identification code
+# - [12:7] = 10, number of JEP106 continuation codes
+AP_JEP106_ARM_CHINA = 0x575
 
 # AP classes
 AP_CLASS_JTAG_AP = 0x0
@@ -1283,4 +1352,6 @@ AP_TYPE_MAP: Dict[Tuple[int, int, int, int], Tuple[str, Type[AccessPort], int]] 
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM_CHINA,
+                    AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     }

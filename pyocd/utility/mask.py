@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -166,3 +167,18 @@ def parity32_high(n: int) -> int:
     n ^= n >> 4
     n &= 0xf
     return (0xD32C0000 << n) & (1 << 32)
+
+def twos_complement(value: int, width: int) -> int:
+    """@brief Convert an unsigned int to signed.
+
+    @param value Signed value as an unsigned int.
+    @param width Bit width of _value_.
+    @return Signed version of _value_.
+    """
+    signmask = 1 << (width - 1)
+    if (value & signmask) == 0:
+        # Mask off sign bit.
+        return value & (signmask - 1)
+    else:
+        # Two's complement.
+        return -bit_invert(value, width - 1) - 1

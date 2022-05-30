@@ -253,6 +253,8 @@ class TCPClientProbe(DebugProbe):
     ##@{
 
     def connect(self, protocol=None):
+        if protocol is None:
+            protocol = DebugProbe.Protocol.DEFAULT
         self._perform_request('connect', protocol.name)
 
     def disconnect(self):
@@ -362,11 +364,11 @@ class RemoteMemoryInterface(MemoryInterface):
         self._remote_probe = remote_probe
         self._handle = handle
 
-    def write_memory(self, addr, data, transfer_size=32):
+    def write_memory(self, addr, data, transfer_size=32, **attrs):
         assert transfer_size in (8, 16, 32)
         self._remote_probe._perform_request('write_mem', self._handle, addr, data, transfer_size)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **attrs):
         assert transfer_size in (8, 16, 32)
         result, exc = self._remote_probe._perform_request_without_raise('read_mem', self._handle, addr, transfer_size)
 
@@ -377,16 +379,16 @@ class RemoteMemoryInterface(MemoryInterface):
             return result
         return read_callback() if now else read_callback
 
-    def write_memory_block32(self, addr, data):
+    def write_memory_block32(self, addr, data, **attrs):
         self._remote_probe._perform_request('write_block32', self._handle, addr, data)
 
-    def read_memory_block32(self, addr, size):
+    def read_memory_block32(self, addr, size, **attrs):
         return self._remote_probe._perform_request('read_block32', self._handle, addr, size)
 
-    def write_memory_block8(self, addr, data):
+    def write_memory_block8(self, addr, data, **attrs):
         self._remote_probe._perform_request('write_block8', self._handle, addr, data)
 
-    def read_memory_block8(self, addr, size):
+    def read_memory_block8(self, addr, size, **attrs):
         return self._remote_probe._perform_request('read_block8', self._handle, addr, size)
 
 class TCPClientProbePlugin(Plugin):

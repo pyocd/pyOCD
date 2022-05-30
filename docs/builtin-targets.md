@@ -176,6 +176,26 @@ title: Built-in targets
     <td>HC32F196</td>
     </tr>
 
+    <tr><td><code>hc32f451xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F451xC</td>
+    </tr>
+
+    <tr><td><code>hc32f451xe</code></td>
+    <td>HDSC</td>
+    <td>HC32F451xE</td>
+    </tr>
+
+    <tr><td><code>hc32f452xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F452xC</td>
+    </tr>
+
+    <tr><td><code>hc32f452xe</code></td>
+    <td>HDSC</td>
+    <td>HC32F452xE</td>
+    </tr>
+
     <tr><td><code>hc32f460xc</code></td>
     <td>HDSC</td>
     <td>HC32F460xC</td>
@@ -232,6 +252,11 @@ title: Built-in targets
     </tr>
 
     <tr><td><code>hc32m120</code></td>
+    <td>HDSC</td>
+    <td>HC32M120</td>
+    </tr>
+
+    <tr><td><code>hc32m120x6</code></td>
     <td>HDSC</td>
     <td>HC32M120</td>
     </tr>
@@ -481,6 +506,11 @@ title: Built-in targets
     <td>M263KIAAE</td>
     </tr>
 
+    <tr><td><code>m467hjhae</code></td>
+    <td>Nuvoton</td>
+    <td>M467HJHAE</td>
+    </tr>
+
     <tr><td><code>m487jidae</code></td>
     <td>Nuvoton</td>
     <td>M487JIDAE</td>
@@ -504,6 +534,16 @@ title: Built-in targets
     <tr><td><code>max32630</code></td>
     <td>Maxim</td>
     <td>MAX32630</td>
+    </tr>
+
+    <tr><td><code>max32660</code></td>
+    <td>Maxim</td>
+    <td>MAX32660</td>
+    </tr>
+
+    <tr><td><code>max32670</code></td>
+    <td>Maxim</td>
+    <td>MAX32670</td>
     </tr>
 
     <tr><td><code>mimxrt1010</code></td>

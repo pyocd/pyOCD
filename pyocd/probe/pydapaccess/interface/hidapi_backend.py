@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +26,7 @@ from .interface import Interface
 from .common import (
     filter_device_by_usage_page,
     generate_device_unique_id,
+    is_known_cmsis_dap_vid_pid,
     )
 from ..dap_access_api import DAPAccessIntf
 from ....utility.compatibility import to_str_safe
@@ -52,11 +54,17 @@ class HidApiUSB(Interface):
 
     HIDAPI_MAX_PACKET_COUNT = 30
 
-    def __init__(self):
+    def __init__(self, dev, info: dict):
         super().__init__()
         # Vendor page and usage_id = 2
-        self.device = None
-        self.device_info = None
+        self.vid = info['vendor_id']
+        self.pid = info['product_id']
+        self.vendor_name = info['manufacturer_string'] or f"{self.vid:#06x}"
+        self.product_name = info['product_string'] or f"{self.pid:#06x}"
+        self.serial_number = info['serial_number'] \
+                or generate_device_unique_id(self.vid, self.pid, six.ensure_str(info['path']))
+        self.device_info = info
+        self.device = dev
         self.thread = None
         self.read_sem = threading.Semaphore(0)
         self.closed_event = threading.Event()
@@ -115,7 +123,8 @@ class HidApiUSB(Interface):
 
         for deviceInfo in devices:
             product_name = to_str_safe(deviceInfo['product_string'])
-            if ("CMSIS-DAP" not in product_name):
+            known_cmsis_dap = is_known_cmsis_dap_vid_pid(deviceInfo['vendor_id'], deviceInfo['product_id'])
+            if ("CMSIS-DAP" not in product_name) and (not known_cmsis_dap):
                 # Check the device path as a backup. Even though we can't get the interface name from
                 # hidapi, it may appear in the path. At least, it does on macOS.
                 device_path = to_str_safe(deviceInfo['path'])
@@ -137,15 +146,7 @@ class HidApiUSB(Interface):
                 continue
 
             # Create the USB interface object for this device.
-            new_board = HidApiUSB()
-            new_board.vid = vid
-            new_board.pid = pid
-            new_board.vendor_name = deviceInfo['manufacturer_string'] or f"{vid:#06x}"
-            new_board.product_name = deviceInfo['product_string'] or f"{pid:#06x}"
-            new_board.serial_number = deviceInfo['serial_number'] \
-                    or generate_device_unique_id(vid, pid, six.ensure_str(deviceInfo['path']))
-            new_board.device_info = deviceInfo
-            new_board.device = dev
+            new_board = HidApiUSB(dev, deviceInfo)
             boards.append(new_board)
 
         return boards
@@ -159,7 +160,7 @@ class HidApiUSB(Interface):
             self.read_sem.release()
         self.device.write([0] + data)
 
-    def read(self, timeout=Interface.DEFAULT_READ_TIMEOUT):
+    def read(self):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
@@ -173,7 +174,7 @@ class HidApiUSB(Interface):
 
         # Other OSes use the read thread, so we check for and pull data from the queue.
         # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(timeout, sleeptime=0.0001) as t_o:
+        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
             while t_o.check():
                 if len(self.received_data) != 0:
                     break
@@ -201,4 +202,10 @@ class HidApiUSB(Interface):
             self.read_sem.release()
             self.thread.join()
             self.thread = None
+
+            # Clear closed event, recreate read sem and receiveed data deque so they
+            # are cleared and ready if we're re-opened.
+            self.closed_event.clear()
+            self.read_sem = threading.Semaphore(0)
+            self.received_data = collections.deque()
         self.device.close()

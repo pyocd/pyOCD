@@ -25,17 +25,20 @@ from ..utility.graph import GraphNode
 
 if TYPE_CHECKING:
     from ..core.session import Session
+    from .board_ids import BoardInfo
 
 LOG = logging.getLogger(__name__)
 
 class Board(GraphNode):
     """@brief Represents the board containing the target and associated components.
 
-    The board is the root of the runtime object graph.
+    The board is the root of the runtime object graph. Responsible for creating the Target instance
+    corresponding to the indicated target type name.
     """
     def __init__(self,
             session: "Session",
             target: Optional[str] = None,
+            board_info: Optional["BoardInfo"] = None,
             ) -> None:
         """@brief Constructor
 
@@ -45,7 +48,7 @@ class Board(GraphNode):
 
         1. `target` parameter
         2. `target_override` session option
-        3. `soft_target` parameter
+        3. `board_info.target` parameter
         4. Last resort `cortex_m` target type. If this type is used, a warning is printed (unless the
             `warning.cortex_m_default` option is disabled).
 
@@ -53,12 +56,18 @@ class Board(GraphNode):
         @param session The session instance that owns us.
         @param target Target type name to use. If this parameter is set, it overrides all other sources of the
             target type.
+        @param board_info A `BoardInfo` object with various descriptive information about the board. The
+            `target` attribute is used as a secondary target type name, with lower precedence than the
+            `target_override` session option.
         """
         super().__init__()
 
         # Use the session option if no target type was given to us.
         if target is None:
-            target = session.options.get('target_override')
+            if session.options.is_set('target_override'):
+                target = session.options.get('target_override')
+            elif board_info:
+                target = board_info.target
 
         # As a last resort, default the target to 'cortex_m'.
         if target is None:
@@ -83,7 +92,9 @@ class Board(GraphNode):
 
         self._session = session
         self._target_type = target
-        self._test_binary = session.options.get('test_binary')
+        self._info = board_info
+        self._test_binary = board_info.binary if (board_info and board_info.binary) \
+                else session.options.get('test_binary')
         self._delegate = None
         self._inited = False
 
@@ -102,11 +113,15 @@ class Board(GraphNode):
             raise exceptions.TargetSupportError(
                 f"Target type {self._target_type} not recognized. Use 'pyocd list --targets' to see currently "
                 "available target types. "
-                "See <https://github.com/pyocd/pyOCD/blob/master/docs/target_support.md> "
+                "See <https://pyocd.io/docs/target_support.html> "
                 "for how to install additional target support.") from exc
 
         # Tell the user what target type is selected.
         LOG.info("Target type is %s", self._target_type)
+
+        self._name = board_info.name if (board_info and board_info.name) \
+                else f"Generic {self.target_type} board"
+        self._vendor = board_info.vendor if (board_info and board_info.vendor) else ""
 
         self.add_child(self.target)
 
@@ -132,12 +147,9 @@ class Board(GraphNode):
         """@brief Uninitialize the board."""
         if self._inited:
             LOG.debug("uninit board %s", self)
-            try:
-                resume = self.session.options.get('resume_on_disconnect')
-                self.target.disconnect(resume)
-                self._inited = False
-            except exceptions.Error as err:
-                LOG.error("link exception during target disconnect: %s", err, exc_info=self._session.log_tracebacks)
+            resume = self.session.options.get('resume_on_disconnect')
+            self.target.disconnect(resume)
+            self._inited = False
 
     @property
     def session(self) -> "Session":
@@ -173,11 +185,17 @@ class Board(GraphNode):
         return self._test_binary
 
     @property
-    def name(self) -> str:
-        return "generic"
+    def vendor(self) -> str:
+        """@brief The board's vendor name."""
+        return self._vendor
 
     @property
+    def name(self) -> str:
+        """@brief The board's name."""
+        return self._name
+
+    # Deprecated property.
+    @property
     def description(self) -> str:
-        assert self.session.probe
-        return "Generic board via " + self.session.probe.vendor_name + " " \
-                + self.session.probe.product_name + " [" + self.target_type + "]"
+        """@brief Return description of the board."""
+        return self.name
