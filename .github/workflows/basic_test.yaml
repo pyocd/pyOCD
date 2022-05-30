@@ -3,14 +3,22 @@
 # pyocd workflow for:
 # - checking code with flake8
 # - running unit tests
+# - run test/import_all.py script
+# - build source distro and wheel, check with twine
 
 name: basic test
 
-on: [push, pull_request]
+# Don't run for changes that only affect the docs directory.
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

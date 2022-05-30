@@ -1,0 +1,19 @@
+# Copyright (c) 2021-2022 Chris Reed
+
+# pyocd workflow to fill in for the skipped 'basic test' workflow for docs updates. Without this,
+# the required 'basic test' workflow will not have run and therefore docs PRs won't be mergeable.
+#
+# See this documentation for more about the need for this workaround: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/troubleshooting-required-status-checks#handling-skipped-but-required-checks
+
+name: basic test
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "Skipped due to path filter."'
