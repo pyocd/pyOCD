@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,6 @@ from ..target import TARGET
 from ..target.builtin import BUILTIN_TARGETS
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..target.pack import pack_target
-
 from ..probe.debug_probe import DebugProbe
 
 class StubProbe(DebugProbe):
@@ -41,37 +40,49 @@ class ListGenerator(object):
 
         Output version history:
         - 1.0, initial version
+        - 1.1, add 'board_vendor' key for each probe
         """
         status = 0
         error = ""
         try:
-            all_mbeds = ConnectHelper.get_sessions_for_all_connected_probes(blocking=False)
+            probes = ConnectHelper.get_all_connected_probes(blocking=False)
         except Exception as e:
-            all_mbeds = []
+            probes = []
             status = 1
             error = str(e)
 
-        boards = []
+        probes_info_list = []
         obj = {
             'pyocd_version' : __version__,
-            'version' : { 'major' : 1, 'minor' : 0 },
+            'version' : { 'major' : 1, 'minor' : 1 },
             'status' : status,
-            'boards' : boards,
+            'boards' : probes_info_list,
             }
 
         if status != 0:
             obj['error'] = error
 
-        for mbed in all_mbeds:
+        for probe in probes:
+            board_info = probe.associated_board_info
+            target_type_name = board_info.target if board_info else None
+            board_name = board_info.name if board_info else "Generic"
+            board_vendor = board_info.vendor if board_info else None
+
+            if board_info and board_info.name:
+                desc = f"{board_vendor} {board_name}" if board_vendor else board_name
+            else:
+                desc = f"{probe.vendor_name} {probe.product_name}"
+
             d = {
-                'unique_id' : mbed.probe.unique_id,
-                'info' : mbed.board.description,
-                'board_name' : mbed.board.name,
-                'target' : mbed.board.target_type,
-                'vendor_name' : mbed.probe.vendor_name,
-                'product_name' : mbed.probe.product_name,
+                'unique_id' : probe.unique_id,
+                'info' : desc,
+                'board_vendor': board_vendor,
+                'board_name' : board_name,
+                'target' : target_type_name or "cortex_m",
+                'vendor_name' : probe.vendor_name,
+                'product_name' : probe.product_name,
                 }
-            boards.append(d)
+            probes_info_list.append(d)
 
         return obj
 
@@ -109,8 +120,10 @@ class ListGenerator(object):
                 'name' : info.name,
                 'target': info.target,
                 'binary' : info.binary,
-                'is_target_builtin': (info.target.lower() in builtin_target_names),
-                'is_target_supported': (info.target.lower() in target_names or info.target in managed_targets)
+                'is_target_builtin': (info.target.lower() in builtin_target_names) \
+                    if info.target else False,
+                'is_target_supported': (info.target.lower() in target_names \
+                    or info.target in managed_targets) if info.target else False,
                 }
             boards.append(d)
 
