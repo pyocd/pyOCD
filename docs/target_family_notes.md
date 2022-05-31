@@ -53,3 +53,10 @@ pyocd erase --mass
 Unlocking of flash security is supported for all Kinetis targets. For more, see the
 [security and protection]({% link _docs/security.md %}) documentation.
 
+
+## HDSC
+
+### HC32L110
+The documentation for this chip states that no external pull-up resistors are required on the SWD lines due to the internal pull-up
+hardware. Testing has found this to be largely inaccurate. Most debug probes will require an external 4.7k&ohm; pull-up resistor 
+between Ports P27/P31 and V+.
