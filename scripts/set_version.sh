@@ -2,7 +2,7 @@
 # Fill the version with the current commit number to simplify local debug
 
 FULL_SCRIPT_PATH="$(pwd)/${0}"
-PROJECT_DIR="${FULL_SCRIPT_PATH%/*}"
+PROJECT_DIR="${FULL_SCRIPT_PATH%/scripts/*}"
 cd "${PROJECT_DIR}"
 
 echo "version = '$(git describe --long --always)'" > pyocd/_version.py
