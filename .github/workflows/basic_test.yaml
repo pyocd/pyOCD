@@ -27,7 +27,6 @@ jobs:
         - macos-latest
         - windows-latest
         python-version:
-        - "3.6"
         - "3.7"
         - "3.8"
         - "3.9"
@@ -45,7 +44,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     # This requires pip 20.1+. The current ubuntu-latest as of 28 Feb 2021 has pip 21.0.1 by default
-    # for all Python versions 3.6-3.9.
+    # for all Python versions 3.7-3.10.
     - name: Get pip cache dir
       id: pip-cache
       run: |
