@@ -76,6 +76,7 @@ Requirements
     - Keil ULINKplus
     - NXP LPC-LinkII
     - NXP MCU-Link
+    - WCH-Link (1a86:8011, 2a86:8011 and others)
   - [PE Micro](https://pemicro.com/) Cyclone and Multilink
   - Raspberry Pi Picoprobe
   - SEGGER J-Link

@@ -27,6 +27,7 @@ from .interface import Interface
 from .common import (
     USB_CLASS_HID,
     filter_device_by_class,
+    is_known_device_string,
     is_known_cmsis_dap_vid_pid,
     generate_device_unique_id,
     )
@@ -345,7 +346,7 @@ class FindDap:
 
             # Now read the product name string.
             device_string = dev.product
-            if ((device_string is None) or ("CMSIS-DAP" not in device_string)) and (not known_cmsis_dap):
+            if ((device_string is None) or (not is_known_device_string(device_string))) and (not known_cmsis_dap):
                 return False
 
             # Get count of HID interfaces.
