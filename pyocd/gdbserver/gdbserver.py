@@ -413,8 +413,8 @@ class GDBServer(threading.Thread):
             try:
                 handler, msgStart = self.COMMANDS[msg[1:2]]
             except (KeyError, IndexError):
-                LOG.error("Unknown RSP packet: %s", msg)
-                return self.create_rsp_packet(b""), 0
+                LOG.error("Unknown RSP command (%s)", msg[1:2])
+                return self.create_rsp_packet(b"")
 
             with self.lock:
                 if msgStart == 0:
@@ -427,7 +427,7 @@ class GDBServer(threading.Thread):
         except Exception as e:
             LOG.error("Unhandled exception in handle_message (%s): %s",
                     msg[1:2], e, exc_info=self.session.log_tracebacks)
-            return self.create_rsp_packet(b"E01"), 0
+            return self.create_rsp_packet(b"E01")
 
     def extended_remote(self):
         LOG.debug("extended remote enabled")
