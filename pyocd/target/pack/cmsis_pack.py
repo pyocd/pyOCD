@@ -95,7 +95,9 @@ class CmsisPack:
         else:
             # Check for an expanded pack as a directory.
             if isinstance(file_or_path, str):
-                path = Path(file_or_path)
+                path = Path(file_or_path).expanduser()
+                file_or_path = str(path) # Update with expanded path.
+
                 self._is_dir = path.is_dir()
                 if self._is_dir:
                     self._dir_path = path
