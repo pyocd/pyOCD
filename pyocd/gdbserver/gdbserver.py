@@ -930,26 +930,15 @@ class GDBServer(threading.Thread):
             return self.create_rsp_packet(resp)
 
         elif query[0] == b'Xfer':
-
-            if query[1] == b'features' and query[2] == b'read' and \
-               query[3] == b'target.xml':
+            # qXfer:<object>:read:<annex>:<offset>,<length>
+            if query[2] == b'read':
                 data = query[4].split(b',')
-                resp = self.handle_query_xml(b'read_feature', int(data[0], 16), int(data[1].split(b'#')[0], 16))
+                resp = self.handle_query_xml(query[1], query[3], int(data[0], 16), int(data[1].split(b'#')[0], 16))
                 return self.create_rsp_packet(resp)
-
-            elif query[1] == b'memory-map' and query[2] == b'read':
-                data = query[4].split(b',')
-                resp = self.handle_query_xml(b'memory_map', int(data[0], 16), int(data[1].split(b'#')[0], 16))
-                return self.create_rsp_packet(resp)
-
-            elif query[1] == b'threads' and query[2] == b'read':
-                data = query[4].split(b',')
-                resp = self.handle_query_xml(b'threads', int(data[0], 16), int(data[1].split(b'#')[0], 16))
-                return self.create_rsp_packet(resp)
-
             else:
                 LOG.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
-                return None
+                # Must return an empty packet for an unrecognized qXfer.
+                return self.create_rsp_packet(b"")
 
         elif query[0].startswith(b'C'):
             if not self.is_threading_enabled():
@@ -1101,14 +1090,23 @@ class GDBServer(threading.Thread):
         else:
             return self.create_rsp_packet(b"")
 
-    def handle_query_xml(self, query, offset, size):
-        LOG.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
-        xml = ''
-        if query == b'memory_map':
+    def handle_query_xml(self, query: bytes, annex: bytes, offset: int, size: int) -> bytes:
+        LOG.debug('GDB query %s: annex: %s, offset: %s, size: %s', query, annex, offset, size)
+
+        # For each query object, we check the annex and return E00 for invalid values. Only 'features'
+        # has a non-empty annex.
+        if query == b'memory-map':
+            if annex != b'':
+                return self.create_rsp_packet(b"E00")
             xml = self.target_facade.get_memory_map_xml()
-        elif query == b'read_feature':
-            xml = self.target_facade.get_target_xml()
+        elif query == b'features':
+            if annex == b'target.xml':
+                xml = self.target_facade.get_target_xml()
+            else:
+                return self.create_rsp_packet(b"E00")
         elif query == b'threads':
+            if annex != b'':
+                return self.create_rsp_packet(b"E00")
             xml = self.get_threads_xml()
         else:
             # Unrecognised query object, so return empty packet.
@@ -1135,7 +1133,6 @@ class GDBServer(threading.Thread):
         resp = prefix + escape(xml[offset:offset + size])
 
         return resp
-
 
     def create_rsp_packet(self, data):
         resp = b'$' + data + b'#' + checksum(data)
