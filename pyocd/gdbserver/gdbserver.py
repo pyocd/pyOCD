@@ -94,10 +94,6 @@ def escape(data):
             result.append(c)
     return bytes(result)
 
-class GDBError(exceptions.Error):
-    """@brief Error communicating with GDB."""
-    pass
-
 class GDBServer(threading.Thread):
     """@brief GDB remote server thread.
 
@@ -1020,29 +1016,35 @@ class GDBServer(threading.Thread):
         # Done with symbol processing.
         return self.create_rsp_packet(b"OK")
 
-    def get_symbol(self, name):
+    def get_symbol(self, name: bytes) -> Optional[int]:
+        assert self.packet_io
+
         # Send the symbol request.
         request = self.create_rsp_packet(b'qSymbol:' + hex_encode(name))
         self.packet_io.send(request)
 
         # Read a packet.
         packet = self.packet_io.receive()
+        assert packet is not None
 
         # Parse symbol value reply packet.
         packet = packet[1:-3]
         if not packet.startswith(b'qSymbol:'):
-            raise GDBError("Got unexpected response from gdb when asking for symbol value")
+            LOG.error("Got unexpected response from gdb when asking for symbol value")
+            return None
         packet = packet[8:]
-        symValue, symName = packet.split(b':')
+        sym_value, sym_name = packet.split(b':')
 
-        symName = hex_decode(symName)
-        if symName != name:
-            raise GDBError("Symbol value reply from gdb has unexpected symbol name")
-        if symValue:
-            symValue = hex8_to_u32le(symValue)
+        sym_name = hex_decode(sym_name)
+        if sym_name != name:
+            LOG.error("Symbol value reply from gdb has unexpected symbol name (expected '%s', received '%s')",
+                    name, sym_name)
+            return None
+        if sym_value:
+            sym_value = hex8_to_u32le(sym_value)
         else:
             return None
-        return symValue
+        return sym_value
 
     def handle_remote_command(self, cmd):
         """@brief Pass remote commands to the commander command processor."""
@@ -1109,14 +1111,17 @@ class GDBServer(threading.Thread):
         elif query == b'threads':
             xml = self.get_threads_xml()
         else:
-            raise GDBError("Invalid XML query (%s)" % query)
+            # Unrecognised query object, so return empty packet.
+            LOG.debug("Unsupported XML query (%s), annex (%s)", query, annex)
+            return self.create_rsp_packet(b"")
 
         size_xml = len(xml)
 
         prefix = b'm'
 
         if offset > size_xml:
-            raise GDBError('GDB: xml offset > size for %s!', query)
+            LOG.error('GDB requested xml offset > size for %s!', query)
+            return self.create_rsp_packet(b"E16") # EINVAL
 
         if size > (self.packet_size - 4):
             size = self.packet_size - 4
