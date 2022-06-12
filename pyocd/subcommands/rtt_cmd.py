@@ -119,13 +119,17 @@ class RTTSubcommand(SubcommandBase):
 
                 memory_map: MemoryMap = target.get_memory_map()
                 ram_region: MemoryRegion = memory_map.get_default_region_of_type(MemoryType.RAM)
-
-                if self._args.address is None or self._args.size is None:
-                    rtt_range_start = ram_region.start
-                    rtt_range_size = ram_region.length
-                elif ram_region.start <= self._args.address and self._args.size <= ram_region.length:
-                    rtt_range_start = self._args.address
-                    rtt_range_size = self._args.size
+                def valid_range(start, size):
+                    return start != None and size != None \
+                        and ram_region.start <= start and size + start <= ram_region.start + ram_region.length
+                rtt_range_start, rtt_range_size = None, None
+                config_start, config_size = session.options.get('rtt.start'), session.options.get('rtt.size')
+                if valid_range(self._args.address, self._args.size):
+                    rtt_range_start, rtt_range_size = self._args.address, self._args.size
+                elif valid_range(config_start, config_size):
+                    rtt_range_start, rtt_range_size = config_start, config_size
+                else:
+                    rtt_range_start, rtt_range_size = ram_region.start, ram_region.length
 
                 LOG.info(f"RTT control block search range [{rtt_range_start:#08x}, {rtt_range_size:#08x}]")
 
