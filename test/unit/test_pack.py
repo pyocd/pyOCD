@@ -79,7 +79,7 @@ def k64algo(k64pack):
 # instead of the (unset) CmsisPack object.
 def load_test_flm(filename):
     p = TEST_DATA_DIR / Path(filename).name
-    return flash_algo.PackFlashAlgo(p.open('rb'))
+    return p.open('rb')
 
 @pytest.fixture(scope='function')
 def nrfpdsc():
@@ -87,9 +87,9 @@ def nrfpdsc():
 
 # Fixture to provide nRF5340 CmsisPackDevice modified to load FLM from test data dir.
 @pytest.fixture(scope='function')
-def nrf5340(monkeypatch, nrfpdsc):
+def nrf5340(nrfpdsc):
     dev = [d for d in nrfpdsc.devices if d.part_number == NRF5340].pop()
-    monkeypatch.setattr(dev, '_load_flash_algo', load_test_flm)
+    dev._get_pack_file_cb = load_test_flm
     return dev
 
 @pytest.fixture(scope='function')
@@ -98,13 +98,13 @@ def stm32l4pdsc():
 
 # Fixture to provide STM32L4R5 CmsisPackDevice modified to load FLM from test data dir.
 @pytest.fixture(scope='function')
-def stm32l4r5(monkeypatch, stm32l4pdsc):
+def stm32l4r5(stm32l4pdsc):
     dev = [d for d in stm32l4pdsc.devices if d.part_number == STM32L4R5].pop()
-    monkeypatch.setattr(dev, '_load_flash_algo', load_test_flm)
+    dev._get_pack_file_cb = load_test_flm
     return dev
 
 # Tests for managed packs. Currently disabled as they fail on most systems.
-class Disabled_TestPack(object):
+class Disabled_TestPack:
     def test_get_installed(self, pack_ref):
         p = pack_target.ManagedPacks.get_installed_packs()
         assert p == [pack_ref]
@@ -126,7 +126,7 @@ class Disabled_TestPack(object):
         assert flash.start == 0 and flash.length == 0x100000
         assert flash.sector_size == 0x1000
 
-class TestPack(object):
+class TestPack:
     def test_devices(self, k64pack):
         devs = k64pack.devices
         pns = [x.part_number for x in devs]
@@ -165,7 +165,7 @@ class TestPack(object):
         assert flash.start == 0 and flash.length == 1 * 1024 * 1024
         assert flash.sector_size == 4096
 
-class TestFLM(object):
+class TestFLM:
     def test_algo(self, k64algo):
         i = k64algo.flash_info
 #         print(i)
@@ -199,12 +199,12 @@ class TestFLM(object):
 def has_overlapping_regions(memmap):
     return any((len(memmap.get_intersecting_regions(r.start, r.end)) > 1) for r in memmap.regions)
 
-class TestNRF():
+class TestNRF:
     def test_regions(self, nrf5340):
         memmap = nrf5340.memory_map
         assert not has_overlapping_regions(memmap)
 
-class TestSTM32L4():
+class TestSTM32L4:
     def test_regions(self, stm32l4r5):
         memmap = stm32l4r5.memory_map
         assert not has_overlapping_regions(memmap)

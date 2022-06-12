@@ -22,6 +22,7 @@ from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 import logging
 import io
+import errno
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, IO, Iterator, Optional, Tuple, TypeVar, Union)
 
@@ -227,7 +228,8 @@ class CmsisPackDescription:
                                         debugs=self._extract_debugs()
                                         )
 
-            dev = CmsisPackDevice(self.pack, deviceInfo)
+            # Support ._pack being None for testing.
+            dev = CmsisPackDevice(self, deviceInfo, self._pack.get_file if self._pack else None)
             self._devices.append(dev)
 
         # Recursively process subelements.
@@ -421,14 +423,19 @@ class CmsisPackDevice:
     the PDSC.
     """
 
-    def __init__(self, pack: CmsisPack, device_info: _DeviceInfo):
+    def __init__(self, pdsc: CmsisPackDescription, device_info: _DeviceInfo,
+            get_pack_file_cb: Optional[Callable[[str], IO[bytes]]]) -> None:
         """@brief Constructor.
         @param self
-        @param pack The CmsisPack object that contains this device.
+        @param pdsc The CmsisPackDescription object that contains this device.
         @param device_info A _DeviceInfo object with the XML elements that describe this device.
+        @param get_pack_file_cb Callable taking a relative filename and returning an open bytes file. May
+            raise IOError exceptions. If not supplied, then no flash algorithms or other files used by
+            the device description are accessible (primarily for testing).
         """
-        self._pack: CmsisPack = pack
+        self._pdsc = pdsc
         self._info: _DeviceInfo = device_info
+        self._get_pack_file_cb = get_pack_file_cb
         self._part: str = _get_part_number_from_element(device_info.element)
         self._regions: List[MemoryRegion] = []
         self._saw_startup: bool = False
@@ -671,19 +678,35 @@ class CmsisPackDevice:
 
     def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
         """@brief Return the PackFlashAlgo instance for the given flash algo filename."""
-        if self.pack is not None:
-            try:
-                algo_data = self.pack.get_file(filename)
-                return PackFlashAlgo(algo_data)
-            except FileNotFoundError:
-                pass
-        # Return default value.
-        return None
+        try:
+            algo_data = self.get_file(filename)
+            return PackFlashAlgo(algo_data)
+        except FileNotFoundError:
+            # Return default value.
+            return None
+
+    def get_file(self, filename: str) -> IO[bytes]:
+        """@brief Return file-like object for a file within the containing pack.
+
+        @param self
+        @param filename Relative path within the pack. May use forward or back slashes.
+        @return A BytesIO object is returned that contains all of the data from the file
+            in the pack. This is done to isolate the returned file from how the pack was
+            opened (due to particularities of the ZipFile implementation).
+
+        @exception OSError A problem occurred opening the file.
+        @exception FileNotFoundError In addition to the usual case of the file actually not being found,
+            this exception is raised if no `get_pack_file_cb` was passed to the constructor.
+        """
+        if self._get_pack_file_cb:
+            return self._get_pack_file_cb(filename)
+        else:
+            raise FileNotFoundError(errno.ENOENT, "No such file or directory", filename)
 
     @property
-    def pack(self) -> CmsisPack:
-        """@brief The CmsisPack object that defines this device."""
-        return self._pack
+    def pack_description(self) -> CmsisPackDescription:
+        """@brief The CmsisPackDescription object that defines this device."""
+        return self._pdsc
 
     @property
     def part_number(self) -> str:
@@ -727,7 +750,7 @@ class CmsisPackDevice:
         """
         try:
             svdPath = self._info.debugs[0].attrib['svd']
-            return self._pack.get_file(svdPath)
+            return self.get_file(svdPath)
         except (KeyError, IndexError):
             return None
 
