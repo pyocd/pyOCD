@@ -93,7 +93,7 @@ available.
 
 In any case, whether required because the probe doesn't have a default, or to override the default, the target
 type can be specified either on the command line with the `-t` / `--target` argument, or by setting the
-`target_override` session option (e.g., in a [config file]({% link _docs/configuration.md#config_file %})).
+`target_override` session option (e.g., in a [config file]({% link _docs/configuration.md %}#config_file)).
 
 Note that the printed list includes only those probes that pyOCD can actively query for, which currently means
 only USB based probes.
@@ -206,8 +206,8 @@ is strongly recommended. Numerous bugs have been fixed, and new commands added f
 - V2J28: Minimum version for multicore target support.
 - V2J32/V3J2: Allows access to banked DP registers. Usually not needed.
 - V2J32/V3J2: Supports setting the AHB and AXI transfer attributes. See
-    [`set hnonsec`]({% link _docs/command_reference.md#hnonsec %}) and
-    [`set hprot`]({% link command_reference.md_docs/#hprot %}).
+    [`set hnonsec`]({% link _docs/command_reference.md %}#hnonsec) and
+    [`set hprot`]({% link _docs/command_reference.md %}#hprot).
 
 [STLink firmware updates on www.st.com](https://www.st.com/en/development-tools/stsw-link007.html).
 
