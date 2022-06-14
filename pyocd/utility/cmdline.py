@@ -161,7 +161,7 @@ def convert_one_session_option(name: str, value: Optional[str]) -> Tuple[str, An
     result = None
 
     # Extract the option's type. If its type is a tuple of types, then take the first type.
-    if info.type is tuple:
+    if isinstance(info.type, tuple):
         option_type = cast(tuple, info.type)[0]
     else:
         option_type = info.type
