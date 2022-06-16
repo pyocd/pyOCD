@@ -81,8 +81,14 @@ KNOWN_CMSIS_DAP_IDS: List[VidPidPair] = [
     (0x2a86, 0x8011),  # WCH-Link clone
     ]
 
+## List of substrings to look for in product and interface name strings.
+#
+# These strings identify a CMSIS-DAP compatible device. According to the specification,
+# "CMSIS-DAP" is required. But some low cost probes have misspelled or outright wrong
+# or missing strings.
 KNOWN_DEVICE_STRINGS: List[str] = (
     "CMSIS-DAP",
+    "CMSIS_DAP",
     "WCH-Link",
     )
 
