@@ -605,7 +605,16 @@ class SemihostAgent:
         return self.io_handler.errno
 
     def handle_sys_get_cmdline(self, args: int) -> int:
-        raise NotImplementedError()
+        cmdline = cast(str, self.context.session.options.get('semihost.commandline'))
+        if not cmdline:
+            return -1
+
+        ptr, length = self._get_args(args, 2)
+        cmdline_write_length = min(length - 1, len(cmdline)) # Ensure room for null byte.
+        cmdline_bytes = cmdline.encode()[:cmdline_write_length] + b'\x00'
+        self.context.write_memory_block8(ptr, cmdline_bytes)
+        self.context.write32(args + 4, cmdline_write_length - 1) # TODO resume assumption about pointer size!
+        return 0
 
     def handle_sys_heapinfo(self, args: int) -> int:
         raise NotImplementedError()

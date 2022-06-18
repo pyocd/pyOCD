@@ -476,6 +476,13 @@ Whether to use GDB syscalls for semihosting file access operations, or to have p
 operations. This is most useful if GDB is running on a remote system.
 </td></tr>
 
+<tr><td>semihost.commandline</td>
+<td>str</td>
+<td><i>Empty</i></td>
+<td>
+Program command line string, used for the SYS_GET_CMDLINE semihosting request.
+</td></tr>
+
 <tr><td>step_into_interrupt</td>
 <td>bool</td>
 <td>False</td>
