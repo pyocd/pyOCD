@@ -1362,6 +1362,7 @@ class ReinitCommand(CommandBase):
 
     def execute(self):
         self.context.target.init()
+        self.context.set_context_defaults()
 
 class WhereCommand(CommandBase):
     INFO = {

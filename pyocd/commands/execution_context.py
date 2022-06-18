@@ -213,28 +213,37 @@ class CommandExecutionContext:
 
         # Select the first core's MEM-AP by default.
         if not self._no_init:
-            try:
-                # Selected core defaults to the target's default selected core.
-                if self.selected_core is None:
-                    self.selected_core = self.target.selected_core
-
-                # Get the AP for the selected core.
-                if self.selected_core is not None:
-                    self.selected_ap_address = self.selected_core.ap.address
-            except IndexError:
-                pass
-
-            # Fall back to the first MEM-AP.
-            if self.selected_ap_address is None:
-                for ap_num in sorted(self.target.aps.keys()):
-                    if isinstance(self.target.aps[ap_num], MEM_AP):
-                        self.selected_ap_address = ap_num
-                        break
+            self.set_context_defaults()
 
         # Add user-defined commands once we know we have a session created.
         self.command_set.add_command_group('user')
 
         return True
+
+    def set_context_defaults(self) -> None:
+        """@brief Sets context attributes to their default values.
+
+        Sets the selected core and selected MEM-AP to the default values.
+        """
+        assert self.target
+
+        try:
+            # Selected core defaults to the target's default selected core.
+            if self.selected_core is None:
+                self.selected_core = self.target.selected_core
+
+            # Get the AP for the selected core.
+            if self.selected_core is not None:
+                self.selected_ap_address = self.selected_core.ap.address
+        except IndexError:
+            pass
+
+        # Fall back to the first MEM-AP.
+        if self.selected_ap_address is None:
+            for ap_num in sorted(self.target.aps.keys()):
+                if isinstance(self.target.aps[ap_num], MEM_AP):
+                    self.selected_ap_address = ap_num
+                    break
 
     @property
     def session(self):
