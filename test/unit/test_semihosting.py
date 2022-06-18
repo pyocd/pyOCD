@@ -514,6 +514,47 @@ class TestSemihosting:
         result = semihost_builder.do_close(fd)
         assert result == 0
 
+    def test_feature_bits(self, semihost_builder):
+        fd = semihost_builder.do_open(":semihosting-features", 'rb')
+        assert fd > 2
+
+        # Required requests: SYS_FLEN, SYS_ISTTY, SYS_SEEK, SYS_READ, SYS_CLOSE
+
+        n = semihost_builder.do_flen(fd)
+        assert n >= 5 # 4 magic bytes + at least 1 feature flags byte
+
+        result = semihost_builder.do_istty(fd)
+        assert result == 0
+
+        result = semihost_builder.do_seek(fd, 0)
+        assert result == 0
+
+        # Verify header
+        result, data = semihost_builder.do_read(fd, 4)
+        assert result == 0
+        assert data == b'SHFB'
+
+        result = semihost_builder.do_seek(fd, 4)
+        assert result == 0
+
+        # Verify first feature byte.
+        result, data = semihost_builder.do_read(fd, 1)
+        assert result == 0
+        assert (data[0] & 0x3) == 0x02 # Only check feature bits defined at the time this test was written.
+
+        # Seek back to earlier.
+        result = semihost_builder.do_seek(fd, 2)
+        assert result == 0
+
+        result, data = semihost_builder.do_read(fd, 2)
+        assert result == 0
+        assert data == b'FB'
+
+        # Close.
+        result = semihost_builder.do_close(fd)
+        assert result == 0
+
+
 @pytest.fixture(scope='function')
 def telnet_server(request):
     telnet_server = StreamServer(

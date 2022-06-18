@@ -24,7 +24,7 @@ import logging
 import time
 import datetime
 import pathlib
-from enum import IntEnum
+from enum import (Enum, IntEnum)
 from typing import (IO, TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union, cast, overload)
 from typing_extensions import Literal
 
@@ -84,6 +84,11 @@ STDERR_FD = 2
 # @see SemihostAgent::get_data()
 MAX_STRING_LENGTH = 2048
 
+## Enumsused for the file ID to indicate a special file was opened.
+class SpecialFile(Enum):
+    # ":semihosting-features"
+    SEMIHOSTING_FEATURES_FILE = object()
+
 class SemihostIOHandler:
     """@brief Interface for semihosting file I/O handlers.
 
@@ -105,7 +110,7 @@ class SemihostIOHandler:
     def errno(self) -> int:
         return self._errno
 
-    def _std_open(self, fnptr: int, fnlen: int, mode: str) -> Tuple[Optional[int], str]:
+    def _std_open(self, fnptr: int, fnlen: int, mode: str) -> Tuple[Optional[Union[int, SpecialFile]], str]:
         """@brief Helper for standard I/O open requests.
 
         In the Arm semihosting spec, standard I/O files are opened using a filename of ":tt"
@@ -113,12 +118,19 @@ class SemihostIOHandler:
         of these special open requests, and is intended to be used by concrete I/O handler
         subclasses.
 
+        Another special file is the ":semihosting-features" file used for semihosting feature bit
+        reporting. This method recognised this file name, checks the requested file mode against
+        allowed modes, and returns `SpecialFile.SEMIHOSTING_FEATURES_FILE` as the file ID.
+
         @return A 2-tuple of the file descriptor and filename. The filename is returned so it
           only has to be read from target memory once if the request is not for standard I/O.
           The returned file descriptor may be one of 0, 1, or 2 for the standard I/O files,
           -1 if an invalid combination was requested, or None if the request was not for
           a standard I/O file (i.e., the filename was not ":tt"). If None is returned for the
           file descriptor, the caller must handle the open request.
+          SpecialFile.SEMIHOSTING_FEATURES_FILE can also be returned as the file ID in case
+          the special ":semihosting-features" file is opened.
+        @exception IOError Raised if an invalid file mode is used for a special file.
         """
         assert self.agent
         filename = self.agent.get_data(fnptr, fnlen).decode()
@@ -136,6 +148,13 @@ class SemihostIOHandler:
                 LOG.warning("Unrecognized semihosting console open file combination: mode=%s", mode)
                 return -1, filename
             return fd, filename
+        # Semihosting features file, not currently supported.
+        elif filename == ':semihosting-features':
+            # All modes other than 'r' and 'rb' must fail.
+            if mode not in ('r', 'rb'):
+                raise IOError("attempt to open :semihosting-features with invalid mode "
+                                "(only r and rb are allowed)")
+            return SpecialFile.SEMIHOSTING_FEATURES_FILE, filename
         return None, filename
 
     def open(self, fnptr: int, fnlen: int, mode: str) -> int:
@@ -195,22 +214,31 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             f.close()
 
     def open(self, fnptr, fnlen, mode):
-        fd, filename = self._std_open(fnptr, fnlen, mode)
-        if fd is not None:
-            return fd
+        special_fd, filename = self._std_open(fnptr, fnlen, mode)
+        # if special_fd is not None:
+        #     return special_fd
+        if (special_fd is not None) and (special_fd is not SpecialFile.SEMIHOSTING_FEATURES_FILE):
+            return special_fd
 
         try:
-            # Expand user directory.
-            filepath = pathlib.Path(filename).expanduser()
+            # Handle semihosting features.
+            if special_fd is SpecialFile.SEMIHOSTING_FEATURES_FILE:
+                # Features bits:
+                # - Byte 0, bit 0 = 0: SH_EXT_EXIT_EXTENDED, whether SYS_EXIT_EXTENDED is supported
+                # - Byte 0, bit 1 = 1: SH_EXT_STDOUT_STDERR, whether both stdout and stderr are supported
+                f = io.BytesIO(b"SHFB\x02")
+            else:
+                # Expand user directory.
+                filepath = pathlib.Path(filename).expanduser()
 
-            # ensure directories are exists if mode is write/appened
-            if ('w' in mode) or ('a' in mode):
-                filepath.parent.mkdir(parents=True, exist_ok=True)
+                # ensure directories are exists if mode is write/appened
+                if ('w' in mode) or ('a' in mode):
+                    filepath.parent.mkdir(parents=True, exist_ok=True)
+
+                f = io.open(filepath, mode)
 
             fd = self.next_fd
             self.next_fd += 1
-
-            f = io.open(filepath, mode)
 
             self.open_files[fd] = f
 
@@ -307,9 +335,17 @@ class InternalSemihostIOHandler(SemihostIOHandler):
     def flen(self, fd):
         if not self._is_valid_fd(fd):
             return -1
+        f = self.open_files[fd]
         try:
-            info = os.fstat(self.open_files[fd].fileno())
+            info = os.fstat(f.fileno())
             return info.st_size
+        except io.UnsupportedOperation:
+            # Try seeking to end to get size.
+            saved_pos = f.tell()
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(saved_pos, os.SEEK_SET)
+            return size
         except OSError as e:
             self._errno = e.errno
             return -1
