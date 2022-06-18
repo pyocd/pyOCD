@@ -114,6 +114,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
     def write(self, fd, ptr, length):
         if fd not in self._out_data:
             self._out_data[fd] = b''
+        assert self.agent
         s = self.agent.get_data(ptr, length)
         self._out_data[fd] += s
         return 0
@@ -123,6 +124,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
             return length
         d = self._in_data[fd][:length]
         self._in_data[fd] = self._in_data[fd][length:]
+        assert self.agent
         self.agent.context.write_memory_block8(ptr, bytearray(six.ensure_binary(d)))
         return length - len(d)
 

@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,10 +35,10 @@ class GDBSyscallIOHandler(SemihostIOHandler):
     """@brief Semihosting file I/O handler that performs GDB syscalls."""
 
     def __init__(self, server):
-        super(GDBSyscallIOHandler, self).__init__()
+        super().__init__()
         self._server = server
 
-    def open(self, fnptr, fnlen, mode):
+    def open(self, fnptr: int, fnlen: int, mode: str) -> int:
         # Handle standard I/O.
         fd, _ = self._std_open(fnptr, fnlen, mode)
         if fd is not None:
@@ -88,10 +88,12 @@ class GDBSyscallIOHandler(SemihostIOHandler):
         return length - result
 
     def readc(self):
-        ptr = self.agent.target.read_core_register('sp') - 4
+        assert self.agent
+        ptr = self.agent.context.read_core_register('sp') - 4
+        assert isinstance(ptr, int)
         result, self._errno = self._server.syscall('read,0,%x,1' % (ptr))
         if result != -1:
-            result = self.agent.target.read8(ptr)
+            result = self.agent.context.read8(ptr)
         return result
 
     def istty(self, fd):
@@ -105,12 +107,14 @@ class GDBSyscallIOHandler(SemihostIOHandler):
         return 0 if result != -1 else -1
 
     def flen(self, fd):
+        assert self.agent
         fd -= FD_OFFSET
-        ptr = self.agent.target.read_core_register('sp') - 64
+        ptr = self.agent.context.read_core_register('sp') - 64
+        assert isinstance(ptr, int)
         result, self._errno = self._server.syscall('fstat,%x,%x' % (fd, ptr))
         if result != -1:
             # Fields in stat struct are big endian as written by gdb.
-            size = self.agent.target.read_memory_block8(ptr, 8)
+            size = self.agent.context.read_memory_block8(ptr, 8)
             result = (size[0] << 56) \
                     | (size[1] << 48) \
                     | (size[2] << 40) \

@@ -22,7 +22,7 @@ from time import sleep
 import sys
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
-from typing import (Dict, List, Optional)
+from typing import (Dict, List, Optional, Tuple)
 
 from ..core import exceptions
 from ..core.target import Target
@@ -1148,10 +1148,9 @@ class GDBServer(threading.Thread):
         resp = b'$' + data + b'#' + checksum(data)
         return resp
 
-    def syscall(self, op):
-        op = to_bytes_safe(op)
+    def syscall(self, op: str) -> Tuple[int, int]:
         LOG.debug("GDB server syscall: %s", op)
-        request = self.create_rsp_packet(b'F' + op)
+        request = self.create_rsp_packet(b'F' + op.encode())
         self.packet_io.send(request)
 
         while not self.packet_io.interrupt_event.is_set():
