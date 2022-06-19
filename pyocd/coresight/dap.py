@@ -200,8 +200,9 @@ class DPConnector:
     DP IDR register. The probe must be already connected for the desired wire protocol.
     """
 
-    def __init__(self, probe: DebugProbe) -> None:
+    def __init__(self, probe: DebugProbe, dp: "DebugPort") -> None:
         self._probe = probe
+        self._dp = dp
         self._idr = DPIDR(0, 0, 0, 0, 0)
 
         # Make sure we have a session, since we get the session from the probe and probes have their session set
@@ -266,7 +267,7 @@ class DPConnector:
 
     def read_idr(self) -> DPIDR:
         """@brief Read IDR register and get DP version"""
-        dpidr = self._probe.read_dp(DP_IDR, now=True)
+        dpidr = self._dp.read_dp(DP_IDR, now=True)
         dp_partno = (dpidr & DPIDR_PARTNO_MASK) >> DPIDR_PARTNO_SHIFT
         dp_version = (dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
         dp_revision = (dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
@@ -427,7 +428,7 @@ class DebugPort:
         probe_conn.connect(self._protocol)
 
         # Attempt to connect DP.
-        connector = DPConnector(self.probe)
+        connector = DPConnector(self.probe, self)
         connector.connect()
 
         # Report on DP version.
