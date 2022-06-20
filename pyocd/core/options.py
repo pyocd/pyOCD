@@ -176,6 +176,11 @@ BUILTIN_OPTIONS = [
     OptionInfo('xpsr_control_fields', bool, False,
         "When set to True, XPSR and CONTROL registers will have their respective bitfields defined "
         "for presentation in gdb."),
+
+    # RTT options
+    OptionInfo('rtt.start', int, None, "Start address of RTT control block search range."),
+    OptionInfo('rtt.size', int, None, "Length of RTT control block search range."),
+    OptionInfo('rtt.elf', str, None, "ELF file to use for obtaining RTT control block address."),
     ]
 
 ## @brief The runtime dictionary of options.

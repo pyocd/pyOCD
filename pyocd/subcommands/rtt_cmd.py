@@ -1,4 +1,5 @@
 # pyOCD debugger
+# Copyright (c) 2022 crides
 # Copyright (c) 2021 mikisama
 # Copyright (C) 2021 Ciro Cattuto <ciro.cattuto@gmail.com>
 # Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
@@ -124,7 +125,16 @@ class RTTSubcommand(SubcommandBase):
                 ram_region: MemoryRegion = memory_map.get_default_region_of_type(MemoryType.RAM)
 
                 rtt_cb_addr = -1
-                if self._args.elf != None:
+
+                elf_file_arg, elf_file_option = self._args.elf, session.options.get("rtt.elf")
+                if elf_file_arg != None:
+                    elf_file = elf_file_arg
+                elif elf_file_option != None:
+                    elf_file = elf_file_option
+                else:
+                    elf_file = None
+
+                if elf_file != None:
                     elf = ELFFile(open(self._args.elf, "rb"))
                     symtab = elf.get_section_by_name(".symtab")
                     if symtab:
@@ -135,7 +145,6 @@ class RTTSubcommand(SubcommandBase):
                     def valid_range(start, size):
                         return start != None and size != None \
                             and ram_region.start <= start and size + start <= ram_region.start + ram_region.length
-                    rtt_range_start, rtt_range_size = None, None
                     config_start, config_size = session.options.get('rtt.start'), session.options.get('rtt.size')
                     if valid_range(self._args.address, self._args.size):
                         rtt_range_start, rtt_range_size = self._args.address, self._args.size
