@@ -27,6 +27,7 @@ from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
 from pyocd.utility.kbhit import KBHit
 from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
+from elftools.elf.elffile import ELFFile
 
 
 LOG = logging.getLogger(__name__)
@@ -82,11 +83,13 @@ class RTTSubcommand(SubcommandBase):
 
         rtt_parser = argparse.ArgumentParser(cls.HELP, add_help=False)
 
-        rtt_options = rtt_parser.add_argument_group("rtt options")
-        rtt_options.add_argument("-a", "--address", type=int_base_0, default=None,
+        rtt_search_opts = rtt_parser.add_argument_group("rtt options")
+        rtt_search_opts.add_argument("-a", "--address", type=int_base_0, default=None,
                                  help="Start address of RTT control block search range.")
-        rtt_options.add_argument("-s", "--size", type=int_base_0, default=None,
+        rtt_search_opts.add_argument("-s", "--size", type=int_base_0, default=None,
                                  help="Size of RTT control block search range.")
+        rtt_parser.add_argument("-e", "--elf", type=str, default=None,
+                                 help="ELF file for finding the control block address directly")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, rtt_parser]
 
@@ -119,32 +122,41 @@ class RTTSubcommand(SubcommandBase):
 
                 memory_map: MemoryMap = target.get_memory_map()
                 ram_region: MemoryRegion = memory_map.get_default_region_of_type(MemoryType.RAM)
-                def valid_range(start, size):
-                    return start != None and size != None \
-                        and ram_region.start <= start and size + start <= ram_region.start + ram_region.length
-                rtt_range_start, rtt_range_size = None, None
-                config_start, config_size = session.options.get('rtt.start'), session.options.get('rtt.size')
-                if valid_range(self._args.address, self._args.size):
-                    rtt_range_start, rtt_range_size = self._args.address, self._args.size
-                elif valid_range(config_start, config_size):
-                    rtt_range_start, rtt_range_size = config_start, config_size
-                else:
-                    rtt_range_start, rtt_range_size = ram_region.start, ram_region.length
-
-                LOG.info(f"RTT control block search range [{rtt_range_start:#08x}, {rtt_range_size:#08x}]")
 
                 rtt_cb_addr = -1
-                data = bytearray(b'0000000000')
-                chunk_size = 1024
-                while rtt_range_size > 0:
-                    read_size = min(chunk_size, rtt_range_size)
-                    data += bytearray(target.read_memory_block8(rtt_range_start, read_size))
-                    pos = data[-(read_size + 10):].find(b"SEGGER RTT")
-                    if pos != -1:
-                        rtt_cb_addr = rtt_range_start + pos - 10
-                        break
-                    rtt_range_start += read_size
-                    rtt_range_size -= read_size
+                if self._args.elf != None:
+                    elf = ELFFile(open(self._args.elf, "rb"))
+                    symtab = elf.get_section_by_name(".symtab")
+                    if symtab:
+                        rtt_entry = symtab.get_symbol_by_name("_SEGGER_RTT")
+                        if len(rtt_entry) > 0:
+                            rtt_cb_addr = rtt_entry[0].entry["st_value"]
+                else:
+                    def valid_range(start, size):
+                        return start != None and size != None \
+                            and ram_region.start <= start and size + start <= ram_region.start + ram_region.length
+                    rtt_range_start, rtt_range_size = None, None
+                    config_start, config_size = session.options.get('rtt.start'), session.options.get('rtt.size')
+                    if valid_range(self._args.address, self._args.size):
+                        rtt_range_start, rtt_range_size = self._args.address, self._args.size
+                    elif valid_range(config_start, config_size):
+                        rtt_range_start, rtt_range_size = config_start, config_size
+                    else:
+                        rtt_range_start, rtt_range_size = ram_region.start, ram_region.length
+
+                    LOG.info(f"RTT control block search range [{rtt_range_start:#08x}, {rtt_range_size:#08x}]")
+
+                    data = bytearray(b'0000000000')
+                    chunk_size = 1024
+                    while rtt_range_size > 0:
+                        read_size = min(chunk_size, rtt_range_size)
+                        data += bytearray(target.read_memory_block8(rtt_range_start, read_size))
+                        pos = data[-(read_size + 10):].find(b"SEGGER RTT")
+                        if pos != -1:
+                            rtt_cb_addr = rtt_range_start + pos - 10
+                            break
+                        rtt_range_start += read_size
+                        rtt_range_size -= read_size
 
                 if rtt_cb_addr == -1:
                     LOG.error("No RTT control block available")
