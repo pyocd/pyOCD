@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015,2018-2019 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +25,7 @@ from pyocd.utility.cmdline import (
     convert_session_options,
     )
 from pyocd.core.target import Target
+from pyocd.target import normalise_target_type_name
 
 class TestSplitCommandLine(object):
     def test_split(self):
@@ -141,4 +143,19 @@ class TestConvertSessionOptions(object):
         # Valid
         assert convert_session_options(['test_binary=abc']) == {'test_binary': 'abc'}
 
+class TestTargetTypeNormalisation:
+    def test_passthrough(self):
+        assert normalise_target_type_name("foobar") == "foobar"
+        assert normalise_target_type_name("foo123bar") == "foo123bar"
+        assert normalise_target_type_name("foo_bar") == "foo_bar"
+
+    def test_lower(self):
+        assert normalise_target_type_name("TARGET") == "target"
+        assert normalise_target_type_name("BIGtarget") == "bigtarget"
+        assert normalise_target_type_name("someTARGET123") == "sometarget123"
+
+    def test_trans(self):
+        assert normalise_target_type_name("foo-bar") == "foo_bar"
+        assert normalise_target_type_name("foo--bar") == "foo_bar"
+        assert normalise_target_type_name("foo!@#$%^&*()x") == "foo_x"
 
