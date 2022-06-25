@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,10 +98,18 @@ class LoadSubcommand(SubcommandBase):
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc)
             for filename in self._args.file:
-                # Look for a base address suffix.
-                if "@" in filename:
+                # Get an initial path with the argument as-is.
+                file_path = Path(filename).expanduser()
+
+                # Look for a base address suffix. If the supplied argument including an address suffix
+                # references an existing file, then the address suffix is not extracted.
+                if "@" in filename and not file_path.exists():
                     filename, suffix = filename.rsplit("@", 1)
-                    base_address = int_base_0(suffix)
+                    try:
+                        base_address = int_base_0(suffix)
+                    except ValueError:
+                        LOG.error(f'Base address suffix "{suffix}" on file "{filename}" is not a valid integer address')
+                        return 1
                 else:
                     base_address = self._args.base_address
 
