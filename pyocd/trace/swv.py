@@ -116,7 +116,7 @@ class SWVReader(threading.Thread):
             LOG.warning("SWV not initalized: Target does not have ITM component")
             return False
         tpiu = self._session.target.get_first_child_of_type(TPIU)
-        if not itm:
+        if not tpiu:
             LOG.warning("SWV not initalized: Target does not have TPIU component")
             return False
 
