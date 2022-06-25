@@ -1401,12 +1401,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
            "SysTick",
     ]
 
-    def exception_number_to_name(self, exc_num: int, name_thread: bool = False) -> Optional[str]:
+    def exception_number_to_name(self, exc_num: int) -> Optional[str]:
         if exc_num < len(self.CORE_EXCEPTION):
-            if exc_num == 0 and not name_thread:
-                return None
-            else:
-                return self.CORE_EXCEPTION[exc_num]
+            return self.CORE_EXCEPTION[exc_num]
         else:
             irq_num = exc_num - len(self.CORE_EXCEPTION)
             name = None
