@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import (TYPE_CHECKING, Generator, Iterable, List, Optional)
+
 from . import events
 
-class SWOParser(object):
+if TYPE_CHECKING:
+    from ..core.core_target import CoreTarget
+    from .sink import TraceEventSink
+
+class SWOParser:
     """@brief SWO data stream parser.
 
     Processes a stream of SWO data and generates TraceEvent objects. SWO data is passed to the
@@ -28,32 +34,32 @@ class SWOParser(object):
     A SWOParser instance can be reused for multiple SWO sessions. If a break in SWO data streaming
     occurs, the reset() method should be called before passing further data to parse().
     """
-    def __init__(self, core, sink=None):
+    def __init__(self, core: "CoreTarget", sink: Optional["TraceEventSink"] = None) -> None:
         self.reset()
         self._core = core
         self._sink = sink
 
-    def reset(self):
+    def reset(self) -> None:
         self._bytes_parsed = 0
         self._itm_page = 0
         self._timestamp = 0
-        self._pending_events = []
+        self._pending_events: List[events.TraceEvent] = []
         self._pending_data_trace = None
 
         # Get generator instance and prime it.
         self._parser = self._parse()
         next(self._parser)
 
-    def connect(self, sink):
+    def connect(self, sink: "TraceEventSink") -> None:
         """@brief Connect the downstream trace sink or filter."""
         self._sink = sink
 
     @property
-    def bytes_parsed(self):
+    def bytes_parsed(self) -> int:
         """@brief The number of bytes of SWO data parsed thus far."""
         return self._bytes_parsed
 
-    def parse(self, data):
+    def parse(self, data: Iterable[int]) -> None:
         """@brief Process SWO data.
 
         This method will return once the provided data is consumed, and can be called again when
@@ -68,14 +74,14 @@ class SWOParser(object):
             self._parser.send(value)
             self._bytes_parsed += 1
 
-    def _flush_events(self):
+    def _flush_events(self) -> None:
         """@brief Send all pending events to event sink."""
         if self._sink is not None:
             for event in self._pending_events:
                 self._sink.receive(event)
         self._pending_events = []
 
-    def _merge_data_trace_events(self, event):
+    def _merge_data_trace_events(self, event: events.TraceEvent) -> bool:
         """@brief Look for pairs of data trace events and merge."""
         if isinstance(event, events.TraceDataTraceEvent):
             # Record the first data trace event.
@@ -106,7 +112,7 @@ class SWOParser(object):
             self._pending_data_trace = None
         return False
 
-    def _send_event(self, event):
+    def _send_event(self, event: events.TraceEvent) -> None:
         """@brief Process event objects and decide when to send to event sink.
 
         This method handles the logic to associate a timestamp event with the prior other
@@ -132,7 +138,7 @@ class SWOParser(object):
         if flush:
             self._flush_events()
 
-    def _parse(self):
+    def _parse(self) -> Generator[None, int, None]:
         """@brief SWO parser as generator function coroutine.
 
         The generator yields every time it needs a byte of SWO data. The caller must use the
@@ -240,11 +246,13 @@ class SWOParser(object):
                     self._send_event(events.TraceEventCounter(payload, timestamp))
                 # Exception trace
                 elif a == 1:
-                    exceptionNumber = payload & 0x1ff
-                    exceptionName = self._core.exception_number_to_name(exceptionNumber, True)
+                    exception_number = payload & 0x1ff
+                    # TODO remove exception name and dependency on core
+                    exception_name = self._core.exception_number_to_name(exception_number)
                     fn = (payload >> 12) & 0x3
                     if 1 <= fn <= 3:
-                        self._send_event(events.TraceExceptionEvent(exceptionNumber, exceptionName, fn, timestamp))
+                        self._send_event(events.TraceExceptionEvent(
+                                exception_number, exception_name, fn, timestamp))
                     else:
                         invalid = True
                 # Periodic PC
@@ -264,7 +272,8 @@ class SWOParser(object):
                         self._send_event(events.TraceDataTraceEvent(cmpn=cmpn, addr=payload, ts=timestamp))
                     # Data value
                     elif type == 0b10:
-                        self._send_event(events.TraceDataTraceEvent(cmpn=cmpn, value=payload, rnw=(bit3 == 0), sz=l, ts=timestamp))
+                        self._send_event(events.TraceDataTraceEvent(
+                                cmpn=cmpn, value=payload, rnw=(bit3 == 0), sz=l, ts=timestamp))
                     else:
                         invalid = True
                 # Invalid DWT 'a' value.

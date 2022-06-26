@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (Callable, List, Optional, Sequence, Type, Union)
+from typing import (Callable, List, Optional, Sequence, Type, TypeVar, Union, cast)
+
+_T = TypeVar("_T", bound="GraphNode")
 
 class GraphNode:
     """@brief Simple graph node.
@@ -89,7 +91,7 @@ class GraphNode:
 
         return _search(self)
 
-    def get_first_child_of_type(self, klass: Type) -> Optional["GraphNode"]:
+    def get_first_child_of_type(self, klass: Type[_T]) -> Optional[_T]:
         """@brief Breadth-first search for a child of the given class.
         @param self
         @param klass The class type to search for. The first child at any depth that is an instance
@@ -99,7 +101,7 @@ class GraphNode:
         """
         matches = self.find_children(lambda c: isinstance(c, klass))
         if len(matches):
-            return matches[0]
+            return cast(Optional[_T], matches[0])
         else:
             return None
 
