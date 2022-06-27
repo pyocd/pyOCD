@@ -423,6 +423,7 @@ class SemihostAgent:
         assert isinstance(pc, int)
 
         # Are we stopped due to one of our own breakpoints?
+        # TODO check against watchpoints too!?
         bp = self.context.core.find_breakpoint(pc)
         if bp:
             return False
@@ -617,9 +618,29 @@ class SemihostAgent:
         return 0
 
     def handle_sys_heapinfo(self, args: int) -> int:
-        raise NotImplementedError()
+        """@brief Stub implementation of SYS_HEAPINFO.
+
+        The args (r1) value is the address of a pointer to a four-word data block, to be filled in
+        by the host.
+
+        ```c
+        struct block {
+            int heap_base;
+            int heap_limit;
+            int stack_base;
+            int stack_limit;
+        };
+        ```
+
+        This implementation simply fills in the value 0 for each field. Zero is legal, and tells the
+        caller that the host was unable to determine the value.
+        """
+        info_block = self._get_args(args, 1)
+        self.context.write_memory_block32(info_block, [0, 0, 0, 0])
+        return 0
 
     def handle_sys_exit(self, args: int) -> int:
+        # TODO handle SYS_EXIT for a 'pyocd run' subcommand
         raise NotImplementedError()
 
     def handle_sys_exit_extended(self, args: int) -> int:
