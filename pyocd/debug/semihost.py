@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2022 NXP
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +21,7 @@ import io
 import logging
 import time
 import datetime
+import pathlib
 import six
 
 from ..coresight.cortex_m import CortexM
@@ -184,6 +186,10 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             return fd
 
         try:
+            # ensure directories are exists if mode is write/appened
+            if ('w' in mode) or ('a' in mode):
+                pathlib.Path(filename).parent.mkdir(parents=True, exist_ok=True)
+
             fd = self.next_fd
             self.next_fd += 1
 
