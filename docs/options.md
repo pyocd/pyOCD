@@ -2,7 +2,7 @@
 title: Session options list
 ---
 
-_**Note:** The names of these options are expected to change before the 1.0 release of pyOCD, so
+_**Note:** The names of these options are expected to change with the 1.0 release of pyOCD, so
 they will be better normalized and grouped._
 
 ## General options
@@ -27,7 +27,7 @@ takes precedence over this option if set.
 <td>bool</td>
 <td>False</td>
 <td>
-Prevents raising an error if no core were found after CoreSight discovery.
+Prevents raising an error if no cores were found after CoreSight discovery.
 </td></tr>
 
 <tr><td>auto_unlock</td>
@@ -36,6 +36,22 @@ Prevents raising an error if no core were found after CoreSight discovery.
 <td>
 If the target is locked, it will by default be automatically mass erased in order to gain debug
 access. Set this option to False to disable auto unlock.
+</td></tr>
+
+<tr><td>cache.enable_memory</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable the memory read cache. Affects memory accesses made through the target debug context, including the
+gdbserver.
+</td></tr>
+
+<tr><td>cache.enable_register</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable the core register cache. Affects core register accesses made through the target debug context,
+including the gdbserver.
 </td></tr>
 
 <tr><td>cache.read_code_from_elf</td>

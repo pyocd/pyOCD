@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +23,7 @@ from .target import (Target, TargetGraphNode)
 from .core_target import CoreTarget
 from ..flash.eraser import FlashEraser
 from ..debug.cache import CachingDebugContext
+from ..debug.context import DebugContext
 from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.elf_reader import ElfReaderContext
 from ..utility.sequencer import CallSequence
@@ -124,7 +125,12 @@ class SoCTarget(TargetGraphNode):
 
     def add_core(self, core: CoreTarget) -> None:
         core.delegate = self.delegate
-        core.set_target_context(CachingDebugContext(core))
+        ctx = CachingDebugContext(
+                core,
+                enable_memory=self.session.options['cache.enable_memory'],
+                enable_register=self.session.options['cache.enable_register'],
+                )
+        core.set_target_context(ctx)
         self.cores[core.core_number] = core
         self.add_child(core)
 
