@@ -306,7 +306,7 @@ class STLinkMemoryInterface(MemoryInterface):
         res = []
 
         # read leading unaligned bytes
-        unaligned_count = 4 - (addr & 3)
+        unaligned_count = addr & 3
         if (size > 0) and (unaligned_count > 0):
             res += self._link.read_mem8(addr, unaligned_count, self._apsel, csw)
             size -= unaligned_count
@@ -332,7 +332,7 @@ class STLinkMemoryInterface(MemoryInterface):
         idx = 0
 
         # write leading unaligned bytes
-        unaligned_count = 4 - (addr & 3)
+        unaligned_count = addr & 3
         if (size > 0) and (unaligned_count > 0):
             self._link.write_mem8(addr, data[:unaligned_count], self._apsel, csw)
             size -= unaligned_count
