@@ -42,6 +42,13 @@ from ...coresight.ap import (
     APv1Address,
     APv2Address,
 )
+from ...debug.sequences.sequences import (
+    Block,
+    DebugSequence,
+    DebugSequenceNode,
+    IfControl,
+    WhileControl,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -58,6 +65,8 @@ class _DeviceInfo:
     memories: List[Element] = field(default_factory=list)
     algos: List[Element] = field(default_factory=list)
     debugs: List[Element] = field(default_factory=list)
+    sequences: List[Element] = field(default_factory=list)
+    debugvars: List[Element] = field(default_factory=list)
     debugports: List[Element] = field(default_factory=list)
     accessports: List[Element] = field(default_factory=list)
 
@@ -260,6 +269,10 @@ class CmsisPackDescription:
                 newState.algos.append(elem)
             elif elem.tag == 'debug':
                 newState.debugs.append(elem)
+            elif elem.tag == 'sequences':
+                newState.sequences += elem.findall('sequence')
+            elif elem.tag == 'debugvars':
+                newState.debugvars.append(elem)
             elif elem.tag == 'debugport':
                 newState.debugports.append(elem)
             elif elem.tag in ('accessportV1', 'accessportV2'):
@@ -280,6 +293,8 @@ class CmsisPackDescription:
                                         memories=self._extract_memories(),
                                         algos=self._extract_algos(),
                                         debugs=self._extract_debugs(),
+                                        sequences=self._extract_sequences(),
+                                        debugvars=self._extract_debugvars(),
                                         debugports=self._extract_debugports(),
                                         accessports=self._extract_accessports(),
                                         )
@@ -352,7 +367,7 @@ class CmsisPackDescription:
             inherited = {
                 k: v
                 for k, v in from_elem.attrib.items()
-                if k not in to_elem
+                if k not in to_elem.attrib
             }
             to_elem.attrib.update(inherited)
         return to_elem
@@ -406,8 +421,8 @@ class CmsisPackDescription:
             return (start, size)
 
         def filter(map: Dict, elem: Element) -> None:
-            # Inner memory regions are allowed to override outer memory
-            # regions. If this is not done properly via name/id, we must make
+            # Inner memory regions are allowed to override outer memory regions.
+            # If this is not done properly via name/id, we must make
             # sure not to report overlapping memory regions to gdb since it
             # will ignore those completely, see:
             # https://github.com/pyocd/pyOCD/issues/980
@@ -516,14 +531,69 @@ class CmsisPackDescription:
 
                 if '*' in map:
                     map.clear()
-                map[name] = elem
+
+                map[name] = self._inherit_attributes(elem, map.get(name))
             else:
                 # No processor name was provided, so this debug element applies to
+                # all processors (well, there should only be one in this case).
+                new_elem = self._inherit_attributes(elem, map.get('*'))
+                map.clear()
+                map['*'] = new_elem
+
+        return self._extract_items('debugs', filter)
+
+    def _extract_sequences(self) -> List[Element]:
+        """@brief Extract debug sequence elements.
+
+        The unique identifier is the sequence's 'name' attribute, combined with 'Pname' if present.
+
+        Attributes:
+        - `name`: str
+        - `Pname`: optional str
+        - `disable`: optional bool
+        - `info`: optional str
+        """
+        def filter(map: Dict, elem: Element) -> None:
+            if 'name' not in elem.attrib:
+                LOG.debug("skipping unnamed debug sequence")
+                return
+
+            # Combine name and Pname.
+            name = elem.attrib['name']
+            pname = elem.attrib.get('Pname', None)
+
+            map[(name, pname)] = elem
+
+        return self._extract_items('sequences', filter)
+
+    def _extract_debugvars(self) -> List[Element]:
+        """@brief Extract debugvar elements.
+
+        Works similar to _extract_debugs(), where only a single debugvar element is allowed unless
+        the 'Pname' attribute appears in one of the elements.
+
+        Attributes:
+        - `configfile`: optional str
+        - `version`: optional str
+        - `Pname`: optional str
+        """
+        def filter(map: Dict, elem: Element) -> None:
+            # No point in tracking an empty debugvars.
+            if elem.text is None:
+                return
+            if 'Pname' in elem.attrib:
+                name = elem.attrib['Pname']
+
+                if '*' in map:
+                    map.clear()
+                map[name] = elem
+            else:
+                # No processor name was provided, so this debugvar element applies to
                 # all processors.
                 map.clear()
                 map['*'] = elem
 
-        return self._extract_items('debugs', filter)
+        return self._extract_items('debugvars', filter)
 
     def _extract_debugports(self) -> List[Element]:
         """@brief Extract debugport elements.
@@ -613,6 +683,8 @@ class CmsisPackDevice:
         self._default_ram: Optional[MemoryRegion] = None
         self._memory_map: Optional[MemoryMap] = None
         self._processed_algos: Set[Element] = set() # Algo elements we've converted to regions.
+        self._sequences: Set[DebugSequence] = set()
+        self._debugvars: Optional[Block] = None
         self._valid_dps: List[int] = []
         self._apids: Dict[int, APAddressBase] = {}
         self._processors_map: Dict[str, ProcessorInfo] = {}
@@ -841,6 +913,71 @@ class CmsisPackDevice:
         else:
             raise FileNotFoundError(errno.ENOENT, "No such file or directory", filename)
 
+    def _build_sequences(self):
+        """@brief Convert 'sequence' elements into DebugSequenceNode objects."""
+        assert not len(self._sequences)
+        for elem in self._info.sequences:
+            # Extract sequence name.
+            try:
+                name = elem.attrib['name']
+            except KeyError:
+                LOG.warning("invalid debug sequence; missing name")
+                continue
+
+            try:
+                # Extract optional sequence attributes.
+                is_enabled = not _get_bool_attribute(elem, 'disable', False)
+                pname = elem.attrib.get('Pname', None)
+                info = elem.attrib.get('info', "")
+
+                # Create the top level sequence node.
+                sequence = DebugSequence(name, is_enabled, pname, info)
+
+                # Start processing subelements in the sequence.
+                for child in elem:
+                    self._build_one_sequence_node(sequence, child)
+
+                # Save the complete sequence object.
+                self._sequences.add(sequence)
+            except KeyError:
+                LOG.debug("invalid debug sequence")
+
+    def _build_one_sequence_node(self, parent: DebugSequenceNode, elem: Element) -> None:
+        """@brief Convert one 'sequence' element into a DebugSequenceNode object."""
+        # Grab optional info text.
+        info = elem.attrib.get('info', "")
+
+        # Generate a sequence node based on the element type.
+        if elem.tag == 'block':
+            # No reason to create a Block if there is no code within it.
+            if elem.text is not None:
+                # Create and attach a block node. No subelements are allowed.
+                is_atomic = _get_bool_attribute(elem, 'atomic', False)
+                node = Block(elem.text, is_atomic, info)
+                parent.add_child(node)
+        elif elem.tag == 'control':
+            # The attribute name determines the control node's function.
+            if 'if' in elem.attrib:
+                node = IfControl(elem.attrib['if'], info)
+            elif 'while' in elem.attrib:
+                node = WhileControl(elem.attrib['while'], info, int(elem.attrib.get('timeout', "0")))
+            else:
+                root_node = parent.find_root()
+                assert isinstance(root_node, DebugSequence)
+                LOG.warning("invalid 'control' node in debug sequence '%s'", root_node.name)
+                return
+
+            # Attach the new node.
+            parent.add_child(node)
+
+            # Process control node subelements recursively.
+            for child in elem:
+                self._build_one_sequence_node(node, child)
+        else:
+            root_node = parent.find_root()
+            assert isinstance(root_node, DebugSequence)
+            LOG.warning("unexpected XML element '%s' in debug sequence '%s'", elem.tag, root_node.name)
+
     @property
     def pack_description(self) -> CmsisPackDescription:
         """@brief The CmsisPackDescription object that defines this device."""
@@ -892,22 +1029,25 @@ class CmsisPackDevice:
             return None
 
     @property
-    def default_reset_type(self) -> Target.ResetType:
-        """@brief One of the Target.ResetType enums.
-        @todo Support multiple cores.
+    def sequences(self) -> Set[DebugSequence]:
+        """@brief Dictionary of defined sequence elements.
+
+        The dictionary key is the sequence name, value is a DebugSequence instance.
         """
-        try:
-            resetSequence = self._info.debugs[0].attrib['defaultResetSequence']
-            if resetSequence == 'ResetHardware':
-                return Target.ResetType.HW
-            elif resetSequence == 'ResetSystem':
-                return Target.ResetType.SW_SYSRESETREQ
-            elif resetSequence == 'ResetProcessor':
-                return Target.ResetType.SW_VECTRESET
-            else:
-                return Target.ResetType.SW
-        except (KeyError, IndexError):
-            return Target.ResetType.SW
+        # Lazily construct.
+        if (not len(self._sequences)) and len(self._info.sequences):
+            self._build_sequences()
+        return self._sequences
+
+    @property
+    def debug_vars_sequence(self) -> Optional[Block]:
+        """@brief A debug sequence Block for the 'debugvars' element."""
+        # Lazily construct.
+        if (self._debugvars is None) and len(self._info.debugvars):
+            elem = self._info.debugvars[0]
+            assert elem.text is not None # Ensured by CmsisPackDescription._extract_debugvars.
+            self._debugvars = Block(elem.text, info="debugvars")
+        return self._debugvars
 
     @property
     def valid_dps(self) -> List[int]:

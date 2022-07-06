@@ -189,7 +189,6 @@ class TestPack:
     def test_parse_device_info(self, k64f1m0):
         assert k64f1m0.vendor == "NXP"
         assert k64f1m0.families == ["MK64F12"]
-        assert k64f1m0.default_reset_type == target.Target.ResetType.SW
 
     def test_get_svd(self, k64f1m0):
         svd = k64f1m0.svd
