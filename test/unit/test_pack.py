@@ -27,6 +27,7 @@ from pyocd.target.pack.flm_region_builder import FlmFlashRegionBuilder
 from pyocd.target import TARGET
 from pyocd.core import (memory_map, target)
 from pyocd.utility.mask import align_up
+from pyocd.coresight.ap import (APv1Address, APv2Address)
 
 K64F = "MK64FN1M0VDC12"
 NRF5340 = "nRF5340_xxAA"
@@ -40,6 +41,7 @@ STM32F4_2M0_FLM = TEST_DATA_DIR / "STM32F4xx_2048.FLM"
 NRF5340_APP_FLM = TEST_DATA_DIR / "nrf53xx_application.flm"
 NRF_PDSC_PATH = TEST_DATA_DIR / "NordicSemiconductor.nRF_DeviceFamilyPack.8.38.0.pdsc"
 STM32L4_PDSC_PATH = TEST_DATA_DIR / "Keil.STM32L4xx_DFP.2.5.0.pdsc"
+TEST1_PDSC_PATH = TEST_DATA_DIR / "Test1.pdsc"
 TEST2_PDSC_PATH = TEST_DATA_DIR / "Test2_algo_overlaps_alias.pdsc"
 LPC55S36_PDSC_PATH = TEST_DATA_DIR / "NXP.LPC55S36_DFP.13.0.0.pdsc"
 
@@ -109,6 +111,14 @@ def test2dev(test2pdsc):
     dev = test2pdsc.devices[0]
     dev._get_pack_file_cb = load_test_flm
     return dev
+
+@pytest.fixture(scope='function')
+def test1pdsc():
+    return cmsis_pack.CmsisPackDescription(None, TEST1_PDSC_PATH)
+
+@pytest.fixture(scope='function')
+def test1dev(test1pdsc):
+    return test1pdsc.devices[0]
 
 # Fixture to provide nRF5340 CmsisPackDevice modified to load FLM from test data dir.
 @pytest.fixture(scope='function')
@@ -356,3 +366,19 @@ class TestAlgoOverlappingAliasRegion:
         pprint.pprint(memmap.regions)
         assert not has_overlapping_regions(memmap)
         # assert False
+
+class TestAPID:
+    def test1_dp(self, test1dev):
+        assert test1dev.valid_dps == [0]
+
+    def test1_procs(self, test1dev):
+        procs = test1dev.processors_map
+        m4 = procs['CM4']
+        assert m4.name == 'CM4'
+        assert m4.ap_address == APv1Address(0)
+        assert m4.svd_path == "cm4.svd"
+        m0p = procs['CM0p']
+        assert m0p.name == 'CM0p'
+        assert m0p.ap_address == APv1Address(2)
+        assert m0p.svd_path == "cm0p.svd"
+

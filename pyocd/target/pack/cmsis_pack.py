@@ -37,6 +37,11 @@ from ...core.memory_map import (
     MemoryType,
     MEMORY_TYPE_CLASS_MAP,
 )
+from ...coresight.ap import (
+    APAddressBase,
+    APv1Address,
+    APv2Address,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -49,9 +54,30 @@ class _DeviceInfo:
     """@brief Simple container class to hold XML elements describing a device."""
     element: Element
     families: List[str] = field(default_factory=list)
+    processors: List[Element] = field(default_factory=list)
     memories: List[Element] = field(default_factory=list)
     algos: List[Element] = field(default_factory=list)
     debugs: List[Element] = field(default_factory=list)
+    debugports: List[Element] = field(default_factory=list)
+    accessports: List[Element] = field(default_factory=list)
+
+@dataclass
+class ProcessorInfo:
+    """@brief Descriptor for a processor defined in a DFP."""
+    ## The Pname attribute, or Dcore if not Pname was provided.
+    name: str = "unknown"
+    ## PE unit number within an MPCore. For single cores this will be 0.
+    unit: int = -1
+    ## Total number of cores in an MPCore.
+    total_units: int = 1
+    ## Address of AP through which the PE can be accessed.
+    ap_address: APAddressBase = APv1Address(-1)
+    ## Base address of the PE's memory mapped debug registers. Not used and 0 for M-profile.
+    address: int = 0
+    ## SVD file path relative to the pack.
+    svd_path: Optional[str] = None
+    ## Default reset sequence name.
+    default_reset_sequence: str = "ResetSystem"
 
 def _get_part_number_from_element(element: Element) -> str:
     """@brief Extract the part number from a device or variant XML element."""
@@ -228,10 +254,16 @@ class CmsisPackDescription:
         for elem in parent:
             if elem.tag == 'memory':
                 newState.memories.append(elem)
+            elif elem.tag == 'processor':
+                newState.processors.append(elem)
             elif elem.tag == 'algorithm':
                 newState.algos.append(elem)
             elif elem.tag == 'debug':
                 newState.debugs.append(elem)
+            elif elem.tag == 'debugport':
+                newState.debugports.append(elem)
+            elif elem.tag in ('accessportV1', 'accessportV2'):
+                newState.accessports.append(elem)
             # Save any elements that we will recurse into.
             elif elem.tag in ('subFamily', 'device', 'variant'):
                 children.append(elem)
@@ -244,9 +276,12 @@ class CmsisPackDescription:
             # Build device info from elements applying to this device.
             deviceInfo = _DeviceInfo(element=parent,
                                         families=self._extract_families(),
+                                        processors=self._extract_processors(),
                                         memories=self._extract_memories(),
                                         algos=self._extract_algos(),
-                                        debugs=self._extract_debugs()
+                                        debugs=self._extract_debugs(),
+                                        debugports=self._extract_debugports(),
+                                        accessports=self._extract_accessports(),
                                         )
 
             # Support ._pack being None for testing.
@@ -301,6 +336,43 @@ class CmsisPackDescription:
                     LOG.debug("error parsing CMSIS-Pack %s: %s", self.pack_name, err)
         return list(map.values())
 
+    def _inherit_attributes(self, to_elem: Element, from_elem: Optional[Element]) -> Element:
+        """@brief Add attributes missing from an elemnt but present in another.
+
+        Copy to `to_elem` any attributes defined in `from_elem` but not defined, and therefore overridden,
+        in `to_elem`.
+
+        @param self
+        @param to_elem The Element to which inherited attributes will be added.
+        @param from_elem The Element from which attributes should be inherited. May be None, in which case
+            `to_elem` is returned unmodified.
+        @return The `to_elem` parameter is returned.
+        """
+        if from_elem is not None:
+            inherited = {
+                k: v
+                for k, v in from_elem.attrib.items()
+                if k not in to_elem
+            }
+            to_elem.attrib.update(inherited)
+        return to_elem
+
+    def _extract_processors(self) -> List[Element]:
+        """@brief Extract processor elements.
+
+        Attributes:
+        - `Pname`: optional str for single-core devices
+        - `Punits`: optional int, number of cores for MPCore cluster
+        - `Dcore`: str, CPU type
+        - plus a handful of others that specify processor options such as FPU or MVE
+        """
+        def filter(map: Dict, elem: Element) -> None:
+            # Pname attribute is optional if there is only one CPU.
+            pname = elem.attrib.get('Pname')
+            map[pname] = self._inherit_attributes(elem, map.get(pname))
+
+        return self._extract_items('processors', filter)
+
     def _extract_memories(self) -> List[Element]:
         """@brief Extract memory elements.
 
@@ -309,6 +381,20 @@ class CmsisPackDescription:
         a string.
 
         In addition to the name based filtering, memory regions are checked to prevent overlaps.
+
+        Attributes:
+        - `Pname`: optional str
+        - `id`: optional str, deprecated in favour of `name`
+        - `name`: optional str, overrides `id` if both are present
+        - `access`: optional str
+        - `start`: int
+        - `size`: int
+        - `default`: optional, if true indicates the region needs no special provisions for accessing,
+            default false
+        - `startup`: optional, if true use the region for boot code, default false
+        - `init`: optional, deprecated, if true don't zeroise the memory, default false
+        - `uninit`, optional, if true the memory should not be initialised, default false
+        - `alias`: optional, another region's name
         """
         def get_start_and_size(elem: Element) -> Tuple[int, int]:
             try:
@@ -351,8 +437,9 @@ class CmsisPackDescription:
                 end = start + size - 1
                 prev_end = prev_start + prev_size - 1
                 if (prev_start <= start < prev_end) or (prev_start <= end < prev_end):
-                    # Only report warnings for overlapping regions from the same processor. Allow regions for different
-                    # processors to override each other, since we don't yet support maps for each processor.
+                    # Only report warnings for overlapping regions from the same processor. Allow regions for
+                    # different processors to override each other, since we don't yet support maps for each
+                    # processor.
                     if (pname == prev_pname) and not self._warned_overlapping_memory_regions:
                         filename = self.pack.filename if self.pack else "unknown"
                         LOG.warning("Overlapping memory regions in file %s (%s); deleting outer region. "
@@ -372,6 +459,16 @@ class CmsisPackDescription:
 
         Any algorithm elements with a 'style' attribuet not set to 'Keil' (case-insensitive) are
         skipped.
+
+        Attributes:
+        - `Pname`: optional str
+        - `name`: str
+        - `start`: int
+        - `size`: int
+        - `RAMstart`: optional int
+        - `RAMsize`: optional int
+        - `default`: optional bool
+        - `style`: optional str
         """
         def filter(map: Dict, elem: Element) -> None:
             # We only support Keil FLM style flash algorithms (for now).
@@ -398,6 +495,18 @@ class CmsisPackDescription:
         Otherwise, the identifier is the element's 'Pname' attribute combined with 'Punit' if
         present. When 'Pname' is detected and a "*" key is in the map, the map is cleared before
         adding the current element.
+
+        Attributes:
+        - `__dp`: optional int
+        - `__ap`: optional int
+        - `__apid`: optional int
+        - `address`: optional int
+        - `svd`: optional str
+        - `Pname`: optional str
+        - `Punit`: optional int
+        - `defaultResetSequence`: optional str
+
+        Can have `<datapatch>` elements as children.
         """
         def filter(map: Dict, elem: Element) -> None:
             if 'Pname' in elem.attrib:
@@ -415,6 +524,41 @@ class CmsisPackDescription:
                 map['*'] = elem
 
         return self._extract_items('debugs', filter)
+
+    def _extract_debugports(self) -> List[Element]:
+        """@brief Extract debugport elements.
+
+        Attributes:
+        - `__dp`: int
+
+        Children:
+        - `<swd>`
+        - `<jtag>`
+        - `<cjtag>`
+        """
+        def filter(map: Dict, elem: Element) -> None:
+            map[elem.attrib['__dp']] = elem
+
+        return self._extract_items('debugports', filter)
+
+    def _extract_accessports(self) -> List[Element]:
+        """@brief Extract accessportV1 and accessportV2 elements.
+
+        Attributes for `<accessportV1>`:
+        - `__apid`: int
+        - `__dp`: optional int
+        - `index`: int
+
+        Attributes for `<accessportV2>`:
+        - `__apid`: int
+        - `__dp`: optional int
+        - `address`: int
+        - `parent`: optional int
+        """
+        def filter(map: Dict, elem: Element) -> None:
+            map[elem.attrib['__apid']] = elem
+
+        return self._extract_items('accessports', filter)
 
 def _get_bool_attribute(elem: Element, name: str, default: bool = False) -> bool:
     """@brief Extract an XML attribute with a boolean value.
@@ -469,6 +613,11 @@ class CmsisPackDevice:
         self._default_ram: Optional[MemoryRegion] = None
         self._memory_map: Optional[MemoryMap] = None
         self._processed_algos: Set[Element] = set() # Algo elements we've converted to regions.
+        self._valid_dps: List[int] = []
+        self._apids: Dict[int, APAddressBase] = {}
+        self._processors_map: Dict[str, ProcessorInfo] = {}
+        self._processors_ap_map: Dict[APAddressBase, ProcessorInfo] = {}
+        self._built_apid_map: bool = False
 
     def _build_memory_regions(self) -> None:
         """@brief Creates memory region instances for the device.
@@ -760,9 +909,240 @@ class CmsisPackDevice:
         except (KeyError, IndexError):
             return Target.ResetType.SW
 
+    @property
+    def valid_dps(self) -> List[int]:
+        """@brief List of valid DP indices.
+
+        If the device has only one DP, its number will be 0.
+        """
+        if not self._valid_dps:
+            self._build_valid_dps()
+        return self._valid_dps
+
+    @property
+    def uses_apid(self) -> bool:
+        """@brief Whether use of __apid values is required.
+
+        This is based on whether the DFP defined accessportV1/2 elements.
+        """
+        return len(self.apid_map) > 0
+
+    @property
+    def apid_map(self) -> Dict[int, APAddressBase]:
+        """@brief Map of AP unique IDs to AP address objects.
+
+        These AP unique IDs (__apid) are defined by the DFP author and are valid only within the scope
+        of the DFP. They are referenced by the __apid special variable used in debug sequences.
+        """
+        # A bool attr is used here instead of the usual empty test for the other lazy properties
+        # because the apid map can be empty, in which case apids are not used by this device.
+        if not self._built_apid_map:
+            self._build_aps_map()
+        return self._apids
+
+    @property
+    def processors_map(self) -> Dict[str, ProcessorInfo]:
+        """@brief Map of processor names to processor info objects.
+
+        If the device has only one PE, it may not have a defined Pname. In that case, the Dcore
+        attribute will be used in place of the Pname.
+        """
+        if not self._processors_map:
+            self._build_aps_map()
+        return self._processors_map
+
+    @property
+    def processors_ap_map(self) -> Dict[APAddressBase, ProcessorInfo]:
+        """@brief Map from AP address to processor info objects"""
+        if not self._processors_ap_map:
+            self._processors_ap_map = {
+                proc.ap_address: proc
+                for proc in self.processors_map.values()
+            }
+        return self._processors_ap_map
+
+    def _get_int_attribute(
+                self,
+                elem: Element,
+                name: str,
+                default: Optional[int] = None
+            ) -> int:
+        """@brief Retrieve a DFP XML element's attribute value as an integer.
+        @exception MalformedCmsisPackError Raised if the attribute is missing but is required (no default
+            was provided), or cannot be converted to an integer.
+        """
+        if name not in elem.attrib:
+            if default is None:
+                raise MalformedCmsisPackError(
+                        f"{self.pack_description.pack_name} DFP ({self.part_number}): <{elem.tag}> missing "
+                        f"required '{name}' attribute")
+            else:
+                return default
+
+        try:
+            value = int(elem.attrib[name], base=0)
+            return value
+        except ValueError:
+            raise MalformedCmsisPackError(
+                    f"{self.pack_description.pack_name} DFP ({self.part_number}): <{elem.tag}> '{name}' "
+                    f"attribute is invalid ('{elem.attrib[name]}')")
+
+    def _build_valid_dps(self) -> None:
+        """@brief Extract list of DP indices defined for the device."""
+        # Build list of defined DPs.
+        for debugport in self._info.debugports:
+            try:
+                self._valid_dps.append(self._get_int_attribute(debugport, '__dp'))
+            except MalformedCmsisPackError as err:
+                LOG.warning("%s", err)
+
+        # If no (valid) <debugport> elements are defined, just use a default of 0.
+        if len(self._valid_dps) == 0:
+            self._valid_dps.append(0)
+
+    def _handle_accessports(self) -> None:
+        """@brief Process accessportV1 and accessportV2 elements.
+
+        The ._apids attribute is filled in with information from accessportVx elements.
+        """
+        # Process accessportV1 and accessportV2 elements.
+        for accessport in self._info.accessports:
+            try:
+                # Get the __dp attribute, with a default of 0.
+                ap_dp = self._get_int_attribute(accessport, '__dp', 0)
+
+                # Validate __dp, but be forgiving and only log a warning.
+                if ap_dp not in self.valid_dps:
+                    LOG.warning(
+                            f"{self.pack_description.pack_name} DFP ({self.part_number}): <{accessport.tag}> "
+                            f"'__dp' attribute is invalid ({ap_dp})")
+
+                # APv1
+                if accessport.tag == 'accessportV1':
+                    index = self._get_int_attribute(accessport, 'index')
+                    ap_address = APv1Address(index, ap_dp)
+                # APv2
+                elif accessport.tag == 'accessportV2':
+                    address = self._get_int_attribute(accessport, 'address')
+                    ap_address = APv2Address(address, ap_dp)
+                else:
+                    raise exceptions.InternalError(
+                            f"unexpected element <{accessport.tag}> in access ports list")
+
+                # Save this AP address and the specified __apid.
+                apid = self._get_int_attribute(accessport, '__apid')
+                self._apids[apid] = ap_address
+            except MalformedCmsisPackError as err:
+                LOG.warning("%s", err)
+
+    def _handle_processors(self) -> None:
+        """@brief Extract processor definitions."""
+        for proc in self._info.processors:
+            try:
+                # Get the processor name.
+                if 'Pname' in proc.attrib:
+                    pname = proc.attrib['Pname']
+                elif 'Dcore' in proc.attrib:
+                    pname = proc.attrib['Dcore']
+                else:
+                    raise MalformedCmsisPackError(
+                            f"{self.pack_description.pack_name} DFP ({self.part_number}): <{proc.tag}> is "
+                            "missing 'Dcore' attribute")
+
+                # Get optional number of processor units.
+                punits = self._get_int_attribute(proc, 'Punits', 1)
+
+                # Check for an existing processor with the same name.
+                if pname in self._processors_map:
+                    LOG.warning(
+                            f"{self.pack_description.pack_name} DFP ({self.part_number}): <processor> "
+                            f"element has duplicate name '{pname}'")
+                    continue
+
+                # Add the processor, with temp AP and base address.
+                self._processors_map[pname] = ProcessorInfo(name=pname, total_units=punits)
+
+            except MalformedCmsisPackError as err:
+                LOG.warning("%s", err)
+
+        # At least one processor must have been defined.
+        if len(self._processors_map) == 0:
+            LOG.warning(
+                    f"{self.pack_description.pack_name} DFP ({self.part_number}): no <processor> "
+                    "elements were found")
+
+            # Add dummy processor.
+            self._processors_map["unknown"] = ProcessorInfo(name="unknown")
+
+    def _build_aps_map(self) -> None:
+        """@brief Extract map of __apids and Pname to AP.
+
+        Process the <debugport>, <accessportVx>, and <debug> elements to extract maps of __apid values
+        to AP addresses. Also extracts a map of processor Pname values to AP addresses.
+        """
+        # Go ahead and set this flag so we don't try to rebuild the map in case there's an error.
+        self._built_apid_map = True
+
+        self._handle_accessports()
+        self._handle_processors()
+        assert len(self._processors_map)
+
+        for debug in self._info.debugs:
+            try:
+                # Get the Pname attribute. If there isn't one, just use the first (there should only be
+                # one) processor's name.
+                if 'Pname' in debug.attrib:
+                    pname = debug.attrib['Pname']
+                else:
+                    pname = list(self._processors_map.keys())[0]
+
+                if pname not in self._processors_map:
+                    raise MalformedCmsisPackError(
+                            f"{self.pack_description.pack_name} DFP ({self.part_number}): <{debug.tag}> "
+                            f"references undefined processor name ('{pname}')")
+
+                # Check for __apid attribute.
+                if '__apid' in debug.attrib:
+                    apid = self._get_int_attribute(debug, '__apid')
+                    if apid not in self._apids:
+                        raise MalformedCmsisPackError(
+                                f"{self.pack_description.pack_name} DFP ({self.part_number}): <{debug.tag}> "
+                                f"references undefined '__apid' ({apid})")
+
+                    ap_address = self._apids[apid]
+                # Fall back to __ap address with optional __dp.
+                elif '__ap' in debug.attrib:
+                    # Get and validate optional __dp.
+                    dp_index = self._get_int_attribute(debug, '__dp', 0)
+                    if dp_index not in self.valid_dps:
+                        raise MalformedCmsisPackError(
+                                f"{self.pack_description.pack_name} DFP ({self.part_number}): <{debug.tag}> "
+                                f"'__dp' attribute is invalid ({dp_index})")
+
+                    ap_index = self._get_int_attribute(debug, '__ap')
+                    ap_address = APv1Address(ap_index, dp_index)
+                # Otherwise define a default AP #0.
+                else:
+                    ap_address = APv1Address(0)
+
+                # Update address info for this processor.
+                try:
+                    proc = self._processors_map[pname]
+                except KeyError:
+                    raise MalformedCmsisPackError(
+                            f"{self.pack_description.pack_name} DFP ({self.part_number}): <{debug.tag}> "
+                            f"'Pname' attribute is invalid ({pname})")
+                proc.unit = self._get_int_attribute(debug, 'Punit', 0)
+                proc.ap_address = ap_address
+                proc.address = self._get_int_attribute(debug, 'address', 0)
+                proc.svd_path = debug.attrib.get('svd')
+                if 'defaultResetSequence' in debug.attrib:
+                    # Still need to validate the specified default reset sequence after this. If not
+                    # set, the default value is 'ResetSystem'.
+                    proc.default_reset_sequence = debug.attrib['defaultResetSequence']
+            except MalformedCmsisPackError as err:
+                LOG.warning("%s", err)
+
     def __repr__(self):
         return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
-
-
-
 
