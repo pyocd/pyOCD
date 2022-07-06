@@ -68,7 +68,7 @@ BOARD_ID_TO_INFO = {
     "0243": BoardInfo(  "MIMXRT1015-EVK",       "mimxrt1015",       "l1_mimxrt1015-evk.bin",),
     "0244": BoardInfo(  "MIMXRT1170-EVK",       "mimxrt1170_cm7",   "l1_rt1170.bin",          ),
     "0245": BoardInfo(  "IBMEthernetKit",       "k64f",             "l1_k64f.bin"           ),
-    "0246": BoardInfo(  "MIMXRT1160-EVK",       "mimxrt1160_cm7",   None,                   ),
+    "0246": BoardInfo(  "MIMXRT1160-EVK",       "mimxrt1166xxxxx",  None,                   ),
     "0250": BoardInfo(  "FRDM-KW24D512",        "kw24d5",           "l1_kw24d5.bin"         ),
     "0251": BoardInfo(  "FRDM-KW36",            "kw36z4",           "l1_kw36z.bin",         ),
     "0252": BoardInfo(  "FRDM-KW38",            "kw38z4",           None,                   ),
