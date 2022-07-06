@@ -124,8 +124,9 @@ from . import target_RP2040
 
 ## @brief Dictionary of all builtin targets.
 #
-# @note Target type names must be all lowercase and use _underscores_ instead of dashes. The code in Board
-#   automatically converts dashes in user-supplied target type names to underscores.
+# @note Target type names must be a valid C identifier, normalised to all lowercase, using _underscores_
+#   instead of dashes punctuation. See pyocd.target.normalise_target_type_name() for the code that
+#   normalises user-provided target type names for comparison with these.
 BUILTIN_TARGETS = {
           'mps3_an522': target_MPS3_AN522.AN522,
           'mps3_an540': target_MPS3_AN540.AN540,
