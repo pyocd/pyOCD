@@ -3,7 +3,7 @@
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import (dataclass, field)
 from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 import logging
@@ -37,14 +38,14 @@ class MalformedCmsisPackError(exceptions.TargetSupportError):
     """@brief Exception raised for errors parsing a CMSIS-Pack."""
     pass
 
+@dataclass
 class _DeviceInfo:
     """@brief Simple container class to hold XML elements describing a device."""
-    def __init__(self, element: Element, **kwargs):
-        self.element: Element = element
-        self.families: List[str] = kwargs.get('families', [])
-        self.memories: List[Element] = kwargs.get('memories', [])
-        self.algos: List[Element] = kwargs.get('algos', [])
-        self.debugs: List[Element] = kwargs.get('debugs', [])
+    element: Element
+    families: List[str] = field(default_factory=list)
+    memories: List[Element] = field(default_factory=list)
+    algos: List[Element] = field(default_factory=list)
+    debugs: List[Element] = field(default_factory=list)
 
 def _get_part_number_from_element(element: Element) -> str:
     """@brief Extract the part number from a device or variant XML element."""
@@ -191,6 +192,13 @@ class CmsisPackDescription:
             self._parse_devices(family)
 
     @property
+    def pack_name(self) -> Optional[str]:
+        """@brief Name of the CMSIS-Pack.
+        @return Contents of the required <name> element, or None if missing.
+        """
+        return self._pdsc.findtext('name')
+
+    @property
     def pack(self) -> CmsisPack:
         """@brief Reference to the containing CmsisPack object."""
         return self._pack
@@ -250,9 +258,13 @@ class CmsisPackDescription:
         return families
 
     ## Typevar used for _extract_items().
-    V = TypeVar('V')
+    _V = TypeVar('_V')
 
-    def _extract_items(self, state_info_name: str, filter: Callable[[Dict[Any, V], Element], None]) -> List[V]:
+    def _extract_items(
+                self,
+                state_info_name: str,
+                filter: Callable[[Dict[Any, _V], Element], None]
+            ) -> List[_V]:
         """@brief Generic extractor utility.
 
         Iterates over saved elements for the specified device state info for each level of the
@@ -273,7 +285,7 @@ class CmsisPackDescription:
                 try:
                     filter(map, elem)
                 except (KeyError, ValueError) as err:
-                    LOG.debug("error parsing CMSIS-Pack: " + str(err))
+                    LOG.debug("error parsing CMSIS-Pack %s: %s", self.pack_name, err)
         return list(map.values())
 
     def _extract_memories(self) -> List[Element]:
@@ -351,7 +363,7 @@ class CmsisPackDescription:
         def filter(map: Dict, elem: Element) -> None:
             # We only support Keil FLM style flash algorithms (for now).
             if ('style' in elem.attrib) and (elem.attrib['style'].lower() != 'keil'):
-                LOG.debug("skipping non-Keil flash algorithm")
+                LOG.debug("%s DFP: skipping non-Keil flash algorithm", self.pack_name)
                 return
 
             # Both start and size are required.
@@ -417,7 +429,9 @@ class CmsisPackDevice:
     """@brief Wraps a device defined in a CMSIS Device Family Pack.
 
     Responsible for converting the XML elements that describe the device into objects
-    usable by pyOCD. This includes the memory map and flash algorithms.
+    usable by pyOCD. This includes the memory map and flash algorithms. All extraction of data
+    into usuable data structures is done lazily, since a CmsisPackDevice instance will be
+    created for every device in installed DFPs but only one will actually be used per session.
 
     An instance of this class can represent either a `<device>` or `<variant>` XML element from
     the PDSC.
