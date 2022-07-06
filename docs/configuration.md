@@ -6,8 +6,8 @@ This guide documents how to configure pyOCD.
 
 ## Introduction
 
-pyOCD allows you to control many aspects of its behaviour by setting session options. There are
-multiple ways to set these options.
+pyOCD allows you to control many aspects of its behaviour by setting
+[session options]({% link _docs/options.md %}). There are multiple ways to set these options.
 
 - Many of the most commonly used session options have dedicated command line arguments.
 - Options can be placed in a YAML config file.
@@ -24,6 +24,12 @@ The priorities of the different session option sources, from highest to lowest:
 4. General options from a config file.
 5. _option_defaults_ parameter to constructor. Used only in rare cases.
 
+<div class="alert alert-info">
+<p>
+The full set of session options is documented in the
+<a href="{% link _docs/options.md %}">Session options list</a> reference.
+</p>
+</div>
 
 ## Project directory
 

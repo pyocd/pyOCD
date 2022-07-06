@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ import logging
 from typing import (Any, Optional, TYPE_CHECKING)
 
 from ..core import exceptions
-from ..target import TARGET
+from ..target import (TARGET, normalise_target_type_name)
 from ..target.pack import pack_target
 from ..utility.graph import GraphNode
 
@@ -84,7 +84,7 @@ class Board(GraphNode):
         assert target is not None
 
         # Convert dashes to underscores in the target type, and convert to lower case.
-        target = target.replace('-', '_').lower()
+        target = normalise_target_type_name(target)
 
         # Write the effective target type back to options if it's different.
         if target != session.options.get('target_override'):
