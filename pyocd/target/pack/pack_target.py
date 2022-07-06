@@ -226,8 +226,8 @@ class PackTargets:
         @param cb Callable to run. Must take a CmsisPackDevice object as the sole parameter and return None.
         """
         if not isinstance(pack_list, (list, tuple)):
-            pack_list = [pack_list]
-        for pack_or_path in pack_list:
+            pack_list = [pack_list] # type:ignore
+        for pack_or_path in pack_list: # type:ignore
             if isinstance(pack_or_path, CmsisPack):
                 pack = pack_or_path
             else:
