@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +22,12 @@ from ..cache.register import RegisterCache
 class CachingDebugContext(DebugContext):
     """@brief Debug context combining register and memory caches."""
 
-    def __init__(self, parent):
-        super(CachingDebugContext, self).__init__(parent)
-        self._regcache = RegisterCache(parent, self.core)
-        self._memcache = MemoryCache(parent, self.core)
+    def __init__(self, parent, enable_memory: bool = True, enable_register: bool = True) -> None:
+        super().__init__(parent)
+        self._enable_memory = enable_memory
+        self._enable_register = enable_register
+        self._regcache = RegisterCache(parent, self.core) if enable_register else parent
+        self._memcache = MemoryCache(parent, self.core) if enable_memory else parent
 
     def write_memory(self, addr, value, transfer_size=32):
         return self._memcache.write_memory(addr, value, transfer_size)
@@ -51,8 +54,10 @@ class CachingDebugContext(DebugContext):
         return self._regcache.write_core_registers_raw(reg_list, data_list)
 
     def invalidate(self):
-        self._regcache.invalidate()
-        self._memcache.invalidate()
+        if self._enable_register:
+            self._regcache.invalidate()
+        if self._enable_memory:
+            self._memcache.invalidate()
 
 
 
