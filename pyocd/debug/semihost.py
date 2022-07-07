@@ -24,6 +24,7 @@ import logging
 import time
 import datetime
 import pathlib
+from enum import IntEnum
 from typing import (IO, TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union, cast, overload)
 from typing_extensions import Literal
 
@@ -41,32 +42,33 @@ TRACE.setLevel(logging.CRITICAL)
 ## bkpt #0xab instruction
 BKPT_INSTR = 0xbeab
 
-# Arm semihosting request numbers.
-TARGET_SYS_OPEN        = 0x01
-TARGET_SYS_CLOSE       = 0x02
-TARGET_SYS_WRITEC      = 0x03
-TARGET_SYS_WRITE0      = 0x04
-TARGET_SYS_WRITE       = 0x05
-TARGET_SYS_READ        = 0x06
-TARGET_SYS_READC       = 0x07
-TARGET_SYS_ISERROR     = 0x08
-TARGET_SYS_ISTTY       = 0x09
-TARGET_SYS_SEEK        = 0x0a
-TARGET_SYS_FLEN        = 0x0c
-TARGET_SYS_TMPNAM      = 0x0d
-TARGET_SYS_REMOVE      = 0x0e
-TARGET_SYS_RENAME      = 0x0f
-TARGET_SYS_CLOCK       = 0x10
-TARGET_SYS_TIME        = 0x11
-TARGET_SYS_SYSTEM      = 0x12
-TARGET_SYS_ERRNO       = 0x13
-TARGET_SYS_GET_CMDLINE = 0x15
-TARGET_SYS_HEAPINFO    = 0x16
-angel_SWIreason_EnterSVC = 0x17 # pylint: disable=invalid-name
-TARGET_SYS_EXIT        = 0x18 # Also called angel_SWIreason_ReportException
-TARGET_SYS_EXIT_EXTENDED = 0x20
-TARGET_SYS_ELAPSED     = 0x30
-TARGET_SYS_TICKFREQ    = 0x31
+class SemihostingRequests(IntEnum):
+    """@brief Arm semihosting request numbers."""
+    SYS_OPEN            = 0x01
+    SYS_CLOSE           = 0x02
+    SYS_WRITEC          = 0x03
+    SYS_WRITE0          = 0x04
+    SYS_WRITE           = 0x05
+    SYS_READ            = 0x06
+    SYS_READC           = 0x07
+    SYS_ISERROR         = 0x08
+    SYS_ISTTY           = 0x09
+    SYS_SEEK            = 0x0a
+    SYS_FLEN            = 0x0c
+    SYS_TMPNAM          = 0x0d
+    SYS_REMOVE          = 0x0e
+    SYS_RENAME          = 0x0f
+    SYS_CLOCK           = 0x10
+    SYS_TIME            = 0x11
+    SYS_SYSTEM          = 0x12
+    SYS_ERRNO           = 0x13
+    SYS_GET_CMDLINE     = 0x15
+    SYS_HEAPINFO        = 0x16
+    angel_SWIreason_EnterSVC = 0x17 # pylint: disable=invalid-name
+    SYS_EXIT            = 0x18 # Also called angel_SWIreason_ReportException
+    SYS_EXIT_EXTENDED   = 0x20
+    SYS_ELAPSED         = 0x30
+    SYS_TICKFREQ        = 0x31
 
 # Pseudo-file descriptor numbers.
 # Note: According to Arm semihosting spec, the fds must be non-zero.  But to achive POSIX compatibility
@@ -353,14 +355,14 @@ class SemihostAgent:
     in R0.
 
     This class does not handle any file-related requests by itself. It uses I/O handler objects
-    passed in to the constructor. The requests handled directly by this class are #TARGET_SYS_CLOCK
-    and #TARGET_SYS_TIME.
+    passed in to the constructor. The requests handled directly by this class are SYS_CLOCK and
+    SYS_TIME.
 
     There are two types of I/O handlers used by this class. The main I/O handler, set
     with the constructor's @i io_handler parameter, is used for most file operations.
     You may optionally pass another I/O handler for the @i console constructor parameter. The
     console handler is used solely for standard I/O and debug console I/O requests. If no console
-    handler is provided, the main handler is used instead. TARGET_SYS_OPEN requests are not
+    handler is provided, the main handler is used instead. SYS_OPEN requests are not
     passed to the console handler in any event, they are always passed to the main handler.
 
     If no main I/O handler is provided, the class will use SemihostIOHandler, which causes all
@@ -372,16 +374,16 @@ class SemihostAgent:
     numbers for standard I/O open requests (those with a file name of ":tt").
 
     Not all semihosting requests are supported. Those that are not implemented are:
-    - TARGET_SYS_TMPNAM
-    - TARGET_SYS_SYSTEM
-    - TARGET_SYS_GET_CMDLINE
-    - TARGET_SYS_HEAPINFO
-    - TARGET_SYS_EXIT
-    - TARGET_SYS_ELAPSED
-    - TARGET_SYS_TICKFREQ
+    - SYS_TMPNAM
+    - SYS_SYSTEM
+    - SYS_GET_CMDLINE
+    - SYS_HEAPINFO
+    - SYS_EXIT
+    - SYS_ELAPSED
+    - SYS_TICKFREQ
     """
 
-    ## Index into this array is the file open mode argument to TARGET_SYS_OPEN.
+    ## Index into this array is the file open mode argument to SYS_OPEN.
     OPEN_MODES = ['r', 'rb', 'r+', 'r+b', 'w', 'wb', 'w+', 'w+b', 'a', 'ab', 'a+', 'a+b']
 
     EPOCH = datetime.datetime(1970, 1, 1)
@@ -653,29 +655,29 @@ class SemihostAgent:
         raise NotImplementedError()
 
     _REQUEST_MAP: Dict[int, Callable[["SemihostAgent", int], int]] = {
-            TARGET_SYS_OPEN:            handle_sys_open,
-            TARGET_SYS_CLOSE:           handle_sys_close,
-            TARGET_SYS_WRITEC:          handle_sys_writec,
-            TARGET_SYS_WRITE0:          handle_sys_write0,
-            TARGET_SYS_WRITE:           handle_sys_write,
-            TARGET_SYS_READ:            handle_sys_read,
-            TARGET_SYS_READC:           handle_sys_readc,
-            TARGET_SYS_ISERROR:         handle_sys_iserror,
-            TARGET_SYS_ISTTY:           handle_sys_istty,
-            TARGET_SYS_SEEK:            handle_sys_seek,
-            TARGET_SYS_FLEN:            handle_sys_flen,
-            TARGET_SYS_TMPNAM:          handle_sys_tmpnam,
-            TARGET_SYS_REMOVE:          handle_sys_remove,
-            TARGET_SYS_RENAME:          handle_sys_rename,
-            TARGET_SYS_CLOCK:           handle_sys_clock,
-            TARGET_SYS_TIME:            handle_sys_time,
-            TARGET_SYS_SYSTEM:          handle_sys_system,
-            TARGET_SYS_ERRNO:           handle_sys_errno,
-            TARGET_SYS_GET_CMDLINE:     handle_sys_get_cmdline,
-            TARGET_SYS_HEAPINFO:        handle_sys_heapinfo,
-            TARGET_SYS_EXIT:            handle_sys_exit,
-            TARGET_SYS_EXIT_EXTENDED:   handle_sys_exit_extended,
-            TARGET_SYS_ELAPSED:         handle_sys_elapsed,
-            TARGET_SYS_TICKFREQ:        handle_sys_tickfreq
+            SemihostingRequests.SYS_OPEN:            handle_sys_open,
+            SemihostingRequests.SYS_CLOSE:           handle_sys_close,
+            SemihostingRequests.SYS_WRITEC:          handle_sys_writec,
+            SemihostingRequests.SYS_WRITE0:          handle_sys_write0,
+            SemihostingRequests.SYS_WRITE:           handle_sys_write,
+            SemihostingRequests.SYS_READ:            handle_sys_read,
+            SemihostingRequests.SYS_READC:           handle_sys_readc,
+            SemihostingRequests.SYS_ISERROR:         handle_sys_iserror,
+            SemihostingRequests.SYS_ISTTY:           handle_sys_istty,
+            SemihostingRequests.SYS_SEEK:            handle_sys_seek,
+            SemihostingRequests.SYS_FLEN:            handle_sys_flen,
+            SemihostingRequests.SYS_TMPNAM:          handle_sys_tmpnam,
+            SemihostingRequests.SYS_REMOVE:          handle_sys_remove,
+            SemihostingRequests.SYS_RENAME:          handle_sys_rename,
+            SemihostingRequests.SYS_CLOCK:           handle_sys_clock,
+            SemihostingRequests.SYS_TIME:            handle_sys_time,
+            SemihostingRequests.SYS_SYSTEM:          handle_sys_system,
+            SemihostingRequests.SYS_ERRNO:           handle_sys_errno,
+            SemihostingRequests.SYS_GET_CMDLINE:     handle_sys_get_cmdline,
+            SemihostingRequests.SYS_HEAPINFO:        handle_sys_heapinfo,
+            SemihostingRequests.SYS_EXIT:            handle_sys_exit,
+            SemihostingRequests.SYS_EXIT_EXTENDED:   handle_sys_exit_extended,
+            SemihostingRequests.SYS_ELAPSED:         handle_sys_elapsed,
+            SemihostingRequests.SYS_TICKFREQ:        handle_sys_tickfreq
         }
 

@@ -112,6 +112,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
             return None
 
     def write(self, fd, ptr, length):
+        assert self.agent
         if fd not in self._out_data:
             self._out_data[fd] = b''
         assert self.agent
@@ -120,6 +121,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
         return 0
 
     def read(self, fd, ptr, length):
+        assert self.agent
         if fd not in self._in_data:
             return length
         d = self._in_data[fd][:length]
@@ -164,7 +166,7 @@ class SemihostRequestBuilder:
         return self.ramrgn.start + 0x200
 
     def do_open(self, filename, mode):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_OPEN)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_OPEN)
 
         # Write filename
         filename = bytearray(six.ensure_binary(filename) + b'\x00')
@@ -181,7 +183,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_close(self, fd):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_CLOSE)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_CLOSE)
         self.ctx.write32(argsptr, fd)
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -191,7 +193,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_write(self, fd, data):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITE)
 
         # Write data
         data = six.ensure_binary(data)
@@ -209,7 +211,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_writec(self, c):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITEC)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITEC)
         self.ctx.write8(argsptr, ord(c))
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -219,7 +221,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_write0(self, data):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE0)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITE0)
 
         data = data + b'\x00'
         self.ctx.write_memory_block8(argsptr, data)
@@ -231,7 +233,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_read(self, fd, length):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_READ)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_READ)
 
         # Clear read buffer.
         self.ctx.write_memory_block8(argsptr + 12, bytearray(b'\x00') * length)
@@ -252,7 +254,7 @@ class SemihostRequestBuilder:
         return result, data
 
     def do_seek(self, fd, pos):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_SEEK)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_SEEK)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.write32(argsptr + 4, pos) # pos
@@ -266,7 +268,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_flen(self, fd):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_FLEN)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_FLEN)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.flush()
@@ -279,7 +281,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_istty(self, fd):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_ISTTY)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_ISTTY)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.flush()
@@ -446,28 +448,28 @@ class TestSemihosting:
 
         console.set_input_data(semihost.STDIN_FD, 'x')
 
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_READC)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_READC)
         assert chr(result) == 'x'
 
     def test_clock(self, semihost_builder):
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_CLOCK)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_CLOCK)
         assert result != -1
         assert result != 0
         logging.info("clock = %d cs", result)
 
-        result2 = semihost_builder.do_no_args_call(semihost.TARGET_SYS_CLOCK)
+        result2 = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_CLOCK)
         assert result2 != -1
         assert result2 != 0
         assert result2 > result
         logging.info("clock = %d cs", result2)
 
     def test_time(self, semihost_builder):
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_TIME)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_TIME)
         assert result != 0
         logging.info("time = %d sec", result)
 
     def test_errno_no_err(self, semihost_builder):
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_ERRNO)
         assert result == 0
 
     @pytest.mark.parametrize(("fd"), [
@@ -533,7 +535,7 @@ def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
 
 # class TestSemihostingTelnet:
 #     def test_connect(self, semihost_telnet_builder, telnet_conn):
-#         result = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
+#         result = semihost_telnet_builder.do_no_args_call(semihost.SemihostingRequests.TARGET_SYS_ERRNO)
 #         assert result == 0
 
 #     def test_write(self, semihost_telnet_builder, telnet_conn):
@@ -572,7 +574,7 @@ def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
 #         telnet_conn.write(b'xyz')
 
 #         for c in 'xyz':
-#             rc = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_READC)
+#             rc = semihost_telnet_builder.do_no_args_call(semihost.SemihostingRequests.TARGET_SYS_READC)
 #             assert chr(rc) == c
 
 class TestSemihostAgent:
