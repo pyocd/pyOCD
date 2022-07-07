@@ -200,21 +200,25 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             return fd
 
         try:
+            # Expand user directory.
+            filepath = pathlib.Path(filename).expanduser()
+
             # ensure directories are exists if mode is write/appened
             if ('w' in mode) or ('a' in mode):
-                pathlib.Path(filename).parent.mkdir(parents=True, exist_ok=True)
+                filepath.parent.mkdir(parents=True, exist_ok=True)
 
             fd = self.next_fd
             self.next_fd += 1
 
-            f = io.open(filename, mode)
+            f = io.open(filepath, mode)
 
             self.open_files[fd] = f
 
             return fd
         except OSError as e:
             self._errno = e.errno
-            LOG.error("Semihost: failed to open file '%s'", filename, exc_info=session.Session.get_current().log_tracebacks)
+            LOG.error("Semihost: failed to open file '%s'", filename,
+                    exc_info=(self.agent.context.session.log_tracebacks if self.agent else True))
             return -1
 
     def close(self, fd):
@@ -456,7 +460,7 @@ class SemihostAgent:
                 result = -1
             except (exceptions.Error, OSError) as e:
                 LOG.error("Error while handling semihost request: %s", e,
-                    exc_info=session.Session.get_current().log_tracebacks)
+                    exc_info=self.context.session.log_tracebacks)
                 result = -1
         else:
             result = -1

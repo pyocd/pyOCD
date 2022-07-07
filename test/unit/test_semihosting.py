@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 import pytest
 import os
 import logging
@@ -334,6 +335,28 @@ class TestSemihosting:
 
         fd = semihost_builder.do_open(":tt", 'a') # stderr
         assert fd == 2
+
+    def test_open_home_file(self, semihost_builder, request):
+        testfilepath = Path("~/testfile").expanduser()
+
+        def delete_it():
+            try:
+                testfilepath.unlink()
+            except OSError:
+                pass
+        request.addfinalizer(delete_it)
+
+        fd = semihost_builder.do_open("~/testfile", 'wb')
+        assert fd > 2
+
+        result = semihost_builder.do_write(fd, b"foo")
+        assert result == 0
+
+        result = semihost_builder.do_close(fd)
+        assert result == 0
+
+        data = testfilepath.read_bytes()
+        assert data == b"foo"
 
     def test_open_close_file(self, semihost_builder, delete_testfile):
         fd = semihost_builder.do_open("testfile", 'w+b')
