@@ -190,3 +190,7 @@ To see the targets provided by a .pack file, run `pyocd list --targets` and pass
 _Note:_ .pack files are simply zip archives with a different extension. To examine the contents of
 a pack, change the extension to .zip and extract.
 
+_Note:_ PyOCD can work with expanded packs just like zipped .pack files. Pass the path to the root directory
+of the pack using the `--pack` argument, as above. This is very useful for cases such as development or
+debugging of a pack, or for working with other CMSIS-Pack managers that store packs in decompressed form.
+
