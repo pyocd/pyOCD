@@ -862,7 +862,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @locked
     def flush(self):
-        TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
+        if TRACE.isEnabledFor(logging.DEBUG):
+            if self._crnt_cmd.get_empty() and len(self._commands_to_read):
+                TRACE.debug("flush: reading %d outstanding (cmd:%d is empty)",
+                        len(self._commands_to_read), self._crnt_cmd.uid)
+            elif not self._crnt_cmd.get_empty():
+                TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
+
         # Send current packet
         self._send_packet()
         # Read all backlogged
