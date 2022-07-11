@@ -112,13 +112,16 @@ def build_color_logger(
     @param level Log level of the root logger.
     @param color_setting One of 'auto', 'always', or 'never'. The default 'auto' enables color if `is_tty` is True.
     @param stream The stream to which the log will be output. The default is stderr.
-    @param is_tty Whether the output stream is a tty. Affects the 'auto' color_setting. If not provided, the `isatty()`
-        method of `stream` is called if it exists. If `stream` doesn't have `isatty()` then the default is False.
+    @param is_tty Whether the output stream is a tty. Affects the 'auto' color_setting. If not provided, the
+        `isatty()` method of both `sys.stdout` and `sys.stderr` is called if they exists. Both must return
+        True for the 'auto' color setting to enable color output.
     """
     if stream is None:
         stream = sys.stderr
     if is_tty is None:
-        is_tty = stream.isatty() if hasattr(stream, 'isatty') else False
+        stdout_is_tty = sys.stdout.isatty() if hasattr(sys.stdout, 'isatty') else False
+        stderr_is_tty = sys.stderr.isatty() if hasattr(sys.stderr, 'isatty') else False
+        is_tty = stdout_is_tty and stderr_is_tty
     use_color = (color_setting == "always") or (color_setting == "auto" and is_tty)
 
     # Init colorama with appropriate color setting.

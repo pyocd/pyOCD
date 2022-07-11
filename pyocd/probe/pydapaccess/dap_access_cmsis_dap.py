@@ -20,7 +20,7 @@ import re
 import logging
 import collections
 import threading
-from typing import (Optional, Tuple)
+from typing import (Any, Dict, Optional, Tuple, Union)
 
 from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
@@ -39,6 +39,9 @@ from .cmsis_dap_core import (
     )
 from ...core import session
 from ...utility.concurrency import locked
+
+# NoneType was added in Python 3.10, but we need to support back to Python 3.6.
+NoneType = type(None)
 
 VersionTuple = Tuple[int, int, int]
 
@@ -177,6 +180,8 @@ class _Command(object):
 
     _command_counter = 0
 
+    _UNSET_DAP_INDEX: int = -1
+
     def __init__(self, size):
         self._id = _Command._command_counter
         _Command._command_counter += 1
@@ -186,7 +191,7 @@ class _Command(object):
         self._block_allowed = True
         self._block_request = None
         self._data = []
-        self._dap_index = None
+        self._dap_index = self._UNSET_DAP_INDEX
         self._data_encoded = False
         TRACE.debug("[cmd:%d] New _Command", self._id)
 
@@ -238,7 +243,7 @@ class _Command(object):
         assert self._data_encoded is False
 
         # Must create another command if the dap index is different.
-        if self._dap_index is not None and dap_index != self._dap_index:
+        if self._dap_index != self._UNSET_DAP_INDEX and dap_index != self._dap_index:
             return 0
 
         # Block transfers must use the same request.
@@ -282,7 +287,7 @@ class _Command(object):
         """@brief Add a single or block register transfer operation to this command
         """
         assert self._data_encoded is False
-        if self._dap_index is None:
+        if self._dap_index == self._UNSET_DAP_INDEX:
             self._dap_index = dap_index
         assert self._dap_index == dap_index
 
@@ -573,18 +578,21 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._lock = threading.RLock()
         self._interface = interface
         self._deferred_transfer = False
-        self._protocol = None  # TODO, c1728p9 remove when no longer needed
+        self._protocol = CMSISDAPProtocol(self._interface)
         self._packet_count = None
         self._frequency = 1000000  # 1MHz default clock
         self._dap_port = None
-        self._transfer_list = None
-        self._crnt_cmd = None
+        self._transfer_list = collections.deque()
+        self._crnt_cmd = _Command(0)
         self._packet_size = None
-        self._commands_to_read = None
-        self._command_response_buf = None
+        self._commands_to_read = collections.deque()
+        self._command_response_buf = bytearray()
         self._swo_status = None
         self._cmsis_dap_version: VersionTuple = CMSISDAPVersion.V1_0_0
         self._fw_version: Optional[str] = None
+        self._has_opened_once = False
+        self._is_open: bool = False
+        self._cached_info: Dict[DAPAccessIntf.ID, Any] = {}
 
     @property
     def protocol_version(self) -> VersionTuple:
@@ -616,8 +624,45 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return self._vidpid
 
     @property
+    def board_names(self) -> Tuple[Optional[str], Optional[str]]:
+        """@brief Bi-tuple of CMSIS-DAP v2.1 board vendor name and product name.
+
+        If the CMSIS-DAP protocol does not support reading board names from DAP_Info, a pair of
+        None will be returned. If either of the names are not returned from the device, then None
+        is substituted.
+        """
+        if not self.supports_board_and_target_names:
+            return (None, None)
+        vendor = self.identify(self.ID.BOARD_VENDOR)
+        name = self.identify(self.ID.BOARD_NAME)
+        assert isinstance(vendor, (str, NoneType)) and isinstance(name, (str, NoneType))
+        return (vendor, name)
+
+    @property
+    def target_names(self) -> Tuple[Optional[str], Optional[str]]:
+        """@brief Bituple of CMSIS-DAP v2.1 target vendor name and part number.
+
+        If the CMSIS-DAP protocol does not support reading target names from DAP_Info, a pair of
+        None will be returned. If either of the names are not returned from the device, then None
+        is substituted.
+        """
+        if not self.supports_board_and_target_names:
+            return (None, None)
+        vendor = self.identify(self.ID.DEVICE_VENDOR)
+        name = self.identify(self.ID.DEVICE_NAME)
+        assert isinstance(vendor, (str, NoneType)) and isinstance(name, (str, NoneType))
+        return (vendor, name)
+
+    @property
     def has_swd_sequence(self):
         return self._cmsis_dap_version >= CMSISDAPVersion.V1_2_0
+
+    @property
+    def supports_board_and_target_names(self) -> bool:
+        """@brief Boolean of whether board_names and target_names are supported."""
+        return ((self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0)
+                or ((self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0)
+                    and (self._cmsis_dap_version < CMSISDAPVersion.V2_0_0)))
 
     def lock(self):
         """@brief Lock the interface."""
@@ -633,7 +678,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # (unfortunately conflating transport with protocol).
         fallback_protocol_version = (CMSISDAPVersion.V1_0_0, CMSISDAPVersion.V2_0_0)[self._interface.is_bulk]
 
-        protocol_version_str = self._protocol.dap_info(self.ID.CMSIS_DAP_PROTOCOL_VERSION)
+        protocol_version_str = self.identify(self.ID.CMSIS_DAP_PROTOCOL_VERSION)
+        assert isinstance(protocol_version_str, (str, NoneType))
+
         # Just in case we don't get a valid response, default to the lowest version (not including betas).
         if not protocol_version_str:
             self._cmsis_dap_version = fallback_protocol_version
@@ -684,19 +731,35 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                         *self._cmsis_dap_version)
                 self._cmsis_dap_version = fallback_protocol_version
 
+    @property
+    def is_open(self) -> bool:
+        """@brief Whether the probe's USB interface is open."""
+        return self._is_open
+
     @locked
     def open(self):
         if self._interface is None:
             raise DAPAccessIntf.DeviceError("Unable to open device with no interface")
+        if self._is_open:
+            return
 
         self._interface.open()
-        self._protocol = CMSISDAPProtocol(self._interface)
+
+        # If this probe has already been opened and examined previously, we don't need to examine it again.
+        if self._has_opened_once:
+            self._init_deferred_buffers()
+            if self._has_swo_uart:
+                self._swo_disable()
+                self._swo_status = SWOStatus.DISABLED
+            self._is_open = True
+            return
 
         if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
             self._packet_count = 1
             LOG.debug("Limiting packet count to %d", self._packet_count)
         else:
-            self._packet_count = self._protocol.dap_info(self.ID.MAX_PACKET_COUNT)
+            self._packet_count = self.identify(self.ID.MAX_PACKET_COUNT)
+            assert isinstance(self._packet_count, int)
 
         # Get the protocol version.
         self._read_protocol_version()
@@ -705,7 +768,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # THe PRODUCT_FW_VERSION ID was added in versions 1.3.0 (HID) and 2.1.0 (bulk).
         if (self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0) or (self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0
                 and self._cmsis_dap_version < CMSISDAPVersion.V2_0_0):
-            self._fw_version = self._protocol.dap_info(self.ID.PRODUCT_FW_VERSION)
+            fw_version_value = self.identify(self.ID.PRODUCT_FW_VERSION)
+            assert isinstance(fw_version_value, (str, NoneType))
+            self._fw_version = fw_version_value
 
         # Major protocol version based on use of bulk endpoints.
         proto_major = (2 if self._interface.is_bulk else 1)
@@ -719,23 +784,38 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
                     proto_major, self._unique_id, *self._cmsis_dap_version)
 
         self._interface.set_packet_count(self._packet_count)
-        self._packet_size = self._protocol.dap_info(self.ID.MAX_PACKET_SIZE)
+        self._packet_size = self.identify(self.ID.MAX_PACKET_SIZE)
+        assert isinstance(self._packet_size, int)
         self._interface.set_packet_size(self._packet_size)
-        self._capabilities = self._protocol.dap_info(self.ID.CAPABILITIES)
+        self._capabilities = self.identify(self.ID.CAPABILITIES)
+        assert isinstance(self._capabilities, int)
         self._has_swo_uart = (self._capabilities & Capabilities.SWO_UART) != 0
         if self._has_swo_uart:
-            self._swo_buffer_size = self._protocol.dap_info(self.ID.SWO_BUFFER_SIZE)
+            swo_buffer_size_value = self.identify(self.ID.SWO_BUFFER_SIZE)
+            if isinstance(swo_buffer_size_value, int) and swo_buffer_size_value > 0:
+                self._swo_buffer_size = swo_buffer_size_value
+            else:
+                LOG.debug("CMSIS-DAP probe %s reported invalid SWO_BUFFER_SIZE (%d)",
+                        self._unique_id, swo_buffer_size_value)
+                self._has_swo_uart = False
         else:
             self._swo_buffer_size = 0
         self._swo_status = SWOStatus.DISABLED
 
         self._init_deferred_buffers()
 
+        self._has_opened_once = True
+        self._is_open = True
+
     @locked
     def close(self):
         assert self._interface is not None
+        if not self._is_open:
+            return
         self.flush()
         self._interface.close()
+        self._is_open = False
+        self._crnt_cmd = _Command(0)
 
     def get_unique_id(self):
         return self._unique_id
@@ -782,7 +862,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @locked
     def flush(self):
-        TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
+        if TRACE.isEnabledFor(logging.DEBUG):
+            if self._crnt_cmd.get_empty() and len(self._commands_to_read):
+                TRACE.debug("flush: reading %d outstanding (cmd:%d is empty)",
+                        len(self._commands_to_read), self._crnt_cmd.uid)
+            elif not self._crnt_cmd.get_empty():
+                TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
+
         # Send current packet
         self._send_packet()
         # Read all backlogged
@@ -790,10 +876,20 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._read_packet()
 
     @locked
-    def identify(self, item):
+    def identify(self, item: DAPAccessIntf.ID) -> Union[int, str, None]:
         assert isinstance(item, DAPAccessIntf.ID)
-        self.flush()
-        return self._protocol.dap_info(item)
+
+        # Check if this item has already been read and cached.
+        if item in self._cached_info:
+            return self._cached_info[item]
+
+        # Check if buffers are inited before calling flush, so identify() can be called from open(), before
+        # the initing the deferred buffers.
+        if not self._crnt_cmd.get_empty() or len(self._commands_to_read):
+            self.flush()
+        value = self._protocol.dap_info(item)
+        self._cached_info[item] = value
+        return value
 
     @locked
     def vendor(self, index, data=None):
@@ -1029,12 +1125,12 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         # List of transfers that have been started, but
         # not completed (started by write_reg, read_reg,
         # reg_write_repeat and reg_read_repeat)
-        self._transfer_list = collections.deque()
+        self._transfer_list.clear()
         # The current packet - this can contain multiple
         # different transfers
         self._crnt_cmd = _Command(self._packet_size)
         # Packets that have been sent but not read
-        self._commands_to_read = collections.deque()
+        self._commands_to_read.clear()
         # Buffer for data returned for completed commands.
         # This data will be added to transfers
         self._command_response_buf = bytearray()

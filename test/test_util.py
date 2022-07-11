@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,8 @@ import six
 import subprocess
 import tempfile
 import threading
+import codecs
+from pathlib import Path
 from pyocd.utility.compatibility import to_str_safe
 
 OBJCOPY = "arm-none-eabi-objcopy"
@@ -39,7 +41,10 @@ def get_test_binary_path(binary_name):
         binary_name = os.environ.get('PYOCD_TEST_BINARY')
         if binary_name is None:
             raise RuntimeError("no test binary available")
-    return os.path.join(TEST_DATA_DIR, "binaries", binary_name)
+    if Path(binary_name).is_absolute():
+        return binary_name
+    else:
+        return os.path.join(TEST_DATA_DIR, "binaries", binary_name)
 
 def get_env_name():
     return os.environ.get('TOX_ENV_NAME', '')
@@ -164,7 +169,16 @@ class IOTee(object):
 
     def write(self, message):
         for out in self.outputs:
-            out.write(message)
+            encoding = out.encoding if getattr(out, 'encoding', None) else 'latin-1'
+
+            try:
+                # Pre-encode the output with error replacement, then convert back to a string
+                # to write to the file. Very inefficient, but prevents possible errors.
+                b = codecs.encode(message, encoding=encoding, errors='backslashreplace')
+                u = codecs.decode(b, encoding=encoding, errors='backslashreplace')
+                out.write(u)
+            except UnicodeEncodeError as err:
+                out.write(f"<encode error: {err}>")
 
     def flush(self):
         for out in self.outputs:

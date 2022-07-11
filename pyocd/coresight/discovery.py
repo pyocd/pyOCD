@@ -134,7 +134,7 @@ class ADIv5Discovery(CoreSightDiscovery):
                     if invalid_count == self.session.options.get('adi.v5.max_invalid_ap_count'):
                         break
             except exceptions.Error as e:
-                LOG.error("Exception while probing AP#%d: %s", apsel, e,
+                LOG.error("Error probing AP#%d: %s", apsel, e,
                     exc_info=self.session.log_tracebacks)
                 break
             apsel += 1
@@ -162,7 +162,7 @@ class ADIv5Discovery(CoreSightDiscovery):
             ap = AccessPort.create(self.dp, ap_address)
             self.dp.aps[ap_address] = ap
         except exceptions.Error as e:
-            LOG.error("Exception reading AP#%d IDR: %s", apsel, e,
+            LOG.error("Error reading AP#%d IDR: %s", apsel, e,
                 exc_info=self.session.log_tracebacks)
 
     def _find_components(self):
@@ -242,7 +242,7 @@ class ADIv6Discovery(CoreSightDiscovery):
             ap = AccessPort.create(self.dp, ap_address, cmpid=cmpid)
             self.dp.aps[ap_address] = ap
         except exceptions.Error as e:
-            LOG.error("Exception reading AP@0x%08x IDR: %s", cmpid.address, e,
+            LOG.error("Error reading AP@0x%08x IDR: %s", cmpid.address, e,
                     exc_info=self.session.log_tracebacks)
 
     def _create_root_component(self, cmpid):
@@ -261,7 +261,7 @@ class ADIv6Discovery(CoreSightDiscovery):
             self.target.add_child(component)
             component.init()
         except exceptions.Error as e:
-            LOG.error("Exception creating root component at address 0x%08x: %s", cmpid.address, e,
+            LOG.error("Error creating root component at address 0x%08x: %s", cmpid.address, e,
                     exc_info=self.session.log_tracebacks)
 
     def _find_components_on_aps(self):

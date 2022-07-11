@@ -3,7 +3,7 @@
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import (dataclass, field)
 from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
 import logging
 import io
+import errno
+from pathlib import Path
 from typing import (Any, Callable, Dict, List, IO, Iterator, Optional, Tuple, TypeVar, Union)
 
 from .flash_algo import PackFlashAlgo
@@ -35,19 +38,20 @@ class MalformedCmsisPackError(exceptions.TargetSupportError):
     """@brief Exception raised for errors parsing a CMSIS-Pack."""
     pass
 
+@dataclass
 class _DeviceInfo:
     """@brief Simple container class to hold XML elements describing a device."""
-    def __init__(self, element: Element, **kwargs):
-        self.element: Element = element
-        self.families: List[str] = kwargs.get('families', [])
-        self.memories: List[Element] = kwargs.get('memories', [])
-        self.algos: List[Element] = kwargs.get('algos', [])
-        self.debugs: List[Element] = kwargs.get('debugs', [])
+    element: Element
+    families: List[str] = field(default_factory=list)
+    memories: List[Element] = field(default_factory=list)
+    algos: List[Element] = field(default_factory=list)
+    debugs: List[Element] = field(default_factory=list)
 
 def _get_part_number_from_element(element: Element) -> str:
     """@brief Extract the part number from a device or variant XML element."""
     assert element.tag in ("device", "variant")
-    if element.tag == "device":
+    # Both device and variant may have 'Dname' according to the latest spec.
+    if 'Dname' in element.attrib:
         return element.attrib['Dname']
     elif element.tag == "variant":
         return element.attrib['Dvariant']
@@ -78,30 +82,56 @@ class CmsisPack:
         and variants defined within the pack.
 
         @param self
-        @param file_or_path The .pack file to open. May be a string that is the path to the pack,
-            or may be a ZipFile, or a file-like object that is already opened.
+        @param file_or_path The .pack file to open. These values are supported:
+            - String that is the path to a .pack file (a Zip file).
+            - String that is the path to the root directory of an expanded pack.
+            - `ZipFile` object.
+            - File-like object that is already opened.
 
         @exception MalformedCmsisPackError The pack is not a zip file, or the .pdsc file is missing
             from within the pack.
         """
+        self._is_dir = False
         if isinstance(file_or_path, zipfile.ZipFile):
             self._pack_file = file_or_path
         else:
-            try:
-                self._pack_file = zipfile.ZipFile(file_or_path, 'r')
-            except zipfile.BadZipFile as err:
-                raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
+            # Check for an expanded pack as a directory.
+            if isinstance(file_or_path, str):
+                path = Path(file_or_path).expanduser()
+                file_or_path = str(path) # Update with expanded path.
+
+                self._is_dir = path.is_dir()
+                if self._is_dir:
+                    self._dir_path = path
+
+            if not self._is_dir:
+                try:
+                    self._pack_file = zipfile.ZipFile(file_or_path, 'r')
+                except zipfile.BadZipFile as err:
+                    raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
 
         # Find the .pdsc file.
-        for name in self._pack_file.namelist():
-            if name.endswith('.pdsc'):
-                self._pdscName = name
-                break
+        if self._is_dir:
+            for child_path in self._dir_path.iterdir():
+                if child_path.suffix == '.pdsc':
+                    self._pdsc_name = child_path.name
+                    break
+            else:
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
         else:
-            raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
+            for name in self._pack_file.namelist():
+                if name.endswith('.pdsc'):
+                    self._pdsc_name = name
+                    break
+            else:
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
 
-        with self._pack_file.open(self._pdscName) as pdscFile:
-            self._pdsc = CmsisPackDescription(self, pdscFile)
+        if self._is_dir:
+            with (self._dir_path / self._pdsc_name).open() as pdsc_file:
+                self._pdsc = CmsisPackDescription(self, pdsc_file)
+        else:
+            with self._pack_file.open(self._pdsc_name) as pdsc_file:
+                self._pdsc = CmsisPackDescription(self, pdsc_file)
 
     @property
     def filename(self) -> Optional[str]:
@@ -118,7 +148,7 @@ class CmsisPack:
         """@brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._pdsc.devices
 
-    def get_file(self, filename) -> IO[bytes]:
+    def get_file(self, filename: str) -> IO[bytes]:
         """@brief Return file-like object for a file within the pack.
 
         @param self
@@ -128,7 +158,11 @@ class CmsisPack:
             opened (due to particularities of the ZipFile implementation).
         """
         filename = filename.replace('\\', '/')
-        return io.BytesIO(self._pack_file.read(filename))
+        if self._is_dir:
+            path = self._dir_path / filename
+            return io.BytesIO(path.read_bytes())
+        else:
+            return io.BytesIO(self._pack_file.read(filename))
 
 class CmsisPackDescription:
     """@brief Parser for the PDSC XML file describing a CMSIS-Pack.
@@ -156,6 +190,13 @@ class CmsisPackDescription:
         # Extract devices.
         for family in self._pdsc.iter('family'):
             self._parse_devices(family)
+
+    @property
+    def pack_name(self) -> Optional[str]:
+        """@brief Name of the CMSIS-Pack.
+        @return Contents of the required <name> element, or None if missing.
+        """
+        return self._pdsc.findtext('name')
 
     @property
     def pack(self) -> CmsisPack:
@@ -195,7 +236,8 @@ class CmsisPackDescription:
                                         debugs=self._extract_debugs()
                                         )
 
-            dev = CmsisPackDevice(self.pack, deviceInfo)
+            # Support ._pack being None for testing.
+            dev = CmsisPackDevice(self, deviceInfo, self._pack.get_file if self._pack else None)
             self._devices.append(dev)
 
         # Recursively process subelements.
@@ -216,9 +258,13 @@ class CmsisPackDescription:
         return families
 
     ## Typevar used for _extract_items().
-    V = TypeVar('V')
+    _V = TypeVar('_V')
 
-    def _extract_items(self, state_info_name: str, filter: Callable[[Dict[Any, V], Element], None]) -> List[V]:
+    def _extract_items(
+                self,
+                state_info_name: str,
+                filter: Callable[[Dict[Any, _V], Element], None]
+            ) -> List[_V]:
         """@brief Generic extractor utility.
 
         Iterates over saved elements for the specified device state info for each level of the
@@ -239,7 +285,7 @@ class CmsisPackDescription:
                 try:
                     filter(map, elem)
                 except (KeyError, ValueError) as err:
-                    LOG.debug("error parsing CMSIS-Pack: " + str(err))
+                    LOG.debug("error parsing CMSIS-Pack %s: %s", self.pack_name, err)
         return list(map.values())
 
     def _extract_memories(self) -> List[Element]:
@@ -317,7 +363,7 @@ class CmsisPackDescription:
         def filter(map: Dict, elem: Element) -> None:
             # We only support Keil FLM style flash algorithms (for now).
             if ('style' in elem.attrib) and (elem.attrib['style'].lower() != 'keil'):
-                LOG.debug("skipping non-Keil flash algorithm")
+                LOG.debug("%s DFP: skipping non-Keil flash algorithm", self.pack_name)
                 return
 
             # Both start and size are required.
@@ -383,20 +429,27 @@ class CmsisPackDevice:
     """@brief Wraps a device defined in a CMSIS Device Family Pack.
 
     Responsible for converting the XML elements that describe the device into objects
-    usable by pyOCD. This includes the memory map and flash algorithms.
+    usable by pyOCD. This includes the memory map and flash algorithms. All extraction of data
+    into usuable data structures is done lazily, since a CmsisPackDevice instance will be
+    created for every device in installed DFPs but only one will actually be used per session.
 
     An instance of this class can represent either a `<device>` or `<variant>` XML element from
     the PDSC.
     """
 
-    def __init__(self, pack: CmsisPack, device_info: _DeviceInfo):
+    def __init__(self, pdsc: CmsisPackDescription, device_info: _DeviceInfo,
+            get_pack_file_cb: Optional[Callable[[str], IO[bytes]]]) -> None:
         """@brief Constructor.
         @param self
-        @param pack The CmsisPack object that contains this device.
+        @param pdsc The CmsisPackDescription object that contains this device.
         @param device_info A _DeviceInfo object with the XML elements that describe this device.
+        @param get_pack_file_cb Callable taking a relative filename and returning an open bytes file. May
+            raise IOError exceptions. If not supplied, then no flash algorithms or other files used by
+            the device description are accessible (primarily for testing).
         """
-        self._pack: CmsisPack = pack
+        self._pdsc = pdsc
         self._info: _DeviceInfo = device_info
+        self._get_pack_file_cb = get_pack_file_cb
         self._part: str = _get_part_number_from_element(device_info.element)
         self._regions: List[MemoryRegion] = []
         self._saw_startup: bool = False
@@ -639,19 +692,35 @@ class CmsisPackDevice:
 
     def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
         """@brief Return the PackFlashAlgo instance for the given flash algo filename."""
-        if self.pack is not None:
-            try:
-                algo_data = self.pack.get_file(filename)
-                return PackFlashAlgo(algo_data)
-            except FileNotFoundError:
-                pass
-        # Return default value.
-        return None
+        try:
+            algo_data = self.get_file(filename)
+            return PackFlashAlgo(algo_data)
+        except FileNotFoundError:
+            # Return default value.
+            return None
+
+    def get_file(self, filename: str) -> IO[bytes]:
+        """@brief Return file-like object for a file within the containing pack.
+
+        @param self
+        @param filename Relative path within the pack. May use forward or back slashes.
+        @return A BytesIO object is returned that contains all of the data from the file
+            in the pack. This is done to isolate the returned file from how the pack was
+            opened (due to particularities of the ZipFile implementation).
+
+        @exception OSError A problem occurred opening the file.
+        @exception FileNotFoundError In addition to the usual case of the file actually not being found,
+            this exception is raised if no `get_pack_file_cb` was passed to the constructor.
+        """
+        if self._get_pack_file_cb:
+            return self._get_pack_file_cb(filename)
+        else:
+            raise FileNotFoundError(errno.ENOENT, "No such file or directory", filename)
 
     @property
-    def pack(self) -> CmsisPack:
-        """@brief The CmsisPack object that defines this device."""
-        return self._pack
+    def pack_description(self) -> CmsisPackDescription:
+        """@brief The CmsisPackDescription object that defines this device."""
+        return self._pdsc
 
     @property
     def part_number(self) -> str:
@@ -695,7 +764,7 @@ class CmsisPackDevice:
         """
         try:
             svdPath = self._info.debugs[0].attrib['svd']
-            return self._pack.get_file(svdPath)
+            return self.get_file(svdPath)
         except (KeyError, IndexError):
             return None
 

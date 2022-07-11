@@ -27,7 +27,6 @@ from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List,
 
 from . import exceptions
 from .options_manager import OptionsManager
-from ..board.board import Board
 from ..utility.notification import Notifier
 
 if TYPE_CHECKING:
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from ..probe.debug_probe import DebugProbe
     from ..probe.tcp_probe_server import DebugProbeServer
     from ..gdbserver.gdbserver import GDBServer
+    from ..board.board import Board
 
 LOG = logging.getLogger(__name__)
 
@@ -142,6 +142,9 @@ class Session(Notifier):
             defaults for option if they are not set through any other method.
         @param kwargs Session options passed as keyword arguments.
         """
+        # Importing Board here eases circular import issues, and it's only needed here anyway.
+        from ..board.board import Board
+
         super().__init__()
 
         Session._current_session = weakref.ref(self)
@@ -249,7 +252,9 @@ class Session(Notifier):
         # Look for default filenames if a path wasn't provided.
         if filePath is None:
             for filename in filename_list:
-                thisPath = os.path.join(self.project_dir, filename)
+                thisPath = os.path.expanduser(filename)
+                if not os.path.isabs(thisPath):
+                    thisPath = os.path.join(self.project_dir, filename)
                 if os.path.isfile(thisPath):
                     filePath = thisPath
                     break
@@ -312,7 +317,7 @@ class Session(Notifier):
         return self._probe
 
     @property
-    def board(self) -> Optional[Board]:
+    def board(self) -> Optional["Board"]:
         """@brief The @ref pyocd.board.board.Board "Board" object."""
         return self._board
 
@@ -433,6 +438,7 @@ class Session(Notifier):
             'RunType': target.Target.RunType,
             'HaltReason': target.Target.HaltReason,
             'ResetType': target.Target.ResetType,
+            'MemoryLoader': loader.MemoryLoader,
             'MemoryType': memory_map.MemoryType,
             'MemoryMap': memory_map.MemoryMap,
             'RamRegion': memory_map.RamRegion,
@@ -441,7 +447,7 @@ class Session(Notifier):
             'DeviceRegion': memory_map.DeviceRegion,
             'FileProgrammer': file_programmer.FileProgrammer,
             'FlashEraser': eraser.FlashEraser,
-            'FlashLoader': loader.FlashLoader,
+            'FlashLoader': loader.FlashLoader, # deprecated
             # User script info
             '__name__': script_name,
             '__file__': script_path,
@@ -541,17 +547,17 @@ class Session(Notifier):
                 self._board.uninit()
                 self._inited = False
             except exceptions.Error:
-                LOG.error("exception during board uninit:", exc_info=self.log_tracebacks)
+                LOG.error("Error during board uninit:", exc_info=self.log_tracebacks)
 
         if self._probe.is_open:
             try:
                 self._probe.disconnect()
             except exceptions.Error:
-                LOG.error("probe exception during disconnect:", exc_info=self.log_tracebacks)
+                LOG.error("Probe error during disconnect:", exc_info=self.log_tracebacks)
             try:
                 self._probe.close()
             except exceptions.Error:
-                LOG.error("probe exception during close:", exc_info=self.log_tracebacks)
+                LOG.error("Probe error during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy:
     """@brief Proxy for user script functions.

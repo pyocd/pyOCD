@@ -37,8 +37,12 @@ Recommended GDB and IDE setup
 -----------------------------
 
 The recommended toolchain for embedded Arm Cortex-M development is [GNU Arm
-Embedded](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm),
+Embedded](https://developer.arm.com/downloads/-/gnu-rm) (GNU-RM),
 provided by Arm. GDB is included with this toolchain.
+
+Note that the version of GDB included with the new, combined Arm GNU Toolchain as of version 11.2-2022.02
+_will not_ work with pyOCD. This is because it is currently built without the required support for the XML
+target descriptions that pyOCD sends to GDB. Versions later than 11.2-2022.02 may have this bug fixed.
 
 For [Visual Studio Code](https://code.visualstudio.com), the
 [cortex-debug](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug) plugin is available

@@ -32,19 +32,19 @@ BUILTIN_OPTIONS = [
         "If this number of invalid APs is found in a row, then AP scanning will stop. The 'scan_all_aps' option "
         "takes precedence over this option if set."),
     OptionInfo('allow_no_cores', bool, False,
-        "Prevents raising an error if no core were found after CoreSight discovery."),
+        "Prevents raising an error if no cores were found after CoreSight discovery."),
     OptionInfo('auto_unlock', bool, True,
         "Whether to unlock secured target by erasing."),
+    OptionInfo('cache.enable_memory', bool, True,
+        "Enable the memory read cache. Default is enabled."),
+    OptionInfo('cache.enable_register', bool, True,
+        "Enable the core register cache. Default is enabled."),
     OptionInfo('cache.read_code_from_elf', bool, True,
         "Controls whether reads of code sections will be taken from an attached ELF file instead of the "
         "target memory."),
     OptionInfo('chip_erase', str, "sector",
         "Whether to perform a chip erase or sector erases when programming flash. The value must be"
         " one of \"auto\", \"sector\", or \"chip\"."),
-    OptionInfo('cmsis_dap.deferred_transfers', bool, True,
-        "Whether the CMSIS-DAP probe backend will use deferred transfers for improved performance."),
-    OptionInfo('cmsis_dap.limit_packets', bool, False,
-        "Restrict CMSIS-DAP backend to using a single in-flight command at a time."),
     OptionInfo('cmsis_dap.prefer_v1', bool, False,
         "If a device provides both CMSIS-DAP v1 and v2 interfaces, use the v1 interface in preference of v2. "
         "Normal behaviour is to prefer the v2 interface. This option is primarily intended for testing."),

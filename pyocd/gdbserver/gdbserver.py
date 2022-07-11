@@ -94,10 +94,6 @@ def escape(data):
             result.append(c)
     return bytes(result)
 
-class GDBError(exceptions.Error):
-    """@brief Error communicating with GDB."""
-    pass
-
 class GDBServer(threading.Thread):
     """@brief GDB remote server thread.
 
@@ -413,8 +409,8 @@ class GDBServer(threading.Thread):
             try:
                 handler, msgStart = self.COMMANDS[msg[1:2]]
             except (KeyError, IndexError):
-                LOG.error("Unknown RSP packet: %s", msg)
-                return self.create_rsp_packet(b""), 0
+                LOG.error("Unknown RSP command (%s)", msg[1:2])
+                return self.create_rsp_packet(b"")
 
             with self.lock:
                 if msgStart == 0:
@@ -427,7 +423,7 @@ class GDBServer(threading.Thread):
         except Exception as e:
             LOG.error("Unhandled exception in handle_message (%s): %s",
                     msg[1:2], e, exc_info=self.session.log_tracebacks)
-            return self.create_rsp_packet(b"E01"), 0
+            return self.create_rsp_packet(b"E01")
 
     def extended_remote(self):
         LOG.debug("extended remote enabled")
@@ -612,7 +608,7 @@ class GDBServer(threading.Thread):
                     # Note: if the target is not actually halted, gdb can get confused from this point on.
                     # But there's not much we can do if we're getting faults attempting to control it.
                     if not fault_retry_timeout.is_running:
-                        LOG.error('Exception reading target status: %s', e, exc_info=self.session.log_tracebacks)
+                        LOG.error('Error reading target status: %s', e, exc_info=self.session.log_tracebacks)
                     val = ('S%02x' % signals.SIGINT).encode()
                 break
 
@@ -653,7 +649,7 @@ class GDBServer(threading.Thread):
                     self.target.halt()
                 except exceptions.Error:
                     pass
-                LOG.warning('Exception while target was running: %s', e, exc_info=self.session.log_tracebacks)
+                LOG.warning('Error while target was running: %s', e, exc_info=self.session.log_tracebacks)
                 # This exception was not a transfer error, so reading the target state should be ok.
                 val = ('S%02x' % self.target_facade.get_signal_value()).encode()
                 break
@@ -934,26 +930,15 @@ class GDBServer(threading.Thread):
             return self.create_rsp_packet(resp)
 
         elif query[0] == b'Xfer':
-
-            if query[1] == b'features' and query[2] == b'read' and \
-               query[3] == b'target.xml':
+            # qXfer:<object>:read:<annex>:<offset>,<length>
+            if query[2] == b'read':
                 data = query[4].split(b',')
-                resp = self.handle_query_xml(b'read_feature', int(data[0], 16), int(data[1].split(b'#')[0], 16))
+                resp = self.handle_query_xml(query[1], query[3], int(data[0], 16), int(data[1].split(b'#')[0], 16))
                 return self.create_rsp_packet(resp)
-
-            elif query[1] == b'memory-map' and query[2] == b'read':
-                data = query[4].split(b',')
-                resp = self.handle_query_xml(b'memory_map', int(data[0], 16), int(data[1].split(b'#')[0], 16))
-                return self.create_rsp_packet(resp)
-
-            elif query[1] == b'threads' and query[2] == b'read':
-                data = query[4].split(b',')
-                resp = self.handle_query_xml(b'threads', int(data[0], 16), int(data[1].split(b'#')[0], 16))
-                return self.create_rsp_packet(resp)
-
             else:
                 LOG.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
-                return None
+                # Must return an empty packet for an unrecognized qXfer.
+                return self.create_rsp_packet(b"")
 
         elif query[0].startswith(b'C'):
             if not self.is_threading_enabled():
@@ -1020,29 +1005,35 @@ class GDBServer(threading.Thread):
         # Done with symbol processing.
         return self.create_rsp_packet(b"OK")
 
-    def get_symbol(self, name):
+    def get_symbol(self, name: bytes) -> Optional[int]:
+        assert self.packet_io
+
         # Send the symbol request.
         request = self.create_rsp_packet(b'qSymbol:' + hex_encode(name))
         self.packet_io.send(request)
 
         # Read a packet.
         packet = self.packet_io.receive()
+        assert packet is not None
 
         # Parse symbol value reply packet.
         packet = packet[1:-3]
         if not packet.startswith(b'qSymbol:'):
-            raise GDBError("Got unexpected response from gdb when asking for symbol value")
+            LOG.error("Got unexpected response from gdb when asking for symbol value")
+            return None
         packet = packet[8:]
-        symValue, symName = packet.split(b':')
+        sym_value, sym_name = packet.split(b':')
 
-        symName = hex_decode(symName)
-        if symName != name:
-            raise GDBError("Symbol value reply from gdb has unexpected symbol name")
-        if symValue:
-            symValue = hex8_to_u32le(symValue)
+        sym_name = hex_decode(sym_name)
+        if sym_name != name:
+            LOG.error("Symbol value reply from gdb has unexpected symbol name (expected '%s', received '%s')",
+                    name, sym_name)
+            return None
+        if sym_value:
+            sym_value = hex8_to_u32le(sym_value)
         else:
             return None
-        return symValue
+        return sym_value
 
     def handle_remote_command(self, cmd):
         """@brief Pass remote commands to the commander command processor."""
@@ -1068,7 +1059,7 @@ class GDBServer(threading.Thread):
                     exc_info=self.session.log_tracebacks)
         except Exception as err:
             stream.write("Unexpected error: %s\n" % err)
-            LOG.error("Exception while executing remote command '%s': %s", cmd, err,
+            LOG.error("Error while executing remote command '%s': %s", cmd, err,
                     exc_info=self.session.log_tracebacks)
 
         # Convert back to bytes, hex encode, then return the response packet.
@@ -1099,24 +1090,36 @@ class GDBServer(threading.Thread):
         else:
             return self.create_rsp_packet(b"")
 
-    def handle_query_xml(self, query, offset, size):
-        LOG.debug('GDB query %s: offset: %s, size: %s', query, offset, size)
-        xml = ''
-        if query == b'memory_map':
+    def handle_query_xml(self, query: bytes, annex: bytes, offset: int, size: int) -> bytes:
+        LOG.debug('GDB query %s: annex: %s, offset: %s, size: %s', query, annex, offset, size)
+
+        # For each query object, we check the annex and return E00 for invalid values. Only 'features'
+        # has a non-empty annex.
+        if query == b'memory-map':
+            if annex != b'':
+                return self.create_rsp_packet(b"E00")
             xml = self.target_facade.get_memory_map_xml()
-        elif query == b'read_feature':
-            xml = self.target_facade.get_target_xml()
+        elif query == b'features':
+            if annex == b'target.xml':
+                xml = self.target_facade.get_target_xml()
+            else:
+                return self.create_rsp_packet(b"E00")
         elif query == b'threads':
+            if annex != b'':
+                return self.create_rsp_packet(b"E00")
             xml = self.get_threads_xml()
         else:
-            raise GDBError("Invalid XML query (%s)" % query)
+            # Unrecognised query object, so return empty packet.
+            LOG.debug("Unsupported XML query (%s), annex (%s)", query, annex)
+            return self.create_rsp_packet(b"")
 
         size_xml = len(xml)
 
         prefix = b'm'
 
         if offset > size_xml:
-            raise GDBError('GDB: xml offset > size for %s!', query)
+            LOG.error('GDB requested xml offset > size for %s!', query)
+            return self.create_rsp_packet(b"E16") # EINVAL
 
         if size > (self.packet_size - 4):
             size = self.packet_size - 4
@@ -1130,7 +1133,6 @@ class GDBServer(threading.Thread):
         resp = prefix + escape(xml[offset:offset + size])
 
         return resp
-
 
     def create_rsp_packet(self, data):
         resp = b'$' + data + b'#' + checksum(data)

@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
@@ -20,6 +21,7 @@ import colorama
 import prettytable
 from typing import (Any, List, Mapping, Optional, Sequence, TYPE_CHECKING)
 
+from . import exceptions
 from .session import Session
 from ..probe.aggregator import DebugProbeAggregator
 
@@ -127,7 +129,7 @@ class ConnectHelper:
     def choose_probe(
             blocking: bool = True,
             return_first: bool = False,
-            unique_id: str = None
+            unique_id: Optional[str] = None
             ) -> Optional["DebugProbe"]:
         """@brief Return a debug probe possibly chosen by the user.
 
@@ -178,8 +180,8 @@ class ConnectHelper:
 
         # Ask user to select boards if there is more than 1 left
         if len(allProbes) > 1:
-            ch = 0
             ConnectHelper._print_probe_list(allProbes)
+            ch = 0
             while True:
                 print(colorama.Style.RESET_ALL)
                 print("Enter the number of the debug probe or 'q' to quit", end='')
@@ -264,7 +266,12 @@ class ConnectHelper:
 
     @staticmethod
     def _print_probe_list(probes: Sequence["DebugProbe"]) -> None:
-        pt = prettytable.PrettyTable(["#", "Probe", "Unique ID"])
+        from ..target import TARGET
+        from ..target.pack.pack_target import is_pack_target_available
+
+        dim_dash = (colorama.Style.DIM + colorama.Fore.WHITE + "n/a" + colorama.Style.RESET_ALL)
+
+        pt = prettytable.PrettyTable(["#", "Probe/Board", "Unique ID", "Target"])
         pt.align = 'l'
         pt.header = True
         pt.border = True
@@ -272,10 +279,69 @@ class ConnectHelper:
         pt.vrules = prettytable.NONE
 
         for index, probe in enumerate(probes):
-            pt.add_row([
-                colorama.Fore.YELLOW + str(index),
-                colorama.Fore.GREEN + probe.description,
-                colorama.Fore.CYAN + probe.unique_id,
-                ])
+            try:
+                board_info = probe.associated_board_info
+                target_type_name = board_info.target if board_info else None
+
+                if target_type_name is not None:
+                    target_type_name = target_type_name.lower()
+                    has_target = ((target_type_name in TARGET)
+                                or is_pack_target_available(target_type_name, Session.get_current()))
+                    target_mark = ("✖︎", "✔︎")[has_target]
+                    target_color = colorama.Fore.LIGHTGREEN_EX if has_target else colorama.Fore.RED
+                    target_type_desc = f"{target_color}{target_mark} {target_type_name}"
+                else:
+                    target_type_desc = dim_dash
+
+                pt.add_row([
+                    colorama.Fore.MAGENTA + str(index),
+                    colorama.Fore.GREEN + probe.description,
+                    colorama.Fore.CYAN + probe.unique_id,
+                    target_type_desc,
+                    ])
+                if board_info:
+                    pt.add_row([
+                        "",
+                        (colorama.Fore.YELLOW + (board_info.vendor or board_info.name)) if board_info else dim_dash,
+                        (colorama.Fore.YELLOW + board_info.name) if (board_info and board_info.vendor) else "",
+                        "",
+                        ])
+            except exceptions.Error as err:
+                # Trap errors to report the probe as inaccessible. Failing probes shouldn't prevent use
+                # of other working probes.
+
+                # Read the product name and unique IDs in exception handlers so we can still print
+                # the probe listing even if getting these properties fails.
+                try:
+                    product_name = probe.product_name
+                except exceptions.Error:
+                    product_name = "Error accessing probe"
+
+                try:
+                    uid = probe.unique_id
+                except exceptions.Error:
+                    uid = "Unknown"
+
+                pt.add_row([
+                    colorama.Style.DIM + colorama.Fore.MAGENTA + str(index) + colorama.Style.RESET_ALL,
+                    colorama.Style.BRIGHT + colorama.Fore.RED + product_name + colorama.Style.RESET_ALL,
+                    colorama.Style.DIM + colorama.Fore.WHITE + uid + colorama.Style.RESET_ALL,
+                    dim_dash,
+                    ])
+                pt.add_row([
+                    "",
+                    colorama.Fore.RED + type(err).__name__,
+                    colorama.Fore.RED + str(err),
+                    "",
+                    ])
+
+            # Add empty row between probes.
+            if index < (len(probes) - 1):
+                pt.add_row([
+                    "",
+                    "",
+                    "",
+                    "",
+                    ])
         print(pt)
         print(colorama.Style.RESET_ALL, end='')

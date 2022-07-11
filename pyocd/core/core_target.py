@@ -50,3 +50,6 @@ class CoreTarget(TargetGraphNode):
 
     def set_target_context(self, context: "DebugContext") -> None:
         raise NotImplementedError()
+
+    def exception_number_to_name(self, exc_num: int) -> Optional[str]:
+        raise NotImplementedError()

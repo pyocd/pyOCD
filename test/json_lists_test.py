@@ -189,7 +189,7 @@ def json_lists_test(board_id, testing_standalone=False):
     out = subprocess.check_output(['pyocd', 'json', '--probes'])
     data = json.loads(out)
     test_count += 2
-    if validate_basic_keys(data):
+    if validate_basic_keys(data, minor_version=1):
         test_pass_count += 1
     if validate_boards(data):
         test_pass_count += 1

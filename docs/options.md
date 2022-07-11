@@ -2,7 +2,7 @@
 title: Session options list
 ---
 
-_**Note:** The names of these options are expected to change before the 1.0 release of pyOCD, so
+_**Note:** The names of these options are expected to change with the 1.0 release of pyOCD, so
 they will be better normalized and grouped._
 
 ## General options
@@ -27,7 +27,7 @@ takes precedence over this option if set.
 <td>bool</td>
 <td>False</td>
 <td>
-Prevents raising an error if no core were found after CoreSight discovery.
+Prevents raising an error if no cores were found after CoreSight discovery.
 </td></tr>
 
 <tr><td>auto_unlock</td>
@@ -36,6 +36,22 @@ Prevents raising an error if no core were found after CoreSight discovery.
 <td>
 If the target is locked, it will by default be automatically mass erased in order to gain debug
 access. Set this option to False to disable auto unlock.
+</td></tr>
+
+<tr><td>cache.enable_memory</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable the memory read cache. Affects memory accesses made through the target debug context, including the
+gdbserver.
+</td></tr>
+
+<tr><td>cache.enable_register</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable the core register cache. Affects core register accesses made through the target debug context,
+including the gdbserver.
 </td></tr>
 
 <tr><td>cache.read_code_from_elf</td>
@@ -52,22 +68,6 @@ This can improve performance, especially over slow target connections. Requires 
 <td>
 Whether to perform a chip erase or sector erases when programming flash. The value must be one of
 'auto', 'sector', or 'chip'.
-</td></tr>
-
-<tr><td>cmsis_dap.deferred_transfers</td>
-<td>bool</td>
-<td>True</td>
-<td>
-Whether to use deferred transfers in the CMSIS-DAP probe backend. By disabling deferred transfers,
-all writes take effect immediately. However, performance is negatively affected.
-</td></tr>
-
-<tr><td>cmsis_dap.limit_packets</td>
-<td>bool</td>
-<td>False</td>
-<td>
-Restrict CMSIS-DAP backend to using a single in-flight command at a time. This is useful on some systems
-where USB is problematic, in particular virtual machines.
 </td></tr>
 
 <tr><td>cmsis_dap.prefer_v1</td>
@@ -538,6 +538,32 @@ The source letters are:
 <td>
 When set to True, XPSR and CONTROL registers will have their respective bitfields defined for
 presentation in gdb.
+</td></tr>
+
+</table>
+
+## CMSIS-DAP probe options
+
+These session options are available when the CMSIS-DAP debug probe plugin is active.
+
+<table>
+
+<tr><th>Option Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
+
+<tr><td>cmsis_dap.deferred_transfers</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Whether to use deferred transfers in the CMSIS-DAP probe backend. By disabling deferred transfers,
+all writes take effect immediately. However, performance is negatively affected.
+</td></tr>
+
+<tr><td>cmsis_dap.limit_packets</td>
+<td>bool</td>
+<td>False</td>
+<td>
+Restrict CMSIS-DAP backend to using a single in-flight command at a time. This is useful on some systems
+where USB is problematic, in particular virtual machines.
 </td></tr>
 
 </table>

@@ -454,6 +454,10 @@ class FlashRegion(MemoryRegion):
     def flm(self, flm_path: str) -> None:
         self._flm = flm_path
 
+        # Clear the flash algo dict when a new FLM is assigned. This makes it possible to override
+        # a built-in/default flash algo.
+        self._algo = None
+
     @property
     def flash_class(self) -> Type["Flash"]:
         return self._flash_class
