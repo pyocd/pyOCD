@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING)
+from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING, Set)
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
@@ -227,6 +227,11 @@ class Target(MemoryInterface):
 
     @property
     def core_registers(self) -> "CoreRegistersIndex":
+        raise NotImplementedError()
+
+    @property
+    def supported_reset_types(self) -> Set[ResetType]:
+        """@brief Set of reset types that can be used with this target."""
         raise NotImplementedError()
 
     def is_locked(self) -> bool:
