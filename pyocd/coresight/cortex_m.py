@@ -314,10 +314,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     def default_reset_type(self, reset_type: Target.ResetType) -> None:
         """@brief Modify the default software reset method.
         @param self
-        @param reset_type Must be one of the software reset types: Target.ResetType.SW_SYSRESETREQ,
-            Target.ResetType.SW_VECTRESET, or Target.ResetType.SW_EMULATED.
+        @param reset_type One of the Target.ResetType enums, and must be in the `.supported_reset_types`
+            property.
         @exception ValueError The provided reset type is not supported for this target; see
-            `supported_reset_types` property.
+            `.supported_reset_types` property.
         """
         assert isinstance(reset_type, Target.ResetType)
         if reset_type not in self._supported_reset_types:
@@ -333,9 +333,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """@brief Modify the default software reset method.
         @param self
         @param reset_type Must be one of the software reset types: Target.ResetType.SW_SYSRESETREQ,
-            Target.ResetType.SW_VECTRESET, or Target.ResetType.SW_EMULATED.
+            Target.ResetType.SW_VECTRESET, or Target.ResetType.SW_EMULATED. Must also be in the
+            `.supported_reset_types` property.
         @exception ValueError The provided reset type is not supported for this target; see
-            `supported_reset_types` property.
+            `.supported_reset_types` property.
         """
         assert isinstance(reset_type, Target.ResetType)
         assert reset_type in (Target.ResetType.SW_SYSRESETREQ, Target.ResetType.SW_VECTRESET,
