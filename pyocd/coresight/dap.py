@@ -2,6 +2,7 @@
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 Clay McClure
+# Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -230,11 +231,22 @@ class DPConnector:
             # Create object to send SWJ sequences.
             swj = SWJSequenceSender(self._probe, use_dormant)
 
+            if protocol == DebugProbe.Protocol.JTAG \
+               and DebugProbe.Capability.JTAG_SEQUENCE in self._probe.capabilities:
+                def jtag_enter_run_test_idle():
+                    self._probe.jtag_sequence(6, 1, 0, 0x3f)
+                    self._probe.jtag_sequence(1, 0, 0, 0x1)
+            else:
+                jtag_enter_run_test_idle = None
+
             # Multiple attempts to select protocol and read DP IDR.
             for attempt in range(4):
                 try:
                     if send_swj:
                         swj.select_protocol(protocol)
+
+                    if jtag_enter_run_test_idle:
+                        jtag_enter_run_test_idle()
 
                     # Attempt to read the DP IDR register.
                     self._idr = self.read_idr()
