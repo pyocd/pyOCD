@@ -162,7 +162,8 @@ class PackTargets:
                 # Require the regex to match the entire family name.
                 match = familyInfo.matches.match(compare_name)
                 if match and match.span() == (0, len(compare_name)):
-                    LOG.debug("using family class %s", familyInfo.klass.__name__)
+                    LOG.debug("using family class %s for %s (matched against %s)",
+                            familyInfo.klass.__name__, dev.part_number, compare_name)
                     return familyInfo.klass
 
         # Didn't match, so return default target superclass.
@@ -203,16 +204,17 @@ class PackTargets:
         @param dev A CmsisPackDevice object.
         """
         try:
-            tgt = PackTargets._generate_pack_target_class(dev)
-            if tgt is None:
-                return
+            # Check if we're even going to populate this target before bothing to build the class.
             part = normalise_target_type_name(dev.part_number)
+            if part in TARGET:
+                LOG.debug("did not populate target for DFP part number %s because there is already "
+                        "a %s target installed", dev.part_number, part)
+                return
 
-            # Make sure there isn't a duplicate target name.
-            if part not in TARGET:
+            # Generate target subclass and install it.
+            tgt = PackTargets._generate_pack_target_class(dev)
+            if tgt:
                 TARGET[part] = tgt
-            else:
-                LOG.debug("did not populate %s because there is already a %s target installed", dev.part_number, part)
         except (MalformedCmsisPackError, FileNotFoundError) as err:
             LOG.warning(err)
 
