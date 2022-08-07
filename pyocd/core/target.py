@@ -59,16 +59,17 @@ class Target(MemoryInterface):
         HW = 1
         ## Software reset using the core's default software reset method.
         SW = 2
-        ## Software reset using the AIRCR.SYSRESETREQ bit.
-        SW_SYSRESETREQ = 3
-        ## Software reset the entire system (alias of #SW_SYSRESETREQ).
-        SW_SYSTEM = SW_SYSRESETREQ
-        ## Software reset using the AIRCR.VECTRESET bit.
+        ## Software reset the entire system .
+        SW_SYSTEM = 3
+        ## Software reset using the AIRCR.SYSRESETREQ bit (alias of #SW_SYSTEM).
+        SW_SYSRESETREQ = SW_SYSTEM
+        ## Software reset the core only.
+        SW_CORE = 4
+        ## Software reset using the AIRCR.VECTRESET bit (alias of #SW_CORE).
         #
-        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to SW_EMULATED.
-        SW_VECTRESET = 4
-        ## Software reset the core only (alias of #SW_VECTRESET).
-        SW_CORE = SW_VECTRESET
+        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to SW_EMULATED,
+        # unless a target-specific core reset method is made available.
+        SW_VECTRESET = SW_CORE
         ## Emulated software reset.
         SW_EMULATED = 5
 

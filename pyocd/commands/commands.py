@@ -357,10 +357,10 @@ class ResetCommand(CommandBase):
             'category': 'device',
             'nargs': [0, 1, 2],
             'usage': "[halt|-halt|-h] [TYPE]",
-            'help': "Reset the target, optionally specifying the reset type.",
+            'help': "Reset the target, optionally with halt and/or specifying the reset type.",
             'extra_help': "The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', "
-                          "'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', "
-                          "or 'emulated'.",
+                          "'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', "
+                          "'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.",
 
             }
 

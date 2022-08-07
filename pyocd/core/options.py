@@ -105,8 +105,9 @@ BUILTIN_OPTIONS = [
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),
     OptionInfo('reset_type', str, 'default',
-        "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_sysresetreq', "
-        "'sw_vectreset', 'sw_emulated'). The default is 'sw'."),
+        "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_system', 'sw_core', "
+        "'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'system', 'core', 'sysresetreq', 'vectreset', "
+        "'emulated'). The default is 'sw', which itself defaults to 'sw_system'."),
     OptionInfo('reset.hold_time', float, 0.1,
         "Number of seconds to hold hardware reset asserted. Default is 0.1 s (100 ms)."),
     OptionInfo('reset.post_delay', float, 0.1,
