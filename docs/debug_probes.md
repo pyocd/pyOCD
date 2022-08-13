@@ -130,7 +130,7 @@ This section contains notes on the use of different types of debug probes and th
 
 ### CMSIS-DAP
 
-CMSIS-DAP is a debug probe protocol designed by Arm and released as open source as part of the CMSIS project.
+[CMSIS-DAP](https://arm-software.github.io/CMSIS_5/DAP/html/index.html) is a debug probe protocol designed by Arm and released as open source as part of the CMSIS project.
 There are two major versions of CMSIS-DAP, which use different USB classes:
 
 - v1: USB HID. This version is slower than v2. Still the most commonly seen version, although it is now deprecated by
@@ -138,6 +138,8 @@ There are two major versions of CMSIS-DAP, which use different USB classes:
 - v2: USB vendor-specific using bulk pipes, permitting higher performance than v1. WinUSB-enabled to allow driverless
     usage on Windows 8 and above. (Can be used with Windows 7 if device installation settings are set to automatically
     download and install drivers for new devices from the Internet.)
+
+If a debug probe provides both v1 and v2 interfaces, pyOCD will normally use the v2 interface. (See the `cmsis_dap.prefer_v1` option described below if this needs to be changed.)
 
 These are some of the commercial probes by silicon vendors using the CMSIS-DAP protocol, both standalone and on-board:
 
@@ -153,8 +155,8 @@ These are some of the commercial probes by silicon vendors using the CMSIS-DAP p
 
 In addition, there are numerous other commercial and open source debug probes utilising the CMSIS-DAP protocol.
 
-PyOCD supports automatic target type identification for debug probes built with the widely used
-[DAPLink](https://github.com/ARMmbed/DAPLink) firmware.
+PyOCD supports automatic target type identification for any debug probe supporting CMSIS-DAP v2.1 or later that reports the target type from the DAP_Info command. Automatic target type identification is also supported for the widely used
+[DAPLink](https://github.com/ARMmbed/DAPLink) firmware using the [board ID]({% link _docs/developer/board_ids.md %}) system.
 
 DAPLink firmware updates are available on the [daplink.io](https://daplink.io/) site and on the project's
 [releases page](https://github.com/ARMmbed/DAPLink/releases) on GitHub.
@@ -165,6 +167,7 @@ DAPLink firmware updates are available on the [daplink.io](https://daplink.io/) 
     By disabling deferred transfers, all writes take effect immediately. However, performance is negatively affected.
 - `cmsis_dap.limit_packets` (bool, default False) Restrict CMSIS-DAP backend to using a single in-flight command at a
     time. This is useful on some systems where USB is problematic, in particular virtual machines.
+- `cmsis_dap.prefer_v1` (bool, default False) Determines whether pyOCD will choose a CMSIS-DAP v1 interface of v2 in cases where a device provides both for backwards compatibility. There is rarely a reason to change this option, except for testing or issues. **Note:** This option can only be set in a default config file (e.g., `pyocd.yaml` in the working directory) because of how options loading is ordered in relation to debug probe enumeration.
 
 #### Microchip EDBG
 
@@ -211,7 +214,7 @@ is strongly recommended. Numerous bugs have been fixed, and new commands added f
 
 [STLink firmware updates on www.st.com](https://www.st.com/en/development-tools/stsw-link007.html).
 
-PyOCD supports automatic target type identification for on-board STLink probes that report a board ID.
+PyOCD supports automatic target type identification for on-board STLink probes that report a [board ID]({% link _docs/developer/board_ids.md %}).
 
 #### STLinkV3 SWD/JTAG frequencies
 
