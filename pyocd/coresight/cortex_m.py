@@ -240,9 +240,12 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self._default_reset_type = Target.ResetType.SW
 
         # Select default sw reset type based on whether multicore debug is enabled and which core
-        # this is.
+        # this is. Even though SW_VECTRESET isn't added (above) to the supported reset types by default,
+        # and is only supported on v7-M, it's ok to select it here because it will automatically fall
+        # back to SW_EMULATED in ._get_actual_reset_type().
         self._default_software_reset_type = Target.ResetType.SW_SYSRESETREQ \
-                    if (not self.session.options.get('enable_multicore_debug')) or (self.core_number == 0) \
+                    if (not self.session.options.get('enable_multicore_debug')) \
+                            or (self.core_number == self.session.options.get('primary_core')) \
                     else Target.ResetType.SW_VECTRESET
 
         # Set up breakpoints manager.
