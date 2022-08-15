@@ -19,13 +19,16 @@ session.options['reset_type'] = 'system'
 session.options.set('reset_type') = 'system'
 ```
 
+Note that `.get()` does not take an optional second parameter for a default value if the session option is unset. Instead, this default value is determined from the session option's definition.
+
+
 ## Priority layers
 
-Session options have a priority based on their source. The `OptionsManager` class implements these priorities as an ordered sequence of layers from front (high priority) to back (low priority). Each layer is a dict of option name to value. There is also an implicit lowest-priority layer from which default values specified in the option definition are derived.
+Session options have a priority based on their source. The `OptionsManager` class implements these priorities as an ordered sequence of layers from front (high priority) to back (low priority). Each layer is a dict of option name to value. There is also an implicit lowest-priority layer derived from default values specified in the option definitions.
 
 The priorities of the different sources, from front to back:
 
-1. Keyword arguments to the `Session` constructor. Applies to most command-line arguments.
+1. Keyword arguments to the `Session` constructor. Applies to most dedicated command-line arguments.
 2. _options_ parameter to `Session` constructor. Applies to `-O` command-line arguments.
 3. Probe-specific options from a config file.
 4. Global options from a config file.

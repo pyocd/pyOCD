@@ -77,17 +77,12 @@ way to engage with the community and maintainers.
 
 **Step 5.** Test
 
+See the [automated test documentation]({% link _docs/automated_tests.md %}) for an introduction to available tests and related scripts.
+
 To run the unit tests, you can execute the following.
 
 ```
 $ pytest
-```
-
-To get code coverage results, do the following:
-
-```
-$ pytest --cov-report=html --cov=pyocd
-$ open htmlcov/index.html
 ```
 
 The automated test suite also needs to be run:

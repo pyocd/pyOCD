@@ -15,7 +15,7 @@ A board ID is a 4-character code that uniquely identifies a board. It also ident
 Board ID definition:
 - 4-character code.
   - Board IDs currently are all hex numeric, but it's actually a string.
-  - There may be problems raised in some components if you tried to use a non-hex char).
+  - There may be problems raised in some components if you tried to use a non-hex char.
 - First 2 characters identify the vendor.
   - There are multiple cases of boards from different vendors being incorrectly allocated in another vendor's namespace, so this cannot solely be relied upon. It's only really useful for grouping of IDs.
 - Reserved values::
