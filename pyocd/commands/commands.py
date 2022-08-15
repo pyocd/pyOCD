@@ -18,6 +18,7 @@
 
 import logging
 import os
+import time
 from natsort import natsorted
 import textwrap
 from time import sleep
@@ -1511,6 +1512,22 @@ class ProbeserverCommand(CommandBase):
                 self.context.write("probe server is running")
             else:
                 self.context.write("probe server is not running")
+
+class SleepCommand(CommandBase):
+    INFO = {
+            'names': ['sleep'],
+            'group': 'standard',
+            'category': 'utility',
+            'nargs': 1,
+            'usage': "MILLISECONDS",
+            'help': "Sleep for a number of milliseconds before continuing.",
+            }
+
+    def parse(self, args):
+        self.delay_secs = self._convert_value(args[0]) / 1000.0
+
+    def execute(self):
+        time.sleep(self.delay_secs)
 
 class ShowCommand(CommandBase):
     INFO = {
