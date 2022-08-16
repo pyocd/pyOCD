@@ -3,6 +3,7 @@
 # Copyright (C) 2021 Ciro Cattuto <ciro.cattuto@gmail.com>
 # Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
 # Copyright (C) 2022 Johan Carlsson <johan.carlsson@teenage.engineering>
+# Copyright (C) 2022 Samuel Dewan
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,56 +19,20 @@
 # limitations under the License.
 
 import argparse
-from typing import List
 import logging
+import sys
+from time import sleep
+from typing import List
+
 from pyocd.core.helpers import ConnectHelper
-from pyocd.core.memory_map import MemoryMap, MemoryRegion, MemoryType
 from pyocd.core.soc_target import SoCTarget
+from pyocd.debug.rtt import RTTControlBlock, RTTUpChannel, RTTDownChannel
 from pyocd.subcommands.base import SubcommandBase
 from pyocd.utility.cmdline import convert_session_options, int_base_0
 from pyocd.utility.kbhit import KBHit
-from ctypes import Structure, c_char, c_int32, c_uint32, sizeof
 
 
 LOG = logging.getLogger(__name__)
-
-
-class SEGGER_RTT_BUFFER_UP(Structure):
-    """@brief `SEGGER RTT Ring Buffer` target to host."""
-
-    _fields_ = [
-        ("sName", c_uint32),
-        ("pBuffer", c_uint32),
-        ("SizeOfBuffer", c_uint32),
-        ("WrOff", c_uint32),
-        ("RdOff", c_uint32),
-        ("Flags", c_uint32),
-    ]
-
-
-class SEGGER_RTT_BUFFER_DOWN(Structure):
-    """@brief `SEGGER RTT Ring Buffer` host to target."""
-
-    _fields_ = [
-        ("sName", c_uint32),
-        ("pBuffer", c_uint32),
-        ("SizeOfBuffer", c_uint32),
-        ("WrOff", c_uint32),
-        ("RdOff", c_uint32),
-        ("Flags", c_uint32),
-    ]
-
-
-class SEGGER_RTT_CB(Structure):
-    """@brief `SEGGER RTT control block` structure. """
-
-    _fields_ = [
-        ("acID", c_char * 16),
-        ("MaxNumUpBuffers", c_int32),
-        ("MaxNumDownBuffers", c_int32),
-        ("aUp", SEGGER_RTT_BUFFER_UP * 3),
-        ("aDown", SEGGER_RTT_BUFFER_DOWN * 3),
-    ]
 
 
 class RTTSubcommand(SubcommandBase):
@@ -117,41 +82,29 @@ class RTTSubcommand(SubcommandBase):
 
                 target: SoCTarget = session.board.target
 
-                memory_map: MemoryMap = target.get_memory_map()
-                ram_region: MemoryRegion = memory_map.get_default_region_of_type(MemoryType.RAM)
+                control_block = RTTControlBlock.from_target(target,
+                            address = self._args.address,
+                            size = self._args.size)
+                control_block.start()
 
-                if self._args.address is None or self._args.size is None:
-                    rtt_range_start = ram_region.start
-                    rtt_range_size = ram_region.length
-                elif ram_region.start <= self._args.address and self._args.size <= ram_region.length:
-                    rtt_range_start = self._args.address
-                    rtt_range_size = self._args.size
-
-                LOG.info(f"RTT control block search range [{rtt_range_start:#08x}, {rtt_range_size:#08x}]")
-
-                rtt_cb_addr = -1
-                data = bytearray(b'0000000000')
-                chunk_size = 1024
-                while rtt_range_size > 0:
-                    read_size = min(chunk_size, rtt_range_size)
-                    data += bytearray(target.read_memory_block8(rtt_range_start, read_size))
-                    pos = data[-(read_size + 10):].find(b"SEGGER RTT")
-                    if pos != -1:
-                        rtt_cb_addr = rtt_range_start + pos - 10
-                        break
-                    rtt_range_start += read_size
-                    rtt_range_size -= read_size
-
-                if rtt_cb_addr == -1:
-                    LOG.error("No RTT control block available")
+                if len(control_block.up_channels) < 1:
+                    LOG.error("No up channels.")
                     return 1
 
-                data = target.read_memory_block8(rtt_cb_addr, sizeof(SEGGER_RTT_CB))
-                rtt_cb = SEGGER_RTT_CB.from_buffer(bytearray(data))
-                up_addr = rtt_cb_addr + SEGGER_RTT_CB.aUp.offset
-                down_addr = up_addr + sizeof(SEGGER_RTT_BUFFER_UP) * rtt_cb.MaxNumUpBuffers
+                if len(control_block.down_channels) < 1:
+                    LOG.error("No down channels.")
+                    return 1
 
-                LOG.info(f"_SEGGER_RTT @ {rtt_cb_addr:#08x} with {rtt_cb.MaxNumUpBuffers} aUp and {rtt_cb.MaxNumDownBuffers} aDown")
+                LOG.info(f"{len(control_block.up_channels)} up channels and "
+                         f"{len(control_block.down_channels)} down channels found")
+
+                up_chan: RTTUpChannel = control_block.up_channels[0]
+                down_chan: RTTDownChannel = control_block.down_channels[0]
+
+                up_name = up_chan.name if up_chan.name is not None else ""
+                down_name = down_chan.name if down_chan.name is not None else ""
+                LOG.info(f"Reading from up channel 0 (\"{up_name}\"), writing to "
+                         f"down channel 0 (\"{down_name}\")")
 
                 # some targets might need this here
                 #target.reset_and_halt()
@@ -165,75 +118,34 @@ class RTTSubcommand(SubcommandBase):
                 cmd = bytes()
 
                 while True:
-                    # read data from up buffers (target -> host)    
-                    data = target.read_memory_block8(up_addr, sizeof(SEGGER_RTT_BUFFER_UP))
-                    up = SEGGER_RTT_BUFFER_UP.from_buffer(bytearray(data))
+                    # poll at most 1000 times per second to limit CPU use
+                    sleep(0.001)
 
-                    if up.WrOff > up.RdOff:
-                        """
-                        |oooooo|xxxxxxxxxxxx|oooooo|
-                        0    rdOff        WrOff    SizeOfBuffer
-                        """
-                        data = target.read_memory_block8(up.pBuffer + up.RdOff, up.WrOff - up.RdOff)
-                        target.write_memory(up_addr + SEGGER_RTT_BUFFER_UP.RdOff.offset, up.WrOff)
-                        print(bytes(data).decode(), end="", flush=True)
+                    # read data from up buffer 0 (target -> host) and write to
+                    # stdout
+                    up_data: bytes = up_chan.read()
+                    sys.stdout.buffer.write(up_data)
+                    sys.stdout.buffer.flush()
 
-                    elif up.WrOff < up.RdOff:
-                        """
-                        |xxxxxx|oooooooooooo|xxxxxx|
-                        0    WrOff        RdOff    SizeOfBuffer
-                        """
-                        data = target.read_memory_block8(up.pBuffer + up.RdOff, up.SizeOfBuffer - up.RdOff)
-                        data += target.read_memory_block8(up.pBuffer, up.WrOff)
-                        target.write_memory(up_addr + SEGGER_RTT_BUFFER_UP.RdOff.offset, up.WrOff)
-                        print(bytes(data).decode(), end="", flush=True)
+                    # try to fetch character
+                    if kb.kbhit():
+                        c: str = kb.getch()
 
-                    else: # up buffer is empty
-
-                        # try and fetch character
-                        if not kb.kbhit():
-                            continue
-                        c = kb.getch()
-
-                        if ord(c) == 8 or ord(c) == 127: # process backspace
-                            print("\b \b", end="", flush=True)
-                            cmd = cmd[:-1]
-                            continue
-                        elif ord(c) == 27: # process ESC
+                        if ord(c) == 27: # process ESC
                             break
-                        else:
+                        elif c.isprintable() or c == '\n':
                             print(c, end="", flush=True)
-                            cmd += c.encode()
 
-                        # keep accumulating until we see CR or LF
-                        if not c in "\r\n":
-                            continue
+                        # add char to buffer
+                        cmd += c.encode("utf-8")
 
-                        # SEND TO TARGET
+                    # write buffer to target
+                    if not cmd:
+                        continue
 
-                        data = target.read_memory_block8(down_addr, sizeof(SEGGER_RTT_BUFFER_DOWN))
-                        down = SEGGER_RTT_BUFFER_DOWN.from_buffer(bytearray(data))
-
-                        # compute free space in down buffer
-                        if down.WrOff >= down.RdOff:
-                            num_avail = down.SizeOfBuffer - (down.WrOff - down.RdOff)
-                        else:
-                            num_avail = down.RdOff - down.WrOff - 1
-
-                        # wait until there's space for the entire string in the RTT down buffer
-                        if (num_avail < len(cmd)):
-                            continue
-
-                        # write data to down buffer (host -> target), char by char
-                        for i in range(len(cmd)):
-                            target.write_memory_block8(down.pBuffer + down.WrOff, cmd[i:i+1])
-                            down.WrOff += 1
-                            if down.WrOff == down.SizeOfBuffer:
-                                down.WrOff = 0;
-                        target.write_memory(down_addr + SEGGER_RTT_BUFFER_DOWN.WrOff.offset, down.WrOff)
-
-                        # clear it and start anew
-                        cmd = bytes()
+                    # write cmd buffer to down buffer 0 (host -> target)
+                    bytes_out = down_chan.write(cmd)
+                    cmd = cmd[bytes_out:]
 
         except KeyboardInterrupt:
             pass
