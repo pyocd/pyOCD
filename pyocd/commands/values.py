@@ -17,6 +17,7 @@
 
 import logging
 import prettytable
+from typing import TYPE_CHECKING
 
 from .. import coresight
 from ..core import exceptions
@@ -29,6 +30,9 @@ from ..utility.cmdline import (
     convert_vector_catch,
     )
 from .base import ValueBase
+
+if TYPE_CHECKING:
+    from ..core.memory_map import MemoryMap
 
 LOG = logging.getLogger(__name__)
 
@@ -136,18 +140,25 @@ class MemoryMapValue(ValueBase):
         pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page"])
         pt.align = 'l'
         pt.border = False
-        for region in self.context.selected_core.get_memory_map():
-            pt.add_row([
-                region.name,
-                region.type.name.capitalize(),
-                "0x%08x" % region.start,
-                "0x%08x" % region.end,
-                "0x%08x" % region.length,
-                region.access,
-                ("0x%08x" % region.sector_size) if region.is_flash else '-',
-                ("0x%08x" % region.page_size) if region.is_flash else '-',
-                ])
-        self.context.write(pt)
+
+        def add_rows(indent: int, pt: prettytable.PrettyTable, map: "MemoryMap") -> None:
+            for region in map:
+                pt.add_row([
+                    ('  ' * indent) + region.name,
+                    region.type.name.capitalize(),
+                    "0x%08x" % region.start,
+                    "0x%08x" % region.end,
+                    "0x%08x" % region.length,
+                    region.access,
+                    ("0x%08x" % region.sector_size) if region.is_flash else '-',
+                    ("0x%08x" % region.page_size) if region.is_flash else '-',
+                    ])
+                if region.has_subregions:
+                    add_rows(indent + 2, pt, region.submap)
+
+        add_rows(0, pt, self.context.selected_core.memory_map)
+
+        self.context.write(str(pt))
 
 class PeripheralsValue(ValueBase):
     INFO = {
