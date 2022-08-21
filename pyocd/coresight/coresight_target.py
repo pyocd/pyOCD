@@ -17,7 +17,6 @@
 
 import logging
 from inspect import getfullargspec
-from pathlib import PurePath
 from typing import (Callable, Dict, Optional, TYPE_CHECKING, cast)
 
 from ..core.target import Target
@@ -27,7 +26,7 @@ from ..core import exceptions
 from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
-from ..target.pack.flash_algo import PackFlashAlgo
+from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
 if TYPE_CHECKING:
     from ..core.session import Session
@@ -188,43 +187,18 @@ class CoreSightTarget(SoCTarget):
     def create_flash(self) -> None:
         """@brief Instantiates flash objects for memory regions.
 
-        This init task iterates over flash memory regions and for each one creates the Flash
-        instance. It uses the flash_algo and flash_class properties of the region to know how
+        This init task iterates over flash memory regions and for each one finishes its setup and creates
+        the Flash instance. It uses the flash_algo and flash_class properties of the region to know how
         to construct the flash object.
         """
+        flm_builder = FlmFlashRegionBuilder(self, self.memory_map)
         for region in self.memory_map.iter_matching_regions(type=MemoryType.FLASH):
             region = cast(FlashRegion, region)
-            # If the region doesn't have an algo dict but does have an FLM file, try to load
-            # the FLM and create the algo dict.
-            if (region.algo is None) and (region.flm is not None):
-                if isinstance(region.flm, (str, PurePath)):
-                    flm_path = self.session.find_user_file(None, [str(region.flm)])
-                    if flm_path is not None:
-                        LOG.info("creating flash algo for region %s from: %s", region.name, flm_path)
-                        pack_algo = PackFlashAlgo(flm_path)
-                    else:
-                        LOG.warning("Failed to find FLM file: %s", region.flm)
-                        break
-                elif isinstance(region.flm, PackFlashAlgo):
-                    pack_algo = region.flm
-                else:
-                    LOG.warning("flash region flm attribute is unexpected type")
-                    break
 
-                # Create the algo dict from the FLM.
-                if self.session.options.get("debug.log_flm_info"):
-                    LOG.debug("Flash algo info: %s", pack_algo.flash_info)
-                page_size = pack_algo.page_size
-                if page_size <= 32:
-                    page_size = min(s[1] for s in pack_algo.sector_sizes)
-                algo = pack_algo.get_pyocd_flash_algo(
-                        page_size,
-                        self.memory_map.get_default_region_of_type(MemoryType.RAM))
-
-                # If we got a valid algo from the FLM, set it on the region. This will then
-                # be used below.
-                if algo is not None:
-                    region.algo = algo
+            # Load FLM file if needed, and create subregions for sector sizes.
+            if not flm_builder.finalise_region(region):
+                # Some error occurred, skip this region.
+                continue
 
             # If the constructor of the region's flash class takes the flash_algo arg, then we
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
@@ -245,6 +219,10 @@ class CoreSightTarget(SoCTarget):
 
             # Store the flash object back into the memory region.
             region.flash = obj
+
+        # Update the memory map in each core.
+        for core in self.cores.values():
+            core.memory_map = self.memory_map
 
     def check_for_cores(self) -> None:
         """@brief Init task: verify that at least one core was discovered."""

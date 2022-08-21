@@ -88,6 +88,11 @@ class MemoryRangeBase:
     def length(self) -> int:
         return self._end - self._start + 1
 
+    @property
+    def is_empty(self) -> bool:
+        """@brief Whether the range has a zero size."""
+        return self.length == 0
+
     def contains_address(self, address: int) -> bool:
         return (address >= self.start) and (address <= self.end)
 
