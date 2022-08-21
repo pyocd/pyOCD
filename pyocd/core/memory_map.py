@@ -19,7 +19,8 @@ from enum import Enum
 import collections.abc
 import copy
 from functools import total_ordering
-from typing import (Any, Dict, Iterable, Iterator, List, Optional, TYPE_CHECKING, Sequence, Tuple, Type, Union)
+from typing import (Any, Callable, Dict, Iterable, Iterator, List, Optional, TYPE_CHECKING,
+        Sequence, Tuple, Type, Union)
 from typing_extensions import Self
 
 from ..utility.strings import uniquify_name
@@ -42,15 +43,16 @@ def check_range(
             length: Optional[int] = None,
             range: Optional["MemoryRangeBase"] = None
         ) -> Tuple[int, int]:
-    assert (start is not None) and ((isinstance(start, MemoryRangeBase) or range is not None) or
-        ((end is not None) ^ (length is not None)))
+    assert ((range is not None)
+        or ((start is not None) and (isinstance(start, MemoryRangeBase)
+            or ((end is not None) ^ (length is not None)))))
     if isinstance(start, MemoryRangeBase):
         range = start
     if range is not None:
         actual_start = range.start
         actual_end = range.end
     else:
-        assert not isinstance(start, MemoryRangeBase)
+        assert isinstance(start, int)
         actual_start = start
         if end is None:
             assert length is not None
@@ -215,6 +217,7 @@ class MemoryRegion(MemoryRangeBase):
         as memory-mapped OTP or configuration flash.
     - `is_testable`: Whether pyOCD should consider the region in its functional tests.
     - `is_external`: If true, the region is backed by an external memory device such as SDRAM or QSPI.
+    - `has_subregions`: True if the region has nested subregions, accessible through the `.map` property.
 
     Several attributes are available whose values are computed from other attributes. These should
     not be set when creating the region.
@@ -227,6 +230,10 @@ class MemoryRegion(MemoryRangeBase):
     - `is_executable`
     - `is_secure`
     - `is_nonsecure`
+
+    Memory regions can contain nested subregions. Any subregions must be fulled contained within the parent
+    region's address range. Subregions must also have the same memory type, except that a parent region
+    of type `MemoryType.OTHER` can contain any type of subregions.
     """
 
     ## Default attribute values for all memory region types.
@@ -241,10 +248,10 @@ class MemoryRegion(MemoryRangeBase):
         'invalidate_cache_on_run': True,
         'is_testable': True,
         'is_external': False,
-        'is_ram': lambda r: r.type == MemoryType.RAM,
-        'is_rom': lambda r: r.type == MemoryType.ROM,
-        'is_flash': lambda r: r.type == MemoryType.FLASH,
-        'is_device': lambda r: r.type == MemoryType.DEVICE,
+        'is_ram': lambda r: r.type is MemoryType.RAM,
+        'is_rom': lambda r: r.type is MemoryType.ROM,
+        'is_flash': lambda r: r.type is MemoryType.FLASH,
+        'is_device': lambda r: r.type is MemoryType.DEVICE,
         'is_readable': lambda r: 'r' in r.access,
         'is_writable': lambda r: 'w' in r.access,
         'is_executable': lambda r: 'x' in r.access,
@@ -278,6 +285,11 @@ class MemoryRegion(MemoryRangeBase):
         self._map: Optional[MemoryMap] = None
         self._type = type
         self._attributes = attrs
+        self._submap = MemoryMap(
+            start=self.start,
+            end=self.end,
+            region_validator=lambda r: (r.type == self._type) or (self._type is MemoryType.OTHER),
+        )
 
         # Assign default values to any attributes missing from kw args.
         for k, v in self.DEFAULT_ATTRS.items():
@@ -291,6 +303,15 @@ class MemoryRegion(MemoryRangeBase):
     @map.setter
     def map(self, the_map: Optional["MemoryMap"]) -> None:
         self._map = the_map
+
+    @property
+    def submap(self) -> "MemoryMap":
+        """@brief Memory map containing nested regions."""
+        return self._submap
+
+    @property
+    def has_subregions(self) -> bool:
+        return not self.submap.is_empty
 
     @property
     def type(self) -> MemoryType:
@@ -423,7 +444,7 @@ class FlashRegion(MemoryRegion):
     - `erased_byte_value`: The value of an erased byte of this flash. Most flash technologies erase to
         all 1s, which would be an `erased_byte_value` of 0xff.
     - `algo`: The flash algorithm dictionary.
-    - `flm`: Path to an FLM flash algorithm.
+    - `flm`: Path to an FLM flash algorithm, either a str or Path, or a PackFlashAlgo instance.
     - `flash_class`: The class that manages individual flash algorithm operations. Must be either
         @ref pyocd.flash.flash.Flash "Flash", which is the default, or a subclass.
     - `flash`: After connection, this attribute holds the instance of `flash_class` for this region.
@@ -593,7 +614,7 @@ MEMORY_TYPE_CLASS_MAP: Dict[MemoryType, Type[MemoryRegion]] = {
         MemoryType.DEVICE:  DeviceRegion,
     }
 
-class MemoryMap(collections.abc.Sequence):
+class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
     """@brief Memory map consisting of memory regions.
 
     The normal way to create a memory map is to instantiate regions directly in the call to the
@@ -620,8 +641,13 @@ class MemoryMap(collections.abc.Sequence):
     """
 
     _regions: List[MemoryRegion]
+    _region_validator: Callable[[MemoryRegion], bool]
 
-    def __init__(self, *more_regions: Union[Sequence[MemoryRegion], MemoryRegion]) -> None:
+    def __init__(
+            self,
+            *more_regions: Union[Sequence[MemoryRegion], MemoryRegion],
+            **kwargs: Any,
+            ) -> None:
         """@brief Constructor.
 
         All parameters passed to the constructor are assumed to be MemoryRegion instances, and
@@ -629,8 +655,23 @@ class MemoryMap(collections.abc.Sequence):
 
         @param self
         @param more_regions Zero or more MemoryRegion objects passed as separate parameters.
+
+        Keyword arguments:
+        - `start`
+        - `end`
+        - `length`
+        - `region_validator`: Callable of the form `(MemoryRegion) -> bool`. Called with each region added to the map. If False is returned, a ValueError is raised rather than add the region.
+
+        @exception ValueError The region validator returned false.
         """
+        MemoryRangeBase.__init__(
+            self,
+            start=kwargs.get('start', 0),
+            end=kwargs.get('end', 0xffffffff),
+            length=kwargs.get('length')
+        )
         self._regions = []
+        self._region_validator = kwargs.get('region_validator', lambda r: True)
         self.add_regions(*more_regions)
 
     @property
@@ -645,6 +686,11 @@ class MemoryMap(collections.abc.Sequence):
     def region_count(self) -> int:
         """@brief Number of memory regions in the map."""
         return len(self._regions)
+
+    @property
+    def is_empty(self) -> bool:
+        """@brief Whether the map has zero regions."""
+        return len(self._regions) == 0
 
     def clone(self) -> "MemoryMap":
         """@brief Create a duplicate of the memory map.
@@ -665,8 +711,10 @@ class MemoryMap(collections.abc.Sequence):
         The region list is kept sorted. If no regions are provided, the call is a no-op.
 
         @param self
-        @param more_regions Either a single tuple or list, or one or more MemoryRegion objects
-            passed as separate parameters.
+        @param more_regions Either a single sequence of MemoryRegion objects, or one or more MemoryRegion
+            objects passed as separate parameters.
+
+        @exception ValueError The region is out of bounds or the validator returned false.
         """
         if len(more_regions):
             if isinstance(more_regions[0], collections.abc.Sequence):
@@ -685,12 +733,21 @@ class MemoryMap(collections.abc.Sequence):
 
         @param self
         @param new_region An instance of MemoryRegion to add. A new instance that is a copy of this argument
-            may be added to the memory map in order to guarantee unique region names.
+            may be added to the memory map in order to guarantee unique region names (if the region has a
+            name). The region must fall completely within the map's address bounds.
+
+        @exception ValueError The region is out of bounds or the validator returned false.
         """
         # Check for an existing region with the same name. Multiple unnamed regions are allowed.
         existing_names = [r.name for r in self._regions if r]
         if new_region.name and (new_region.name in existing_names):
             new_region = new_region.clone_with_changes(name=uniquify_name(new_region.name, existing_names))
+
+        # Validate the region.
+        if not self.contains_range(new_region):
+            raise ValueError(f"attempt add region {new_region} failed because it is out of bounds")
+        if not self._region_validator(new_region):
+            raise ValueError(f"attempt add region {new_region} failed because validator returned False")
 
         new_region.map = self
         self._regions.append(new_region)
