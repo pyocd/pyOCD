@@ -25,12 +25,17 @@ import logging
 import io
 import errno
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, IO, Iterator, Optional, Tuple, TypeVar, Union)
+from typing import (Any, Callable, Dict, List, IO, Optional, Tuple, TypeVar, Set, Union)
 
 from .flash_algo import PackFlashAlgo
 from ...core import exceptions
-from ...core.target import Target
-from ...core.memory_map import (MemoryMap, MemoryRegion, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion, RamRegion)
+from ...core.memory_map import (
+    MemoryMap,
+    MemoryRange,
+    MemoryRegion,
+    MemoryType,
+    MEMORY_TYPE_CLASS_MAP,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -499,9 +504,9 @@ class CmsisPackDevice:
                 start = int(elem.attrib['start'], base=0)
                 size = int(elem.attrib['size'], base=0)
 
-                isDefault = _get_bool_attribute(elem, 'default')
-                isStartup = _get_bool_attribute(elem, 'startup')
-                if isStartup:
+                is_default = _get_bool_attribute(elem, 'default')
+                is_startup = _get_bool_attribute(elem, 'startup')
+                if is_startup:
                     self._saw_startup = True
 
                 attrs = {
@@ -509,192 +514,95 @@ class CmsisPackDevice:
                         'start': start,
                         'length': size,
                         'access': access,
-                        'is_default': isDefault,
-                        'is_boot_memory': isStartup,
-                        'is_testable': isDefault,
+                        'is_default': is_default,
+                        'is_boot_memory': is_startup,
+                        'is_testable': is_default,
                         'alias': elem.attrib.get('alias', None),
                     }
+
+                # See if we can convert ROM memory to flash.
+                if type is MemoryType.ROM and self._set_flash_attributes(attrs):
+                    type = MemoryType.FLASH
+
+                    # If we don't have a boot memory yet, pick the first flash.
+                    if not self._saw_startup:
+                        attrs['is_boot_memory'] = True
+                        self._saw_startup = True
 
                 # Create the memory region and add to map.
                 region = MEMORY_TYPE_CLASS_MAP[type](**attrs)
                 self._regions.append(region)
 
                 # Record the first default ram for use in flash algos.
-                if self._default_ram is None and type == MemoryType.RAM and isDefault:
+                if (self._default_ram is None) and (type is MemoryType.RAM) and is_default:
                     self._default_ram = region
             except (KeyError, ValueError) as err:
                 # Ignore errors.
                 LOG.debug("ignoring error parsing memories for CMSIS-Pack devices %s: %s",
                     self.part_number, str(err))
 
-    def _get_containing_region(self, addr: int) -> Optional[MemoryRegion]:
-        """@brief Return the memory region containing the given address."""
-        for region in self._regions:
-            if region.contains_address(addr):
-                return region
-        return None
-
-    def _build_flash_regions(self) -> None:
-        """@brief Converts ROM memory regions to flash regions.
-
-        Each ROM region in the `_regions` attribute is converted to a flash region if a matching
-        flash algo can be found. If the flash has multiple sector sizes, then separate flash
-        regions will be created for each sector size range. The flash algo is converted to a
-        pyOCD-compatible flash algo dict by calling _get_pyocd_flash_algo().
-        """
-        # Must have a default ram.
-        if self._default_ram is None:
-            LOG.warning("CMSIS-Pack device %s has no default RAM defined, cannot program flash" % self.part_number)
-            return
-
-        # Can't import at top level due to import loops.
-        from ...core.session import Session
-
-        regions_to_delete = [] # List of regions to delete.
-        regions_to_add = [] # List of FlashRegion objects to add.
-
-        # Create flash algo dicts once we have the full memory map.
-        for i, region in enumerate(self._regions):
-            # We're only interested in ROM regions here.
-            if region.type != MemoryType.ROM:
-                continue
-
+    def _set_flash_attributes(self, attrs: dict) -> bool:
+        try:
             # Look for matching flash algo.
-            try:
-                algo_element = self._find_matching_algo(region)
-            except KeyError:
-                # Must be a mask ROM or non-programmable flash.
-                continue
+            # TODO multiple matching algos per region
+            algo_element = self._find_matching_algo(MemoryRange(attrs['start'], length=attrs['length']))
+        except KeyError:
+            # Must be a mask ROM or non-programmable flash.
+            return False
 
-            # Load flash algo from .FLM file.
-            packAlgo = self._load_flash_algo(algo_element.attrib['name'])
-            if packAlgo is None:
-                LOG.warning("Failed to convert ROM region to flash region because flash algorithm '%s' could not be "
-                            " found (%s)", algo_element.attrib['name'], self.part_number)
-                continue
+        # Load flash algo from .FLM file.
+        pack_algo = self._load_flash_algo(algo_element.attrib['name'])
+        if pack_algo is None:
+            LOG.warning(f"{self.pack_description.pack_name} DFP ({self.part_number}): "
+                f"failed to find or load flash algorithm '{algo_element.attrib['name']}'")
+            return False
 
-            # The ROM region will be replaced with one or more flash regions.
-            regions_to_delete.append(region)
+        attrs['flm'] = pack_algo
 
-            # Log details of this flash algo if the debug option is enabled.
-            current_session = Session.get_current()
-            if current_session and current_session.options.get("debug.log_flm_info"):
-                LOG.debug("Flash algo info: %s", packAlgo.flash_info)
-
-            # Choose the page size. The check for <=32 is to handle some flash algos with incorrect
-            # page sizes that are too small and probably represent the phrase size.
-            page_size = packAlgo.page_size
-            if page_size <= 32:
-                page_size = min(s[1] for s in packAlgo.sector_sizes)
-
-            # Select the RAM to use for the algo.
-            try:
-                # See if an explicit RAM range was specified for the algo.
-                ram_start = int(algo_element.attrib['RAMstart'], base=0)
-
-                # The region size comes either from the RAMsize attribute, the containing region's bounds, or
-                # a large, arbitrary value.
-                if 'RAMsize' in algo_element.attrib:
-                    ram_size = int(algo_element.attrib['RAMsize'], base=0)
-                else:
-                    containing_region = self._get_containing_region(ram_start)
-                    if containing_region is not None:
-                        ram_size = containing_region.length - (ram_start - containing_region.start)
-                    else:
-                        # No size specified, and the RAMstart attribute is outside of a known region,
-                        # so just use a relatively large arbitrary size. Because the algo is packed at the
-                        # start of the provided region, this won't be a problem unless the DFP is
-                        # actually erroneous.
-                        ram_size = 128 * 1024
-
-                ram_for_algo = RamRegion(start=ram_start, length=ram_size)
-            except KeyError:
-                # No RAM addresses were given, so go with the RAM marked default.
-                ram_for_algo = self._default_ram
-
-            # Construct the pyOCD algo using the largest sector size. We can share the same
-            # algo for all sector sizes.
-            algo = packAlgo.get_pyocd_flash_algo(page_size, ram_for_algo)
-
-            # Create a separate flash region for each sector size range.
-            regions_to_add += list(self._split_flash_region_by_sector_size(
-                                            region, page_size, algo, packAlgo)) # type: ignore
-
-        # Now update the regions list.
-        for region in regions_to_delete:
-            self._regions.remove(region)
-        for region in regions_to_add:
-            self._regions.append(region)
-
-    def _split_flash_region_by_sector_size(self,
-            region: MemoryRegion,
-            page_size: int,
-            algo: Dict[str, Any],
-            pack_algo: PackFlashAlgo) -> Iterator[FlashRegion]:
-        """@brief Yield separate flash regions for each sector size range."""
-        # The sector_sizes attribute is a list of bi-tuples of (start-address, sector-size), sorted by start address.
-        for j, (offset, sector_size) in enumerate(pack_algo.sector_sizes):
-            start = region.start + offset
-
-            # Determine the end address of the this sector range. For the last range, the end
-            # is just the end of the entire region. Otherwise it's the start of the next
-            # range - 1.
-            if j + 1 >= len(pack_algo.sector_sizes):
-                end = region.end
+        # Save the algo element's RAM attributes in the region for later use in
+        # CoreSightTarget.create_flash().
+        if 'RAMstart' in algo_element.attrib:
+            attrs['_RAMstart'] = int(algo_element.attrib['RAMstart'], base=0)
+            if 'RAMsize' in algo_element.attrib:
+                attrs['_RAMsize'] = int(algo_element.attrib['RAMsize'], base=0)
             else:
-                end = region.start + pack_algo.sector_sizes[j + 1][0] - 1
+                LOG.warning(
+                    f"{self.pack_description.pack_name} DFP ({self.part_number}): "
+                    f"flash algorithm '{algo_element.attrib['name']}' has RAMstart but is "
+                    "missing RAMsize")
 
-            # Skip wrong start and end addresses
-            if end < start:
-                continue
+        # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
+        # the default lambdas for sector_size and blocksize returning each other's value.
+        attrs['sector_size'] = 0
 
-            # Limit page size.
-            if page_size > sector_size:
-                region_page_size = sector_size
-                LOG.warning("Page size (%d) is larger than sector size (%d) for flash region %s; "
-                            "reducing page size to %d", page_size, sector_size, region.name,
-                            region_page_size)
-            else:
-                region_page_size = page_size
+        # We have at least a partially matching algo. Change type to flash.
+        return True
 
-            # If we don't have a boot memory yet, pick the first flash.
-            if not self._saw_startup:
-                is_boot = True
-                self._saw_startup = True
-            else:
-                is_boot = region.is_boot_memory
+    def _find_matching_algo(self, range: MemoryRange) -> Element:
+        """@brief Searches for a flash algo overlapping the regions's address range.
 
-            # Construct region name. If there is more than one sector size, we need to make the region's name unique.
-            region_name = region.name
-            if len(pack_algo.sector_sizes) > 1:
-                region_name += f"_{sector_size:#x}"
-
-            # Construct the flash region.
-            yield FlashRegion(name=region_name,
-                            access=region.access,
-                            start=start,
-                            end=end,
-                            sector_size=sector_size,
-                            page_size=region_page_size,
-                            flm=pack_algo,
-                            algo=algo,
-                            erased_byte_value=pack_algo.flash_info.value_empty,
-                            is_default=region.is_default,
-                            is_boot_memory=is_boot,
-                            is_testable=region.is_testable,
-                            alias=region.alias)
-
-    def _find_matching_algo(self, region: MemoryRegion) -> Element:
-        """@brief Searches for a flash algo covering the regions's address range.'"""
+        The algo and region's ranges just have to overlap. There are some DFPs that specify algos that
+        don't fully cover the region range, and potentially vice versa. It is possible that one algo
+        covers more than one region, but that is handled by the method calling this one (per region).
+        """
         for algo in self._info.algos:
-            # Both start and size are required attributes.
-            algoStart = int(algo.attrib['start'], base=0)
-            algoSize = int(algo.attrib['size'], base=0)
-            algoEnd = algoStart + algoSize - 1
+            try:
+                # Both start and size are required attributes.
+                algo_range = MemoryRange(start=self._get_int_attribute(algo, 'start'),
+                                            length=self._get_int_attribute(algo, 'size'))
+            except MalformedCmsisPackError:
+                # Ignore this algorithm. A warning has already been logged.
+                continue
 
-            # Check if the region indicated by start..size fits within the algo.
-            if (algoStart <= region.start <= algoEnd) and (algoStart <= region.end <= algoEnd):
-                return algo
+            # Check if the region and the algo overlap.
+            if range.intersects_range(range=algo_range):
+                # Verify this is a valid algorithm specification.
+                if 'name' not in algo.attrib:
+                    LOG.debug(
+                        f"{self.pack_description.pack_name} DFP ({self.part_number}): flash algorithm "
+                        f"covering {algo_range.start:x}-{algo_range.end:x} missing required 'name' element")
+                else:
+                    return algo
         raise KeyError("no matching flash algorithm")
 
     def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
@@ -754,7 +662,6 @@ class CmsisPackDevice:
         # Lazily construct the memory map.
         if self._memory_map is None:
             self._build_memory_regions()
-            self._build_flash_regions()
 
             # Warn if there was no boot memory.
             if not self._saw_startup:
