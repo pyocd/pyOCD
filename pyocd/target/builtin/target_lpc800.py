@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 NXP
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,13 +62,13 @@ class LPC800(CoreSightTarget):
         super(LPC800, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("LPC800_v0.3.svd")
 
-    def reset_and_halt(self, reset_type=None, map_to_user=True):
-        super(LPC800, self).reset_and_halt(reset_type)
+    # def reset_and_halt(self, reset_type=None, map_to_user=True):
+    #     super(LPC800, self).reset_and_halt(reset_type)
 
-        # Remap to use flash and set SP and SP accordingly
-        if map_to_user:
-            self.write_memory(0x40048000, 0x2, 32)
-            sp = self.read_memory(0x0)
-            pc = self.read_memory(0x4)
-            self.write_core_register('sp', sp)
-            self.write_core_register('pc', pc)
+    #     # Remap to use flash and set SP and SP accordingly
+    #     if map_to_user:
+    #         self.write_memory(0x40048000, 0x2, 32)
+    #         sp = self.read_memory(0x0)
+    #         pc = self.read_memory(0x4)
+    #         self.write_core_register('sp', sp)
+    #         self.write_core_register('pc', pc)
