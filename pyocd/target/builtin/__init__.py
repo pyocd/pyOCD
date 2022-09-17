@@ -288,5 +288,5 @@ BUILTIN_TARGETS = {
           'ytm32b1ld0': target_ytm32b1ld0.YTM32B1LD0,
           'ytm32b1le0': target_ytm32b1le0.YTM32B1LE0,
           'ytm32b1me0': target_ytm32b1me0.YTM32B1ME0,
-          'ytm32b1md1': target_ytm32b1md1.YTM32B1ME1,
+          'ytm32b1md1': target_ytm32b1md1.YTM32B1MD1,
          }

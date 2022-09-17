@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ...coresight.coresight_target import CoreSightTarget
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+
 MAIN_FLASH_ALGO = {
     'load_address' : 0x20000000,
 
@@ -52,7 +55,7 @@ MAIN_FLASH_ALGO = {
         0x20000160,
         0x20000560
     ],
-    'min_program_length' : 0x400,
+    'min_program_length' : 0x10,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
@@ -104,7 +107,7 @@ DATA_FLASH_ALGO = {
         0x200000f0,
         0x200001f0
     ],
-    'min_program_length' : 0x100,
+    'min_program_length' : 0x10,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
