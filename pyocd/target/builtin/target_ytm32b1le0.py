@@ -17,7 +17,7 @@
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
-FLASH_ALGO = {
+MAIN_FLASH_ALGO = {
     'load_address' : 0x20000000,
 
     # Flash algorithm as a hex string
@@ -31,7 +31,7 @@ FLASH_ALGO = {
     0x4604fff2, 0xf7ff4820, 0x1904ffee, 0xf7ff481f, 0x1904ffea, 0xf7ff481e, 0x1904ffe6, 0x2100481d,
     0x20126008, 0xff9cf7ff, 0xbd101900, 0xb082b5f7, 0x460d4604, 0x46279e04, 0x90012004, 0xbf009500,
     0xc701ce01, 0xf7ff2002, 0x2800ff8b, 0x2001d002, 0xbdf0b005, 0x98009901, 0x90001a40, 0x28009800,
-    0x2000dcee, 0x0000e7f4, 0x40020000, 0xfd9573f5, 0x40020200, 0x40064000, 0x0000b631, 0x40052000,
+    0xbf00d1ee, 0x0000e7f4, 0x40020000, 0xfd9573f5, 0x40020200, 0x40064000, 0x0000b631, 0x40052000,
     0x0000c278, 0x12345678, 0x10000200, 0x10000400, 0x10000600, 0x00001234, 0x00000000
     ],
 
@@ -43,18 +43,18 @@ FLASH_ALGO = {
     'pc_eraseAll': 0x2000009b,
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000138,
-    'begin_stack' : 0x20001940,
-    'end_stack' : 0x20000940,
+    'begin_stack' : 0x20002150,
+    'end_stack' : 0x20001150,
     'begin_data' : 0x20000000 + 0x1000,
-    'page_size' : 0x100,
+    'page_size' : 0x8,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
         0x20000140,
-        0x20000340
+        0x20000148
     ],
-    'min_program_length' : 0x200,
+    'min_program_length' : 0x8,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
@@ -97,18 +97,18 @@ DATA_FLASH_ALGO = {
     'pc_eraseAll': 0x2000008b,
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000134,
-    'begin_stack' : 0x20001240,
-    'end_stack' : 0x20000240,
+    'begin_stack' : 0x20002150,
+    'end_stack' : 0x20001150,
     'begin_data' : 0x20000000 + 0x1000,
-    'page_size' : 0x80,
+    'page_size' : 0x8,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
         0x20000140,
-        0x200001c0
+        0x20000148
     ],
-    'min_program_length' : 0x80,
+    'min_program_length' : 0x8,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
@@ -131,8 +131,8 @@ class YTM32B1LE0(CoreSightTarget):
     VENDOR = "Yuntu Microelectronics"
     
     MEMORY_MAP = MemoryMap(
-        FlashRegion(    start=0x0000,      length=0x10000,      blocksize=0x200, is_boot_memory=True, algo=FLASH_ALGO),
-        #FlashRegion(    start=0x10000000,  length=0x800,        blocksize=0x200, is_boot_memory=False, algo=DATA_FLASH_ALGO),
+        FlashRegion(    start=0x0000,      length=0x10000,      blocksize=0x200, is_boot_memory=True, algo=MAIN_FLASH_ALGO),
+        FlashRegion(    start=0x10000000,  length=0x800,        blocksize=0x200, is_boot_memory=False, algo=DATA_FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x2000)
         )
 
