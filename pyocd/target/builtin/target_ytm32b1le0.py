@@ -17,7 +17,7 @@
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
-MAIN_FLASH_ALGO = {
+FLASH_ALGO = {
     'load_address' : 0x20000000,
 
     # Flash algorithm as a hex string
@@ -43,8 +43,8 @@ MAIN_FLASH_ALGO = {
     'pc_eraseAll': 0x2000009b,
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000138,
-    'begin_stack' : 0x20001340,
-    'end_stack' : 0x20000340,
+    'begin_stack' : 0x20001940,
+    'end_stack' : 0x20000940,
     'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
@@ -52,9 +52,9 @@ MAIN_FLASH_ALGO = {
     # Enable double buffering
     'page_buffers' : [
         0x20000140,
-        0x20000240
+        0x20000340
     ],
-    'min_program_length' : 0x100,
+    'min_program_length' : 0x200,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
@@ -131,8 +131,8 @@ class YTM32B1LE0(CoreSightTarget):
     VENDOR = "Yuntu Microelectronics"
     
     MEMORY_MAP = MemoryMap(
-        FlashRegion(    start=0x0000,      length=0x10000,      blocksize=0x200, is_boot_memory=True, algo=MAIN_FLASH_ALGO),
-        FlashRegion(    start=0x10000000,  length=0x800,        blocksize=0x200, is_boot_memory=False, algo=DATA_FLASH_ALGO),
+        FlashRegion(    start=0x0000,      length=0x10000,      blocksize=0x200, is_boot_memory=True, algo=FLASH_ALGO),
+        #FlashRegion(    start=0x10000000,  length=0x800,        blocksize=0x200, is_boot_memory=False, algo=DATA_FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x2000)
         )
 

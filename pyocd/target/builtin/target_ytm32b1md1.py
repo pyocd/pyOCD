@@ -71,7 +71,6 @@ FLASH_ALGO = {
         (0x0, 0x400),
     )
 }
-
 class YTM32B1MD1(CoreSightTarget):
 
     VENDOR = "Yuntu Microelectronics"

@@ -55,7 +55,7 @@ MAIN_FLASH_ALGO = {
         0x20000160,
         0x20000560
     ],
-    'min_program_length' : 0x10,
+    'min_program_length' : 0x400,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
@@ -72,7 +72,6 @@ MAIN_FLASH_ALGO = {
         (0x0, 0x800),
     )
 }
-
 DATA_FLASH_ALGO = {
     'load_address' : 0x20000000,
 
@@ -107,7 +106,7 @@ DATA_FLASH_ALGO = {
         0x200000f0,
         0x200001f0
     ],
-    'min_program_length' : 0x10,
+    'min_program_length' : 0x100,
 
     # Relative region addresses and sizes
     'ro_start': 0x4,
@@ -127,11 +126,11 @@ DATA_FLASH_ALGO = {
 
 class YTM32B1ME0(CoreSightTarget):
 
-    VENDOR = "Yuntu Microelectronics"
+    VENDOR = "YTMicro"
     
     MEMORY_MAP = MemoryMap(
-        FlashRegion(    start=0x0000,      length=0x100000,  blocksize=0x800, is_boot_memory=True, algo=MAIN_FLASH_ALGO),
-        FlashRegion(    start=0x100000,    length=0x40000,   blocksize=0x400, is_boot_memory=False, algo=DATA_FLASH_ALGO),
+        FlashRegion(    start=0x00000000,  length=0x100000,      blocksize=0x800, is_boot_memory=True, algo=MAIN_FLASH_ALGO),
+        FlashRegion(    start=0x00100000,  length=0x040000,      blocksize=0x400, is_boot_memory=False, algo=DATA_FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x10000)
         )
 
