@@ -103,7 +103,7 @@ class NRF52(CoreSightTarget):
                     raise exceptions.TargetError("unable to unlock device")
                 # Cached badness from create_ap run during AP lockout prevents create_cores from
                 # succeeding.
-                self.dp.create_1_ap(AHB_AP_NUM)
+                self._discoverer._create_1_ap(AHB_AP_NUM)
             else:
                 LOG.warning("%s APPROTECT enabled: not automatically unlocking", self.part_number)
         else:
