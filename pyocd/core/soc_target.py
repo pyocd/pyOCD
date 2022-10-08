@@ -104,6 +104,15 @@ class SoCTarget(TargetGraphNode):
         return self.cores[self._selected_core]
 
     @property
+    def primary_core(self) -> CoreTarget:
+        """@brief Return the core for the `primary_core` session option.
+
+        @exception KeyError The `primary_core` option is invalid.
+        """
+        primary_core_number = self.session.options.get('primary_core')
+        return self.cores[primary_core_number]
+
+    @property
     def elf(self) -> Optional[ELFBinaryFile]:
         return self._elf
 
