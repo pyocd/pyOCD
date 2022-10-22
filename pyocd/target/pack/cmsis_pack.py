@@ -129,6 +129,13 @@ class CmsisPack:
             opened (due to particularities of the ZipFile implementation).
         """
         filename = filename.replace('\\', '/')
+
+        # Some vendors place their pdsc in some subdirectories of the pack archive,
+        # use relative directory to the pdsc file while reading other files.
+        pdsc_base = self._pdscName.rsplit('/', 1)
+        if len(pdsc_base) == 2:
+            filename = f'{pdsc_base[0]}/{filename}'
+
         return io.BytesIO(self._pack_file.read(filename))
 
 class CmsisPackDescription:
