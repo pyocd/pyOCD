@@ -2,6 +2,7 @@
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 David Runge
+# Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1153,9 +1154,9 @@ class RemoveWatchpointCommand(CommandBase):
         if self.context.selected_core.dwt is None:
             raise exceptions.CommandError("DWT not present")
         try:
-            self.context.selected_core.remove_watchpoint(self.addr, self.size, self.wptype)
-            if self.size is not None:
-                wp_desc = f" ({self.size} bytes"
+            self.context.selected_core.remove_watchpoint(self.addr, self.sz, self.wptype)
+            if self.sz is not None:
+                wp_desc = f" ({self.sz} bytes"
                 if self.wptype is not None:
                     type_name = WATCHPOINT_FUNCTION_NAME_MAP[self.wptype]
                     wp_desc += f", {type_name}"

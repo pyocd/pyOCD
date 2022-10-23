@@ -7,22 +7,21 @@ This guide documents how to configure pyOCD.
 ## Introduction
 
 pyOCD allows you to control many aspects of its behaviour by setting
-[session options]({% link _docs/options.md %}). There are multiple ways to set these options.
+_session options_. There are multiple ways to set these options.
 
 - Many of the most commonly used session options have dedicated command line arguments.
 - Options can be placed in a YAML config file.
 - Arbitrary options can be set individually with the <tt>-O<i>option</i>=<i>value</i></tt> command line argument.
-- If you are using the Python API, you may pass any option values directly
-    to the `ConnectHelper` methods or `Session` constructor as keyword arguments. You can also
-    pass a dictionary for the `options` parameter of these methods.
+- If you are using the Python API, see the [session options developer documentation]({% link _docs/api/using_session_options.md %}) for information about using session options.
 
 The priorities of the different session option sources, from highest to lowest:
 
-1. Keyword arguments to the `Session` constructor. Applies to most command-line arguments.
-2. _options_ parameter to constructor. Applies to `-O` command-line arguments.
+1. Dedicated command-line arguments.
+2. `-O` command-line arguments.
 3. Probe-specific options from a config file.
-4. General options from a config file.
-5. _option_defaults_ parameter to constructor. Used only in rare cases.
+4. Global options from a config file.
+5. Changes to an option's default value. Used only in rare cases for certain subcommands.
+6. The option's default value.
 
 <div class="alert alert-info">
 <p>

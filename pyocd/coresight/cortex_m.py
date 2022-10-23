@@ -713,6 +713,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.write_memory_block32(self.NVIC_ICPR0, [0xffffffff] * numregs)
         self.write_memory_block32(self.NVIC_IPR0, [0xffffffff] * (numregs * 8))
 
+        # Resume unless reset vector catch is enabled.
+        demcr = self.read_memory(CortexM.DEMCR)
+        if (demcr & CortexM.DEMCR_VC_CORERESET) == 0:
+            self.resume()
+
     def _get_actual_reset_type(self, reset_type):
         """@brief Determine the reset type to use given defaults and passed in type."""
 
@@ -884,14 +889,16 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # Perform the reset.
         self.reset(reset_type)
 
-        # wait until the unit resets
-        with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
-            while t_o.check():
-                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
-                    break
-                sleep(0.01)
-            else:
-                LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
+        # Wait until the unit resets. If emulated reset is used then it will have already halted
+        # for us.
+        if reset_type is not Target.ResetType.SW_EMULATED:
+            with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
+                while t_o.check():
+                    if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
+                        break
+                    sleep(0.01)
+                else:
+                    LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
         # points to an invalid address. Only do this if the core is actually halted, otherwise we

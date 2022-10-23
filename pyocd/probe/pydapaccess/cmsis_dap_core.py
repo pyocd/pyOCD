@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018-2021 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -483,7 +484,8 @@ class CMSISDAPProtocol(object):
             # DAP JTAG Sequence failed
             raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE failed")
 
-        return resp[2]
+        if len(resp) > 2:
+            return resp[2]
 
     def jtag_configure(self, devices_irlen=None):
         # Default to a single device with an IRLEN of 4.
