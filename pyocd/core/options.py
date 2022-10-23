@@ -62,7 +62,7 @@ BUILTIN_OPTIONS = [
         "Log details of loaded .FLM flash algos."),
     OptionInfo('debug.traceback', bool, True,
         "Print tracebacks for exceptions."),
-    OptionInfo('enable_multicore', bool, False,
+    OptionInfo('enable_multicore_debug', bool, False,
         "Whether to put pyOCD into multicore debug mode."),
     OptionInfo('fast_program', bool, False,
         "Setting this option to True will use CRC checks of existing flash sector contents to "
