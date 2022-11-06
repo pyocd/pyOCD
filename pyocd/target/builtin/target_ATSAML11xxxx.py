@@ -17,7 +17,6 @@
 import logging
 from time import sleep
 
-from typing import (overload, TYPE_CHECKING)
 from ...core import exceptions
 from ...core.target import Target
 from ...coresight.coresight_target import CoreSightTarget
@@ -351,7 +350,7 @@ class CortexM_ATSAML11(CortexM):
             self.remove_breakpoint(reset_vec)
             self.bp_manager.flush()
             if borrowed_bp is not None:
-                self.set_breakpoint(borrowed_hp)
+                self.set_breakpoint(borrowed_bp)
             TRACE.debug("removed temporary breakpoint at 0x%08x", reset_vec)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
