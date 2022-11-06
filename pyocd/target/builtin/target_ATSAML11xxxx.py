@@ -17,16 +17,14 @@
 import logging
 from time import sleep
 
-from typing import (Callable, Dict, List, Optional, overload, Sequence, Union, TYPE_CHECKING)
+from typing import (overload, TYPE_CHECKING)
 from ...core import exceptions
 from ...core.target import Target
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM
-from ...coresight import dap
-from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap, MemoryType)
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 from ...utility.timeout import Timeout
-from ...probe.debug_probe import DebugProbe
 
 SCS_DHCSR       = 0xE000EDF0
 SCS_DHCSR_S_SDE = 0x00100000
@@ -160,7 +158,7 @@ class ATSAML11D16A(CoreSightTarget):
                 # Timed out
                 LOG.error("timeout") 
                 return False
-            return True
+        return True
 
     def _bootrom_cmd(self, cmd):
         self.write32(DSU_BCC0, BOOTROM_CMD_PREFIX | cmd)
@@ -174,7 +172,7 @@ class ATSAML11D16A(CoreSightTarget):
                 # Timed out
                 LOG.error("timeout") 
                 return False
-            return True
+        return True
 
     def _bootrom_status(self, expected = None):
         with Timeout(MASS_ERASE_TIMEOUT) as to:
@@ -184,17 +182,14 @@ class ATSAML11D16A(CoreSightTarget):
                     break
                 sleep(0.1)
             else:
-                LOG.error("timeout")
-                return None
-            status = self.read32(DSU_BCC1)
-            if status & 0xffffff00 != BOOTROM_SIG_PREFIX:
-                LOG.error("signal prefix %x", status)
-                return None
-            res = status & 0xff
-            if (expected != None) and (res != expected):
-                LOG.error("unexpected response %x %x", res, expected)
-                return None
-            return res
+                raise exceptions.TimeoutError("timeout waiting for status")
+        status = self.read32(DSU_BCC1)
+        if status & 0xffffff00 != BOOTROM_SIG_PREFIX:
+            raise exceptions.InternalError("unexpected prefix 0x%x", status)
+        res = status & 0xff
+        if (expected != None) and (res != expected):
+            return exceptions.InternalError("unexpected response %x %x", res, expected)
+        return status
 
     def _cold_plug(self):
         self.session.probe.assert_reset_with_clk_low(True)
@@ -207,9 +202,9 @@ class ATSAML11D16A(CoreSightTarget):
                     self.dp.connect()
                     self.flush()
                     break
-                    sleep(0.1)
                 except exceptions.TransferError:
                     self.flush()
+                sleep(0.1)
 
         # read CRSTEXT
         with Timeout(5.0) as t_o:
@@ -267,27 +262,26 @@ class ATSAML11D16A(CoreSightTarget):
         status = self._bootrom_cmd(BOOTROM_CMD_INIT)
         if status == False:
             raise exceptions.TimeoutError("bootrom command write timeout")
-
-        status = self._bootrom_status(BOOTROM_STATUS_SIG_COMM)
+        self._bootrom_status(BOOTROM_STATUS_SIG_COMM)
 
         status = self._bootrom_cmd(BOOTROM_CMD_CE2)
         if status == False:
             raise exceptions.TimeoutError("bootrom command write timeout")            
-        status = self._bootrom_status(BOOTROM_STATUS_SIG_CMD_VALID)
+        self._bootrom_status(BOOTROM_STATUS_SIG_CMD_VALID)
         
         status = self._bootrom_data(cekey0)
-        if status == None:
+        if status == False:
             raise exceptions.TimeoutError("bootrom data 0 write timeout")
         status = self._bootrom_data(cekey1)
-        if status == None:
+        if status == False:
             raise exceptions.TimeoutError("bootrom data 1 write timeout")
         status = self._bootrom_data(cekey2)
-        if status == None:
+        if status == False:
             raise exceptions.TimeoutError("bootrom data 2 write timeout")
         status = self._bootrom_data(cekey3)
-        if status == None:
+        if status == False:
             raise exceptions.TimeoutError("bootrom data 3 write timeout")
-        status = self._bootrom_status(BOOTROM_STATUS_SIG_CMD_SUCCESS)
+        self._bootrom_status(BOOTROM_STATUS_SIG_CMD_SUCCESS)
 
         self.reset(Target.ResetType.HW)
 
@@ -327,13 +321,20 @@ class CortexM_ATSAML11(CortexM):
             self.halt()
             return
 
+        borrowed_bp = None
         have_bp_set = self.find_breakpoint(reset_vec)
-        if have_bp_set == None:
+        if have_bp_set is None:
             if self.set_breakpoint(reset_vec):
                 self.bp_manager.flush()
-                TRACE.info("Set breakpoint at 0x%08x", reset_vec)
+                TRACE.debug("Set breakpoint at 0x%08x", reset_vec)
             else:
-                LOG.info("Failed to set breakpoint at 0x%08x", reset_vec)
+                borrowed_bp = self.bp_manager.get_breakpoints()[0]
+                self.remove_breakpoint(borrowed_bp)
+                self.bp_manager.flush()
+                if self.set_breakpoint(reset_vec):
+                    self.bp_manager.flush()
+                else:
+                    LOG.info("Failed to set breakpoint at 0x%08x", reset_vec)
 
         self.reset(reset_type)
 
@@ -346,9 +347,11 @@ class CortexM_ATSAML11(CortexM):
                 else:
                     LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
 
-        if have_bp_set == None:
+        if have_bp_set is None:
             self.remove_breakpoint(reset_vec)
             self.bp_manager.flush()
+            if borrowed_bp is not None:
+                self.set_breakpoint(borrowed_hp)
             TRACE.debug("removed temporary breakpoint at 0x%08x", reset_vec)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
