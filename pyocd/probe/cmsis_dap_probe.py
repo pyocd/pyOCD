@@ -394,6 +394,14 @@ class CMSISDAPProbe(DebugProbe):
         except DAPAccess.Error as exc:
             raise self._convert_exception(exc) from exc
 
+    def assert_reset_with_clk_low(self, asserted: bool) -> None:
+        TRACE.debug("trace: assert_reset_with_clk_low(%s) %s", asserted, type(self._link))
+
+        try:
+            self._link.assert_reset_with_clk_low(asserted)
+        except DAPAccess.Error as exc:
+            raise self._convert_exception(exc) from exc
+
     def is_reset_asserted(self) -> bool:
         try:
             result = self._link.is_reset_asserted()
