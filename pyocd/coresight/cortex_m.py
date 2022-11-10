@@ -910,20 +910,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 result = True
         return result
 
-    def reset(self, reset_type=None):
-        """@brief Reset the core.
+    def _inner_reset(self, reset_type: Optional[Target.ResetType], is_halting: bool) -> None:
+        """@brief Internal routine for resetting the core.
 
-        The reset method is selectable via the reset_type parameter as well as the reset_type
-        session option. If the reset_type parameter is not specified or None, then the reset_type
-        option will be used. If the option is not set, or if it is set to a value of 'default', the
-        the core's default_reset_type property value is used. So, the session option overrides the
-        core's default, while the parameter overrides everything.
-
-        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
-        is chosen but the core doesn't support it, the the reset method will fall back to an
-        emulated software reset.
-
-        After a call to this function, the core is running.
+        Shared by both normal and halting reset.
         """
         reset_type = self._get_actual_reset_type(reset_type)
 
@@ -949,9 +939,33 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             # Now run the core accessibility test.
             self._post_reset_core_accessibility_test()
 
+        # Unless this is a halting reset, make sure the core is not halted. Some DFP debug sequences
+        # (or user scripts) can leave the core halted after a reset.
+        if not is_halting:
+            if self.get_state() == Target.State.HALTED:
+                LOG.debug("reset: core was halted after non-halting reset; now resuming")
+                self.resume()
+
         self.call_delegate('did_reset', core=self, reset_type=reset_type)
 
         self.session.notify(Target.Event.POST_RESET, self)
+
+    def reset(self, reset_type=None):
+        """@brief Reset the core.
+
+        The reset method is selectable via the reset_type parameter as well as the reset_type
+        session option. If the reset_type parameter is not specified or None, then the reset_type
+        option will be used. If the option is not set, or if it is set to a value of 'default', the
+        the core's default_reset_type property value is used. So, the session option overrides the
+        core's default, while the parameter overrides everything.
+
+        Note that only v7-M cores support the `VECTRESET` software reset method. If this method
+        is chosen but the core doesn't support it, the the reset method will fall back to an
+        emulated software reset.
+
+        After a call to this function, the core is running.
+        """
+        self._inner_reset(reset_type, is_halting=False)
 
     def set_reset_catch(self, reset_type=None):
         """@brief Prepare to halt core on reset.
@@ -1013,7 +1027,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.set_reset_catch(reset_type)
 
         # Perform the reset.
-        self.reset(reset_type)
+        self._inner_reset(reset_type, is_halting=True)
 
         # Wait until the unit resets. If emulated reset is used then it will have already halted
         # for us.
