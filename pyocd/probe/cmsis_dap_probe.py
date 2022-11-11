@@ -250,6 +250,17 @@ class CMSISDAPProbe(DebugProbe):
             return MbedBoard(self.session, board_info=board_info, board_id=self.board_id)
         return None
 
+    def get_accessible_pins(self, group: DebugProbe.PinGroup) -> Tuple[int, int]:
+        """@brief Return masks of pins accessible via the .read_pins()/.write_pins() methods.
+
+        @return Tuple of pin masks for (0) readable, (1) writable pins. See DebugProbe.Pin for mask
+        values for those pins that have constants.
+        """
+        if group is DebugProbe.PinGroup.PROTOCOL_PINS:
+            return (self.ProtocolPin.ALL_PINS, self.ProtocolPin.ALL_PINS)
+        else:
+            return (0, 0)
+
     def open(self) -> None:
         if self._is_open:
             return
@@ -289,6 +300,7 @@ class CMSISDAPProbe(DebugProbe):
                 self.Capability.BANKED_DP_REGISTERS,
                 self.Capability.APv2_ADDRESSES,
                 self.Capability.JTAG_SEQUENCE,
+                self.Capability.PIN_ACCESS,
                 }
             if self._link.has_swd_sequence:
                 self._caps.add(self.Capability.SWD_SEQUENCE)
@@ -410,6 +422,87 @@ class CMSISDAPProbe(DebugProbe):
         except DAPAccess.Error as exc:
             TRACE.debug("trace: error from flush: %r", exc)
             raise self._convert_exception(exc) from exc
+
+    def read_pins(self, group: DebugProbe.PinGroup, mask: int) -> int:
+        """@brief Read values of selected debug probe pins.
+
+        See DebugProbe.ProtocolPin for mask values.
+
+        @param self
+        @param group Select the pin group to read.
+        @param mask Bit mask indicating which pins will be read. The return value will contain only
+            bits set in this mask.
+        @return Bit mask with the current value of selected pins at each pin's relevant bit position.
+        """
+        try:
+            if group is DebugProbe.PinGroup.PROTOCOL_PINS:
+                # CMSIS-DAP DAP_SWJ_Pins command will always return all pin values, so mask
+                # the ones the caller wants.
+                result = self.from_cmsis_dap_pins(self._link.pin_access(0, 0)) & mask
+                TRACE.debug("trace: read_pins(%x) -> %s", mask, result)
+                return result
+            else:
+                return 0
+        except DAPAccess.Error as exc:
+            raise self._convert_exception(exc) from exc
+
+    def write_pins(self, group: DebugProbe.PinGroup, mask: int, value: int) -> None:
+        """@brief Set values of selected debug probe pins.
+
+        See DebugProbe.ProtocolPin for mask values.
+
+        @param self
+        @param group Select the pin group to read.
+        @param mask Bit mask indicating which pins will be written.
+        @param value Mask containing the bit value of to written for selected pins at each pin's
+            relevant bit position..
+        """
+        try:
+            if group is DebugProbe.PinGroup.PROTOCOL_PINS:
+                self._link.pin_access(self.to_cmsis_dap_pins(mask), self.to_cmsis_dap_pins(value))
+                TRACE.debug("trace: write_pins(%s, %s)", mask, value)
+        except DAPAccess.Error as exc:
+            raise self._convert_exception(exc) from exc
+
+    @staticmethod
+    def to_cmsis_dap_pins(mask: int) -> int:
+        # - [0] SWCLK/TCK
+        # - [1] SWDIO/TMS
+        # - [2] TDI
+        # - [3] TDO
+        # - [5] nTRST
+        # - [7] nRESET
+        result = 0
+        if mask & DebugProbe.ProtocolPin.SWCLK_TCK:
+            result |= 1 << 0
+        if mask & DebugProbe.ProtocolPin.SWDIO_TMS:
+            result |= 1 << 1
+        if mask & DebugProbe.ProtocolPin.TDI:
+            result |= 1 << 2
+        if mask & DebugProbe.ProtocolPin.TDO:
+            result |= 1 << 3
+        if mask & DebugProbe.ProtocolPin.nRESET:
+            result |= 1 << 7
+        if mask & DebugProbe.ProtocolPin.nTRST:
+            result |= 1 << 5
+        return result
+
+    @staticmethod
+    def from_cmsis_dap_pins(mask: int) -> int:
+        result = 0
+        if mask & (1 << 0):
+            result |= DebugProbe.ProtocolPin.SWCLK_TCK
+        if mask & (1 << 1):
+            result |= DebugProbe.ProtocolPin.SWDIO_TMS
+        if mask & (1 << 2):
+            result |= DebugProbe.ProtocolPin.TDI
+        if mask & (1 << 3):
+            result |= DebugProbe.ProtocolPin.TDO
+        if mask & (1 << 5):
+            result |= DebugProbe.ProtocolPin.nTRST
+        if mask & (1 << 7):
+            result |= DebugProbe.ProtocolPin.nRESET
+        return result
 
     # ------------------------------------------- #
     #          DAP Access functions

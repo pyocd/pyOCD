@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
+from enum import (Enum, IntFlag)
 import threading
 from typing import (Callable, Collection, Optional, overload, Sequence, Set, TYPE_CHECKING, Tuple, Union)
 from typing_extensions import Literal
@@ -69,6 +69,21 @@ class DebugProbe:
         SWD = 1
         JTAG = 2
 
+    class PinGroup(Enum):
+        """@brief Available pin groups for read/write pins APIs."""
+        PROTOCOL_PINS = 0
+        GPIO_PINS = 1
+
+    class ProtocolPin(IntFlag):
+        """@brief Pin mask constants for SWD/JTAG protocol pins."""
+        SWCLK_TCK = 1 << 0
+        SWDIO_TMS = 1 << 1
+        TDI = 1 << 2
+        TDO = 1 << 3
+        nRESET = 1 << 4
+        nTRST = 1 << 5
+        ALL_PINS = SWCLK_TCK | SWDIO_TMS | TDI | TDO | nRESET | nTRST
+
     ## Map from wire protocol setting name to debug probe constant.
     PROTOCOL_NAME_MAP = {
             'swd': Protocol.SWD,
@@ -114,6 +129,9 @@ class DebugProbe:
 
         ## @brief Whether the probe supports the jtag_sequence() API.
         JTAG_SEQUENCE = 7
+
+        ## @brief Pin access via the read_pins()/write_pins() APIs.
+        PIN_ACCESS = 8
 
     @classmethod
     def get_all_connected_probes(
@@ -240,6 +258,16 @@ class DebugProbe:
         """
         return None
 
+    def get_accessible_pins(self, group: PinGroup) -> Tuple[int, int]:
+        """@brief Return masks of pins accessible via the .read_pins()/.write_pins() methods.
+
+        This method is only expected to be implemented if Capability.PIN_ACCESS is present.
+
+        @return Tuple of pin masks for (0) readable, (1) writable pins. See DebugProbe.Pin for mask
+        values for those pins that have constants.
+        """
+        raise NotImplementedError()
+
     def open(self) -> None:
         """@brief Open the USB interface to the probe for sending commands."""
         raise NotImplementedError()
@@ -350,6 +378,37 @@ class DebugProbe:
         This API may be a no-op for certain debug probe types.
         """
         pass
+
+    def read_pins(self, group: PinGroup, mask: int) -> int:
+        """@brief Read values of selected debug probe pins.
+
+        See DebugProbe.ProtocolPin for mask values for the DebugProbe.PinGroup.PROTOCOL_PINS group.
+
+        This method is only expected to be implemented if Capability.PIN_ACCESS is present.
+
+        @param self
+        @param group Select the pin group to read.
+        @param mask Bit mask indicating which pins will be read. The return value will contain only
+            bits set in this mask.
+        @return Bit mask with the current value of selected pins at each pin's relevant bit position.
+        """
+        raise NotImplementedError()
+
+    def write_pins(self, group: PinGroup, mask: int, value: int) -> None:
+        """@brief Set values of selected debug probe pins.
+
+        See DebugProbe.ProtocolPin for mask values for the DebugProbe.PinGroup.PROTOCOL_PINS group.
+        Note that input-only pins such as TDO are not writable with most debug probes.
+
+        This method is only expected to be implemented if Capability.PIN_ACCESS is present.
+
+        @param self
+        @param group Select the pin group to read.
+        @param mask Bit mask indicating which pins will be written.
+        @param value Mask containing the bit value of to written for selected pins at each pin's
+            relevant bit position..
+        """
+        raise NotImplementedError()
 
     ##@}
 

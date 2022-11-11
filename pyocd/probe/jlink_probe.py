@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,17 @@ import six
 import logging
 from time import sleep
 import pylink
+from pylink.enums import JLinkInterfaces
 from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadException)
+from typing import (TYPE_CHECKING, Optional, Tuple)
 
 from .debug_probe import DebugProbe
 from ..core import exceptions
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
+
+if TYPE_CHECKING:
+    from pylink.structs import JLinkHardwareStatus
 
 LOG = logging.getLogger(__name__)
 
@@ -44,7 +49,7 @@ class JLinkProbe(DebugProbe):
     APSEL_APBANKSEL = APSEL | APBANKSEL
 
     @classmethod
-    def _get_jlink(cls):
+    def _get_jlink(cls) -> Optional[pylink.JLink]:
         # TypeError is raised by pylink if the JLink DLL cannot be found.
         try:
             return pylink.JLink(
@@ -104,10 +109,11 @@ class JLinkProbe(DebugProbe):
         @param self The object.
         @param serial_number String. The J-Link's serial number.
         """
-        super(JLinkProbe, self).__init__()
-        self._link = self._get_jlink()
-        if self._link is None:
+        super().__init__()
+        link = self._get_jlink()
+        if link is None:
             raise exceptions.ProbeError("unable to open JLink DLL")
+        self._link = link
 
         info = self._get_probe_info(serial_number, self._link)
         if info is None:
@@ -156,9 +162,23 @@ class JLinkProbe(DebugProbe):
                 self.Capability.SWO,
                 self.Capability.BANKED_DP_REGISTERS,
                 self.Capability.APv2_ADDRESSES,
+                self.Capability.PIN_ACCESS,
                 }
 
+    def get_accessible_pins(self, group: DebugProbe.PinGroup) -> Tuple[int, int]:
+        """@brief Return masks of pins accessible via the .read_pins()/.write_pins() methods.
+
+        @return Tuple of pin masks for (0) readable, (1) writable pins. See DebugProbe.Pin for mask
+        values for those pins that have constants.
+        """
+        if group is DebugProbe.PinGroup.PROTOCOL_PINS:
+            return (self.ProtocolPin.ALL_PINS, self.ProtocolPin.ALL_PINS)
+        else:
+            return (0, 0)
+
     def open(self):
+        assert self.session
+
         try:
             # Configure UI usage. We must do this here rather than in the ctor because the ctor
             # doesn't have access to the session.
@@ -171,9 +191,9 @@ class JLinkProbe(DebugProbe):
             # Get available wire protocols.
             ifaces = self._link.supported_tifs()
             self._supported_protocols = [DebugProbe.Protocol.DEFAULT]
-            if ifaces & (1 << pylink.enums.JLinkInterfaces.JTAG):
+            if ifaces & (1 << JLinkInterfaces.JTAG):
                 self._supported_protocols.append(DebugProbe.Protocol.JTAG)
-            if ifaces & (1 << pylink.enums.JLinkInterfaces.SWD):
+            if ifaces & (1 << JLinkInterfaces.SWD):
                 self._supported_protocols.append(DebugProbe.Protocol.SWD)
             if not len(self._supported_protocols) >= 2: # default + 1
                 raise exceptions.ProbeError("J-Link probe {} does not support any known wire protocols".format(
@@ -199,19 +219,24 @@ class JLinkProbe(DebugProbe):
     # ------------------------------------------- #
     def connect(self, protocol=None):
         """@brief Connect to the target via JTAG or SWD."""
+        assert self.session
+
         # Handle default protocol.
         if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
             protocol = self._default_protocol
 
         # Validate selected protocol.
+        assert self._supported_protocols is not None
         if protocol not in self._supported_protocols:
             raise ValueError("unsupported wire protocol %s" % protocol)
 
         # Convert protocol to port enum.
         if protocol == DebugProbe.Protocol.SWD:
-            iface = pylink.enums.JLinkInterfaces.SWD
+            iface = JLinkInterfaces.SWD
         elif protocol == DebugProbe.Protocol.JTAG:
-            iface = pylink.enums.JLinkInterfaces.JTAG
+            iface = JLinkInterfaces.JTAG
+        else:
+            raise exceptions.InternalError(f"unknown wire protocol ({protocol})")
 
         try:
             self._link.set_tif(iface)
@@ -245,6 +270,7 @@ class JLinkProbe(DebugProbe):
 
     def disconnect(self):
         """@brief Disconnect from the target."""
+        assert self.session
         try:
             if self.session.options.get('jlink.power'):
                 self._link.power_off()
@@ -260,6 +286,7 @@ class JLinkProbe(DebugProbe):
             raise self._convert_exception(exc) from exc
 
     def reset(self):
+        assert self.session
         try:
             self._link.set_reset_pin_low()
             sleep(self.session.options.get('reset.hold_time'))
@@ -283,6 +310,93 @@ class JLinkProbe(DebugProbe):
             return status.tres == 0
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
+
+    def read_pins(self, group: DebugProbe.PinGroup, mask: int) -> int:
+        """@brief Read values of selected debug probe pins.
+
+        See DebugProbe.ProtocolPin for mask values.
+
+        @param self
+        @param group Select the pin group to read.
+        @param mask Bit mask indicating which pins will be read. The return value will contain only
+            bits set in this mask.
+        @return Bit mask with the current value of selected pins at each pin's relevant bit position.
+       """
+        try:
+            if group is DebugProbe.PinGroup.PROTOCOL_PINS:
+                status = self._link.hardware_status
+                return self.from_jlink_pins(status) & mask
+            else:
+                return 0
+        except JLinkException as exc:
+            raise self._convert_exception(exc) from exc
+
+    def write_pins(self, group: DebugProbe.PinGroup, mask: int, value: int) -> None:
+        """@brief Set values of selected debug probe pins.
+
+        See DebugProbe.ProtocolPin for mask values.
+
+        @param self
+        @param group Select the pin group to read.
+        @param mask Bit mask indicating which pins will be written.
+        @param value Mask containing the bit value of to written for selected pins at each pin's
+            relevant bit position..
+        """
+        assert self._link
+        try:
+            if group is not DebugProbe.PinGroup.PROTOCOL_PINS:
+                return
+            if mask & DebugProbe.ProtocolPin.SWCLK_TCK:
+                if value & DebugProbe.ProtocolPin.SWCLK_TCK:
+                    self._link.set_tck_pin_high()
+                else:
+                    self._link.set_tck_pin_low()
+            if mask & DebugProbe.ProtocolPin.SWDIO_TMS:
+                if value & DebugProbe.ProtocolPin.SWDIO_TMS:
+                    self._link.set_tms_pin_high()
+                else:
+                    self._link.set_tms_pin_low()
+            if mask & DebugProbe.ProtocolPin.TDI:
+                if value & DebugProbe.ProtocolPin.TDI:
+                    self._link.set_tdi_pin_high()
+                else:
+                    self._link.set_tdi_pin_low()
+            if mask & DebugProbe.ProtocolPin.nRESET:
+                if value & DebugProbe.ProtocolPin.nRESET:
+                    self._link.set_reset_pin_high()
+                else:
+                    self._link.set_reset_pin_low()
+            if mask & DebugProbe.ProtocolPin.nTRST:
+                if value & DebugProbe.ProtocolPin.nTRST:
+                    self._link.set_trst_pin_high()
+                else:
+                    self._link.set_trst_pin_low()
+        except JLinkException as exc:
+            raise self._convert_exception(exc) from exc
+
+    @staticmethod
+    def from_jlink_pins(status: "JLinkHardwareStatus") -> int:
+        # JLinkHardwareStatus attributes:
+        # - tck: measured state of TCK pin.
+        # - tdi: measured state of TDI pin.
+        # - tdo: measured state of TDO pin.
+        # - tms: measured state of TMS pin.
+        # - tres: measured state of TRES pin.
+        # - trst: measured state of TRST pin.
+        result = 0
+        if status.tck:
+            result |= DebugProbe.ProtocolPin.SWCLK_TCK
+        if status.tms:
+            result |= DebugProbe.ProtocolPin.SWDIO_TMS
+        if status.tdi:
+            result |= DebugProbe.ProtocolPin.TDI
+        if status.tdo:
+            result |= DebugProbe.ProtocolPin.TDO
+        if status.tres:
+            result |= DebugProbe.ProtocolPin.nRESET
+        if status.trst:
+            result |= DebugProbe.ProtocolPin.nTRST
+        return result
 
     # ------------------------------------------- #
     #          DAP Access functions
@@ -338,7 +452,7 @@ class JLinkProbe(DebugProbe):
 
     def swo_start(self, baudrate):
         try:
-            self._link.swo_start(baudrate)
+            self._link.swo_start(int(baudrate))
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
