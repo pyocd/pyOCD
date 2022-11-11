@@ -278,6 +278,83 @@ class NresetValue(ValueBase):
         else:
             self.context.target.dp.assert_reset((state == 0))
 
+class AccessiblePinsValue(ValueBase):
+    INFO = {
+            'names': ['accessible-pins'],
+            'group': 'standard',
+            'category': 'probe',
+            'access': 'rw',
+            'help': "Display which debug probe pins can be read and written with the 'pins' value.",
+            }
+
+    def display(self, args):
+        if DebugProbe.Capability.PIN_ACCESS not in self.context.probe.capabilities:
+            raise exceptions.CommandError("debug probe does not support pin access")
+
+        r_pins, w_pins = self.context.probe.get_accessible_pins()
+
+        def pin_desc(mask: int) -> str:
+            desc = ""
+            if r_pins & mask:
+                desc += "r"
+            if w_pins & mask:
+                desc += "w"
+            if desc == "":
+                desc = "n/a"
+            return desc
+
+        self.context.write(f"Protocol pins:")
+        self.context.write(f"  SWCLK/TCK = {pin_desc(DebugProbe.ProtocolPin.SWCLK_TCK)}")
+        self.context.write(f"  SWDIO/TMS = {pin_desc(DebugProbe.ProtocolPin.SWDIO_TMS)}")
+        self.context.write(f"  TDI =       {pin_desc(DebugProbe.ProtocolPin.TDI)}")
+        self.context.write(f"  TDO =       {pin_desc(DebugProbe.ProtocolPin.TDO)}")
+        self.context.write(f"  nRESET =    {pin_desc(DebugProbe.ProtocolPin.nRESET)}")
+        self.context.write(f"  nTRST =     {pin_desc(DebugProbe.ProtocolPin.nTRST)}")
+
+class PinsValue(ValueBase):
+    INFO = {
+            'names': ['pins'],
+            'group': 'standard',
+            'category': 'probe',
+            'access': 'rw',
+            'help': "Current debug probe protocol I/O pin states.",
+            'extra_help':
+                "The pins value is a mask containing the state of all accessible protocol pins. "
+                "See the `accessible-pins` value for protocol pins that can be read and written by "
+                "the connected debug probe.",
+            }
+
+    def display(self, args):
+        if DebugProbe.Capability.PIN_ACCESS not in self.context.probe.capabilities:
+            raise exceptions.CommandError("debug probe does not support pin access")
+        self.print_current_pin_values()
+
+    def print_current_pin_values(self):
+        pins = self.context.probe.read_pins(DebugProbe.PinGroup.PROTOCOL_PINS,
+                                            DebugProbe.ProtocolPin.ALL_PINS)
+
+        def pin_desc(mask: int) -> str:
+            v = int(pins & mask != 0)
+            return f"{v} (mask {mask:#x})"
+
+        self.context.write(f"Pins mask = {pins:#x}")
+        self.context.write(f"SWCLK/TCK = {pin_desc(DebugProbe.ProtocolPin.SWCLK_TCK)}")
+        self.context.write(f"SWDIO/TMS = {pin_desc(DebugProbe.ProtocolPin.SWDIO_TMS)}")
+        self.context.write(f"TDI =       {pin_desc(DebugProbe.ProtocolPin.TDI)}")
+        self.context.write(f"TDO =       {pin_desc(DebugProbe.ProtocolPin.TDO)}")
+        self.context.write(f"nRESET =    {pin_desc(DebugProbe.ProtocolPin.nRESET)}")
+        self.context.write(f"nTRST =     {pin_desc(DebugProbe.ProtocolPin.nTRST)}")
+
+    def modify(self, args):
+        if DebugProbe.Capability.PIN_ACCESS not in self.context.probe.capabilities:
+            raise exceptions.CommandError("debug probe does not support pin access")
+        if len(args) != 1:
+            raise exceptions.CommandError("missing pins mask")
+        state = int(args[0], base=0)
+        self.context.probe.write_pins(DebugProbe.PinGroup.PROTOCOL_PINS,
+                                        DebugProbe.ProtocolPin.ALL_PINS, state)
+        self.print_current_pin_values()
+
 class SessionOptionValue(ValueBase):
     INFO = {
             'names': ['option'],
