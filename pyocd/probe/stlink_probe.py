@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2022 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -328,21 +328,28 @@ class STLinkMemoryInterface(MemoryInterface):
         csw = attrs.get('csw', 0)
         res = []
 
-        # read leading unaligned bytes
-        unaligned_count = addr & 3
-        if (size > 0) and (unaligned_count > 0):
+        # Transfers are handled in 3 phases:
+        #   1. read 8-bit chunks until the first aligned address is reached,
+        #   2. read 32-bit chunks from all aligned addresses,
+        #   3. read 8-bit chunks from the remaining unaligned addresses.
+        # If the requested size is so small that phase-1 would not even reach
+        # aligned address, go straight to phase-3.
+
+        # 1. read leading unaligned bytes
+        unaligned_count = 3 & (4 - addr)
+        if (size > unaligned_count > 0):
             res += self._link.read_mem8(addr, unaligned_count, self._apsel, csw)
             size -= unaligned_count
             addr += unaligned_count
 
-        # read aligned block of 32 bits
+        # 2. read aligned block of 32 bits
         if (size >= 4):
             aligned_size = size & ~3
             res += self._link.read_mem32(addr, aligned_size, self._apsel, csw)
             size -= aligned_size
             addr += aligned_size
 
-        # read trailing unaligned bytes
+        # 3. read trailing unaligned bytes
         if (size > 0):
             res += self._link.read_mem8(addr, size, self._apsel, csw)
 
@@ -355,8 +362,8 @@ class STLinkMemoryInterface(MemoryInterface):
         idx = 0
 
         # write leading unaligned bytes
-        unaligned_count = addr & 3
-        if (size > 0) and (unaligned_count > 0):
+        unaligned_count = 3 & (4 - addr)
+        if (size > unaligned_count > 0):
             self._link.write_mem8(addr, data[:unaligned_count], self._apsel, csw)
             size -= unaligned_count
             addr += unaligned_count
