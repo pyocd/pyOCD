@@ -162,8 +162,9 @@ Print tracebacks for exceptions.
 <td>False</td>
 <td>
 Whether to put pyOCD into multicore debug mode. The primary effect is to modify the default software
-reset type for secondary cores to use VECTRESET, which will fall back to emulated reset if the
-secondary core is not v7-M.
+reset type for secondary cores to use VECTRESET, which will fall back to emulated reset for
+secondary cores that are not v7-M architecture (VECTRESET is only supported on v7-M). The core that is
+considered the primary core is selected by the `primary_core` option.
 </td></tr>
 
 <tr><td>fast_program</td>
@@ -253,6 +254,15 @@ Do not use default config file.
 <td>
 Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are added to the
 list of available targets.
+</td></tr>
+
+<tr><td>primary_core</td>
+<td>int</td>
+<td>0</td>
+<td>
+Core number for the primary/boot core of an asymmetric multicore target. Becomes the default selected
+core in the commander and the `SoCTarget` class. Also the core that will control system reset when
+`enable_multicore_debug` is set.
 </td></tr>
 
 <tr><td>probeserver.port</td>
