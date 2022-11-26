@@ -250,14 +250,10 @@ class PyOCDCommander:
             self.session.open(init_board=not self.args.no_init)
         except exceptions.TransferFaultError as e:
             if not self.session.target.is_locked():
-                self.context.writei("Transfer fault while initing board: %s", e)
-                if self.session.log_tracebacks:
-                    self.context.write(traceback.format_exc())
+                LOG.error("Transfer fault while initing board: %s", e, exc_info=self.session.log_tracebacks)
                 return False
         except exceptions.Error as e:
-            self.context.writei("Exception while initing board: %s", e)
-            if self.session.log_tracebacks:
-                self.context.write(traceback.format_exc())
+            LOG.error("Error while initing target: %s", e, exc_info=self.session.log_tracebacks)
             return False
 
         # Set elf file if provided.
