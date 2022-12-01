@@ -283,6 +283,10 @@ class DAPAccessIntf(object):
         """@brief Assert or de-assert target reset line"""
         raise NotImplementedError()
 
+    def assert_reset_with_clk_low(self, asserted):
+        """@brief Assert or de-assert target reset line"""
+        raise NotImplementedError()
+
     def is_reset_asserted(self):
         """@brief Returns True if the target reset line is asserted or False if de-asserted"""
         raise NotImplementedError()

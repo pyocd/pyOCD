@@ -829,6 +829,15 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._protocol.set_swj_pins(Pin.nRESET, Pin.nRESET)
 
     @locked
+    def assert_reset_with_clk_low(self, asserted):
+        self.flush()
+        TRACE.debug("assert with clock low %d", asserted)
+        if asserted:
+            self._protocol.set_swj_pins(0, Pin.nRESET | Pin.SWCLK_TCK)
+        else:
+            self._protocol.set_swj_pins(Pin.nRESET, Pin.nRESET | Pin.SWCLK_TCK)
+
+    @locked
     def is_reset_asserted(self):
         self.flush()
         pins = self._protocol.set_swj_pins(0, Pin.NONE)
