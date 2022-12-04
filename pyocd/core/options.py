@@ -66,8 +66,9 @@ BUILTIN_OPTIONS = [
         "Log details of loaded .FLM flash algos."),
     OptionInfo('debug.traceback', bool, True,
         "Print tracebacks for exceptions."),
-    OptionInfo('enable_multicore', bool, False,
-        "Whether to put pyOCD into multicore debug mode."),
+    OptionInfo('enable_multicore_debug', bool, False,
+        "Whether to put pyOCD into multicore debug mode. Doing so changes the default software reset type of "
+        "secondary cores to VECTRESET, or emulated reset if that is not supported (i.e., non-v7-M cores)."),
     OptionInfo('fast_program', bool, False,
         "Setting this option to True will use CRC checks of existing flash sector contents to "
         "determine whether pages need to be programmed."),
@@ -95,6 +96,9 @@ BUILTIN_OPTIONS = [
     OptionInfo('pack', (str, list), None,
         "Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are "
         "added to the list of available targets."),
+    OptionInfo('primary_core', int, 0,
+        "Core number for the primary/boot core of an asymmetric multicore target. This is the core that "
+        "will control system reset when 'enable_multicore' is set."),
     OptionInfo('probeserver.port', int, 5555,
         "TCP port for the debug probe server."),
     OptionInfo('project_dir', str, None,

@@ -240,9 +240,12 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self._default_reset_type = Target.ResetType.SW
 
         # Select default sw reset type based on whether multicore debug is enabled and which core
-        # this is.
+        # this is. Even though SW_VECTRESET isn't added (above) to the supported reset types by default,
+        # and is only supported on v7-M, it's ok to select it here because it will automatically fall
+        # back to SW_EMULATED in ._get_actual_reset_type().
         self._default_software_reset_type = Target.ResetType.SW_SYSRESETREQ \
-                    if (not self.session.options.get('enable_multicore_debug')) or (self.core_number == 0) \
+                    if (not self.session.options.get('enable_multicore_debug')) \
+                            or (self.core_number == self.session.options.get('primary_core')) \
                     else Target.ResetType.SW_VECTRESET
 
         # Set up breakpoints manager.
@@ -713,6 +716,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.write_memory_block32(self.NVIC_ICPR0, [0xffffffff] * numregs)
         self.write_memory_block32(self.NVIC_IPR0, [0xffffffff] * (numregs * 8))
 
+        # Resume unless reset vector catch is enabled.
+        demcr = self.read_memory(CortexM.DEMCR)
+        if (demcr & CortexM.DEMCR_VC_CORERESET) == 0:
+            self.resume()
+
     def _get_actual_reset_type(self, reset_type):
         """@brief Determine the reset type to use given defaults and passed in type."""
 
@@ -884,14 +892,16 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # Perform the reset.
         self.reset(reset_type)
 
-        # wait until the unit resets
-        with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
-            while t_o.check():
-                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
-                    break
-                sleep(0.01)
-            else:
-                LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
+        # Wait until the unit resets. If emulated reset is used then it will have already halted
+        # for us.
+        if reset_type is not Target.ResetType.SW_EMULATED:
+            with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
+                while t_o.check():
+                    if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
+                        break
+                    sleep(0.01)
+                else:
+                    LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
 
         # Make sure the thumb bit is set in XPSR in case the reset handler
         # points to an invalid address. Only do this if the core is actually halted, otherwise we

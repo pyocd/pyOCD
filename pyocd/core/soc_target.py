@@ -134,8 +134,12 @@ class SoCTarget(TargetGraphNode):
         self.cores[core.core_number] = core
         self.add_child(core)
 
-        # Select first added core.
+        # Always first added core to ensure some core is selected.
         if self.selected_core is None:
+            self.selected_core = core.core_number
+        # Otherwise, when the chosen primary code is added, select it. This assumes that cores are only
+        # added at init time.
+        elif core.core_number == self.session.options.get('primary_core'):
             self.selected_core = core.core_number
 
     def create_init_sequence(self) -> CallSequence:

@@ -44,6 +44,7 @@ support SWO, while the Arm v6-M and Arm v8-M Baseline, architectures do not.
  Cortex-M23     | v8.0-M Baseline   | -
  Cortex-M33     | v8.0-M Mainline   | ✓
  Cortex-M55     | v8.1-M Mainline   | ✓
+ Cortex-M85     | v8.1-M Mainline   | ✓
 
 
 

@@ -9,7 +9,8 @@ These are the key terms used by pyOCD and its documentation.
 - **AP**: Access Port, part of the DAP, connected to the DP, that allows the debugger to perform operations
     on the chip and cores. There are multiple types of AP that serve different purposes (see MEM-AP). Some MCU
     vendors implement proprietary APs in their chips.
-- **Commander**: Refers to the `pyocd commander` subcommand that presents an interactive interface for exploring
+- **command**: Refers to one of pyOCD's [commands]({% link _docs/command_reference.md %}) that can be executed in the commander REPL or as a gdb monitor command.
+- **commander**: Refers to the `pyocd commander` subcommand that presents an interactive interface for exploring
     the connected target.
 - **CoreSight**: An Arm architecture specification for debug subsystems. It defines a standardised way
     to discover the debug resources provided by a device.
@@ -25,7 +26,7 @@ These are the key terms used by pyOCD and its documentation.
     support.
 - **flash algorithm**: A small piece of code downloaded to and executed from target RAM that
     performs flash erase and program operations.
-- **gdbserver**: A server that implements gdb's Remote Serial Protocol (RSP) to allow gdb to debug a remote
+- **gdbserver**: A server that implements gdb's [Remote Serial Protocol](https://sourceware.org/gdb/onlinedocs/gdb/Remote-Protocol.html#Remote-Protocol) (RSP) to allow gdb to debug a remote
     target. PyOCD acts as a bridge between gdb and the target.
 - **host**: The computer running pyOCD.
 - **JTAG**: Debug link wire protocol standard defined by IEEE Std 1149.1-2001 and subsequent specifications.
@@ -46,12 +47,14 @@ These are the key terms used by pyOCD and its documentation.
     signal TDO, SWO is only accessible when using SWD.
 - **SWV**: Serial Wire Viewer, A trace capability providing display of reads, writes, exceptions, PC Samples
     and printf.
+- **subcommand**: One of the subcommands selected as the first argument(s) to the `pyocd` command line tool.
 - **target**: The device that is being controlled by pyOCD through the debug probe.
 - **target type**: The part number for the target. Represented by an identifier that is either
     the full part number or a shortened form of it.
 - **unique ID**: The unique identifier for a debug probe. Nominally a URI, but usually just the probe's
     serial number.
 - **user script**: A Python script written by the user and loaded at runtime that can extend or
-    modify pyOCD's behaviour.
+    modify pyOCD's behaviour. Different from a Python script that uses pyOCD as a package, because the
+    `pyocd` command line tool is the driving process.
 - **wire protocol**: The protocol used on the debug link, either SWD or JTAG for Arm-based devices.
 

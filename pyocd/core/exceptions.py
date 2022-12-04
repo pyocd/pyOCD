@@ -158,3 +158,7 @@ class CommandError(Error):
     """@brief Raised when a command encounters an error."""
     pass
 
+class RTTError(Error):
+    """@brief Error encountered when transfering data through RTT."""
+    pass
+
