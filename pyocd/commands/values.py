@@ -15,15 +15,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import prettytable
-from typing import TYPE_CHECKING
+from typing import (cast, TYPE_CHECKING)
 
 from .. import coresight
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
+from ..core.core_target import CoreTarget
 from ..utility.cmdline import (
     convert_one_session_option,
     convert_frequency,
@@ -98,12 +101,24 @@ class CoresValue(ValueBase):
         if self.context.target.is_locked():
             self.context.write("Target is locked")
         else:
-            self.context.writei("Cores:        %d", len(self.context.target.cores))
+            pt = prettytable.PrettyTable(["Number", "Name", "Type"])
+            pt.align = 'l'
+            pt.border = False
+
             for i, core in self.context.target.cores.items():
-                self.context.writei("Core %d type:  %s%s", i,
-                        core.name,
-                        " (selected)" if ((self.context.selected_core is not None) \
-                                            and (self.context.selected_core.core_number == i)) else "")
+                pt.add_row([
+                    (
+                        ("*" if ((self.context.selected_core is not None)
+                                and (self.context.selected_core.core_number == i))
+                            else " ")
+                        + str(i)
+                    ),
+                    cast(CoreTarget, core).node_name,
+                    core.name,
+                ])
+
+            self.context.write(str(pt))
+            self.context.write("(Currently selected core is marked with a '*'.)")
 
 class APsValue(ValueBase):
     INFO = {
