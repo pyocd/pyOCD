@@ -31,6 +31,7 @@ from ..utility.cmdline import (
     convert_one_session_option,
     convert_frequency,
     convert_vector_catch,
+    convert_reset_type,
     )
 from .base import ValueBase
 
@@ -781,5 +782,49 @@ class DebugSequencesValue(ValueBase):
 
         self.context.write(str(pt))
 
-    # def modify(self, args):
+class ResetTypeValue(ValueBase):
+    INFO = {
+            'names': ['reset-type'],
+            'group': 'standard',
+            'category': 'target',
+            'access': 'rw',
+            'help': "Show reset configuration and all available reset types for each core. Set current reset type.",
+            }
+
+    def display(self, args):
+        from ..coresight.cortex_m import CortexM
+
+        assert self.context.target
+
+        current_reset_type_option = self.context.session.options.get('reset_type')
+        current_reset_type = convert_reset_type(current_reset_type_option)
+        reset_type_desc = current_reset_type_option
+        if current_reset_type is not None:
+            reset_type_desc += f" ({current_reset_type.name})"
+        self.context.write(f"Selected reset type ('reset_type' option): {reset_type_desc}")
+
+        for core in self.context.target.cores.values():
+            # Only handle Cortex-M cores for now.
+            if not isinstance(core, CortexM):
+                continue
+            cm_core = cast(CortexM, core)
+
+            actual_reset_type = cm_core._get_actual_reset_type(None)
+
+            self.context.write(f"\nCore {cm_core.core_number} ({cm_core.node_name}):")
+            self.context.write(f"  Effective:  {actual_reset_type.name}")
+            self.context.write(f"  Default:    {cm_core.default_reset_type.name}")
+            self.context.write(f"  Default SW: {cm_core.default_software_reset_type.name}")
+            self.context.write("  Available:  " + ", ".join(r.name for r in cm_core.supported_reset_types))
+
+    def modify(self, args):
+        from ..utility.cmdline import RESET_TYPE_MAP
+        if len(args) != 1:
+            raise exceptions.CommandError("invalid arguments")
+
+        new_reset_type = args[0]
+        if new_reset_type.lower() not in RESET_TYPE_MAP:
+            raise exceptions.CommandError("invalid reset type")
+
+        self.context.session.options['reset_type'] = new_reset_type
 
