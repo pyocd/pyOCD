@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import sys
-from typing import (IO, Any, Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, TYPE_CHECKING)
+from typing import (Any, Callable, cast, Dict, IO, Iterator, List, NamedTuple, Optional, Sequence,
+        TYPE_CHECKING)
 import six
 import pprint
 import subprocess
@@ -30,6 +33,13 @@ from ..utility.cmdline import split_command_line
 
 if TYPE_CHECKING:
     from ..debug.svd.model import SVDPeripheral
+    from ..core.session import Session
+    from ..core.core_target import CoreTarget
+    from ..core.soc_target import SoCTarget
+    from ..board.board import Board
+    from ..coresight.ap import (APAddressBase, AccessPort)
+    from ..coresight.coresight_target import CoreSightTarget
+    from ..probe.debug_probe import DebugProbe
 
 LOG = logging.getLogger(__name__)
 
@@ -127,6 +137,12 @@ class CommandExecutionContext:
     commands and command lines.
     """
 
+    _session: Optional[Session]
+    _selected_core: Optional[CoreTarget]
+    _selected_ap_address: Optional[APAddressBase]
+    _peripherals: Dict[str, SVDPeripheral]
+    _python_namespace: Dict[str, Any]
+
     def __init__(self, no_init: bool = False, output_stream: Optional[IO[str]] = None):
         """@brief Constructor.
         @param self This object.
@@ -138,14 +154,14 @@ class CommandExecutionContext:
         """
         self._no_init = no_init
         self._output = output_stream or sys.stdout
-        self._python_namespace: Dict[str, Any] = {}
+        self._python_namespace = {}
         self._command_set = CommandSet()
 
         # State attributes.
         self._session = None
         self._selected_core = None
         self._selected_ap_address = None
-        self._peripherals: Dict[str, "SVDPeripheral"] = {}
+        self._peripherals = {}
         self._loaded_peripherals = False
 
         # Add in the standard commands.
@@ -229,7 +245,7 @@ class CommandExecutionContext:
 
         try:
             # Selected core defaults to the target's default selected core.
-            if self.selected_core is None:
+            if (self.selected_core is None) and (self.target.selected_core):
                 self.selected_core = self.target.selected_core
 
             # Get the AP for the selected core.
@@ -246,20 +262,24 @@ class CommandExecutionContext:
                     break
 
     @property
-    def session(self):
+    def session(self) -> Session:
+        assert self._session
         return self._session
 
     @property
-    def board(self):
-        return self._session and self._session.board
+    def board(self) -> Board:
+        assert self._session and self._session.board
+        return self._session.board
 
     @property
-    def target(self):
-        return self._session and self._session.target
+    def target(self) -> SoCTarget:
+        assert self._session and self._session.target
+        return self._session.target
 
     @property
-    def probe(self):
-        return self._session and self._session.probe
+    def probe(self) -> DebugProbe:
+        assert self._session and self._session.probe
+        return self._session.probe
 
     @property
     def elf(self):
@@ -281,37 +301,41 @@ class CommandExecutionContext:
         return self._peripherals
 
     @property
-    def output_stream(self):
+    def output_stream(self) -> IO[str]:
         return self._output
 
     @output_stream.setter
-    def output_stream(self, stream):
+    def output_stream(self, stream: IO[str]) -> None:
         self._output = stream
 
     @property
-    def selected_core(self):
+    def selected_core(self) -> Optional[CoreTarget]:
         """@brief The Target instance for the selected core."""
         return self._selected_core
 
     @selected_core.setter
-    def selected_core(self, value):
+    def selected_core(self, value: CoreTarget) -> None:
         self._selected_core = value
 
     @property
-    def selected_ap_address(self):
+    def selected_ap_address(self) -> Optional[APAddressBase]:
         return self._selected_ap_address
 
     @selected_ap_address.setter
-    def selected_ap_address(self, value):
+    def selected_ap_address(self, value: APAddressBase) -> None:
         self._selected_ap_address = value
 
     @property
-    def selected_ap(self):
+    def selected_ap(self) -> Optional[AccessPort]:
         if self.selected_ap_address is None:
             return None
         else:
+            from ..coresight.coresight_target import CoreSightTarget
             assert self.target
-            return self.target.aps[self.selected_ap_address]
+            if isinstance(self.target, CoreSightTarget):
+                return cast(CoreSightTarget, self.target).aps[self.selected_ap_address]
+            else:
+                raise exceptions.CommandError("target is not CoreSight based")
 
     def process_command_line(self, line: str) -> None:
         """@brief Run a command line consisting of one or more semicolon-separated commands.
