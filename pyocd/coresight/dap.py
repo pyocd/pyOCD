@@ -232,13 +232,15 @@ class DPConnector:
             # Create object to send SWJ sequences.
             swj = SWJSequenceSender(self._probe, use_dormant)
 
+            def jtag_enter_run_test_idle():
+                self._probe.jtag_sequence(6, 1, False, 0x3f)
+                self._probe.jtag_sequence(1, 0, False, 0x1)
+
             if protocol == DebugProbe.Protocol.JTAG \
                and DebugProbe.Capability.JTAG_SEQUENCE in self._probe.capabilities:
-                def jtag_enter_run_test_idle():
-                    self._probe.jtag_sequence(6, 1, 0, 0x3f)
-                    self._probe.jtag_sequence(1, 0, 0, 0x1)
+                use_jtag_enter_run_test_idle = True
             else:
-                jtag_enter_run_test_idle = None
+                use_jtag_enter_run_test_idle = False
 
             # Multiple attempts to select protocol and read DP IDR.
             for attempt in range(4):
@@ -246,7 +248,7 @@ class DPConnector:
                     if send_swj:
                         swj.select_protocol(protocol)
 
-                    if jtag_enter_run_test_idle:
+                    if use_jtag_enter_run_test_idle:
                         jtag_enter_run_test_idle()
 
                     # Attempt to read the DP IDR register.
