@@ -340,7 +340,7 @@ class CMSISDAPProtocol(object):
         cmd = []
         cmd.append(Command.DAP_SWJ_PINS)
         cmd.append(output & 0xff)
-        cmd.append(pins)
+        cmd.append(pins & 0xff)
         cmd.append(wait & 0xff)
         cmd.append((wait >> 8) & 0xff)
         cmd.append((wait >> 16) & 0xff)

@@ -15,7 +15,10 @@ that ambiguous because it matches multiple commands, an error will be reported s
 command names. In addition, commonly used commands often have a short alias. The alias takes
 precedence even when it is a prefix of multiple other commands.
 
-<!-- Maintainer note: the following is auto-generated. Edit the command INFO source material. -->
+<!--
+Maintainer note: the following is auto-generated. Edit the command class INFO dict source material,
+then run ./scripts/generate_command_help.py.
+-->
 
 All commands
 ------------
@@ -403,6 +406,16 @@ Print core or peripheral register(s).
 Set the value of a core or peripheral register.
 </td></tr>
 
+<tr><td colspan="3"><b>Rtt</b></td></tr>
+
+<tr><td>
+<a href="#rtt"><tt>rtt</tt></a>
+</td><td>
+rtt {setup,start,stop,channels,server}
+</td><td>
+Control SEGGER RTT compatible interface.
+</td></tr>
+
 <tr><td colspan="3"><b>Semihosting</b></td></tr>
 
 <tr><td>
@@ -469,6 +482,16 @@ Show the target's current state.
 Control thread awareness.
 </td></tr>
 
+<tr><td colspan="3"><b>Utility</b></td></tr>
+
+<tr><td>
+<a href="#sleep"><tt>sleep</tt></a>
+</td><td>
+MILLISECONDS
+</td><td>
+Sleep for a number of milliseconds before continuing.
+</td></tr>
+
 <tr><td colspan="3"><b>Values</b></td></tr>
 
 <tr><td>
@@ -501,6 +524,14 @@ command can be read, written, or both.
 <table>
 
 <tr><th>Value</th><th>Access</th><th>Description</th></tr>
+
+<tr><td>
+<a href="#accessible-pins"><tt>accessible-pins</tt></a>
+</td><td>
+read-write
+</td><td>
+Display which debug probe pins can be read and written with the 'pins' value.
+</td></tr>
 
 <tr><td>
 <a href="#aps"><tt>aps</tt></a>
@@ -613,6 +644,14 @@ The current value of one or more session options.
 read-only
 </td><td>
 List of target peripheral instances.
+</td></tr>
+
+<tr><td>
+<a href="#pins"><tt>pins</tt></a>
+</td><td>
+read-write
+</td><td>
+Current debug probe protocol I/O pin states.
 </td></tr>
 
 <tr><td>
@@ -969,6 +1008,14 @@ Print core or peripheral register(s). If no arguments are provided, the 'general
 Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
+### Rtt
+
+##### `rtt`
+
+**Usage**: rtt rtt {setup,start,stop,channels,server} \
+Control SEGGER RTT compatible interface.
+
+
 ### Semihosting
 
 ##### `arm`
@@ -1023,6 +1070,14 @@ Show the target's current state.
 Control thread awareness.
 
 
+### Utility
+
+##### `sleep`
+
+**Usage**: sleep MILLISECONDS \
+Sleep for a number of milliseconds before continuing.
+
+
 ### Values
 
 ##### `set`
@@ -1040,6 +1095,12 @@ Display a value.
 
 Value details
 -------------
+
+##### `accessible-pins`
+
+**Access**: read-write \
+**Usage**: show accessible-pins, set accessible-pins VALUE \
+Display which debug probe pins can be read and written with the 'pins' value.
 
 ##### `aps`
 
@@ -1129,6 +1190,12 @@ The current value of one or more session options. When setting, each argument sh
 **Access**: read-only \
 **Usage**: show peripherals \
 List of target peripheral instances.
+
+##### `pins`
+
+**Access**: read-write \
+**Usage**: show pins, set pins VALUE \
+Current debug probe protocol I/O pin states. The pins value is a mask containing the state of all accessible protocol pins. See the `accessible-pins` value for protocol pins that can be read and written by the connected debug probe.
 
 ##### `probe-uid`
 

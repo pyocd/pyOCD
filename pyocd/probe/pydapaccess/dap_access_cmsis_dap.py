@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018-2021 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -819,6 +819,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     def get_unique_id(self):
         return self._unique_id
+
+    @locked
+    def pin_access(self, mask: int, value: int) -> int:
+        self.flush()
+        return self._protocol.set_swj_pins(value, mask)
 
     @locked
     def assert_reset(self, asserted):
