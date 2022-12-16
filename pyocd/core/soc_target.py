@@ -68,6 +68,9 @@ class SoCTarget(TargetGraphNode):
         self._new_core_num = 0
         self._elf = None
 
+        # Set our graph node name.
+        self.node_name = 'soc'
+
     @property
     def cores(self) -> Dict[int, CoreTarget]:
         return self._cores
