@@ -36,6 +36,7 @@ from .base import ValueBase
 
 if TYPE_CHECKING:
     from ..core.memory_map import MemoryMap
+    from ..utility.graph import GraphNode
 
 LOG = logging.getLogger(__name__)
 
@@ -542,7 +543,19 @@ class TargetGraphValue(ValueBase):
             }
 
     def display(self, args):
-        self.context.board.dump()
+        def _node_desc(node: GraphNode) -> str:
+            desc = node.__class__.__name__
+            if node.node_name:
+                desc = f'"{node.node_name}": ' + desc
+            return desc
+
+        def _dump(node: GraphNode, level: int) -> None:
+            desc = ("  " * level) + "- " + _node_desc(node)
+            self.context.write(desc)
+            for child in node.children:
+                _dump(child, level + 1)
+
+        _dump(self.context.board, 0)
 
 class LockedValue(ValueBase):
     INFO = {
