@@ -954,8 +954,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     def resume(self):
         """@brief Resume execution of the core.
         """
-        if self.get_state() != Target.State.HALTED:
-            LOG.debug('cannot resume: target not halted')
+        state = self.get_state()
+        if state != Target.State.HALTED:
+            LOG.debug('cannot resume core %d: core is %s', self.core_number, state.name)
             return
         LOG.debug("resuming core %d", self.core_number)
         self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.RESUME)
