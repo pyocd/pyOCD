@@ -123,7 +123,9 @@ from . import target_MPS3_AN522
 from . import target_MPS3_AN540
 from . import target_RP2040
 from . import target_ytm32b1ld0
+from . import target_ytm32b1le0
 from . import target_ytm32b1me0
+from . import target_ytm32b1md1
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -284,5 +286,7 @@ BUILTIN_TARGETS = {
           'rp2040_core0' : target_RP2040.RP2040Core0,
           'rp2040_core1' : target_RP2040.RP2040Core1,
           'ytm32b1ld0': target_ytm32b1ld0.YTM32B1LD0,
+          'ytm32b1le0': target_ytm32b1le0.YTM32B1LE0,
           'ytm32b1me0': target_ytm32b1me0.YTM32B1ME0,
+          'ytm32b1md1': target_ytm32b1md1.YTM32B1MD1,
          }
