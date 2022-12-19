@@ -31,6 +31,7 @@ jobs:
         - "3.8"
         - "3.9"
         - "3.10"
+        - "3.11"
 
     steps:
     # Only check out HEAD. We don't need the full history.
@@ -39,7 +40,7 @@ jobs:
         fetch-depth: 1
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -64,8 +65,8 @@ jobs:
         pip install -e .[test]
 
     - name: Setup flake8 annotations
-      # This commit is v1. Using exact commit for security.
-      uses: rbialon/flake8-annotations@f8c29dc2e054df26e0171b0005e99454f7db57a0
+      # This commit is v1.1. Using exact commit for security.
+      uses: rbialon/flake8-annotations@48819b39d57c621b5a64a1cdce40a5caa6a43b89
 
     # Stop the build if there are Python syntax errors or undefined names.
     - name: Lint with flake8
@@ -89,7 +90,7 @@ jobs:
         twine check dist/*
 
     - name: Upload pytest test results
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: pytest-results-${{ matrix.python-version }}
         path: |
