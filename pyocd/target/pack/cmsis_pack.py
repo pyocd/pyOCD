@@ -30,6 +30,7 @@ from typing import (Any, Callable, Dict, List, IO, Optional, Tuple, TypeVar, Set
 from .flash_algo import PackFlashAlgo
 from ...core import exceptions
 from ...core.memory_map import (
+    FlashRegion,
     MemoryMap,
     MemoryRange,
     MemoryRegion,
@@ -467,6 +468,7 @@ class CmsisPackDevice:
         self._saw_startup: bool = False
         self._default_ram: Optional[MemoryRegion] = None
         self._memory_map: Optional[MemoryMap] = None
+        self._processed_algos: Set[Element] = set() # Algo elements we've converted to regions.
 
     def _build_memory_regions(self) -> None:
         """@brief Creates memory region instances for the device.
@@ -541,6 +543,65 @@ class CmsisPackDevice:
                 LOG.debug("ignoring error parsing memories for CMSIS-Pack devices %s: %s",
                     self.part_number, str(err))
 
+        # Now create flash regions for any algos we didn't process.
+        for algo in [a for a in self._info.algos if a not in self._processed_algos]:
+            # Should this algo be loaded by default?
+            is_default = _get_bool_attribute(algo, 'default')
+            if not is_default:
+                LOG.debug("%s DFP (%s): not loading non-default flash algorithm '%s'",
+                    self.pack_description.pack_name, self.part_number, algo.attrib['name'])
+                continue
+
+            # Load flash algo from .FLM file so we can get its address range, etc.
+            pack_algo = self._load_flash_algo(algo.attrib['name'])
+            if pack_algo is None:
+                LOG.warning(f"{self.pack_description.pack_name} DFP ({self.part_number}): "
+                    f"failed to find or load flash algorithm '{algo.attrib['name']}'")
+                continue
+
+            # If we don't have a boot memory yet, pick the first flash.
+            if not self._saw_startup:
+                is_boot_memory = True
+                self._saw_startup = True
+            else:
+                is_boot_memory = False
+
+            ram_attrs = self._get_flash_ram_attributes(algo)
+
+            # Create the memory region.
+            region = FlashRegion(
+                        name=pack_algo.flash_info.name.decode(encoding='ascii'),
+                        start=pack_algo.flash_start,
+                        length=pack_algo.flash_size,
+                        access='rx',
+                        flm=pack_algo,
+                        sector_size=0,
+                        # Mark the flash memory as inaccessible at boot, just to be safe. There's
+                        # no real way to be sure about this. The vendor should have create a
+                        # <memory> element!
+                        is_default=False,
+                        # Similarly, disallow testing of this region since we're not sure. This will
+                        # make it impossible to run functional tests on some devices without a user
+                        # script to help out.
+                        is_testable=False,
+                        **ram_attrs,
+                        )
+            self._regions.append(region)
+
+    def _get_flash_ram_attributes(self, algo_element: Element) -> Dict[str, int]:
+        attrs: Dict[str, int] = {}
+        if 'RAMstart' in algo_element.attrib:
+            attrs['_RAMstart'] = int(algo_element.attrib['RAMstart'], base=0)
+            if 'RAMsize' in algo_element.attrib:
+                attrs['_RAMsize'] = int(algo_element.attrib['RAMsize'], base=0)
+            else:
+                LOG.warning(
+                    f"{self.pack_description.pack_name} DFP ({self.part_number}): "
+                    f"flash algorithm '{algo_element.attrib['name']}' has RAMstart but is "
+                    "missing RAMsize")
+
+        return attrs
+
     def _set_flash_attributes(self, attrs: dict) -> bool:
         try:
             # Look for matching flash algo.
@@ -549,6 +610,9 @@ class CmsisPackDevice:
         except KeyError:
             # Must be a mask ROM or non-programmable flash.
             return False
+
+        # Mark this algo as processed.
+        self._processed_algos.add(algo_element)
 
         # Load flash algo from .FLM file.
         pack_algo = self._load_flash_algo(algo_element.attrib['name'])
@@ -561,15 +625,8 @@ class CmsisPackDevice:
 
         # Save the algo element's RAM attributes in the region for later use in
         # CoreSightTarget.create_flash().
-        if 'RAMstart' in algo_element.attrib:
-            attrs['_RAMstart'] = int(algo_element.attrib['RAMstart'], base=0)
-            if 'RAMsize' in algo_element.attrib:
-                attrs['_RAMsize'] = int(algo_element.attrib['RAMsize'], base=0)
-            else:
-                LOG.warning(
-                    f"{self.pack_description.pack_name} DFP ({self.part_number}): "
-                    f"flash algorithm '{algo_element.attrib['name']}' has RAMstart but is "
-                    "missing RAMsize")
+        ram_attrs = self._get_flash_ram_attributes(algo_element)
+        attrs.update(ram_attrs)
 
         # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
         # the default lambdas for sector_size and blocksize returning each other's value.
