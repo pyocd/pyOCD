@@ -394,7 +394,7 @@ class FlashBuilder(MemoryBuilder):
                 page = add_page_with_existing_data()
                 sector_page_addr += page.size
 
-    def program(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True):
+    def program(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True, no_reset=False):
         """@brief Determine fastest method of flashing and then run flash programming.
 
         Data must have already been added with add_data().
@@ -419,6 +419,8 @@ class FlashBuilder(MemoryBuilder):
             written, there may be ranges of flash that would be erased but not written with new
             data. This parameter sets whether the existing contents of those unwritten ranges will
             be read from memory and restored while programming.
+        @param no_reset Boolean indicating whether if the device should not be reset after the
+            programming process has finished.
         """
 
         # Send notification that we're about to program flash.
@@ -512,7 +514,9 @@ class FlashBuilder(MemoryBuilder):
 
         # Cleanup flash algo and reset target after programming.
         self.flash.cleanup()
-        self.flash.target.reset_and_halt()
+
+        if no_reset is not True:
+            self.flash.target.reset_and_halt()
 
         program_finish = time()
         self.perf.program_time = program_finish - program_start

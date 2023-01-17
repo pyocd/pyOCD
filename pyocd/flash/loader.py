@@ -145,6 +145,7 @@ class MemoryLoader:
     _smart_flash: Optional[bool]
     _trust_crc: Optional[bool]
     _keep_unwritten: Optional[bool]
+    _no_reset: Optional[bool]
 
     def __init__(self,
             session: "Session",
@@ -152,7 +153,8 @@ class MemoryLoader:
             chip_erase: Optional[bool] = None,
             smart_flash: Optional[bool] = None,
             trust_crc: Optional[bool] = None,
-            keep_unwritten: Optional[bool] = None
+            keep_unwritten: Optional[bool] = None,
+            no_reset: Optional[bool] = None
         ):
         """@brief Constructor.
 
@@ -173,6 +175,8 @@ class MemoryLoader:
             written, there may be ranges of flash that would be erased but not written with new
             data. This parameter sets whether the existing contents of those unwritten ranges will
             be read from memory and restored while programming.
+        @param no_reset Boolean indicating whether if the device should not be reset after the
+            programming process has finished.
         """
         self._session = session
         assert session.board
@@ -195,6 +199,8 @@ class MemoryLoader:
                             else self._session.options.get('fast_program')
         self._keep_unwritten = keep_unwritten if (keep_unwritten is not None) \
                             else self._session.options.get('keep_unwritten')
+        self._no_reset = no_reset if (no_reset is not None) \
+                            else self._session.options.get('no_reset')
 
         self._reset_state()
 
@@ -290,7 +296,8 @@ class MemoryLoader:
                                     progress_cb=self._progress_cb,
                                     smart_flash=self._smart_flash,
                                     fast_verify=self._trust_crc,
-                                    keep_unwritten=self._keep_unwritten)
+                                    keep_unwritten=self._keep_unwritten,
+                                    no_reset=self._no_reset)
             perfList.append(perf)
             didChipErase = True
 
