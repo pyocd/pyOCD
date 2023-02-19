@@ -440,8 +440,12 @@ class ArgonThreadProvider(ThreadProvider):
     def get_is_running(self):
         if self.g_ar is None:
             return False
-        flags = self._target_context.read32(self.g_ar + KERNEL_FLAGS_OFFSET)
-        return (flags & IS_RUNNING_MASK) != 0
+        try:
+            flags = self._target_context.read32(self.g_ar + KERNEL_FLAGS_OFFSET)
+            return (flags & IS_RUNNING_MASK) != 0
+        except exceptions.TransferFaultError:
+            LOG.warn("Argon: read kernel flags failed, target memory might not be initialized yet.")
+            return False
 
 class ArgonTraceEvent(events.TraceEvent):
     """@brief Argon kernel trace event."""

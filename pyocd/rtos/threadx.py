@@ -481,7 +481,11 @@ class ThreadXThreadProvider(ThreadProvider):
         # safer to compare it with TX_INITIALIZE_IN_PROGRESS.
         if self._system_state is None:
             return False
-        return self._target_context.read32(self._system_state) < self.TX_INITIALIZE_IN_PROGRESS
+        try:
+            return self._target_context.read32(self._system_state) < self.TX_INITIALIZE_IN_PROGRESS
+        except exceptions.TransferFaultError:
+            LOG.warn("ThreadX: read system state failed, target memory might not be initialized yet.")
+            return False
 
     @property
     def current_thread(self):

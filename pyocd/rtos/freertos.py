@@ -508,7 +508,12 @@ class FreeRTOSThreadProvider(ThreadProvider):
     def get_is_running(self):
         if self._symbols is None:
             return False
-        return self._target_context.read32(self._symbols['xSchedulerRunning']) != 0
+        try:
+            return self._target_context.read32(self._symbols['xSchedulerRunning']) != 0
+        except exceptions.TransferFaultError:
+            LOG.warn("FreeRTOS: read running state failed, target memory might not be initialized yet.")
+            return False
+
 
     def _get_elf_symbol_size(self, name, addr, calculated_size):
         if self._target.elf is not None:
