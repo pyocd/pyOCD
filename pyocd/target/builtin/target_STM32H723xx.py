@@ -24,14 +24,20 @@ from ...coresight.cortex_m import CortexM
 LOG = logging.getLogger(__name__)
 
 class DBGMCU:
-    CR = 0xE0042004
-    CR_VALUE = 0x7 # DBG_STANDBY | DBG_STOP | DBG_SLEEP
+    BASE =   0xe00e1000
+    IDC =  BASE + 0x000
+    CR =   BASE + 0x004
+    CR_VALUE = (0x07 | # keep running in stop sleep and standby
+               0x07 << 20 # enable all debug components
+               )
+
+    ABP3 = BASE + 0x034
 
 
 class MiniAP(object):
     """Minimalistic Access Port implementation."""
     AP0_CSW_ADDR = 0x00
-    AP0_CSW_ADDR_VAL = 0x03000012
+    AP0_CSW_OR = 0x08000012
     AP0_TAR_ADDR = 0x04
     AP0_IDR_ADDR = 0xFC
     AP0_DRW_ADDR = 0x0C
@@ -43,8 +49,11 @@ class MiniAP(object):
         # Init AP #0
         IDR = self.dp.read_ap(MiniAP.AP0_IDR_ADDR)
         # Check expected MEM-AP
-        assert IDR == 0x74770001, f"Wring IDR read from device: 0x{IDR:08x}"
-        self.dp.write_ap(MiniAP.AP0_CSW_ADDR, MiniAP.AP0_CSW_ADDR_VAL)
+        assert IDR == 0x84770001, f"Wrong IDR read from device: 0x{IDR:08x}"
+        CSW = self.dp.read_ap(MiniAP.AP0_CSW_ADDR)
+        LOG.info("CSW 0x%08x", CSW)
+        self.dp.write_ap(MiniAP.AP0_CSW_ADDR, CSW | MiniAP.AP0_CSW_OR)
+
 
     def read32(self, addr):
         self.dp.write_ap(MiniAP.AP0_TAR_ADDR, addr)
@@ -54,72 +63,100 @@ class MiniAP(object):
         self.dp.write_ap(MiniAP.AP0_TAR_ADDR, addr)
         self.dp.write_ap(MiniAP.AP0_DRW_ADDR, val)
 
-
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
     # Flash algorithm as a hex string
     'instructions': [
-    0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
-    0x8f4ff3bf, 0x02c04770, 0x28400dc0, 0x0980d302, 0x47701d00, 0xd3022820, 0x1cc00940, 0x08c04770,
-    0x48494770, 0x60414947, 0x60414948, 0x60012100, 0x22f068c1, 0x60c14311, 0x06806940, 0x4845d406,
-    0x60014943, 0x60412106, 0x60814943, 0x47702000, 0x6901483d, 0x43110542, 0x20006101, 0xb5104770,
-    0x69014839, 0x43212404, 0x69016101, 0x431103a2, 0x493a6101, 0xe0004a37, 0x68c36011, 0xd4fb03db,
-    0x43a16901, 0x20006101, 0xb530bd10, 0xffbbf7ff, 0x68ca492d, 0x431a23f0, 0x240260ca, 0x690a610c,
-    0x0e0006c0, 0x610a4302, 0x03e26908, 0x61084310, 0x8f4ff3bf, 0x4a274829, 0x6010e000, 0x03ed68cd,
-    0x6908d4fb, 0x610843a0, 0x060068c8, 0xd0030f00, 0x431868c8, 0x200160c8, 0xb5f0bd30, 0x1cc94c1a,
-    0x68e50889, 0x23f00089, 0x60e5431d, 0x61232300, 0x06ff2701, 0xe0214d19, 0x4e196923, 0x61234333,
-    0x0af602c6, 0x681319f6, 0xf3bf6033, 0x4e118f4f, 0x6035e000, 0x03db68e3, 0x6923d4fb, 0x005b085b,
-    0x68e36123, 0x0f1b061b, 0x68e0d005, 0x430821f0, 0x200160e0, 0x1d00bdf0, 0x1d121f09, 0xd1db2900,
-    0xbdf02000, 0x45670123, 0x40023c00, 0xcdef89ab, 0x00005555, 0x40003000, 0x00000fff, 0x0000aaaa,
-    0x00000201, 0x00000000
+    0xe7fdbe00,
+    0x4603b510, 0x00def44f, 0x60e04c7f, 0x487ebf00, 0xf0006900, 0x28000004, 0x487cd1f9, 0x60604c7a,
+    0x6060487b, 0xbd102000, 0x48774601, 0xf04068c0, 0x4a750001, 0x200060d0, 0xbf004770, 0x69004872,
+    0x0001f000, 0xd1f92800, 0x486fbf00, 0xf0006900, 0x28000001, 0x486cd1f9, 0xf02068c0, 0x496a0030,
+    0x460860c8, 0xf04068c0, 0x60c80008, 0x68c04608, 0x0080f040, 0xbf0060c8, 0x69004863, 0x0001f000,
+    0xd1f92800, 0x68c04860, 0x0008f020, 0x60c8495e, 0x47702000, 0xf3c14601, 0xf1b14243, 0xd3376f00,
+    0x6f01f1b1, 0xbf00d234, 0x69004857, 0x0004f000, 0xd1f92800, 0x68c04854, 0x60e0f420, 0x60d84b52,
+    0x68c04618, 0x7330f647, 0x4b4f4398, 0x461860d8, 0x230468c0, 0x2302ea43, 0x4b4b4318, 0x461860d8,
+    0xf04068c0, 0x60d80080, 0x4847bf00, 0xf0006900, 0x28000004, 0x4844d1f9, 0xf02068c0, 0x4b420004,
+    0x461860d8, 0xf4006900, 0xb1080080, 0x47702001, 0xe7fc2000, 0x4603b5f0, 0x461c4616, 0x22004635,
+    0x6f00f1b3, 0xf1b3d310, 0xd20d6f01, 0x4836bf00, 0xf0006900, 0x28000004, 0xbf00d1f9, 0x69004832,
+    0x0001f000, 0xd1f92800, 0x00def44f, 0x60f84f2e, 0xf1b3e056, 0xd3536f00, 0x6f01f1b3, 0x482ad250,
+    0xf64768c0, 0x43b87730, 0x60f84f27, 0x60f82002, 0xd30c2920, 0xe0062200, 0xf855686f, 0x60670b08,
+    0x0b08f844, 0x2a041c52, 0x3920dbf6, 0x4620e017, 0x2200462f, 0xf817e004, 0xf800cb01, 0x1c52cb01,
+    0xd3f8428a, 0xe0042200, 0x0cfff04f, 0xcb01f800, 0xf1c11c52, 0x45940c20, 0x2100d8f6, 0xbf00bf00,
+    0x69004811, 0x0004f000, 0xd1f92800, 0x480ebf00, 0xf0006900, 0x28000001, 0x480bd1f9, 0xf4006900,
+    0xb9683080, 0x6f00f1b3, 0xf1b3d308, 0xd2056f01, 0x68c04805, 0x0002f020, 0x60f84f03, 0xbdf02001,
+    0xd1a62900, 0xe7fa2000, 0x52002000, 0x45670123, 0xcdef89ab, 0x00000000
     ],
 
     # Relative function addresses
-    'pc_init': 0x20000043,
-    'pc_unInit': 0x20000071,
-    'pc_program_page': 0x200000fb,
-    'pc_erase_sector': 0x200000ab,
-    'pc_eraseAll': 0x2000007f,
+    'pc_init': 0x20000005,
+    'pc_unInit': 0x2000002d,
+    'pc_program_page': 0x20000119,
+    'pc_erase_sector': 0x20000099,
+    'pc_eraseAll': 0x2000003f,
 
-    'static_base' : 0x20000000 + 0x00000020 + 0x00000164,
-    'begin_stack' : 0x20000400,
+    'static_base' : 0x20000000 + 0x00000004 + 0x00000214,
+    'begin_stack' : 0x20001a20,
+    'end_stack' : 0x20000a20,
     'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [0x20001000, 0x20001400],   # Enable double buffering
-    'min_program_length' : 0x400
-    }
+    # Enable double buffering
+    'page_buffers' : [
+        0x20000220,
+        0x20000620
+    ],
+    'min_program_length' : 0x400,
 
-class STM32F767xx(CoreSightTarget):
+    # Relative region addresses and sizes
+    'ro_start': 0x4,
+    'ro_size': 0x214,
+    'rw_start': 0x218,
+    'rw_size': 0x4,
+    'zi_start': 0x21c,
+    'zi_size': 0x0,
+
+    # Flash information
+    'flash_start': 0x8000000,
+    'flash_size': 0x100000,
+    'sector_sizes': (
+        (0x0, 0x20000),
+    )
+}
+
+
+
+class STM32H723xx(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
 
-    # MemoryMap for dual bank configuration (Details in AN4826).
-    # Dual memory configuration is controled by nDBANK bit in FLASH_OPTCR.
-    # In both configuration there is 2MB of flash memory. The difference is in
-    # flash sectors structure.
-    # For Single bank there is 12 sectors, for dual bank there is 24 sectors.
-    # For dual bank configurations sectors are half size.
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x20000,  sector_size=0x8000,
+        FlashRegion( start=0x08000000, length=0x100000, sector_size=0x8000,
                                                         page_size=0x400,
                                                         is_boot_memory=True,
                                                         algo=FLASH_ALGO),
+        #ITCM
+        RamRegion(   start=0x20000000, length=0x20000,
+                  is_cachable=False,
+                  access="rwx"),
+        #DTCM
+        RamRegion(   start=0x20000000, length=0x20000,
+                  is_cachable=False,
+                  access="rw"),
+        #sram1
+        RamRegion(   start=0x30000000, length=0x4000,
+                  is_powered_on_boot=False),
+        #sram2
+        RamRegion(   start=0x30004000, length=0x4000,
+                  is_powered_on_boot=False),
+        #sram4
+        RamRegion(   start=0x38000000, length=0x4000),
 
-        FlashRegion( start=0x08020000, length=0x20000,  sector_size=0x20000,
-                                                        page_size=0x400,
-                                                        algo=FLASH_ALGO),
-
-        FlashRegion( start=0x08040000, length=0x1C0000,  sector_size=0x40000,
-                                                        page_size=0x400,
-                                                        algo=FLASH_ALGO),
-        RamRegion(   start=0x20000000, length=0x80000)
         )
 
     def __init__(self, session):
-        super(STM32F767xx, self).__init__(session, self.MEMORY_MAP)
+        super(STM32H723xx, self).__init__(session, self.MEMORY_MAP)
 
     def assert_reset_for_connect(self):
         self.dp.assert_reset(1)
@@ -127,10 +164,14 @@ class STM32F767xx(CoreSightTarget):
     def safe_reset_and_halt(self):
         assert self.dp.is_reset_asserted()
 
+
         # At this point we can't access full AP as it is not initialized yet.
         # Let's create a minimalistic AP and use it.
         ap = MiniAP(self.dp)
         ap.init()
+
+        DEV_ID = ap.read32(DBGMCU.IDC) & 0xfff;
+        LOG.info("Dev id: 0x%03x", DEV_ID)
 
         DEMCR_value = ap.read32(CortexM.DEMCR)
 
@@ -141,9 +182,13 @@ class STM32F767xx(CoreSightTarget):
         # Prevent disabling bus clock/power in low power modes.
         ap.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
 
+        #ap.write32(DBGMCU.ABP3
+
         self.dp.assert_reset(0)
         time.sleep(0.01)
 
+
+        #assert DEV_ID == 0x483, f"Wring IDC.DEV_ID read from device: 0x{DEV_ID:03x}"
         # Restore DEMCR original value.
         ap.write32(CortexM.DEMCR, DEMCR_value)
 
@@ -168,7 +213,7 @@ class STM32F767xx(CoreSightTarget):
         # -> Release reset
         # -> [Core is halted and reset is released]
         # -> Continue [discovery, create cores, etc]
-        seq = super(STM32F767xx, self).create_init_sequence()
+        seq = super(STM32H723xx, self).create_init_sequence()
         if self.session.options.get('connect_mode') in ('halt', 'under-reset'):
             seq.insert_before('dp_init', ('assert_reset_for_connect', self.assert_reset_for_connect))
             seq.insert_after('dp_init', ('safe_reset_and_halt', self.safe_reset_and_halt))
@@ -178,12 +223,6 @@ class STM32F767xx(CoreSightTarget):
     def post_connect_hook(self):
         FLASH_OPTCR_ADDR = 0x40023C14
         FLASH_OPTCR_NDBANK = 1<<29
-        flash_optcr = self.read32(FLASH_OPTCR_ADDR)
-        if flash_optcr & FLASH_OPTCR_NDBANK:
-            LOG.info('Single bank configuration detected [FLASH_OPTCR=0x%08x].', flash_optcr)
-        else:
-            LOG.error('Dual bank configuration detected [FLASH_OPTCR=0x%08x]. '
-                      'Currently only single bank configuration is fully supported!', flash_optcr)
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
 
 
