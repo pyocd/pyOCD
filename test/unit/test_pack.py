@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,9 +25,9 @@ from unittest.mock import MagicMock
 from pyocd.target.pack import (cmsis_pack, flash_algo, pack_target)
 from pyocd.target.pack.flm_region_builder import FlmFlashRegionBuilder
 from pyocd.target import TARGET
-from pyocd.core import (memory_map, target)
-from pyocd.utility.mask import align_up
-from pyocd.coresight.ap import (APv1Address, APv2Address)
+from pyocd.core import memory_map
+from pyocd.utility.mask import align_down
+from pyocd.coresight.ap import APv1Address
 
 K64F = "MK64FN1M0VDC12"
 NRF5340 = "nRF5340_xxAA"
@@ -226,22 +226,40 @@ class TestFLM:
         # Create the RAM region where we want the algo to be placed.
         ram = memory_map.RamRegion(0x20000000, length=0x10000)
         d = k64algo.get_pyocd_flash_algo(4096, ram)
-        assert d['load_address'] == ram.start
-        assert d['pc_init'] == ram.start + 0x5
-        assert d['pc_unInit'] == ram.start + 0x55
-        assert d['pc_eraseAll'] == ram.start + 0x79
-        assert d['pc_erase_sector'] == ram.start + 0xaf
-        assert d['pc_program_page'] == ram.start + 0xc3
+        instr_len = len(d['instructions']) * 4
+        load_addr = ram.end + 1 - instr_len
+        assert d['load_address'] == load_addr
+        assert d['pc_init'] == load_addr + 0x5
+        assert d['pc_unInit'] == load_addr + 0x55
+        assert d['pc_eraseAll'] == load_addr + 0x79
+        assert d['pc_erase_sector'] == load_addr + 0xaf
+        assert d['pc_program_page'] == load_addr + 0xc3
 
-    def test_algo_dict_full_mem(self, k64algo):
+    def test_algo_dict_two_page_bufs(self, k64algo):
         # Create the RAM region where we want the algo to be placed.
         ram = memory_map.RamRegion(0x20000000, length=0x10000)
         d = k64algo.get_pyocd_flash_algo(k64algo.page_size, ram)
-        instr_len = len(d['instructions']) * 4
-        buf_base = align_up(instr_len, 0x10)
-        buf1 = ram.start + buf_base
-        buf2 = buf1 + k64algo.page_size
+        instr_base = d['load_address']
+        buf_top = align_down(instr_base, flash_algo.PackFlashAlgo._PAGE_BUFFER_ALIGN)
+        buf1 = buf_top - k64algo.page_size
+        buf2 = buf1 - k64algo.page_size
         assert d['page_buffers'] == [buf1, buf2]
+
+    def test_algo_dict_one_page_buf(self, k64algo):
+        # First get a full-sized algo allocation.
+        ram = memory_map.RamRegion(0x20000000, length=0x10000)
+        d = k64algo.get_pyocd_flash_algo(k64algo.page_size, ram)
+
+        # Create a memory region with only enough memory for one page buf + stack.
+        min_ram_size = len(d['instructions']) * 4 + k64algo.page_size + k64algo.page_size // 2
+        min_ram = memory_map.RamRegion(0x20000000, length=min_ram_size)
+        d = k64algo.get_pyocd_flash_algo(k64algo.page_size, min_ram)
+
+        instr_base = d['load_address']
+        assert instr_base == min_ram.end + 1 - len(d['instructions']) * 4
+        buf_top = align_down(instr_base, flash_algo.PackFlashAlgo._PAGE_BUFFER_ALIGN)
+        buf1 = buf_top - k64algo.page_size
+        assert d['page_buffers'] == [buf1]
 
     # Flash Device:
     #   name=b'nRF53xxx_app'
@@ -323,7 +341,8 @@ class TestFlmRegionBuilder:
         flash = memory_map.FlashRegion(0, length=0x200000, flm=nrf5340appflm)
         builder.finalise_region(flash)
         assert flash.algo
-        assert flash.algo['load_address'] == 0x20000000
+        instr_len = len(flash.algo['instructions']) * 4
+        assert flash.algo['load_address'] == (0x20010000 - instr_len)
         assert not flash.has_subregions
         assert flash.algo
 
@@ -332,7 +351,8 @@ class TestFlmRegionBuilder:
                                         _RAMstart=0x30010000, _RAMsize=0x4000)
         assert builder.finalise_region(flash)
         assert flash.algo
-        assert flash.algo['load_address'] == 0x30010000
+        instr_len = len(flash.algo['instructions']) * 4
+        assert flash.algo['load_address'] == (0x30014000 - instr_len)
         assert not flash.has_subregions
         assert flash.algo
 
