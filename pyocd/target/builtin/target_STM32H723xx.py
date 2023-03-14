@@ -20,15 +20,22 @@ import logging
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...coresight.cortex_m import CortexM
+from ...coresight import dap,ap
 
 LOG = logging.getLogger(__name__)
 
 class DBGMCU:
-    BASE =   0xe00e1000
+
+    # Via APB-ap (AP2)
+    #BASE =   0xe00e1000
+    # via AHB-ap (AP0,1)
+    BASE =   0x5c001000
+
     IDC =  BASE + 0x000
     CR =   BASE + 0x004
-    CR_VALUE = (0x07 | # keep running in stop sleep and standby
-               0x07 << 20 # enable all debug components
+    CR_VALUE = (0x3f | # keep running in stop sleep and standby
+               0x07 << 20 | # enable all debug components
+               0x07
                )
 
     ABP3 = BASE + 0x034
@@ -37,7 +44,8 @@ class DBGMCU:
 class MiniAP(object):
     """Minimalistic Access Port implementation."""
     AP0_CSW_ADDR = 0x00
-    AP0_CSW_OR = 0x08000012
+
+    AP0_CSW_OR = 0x4b000012
     AP0_TAR_ADDR = 0x04
     AP0_IDR_ADDR = 0xFC
     AP0_DRW_ADDR = 0x0C
@@ -45,23 +53,37 @@ class MiniAP(object):
     def __init__(self, dp):
         self.dp = dp
 
-    def init(self):
-        # Init AP #0
-        IDR = self.dp.read_ap(MiniAP.AP0_IDR_ADDR)
-        # Check expected MEM-AP
-        assert IDR == 0x84770001, f"Wrong IDR read from device: 0x{IDR:08x}"
-        CSW = self.dp.read_ap(MiniAP.AP0_CSW_ADDR)
-        LOG.info("CSW 0x%08x", CSW)
-        self.dp.write_ap(MiniAP.AP0_CSW_ADDR, CSW | MiniAP.AP0_CSW_OR)
+    def write_ap(self,addr, val):
+        return self.dp.write_ap(addr, val)
 
+    def read_ap(self, addr):
+        return self.dp.read_ap(addr)
+
+    def init(self):
+        DP_CTRL_STAT = self.dp.read_reg( dap.DP_CTRL_STAT);
+        LOG.info("DP_CTRL_STAT 0x%08x", DP_CTRL_STAT)
+
+        # Init AP #0
+        IDR = self.read_ap(MiniAP.AP0_IDR_ADDR)
+        LOG.info("IDR 0x%08x", IDR)
+
+        # Check expected ADP-AP
+
+        # ap0.IDR=\\
+        # ap1.IDR == 0x84770001
+        # ap2.IDR == 0x54770002
+        assert IDR == 0x84770001, f"Wrong IDR read from device: 0x{IDR:08x}"
+
+        CSW = self.read_ap( MiniAP.AP0_CSW_ADDR)
+        self.write_ap(  MiniAP.AP0_CSW_ADDR, CSW | MiniAP.AP0_CSW_OR)
 
     def read32(self, addr):
-        self.dp.write_ap(MiniAP.AP0_TAR_ADDR, addr)
-        return self.dp.read_ap(MiniAP.AP0_DRW_ADDR)
+        self.write_ap( MiniAP.AP0_TAR_ADDR, addr)
+        return self.read_ap( MiniAP.AP0_DRW_ADDR)
 
     def write32(self, addr, val):
-        self.dp.write_ap(MiniAP.AP0_TAR_ADDR, addr)
-        self.dp.write_ap(MiniAP.AP0_DRW_ADDR, val)
+        self.write_ap( MiniAP.AP0_TAR_ADDR, addr)
+        self.write_ap( MiniAP.AP0_DRW_ADDR, val)
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
@@ -152,7 +174,6 @@ class STM32H723xx(CoreSightTarget):
                   is_powered_on_boot=False),
         #sram4
         RamRegion(   start=0x38000000, length=0x4000),
-
         )
 
     def __init__(self, session):
@@ -164,35 +185,36 @@ class STM32H723xx(CoreSightTarget):
     def safe_reset_and_halt(self):
         assert self.dp.is_reset_asserted()
 
-
         # At this point we can't access full AP as it is not initialized yet.
         # Let's create a minimalistic AP and use it.
         ap = MiniAP(self.dp)
         ap.init()
 
-        DEV_ID = ap.read32(DBGMCU.IDC) & 0xfff;
-        LOG.info("Dev id: 0x%03x", DEV_ID)
-
         DEMCR_value = ap.read32(CortexM.DEMCR)
 
         # Halt on reset.
-        ap.write32(CortexM.DEMCR, CortexM.DEMCR_VC_CORERESET)
+        ap.write32(CortexM.DEMCR,
+                   CortexM.DEMCR_VC_CORERESET |
+                   CortexM.DEMCR_TRCENA
+                   )
         ap.write32(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
-
-        # Prevent disabling bus clock/power in low power modes.
-        ap.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
-
-        #ap.write32(DBGMCU.ABP3
 
         self.dp.assert_reset(0)
         time.sleep(0.01)
 
+        DEV_ID = ap.read32(DBGMCU.IDC) & 0xfff;
+        assert DEV_ID == 0x483, f"IDC.DEV_ID 0x{DEV_ID:03x} did not match expected. 0x483"
+        ap.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
 
-        #assert DEV_ID == 0x483, f"Wring IDC.DEV_ID read from device: 0x{DEV_ID:03x}"
+        CR = ap.read32(DBGMCU.CR) ;
+        LOG.info("CR: 0x%08x", CR)
+
         # Restore DEMCR original value.
         ap.write32(CortexM.DEMCR, DEMCR_value)
 
     def create_init_sequence(self):
+        # this was copied from target_STM32F767xx.py but seems to apply here as well
+        #
         # STM32 under some low power/broken clock states doesn't allow AHP communication.
         # Low power modes are quite popular on stm32 (including MBed OS defaults).
         # 'attach' mode is broken by default, as STM32 can't be connected on low-power mode
@@ -220,9 +242,5 @@ class STM32H723xx(CoreSightTarget):
 
         return seq
 
-    def post_connect_hook(self):
-        FLASH_OPTCR_ADDR = 0x40023C14
-        FLASH_OPTCR_NDBANK = 1<<29
-        self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
 
 
