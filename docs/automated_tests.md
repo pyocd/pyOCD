@@ -79,3 +79,19 @@ To run the functional tests via tox, just execute `tox` from the root of the pyO
 repo. It will create new virtual environments for each Python version and run `automated_test.py`.
 
 Currently only the functions tests are included in the tox configuration.
+
+
+## Test Setup
+
+To make the tests pick the correct setup, a [`pyocd.yaml` configuration file](configuration.md) has to be used.
+For functional testing the file should contain a reference to a `test_binary` from `test/data/binaries`.
+
+Example config file:
+
+```yaml
+probes:
+  E6614103E7176A23: # Probe's unique ID.
+    target_override:  nrf52
+    test_binary:      l1_nrf52840-dk.bin
+    frequency:        6000000
+```
