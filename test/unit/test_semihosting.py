@@ -321,17 +321,17 @@ class TestSemihosting:
     """@brief Tests for semihost requests."""
     def test_open_stdio(self, semihost_builder):
         fd = semihost_builder.do_open(":tt", 'r') # stdin
-        assert fd == 1
+        assert fd == 0
 
         fd = semihost_builder.do_open(":tt", 'w') # stdout
-        assert fd == 2
+        assert fd == 1
 
         fd = semihost_builder.do_open(":tt", 'a') # stderr
-        assert fd == 3
+        assert fd == 2
 
     def test_open_close_file(self, semihost_builder, delete_testfile):
         fd = semihost_builder.do_open("testfile", 'w+b')
-        assert fd != 0 and fd > 3
+        assert fd > 2
 
         result = semihost_builder.do_close(fd)
         assert result == 0
@@ -345,7 +345,7 @@ class TestSemihosting:
         ])
     def test_file_write_read(self, semihost_builder, delete_testfile, writeData, pos, readLen, readResult):
         fd = semihost_builder.do_open("testfile", 'w+b')
-        assert fd != 0 and fd > 3
+        assert fd > 2
 
         if len(writeData):
             result = semihost_builder.do_write(fd, writeData)
@@ -459,7 +459,7 @@ class TestSemihosting:
 
     def test_istty_non_stdio(self, semihost_builder, delete_testfile):
         fd = semihost_builder.do_open("testfile", 'w+b')
-        assert fd != 0 and fd > 3
+        assert fd > 2
 
         result = semihost_builder.do_istty(fd)
         assert result == 0

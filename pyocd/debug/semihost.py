@@ -61,11 +61,12 @@ TARGET_SYS_EXIT        = 0x18 # Also called angel_SWIreason_ReportException
 TARGET_SYS_ELAPSED     = 0x30
 TARGET_SYS_TICKFREQ    = 0x31
 
-# Pseudo-file descriptor numbers. The fds must be non-zero according to the
-# ARM semihosting spec.
-STDIN_FD = 1
-STDOUT_FD = 2
-STDERR_FD = 3
+# Pseudo-file descriptor numbers.
+# Note: According to Arm semihosting spec, the fds must be non-zero.  But to achive POSIX compatibility
+#       it has been chosen to use 0 for STDIN_FD.  OpenOCD behaves the same.
+STDIN_FD = 0
+STDOUT_FD = 1
+STDERR_FD = 2
 
 ## Maximum length of a null-terminated string we'll attempt to read from target memory.
 #
@@ -174,7 +175,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
             }
 
     def _is_valid_fd(self, fd):
-         return fd in self.open_files and self.open_files[fd] is not None
+        return fd in self.open_files and self.open_files[fd] is not None
 
     def cleanup(self):
         for f in (self.open_files[k] for k in self.open_files if k > STDERR_FD):
