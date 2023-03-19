@@ -180,7 +180,7 @@ BOARD_ID_TO_INFO = {
     "0841": BoardInfo(  "NUCLEO-G474RE",        "stm32g474retx",    None,                   ),
     "0842": BoardInfo(  "NUCLEO-H753ZI",        "stm32h753zitx",    None,                   ),
     "0843": BoardInfo(  "NUCLEO-H745ZI-Q",      "stm32h745zitx",    None,                   ),
-    "0847": BoardInfo(  "DISCO-H745I",          "stm32h745zihx",    None,                   ),
+    "0847": BoardInfo(  "DISCO-H745I",          "stm32h745xihx",    None,                   ),
     "0849": BoardInfo(  "NUCLEO-G070RB",        "stm32g070rbtx",    None,                   ),
     "0850": BoardInfo(  "NUCLEO-G431RB",        "stm32g431rbtx",    None,                   ),
     "0851": BoardInfo(  "NUCLEO-G431KB",        "stm32g431kbtx",    None,                   ),
