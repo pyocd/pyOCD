@@ -375,6 +375,17 @@ class TestSemihosting:
 
         assert console.get_output_data(semihost.STDOUT_FD) == b'hello world'
 
+    def test_console_write_binary_pattern(self, semihost_builder):
+        console = RecordingSemihostIOHandler()
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
+        semihost_builder.set_agent(agent)
+
+        binary_pattern = bytes.fromhex('8152666f72706cff08000000000000000000000000000000020000000000000000000000000000000300000000000000000000000000000016000000')
+        assert len(binary_pattern) == 60
+        result = semihost_builder.do_write(semihost.STDOUT_FD, binary_pattern)
+        assert result == 0
+        assert console.get_output_data(semihost.STDOUT_FD) == binary_pattern
+
     def test_console_writec(self, semihost_builder):
         console = RecordingSemihostIOHandler()
         agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
