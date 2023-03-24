@@ -112,8 +112,8 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
 
     def write(self, fd, ptr, length):
         if fd not in self._out_data:
-            self._out_data[fd] = ''
-        s = self.agent._get_string(ptr, length)
+            self._out_data[fd] = b''
+        s = self.agent._get_data(ptr, length)
         self._out_data[fd] += s
         return 0
 
@@ -191,7 +191,7 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
 
         # Write data
-        self.ctx.write_memory_block8(argsptr + 12, bytearray(six.ensure_binary(data)))
+        self.ctx.write_memory_block8(argsptr + 12, data)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.write32(argsptr + 4, argsptr + 12) # data
@@ -214,11 +214,11 @@ class SemihostRequestBuilder:
         result = self.ctx.read_core_register('r0')
         return result
 
-    def do_write0(self, s):
+    def do_write0(self, data):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE0)
 
-        s = bytearray(six.ensure_binary(s) + b'\x00')
-        self.ctx.write_memory_block8(argsptr, s)
+        data = data + b'\x00'
+        self.ctx.write_memory_block8(argsptr, data)
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
@@ -370,10 +370,10 @@ class TestSemihosting:
         agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
-        result = semihost_builder.do_write(semihost.STDOUT_FD, 'hello world')
+        result = semihost_builder.do_write(semihost.STDOUT_FD, b'hello world')
         assert result == 0
 
-        assert console.get_output_data(semihost.STDOUT_FD) == 'hello world'
+        assert console.get_output_data(semihost.STDOUT_FD) == b'hello world'
 
     def test_console_writec(self, semihost_builder):
         console = RecordingSemihostIOHandler()
@@ -384,17 +384,17 @@ class TestSemihosting:
             result = semihost_builder.do_writec(c)
             assert result == 0
 
-        assert console.get_output_data(semihost.STDOUT_FD) == 'abcdef'
+        assert console.get_output_data(semihost.STDOUT_FD) == b'abcdef'
 
     def test_console_write0(self, semihost_builder):
         console = RecordingSemihostIOHandler()
         agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
-        result = semihost_builder.do_write0('this is a string')
+        result = semihost_builder.do_write0(b'this is a very looooooooooooooooooooooooooooooooooooooooooooong string with more than 32 characters')
         assert result == 0
 
-        assert console.get_output_data(semihost.STDOUT_FD) == 'this is a string'
+        assert console.get_output_data(semihost.STDOUT_FD) == b'this is a very looooooooooooooooooooooooooooooooooooooooooooong string with more than 32 characters'
 
     @pytest.mark.parametrize(("data", "readlen"), [
             (b"12345678", 8),
