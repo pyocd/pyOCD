@@ -41,15 +41,16 @@ class DBGMCU:
     ABP3 = BASE + 0x034
 
 class FlashPeripheral:
-    flashaddr = 0x2000+0x12000000+0x40000000
-    flash_keyr = flashaddr + 4
-    flash_optkeyr = flashaddr + 8
-    flash_optcr = flashaddr + 0x18
+    def __init__(self):
+        self.flashaddr = 0x2000+0x12000000+0x40000000
+        self.flash_keyr = self.flashaddr + 4
+        self.flash_optkeyr = self.flashaddr + 8
+        self.flash_optcr = self.flashaddr + 0x18
+        self.flash_cr = self.flashaddr + 0xc
+        self.flash_sr = self.flashaddr + 0x10
+        self.flash_optsr_cur = self.flashaddr + 0x1c
+        self.flash_optsr_prg = self.flashaddr + 0x20
 
-    flash_cr = flashaddr + 0xc
-    flash_sr = flashaddr + 0x10
-    flash_optsr_cur = flashaddr + 0x1c
-    flash_optsr_prg = flashaddr + 0x20
 
 class MiniAP(object):
     """Minimalistic Access Port implementation."""
@@ -214,11 +215,11 @@ class STM32H723xx(CoreSightTarget):
         self.dp.assert_reset(0)
         time.sleep(0.01)
 
-        DEV_ID = ap.read32(DBGMCU.IDC) & 0xfff;
+        DEV_ID = ap.read32(DBGMCU.IDC) & 0xfff
         assert DEV_ID == 0x483, f"IDC.DEV_ID 0x{DEV_ID:03x} did not match expected. 0x483"
         ap.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
 
-        CR = ap.read32(DBGMCU.CR) ;
+        CR = ap.read32(DBGMCU.CR)
         LOG.info("CR: 0x%08x", CR)
 
         # Restore DEMCR original value.
@@ -255,24 +256,26 @@ class STM32H723xx(CoreSightTarget):
         return seq
 
     def _unlock_flash_peripheral(self):
+        bank = FlashPeripheral()
         LOG.info('unlocking flash peripheral')
         self.reset_and_halt()
-        while self.read32(FlashPeripheral.flash_sr) & 1:
+        while self.read32(bank.flash_sr) & 1:
             time.sleep(0.1)
 
-        if self.read32(FlashPeripheral.flash_cr) & 1 != 0:
-            self.write32(FlashPeripheral.flash_keyr,    0x4567_0123)
-            self.write32(FlashPeripheral.flash_keyr,    0xCDEF_89AB)
-            while self.read32(FlashPeripheral.flash_sr) & 1:
+        if self.read32(bank.flash_cr) & 1 != 0:
+            self.write32(bank.flash_keyr,    0x4567_0123)
+            self.write32(bank.flash_keyr,    0xCDEF_89AB)
+            while self.read32(bank.flash_sr) & 1:
                 time.sleep(0.1)
-        if self.read32(FlashPeripheral.flash_optcr) & 1 != 0:
-            self.write32(FlashPeripheral.flash_optkeyr, 0x0819_2A3B)
-            self.write32(FlashPeripheral.flash_optkeyr, 0x4C5D_6E7F)
+        if self.read32(bank.flash_optcr) & 1 != 0:
+            self.write32(bank.flash_optkeyr, 0x0819_2A3B)
+            self.write32(bank.flash_optkeyr, 0x4C5D_6E7F)
 
 
 
     def is_locked(self):
-        optsr = self.read32(FlashPeripheral.flash_optsr_prg)
+        bank = FlashPeripheral()
+        optsr = self.read32(bank.flash_optsr_prg)
         rdp = optsr & 0x0000_ff00
         if rdp == 0xaa:
             return False;
@@ -281,28 +284,30 @@ class STM32H723xx(CoreSightTarget):
         return True
 
     def disable_read_protection(self):
+        bank = FlashPeripheral()
         self._unlock_flash_peripheral()
 
-        while self.read32(FlashPeripheral.flash_sr) & 1:
+        while self.read32(bank.flash_sr) & 1:
             time.sleep(0.1)
 
-        optsr = self.read32(FlashPeripheral.flash_optsr_prg)
-        self.write32(FlashPeripheral.flash_optsr_prg, optsr & 0xffff_00ff | 0x0000_aa00)
-        self.write32(FlashPeripheral.flash_optcr, 2)
-        while self.read32(FlashPeripheral.flash_sr) & 1:
+        optsr = self.read32(bank.flash_optsr_prg)
+        self.write32(bank.flash_optsr_prg, optsr & 0xffff_00ff | 0x0000_aa00)
+        self.write32(bank.flash_optcr, 2)
+        while self.read32(bank.flash_sr) & 1:
             time.sleep(0.1)
         self.reset_and_halt()
 
     def mass_erase(self):
+        bank = FlashPeripheral()
         self._unlock_flash_peripheral()
 
-        while self.read32(FlashPeripheral.flash_sr) & 1:
+        while self.read32(bank.flash_sr) & 1:
             time.sleep(0.1)
 
-        self.write32(FlashPeripheral.flash_cr, 1<<3 | 3<<4)
-        self.write32(FlashPeripheral.flash_cr, 1<<3 | 3<<4 | 1<<7)
+        self.write32(bank.flash_cr, 1<<3 | 3<<4)
+        self.write32(bank.flash_cr, 1<<3 | 3<<4 | 1<<7)
         LOG.info("mass_erase")
-        while self.read32(FlashPeripheral.flash_sr) & 1:
+        while self.read32(bank.flash_sr) & 1:
             time.sleep(0.1)
         LOG.info("mass_erase done")
 
