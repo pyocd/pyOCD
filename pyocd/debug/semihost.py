@@ -223,6 +223,10 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         data = self.agent._get_data(ptr, length)
         try:
             f = self.open_files[fd]
+            if 'b' in f.mode:
+                data = six.ensure_binary(data)
+            else:
+                data = six.ensure_str(data)
             f.write(data)
             f.flush()
             return 0

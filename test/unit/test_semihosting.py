@@ -191,6 +191,7 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
 
         # Write data
+        data = six.ensure_binary(data)
         self.ctx.write_memory_block8(argsptr + 12, data)
 
         self.ctx.write32(argsptr, fd) # fd
@@ -336,15 +337,22 @@ class TestSemihosting:
         result = semihost_builder.do_close(fd)
         assert result == 0
 
-    @pytest.mark.parametrize(("writeData", "pos", "readLen", "readResult"), [
-            (b"12345678", 0, 8, 0),
-            (b"hi", 0, 2, 0),
-            (b"hello", 2, 3, 0),
-            (b"", 0, 4, 4),
-            (b"abcd", -1, 0, 0)
+    @pytest.mark.parametrize(("mode", "writeData", "pos", "readLen", "readResult"), [
+            ("w+b", b"12345678", 0, 8, 0),                                      # several testcases handling binary data
+            ("w+b", b"hi", 0, 2, 0),
+            ("w+b", b"hello", 2, 3, 0),
+            ("w+b", b"", 0, 4, 4),
+            ("w+b", b"abcd", -1, 0, 0),
+            ("w+", "", 0, 0, 0),                                                # write strings
+            ("w+", "1", 0, 1, 0),
+            ("w+", "12", 0, 2, 0),
+            ("w+", "123", 0, 3, 0),
+            ("w+", "1234", 0, 4, 0),
+            ("w+", "Hello this is an extraaaaaaaa long string", 0, 41, 0),      # write a long string
+            ("w+", "äöüÄÖÜ😀\u4500", 0, 6*2+4+3, 0),                           # write string with some UTF-8 encodings
         ])
-    def test_file_write_read(self, semihost_builder, delete_testfile, writeData, pos, readLen, readResult):
-        fd = semihost_builder.do_open("testfile", 'w+b')
+    def test_file_write_read(self, semihost_builder, delete_testfile, mode, writeData, pos, readLen, readResult):
+        fd = semihost_builder.do_open("testfile", mode)
         assert fd > 2
 
         if len(writeData):
@@ -352,7 +360,7 @@ class TestSemihosting:
             assert result == 0
 
             result = semihost_builder.do_flen(fd)
-            assert result == len(writeData)
+            assert result == len(six.ensure_binary(writeData))
 
         if pos != -1:
             result = semihost_builder.do_seek(fd, pos)
@@ -360,7 +368,7 @@ class TestSemihosting:
 
         result, data = semihost_builder.do_read(fd, readLen)
         assert result == readResult
-        assert data == writeData[pos:pos + readLen]
+        assert data == six.ensure_binary(writeData[pos:pos + readLen])
 
         result = semihost_builder.do_close(fd)
         assert result == 0
