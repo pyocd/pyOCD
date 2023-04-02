@@ -75,7 +75,7 @@ class CmsisPack:
     defined device and passes those to CmsisPackDevice. It is then CmsisPackDevice that performs
     the parsing of each element type into pyOCD-compatible data.
     """
-    def __init__(self, file_or_path: Union[str, zipfile.ZipFile, IO[bytes]]) -> None:
+    def __init__(self, file_or_path: Union[str, zipfile.ZipFile, IO[bytes], Path]) -> None:
         """@brief Constructor.
 
         Opens the CMSIS-Pack and builds instances of CmsisPackDevice for all the devices
@@ -96,7 +96,7 @@ class CmsisPack:
             self._pack_file = file_or_path
         else:
             # Check for an expanded pack as a directory.
-            if isinstance(file_or_path, str):
+            if isinstance(file_or_path, (str, Path)):
                 path = Path(file_or_path).expanduser()
                 file_or_path = str(path) # Update with expanded path.
 
@@ -127,7 +127,7 @@ class CmsisPack:
                 raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
 
         if self._is_dir:
-            with (self._dir_path / self._pdsc_name).open() as pdsc_file:
+            with (self._dir_path / self._pdsc_name).open('rb') as pdsc_file:
                 self._pdsc = CmsisPackDescription(self, pdsc_file)
         else:
             with self._pack_file.open(self._pdsc_name) as pdsc_file:
@@ -175,7 +175,7 @@ class CmsisPackDescription:
     """@brief Parser for the PDSC XML file describing a CMSIS-Pack.
     """
 
-    def __init__(self, pack: CmsisPack, pdsc_file: IO) -> None:
+    def __init__(self, pack: CmsisPack, pdsc_file: IO[bytes]) -> None:
         """@brief Constructor.
 
         @param self This object.
