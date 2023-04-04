@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
 # Copyright (c) 2022 Chris Reed
+# Copyright (c) 2023 Hardy Griech
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,7 +114,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
     def write(self, fd, ptr, length):
         if fd not in self._out_data:
             self._out_data[fd] = b''
-        s = self.agent._get_data(ptr, length)
+        s = self.agent.get_data(ptr, length)
         self._out_data[fd] += s
         return 0
 
