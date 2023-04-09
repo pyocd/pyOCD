@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2022 NXP
+# Copyright (c) 2023 Hardy Griech
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,9 +71,9 @@ STDERR_FD = 2
 
 ## Maximum length of a null-terminated string we'll attempt to read from target memory.
 #
-# The length is limited in case the string isn't terminated.
+# The length is limited in case the string isn't terminated, this is relevant only for TARGET_SYS_WRITE0
 #
-# @see SemihostAgent::_get_string()
+# @see SemihostAgent::get_data()
 MAX_STRING_LENGTH = 2048
 
 class SemihostIOHandler(object):
@@ -108,7 +109,7 @@ class SemihostIOHandler(object):
           a standard I/O file (i.e., the filename was not ":tt"). If None is returned for the
           file descriptor, the caller must handle the open request.
         """
-        filename = self.agent._get_string(fnptr, fnlen)
+        filename = self.agent.get_data(fnptr, fnlen).decode()
         LOG.debug("Semihost: open '%s' mode %s", filename, mode)
 
         # Handle standard I/O.
@@ -220,7 +221,7 @@ class InternalSemihostIOHandler(SemihostIOHandler):
         if not self._is_valid_fd(fd):
             # Return byte count not written.
             return length
-        data = self.agent._get_string(ptr, length)
+        data = self.agent.get_data(ptr, length)
         try:
             f = self.open_files[fd]
             if 'b' in f.mode:
@@ -301,7 +302,7 @@ class ConsoleIOHandler(SemihostIOHandler):
         self._stdout_file = stdout_file or stdin_file
 
     def write(self, fd, ptr, length):
-        data = self.agent._get_string(ptr, length)
+        data = self.agent.get_data(ptr, length)
         self._stdout_file.write(data)
         return 0
 
@@ -479,15 +480,15 @@ class SemihostAgent(object):
         else:
             return args
 
-    def _get_string(self, ptr, length=None):
+    def get_data(self, ptr, length=None):
         if length is not None:
             data = self.context.read_memory_block8(ptr, length)
-            return bytes(data).decode()
+            return bytes(data)
 
-        target_str = ''
+        target_data = b''
         # TODO - use memory map to make sure we don't try to read off the end of memory
         # Limit string size in case it isn't terminated.
-        while len(target_str) < MAX_STRING_LENGTH:
+        while len(target_data) < MAX_STRING_LENGTH:
             try:
                 # Read 32 bytes at a time for efficiency.
                 data = self.context.read_memory_block8(ptr, 32)
@@ -495,16 +496,16 @@ class SemihostAgent(object):
 
                 # Found a null terminator, append data up to but not including the null
                 # and then exit the loop.
-                target_str += bytes(data[:terminator]).decode()
+                target_data += bytes(data[:terminator])
                 break
             except exceptions.TransferError:
                 # Failed to read some or all of the string.
                 break
             except ValueError:
                 # No null terminator was found. Append all of data.
-                target_str += bytes(data).decode()
+                target_data += bytes(data)
                 ptr += 32
-        return target_str
+        return target_data
 
     def handle_sys_open(self, args):
         fnptr, mode, fnlen = self._get_args(args, 3)
@@ -525,7 +526,7 @@ class SemihostAgent(object):
         return self.console.write(STDOUT_FD, args, 1)
 
     def handle_sys_write0(self, args):
-        msg = self._get_string(args)
+        msg = self.get_data(args)
         TRACE.debug("Semihost: write0 msg='%s'", msg)
         return self.console.write(STDOUT_FD, args, len(msg))
 
@@ -609,6 +610,3 @@ class SemihostAgent(object):
 
     def handle_sys_tickfreq(self, args):
         raise NotImplementedError()
-
-
-

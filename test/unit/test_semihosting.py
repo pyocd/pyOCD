@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
 # Copyright (c) 2022 Chris Reed
+# Copyright (c) 2023 Hardy Griech
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -112,8 +113,8 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
 
     def write(self, fd, ptr, length):
         if fd not in self._out_data:
-            self._out_data[fd] = ''
-        s = self.agent._get_string(ptr, length)
+            self._out_data[fd] = b''
+        s = self.agent.get_data(ptr, length)
         self._out_data[fd] += s
         return 0
 
@@ -191,7 +192,8 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
 
         # Write data
-        self.ctx.write_memory_block8(argsptr + 12, bytearray(six.ensure_binary(data)))
+        data = six.ensure_binary(data)
+        self.ctx.write_memory_block8(argsptr + 12, data)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.write32(argsptr + 4, argsptr + 12) # data
@@ -214,11 +216,11 @@ class SemihostRequestBuilder:
         result = self.ctx.read_core_register('r0')
         return result
 
-    def do_write0(self, s):
+    def do_write0(self, data):
         argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE0)
 
-        s = bytearray(six.ensure_binary(s) + b'\x00')
-        self.ctx.write_memory_block8(argsptr, s)
+        data = data + b'\x00'
+        self.ctx.write_memory_block8(argsptr, data)
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
         assert was_semihost
@@ -336,15 +338,22 @@ class TestSemihosting:
         result = semihost_builder.do_close(fd)
         assert result == 0
 
-    @pytest.mark.parametrize(("writeData", "pos", "readLen", "readResult"), [
-            (b"12345678", 0, 8, 0),
-            (b"hi", 0, 2, 0),
-            (b"hello", 2, 3, 0),
-            (b"", 0, 4, 4),
-            (b"abcd", -1, 0, 0)
+    @pytest.mark.parametrize(("mode", "writeData", "pos", "readLen", "readResult"), [
+            ("w+b", b"12345678", 0, 8, 0),                                      # several testcases handling binary data
+            ("w+b", b"hi", 0, 2, 0),
+            ("w+b", b"hello", 2, 3, 0),
+            ("w+b", b"", 0, 4, 4),
+            ("w+b", b"abcd", -1, 0, 0),
+            ("w+", "", 0, 0, 0),                                                # write strings
+            ("w+", "1", 0, 1, 0),
+            ("w+", "12", 0, 2, 0),
+            ("w+", "123", 0, 3, 0),
+            ("w+", "1234", 0, 4, 0),
+            ("w+", "Hello this is an extraaaaaaaa long string", 0, 41, 0),      # write a long string
+            ("w+", "äöüÄÖÜ😀\u4500", 0, 6*2+4+3, 0),                           # write string with some UTF-8 encodings
         ])
-    def test_file_write_read(self, semihost_builder, delete_testfile, writeData, pos, readLen, readResult):
-        fd = semihost_builder.do_open("testfile", 'w+b')
+    def test_file_write_read(self, semihost_builder, delete_testfile, mode, writeData, pos, readLen, readResult):
+        fd = semihost_builder.do_open("testfile", mode)
         assert fd > 2
 
         if len(writeData):
@@ -352,7 +361,7 @@ class TestSemihosting:
             assert result == 0
 
             result = semihost_builder.do_flen(fd)
-            assert result == len(writeData)
+            assert result == len(six.ensure_binary(writeData))
 
         if pos != -1:
             result = semihost_builder.do_seek(fd, pos)
@@ -360,7 +369,7 @@ class TestSemihosting:
 
         result, data = semihost_builder.do_read(fd, readLen)
         assert result == readResult
-        assert data == writeData[pos:pos + readLen]
+        assert data == six.ensure_binary(writeData[pos:pos + readLen])
 
         result = semihost_builder.do_close(fd)
         assert result == 0
@@ -370,10 +379,21 @@ class TestSemihosting:
         agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
-        result = semihost_builder.do_write(semihost.STDOUT_FD, 'hello world')
+        result = semihost_builder.do_write(semihost.STDOUT_FD, b'hello world')
         assert result == 0
 
-        assert console.get_output_data(semihost.STDOUT_FD) == 'hello world'
+        assert console.get_output_data(semihost.STDOUT_FD) == b'hello world'
+
+    def test_console_write_binary_pattern(self, semihost_builder):
+        console = RecordingSemihostIOHandler()
+        agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
+        semihost_builder.set_agent(agent)
+
+        binary_pattern = bytes.fromhex('8152666f72706cff08000000000000000000000000000000020000000000000000000000000000000300000000000000000000000000000016000000')
+        assert len(binary_pattern) == 60
+        result = semihost_builder.do_write(semihost.STDOUT_FD, binary_pattern)
+        assert result == 0
+        assert console.get_output_data(semihost.STDOUT_FD) == binary_pattern
 
     def test_console_writec(self, semihost_builder):
         console = RecordingSemihostIOHandler()
@@ -384,17 +404,17 @@ class TestSemihosting:
             result = semihost_builder.do_writec(c)
             assert result == 0
 
-        assert console.get_output_data(semihost.STDOUT_FD) == 'abcdef'
+        assert console.get_output_data(semihost.STDOUT_FD) == b'abcdef'
 
     def test_console_write0(self, semihost_builder):
         console = RecordingSemihostIOHandler()
         agent = semihost.SemihostAgent(semihost_builder.ctx, console=console)
         semihost_builder.set_agent(agent)
 
-        result = semihost_builder.do_write0('this is a string')
+        result = semihost_builder.do_write0(b'this is a very looooooooooooooooooooooooooooooooooooooooooooong string with more than 32 characters')
         assert result == 0
 
-        assert console.get_output_data(semihost.STDOUT_FD) == 'this is a string'
+        assert console.get_output_data(semihost.STDOUT_FD) == b'this is a very looooooooooooooooooooooooooooooooooooooooooooong string with more than 32 characters'
 
     @pytest.mark.parametrize(("data", "readlen"), [
             (b"12345678", 8),
