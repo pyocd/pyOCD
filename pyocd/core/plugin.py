@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pkg_resources
 import logging
+from importlib_metadata import entry_points
 from typing import (
     Any,
     Dict,
@@ -92,7 +92,7 @@ def load_plugin_classes_of_type(plugin_group: str, plugin_dict: Dict[str, Any], 
     @param plugin_dict Dictionary to fill with loaded plugin classes.
     @param base_class The required superclass for plugin implementation classes.
     """
-    for entry_point in pkg_resources.iter_entry_points(plugin_group):
+    for entry_point in entry_points(group=plugin_group):
         # Instantiate the plugin class.
         plugin = entry_point.load()()
         if not isinstance(plugin, Plugin):
