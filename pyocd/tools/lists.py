@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 # limitations under the License.
 
 import os
-import pkg_resources
+from importlib_metadata import entry_points
 
 from .. import __version__
 from ..core.session import Session
@@ -235,7 +235,7 @@ class ListGenerator(object):
                 'plugins': plugin_list,
                 }
 
-            for entry_point in pkg_resources.iter_entry_points(group_name):
+            for entry_point in entry_points(group=group_name):
                 klass = entry_point.load()
                 plugin = klass()
                 info = {
