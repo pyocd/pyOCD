@@ -324,6 +324,25 @@ class MemoryRegion(MemoryRangeBase):
                 v = v(self)
             return v
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        """@brief Set an instance attribute.
+
+        Overridden to handle region attributes contained in the ._attributes dict.
+        """
+        # Get our ._attributes dict instance attribute without going through our own __getattr__().
+        # This can fail if called before ._attributes has been set the first time.
+        try:
+            attrs = super().__getattribute__('_attributes')
+        except AttributeError:
+            return super().__setattr__(name, value)
+
+        # If the named attribute is contained in the ._attributes dict, set it there, otherwise
+        # pass on to the super implementation.
+        if name in attrs:
+            attrs[name] = value
+        else:
+            return super().__setattr__(name, value)
+
     def _get_attributes_for_clone(self) -> Dict[str, Any]:
         """@brief Return a dict containing all the attributes of this region.
 

@@ -385,6 +385,8 @@ class TestMemoryRegion:
         b = RamRegion(name='a', start=0x1000, length=0x2000)
         assert a == b
 
+    def test_set_attr(self, flash):
+        flash.is_boot_memory = True
 
 # MemoryMap test cases.
 class TestMemoryMap:
