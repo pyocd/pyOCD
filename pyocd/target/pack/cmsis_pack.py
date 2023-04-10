@@ -3,7 +3,7 @@
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -522,8 +522,21 @@ class CmsisPackDevice:
                         'alias': elem.attrib.get('alias', None),
                     }
 
-                # See if we can convert ROM memory to flash.
-                if type is MemoryType.ROM and self._set_flash_attributes(attrs):
+                # Look for matching flash algo.
+                try:
+                    # TODO multiple matching algos per region
+                    algo_element = self._find_matching_algo(MemoryRange(attrs['start'],
+                                                            length=attrs['length']))
+                except KeyError:
+                    # Must be a mask ROM or non-programmable flash.
+                    algo_element = None
+
+                # Convert the region to flash if we found a matching algorithm element.
+                if (algo_element is not None) and self._set_flash_attributes(algo_element, attrs):
+                    # Mark this algo as processed.
+                    self._processed_algos.add(algo_element)
+
+                    # Since this region has an algo, it's now flash.
                     type = MemoryType.FLASH
 
                     # If we don't have a boot memory yet, pick the first flash.
@@ -559,14 +572,14 @@ class CmsisPackDevice:
                     f"failed to find or load flash algorithm '{algo.attrib['name']}'")
                 continue
 
-            # If we don't have a boot memory yet, pick the first flash.
-            if not self._saw_startup:
-                is_boot_memory = True
-                self._saw_startup = True
-            else:
-                is_boot_memory = False
-
             ram_attrs = self._get_flash_ram_attributes(algo)
+
+            # If we don't have a boot memory yet, pick the first flash.
+            # TODO this should be refactored to use the flash region with lowest address.
+            rgn_attrs: Dict[str, Any] = {}
+            if not self._saw_startup:
+                rgn_attrs['is_boot_memory'] = True
+                self._saw_startup = True
 
             # Create the memory region.
             region = FlashRegion(
@@ -584,6 +597,7 @@ class CmsisPackDevice:
                         # make it impossible to run functional tests on some devices without a user
                         # script to help out.
                         is_testable=False,
+                        **rgn_attrs,
                         **ram_attrs,
                         )
             self._regions.append(region)
@@ -602,18 +616,7 @@ class CmsisPackDevice:
 
         return attrs
 
-    def _set_flash_attributes(self, attrs: dict) -> bool:
-        try:
-            # Look for matching flash algo.
-            # TODO multiple matching algos per region
-            algo_element = self._find_matching_algo(MemoryRange(attrs['start'], length=attrs['length']))
-        except KeyError:
-            # Must be a mask ROM or non-programmable flash.
-            return False
-
-        # Mark this algo as processed.
-        self._processed_algos.add(algo_element)
-
+    def _set_flash_attributes(self, algo_element: Element, attrs: dict) -> bool:
         # Load flash algo from .FLM file.
         pack_algo = self._load_flash_algo(algo_element.attrib['name'])
         if pack_algo is None:

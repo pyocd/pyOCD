@@ -31,6 +31,7 @@ from pyocd.utility.mask import align_up
 K64F = "MK64FN1M0VDC12"
 NRF5340 = "nRF5340_xxAA"
 STM32L4R5 = "STM32L4R5AGIx"
+LPC55S36 = "LPC55S36JBD100"
 
 TEST_DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "packs"
 K64F_PACK_PATH = TEST_DATA_DIR / "NXP.MK64F12_DFP.11.0.0.pack"
@@ -39,6 +40,8 @@ STM32F4_2M0_FLM = TEST_DATA_DIR / "STM32F4xx_2048.FLM"
 NRF5340_APP_FLM = TEST_DATA_DIR / "nrf53xx_application.flm"
 NRF_PDSC_PATH = TEST_DATA_DIR / "NordicSemiconductor.nRF_DeviceFamilyPack.8.38.0.pdsc"
 STM32L4_PDSC_PATH = TEST_DATA_DIR / "Keil.STM32L4xx_DFP.2.5.0.pdsc"
+TEST2_PDSC_PATH = TEST_DATA_DIR / "Test2_algo_overlaps_alias.pdsc"
+LPC55S36_PDSC_PATH = TEST_DATA_DIR / "NXP.LPC55S36_DFP.13.0.0.pdsc"
 
 @pytest.fixture(scope='module')
 def pack_ref():
@@ -95,7 +98,17 @@ def load_test_flm(filename):
 
 @pytest.fixture(scope='function')
 def nrfpdsc():
-    return cmsis_pack.CmsisPackDescription(None, NRF_PDSC_PATH)
+    return cmsis_pack.CmsisPackDescription(None, open(NRF_PDSC_PATH, 'rb')) # type:ignore
+
+@pytest.fixture(scope='function')
+def test2pdsc():
+    return cmsis_pack.CmsisPackDescription(None, open(TEST2_PDSC_PATH, 'rb')) # type:ignore
+
+@pytest.fixture(scope='function')
+def test2dev(test2pdsc):
+    dev = test2pdsc.devices[0]
+    dev._get_pack_file_cb = load_test_flm
+    return dev
 
 # Fixture to provide nRF5340 CmsisPackDevice modified to load FLM from test data dir.
 @pytest.fixture(scope='function')
@@ -106,12 +119,23 @@ def nrf5340(nrfpdsc):
 
 @pytest.fixture(scope='function')
 def stm32l4pdsc():
-    return cmsis_pack.CmsisPackDescription(None, STM32L4_PDSC_PATH)
+    return cmsis_pack.CmsisPackDescription(None, open(STM32L4_PDSC_PATH, 'rb')) # type:ignore
 
 # Fixture to provide STM32L4R5 CmsisPackDevice modified to load FLM from test data dir.
 @pytest.fixture(scope='function')
 def stm32l4r5(stm32l4pdsc):
     dev = [d for d in stm32l4pdsc.devices if d.part_number == STM32L4R5].pop()
+    dev._get_pack_file_cb = load_test_flm
+    return dev
+
+@pytest.fixture(scope='function')
+def lpc55s36pdsc():
+    return cmsis_pack.CmsisPackDescription(None, open(LPC55S36_PDSC_PATH, 'rb')) # type:ignore
+
+# Fixture to provide STM32L4R5 CmsisPackDevice modified to load FLM from test data dir.
+@pytest.fixture(scope='function')
+def lpc55s36(lpc55s36pdsc):
+    dev = [d for d in lpc55s36pdsc.devices if d.part_number == LPC55S36].pop()
     dev._get_pack_file_cb = load_test_flm
     return dev
 
@@ -315,3 +339,20 @@ class TestSTM32L4:
     def test_regions(self, stm32l4r5):
         memmap = stm32l4r5.memory_map
         assert not has_overlapping_regions(memmap)
+
+class TestLPC55S36:
+    def test_regions(self, lpc55s36):
+        import pprint
+        memmap = lpc55s36.memory_map
+        print("memory map:")
+        pprint.pprint(memmap.regions)
+        assert not has_overlapping_regions(memmap)
+
+class TestAlgoOverlappingAliasRegion:
+    def test_regions(self, test2dev):
+        import pprint
+        memmap = test2dev.memory_map
+        print("memory map:")
+        pprint.pprint(memmap.regions)
+        assert not has_overlapping_regions(memmap)
+        # assert False
