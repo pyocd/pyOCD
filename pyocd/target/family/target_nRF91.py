@@ -157,7 +157,7 @@ class NRF91(CoreSightTarget):
                 # Do the mass erase.
                 if not self.mass_erase():
                     LOG.error("%s: mass erase failed", self.part_number)
-                    raise exceptions.TargetErrors.TargetError("unable to unlock device")
+                    raise exceptions.TargetError("unable to unlock device")
                 # Target needs to be reset to clear protection status
                 self.session.probe.reset()
                 self.pre_connect()
