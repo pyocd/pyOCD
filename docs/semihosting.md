@@ -123,6 +123,7 @@ These are the session options that control semihosting:
 
 - `enable_semihosting` - Set to true to handle semihosting requests.
 - `semihost_console_type` - If set to 'telnet' then the semihosting telnet server will be started. If set to 'console' then semihosting will print to pyOCD's console.
+- `semihost.commandline` - Command line string return to the target for the `SYS_GET_CMDLINE` request.
 - `semihost_use_syscalls` - Whether to use GDB syscalls for semihosting file access operations, or to have pyOCD perform the operations.)
 - `telnet_port` - Base TCP port number for the semihosting telnet server. The core number, which will be 0 for the primary core, is added to this value.
 
@@ -135,6 +136,10 @@ The majority of standard Arm-defined semihosting requests are supported by pyOCD
     - The special file name `:tt` is used to open standard I/O files, per the Arm semihosting specification. The open
     mode selects which standard I/O file is opened. "r" (0) is stdin, "w" (4) is stdout, "a" (8) is stderr. With pyOCD's
     implementation, explicitly opening the standard I/O files is not required.
+    - The special file name `:semihosting-features` will open the semihosting feature bits file. Supported
+        feature bits are:
+        - `SH_EXT_EXIT_EXTENDED` (byte 0 bit 0): =0, meaning `SYS_EXIT_EXTENDED` is not supported
+        - `SH_EXT_STDOUT_STDERR` (byte 0 bit 1): =1, meaning both stdout and stderr are supported
     - Standard I/O files opened via this request are only accessible when not routing console to the telnet server.
 - `SYS_CLOSE` (0x02): syscall
 - `SYS_WRITEC` (0x03): console
@@ -151,6 +156,9 @@ The majority of standard Arm-defined semihosting requests are supported by pyOCD
     object was created, so this will not line up with timestamps in pyOCD's log output)
 - `SYS_TIME` (0x11): returns the number of seconds since midnight, January 1, 1970
 - `SYS_ERRNO` (0x13): syscall
+- `SYS_GET_CMDLINE` (0x15): returns the value of the `semihost.commandline` session option. If that option
+    is not set, the request fails (returns -1).
+- `SYS_HEAPINFO` (0x16): stubbed to return all 0 values
 
 
 The following semihosting requests are not supported. If invoked, the return code is -1 and pyOCD logs a
@@ -159,10 +167,9 @@ warning message, such as "Semihost: unimplemented request pc=\<x> r0=\<y> r1=\<z
 - `SYS_ISERROR` (0x08)
 - `SYS_TMPNAM` (0x0d)
 - `SYS_SYSTEM` (0x12)
-- `SYS_GET_CMDLINE` (0x15)
-- `SYS_HEAPINFO` (0x16)
 - `angel_SWIreason_EnterSVC` (0x17)
 - `SYS_EXIT` (0x18), also called `angel_SWIreason_ReportException`
+- `SYS_EXIT_EXTENDED` (0x20)
 - `SYS_ELAPSED` (0x30)
 - `SYS_TICKFREQ` (0x31)
 
