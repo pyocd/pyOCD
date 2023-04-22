@@ -461,6 +461,11 @@ title: Built-in targets
     <td>LPC5526</td>
     </tr>
 
+    <tr><td><code>lpc55s16</code></td>
+    <td>NXP</td>
+    <td>LPC55S16</td>
+    </tr>
+
     <tr><td><code>lpc55s28</code></td>
     <td>NXP</td>
     <td>LPC55S28</td>
@@ -759,6 +764,26 @@ title: Built-in targets
     <tr><td><code>w7500</code></td>
     <td>WIZnet</td>
     <td>W7500</td>
+    </tr>
+
+    <tr><td><code>ytm32b1ld0</code></td>
+    <td>Yuntu Microelectronics</td>
+    <td>YTM32B1LD0</td>
+    </tr>
+
+    <tr><td><code>ytm32b1le0</code></td>
+    <td>Yuntu Microelectronics</td>
+    <td>YTM32B1LE0</td>
+    </tr>
+
+    <tr><td><code>ytm32b1md1</code></td>
+    <td>Yuntu Microelectronics</td>
+    <td>YTM32B1MD1</td>
+    </tr>
+
+    <tr><td><code>ytm32b1me0</code></td>
+    <td>YTMicro</td>
+    <td>YTM32B1ME0</td>
     </tr>
 
 
