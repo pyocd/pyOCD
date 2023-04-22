@@ -166,6 +166,8 @@ BUILTIN_OPTIONS = [
         "semihosting will print to the console."),
     OptionInfo('semihost_use_syscalls', bool, False,
         "Whether to use GDB syscalls for semihosting file access operations."),
+    OptionInfo('semihost.commandline', str, "",
+        "Program command line string, used for the SYS_GET_CMDLINE semihosting request."),
     OptionInfo('step_into_interrupt', bool, False,
         "Enable interrupts when performing step operations."),
     OptionInfo('swv_clock', int, 1000000,
