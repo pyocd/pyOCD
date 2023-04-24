@@ -807,12 +807,14 @@ class FlashBuilder(MemoryBuilder):
 
         for sector in self.sector_list:
             if sector.are_any_pages_not_same():
-                # Erase the sector
-                self.flash.init(self.flash.Operation.ERASE)
-                self.flash.erase_sector(sector.addr)
-                self.flash.uninit()
 
-                actual_sector_erase_weight += sector.erase_weight
+                if self.region.is_erasable:
+                    # Erase the sector
+                    self.flash.init(self.flash.Operation.ERASE)
+                    self.flash.erase_sector(sector.addr)
+                    self.flash.uninit()
+
+                    actual_sector_erase_weight += sector.erase_weight
 
                 # Update progress
                 if self.sector_erase_weight > 0:
@@ -907,18 +909,20 @@ class FlashBuilder(MemoryBuilder):
         # to read from flash while simultaneously programming it.
         progress = self._scan_pages_for_same(progress_cb)
 
-        # Erase all sectors up front.
-        self.flash.init(self.flash.Operation.ERASE)
-        for sector in self.sector_list:
-            if sector.are_any_pages_not_same():
-                # Erase the sector
-                self.flash.erase_sector(sector.addr)
 
-                # Update progress
-                progress += sector.erase_weight
-                if self.sector_erase_weight > 0:
-                    progress_cb(float(progress) / float(self.sector_erase_weight))
-        self.flash.uninit()
+        if self.region.is_erasable:
+            # Erase all sectors up front.
+            self.flash.init(self.flash.Operation.ERASE)
+            for sector in self.sector_list:
+                if sector.are_any_pages_not_same():
+                    # Erase the sector
+                    self.flash.erase_sector(sector.addr)
+
+                    # Update progress
+                    progress += sector.erase_weight
+                    if self.sector_erase_weight > 0:
+                        progress_cb(float(progress) / float(self.sector_erase_weight))
+            self.flash.uninit()
 
         # Set up page and buffer info.
         current_buf = 0
