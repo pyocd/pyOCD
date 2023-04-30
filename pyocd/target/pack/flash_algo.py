@@ -19,13 +19,18 @@ import os
 import struct
 import logging
 import itertools
+from typing import (TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple)
 
 from ...debug.elf.elf import ELFBinaryFile
 from ...utility.compatibility import to_str_safe
 from ...core.memory_map import MemoryRange
 from ...core import exceptions
 from ...utility.conversion import byte_list_to_u32le_list
-from ...utility.mask import align_up
+from ...utility.mask import align_down
+
+if TYPE_CHECKING:
+    from ...debug.elf.elf import ELFSection
+    from ...core.memory_map import RamRegion
 
 LOG = logging.getLogger(__name__)
 
@@ -33,7 +38,9 @@ class FlashAlgoException(exceptions.TargetSupportError):
     """@brief Exception class for errors parsing an FLM file."""
     pass
 
-class PackFlashAlgo(object):
+RoRwZiType = Tuple[Optional["ELFSection"], Optional["ELFSection"], Optional[MemoryRange]]
+
+class PackFlashAlgo:
     """@brief Class to wrap a flash algo
 
     This class is intended to provide easy access to the information
@@ -77,9 +84,8 @@ class PackFlashAlgo(object):
     ## @brief Size of the flash blob header in bytes.
     _FLASH_BLOB_HEADER_SIZE = len(_FLASH_BLOB_HEADER) * 4
 
-    # Minimum and maximum sizes allocated for the flash algo stack.
+    # Minimum size that must be allocated for the flash algo stack.
     _MIN_STACK_SIZE = 512
-    _MAX_STACK_SIZE = 8192
 
     # Alignment for page buffers.
     _PAGE_BUFFER_ALIGN = 16
@@ -94,8 +100,9 @@ class PackFlashAlgo(object):
         self.page_size = self.flash_info.page_size
         self.sector_sizes = self.flash_info.sector_info_list
 
-        symbols = {}
-        symbols.update(self._extract_symbols(self.REQUIRED_SYMBOLS))
+        symbols: Dict[str, int] = {}
+        x = self._extract_symbols(self.REQUIRED_SYMBOLS)
+        symbols.update(x)
         symbols.update(self._extract_symbols(self.EXTRA_SYMBOLS,
                                         default=0xFFFFFFFF))
         self.symbols = symbols
@@ -107,6 +114,7 @@ class PackFlashAlgo(object):
             raise FlashAlgoException(error_msg)
 
         sect_ro, sect_rw, sect_zi = ro_rw_zi
+        assert sect_ro and sect_rw and sect_zi
         self.ro_start = sect_ro.start
         self.ro_size = sect_ro.length
         self.rw_start = sect_rw.start
@@ -116,7 +124,29 @@ class PackFlashAlgo(object):
 
         self.algo_data = self._create_algo_bin(ro_rw_zi)
 
-    def get_pyocd_flash_algo(self, blocksize, ram_region):
+    def iter_sector_size_ranges(self) -> Iterator[Tuple[MemoryRange, int]]:
+        """@brief Iterator yielding tuples with a memory ranges and sector size for each of the algo's
+            sector sizes.
+        """
+        # The sector_sizes attribute is a list of bi-tuples of (start-address, sector-size), sorted by start address.
+        for j, (offset, sector_size) in enumerate(self.sector_sizes):
+            start = self.flash_start + offset
+
+            # Determine the end address of the this sector range. For the last range, the end
+            # is just the end of the entire region. Otherwise it's the start of the next
+            # range - 1.
+            if j + 1 >= len(self.sector_sizes):
+                end = self.flash_start + self.flash_size - 1
+            else:
+                end = self.flash_start + self.sector_sizes[j + 1][0] - 1
+
+            # Skip wrong start and end addresses
+            if end < start:
+                continue
+
+            yield MemoryRange(start, end), sector_size
+
+    def get_pyocd_flash_algo(self, blocksize: int, ram_region: "RamRegion") -> Dict[str, Any]:
         """@brief Return a dictionary representing a pyOCD flash algorithm, or None.
 
         The most interesting operation this method performs is dynamically allocating memory
@@ -127,7 +157,8 @@ class PackFlashAlgo(object):
 
         Memory layout:
         ```
-        [code] [buf1] [buf2] [<--stack]
+        [<--stack] [buf2] [buf1] [code]
+        ^ ram start                   ^ ram end
         ```
 
         @param self
@@ -135,83 +166,63 @@ class PackFlashAlgo(object):
         @param ram_region A RamRegion object where the flash algo will be allocated.
         @return A pyOCD-style flash algo dictionary. If None is returned, the flash algo did
             not fit into the provided ram_region.
+
+        @exception FlashAlgoException Raised if the algo cannot be placed in memory.
         """
         instructions = self._FLASH_BLOB_HEADER + byte_list_to_u32le_list(self.algo_data)
 
-        offset = 0
+        # Start at end of RAM and work backwards.
+        addr = ram_region.start + ram_region.length
 
         # Load address
-        addr_load = ram_region.start + offset
-        offset += len(instructions) * 4
+        addr -= len(instructions) * 4
+        addr_load = addr
 
         # Data buffer 1
-        unaligned_buffer_addr = ram_region.start + offset
-        addr_data = align_up(unaligned_buffer_addr, self._PAGE_BUFFER_ALIGN)
-        offset += blocksize + (addr_data - unaligned_buffer_addr)
+        unaligned_buffer_addr = addr - blocksize
+        addr = align_down(unaligned_buffer_addr, self._PAGE_BUFFER_ALIGN)
+        addr_data = addr
 
-        if offset > ram_region.length:
+        if addr_data < ram_region.start:
             # Not enough space for flash algorithm
-            LOG.warning("Not enough space for flash algorithm")
-            return None
+            raise FlashAlgoException("not enough memory space to fit flash algorithm")
 
         # Data buffer 2
-        unaligned_buffer_addr = ram_region.start + offset
-        addr_data2 = align_up(unaligned_buffer_addr, self._PAGE_BUFFER_ALIGN)
-        data2_offset = offset + blocksize + (addr_data2 - unaligned_buffer_addr)
+        unaligned_buffer_addr = addr - blocksize
+        addr = align_down(unaligned_buffer_addr, self._PAGE_BUFFER_ALIGN)
+        addr_data2 = addr
 
         # Stack
         # Select best fit for one or two data buffers and a variable size stack.
         # TODO Switching down from two to one buffer should probably be done with the stack size around
         #   mid-level instead of going all the way down to minimum first.
-        min_stack_offset_one_buf = offset + self._MIN_STACK_SIZE
-        max_stack_offset_one_buf = offset + self._MAX_STACK_SIZE
-        min_stack_offset_two_bufs = data2_offset + self._MIN_STACK_SIZE
-        max_stack_offset_two_bufs = data2_offset + self._MAX_STACK_SIZE
+        stack_size_one_buf = addr_data - ram_region.start
+        stack_size_two_bufs = addr_data2 - ram_region.start
 
-        stack_size = self._MAX_STACK_SIZE
-
-        # Max stack with double buffering
-        if max_stack_offset_two_bufs <= ram_region.length:
-            stack_offset = max_stack_offset_two_bufs
-        # Between min and max stack with double buffering
-        elif min_stack_offset_two_bufs <= ram_region.length:
-            stack_size = ram_region.length - min_stack_offset_two_bufs
-            stack_offset = data2_offset + stack_size
-        # Max stack with single buffer
-        elif max_stack_offset_one_buf <= ram_region.length:
-            stack_offset = max_stack_offset_one_buf
-        # Between min and max stack with single buffer
-        elif min_stack_offset_one_buf <= ram_region.length:
-            stack_size = ram_region.length - min_stack_offset_one_buf
-            stack_offset = offset + stack_size
-        else:
-            # Cannot fit single buffer and minimum stack.
-            LOG.warning("Not enough space for flash algorithm")
-            return None
-
-        addr_stack = ram_region.start + stack_offset
-
-        # Data buffer list
-        if stack_offset > data2_offset:
-            page_buffers = [addr_data, addr_data2]
-
-            LOG.debug("flash algo: [code=%#x] [b1=%#x,%#x] [b2=%#x,%#x] [stack=%#x; %#x b] (ram=%#010x, %#x b)",
-                len(instructions) * 4,
-                addr_data - ram_region.start, offset,
-                addr_data2 - ram_region.start, data2_offset,
-                stack_offset, stack_size,
-                ram_region.start, ram_region.length
-            )
-        else:
+        if stack_size_two_bufs < self._MIN_STACK_SIZE:
+            # One buffer
+            stack_size = stack_size_one_buf
+            addr_stack = addr_data
             page_buffers = [addr_data]
 
-            LOG.debug("flash algo: [code=%#x] [b1=%#x,%#x] [stack=%#x; %#x b] (ram=%#010x, %#x b)",
-                len(instructions) * 4,
-                addr_data - ram_region.start, offset,
-                stack_offset, stack_size,
+            LOG.debug("flash algo: [stack=%#x; %#x b] [b1=%#x,+%#x] [code=%#x,+%#x,%#x b] (ram=%#010x, %#x b)",
+                addr_stack, stack_size,
+                addr_data, addr_data - ram_region.start,
+                addr_load, addr_load - ram_region.start, len(instructions) * 4,
                 ram_region.start, ram_region.length
             )
+        else:
+            stack_size = stack_size_two_bufs
+            addr_stack = addr_data2
+            page_buffers = [addr_data, addr_data2]
 
+            LOG.debug("flash algo: [stack=%#x; %#x b] [b2=%#x,+%#x] [b1=%#x,+%#x] [code=%#x,+%#x,%#x b] (ram=%#010x, %#x b)",
+                addr_stack, stack_size,
+                addr_data, addr_data - ram_region.start,
+                addr_data2, addr_data2 - ram_region.start,
+                addr_load, addr_load - ram_region.start, len(instructions) * 4,
+                ram_region.start, ram_region.length
+            )
         # TODO - analyzer support
 
         code_start = addr_load + self._FLASH_BLOB_HEADER_SIZE
@@ -233,9 +244,9 @@ class PackFlashAlgo(object):
         }
         return flash_algo
 
-    def _extract_symbols(self, symbols, default=None):
+    def _extract_symbols(self, symbols: Set[str], default: Optional[int] = None) -> Dict[str, int]:
         """@brief Fill 'symbols' field with required flash algo symbols"""
-        to_ret = {}
+        to_ret: Dict[str, int] = {}
         for symbol in symbols:
             symbolInfo = self.elf.symbol_decoder.get_symbol_for_name(symbol)
             if symbolInfo is None:
@@ -246,9 +257,9 @@ class PackFlashAlgo(object):
             to_ret[symbol] = symbolInfo.address
         return to_ret
 
-    def _find_sections(self, name_type_pairs):
+    def _find_sections(self, name_type_pairs: Sequence[Tuple[str, str]]) -> Tuple[Optional["ELFSection"], ...]:
         """@brief Return a list of sections the same length and order of the input list"""
-        sections = [None] * len(name_type_pairs)
+        sections: List[Optional["ELFSection"]] = [None] * len(name_type_pairs)
         for section in self.elf.sections:
             section_name = to_str_safe(section.name)
             section_type = section.type
@@ -259,9 +270,9 @@ class PackFlashAlgo(object):
                     raise FlashAlgoException("Elf contains duplicate section %s attr %s" %
                                     (section_name, section_type))
                 sections[i] = section
-        return sections
+        return tuple(sections)
 
-    def _algo_fill_zi_if_missing(self, ro_rw_zi):
+    def _algo_fill_zi_if_missing(self, ro_rw_zi: RoRwZiType) -> RoRwZiType:
         """@brief Create an empty zi section if it is missing"""
         s_ro, s_rw, s_zi = ro_rw_zi
         if s_rw is None:
@@ -271,7 +282,7 @@ class PackFlashAlgo(object):
         s_zi = MemoryRange(start=(s_rw.start + s_rw.length), length=0)
         return s_ro, s_rw, s_zi
 
-    def _algo_check_for_section_problems(self, ro_rw_zi):
+    def _algo_check_for_section_problems(self, ro_rw_zi: RoRwZiType) -> Optional[str]:
         """@brief Return a string describing any errors with the layout or None if good"""
         s_ro, s_rw, s_zi = ro_rw_zi
         if s_ro is None:
@@ -288,9 +299,10 @@ class PackFlashAlgo(object):
             return "ZI section does not follow RW section"
         return None
 
-    def _create_algo_bin(self, ro_rw_zi):
+    def _create_algo_bin(self, ro_rw_zi: RoRwZiType):
         """Create a binary blob of the flash algo which can execute from ram"""
         sect_ro, sect_rw, sect_zi = ro_rw_zi
+        assert sect_ro and sect_rw and sect_zi
         algo_size = sect_ro.length + sect_rw.length + sect_zi.length
         algo_data = bytearray(algo_size)
         for section in (sect_ro, sect_rw):
@@ -314,9 +326,11 @@ class PackFlashInfo(object):
     def __init__(self, elf):
         dev_info = elf.symbol_decoder.get_symbol_for_name("FlashDevice")
         if dev_info is None:
-            values = [0] * 10
+            values: Sequence[Any] = [0] * 10
             values[1] = b""
             self.sector_info_list = []
+            info_start = 0
+            info_size = 0
         else:
             info_start = dev_info.address
             info_size = struct.calcsize(self.FLASH_DEVICE_STRUCT)

@@ -131,9 +131,9 @@ Resume execution of the target.
 <tr><td>
 <a href="#core"><tt>core</tt></a>
 </td><td>
-[NUM]
+[NUMBER | NAME]
 </td><td>
-Select CPU core by number or print selected core.
+Select CPU core by number or name, or print selected core.
 </td></tr>
 
 <tr><td>
@@ -198,7 +198,7 @@ Write DP register.
 </td><td>
 [halt|-halt|-h] [TYPE]
 </td><td>
-Reset the target, optionally specifying the reset type.
+Reset the target, optionally with halt and/or specifying the reset type.
 </td></tr>
 
 <tr><td>
@@ -550,6 +550,14 @@ Information about CPU cores in the target.
 </td></tr>
 
 <tr><td>
+<a href="#debug-sequences"><tt>debug-sequences</tt></a>
+</td><td>
+read-only
+</td><td>
+Show the available debug sequences from the target's DFP.
+</td></tr>
+
+<tr><td>
 <a href="#fault"><tt>fault</tt></a>
 </td><td>
 read-only
@@ -672,6 +680,14 @@ Display available register groups for the selected core.
 </td></tr>
 
 <tr><td>
+<a href="#reset-type"><tt>reset-type</tt></a>
+</td><td>
+read-write
+</td><td>
+Show reset configuration and all available reset types for each core. Set current reset type.
+</td></tr>
+
+<tr><td>
 <a href="#step-into-interrupts"><tt>step-into-interrupts</tt></a>,
 <a href="#step-into-interrupts"><tt>si</tt></a>
 </td><td>
@@ -789,8 +805,8 @@ Resume execution of the target. The target's state is read back after resuming. 
 
 ##### `core`
 
-**Usage**: core [NUM] \
-Select CPU core by number or print selected core.
+**Usage**: core [NUMBER | NAME] \
+Select CPU core by number or name, or print selected core.
 
 
 ##### `halt`
@@ -842,7 +858,7 @@ Write DP register.
 ##### `reset`
 
 **Usage**: reset [halt|-halt|-h] [TYPE] \
-Reset the target, optionally specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', or 'emulated'.
+Reset the target, optionally with halt and/or specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.
 
 
 ##### `unlock`
@@ -1114,6 +1130,12 @@ List discovered Access Ports.
 **Usage**: show cores \
 Information about CPU cores in the target.
 
+##### `debug-sequences`
+
+**Access**: read-only \
+**Usage**: show debug-sequences \
+Show the available debug sequences from the target's DFP. Only available for CMSIS-Pack based targets.
+
 ##### `fault`
 
 **Access**: read-only \
@@ -1209,6 +1231,12 @@ Target's unique ID.
 **Access**: read-only \
 **Usage**: show register-groups \
 Display available register groups for the selected core.
+
+##### `reset-type`
+
+**Access**: read-write \
+**Usage**: show reset-type, set reset-type VALUE \
+Show reset configuration and all available reset types for each core. Set current reset type.
 
 ##### `step-into-interrupts`
 

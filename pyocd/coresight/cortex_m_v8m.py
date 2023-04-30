@@ -57,9 +57,6 @@ class CortexM_v8M(CortexM):
     def __init__(self, rootTarget, ap, memory_map=None, core_num=0, cmpid=None, address=None):
         super().__init__(rootTarget, ap, memory_map, core_num, cmpid, address)
 
-        # Only v7-M supports VECTRESET.
-        self._supports_vectreset = False
-
     @property
     def supported_security_states(self):
         """@brief Tuple of security states supported by the processor.

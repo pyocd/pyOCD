@@ -15,20 +15,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import prettytable
+from typing import (cast, TYPE_CHECKING)
 
 from .. import coresight
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
+from ..core.core_target import CoreTarget
 from ..utility.cmdline import (
     convert_one_session_option,
     convert_frequency,
     convert_vector_catch,
+    convert_reset_type,
     )
 from .base import ValueBase
+
+if TYPE_CHECKING:
+    from ..core.memory_map import MemoryMap
+    from ..utility.graph import GraphNode
 
 LOG = logging.getLogger(__name__)
 
@@ -76,8 +85,10 @@ class TargetValue(ValueBase):
             }
 
     def display(self, args):
-        self.context.writei("Target:       %s", self.context.target.part_number)
-        self.context.writei("DAP IDCODE:   0x%08x", self.context.target.dp.dpidr.idr)
+        self.context.write(f"Target type:  {self.context.session.options.get('target_override')}")
+        self.context.write(f"Vendor:       {self.context.target.vendor}")
+        self.context.write(f"Part number:  {self.context.target.part_number}")
+        self.context.write(f"DAP IDCODE:   {self.context.target.dp.dpidr.idr:#010x}")
 
 class CoresValue(ValueBase):
     INFO = {
@@ -92,12 +103,24 @@ class CoresValue(ValueBase):
         if self.context.target.is_locked():
             self.context.write("Target is locked")
         else:
-            self.context.writei("Cores:        %d", len(self.context.target.cores))
+            pt = prettytable.PrettyTable(["Number", "Name", "Type"])
+            pt.align = 'l'
+            pt.border = False
+
             for i, core in self.context.target.cores.items():
-                self.context.writei("Core %d type:  %s%s", i,
-                        core.name,
-                        " (selected)" if ((self.context.selected_core is not None) \
-                                            and (self.context.selected_core.core_number == i)) else "")
+                pt.add_row([
+                    (
+                        ("*" if ((self.context.selected_core is not None)
+                                and (self.context.selected_core.core_number == i))
+                            else " ")
+                        + str(i)
+                    ),
+                    cast(CoreTarget, core).node_name,
+                    core.name,
+                ])
+
+            self.context.write(str(pt))
+            self.context.write("(Currently selected core is marked with a '*'.)")
 
 class APsValue(ValueBase):
     INFO = {
@@ -134,18 +157,25 @@ class MemoryMapValue(ValueBase):
         pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page"])
         pt.align = 'l'
         pt.border = False
-        for region in self.context.selected_core.get_memory_map():
-            pt.add_row([
-                region.name,
-                region.type.name.capitalize(),
-                "0x%08x" % region.start,
-                "0x%08x" % region.end,
-                "0x%08x" % region.length,
-                region.access,
-                ("0x%08x" % region.sector_size) if region.is_flash else '-',
-                ("0x%08x" % region.page_size) if region.is_flash else '-',
-                ])
-        self.context.write(pt)
+
+        def add_rows(indent: int, pt: prettytable.PrettyTable, map: "MemoryMap") -> None:
+            for region in map:
+                pt.add_row([
+                    ('  ' * indent) + region.name,
+                    region.type.name.capitalize(),
+                    "0x%08x" % region.start,
+                    "0x%08x" % region.end,
+                    "0x%08x" % region.length,
+                    region.access,
+                    ("0x%08x" % region.sector_size) if region.is_flash else '-',
+                    ("0x%08x" % region.page_size) if region.is_flash else '-',
+                    ])
+                if region.has_subregions:
+                    add_rows(indent + 2, pt, region.submap)
+
+        add_rows(0, pt, self.context.selected_core.memory_map)
+
+        self.context.write(str(pt))
 
 class PeripheralsValue(ValueBase):
     INFO = {
@@ -514,7 +544,19 @@ class TargetGraphValue(ValueBase):
             }
 
     def display(self, args):
-        self.context.board.dump()
+        def _node_desc(node: GraphNode) -> str:
+            desc = node.__class__.__name__
+            if node.node_name:
+                desc = f'"{node.node_name}": ' + desc
+            return desc
+
+        def _dump(node: GraphNode, level: int) -> None:
+            desc = ("  " * level) + "- " + _node_desc(node)
+            self.context.write(desc)
+            for child in node.children:
+                _dump(child, level + 1)
+
+        _dump(self.context.board, 0)
 
 class LockedValue(ValueBase):
     INFO = {
@@ -689,4 +731,100 @@ class ClockFrequencyValue(ValueBase):
             nice_freq = "%d Hz" % freq_Hz
 
         self.context.writei("Changed %s frequency to %s", swd_jtag, nice_freq)
+
+class DebugSequencesValue(ValueBase):
+    INFO = {
+            'names': ['debug-sequences'],
+            'group': 'pack-target',
+            'category': 'cmsis-pack',
+            'access': 'r',
+            'help': "Show the available debug sequences from the target's DFP.",
+            'extra_help': "Only available for CMSIS-Pack based targets.",
+            }
+
+    # Names of debug sequences that are both standard and supported by pyocd.
+    STANDARD_SEQUENCE_NAMES = [
+        "DebugPortSetup",
+        "DebugPortStart",
+        "DebugPortStop",
+        "DebugDeviceUnlock",
+        "DebugCoreStart",
+        "DebugCoreStop",
+        "ResetSystem",
+        "ResetProcessor",
+        "ResetHardware",
+        "ResetCatchSet",
+        "ResetCatchClear",
+        "TraceStart",
+        "TraceStop",
+    ]
+
+    def display(self, args):
+        assert self.context.target
+
+        if self.context.target.debug_sequence_delegate is None:
+            self.context.write("Target does not use debug sequences")
+            return
+
+        pt = prettytable.PrettyTable(["Name", "Processor", "Standard", "Enabled"])
+        pt.align = 'l'
+        pt.border = False
+
+        for seq in sorted(self.context.target.debug_sequence_delegate.all_sequences,
+                key=lambda i: (i.name, i.pname)):
+            is_standard = seq.name in self.STANDARD_SEQUENCE_NAMES
+            pt.add_row([
+                seq.name,
+                seq.pname if seq.pname else "all",
+                str(is_standard),
+                seq.is_enabled,
+            ])
+
+        self.context.write(str(pt))
+
+class ResetTypeValue(ValueBase):
+    INFO = {
+            'names': ['reset-type'],
+            'group': 'standard',
+            'category': 'target',
+            'access': 'rw',
+            'help': "Show reset configuration and all available reset types for each core. Set current reset type.",
+            }
+
+    def display(self, args):
+        from ..coresight.cortex_m import CortexM
+
+        assert self.context.target
+
+        current_reset_type_option = self.context.session.options.get('reset_type')
+        current_reset_type = convert_reset_type(current_reset_type_option)
+        reset_type_desc = current_reset_type_option
+        if current_reset_type is not None:
+            reset_type_desc += f" ({current_reset_type.name})"
+        self.context.write(f"Selected reset type ('reset_type' option): {reset_type_desc}")
+
+        for core in self.context.target.cores.values():
+            # Only handle Cortex-M cores for now.
+            if not isinstance(core, CortexM):
+                continue
+            cm_core = cast(CortexM, core)
+
+            actual_reset_type = cm_core._get_actual_reset_type(None)
+
+            self.context.write(f"\nCore {cm_core.core_number} ({cm_core.node_name}):")
+            self.context.write(f"  Effective:  {actual_reset_type.name}")
+            self.context.write(f"  Default:    {cm_core.default_reset_type.name}")
+            self.context.write(f"  Default SW: {cm_core.default_software_reset_type.name}")
+            self.context.write("  Available:  " + ", ".join(r.name for r in cm_core.supported_reset_types))
+
+    def modify(self, args):
+        from ..utility.cmdline import RESET_TYPE_MAP
+        if len(args) != 1:
+            raise exceptions.CommandError("invalid arguments")
+
+        new_reset_type = args[0]
+        if new_reset_type.lower() not in RESET_TYPE_MAP:
+            raise exceptions.CommandError("invalid reset type")
+
+        self.context.session.options['reset_type'] = new_reset_type
 

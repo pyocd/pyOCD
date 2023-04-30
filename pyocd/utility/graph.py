@@ -23,6 +23,7 @@ class GraphNode:
     """@brief Simple graph node.
 
     All nodes have a parent, which is None for a root node, and zero or more children.
+    Nodes optionally have a name.
 
     Supports indexing and iteration over children.
     """
@@ -32,6 +33,16 @@ class GraphNode:
         super().__init__()
         self._parent: Optional[GraphNode] = None
         self._children: List[GraphNode] = []
+        self._node_name: Optional[str] = None
+
+    @property
+    def node_name(self) -> Optional[str]:
+        """@brief Name of this graph node."""
+        return self._node_name
+
+    @node_name.setter
+    def node_name(self, new_name: str) -> None:
+        self._node_name = new_name
 
     @property
     def parent(self) -> Optional["GraphNode"]:
@@ -105,12 +116,20 @@ class GraphNode:
         else:
             return None
 
-    def __getitem__(self, key: Union[int, slice]) -> Union["GraphNode", List["GraphNode"]]:
-        """@brief Returns the indexed child.
+    def __getitem__(self, key: Union[int, str, slice]) -> Union["GraphNode", List["GraphNode"]]:
+        """@brief Returns the child with the given index or node name.
 
-        Slicing is supported.
+        Slicing is supported with integer indexes.
         """
-        return self._children[key]
+        if isinstance(key, str):
+            # Replace with dict at some point.
+            for c in self._children:
+                if c.node_name == key:
+                    return c
+            else:
+                raise KeyError(f"no child node with name '{key}'")
+        else:
+            return self._children[key]
 
     def __iter__(self):
         """@brief Iterate over the node's children."""

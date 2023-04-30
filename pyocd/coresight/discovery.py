@@ -161,6 +161,8 @@ class ADIv5Discovery(CoreSightDiscovery):
             ap_address = APv1Address(apsel)
             ap = AccessPort.create(self.dp, ap_address)
             self.dp.aps[ap_address] = ap
+
+            LOG.info("%s IDR = 0x%08x (%s)", ap.short_description, ap.idr, ap.description)
         except exceptions.Error as e:
             LOG.error("Error reading AP#%d IDR: %s", apsel, e,
                 exc_info=self.session.log_tracebacks)
@@ -241,6 +243,8 @@ class ADIv6Discovery(CoreSightDiscovery):
             ap_address = APv2Address(cmpid.address)
             ap = AccessPort.create(self.dp, ap_address, cmpid=cmpid)
             self.dp.aps[ap_address] = ap
+
+            LOG.info("%s IDR = 0x%08x (%s)", ap.short_description, ap.idr, ap.description)
         except exceptions.Error as e:
             LOG.error("Error reading AP@0x%08x IDR: %s", cmpid.address, e,
                     exc_info=self.session.log_tracebacks)

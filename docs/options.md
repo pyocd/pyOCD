@@ -256,6 +256,38 @@ Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(
 list of available targets.
 </td></tr>
 
+<tr><td>pack.debug_sequences.debugvars</td>
+<td>str</td>
+<td><i>No default</i></td>
+<td>
+Variable definition statements to change configurable variables defined by and used in the target's debug sequences.
+Should be set to a string containing C-style variable assignment statements. C-compatible integer expressions
+are allowed, and can refer to previously defined variables. Only those debug variables whose value is being
+changed need to be assigned a value; others will retain their default value.
+</td></tr>
+
+<tr><td>pack.debug_sequences.disabled_sequences</td>
+<td>str, list of str</td>
+<td><i>No default</i></td>
+<td>
+Comma-separated list of names of debug sequences to disable for a CMSIS-Pack based target.
+Disabled sequences can be restricted to a given core by appending a colon and processor
+name to the sequence's name. If set in a YAML config file, the value must be a list of sequence
+names instead of using a single comma-separated value.
+
+Only top-level sequences can be disabled. If a sequence is called from another sequence it will
+always be executed even if listed in this option.
+
+Ignored for builtin targets.
+</td></tr>
+
+<tr><td>pack.debug_sequences.enable</td>
+<td>bool</td>
+<td><i>True</i></td>
+<td>
+Global enable for debug sequences for CMSIS-Pack based targets. Ignored for builtin targets.
+</td></tr>
+
 <tr><td>primary_core</td>
 <td>int</td>
 <td>0</td>
@@ -284,8 +316,11 @@ executed.
 <td>str</td>
 <td>'sw'</td>
 <td>
-Which type of reset to use by default (one of 'default', 'hw', 'sw', 'sw_sysresetreq',
-'sw_vectreset', 'sw_emulated').
+Which type of reset to use by default. Must be one of `default`, `hw`, `sw`, `sw_system`, `sw_core`,
+`sw_sysresetreq`, `sw_vectreset`, `sw_emulated`, `system`, `core`, `sysresetreq`, `vectreset`,
+`emulated`). The default is `sw`, which itself defaults to `sw_system`. `default` causes the target type's
+default reset type to be used; this is usually `sw`. If `enable_multicore_debug` is
+set to true, then `sw` for secondary cores will default to `sw_core`.
 </td></tr>
 
 <tr><td>reset.hold_time</td>

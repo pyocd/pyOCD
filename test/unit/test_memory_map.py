@@ -120,6 +120,50 @@ class TestRange:
         regionList.sort()
         assert regionList == [flash, rom, ram1, ram2]
 
+    def test_split_addr_empty(self, flash):
+        assert list(flash.iter_split_by_address([])) == [MemoryRange(0, 1023)]
+
+    def test_split_addr_1(self, flash):
+        assert list(flash.iter_split_by_address([500])) == [MemoryRange(0, 499), MemoryRange(500, 1023)]
+
+    def test_split_addr_2(self, flash):
+        assert list(flash.iter_split_by_address([500, 900])) == \
+                [MemoryRange(0, 499), MemoryRange(500, 899), MemoryRange(900, 1023)]
+
+    def test_split_addr_2_start(self, flash):
+        assert list(flash.iter_split_by_address([0, 900])) == [MemoryRange(0, 899), MemoryRange(900, 1023)]
+
+    def test_split_addr_2_end(self, flash):
+        assert list(flash.iter_split_by_address([700, 1023])) == \
+                [MemoryRange(0, 699), MemoryRange(700, 1022), MemoryRange(1023, 1023)]
+
+    def test_split_addr_1_out_of_bounds(self, flash):
+        assert list(flash.iter_split_by_address([722, 72742])) == \
+                [MemoryRange(0, 721), MemoryRange(722, 1023)]
+
+    def test_split_range(self, flash):
+        assert list(flash.iter_split_by_range(MemoryRange(500, 699))) == \
+                [MemoryRange(0, 499), MemoryRange(500, 699), MemoryRange(700, 1023)]
+
+    def test_split_range_out_of_bounds(self, flash):
+        assert list(flash.iter_split_by_range(MemoryRange(9000, length=10))) == [MemoryRange(0, 1023)]
+
+    def test_split_range_start(self, flash):
+        assert list(flash.iter_split_by_range(MemoryRange(0, length=128))) == \
+                [MemoryRange(0, 127), MemoryRange(128, 1023)]
+
+    def test_split_range_start_overlap(self):
+        assert list(MemoryRange(1024, 2047).iter_split_by_range(MemoryRange(768, 1199))) == \
+                [MemoryRange(1024, 1199), MemoryRange(1200, 2047)]
+
+    def test_split_range_end(self, flash):
+        assert list(flash.iter_split_by_range(MemoryRange(768, 1023))) == \
+                [MemoryRange(0, 767), MemoryRange(768, 1023)]
+
+    def test_split_range_end_overlap(self):
+        assert list(MemoryRange(1024, 2047).iter_split_by_range(MemoryRange(2000, length=8000))) == \
+                [MemoryRange(1024, 1999), MemoryRange(2000, 2047)]
+
 class TestHash:
     def test_range_neq(self):
         a = MemoryRange(0, 0x1000)
@@ -341,6 +385,8 @@ class TestMemoryRegion:
         b = RamRegion(name='a', start=0x1000, length=0x2000)
         assert a == b
 
+    def test_set_attr(self, flash):
+        flash.is_boot_memory = True
 
 # MemoryMap test cases.
 class TestMemoryMap:

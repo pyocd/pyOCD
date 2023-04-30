@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 David Runge
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -17,6 +17,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
 import time
@@ -24,6 +26,7 @@ from natsort import natsorted
 import textwrap
 from time import sleep
 from shutil import get_terminal_size
+from typing import TYPE_CHECKING
 
 from .. import coresight
 from ..core.helpers import ConnectHelper
@@ -49,6 +52,9 @@ from ..utility.mask import (
     bfi,
     )
 from .base import CommandBase
+
+if TYPE_CHECKING:
+    from ..core.core_target import CoreTarget
 
 # Make disasm optional.
 try:
@@ -110,7 +116,7 @@ class StatusCommand(CommandBase):
             for i, c in enumerate(self.context.target.cores):
                 core = self.context.target.cores[c]
                 state_desc = core.get_state().name.capitalize()
-                desc = "Core %d:  %s" % (i, state_desc)
+                desc = f"Core {i} ({core.node_name}):  {state_desc}"
                 if len(core.supported_security_states) > 1:
                     desc += " [%s]" % core.get_security_state().name.capitalize()
                 self.context.write(desc)
@@ -357,10 +363,10 @@ class ResetCommand(CommandBase):
             'category': 'device',
             'nargs': [0, 1, 2],
             'usage': "[halt|-halt|-h] [TYPE]",
-            'help': "Reset the target, optionally specifying the reset type.",
+            'help': "Reset the target, optionally with halt and/or specifying the reset type.",
             'extra_help': "The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', "
-                          "'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', "
-                          "or 'emulated'.",
+                          "'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', "
+                          "'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.",
 
             }
 
@@ -1198,8 +1204,8 @@ class SelectCoreCommand(CommandBase):
             'group': 'standard',
             'category': 'core',
             'nargs': [0, 1],
-            'usage': "[NUM]",
-            'help': "Select CPU core by number or print selected core.",
+            'usage': "[NUMBER | NAME]",
+            'help': "Select CPU core by number or name, or print selected core.",
             }
 
     def parse(self, args):
@@ -1208,16 +1214,36 @@ class SelectCoreCommand(CommandBase):
             self.core_num = None
         else:
             self.show_core = False
-            self.core_num = int(args[0], base=0)
+
+            # Attempt to parse the core ID as an int.
+            try:
+                self.core_num = int(args[0], base=0)
+            except ValueError:
+                # Try to look up the argument as a core name (case-insensitive).
+                core = self._find_core_by_name(args[0])
+                self.core_num = core.core_number
+
+    def _find_core_by_name(self, name: str) -> CoreTarget:
+        assert self.context.session.target
+        for core in self.context.session.target.cores.values():
+            if core.node_name is None:
+                continue
+            if core.node_name.casefold() == name.casefold():
+                return core
+        else:
+            raise exceptions.CommandError(f"no core matching name '{name}'")
 
     def execute(self):
+        assert self.context.selected_core
+        assert self.context.session.target
         if self.show_core:
-            self.context.writei("Core %d is selected", self.context.selected_core.core_number)
+            self.context.write(f"Core {self.context.selected_core.core_number} "
+                                f"({self.context.selected_core.node_name}) is selected")
             return
         self.context.selected_core = self.context.session.target.cores[self.core_num]
         core_ap = self.context.selected_core.ap
         self.context.selected_ap_address = core_ap.address
-        self.context.writef("Selected core {} ({})", self.core_num, core_ap.short_description)
+        self.context.write(f"Selected core {self.core_num} ({self.context.selected_core.node_name}) ({core_ap.short_description})")
 
 class ReadDpCommand(CommandBase):
     INFO = {
