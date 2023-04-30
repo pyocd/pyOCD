@@ -178,6 +178,8 @@ additional unspecified, required parameters (those without a default value). Ext
 allowed but will never be passed any value other than the default, unless you call the function yourself from
 within the script.
 
+_Note:_ Delegate functions override CMSIS-Pack debug sequences. See the [debug sequence documentation]({% link _docs/open_cmsis_pack_support.md %}#debug-access-sequences) for more details.
+
 
 ### will_connect
 
