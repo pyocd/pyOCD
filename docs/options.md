@@ -365,7 +365,11 @@ Timeout in seconds for waiting for the core to halt after a reset and halt.
 <td>bool</td>
 <td>True</td>
 <td>
-Whether to resume a halted target when disconnecting.
+Whether to disable debug control and resume the target when disconnecting.
+
+When True, then upon disconnect all CPUs are resumed, and DWT and other trace related blocks are disabled (`DEMCR` system register is cleared).
+If False, the target CPU states are left unchanged and any enabled debug hardware (DWT, ITM) remains enabled.
+In all cases, breakpoints and watchpoints are removed prior to disconnect.
 </td></tr>
 
 <tr><td>scan_all_aps</td>
