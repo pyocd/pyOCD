@@ -136,7 +136,6 @@ class ADIv5Discovery(CoreSightDiscovery):
             except exceptions.Error as e:
                 LOG.error("Error probing AP#%d: %s", apsel, e,
                     exc_info=self.session.log_tracebacks)
-                break
             apsel += 1
 
         # Update the AP list once we know it's complete.
