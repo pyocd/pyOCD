@@ -382,14 +382,18 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         if self.dwt is not None:
             self.dwt.remove_all_watchpoints()
 
-        if not self.stop_debug_core_hook():
+        # Disable core debug if resuming. Note that we don't call the 'stop_core_debug' hook
+        # (stop_debug_core delegate or DebugCoreStop sequence) if not resuming, as these will
+        # normally resume the core and disable debug logic.
+        if resume and not self.stop_debug_core_hook():
+            # Call .resume() even though we clear DHCSR just below, so that notifications get sent.
+            self.resume()
+
+            # Clear debug controls.
+            self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
+
             # Disable other debug blocks.
             self.write32(CortexM.DEMCR, 0)
-
-            # Disable core debug.
-            if resume:
-                self.resume()
-                self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
         self.call_delegate('did_stop_debug_core', core=self)
 

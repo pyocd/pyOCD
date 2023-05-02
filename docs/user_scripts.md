@@ -231,6 +231,25 @@ did_init_target(target: SoCTarget) -> None
 **Result** \
 Ignored.
 
+### unlock_device
+
+Hook to perform any required unlock sequence.
+```
+unlock_device(target: SoCTarget) -> None
+```
+
+**Parameters** \
+*target* - An `SoCTarget` object. \
+**Result** \
+Ignored.
+
+Called after the DP is initialised but prior to discovery. This hook delegate can be used to unlock debug
+access to the target. It can also be used to perform other pre-discovery actions.
+
+Note that because this hoook is called prior to discovery, APs and cores are not yet created. This means
+that any register accesses must be performed through the DP's methods. (However, it's possible to create
+a temporary instance of 'AccessPort' or one of its subclasses, such as `MEM_AP`.)
+
 ### will_start_debug_core
 
 Notification hook for before core debug is enabled.
@@ -300,6 +319,10 @@ stop_debug_core(core: CoreTarget) -> Optional[bool]
 **Result** \
 *True* Do not perform the normal procedure to disable core debug. \
 *False/None* Continue with normal behaviour.
+
+This delegate is only called if resuming the core on disconnect, e.g. the `resume_on_disconnect` session
+option is True. Therefore, the delegate should ensure that the core has properly resumed execution if it
+returns True.
 
 ### did_stop_debug_core
 
