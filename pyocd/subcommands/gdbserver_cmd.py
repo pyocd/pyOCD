@@ -183,7 +183,9 @@ class GdbserverSubcommand(SubcommandBase):
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
                 connect_mode=self._args.connect_mode,
-                options=sessionOptions)
+                options=sessionOptions,
+                option_defaults=self._modified_option_defaults(),
+            )
             if session is None:
                 LOG.error("No probe selected.")
                 return 1

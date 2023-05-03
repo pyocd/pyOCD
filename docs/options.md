@@ -152,9 +152,11 @@ Log details of loaded .FLM flash algos.
 
 <tr><td>debug.traceback</td>
 <td>bool</td>
-<td>True</td>
+<td>False</td>
 <td>
-Print tracebacks for exceptions.
+Print tracebacks for exceptions, including errors that are only logged as well as critical errors that cause pyocd to terminate.
+
+Disabled by default, unless the log level is raised to Debug.
 </td></tr>
 
 <tr><td>enable_multicore_debug</td>

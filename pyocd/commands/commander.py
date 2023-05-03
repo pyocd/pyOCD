@@ -214,10 +214,11 @@ class PyOCDCommander:
                         connect_mode=connect_mode,
                         frequency=self.args.frequency,
                         options=options,
-                        option_defaults=dict(
-                            auto_unlock=False,
-                            resume_on_disconnect=False,
-                            )
+                        option_defaults={
+                            'auto_unlock': False,
+                            'resume_on_disconnect': False,
+                            'debug.traceback': logging.getLogger('pyocd').isEnabledFor(logging.DEBUG),
+                            }
                         )
 
         if not self._post_connect():

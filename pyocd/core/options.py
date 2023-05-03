@@ -64,7 +64,7 @@ BUILTIN_OPTIONS = [
         "When switching between SWD and JTAG, use the SWJ sequence from ADIv5.2 that utilizes a new dormant state."),
     OptionInfo('debug.log_flm_info', bool, False,
         "Log details of loaded .FLM flash algos."),
-    OptionInfo('debug.traceback', bool, True,
+    OptionInfo('debug.traceback', bool, False,
         "Print tracebacks for exceptions."),
     OptionInfo('enable_multicore_debug', bool, False,
         "Whether to put pyOCD into multicore debug mode. Doing so changes the default software reset type of "
