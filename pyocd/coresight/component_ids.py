@@ -125,6 +125,7 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',            'CS-400',   TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x913, 0x43, 0)      : CmpInfo('ITM',             'CS-400',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x914, 0x11, 0)      : CmpInfo('SWO',             'CS-400',   TPIU.factory        ),
+    (ARM_ID, CORESIGHT_CLASS, 0x917, 0x43, 0)      : CmpInfo('HTM',             'CS-400',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x923, 0x11, 0)      : CmpInfo('TPIU',            'M3',       TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x924, 0x13, 0)      : CmpInfo('ETM',             'M3',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x925, 0x13, 0)      : CmpInfo('ETM',             'M4',       None                ),
