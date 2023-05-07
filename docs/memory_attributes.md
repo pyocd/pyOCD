@@ -10,15 +10,15 @@ For Arm devices, the MEM-AP used to perform memory transfers is responsible for 
 
 The AHB-AP HPROT bits used with Cortex-M devices are shown here. "HPROT" is the name of the AHB protocol bus that carries the attributes along with the memory transfer request.
 
-  HPROT    | (1) Enabled | (0) Disabled
------------|-------------|-----------------
-  HPROT[0] | data access | instr fetch
-  HPROT[1] | privileged | user
-  HPROT[2] | bufferable | non bufferable
-  HPROT[3] | cacheable/modifable | non cacheable
-  HPROT[4] | lookup in cache | no cache
-  HPROT[5] | allocate in cache | no allocate in cache
-  HPROT[6] | shareable | non shareable
+  HPROT      | (1) Enabled | (0) Disabled
+-------------|-------------|-----------------
+  `HPROT[0]` | data access | instr fetch
+  `HPROT[1]` | privileged | user
+  `HPROT[2]` | bufferable | non bufferable
+  `HPROT[3]` | cacheable/modifable | non cacheable
+  `HPROT[4]` | lookup in cache | no cache
+  `HPROT[5]` | allocate in cache | no allocate in cache
+  `HPROT[6]` | shareable | non shareable
 
 Not all bits are implemented on all core/MEM-AP variants; each MEM-AP version implements slightly different sets of these options. For instance, the standard CM3 and CM4 MEM-AP only implements `HPROT[1]` (privileged/user). Check the documentation for your target and CPU(s) to verify available attributes.
 
@@ -33,7 +33,7 @@ In pyOCD, the HPROT value for memory transactions is set using the `set hprot <v
 
 As a reminder, these commands can be executed from gdb by prefixing them with the gdb `monitor` command. For example, to enable cacheable transfers from gdb, you'd run `monitor set hprot 0xb`. This can be placed in a connect script if you want cacheable transfers all the time.
 
-To configure the used attributes in a pyOCD [user script]({% link _docs/user_scripts.html %}), a snippet such as this is can be used:
+To configure the used attributes in a pyOCD [user script]({% link _docs/user_scripts.md %}), a snippet such as this is can be used:
 
 ```py
 def did_connect():
