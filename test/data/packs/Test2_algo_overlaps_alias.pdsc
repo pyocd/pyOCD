@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="PACK.xsd" schemaVersion="1.4">
+  <name>LPC55S36_DFP</name>
+  <vendor>NXP</vendor>
+  <description>Device Family Pack for LPC55S36</description>
+  <url>https://mcuxpresso.nxp.com/cmsis_pack/repo/</url>
+  <license>Licenses.txt</license>
+  <devices>
+    <family Dfamily="LPC55S36" Dvendor="NXP:11">
+      <debugconfig default="swd" clock="5000000" swj="true"/>
+      <description>Arm Cortex-M33-based Microcontroller Family</description>
+      <device Dname="LPC55S36">
+        <processor Dcore="Cortex-M33" Dfpu="SP_FPU" Dmpu="MPU" Dtz="TZ" Ddsp="DSP" Dendian="Little-endian" Dclock="150000000"/>
+        <memory name="PROGRAM_FLASH_alias" start="0x10000000" size="0x03d800" access="rw"/>
+        <algorithm name="LPC553XX_S_256.FLM" start="0x10000000" size="0x00040000" RAMstart="0x20000000" RAMsize="0x00001000" default="1"/>
+        <variant Dvariant="LPC55S36JBD100">
+          <compile header="fsl_device_registers.h" define="CPU_LPC55S36JBD100"/>
+        </variant>
+      </device>
+    </family>
+  </devices>
+</package>

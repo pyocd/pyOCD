@@ -32,9 +32,13 @@ BUILTIN_OPTIONS = [
         "If this number of invalid APs is found in a row, then AP scanning will stop. The 'scan_all_aps' option "
         "takes precedence over this option if set."),
     OptionInfo('allow_no_cores', bool, False,
-        "Prevents raising an error if no core were found after CoreSight discovery."),
+        "Prevents raising an error if no cores were found after CoreSight discovery."),
     OptionInfo('auto_unlock', bool, True,
         "Whether to unlock secured target by erasing."),
+    OptionInfo('cache.enable_memory', bool, True,
+        "Enable the memory read cache. Default is enabled."),
+    OptionInfo('cache.enable_register', bool, True,
+        "Enable the core register cache. Default is enabled."),
     OptionInfo('cache.read_code_from_elf', bool, True,
         "Controls whether reads of code sections will be taken from an attached ELF file instead of the "
         "target memory."),
@@ -60,10 +64,11 @@ BUILTIN_OPTIONS = [
         "When switching between SWD and JTAG, use the SWJ sequence from ADIv5.2 that utilizes a new dormant state."),
     OptionInfo('debug.log_flm_info', bool, False,
         "Log details of loaded .FLM flash algos."),
-    OptionInfo('debug.traceback', bool, True,
+    OptionInfo('debug.traceback', bool, False,
         "Print tracebacks for exceptions."),
     OptionInfo('enable_multicore_debug', bool, False,
-        "Whether to put pyOCD into multicore debug mode."),
+        "Whether to put pyOCD into multicore debug mode. Doing so changes the default software reset type of "
+        "secondary cores to VECTRESET, or emulated reset if that is not supported (i.e., non-v7-M cores)."),
     OptionInfo('fast_program', bool, False,
         "Setting this option to True will use CRC checks of existing flash sector contents to "
         "determine whether pages need to be programmed."),
@@ -91,14 +96,27 @@ BUILTIN_OPTIONS = [
     OptionInfo('pack', (str, list), None,
         "Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are "
         "added to the list of available targets."),
+    OptionInfo('pack.debug_sequences.debugvars', str, None,
+        "Variable definition statements to change configurable debug sequence variables."),
+    OptionInfo('pack.debug_sequences.disabled_sequences', (str, list), None,
+        "Comma-separated list of names of debug sequences to disable for a CMSIS-Pack based target. "
+        "Disabled sequences can be restricted to a given core by appending a colon and processor "
+        "name to the sequence's name. Only top-level debug sequences can be disabled. "
+        "Ignored for builtin targets."),
+    OptionInfo('pack.debug_sequences.enable', bool, True,
+        "Global enable for debug sequences for CMSIS-Pack based targets. Ignored for builtin targets."),
+    OptionInfo('primary_core', int, 0,
+        "Core number for the primary/boot core of an asymmetric multicore target. This is the core that "
+        "will control system reset when 'enable_multicore' is set."),
     OptionInfo('probeserver.port', int, 5555,
         "TCP port for the debug probe server."),
     OptionInfo('project_dir', str, None,
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),
     OptionInfo('reset_type', str, 'default',
-        "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_sysresetreq', "
-        "'sw_vectreset', 'sw_emulated'). The default is 'sw'."),
+        "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_system', 'sw_core', "
+        "'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'system', 'core', 'sysresetreq', 'vectreset', "
+        "'emulated'). The default is 'sw', which itself defaults to 'sw_system'."),
     OptionInfo('reset.hold_time', float, 0.1,
         "Number of seconds to hold hardware reset asserted. Default is 0.1 s (100 ms)."),
     OptionInfo('reset.post_delay', float, 0.1,
@@ -158,6 +176,8 @@ BUILTIN_OPTIONS = [
         "semihosting will print to the console."),
     OptionInfo('semihost_use_syscalls', bool, False,
         "Whether to use GDB syscalls for semihosting file access operations."),
+    OptionInfo('semihost.commandline', str, "",
+        "Program command line string, used for the SYS_GET_CMDLINE semihosting request."),
     OptionInfo('step_into_interrupt', bool, False,
         "Enable interrupts when performing step operations."),
     OptionInfo('swv_clock', int, 1000000,

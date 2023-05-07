@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018-2021 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -821,6 +821,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return self._unique_id
 
     @locked
+    def pin_access(self, mask: int, value: int) -> int:
+        self.flush()
+        return self._protocol.set_swj_pins(value, mask)
+
+    @locked
     def assert_reset(self, asserted):
         self.flush()
         if asserted:
@@ -862,7 +867,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
     @locked
     def flush(self):
-        TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
+        if TRACE.isEnabledFor(logging.DEBUG):
+            if self._crnt_cmd.get_empty() and len(self._commands_to_read):
+                TRACE.debug("flush: reading %d outstanding (cmd:%d is empty)",
+                        len(self._commands_to_read), self._crnt_cmd.uid)
+            elif not self._crnt_cmd.get_empty():
+                TRACE.debug("flush: sending cmd:%d; reading %d outstanding", self._crnt_cmd.uid, len(self._commands_to_read))
+
         # Send current packet
         self._send_packet()
         # Read all backlogged

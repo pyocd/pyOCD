@@ -83,6 +83,8 @@ Trace logger                                            | Trace output
 `pyocd.coresight.ap.trace`                              | AP memory transfers
 `pyocd.coresight.dap.trace`                             | AP and DP register accesses
 `pyocd.debug.semihost.trace`                            | Semihost file operations
+`pyocd.debug.sequences.scope.trace`                     | Open-CMSIS-Pack debug sequence variable read/write
+`pyocd.debug.sequences.sequences.trace`                 | Open-CMSIS-Pack debug sequence statements
 `pyocd.flash.flash.trace`                               | Flash algorithm operations
 `pyocd.probe.cmsis_dap_probe.trace`                     | CMSIS-DAP probe API calls
 `pyocd.probe.jlink_probe.trace`                         | Log output from JLink library

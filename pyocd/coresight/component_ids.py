@@ -118,11 +118,14 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
   # Full ID entries
   # Designer|Component Class |Part  |Type |Archid           |Name              |Product    |Factory
     (ARM_ID, CORESIGHT_CLASS, 0x193, 0x00, 0x0a57) : CmpInfo('TSGEN',           'CS-600',   None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x906, 0x14, 0)      : CmpInfo('CTI',             None,       None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x907, 0x21, 0)      : CmpInfo('ETB',             None,       None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('CSTF',            None,       None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',            None,       TPIU.factory        ),
+    (ARM_ID, CORESIGHT_CLASS, 0x906, 0x14, 0)      : CmpInfo('CTI',             'CS-400',   None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x907, 0x21, 0)      : CmpInfo('ETB',             'CS-400',   None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('Trace Funnel',    'CS-400',   None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x909, 0x22, 0)      : CmpInfo('Trace Replicator',None,       None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',            'CS-400',   TPIU.factory        ),
+    (ARM_ID, CORESIGHT_CLASS, 0x913, 0x43, 0)      : CmpInfo('ITM',             'CS-400',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x914, 0x11, 0)      : CmpInfo('SWO',             'CS-400',   TPIU.factory        ),
+    (ARM_ID, CORESIGHT_CLASS, 0x917, 0x43, 0)      : CmpInfo('HTM',             'CS-400',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x923, 0x11, 0)      : CmpInfo('TPIU',            'M3',       TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x924, 0x13, 0)      : CmpInfo('ETM',             'M3',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x925, 0x13, 0)      : CmpInfo('ETM',             'M4',       None                ),
@@ -132,6 +135,7 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_ID, CORESIGHT_CLASS, 0x950, 0x13, 0)      : CmpInfo('PTM',             'A9',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x961, 0x32, 0)      : CmpInfo('ETF',             None,       None                ), # Trace Memory Controller ETF
     (ARM_ID, CORESIGHT_CLASS, 0x962, 0x63, 0x0a63) : CmpInfo('STM',             None,       None                ), # System Trace Macrocell
+    (ARM_ID, CORESIGHT_CLASS, 0x962, 0x63, 0)      : CmpInfo('STM',             None,       None                ), # System Trace Macrocell (archid=0)
     (ARM_ID, CORESIGHT_CLASS, 0x963, 0x63, 0x0a63) : CmpInfo('STM-500',         None,       None                ), # System Trace Macrocell
     (ARM_ID, CORESIGHT_CLASS, 0x975, 0x13, 0x4a13) : CmpInfo('ETM',             'M7',       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9a0, 0x16, 0)      : CmpInfo('PMU',             'A9',       None                ),

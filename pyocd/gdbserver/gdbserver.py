@@ -22,7 +22,7 @@ from time import sleep
 import sys
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
-from typing import (Dict, List, Optional)
+from typing import (Dict, List, Optional, Tuple)
 
 from ..core import exceptions
 from ..core.target import Target
@@ -33,6 +33,7 @@ from ..utility.compatibility import (to_bytes_safe, to_str_safe)
 from ..utility.server import StreamServer
 from ..utility.timeout import Timeout
 from ..trace.swv import SWVReader
+from ..utility.rtt_server import RTTServer
 from ..utility.sockets import ListenerSocket
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
@@ -195,6 +196,9 @@ class GDBServer(threading.Thread):
             semihost_console = semihost_io_handler
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
 
+        # Start with RTT disabled
+        self.rtt_server: Optional[RTTServer] = None
+
         #
         # If SWV is enabled, create a SWVReader thread. Note that we only do
         # this if the core is 0: SWV is not a per-core construct, and can't
@@ -295,6 +299,9 @@ class GDBServer(threading.Thread):
         if self._swv_reader:
             self._swv_reader.stop()
             self._swv_reader = None
+        if self.rtt_server:
+            self.rtt_server.stop()
+            self.rtt_server = None
         self.abstract_socket.cleanup()
 
     def _cleanup_for_next_connection(self):
@@ -616,6 +623,9 @@ class GDBServer(threading.Thread):
 
             try:
                 state = self.target.get_state()
+
+                if self.rtt_server:
+                    self.rtt_server.poll()
 
                 # If we were able to successfully read the target state after previously receiving a fault,
                 # then clear the timeout.
@@ -1138,10 +1148,9 @@ class GDBServer(threading.Thread):
         resp = b'$' + data + b'#' + checksum(data)
         return resp
 
-    def syscall(self, op):
-        op = to_bytes_safe(op)
+    def syscall(self, op: str) -> Tuple[int, int]:
         LOG.debug("GDB server syscall: %s", op)
-        request = self.create_rsp_packet(b'F' + op)
+        request = self.create_rsp_packet(b'F' + op.encode())
         self.packet_io.send(request)
 
         while not self.packet_io.interrupt_event.is_set():

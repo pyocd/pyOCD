@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,11 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING)
+from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING, Set)
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
+from .target_delegate import DelegateHavingMixIn
 from ..utility.graph import GraphNode
 
 if TYPE_CHECKING:
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     from ..debug.svd.model import SVDDevice
     from ..utility.sequencer import CallSequence
 
-class Target(MemoryInterface):
+class Target(MemoryInterface, DelegateHavingMixIn):
 
     class State(Enum):
         """@brief States a target processor can be in."""
@@ -59,16 +60,17 @@ class Target(MemoryInterface):
         HW = 1
         ## Software reset using the core's default software reset method.
         SW = 2
-        ## Software reset using the AIRCR.SYSRESETREQ bit.
-        SW_SYSRESETREQ = 3
-        ## Software reset the entire system (alias of #SW_SYSRESETREQ).
-        SW_SYSTEM = SW_SYSRESETREQ
-        ## Software reset using the AIRCR.VECTRESET bit.
+        ## Software reset the entire system .
+        SW_SYSTEM = 3
+        ## Software reset using the AIRCR.SYSRESETREQ bit (alias of #SW_SYSTEM).
+        SW_SYSRESETREQ = SW_SYSTEM
+        ## Software reset the core only.
+        SW_CORE = 4
+        ## Software reset using the AIRCR.VECTRESET bit (alias of #SW_CORE).
         #
-        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to SW_EMULATED.
-        SW_VECTRESET = 4
-        ## Software reset the core only (alias of #SW_VECTRESET).
-        SW_CORE = SW_VECTRESET
+        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to SW_EMULATED,
+        # unless a target-specific core reset method is made available.
+        SW_VECTRESET = SW_CORE
         ## Emulated software reset.
         SW_EMULATED = 5
 
@@ -187,7 +189,6 @@ class Target(MemoryInterface):
 
     def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
         self._session = session
-        self._delegate: Any = None
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
         self.memory_map = memory_map.clone() if memory_map else MemoryMap()
@@ -199,24 +200,6 @@ class Target(MemoryInterface):
         return self._session
 
     @property
-    def delegate(self) -> Any:
-        return self._delegate
-
-    @delegate.setter
-    def delegate(self, the_delegate: Any) -> None:
-        self._delegate = the_delegate
-
-    def delegate_implements(self, method_name: str) -> bool:
-        return (self._delegate is not None) and (hasattr(self._delegate, method_name))
-
-    def call_delegate(self, method_name: str, *args, **kwargs) -> None:
-        if self.delegate_implements(method_name):
-            return getattr(self._delegate, method_name)(*args, **kwargs)
-        else:
-            # The default action is always taken if None is returned.
-            return None
-
-    @property
     def svd_device(self) -> Optional["SVDDevice"]:
         return self._svd_device
 
@@ -226,6 +209,11 @@ class Target(MemoryInterface):
 
     @property
     def core_registers(self) -> "CoreRegistersIndex":
+        raise NotImplementedError()
+
+    @property
+    def supported_reset_types(self) -> Set[ResetType]:
+        """@brief Set of reset types that can be used with this target."""
         raise NotImplementedError()
 
     def is_locked(self) -> bool:

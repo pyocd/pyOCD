@@ -178,6 +178,8 @@ additional unspecified, required parameters (those without a default value). Ext
 allowed but will never be passed any value other than the default, unless you call the function yourself from
 within the script.
 
+_Note:_ Delegate functions override CMSIS-Pack debug sequences. See the [debug sequence documentation]({% link _docs/open_cmsis_pack_support.md %}#debug-access-sequences) for more details.
+
 
 ### will_connect
 
@@ -228,6 +230,25 @@ did_init_target(target: SoCTarget) -> None
 *target* - An `SoCTarget` object. \
 **Result** \
 Ignored.
+
+### unlock_device
+
+Hook to perform any required unlock sequence.
+```
+unlock_device(target: SoCTarget) -> None
+```
+
+**Parameters** \
+*target* - An `SoCTarget` object. \
+**Result** \
+Ignored.
+
+Called after the DP is initialised but prior to discovery. This hook delegate can be used to unlock debug
+access to the target. It can also be used to perform other pre-discovery actions.
+
+Note that because this hoook is called prior to discovery, APs and cores are not yet created. This means
+that any register accesses must be performed through the DP's methods. (However, it's possible to create
+a temporary instance of 'AccessPort' or one of its subclasses, such as `MEM_AP`.)
 
 ### will_start_debug_core
 
@@ -298,6 +319,10 @@ stop_debug_core(core: CoreTarget) -> Optional[bool]
 **Result** \
 *True* Do not perform the normal procedure to disable core debug. \
 *False/None* Continue with normal behaviour.
+
+This delegate is only called if resuming the core on disconnect, e.g. the `resume_on_disconnect` session
+option is True. Therefore, the delegate should ensure that the core has properly resumed execution if it
+returns True.
 
 ### did_stop_debug_core
 

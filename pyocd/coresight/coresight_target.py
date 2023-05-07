@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@
 
 import logging
 from inspect import getfullargspec
-from pathlib import PurePath
 from typing import (Callable, Dict, Optional, TYPE_CHECKING, cast)
 
 from ..core.target import Target
@@ -27,7 +26,7 @@ from ..core import exceptions
 from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
-from ..target.pack.flash_algo import PackFlashAlgo
+from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
 if TYPE_CHECKING:
     from ..core.session import Session
@@ -55,6 +54,8 @@ class CoreSightTarget(SoCTarget):
         self._svd_load_thread: Optional[SVDLoader] = None
         self._irq_table: Optional[Dict[int, str]] = None
         self._discoverer: Optional[Callable] = None
+
+        self.session.context_state.is_performing_pre_reset = False
 
     @property
     def aps(self) -> Dict["APAddressBase", "AccessPort"]:
@@ -96,6 +97,7 @@ class CoreSightTarget(SoCTarget):
             ('load_svd',            self.load_svd),
             ('pre_connect',         self.pre_connect),
             ('dp_init',             self.dp.create_connect_sequence),
+            ('unlock_device',       self.unlock_device),
             ('create_discoverer',   self.create_discoverer),
             ('discovery',           lambda : self._discoverer.discover() if self._discoverer else None),
             ('check_for_cores',     self.check_for_cores),
@@ -108,6 +110,18 @@ class CoreSightTarget(SoCTarget):
 
         return seq
 
+    def init(self) -> None:
+        """@brief CoreSight specific target init.
+
+        Connects this object's delegates, including a debug sequence delegate, to the DP.
+        """
+        # Set delegates on the DP.
+        self.dp.delegate = self.delegate
+        if self.debug_sequence_delegate:
+            self.dp.debug_sequence_delegate = self.debug_sequence_delegate
+
+        super().init()
+
     def disconnect(self, resume: bool = True) -> None:
         """@brief Disconnect from the target.
 
@@ -117,11 +131,68 @@ class CoreSightTarget(SoCTarget):
         self.call_delegate('will_disconnect', target=self, resume=resume)
         for core in self.cores.values():
             core.disconnect(resume)
-        # Only disconnect the DP if resuming; otherwise it will power down debug and potentially
-        # let the core continue running.
+        # Only disconnect the DP if resuming; if not resuming we need to keep debug powered up so
+        # the core can stay halted.
         if resume:
             self.dp.disconnect()
         self.call_delegate('did_disconnect', target=self, resume=resume)
+
+    @property
+    def primary_core_pname(self) -> str:
+        """@brief Returns the pname for the `primary_core` option.
+
+        This property is expected to be used prior to discovery. After discovery is complete, the
+        node name of the `.primary_core` property can be used.
+
+        This property is used rarely, so is not cached.
+
+        @exception KeyError if `primary_core` is invalid.
+        @exception AssertionError The device is not DFP based.
+        """
+        # The `primary_core` is an index into available cores, not necessarily the same as the AP
+        # address and always different in the case of ADIv6. So we must use the DFP's list of APs
+        # and processors to reconstruct the core order we will find during discovery.
+        assert self.debug_sequence_delegate
+        pack_device = self.debug_sequence_delegate.cmsis_pack_device
+        ap_map = pack_device.processors_ap_map
+        primary_core = self.session.options.get('primary_core')
+        for i, proc_info in enumerate(sorted(ap_map.values(), key=lambda p: p.ap_address)):
+            if i == primary_core:
+                return proc_info.name
+        else:
+            raise exceptions.Error(f"invalid 'primary_core' session option '{primary_core}' "
+                           f"(valid values are {', '.join(str(i) for i, _ in enumerate(ap_map.values()))})")
+
+    def _call_pre_discovery_debug_sequence(self, sequence: str) -> bool:
+        """@brief Run a debug sequence before discovery has been performed.
+
+        The primary core's pname cannot be looked up via the `node_name` property of the core
+        object because that core object doesn't yet exist at the time this method is called.
+        """
+        if self.debug_sequence_delegate:
+            # Try to get the pname to use.
+            try:
+                pcore_pname = self.primary_core_pname
+            except exceptions.Error as err:
+                LOG.warning("%s", err)
+            else:
+                if self.has_debug_sequence(sequence, pname=pcore_pname):
+                    self.debug_sequence_delegate.run_sequence(sequence, pname=pcore_pname)
+                    return True
+
+        # Sequence wasn't run.
+        return False
+
+    def unlock_device(self) -> None:
+        """@brief Hook to unlock the debug.
+
+        The default implementation of this hook calls the delegate `unlock_device()` method or `DebugDeviceUnlock`
+        debug sequence, if they exist, checked in this order.
+        """
+        if self.delegate_implements('unlock_device'):
+            self.call_delegate('unlock_device')
+        else:
+            self._call_pre_discovery_debug_sequence('DebugDeviceUnlock')
 
     def create_discoverer(self) -> None:
         """@brief Init task to create the discovery object.
@@ -140,7 +211,14 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'pre-reset':
             LOG.info("Performing connect pre-reset")
-            self.dp.reset()
+            try:
+                # Set the state variable indicating we're running ResetHardware for pre-reset, used
+                # by the debug sequence delegate's get_connection_type() method.
+                self.session.context_state.is_performing_pre_reset = True
+                if not self._call_pre_discovery_debug_sequence('ResetHardware'):
+                    self.dp.reset()
+            finally:
+                self.session.context_state.is_performing_pre_reset = False
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
             self.dp.assert_reset(True)
@@ -188,43 +266,18 @@ class CoreSightTarget(SoCTarget):
     def create_flash(self) -> None:
         """@brief Instantiates flash objects for memory regions.
 
-        This init task iterates over flash memory regions and for each one creates the Flash
-        instance. It uses the flash_algo and flash_class properties of the region to know how
+        This init task iterates over flash memory regions and for each one finishes its setup and creates
+        the Flash instance. It uses the flash_algo and flash_class properties of the region to know how
         to construct the flash object.
         """
+        flm_builder = FlmFlashRegionBuilder(self, self.memory_map)
         for region in self.memory_map.iter_matching_regions(type=MemoryType.FLASH):
             region = cast(FlashRegion, region)
-            # If the region doesn't have an algo dict but does have an FLM file, try to load
-            # the FLM and create the algo dict.
-            if (region.algo is None) and (region.flm is not None):
-                if isinstance(region.flm, (str, PurePath)):
-                    flm_path = self.session.find_user_file(None, [str(region.flm)])
-                    if flm_path is not None:
-                        LOG.info("creating flash algo for region %s from: %s", region.name, flm_path)
-                        pack_algo = PackFlashAlgo(flm_path)
-                    else:
-                        LOG.warning("Failed to find FLM file: %s", region.flm)
-                        break
-                elif isinstance(region.flm, PackFlashAlgo):
-                    pack_algo = region.flm
-                else:
-                    LOG.warning("flash region flm attribute is unexpected type")
-                    break
 
-                # Create the algo dict from the FLM.
-                if self.session.options.get("debug.log_flm_info"):
-                    LOG.debug("Flash algo info: %s", pack_algo.flash_info)
-                page_size = pack_algo.page_size
-                if page_size <= 32:
-                    page_size = min(s[1] for s in pack_algo.sector_sizes)
-                algo = pack_algo.get_pyocd_flash_algo(
-                        page_size,
-                        self.memory_map.get_default_region_of_type(MemoryType.RAM))
-
-                # If we got a valid algo from the FLM, set it on the region. This will then
-                # be used below.
-                if algo is not None:
-                    region.algo = algo
+            # Load FLM file if needed, and create subregions for sector sizes.
+            if not flm_builder.finalise_region(region):
+                # Some error occurred, skip this region.
+                continue
 
             # If the constructor of the region's flash class takes the flash_algo arg, then we
             # need the region to have a flash algo dict to pass to it. Otherwise we assume the
@@ -245,6 +298,10 @@ class CoreSightTarget(SoCTarget):
 
             # Store the flash object back into the memory region.
             region.flash = obj
+
+        # Update the memory map in each core.
+        for core in self.cores.values():
+            core.memory_map = self.memory_map
 
     def check_for_cores(self) -> None:
         """@brief Init task: verify that at least one core was discovered."""
@@ -282,4 +339,27 @@ class CoreSightTarget(SoCTarget):
         else:
             super().reset(reset_type)
 
+    @property
+    def first_ap(self) -> Optional["AccessPort"]:
+        if len(self.aps) == 0:
+            return None
+        return sorted(self.aps.values(), key=lambda v: v.address)[0]
+
+    def trace_start(self):
+        result = self.call_delegate('trace_start', target=self, mode=0)
+        if not result and self.has_debug_sequence('TraceStart', pname=self.selected_core_or_raise.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('TraceStart',
+                    pname=self.selected_core_or_raise.node_name)
+            result = True
+        return result
+
+    def trace_stop(self):
+        result = self.call_delegate('trace_stop', target=self, mode=0)
+        if not result and self.has_debug_sequence('TraceStop', pname=self.selected_core_or_raise.node_name):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('TraceStop',
+                    pname=self.selected_core_or_raise.node_name)
+            result = True
+        return result
 

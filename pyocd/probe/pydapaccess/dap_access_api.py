@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -285,6 +285,10 @@ class DAPAccessIntf(object):
 
     def is_reset_asserted(self):
         """@brief Returns True if the target reset line is asserted or False if de-asserted"""
+        raise NotImplementedError()
+
+    def pin_access(self, mask: int, value: int) -> int:
+        """@brief Read/write probe pins"""
         raise NotImplementedError()
 
     def set_deferred_transfer(self, enable):

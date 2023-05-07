@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package schemaVersion="1.6.0" xs:noNamespaceSchemaLocation="PACK.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance">
+  <vendor>Generic</vendor>
+  <name>Pack</name>
+  <description>Test</description>
+  <url />
+  <devices>
+    <family Dfamily="TestFamily" Dvendor="Generic:0">
+      <device Dname="TST0001">
+
+        <processor Pname="CM4" Dcore="Cortex-M4" DcoreVersion="r0p1" Dfpu="SP_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="150000000" />
+        <processor Pname="CM0p" Dcore="Cortex-M0+" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="100000000" />
+
+        <memory name="bootrom" start="0x00000000" access="rx" size="0x8000" startup="1" default="1" />
+        <memory name="iram" start="0x08000000" access="rwx" size="0x100000" startup="0" default="1" />
+        <memory name="dram" start="0x20000000" access="rwx" size="0x40000" startup="0" default="1" />
+
+        <accessportV1 __apid="0" __dp="0" index="0" />
+        <accessportV1 __apid="2" __dp="0" index="2" />
+
+        <debug Pname="CM4"  __apid="0" defaultResetSequence="ResetSystem" svd="cm4.svd" />
+        <debug Pname="CM0p" __apid="2" defaultResetSequence="ResetProcessor" svd="cm0p.svd" />
+
+        <sequences>
+        </sequences>
+
+      </device>
+    </family>
+  </devices>
+</package>

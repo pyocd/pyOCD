@@ -123,6 +123,9 @@ class Board(GraphNode):
                 else f"Generic {self.target_type} board"
         self._vendor = board_info.vendor if (board_info and board_info.vendor) else ""
 
+        # Standard graph node name.
+        self.node_name = 'board'
+
         self.add_child(self.target)
 
     def init(self) -> None:

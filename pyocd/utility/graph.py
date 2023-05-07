@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,12 +15,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (Callable, List, Optional, Sequence, Type, Union)
+from typing import (Callable, List, Optional, Sequence, Type, TypeVar, Union, cast)
+
+_T = TypeVar("_T", bound="GraphNode")
 
 class GraphNode:
     """@brief Simple graph node.
 
     All nodes have a parent, which is None for a root node, and zero or more children.
+    Nodes optionally have a name.
 
     Supports indexing and iteration over children.
     """
@@ -30,6 +33,16 @@ class GraphNode:
         super().__init__()
         self._parent: Optional[GraphNode] = None
         self._children: List[GraphNode] = []
+        self._node_name: Optional[str] = None
+
+    @property
+    def node_name(self) -> Optional[str]:
+        """@brief Name of this graph node."""
+        return self._node_name
+
+    @node_name.setter
+    def node_name(self, new_name: str) -> None:
+        self._node_name = new_name
 
     @property
     def parent(self) -> Optional["GraphNode"]:
@@ -89,7 +102,7 @@ class GraphNode:
 
         return _search(self)
 
-    def get_first_child_of_type(self, klass: Type) -> Optional["GraphNode"]:
+    def get_first_child_of_type(self, klass: Type[_T]) -> Optional[_T]:
         """@brief Breadth-first search for a child of the given class.
         @param self
         @param klass The class type to search for. The first child at any depth that is an instance
@@ -99,16 +112,24 @@ class GraphNode:
         """
         matches = self.find_children(lambda c: isinstance(c, klass))
         if len(matches):
-            return matches[0]
+            return cast(Optional[_T], matches[0])
         else:
             return None
 
-    def __getitem__(self, key: Union[int, slice]) -> Union["GraphNode", List["GraphNode"]]:
-        """@brief Returns the indexed child.
+    def __getitem__(self, key: Union[int, str, slice]) -> Union["GraphNode", List["GraphNode"]]:
+        """@brief Returns the child with the given index or node name.
 
-        Slicing is supported.
+        Slicing is supported with integer indexes.
         """
-        return self._children[key]
+        if isinstance(key, str):
+            # Replace with dict at some point.
+            for c in self._children:
+                if c.node_name == key:
+                    return c
+            else:
+                raise KeyError(f"no child node with name '{key}'")
+        else:
+            return self._children[key]
 
     def __iter__(self):
         """@brief Iterate over the node's children."""

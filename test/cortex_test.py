@@ -204,51 +204,76 @@ def cortex_test(board_id):
 
         print("\n\n------ Testing Reset Types ------")
         def reset_methods(fnc):
-            print("Hardware reset")
-            fnc(reset_type=Target.ResetType.HW)
-            print("Hardware reset (default=HW)")
-            target.selected_core.default_reset_type = Target.ResetType.HW
-            fnc(reset_type=None)
-            print("Software reset (default=SYSRESETREQ)")
-            target.selected_core.default_reset_type = Target.ResetType.SW_SYSRESETREQ
-            fnc(reset_type=None)
-            print("Software reset (default=VECTRESET)")
-            target.selected_core.default_reset_type = Target.ResetType.SW_VECTRESET
-            fnc(reset_type=None)
-            print("Software reset (default=emulated)")
-            target.selected_core.default_reset_type = Target.ResetType.SW_EMULATED
-            fnc(reset_type=None)
+            test_hw_reset = Target.ResetType.HW in target.selected_core.supported_reset_types
+            test_system_reset = Target.ResetType.SW_SYSTEM in target.selected_core.supported_reset_types
+            test_core_reset = Target.ResetType.SW_CORE in target.selected_core.supported_reset_types
+            test_emulated_reset = Target.ResetType.SW_EMULATED in target.selected_core.supported_reset_types
 
-            print("(Default) Software reset (SYSRESETREQ)")
-            target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSRESETREQ
-            fnc(reset_type=Target.ResetType.SW)
-            print("(Default) Software reset (VECTRESET)")
-            target.selected_core.default_software_reset_type = Target.ResetType.SW_VECTRESET
-            fnc(reset_type=Target.ResetType.SW)
-            print("(Default) Software reset (emulated)")
-            target.selected_core.default_software_reset_type = Target.ResetType.SW_EMULATED
-            fnc(reset_type=Target.ResetType.SW)
+            if test_hw_reset:
+                print("Hardware reset")
+                fnc(reset_type=Target.ResetType.HW)
+                print("Hardware reset (default=HW)")
+                target.selected_core.default_reset_type = Target.ResetType.HW
+                fnc(reset_type=None)
+            else:
+                print("Hardware reset is disabled")
+            if test_system_reset:
+                print("Software reset (default=SYSTEM)")
+                target.selected_core.default_reset_type = Target.ResetType.SW_SYSTEM
+                fnc(reset_type=None)
+            else:
+                print("System reset is disabled")
+            if test_core_reset:
+                print("Software reset (default=CORE)")
+                target.selected_core.default_reset_type = Target.ResetType.SW_CORE
+                fnc(reset_type=None)
+            else:
+                print("Core reset is disabled")
+            if test_emulated_reset:
+                print("Software reset (default=emulated)")
+                target.selected_core.default_reset_type = Target.ResetType.SW_EMULATED
+                fnc(reset_type=None)
+            else:
+                print("Emulated reset is disabled")
 
-            print("Software reset (option=default)")
-            target.selected_core.default_reset_type = Target.ResetType.SW
-            target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSRESETREQ
-            session.options['reset_type'] = 'default'
-            fnc(reset_type=None)
-            print("Software reset (option=hw)")
-            session.options['reset_type'] = 'hw'
-            fnc(reset_type=None)
+            if test_system_reset:
+                print("(Default) Software reset (SYSTEM)")
+                target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSTEM
+                fnc(reset_type=Target.ResetType.SW)
+            if test_core_reset:
+                print("(Default) Software reset (CORE)")
+                target.selected_core.default_software_reset_type = Target.ResetType.SW_CORE
+                fnc(reset_type=Target.ResetType.SW)
+            if test_emulated_reset:
+                print("(Default) Software reset (emulated)")
+                target.selected_core.default_software_reset_type = Target.ResetType.SW_EMULATED
+                fnc(reset_type=Target.ResetType.SW)
+
+            if test_system_reset:
+                print("Software reset (option=default)")
+                target.selected_core.default_reset_type = Target.ResetType.SW
+                target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSTEM
+                session.options['reset_type'] = 'default'
+                fnc(reset_type=None)
+            if test_hw_reset:
+                print("Reset (option=hw)")
+                session.options['reset_type'] = 'hw'
+                fnc(reset_type=None)
             print("Software reset (option=sw)")
             session.options['reset_type'] = 'sw'
             fnc(reset_type=None)
-            print("Software reset (option=sw_sysresetreq)")
-            session.options['reset_type'] = 'sw_sysresetreq'
-            fnc(reset_type=None)
-            print("Software reset (option=sw_vectreset)")
-            session.options['reset_type'] = 'sw_vectreset'
-            fnc(reset_type=None)
-            print("Software reset (option=sw_emulated)")
-            session.options['reset_type'] = 'sw_emulated'
-            fnc(reset_type=None)
+            if test_system_reset:
+                print("Software reset (option=system)")
+                session.options['reset_type'] = 'system'
+                fnc(reset_type=None)
+            if test_core_reset:
+                print("Software reset (option=core)")
+                session.options['reset_type'] = 'core'
+                fnc(reset_type=None)
+            if test_emulated_reset:
+                print("Software reset (option=emulated)")
+                session.options['reset_type'] = 'emulated'
+                fnc(reset_type=None)
 
         reset_methods(target.reset)
 

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 import argparse
 import logging
 import prettytable
-from typing import (List, Optional, Type)
+from typing import (Any, Dict, List, Optional, Type)
 
 from ..utility.cmdline import convert_frequency
 
@@ -168,5 +168,18 @@ class SubcommandBase:
         pt.hrules = prettytable.HEADER
         pt.vrules = prettytable.NONE
         return pt
+
+    def _modified_option_defaults(self) -> Dict[str, Any]:
+        """@brief Returns a dict of session option defaults.
+
+        @return A dict containing updated default values for session options, based on common
+            subcommand arguments. It is intended to be passed as the `option_defaults` argument when
+            creating a `Session` instance.
+        @precondition Logging must have been configured.
+        """
+        return {
+            # Change 'debug.traceback' default to True if debug logging is enabled.
+            'debug.traceback': logging.getLogger('pyocd').isEnabledFor(logging.DEBUG),
+        }
 
 

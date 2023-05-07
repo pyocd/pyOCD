@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +23,7 @@ from .target import (Target, TargetGraphNode)
 from .core_target import CoreTarget
 from ..flash.eraser import FlashEraser
 from ..debug.cache import CachingDebugContext
+from ..debug.context import DebugContext
 from ..debug.elf.elf import ELFBinaryFile
 from ..debug.elf.elf_reader import ElfReaderContext
 from ..utility.sequencer import CallSequence
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from .core_registers import (CoreRegistersIndex, CoreRegisterNameOrNumberType, CoreRegisterValueType)
     from ..debug.context import DebugContext
     from ..debug.breakpoints.provider import Breakpoint
+    from ..commands.execution_context import CommandSet
 
 LOG = logging.getLogger(__name__)
 
@@ -67,6 +69,9 @@ class SoCTarget(TargetGraphNode):
         self._new_core_num = 0
         self._elf = None
 
+        # Set our graph node name.
+        self.node_name = 'soc'
+
     @property
     def cores(self) -> Dict[int, CoreTarget]:
         return self._cores
@@ -99,6 +104,15 @@ class SoCTarget(TargetGraphNode):
         return self.cores[self._selected_core]
 
     @property
+    def primary_core(self) -> CoreTarget:
+        """@brief Return the core for the `primary_core` session option.
+
+        @exception KeyError The `primary_core` option is invalid.
+        """
+        primary_core_number = self.session.options.get('primary_core')
+        return self.cores[primary_core_number]
+
+    @property
     def elf(self) -> Optional[ELFBinaryFile]:
         return self._elf
 
@@ -124,12 +138,23 @@ class SoCTarget(TargetGraphNode):
 
     def add_core(self, core: CoreTarget) -> None:
         core.delegate = self.delegate
-        core.set_target_context(CachingDebugContext(core))
+        if self.debug_sequence_delegate:
+            core.debug_sequence_delegate = self.debug_sequence_delegate
+        ctx = CachingDebugContext(
+                core,
+                enable_memory=self.session.options['cache.enable_memory'],
+                enable_register=self.session.options['cache.enable_register'],
+                )
+        core.set_target_context(ctx)
         self.cores[core.core_number] = core
         self.add_child(core)
 
-        # Select first added core.
+        # Always select first added core to ensure some core is selected.
         if self.selected_core is None:
+            self.selected_core = core.core_number
+        # Otherwise, when the chosen primary core is added, select it. This assumes that cores are only
+        # added at init/discovery time.
+        elif core.core_number == self.session.options.get('primary_core'):
             self.selected_core = core.core_number
 
     def create_init_sequence(self) -> CallSequence:
@@ -293,4 +318,7 @@ class SoCTarget(TargetGraphNode):
     def trace_stop(self):
         self.call_delegate('trace_stop', target=self, mode=0)
 
+    def add_target_command_groups(self, command_set: "CommandSet"):
+        """@brief Hook for adding target-specific commands to a command set."""
+        self.call_delegate('add_target_command_groups', target=self, command_set=command_set)
 

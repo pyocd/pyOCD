@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2022 Chris Reed
+# Copyright (c) 2022-2023 Chris Reed
 # Copyright (c) 2023 Hardy Griech
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,10 +16,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 import pytest
 import os
 import logging
-import telnetlib
+# import telnetlib
 import six
 
 from pyocd.core.helpers import ConnectHelper
@@ -112,17 +113,21 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
             return None
 
     def write(self, fd, ptr, length):
+        assert self.agent
         if fd not in self._out_data:
             self._out_data[fd] = b''
+        assert self.agent
         s = self.agent.get_data(ptr, length)
         self._out_data[fd] += s
         return 0
 
     def read(self, fd, ptr, length):
+        assert self.agent
         if fd not in self._in_data:
             return length
         d = self._in_data[fd][:length]
         self._in_data[fd] = self._in_data[fd][length:]
+        assert self.agent
         self.agent.context.write_memory_block8(ptr, bytearray(six.ensure_binary(d)))
         return length - len(d)
 
@@ -162,7 +167,7 @@ class SemihostRequestBuilder:
         return self.ramrgn.start + 0x200
 
     def do_open(self, filename, mode):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_OPEN)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_OPEN)
 
         # Write filename
         filename = bytearray(six.ensure_binary(filename) + b'\x00')
@@ -179,7 +184,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_close(self, fd):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_CLOSE)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_CLOSE)
         self.ctx.write32(argsptr, fd)
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -189,7 +194,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_write(self, fd, data):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITE)
 
         # Write data
         data = six.ensure_binary(data)
@@ -207,7 +212,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_writec(self, c):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITEC)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITEC)
         self.ctx.write8(argsptr, ord(c))
 
         was_semihost = run_til_halt(self.tgt, self.semihostagent)
@@ -217,7 +222,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_write0(self, data):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_WRITE0)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITE0)
 
         data = data + b'\x00'
         self.ctx.write_memory_block8(argsptr, data)
@@ -229,7 +234,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_read(self, fd, length):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_READ)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_READ)
 
         # Clear read buffer.
         self.ctx.write_memory_block8(argsptr + 12, bytearray(b'\x00') * length)
@@ -250,7 +255,7 @@ class SemihostRequestBuilder:
         return result, data
 
     def do_seek(self, fd, pos):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_SEEK)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_SEEK)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.write32(argsptr + 4, pos) # pos
@@ -264,7 +269,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_flen(self, fd):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_FLEN)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_FLEN)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.flush()
@@ -277,7 +282,7 @@ class SemihostRequestBuilder:
         return result
 
     def do_istty(self, fd):
-        argsptr = self.setup_semihost_request(semihost.TARGET_SYS_ISTTY)
+        argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_ISTTY)
 
         self.ctx.write32(argsptr, fd) # fd
         self.ctx.flush()
@@ -330,6 +335,28 @@ class TestSemihosting:
 
         fd = semihost_builder.do_open(":tt", 'a') # stderr
         assert fd == 2
+
+    def test_open_home_file(self, semihost_builder, request):
+        testfilepath = Path("~/testfile").expanduser()
+
+        def delete_it():
+            try:
+                testfilepath.unlink()
+            except OSError:
+                pass
+        request.addfinalizer(delete_it)
+
+        fd = semihost_builder.do_open("~/testfile", 'wb')
+        assert fd > 2
+
+        result = semihost_builder.do_write(fd, b"foo")
+        assert result == 0
+
+        result = semihost_builder.do_close(fd)
+        assert result == 0
+
+        data = testfilepath.read_bytes()
+        assert data == b"foo"
 
     def test_open_close_file(self, semihost_builder, delete_testfile):
         fd = semihost_builder.do_open("testfile", 'w+b')
@@ -444,28 +471,28 @@ class TestSemihosting:
 
         console.set_input_data(semihost.STDIN_FD, 'x')
 
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_READC)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_READC)
         assert chr(result) == 'x'
 
     def test_clock(self, semihost_builder):
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_CLOCK)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_CLOCK)
         assert result != -1
         assert result != 0
         logging.info("clock = %d cs", result)
 
-        result2 = semihost_builder.do_no_args_call(semihost.TARGET_SYS_CLOCK)
+        result2 = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_CLOCK)
         assert result2 != -1
         assert result2 != 0
         assert result2 > result
         logging.info("clock = %d cs", result2)
 
     def test_time(self, semihost_builder):
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_TIME)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_TIME)
         assert result != 0
         logging.info("time = %d sec", result)
 
     def test_errno_no_err(self, semihost_builder):
-        result = semihost_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
+        result = semihost_builder.do_no_args_call(semihost.SemihostingRequests.SYS_ERRNO)
         assert result == 0
 
     @pytest.mark.parametrize(("fd"), [
@@ -486,6 +513,47 @@ class TestSemihosting:
 
         result = semihost_builder.do_close(fd)
         assert result == 0
+
+    def test_feature_bits(self, semihost_builder):
+        fd = semihost_builder.do_open(":semihosting-features", 'rb')
+        assert fd > 2
+
+        # Required requests: SYS_FLEN, SYS_ISTTY, SYS_SEEK, SYS_READ, SYS_CLOSE
+
+        n = semihost_builder.do_flen(fd)
+        assert n >= 5 # 4 magic bytes + at least 1 feature flags byte
+
+        result = semihost_builder.do_istty(fd)
+        assert result == 0
+
+        result = semihost_builder.do_seek(fd, 0)
+        assert result == 0
+
+        # Verify header
+        result, data = semihost_builder.do_read(fd, 4)
+        assert result == 0
+        assert data == b'SHFB'
+
+        result = semihost_builder.do_seek(fd, 4)
+        assert result == 0
+
+        # Verify first feature byte.
+        result, data = semihost_builder.do_read(fd, 1)
+        assert result == 0
+        assert (data[0] & 0x3) == 0x02 # Only check feature bits defined at the time this test was written.
+
+        # Seek back to earlier.
+        result = semihost_builder.do_seek(fd, 2)
+        assert result == 0
+
+        result, data = semihost_builder.do_read(fd, 2)
+        assert result == 0
+        assert data == b'FB'
+
+        # Close.
+        result = semihost_builder.do_close(fd)
+        assert result == 0
+
 
 @pytest.fixture(scope='function')
 def telnet_server(request):
@@ -514,61 +582,64 @@ def semihost_telnet_agent(ctx, telnet_server, request):
 def semihost_telnet_builder(tgt, semihost_telnet_agent, ramrgn):
     return SemihostRequestBuilder(tgt, semihost_telnet_agent, ramrgn)
 
-@pytest.fixture(scope='function')
-def telnet_conn(request, telnet_server):
-    from time import sleep
-    # Sleep for a bit to ensure the semihost telnet server has started up in its own thread.
-    while not telnet_server.is_running:
-        sleep(0.005)
-    telnet = telnetlib.Telnet('localhost', telnet_server.port, 10.0)
-    def cleanup():
-        telnet.close()
-    request.addfinalizer(cleanup)
-    return telnet
+# Telnet based tests are commented out for the time being, until they can be rewritten
+# to not use the telnetlib package that is now deprecated and will be removed in Python 3.13.
 
-class TestSemihostingTelnet:
-    def test_connect(self, semihost_telnet_builder, telnet_conn):
-        result = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_ERRNO)
-        assert result == 0
+# @pytest.fixture(scope='function')
+# def telnet_conn(request, telnet_server):
+#     from time import sleep
+#     # Sleep for a bit to ensure the semihost telnet server has started up in its own thread.
+#     while not telnet_server.is_running:
+#         sleep(0.005)
+#     telnet = telnetlib.Telnet('localhost', telnet_server.port, 10.0)
+#     def cleanup():
+#         telnet.close()
+#     request.addfinalizer(cleanup)
+#     return telnet
 
-    def test_write(self, semihost_telnet_builder, telnet_conn):
-        result = semihost_telnet_builder.do_write(semihost.STDOUT_FD, b'hello world')
-        assert result == 0
+# class TestSemihostingTelnet:
+#     def test_connect(self, semihost_telnet_builder, telnet_conn):
+#         result = semihost_telnet_builder.do_no_args_call(semihost.SemihostingRequests.TARGET_SYS_ERRNO)
+#         assert result == 0
 
-        index, _, text = telnet_conn.expect([b'hello world'])
-        assert index != -1
-        assert text == b'hello world'
+#     def test_write(self, semihost_telnet_builder, telnet_conn):
+#         result = semihost_telnet_builder.do_write(semihost.STDOUT_FD, b'hello world')
+#         assert result == 0
 
-    def test_writec(self, semihost_telnet_builder, telnet_conn):
-        for c in (bytes([i]) for i in b'xyzzy'):
-            result = semihost_telnet_builder.do_writec(c)
-            assert result == 0
+#         index, _, text = telnet_conn.expect([b'hello world'])
+#         assert index != -1
+#         assert text == b'hello world'
 
-            index, _, text = telnet_conn.expect([c])
-            assert index != -1
-            assert text == c
+#     def test_writec(self, semihost_telnet_builder, telnet_conn):
+#         for c in (bytes([i]) for i in b'xyzzy'):
+#             result = semihost_telnet_builder.do_writec(c)
+#             assert result == 0
 
-    def test_write0(self, semihost_telnet_builder, telnet_conn):
-        result = semihost_telnet_builder.do_write0(b'hello world')
-        assert result == 0
+#             index, _, text = telnet_conn.expect([c])
+#             assert index != -1
+#             assert text == c
 
-        index, _, text = telnet_conn.expect([b'hello world'])
-        assert index != -1
-        assert text == b'hello world'
+#     def test_write0(self, semihost_telnet_builder, telnet_conn):
+#         result = semihost_telnet_builder.do_write0(b'hello world')
+#         assert result == 0
 
-    def test_read(self, semihost_telnet_builder, telnet_conn):
-        telnet_conn.write(b'hello world')
+#         index, _, text = telnet_conn.expect([b'hello world'])
+#         assert index != -1
+#         assert text == b'hello world'
 
-        result, data = semihost_telnet_builder.do_read(semihost.STDIN_FD, 11)
-        assert result == 0
-        assert data == b'hello world'
+#     def test_read(self, semihost_telnet_builder, telnet_conn):
+#         telnet_conn.write(b'hello world')
 
-    def test_readc(self, semihost_telnet_builder, telnet_conn):
-        telnet_conn.write(b'xyz')
+#         result, data = semihost_telnet_builder.do_read(semihost.STDIN_FD, 11)
+#         assert result == 0
+#         assert data == b'hello world'
 
-        for c in 'xyz':
-            rc = semihost_telnet_builder.do_no_args_call(semihost.TARGET_SYS_READC)
-            assert chr(rc) == c
+#     def test_readc(self, semihost_telnet_builder, telnet_conn):
+#         telnet_conn.write(b'xyz')
+
+#         for c in 'xyz':
+#             rc = semihost_telnet_builder.do_no_args_call(semihost.SemihostingRequests.TARGET_SYS_READC)
+#             assert chr(rc) == c
 
 class TestSemihostAgent:
     def test_no_io_handler(self, ctx):

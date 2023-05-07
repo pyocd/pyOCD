@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2013-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -85,7 +85,7 @@ class Flash:
         passed to the ProgramPage() flash algo API. Pages must be the same size or smaller than
         sectors.
     - phrase: The minimum programming granularity, often from 1-16 bytes. For some flash
-        technologies, the is no distinction between a phrase and a page.
+        technologies, there is no distinction between a phrase and a page.
 
     The `flash_algo` parameter of the constructor is a dictionary that defines all the details
     of the flash algorithm. The keys of this dictionary are as follows.
@@ -408,14 +408,16 @@ class Flash:
     def start_program_page_with_buffer(self, buffer_number, address):
         """@brief Start flashing one or more pages.
         """
-        assert self.region is not None
         assert buffer_number < len(self.page_buffers), "Invalid buffer number"
         assert self._active_operation == self.Operation.PROGRAM
 
+        page_info = self.get_page_info(address)
+        assert page_info
+
         # update core register to execute the program_page subroutine
-        TRACE.debug("start_program_page_with_buffer(addr=%x, len=%x, data=%x)", address, self.region.page_size,
+        TRACE.debug("start_program_page_with_buffer(addr=%x, len=%x, data=%x)", address, page_info.size,
                 self.page_buffers[buffer_number])
-        self._call_function(self.flash_algo['pc_program_page'], address, self.region.page_size, self.page_buffers[buffer_number])
+        self._call_function(self.flash_algo['pc_program_page'], address, page_info.size, self.page_buffers[buffer_number])
 
     def load_page_buffer(self, buffer_number, address, bytes):
         """@brief Load data to a numbered page buffer.
@@ -466,31 +468,45 @@ class Flash:
         elif result != 0:
             raise FlashProgramFailure('flash program phrase failure', address=address, result_code=result)
 
-    def get_sector_info(self, addr):
-        """@brief Get info about the sector that contains this address.
-        """
+    def _get_region_or_subregion(self, addr: int):
         assert self.region is not None
         if not self.region.contains_address(addr):
             return None
 
+        region = None
+        if self.region.has_subregions:
+            region = self.region.submap.get_region_for_address(addr)
+
+        if not region:
+            region = self.region
+
+        return region
+
+    def get_sector_info(self, addr):
+        """@brief Get info about the sector that contains this address.
+        """
+        region = self._get_region_or_subregion(addr)
+        if region is None:
+            return None
+
         info = SectorInfo(
-                erase_weight=self.region.erase_sector_weight,
-                size=self.region.sector_size,
-                base_addr=align_down(addr, self.region.sector_size),
+                erase_weight=region.erase_sector_weight,
+                size=region.sector_size,
+                base_addr=align_down(addr, region.sector_size),
                 )
         return info
 
     def get_page_info(self, addr):
         """@brief Get info about the page that contains this address.
         """
-        assert self.region is not None
-        if not self.region.contains_address(addr):
+        region = self._get_region_or_subregion(addr)
+        if region is None:
             return None
 
         info = PageInfo(
-                program_weight=self.region.program_page_weight,
-                size=self.region.page_size,
-                base_addr=align_down(addr, self.region.page_size)
+                program_weight=region.program_page_weight,
+                size=region.page_size,
+                base_addr=align_down(addr, region.page_size)
                 )
         return info
 

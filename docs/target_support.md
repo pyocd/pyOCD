@@ -66,17 +66,33 @@ name of the board plus the target type in brackets.
 
 Example probe listing:
 
-      #   Probe                               Unique ID
-    --------------------------------------------------------------------------------------------
-      0   DISCO-L475VG-IOT01A [stm32l475xg]   066EFF555051897267233656
-      1   KEIL - Tools By ARM Keil ULINKplus  L02932983A
+      #   Probe/Board                       Unique ID                                          Target
+    --------------------------------------------------------------------------------------------------------------------
+      0   Arm DAPLink CMSIS-DAP             02400b0129164e4500440012706e0007f301000097969900   ✔︎ k64f
+          NXP                               FRDM-K64F
 
-This example shows two probes. The first does support auto-detection, while the second does not.
-Note how the first probe's description shows the name of the board and the target type
-"stm32l475xg" in brackets.
+      1   STLINK-V3                         002500074741500420383733                           ✖︎ stm32u585aiix
+          B-U585I-IOT02A
+
+      2   STM32 STLink                      066EFF555051897267233656                           ✔︎ stm32l475xg
+          DISCO-L475VG-IOT01A
+
+      3   Segger J-Link OB-K22-NordicSemi   960177309                                          n/a
+
+
+This example shows several connected debug probes. The first supports extended auto-detection with automatic target type reporting. The second and third support board type detection using pyOCD's built-in table of board types, and show both an installed and uninstalled target type. Finally, the fourth probe does not support auto-detection.
+Note how the descriptions of all but the last probe show the name of the board and the target type, for instance
+"stm32l475xg" in the "Target" column.
 
 If the target type is *not* auto-detected, it will default to "cortex_m" unless specified as
-described above.
+described above (see [Generic target type](#generic_target_type) above). In this case, the "Target" column will show "n/a".
+
+
+## Target configuration
+
+PyOCD can be configured using several methods. The [configuration]({% link _docs/configuration.md %}) documentation describes how this is done.
+
+Target types sourced from CMSIS-Packs can define debug variables that the user can configure as needed. See the [debug variables documentation]({% link _docs/open_cmsis_pack_support.md %}#debug_variables) for details.
 
 
 ## Target support sources
@@ -85,15 +101,16 @@ described above.
 
 PyOCD has built-in support for over 70 popular MCUs from various vendors.
 
-Because new targets are addded fairly often, the best way to see the available built-in targets is
+The best way to see the available built-in targets is
 by running `pyocd list --targets`. This command will print a table of supported target types.
 Built-in targets will be identified as such in the "SOURCE" column.
+New built-in targets are added relatively infrequently since the addition of CMSIS-Pack based targets.
 
 
 ### CMSIS-Packs
 
-The [CMSIS](http://arm-software.github.io/CMSIS_5/General/html/index.html) specification defines the
-[Device Family Pack](http://arm-software.github.io/CMSIS_5/Pack/html/index.html) (DFP) standard for
+The [Open-CMSIS-Pack](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec) specification defines the
+Device Family Pack (DFP) standard for
 distributing device support files. PyOCD uses DFPs as a means to add support for devices that do
 not have support built in. This allows pyOCD to support nearly every Cortex-M MCU on the market. It
 also means that pyOCD can immediately support newly released devices as soon as the silicon vendor
@@ -122,8 +139,8 @@ allows you to install new device support with a single command line invocation.
 As part of the pack management, pyOCD keeps an index of all available DFPs. The pack index is a two-
 level hierarchy of pack lists, with the top level pointing to individual vendor indexes. Once the
 index is downloaded, pyOCD can very quickly locate the DFP that provides support for a given
-MCU part number. To learn more about the index, see the [CMSIS-Pack index
-files](http://arm-software.github.io/CMSIS_5/Pack/html/packIndexFile.html) documentation.
+MCU part number. To learn more about the index, see the [Open-CMSIS-Pack index
+files](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/packIndexFile.html) documentation.
 
 The two most useful subcommands of the `pack` subcommand are `find` and `install`. The options accept a glob-style
 pattern that is matched against MCU part numbers in the index. If the index has not been downloaded yet, that will be
@@ -189,4 +206,8 @@ To see the targets provided by a .pack file, run `pyocd list --targets` and pass
 
 _Note:_ .pack files are simply zip archives with a different extension. To examine the contents of
 a pack, change the extension to .zip and extract.
+
+_Note:_ PyOCD can work with expanded packs just like zipped .pack files. Pass the path to the root directory
+of the pack using the `--pack` argument, as above. This is very useful for cases such as development or
+debugging of a pack, or for working with other CMSIS-Pack managers that store packs in decompressed form.
 

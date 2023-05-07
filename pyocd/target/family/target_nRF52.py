@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013 Arm Limited
 # Copyright (c) 2019 Monadnock Systems Ltd.
+# Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,6 +52,28 @@ MASS_ERASE_TIMEOUT = 15.0
 
 LOG = logging.getLogger(__name__)
 
+def word_to_bytes(wrd):
+    result = []
+    for i in range(4):
+        result.append((wrd >> (8*i)) & 0xFF)
+    return bytes(result)
+
+PACKAGE = {
+    0x2004 : "QI",
+    0x2000 : "QF",
+    0x2005 : "CK"
+}
+
+HARDENED_APPROTECT_REVISIONS = {
+    0x52805 : "B0",
+    0x52810 : "E0",
+    0x52811 : "B0",
+    0x52820 : "D0",
+    0x52833 : "B0",
+    0x52832 : "G0",
+    0x52840 : "F0"
+}
+
 
 class NRF52(CoreSightTarget):
 
@@ -59,6 +82,7 @@ class NRF52(CoreSightTarget):
     def __init__(self, session, memory_map=None):
         super(NRF52, self).__init__(session, memory_map)
         self.ctrl_ap = None
+        self.hardened_approtect = True
 
     def create_init_sequence(self):
         seq = super(NRF52, self).create_init_sequence()
@@ -69,6 +93,12 @@ class NRF52(CoreSightTarget):
             lambda seq: seq.insert_before('find_components',
                               ('check_ctrl_ap_idr', self.check_ctrl_ap_idr),
                               ('check_flash_security', self.check_flash_security),
+                          )
+            )
+        seq.wrap_task('discovery',
+            lambda seq: seq.insert_after('create_cores',
+                              ('check_part_info', self.check_part_info),
+                              ('persist_unlock', self.persist_unlock),
                           )
             )
 
@@ -104,10 +134,16 @@ class NRF52(CoreSightTarget):
                 # Cached badness from create_ap run during AP lockout prevents create_cores from
                 # succeeding.
                 self._discoverer._create_1_ap(AHB_AP_NUM)
+
             else:
                 LOG.warning("%s APPROTECT enabled: not automatically unlocking", self.part_number)
         else:
             LOG.info("%s not in secure state", self.part_number)
+
+    def persist_unlock(self):
+        if self.session.options.get('auto_unlock') and self.hardened_approtect:
+            # Write HwDisabled to UICR.APPROTECT
+            self.write_uicr(0x10001208, 0x5A)
 
     def is_locked(self):
         status = self.ctrl_ap.read_reg(CTRL_AP_APPROTECTSTATUS)
@@ -130,3 +166,38 @@ class NRF52(CoreSightTarget):
         self.ctrl_ap.write_reg(CTRL_AP_RESET, CTRL_AP_RESET_NORESET)
         self.ctrl_ap.write_reg(CTRL_AP_ERASEALL, CTRL_AP_ERASEALL_NOOPERATION)
         return True
+
+    def write_uicr(self, addr: int, value: int):
+        current_value = self.read32(addr)
+        if ((current_value & value) != value) and (current_value != 0xFFFFFFFF):
+            raise exceptions.TargetError("cannot write UICR value, mass_erase needed")
+
+        self.write32(0x4001E504, 1)  # NVMC.CONFIG = WriteEnable
+        self._wait_nvmc_ready()
+        self.write32(addr, value)
+        self._wait_nvmc_ready()
+        self.write32(0x4001E504, 0)  # NVMC.CONFIG = ReadOnly
+        self._wait_nvmc_ready()
+
+    def _wait_nvmc_ready(self):
+        with Timeout(MASS_ERASE_TIMEOUT) as to:
+            while to.check():
+                if self.read32(0x4001E400) != 0x00000000:  # NVMC.READY != BUSY
+                    break
+            else:
+                raise exceptions.TargetError("wait for NVMC timed out")
+
+    def check_part_info(self):
+        partno = self.read32(0x10000100)
+        variant = self.read32(0x10000104)
+        variant = word_to_bytes(variant)[::-1].decode('ASCII', errors='ignore')
+        build_code = variant[2:]
+        variant = variant[:2]
+        package = self.read32(0x10000108)
+        package = PACKAGE.get(package, "")
+
+        hardened_approtect_min_revision = HARDENED_APPROTECT_REVISIONS.get(partno, None)
+        if hardened_approtect_min_revision and hardened_approtect_min_revision > build_code:
+            self.hardened_approtect = False
+
+        LOG.info(f"This appears to be an nRF{partno:X} {package}{variant} {build_code}")

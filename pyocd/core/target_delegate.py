@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2019 Arm Limited
-# COpyright (c) 2021 Chris Reed
+# COpyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (Optional, TYPE_CHECKING)
+from typing import (Any, Optional, TYPE_CHECKING)
 
 if TYPE_CHECKING:
     from .session import Session
@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from .target import Target
     from ..board.board import Board
     from ..utility.sequencer import CallSequence
+    from ..debug.sequences.delegates import DebugSequenceDelegate
+    from ..commands.execution_context import CommandSet
 
 ## @brief Return type for some delegate methods.
 #
@@ -31,6 +33,49 @@ if TYPE_CHECKING:
 # it handled the actions and no further action is to be performed, and False or None means to continue
 # processing.
 DelegateResult = Optional[bool]
+
+
+class DelegateHavingMixIn:
+    """! @brief Mix-in class adding delegate support.
+
+    There are two types of delegates:
+    - Debug sequence delegates
+    - Arbitrary delegate classes
+    """
+
+    _delegate: Any = None
+    _debug_sequence_delegate: Optional["DebugSequenceDelegate"] = None
+
+    @property
+    def delegate(self) -> Any:
+        return self._delegate
+
+    @delegate.setter
+    def delegate(self, the_delegate: Any) -> None:
+        self._delegate = the_delegate
+
+    @property
+    def debug_sequence_delegate(self) -> Optional["DebugSequenceDelegate"]:
+        return self._debug_sequence_delegate
+
+    @debug_sequence_delegate.setter
+    def debug_sequence_delegate(self, the_delegate: "DebugSequenceDelegate") -> None:
+        self._debug_sequence_delegate = the_delegate
+
+    def delegate_implements(self, method_name: str) -> bool:
+        return (self._delegate is not None) and (hasattr(self._delegate, method_name))
+
+    def call_delegate(self, method_name: str, *args: Any, **kwargs: Any) -> Optional[bool]:
+        if self.delegate_implements(method_name):
+            return getattr(self._delegate, method_name)(*args, **kwargs)
+        else:
+            # The default action is always taken if None is returned.
+            return None
+
+    def has_debug_sequence(self, name: str, pname: Optional[str] = None) -> bool:
+        seq_delegate = self.debug_sequence_delegate
+        return seq_delegate.has_sequence_with_name(name, pname) if seq_delegate else False
+
 
 class TargetDelegateInterface:
     """@brief Abstract class defining the delegate interface for targets.
@@ -42,6 +87,17 @@ class TargetDelegateInterface:
 
     def __init__(self, session: "Session") -> None:
         self._session = session
+
+    def unlock_device(self, target: "SoCTarget") -> None:
+        """! @brief Hook to perform any required unlock sequence.
+
+        Called after the DP is initialised but prior to discovery.
+
+        @param self
+        @param target An SoCTarget object about to be initialized.
+        @return Ignored.
+        """
+        pass
 
     def will_connect(self, board: "Board") -> None:
         """@brief Pre-init hook for the board.
@@ -219,4 +275,11 @@ class TargetDelegateInterface:
         """
         pass
 
+    def add_target_command_groups(self, target: "SoCTarget", command_set: "CommandSet"):
+        """@brief Hook for adding target-specific commands to a command set.
+        @param self
+        @param target A `SoCTarget` object.
+        @param command_set The `CommandSet` object to which commands may be added.
+        """
+        pass
 

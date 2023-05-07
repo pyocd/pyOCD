@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -24,6 +24,7 @@ from typing_extensions import Literal
 
 from ..core import (exceptions, memory_interface)
 from ..core.target import Target
+from ..core.target_delegate import DelegateHavingMixIn
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
 from .ap import APSEL_APBANKSEL
@@ -201,8 +202,9 @@ class DPConnector:
     DP IDR register. The probe must be already connected for the desired wire protocol.
     """
 
-    def __init__(self, probe: DebugProbe) -> None:
+    def __init__(self, probe: DebugProbe, dp: "DebugPort") -> None:
         self._probe = probe
+        self._dp = dp
         self._idr = DPIDR(0, 0, 0, 0, 0)
 
         # Make sure we have a session, since we get the session from the probe and probes have their session set
@@ -231,13 +233,15 @@ class DPConnector:
             # Create object to send SWJ sequences.
             swj = SWJSequenceSender(self._probe, use_dormant)
 
+            def jtag_enter_run_test_idle():
+                self._probe.jtag_sequence(6, 1, False, 0x3f)
+                self._probe.jtag_sequence(1, 0, False, 0x1)
+
             if protocol == DebugProbe.Protocol.JTAG \
                and DebugProbe.Capability.JTAG_SEQUENCE in self._probe.capabilities:
-                def jtag_enter_run_test_idle():
-                    self._probe.jtag_sequence(6, 1, 0, 0x3f)
-                    self._probe.jtag_sequence(1, 0, 0, 0x1)
+                use_jtag_enter_run_test_idle = True
             else:
-                jtag_enter_run_test_idle = None
+                use_jtag_enter_run_test_idle = False
 
             # Multiple attempts to select protocol and read DP IDR.
             for attempt in range(4):
@@ -245,7 +249,7 @@ class DPConnector:
                     if send_swj:
                         swj.select_protocol(protocol)
 
-                    if jtag_enter_run_test_idle:
+                    if use_jtag_enter_run_test_idle:
                         jtag_enter_run_test_idle()
 
                     # Attempt to read the DP IDR register.
@@ -278,14 +282,14 @@ class DPConnector:
 
     def read_idr(self) -> DPIDR:
         """@brief Read IDR register and get DP version"""
-        dpidr = self._probe.read_dp(DP_IDR, now=True)
+        dpidr = self._dp.read_dp(DP_IDR, now=True)
         dp_partno = (dpidr & DPIDR_PARTNO_MASK) >> DPIDR_PARTNO_SHIFT
         dp_version = (dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
         dp_revision = (dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
         is_mindp = (dpidr & DPIDR_MIN_MASK) != 0
         return DPIDR(dpidr, dp_partno, dp_version, dp_revision, is_mindp)
 
-class DebugPort:
+class DebugPort(DelegateHavingMixIn):
     """@brief Represents the Arm Debug Interface (ADI) Debug Port (DP)."""
 
     ## Sleep for 50 ms between connection tests and reconnect attempts after a reset.
@@ -433,17 +437,40 @@ class DebugPort:
         self._probe_supports_apv2_addresses = (DebugProbe.Capability.APv2_ADDRESSES in caps)
         self._have_probe_capabilities = True
 
+    def connect_debug_port_hook(self) -> Optional[bool]:
+        if self.has_debug_sequence('DebugPortSetup'):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('DebugPortSetup')
+            return True
+
+    def enable_debug_port_hook(self) -> Optional[bool]:
+        if self.has_debug_sequence('DebugPortStart'):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('DebugPortStart')
+            return True
+
+    def disable_debug_port_hook(self) -> Optional[bool]:
+        if self.has_debug_sequence('DebugPortStop'):
+            assert self.debug_sequence_delegate
+            self.debug_sequence_delegate.run_sequence('DebugPortStop')
+            return True
+
     def _connect(self) -> None:
         # Connect the probe.
         probe_conn = ProbeConnector(self.probe)
         probe_conn.connect(self._protocol)
 
         # Attempt to connect DP.
-        connector = DPConnector(self.probe)
-        connector.connect()
+        connector = DPConnector(self.probe, self)
+        if not self.connect_debug_port_hook():
+            connector.connect()
+            self.dpidr = connector.idr
+        else:
+            # We still need to read the IDR for our own use.
+            self.dpidr = connector.read_idr()
+        assert self.dpidr
 
         # Report on DP version.
-        self.dpidr = connector.idr
         LOG.log(logging.INFO if self._log_dp_info else logging.DEBUG,
             "DP IDR = 0x%08x (v%d%s rev%d)", self.dpidr.idr, self.dpidr.version,
             " MINDP" if self.dpidr.mindp else "", self.dpidr.revision)
@@ -518,6 +545,9 @@ class DebugPort:
 
         @return Boolean indicating whether the power up request succeeded.
         """
+        if self.enable_debug_port_hook():
+            return True
+
         # Send power up request for system and debug.
         self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
 
@@ -541,6 +571,9 @@ class DebugPort:
 
         @return Boolean indicating whether the power down request succeeded.
         """
+        if self.disable_debug_port_hook():
+            return True
+
         # Power down system first.
         self.write_reg(DP_CTRL_STAT, CDBGPWRUPREQ | MASKLANE | TRNNORMAL)
 

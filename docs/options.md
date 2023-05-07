@@ -2,7 +2,7 @@
 title: Session options list
 ---
 
-_**Note:** The names of these options are expected to change before the 1.0 release of pyOCD, so
+_**Note:** The names of these options are expected to change with the 1.0 release of pyOCD, so
 they will be better normalized and grouped._
 
 ## General options
@@ -27,7 +27,7 @@ takes precedence over this option if set.
 <td>bool</td>
 <td>False</td>
 <td>
-Prevents raising an error if no core were found after CoreSight discovery.
+Prevents raising an error if no cores were found after CoreSight discovery.
 </td></tr>
 
 <tr><td>auto_unlock</td>
@@ -36,6 +36,22 @@ Prevents raising an error if no core were found after CoreSight discovery.
 <td>
 If the target is locked, it will by default be automatically mass erased in order to gain debug
 access. Set this option to False to disable auto unlock.
+</td></tr>
+
+<tr><td>cache.enable_memory</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable the memory read cache. Affects memory accesses made through the target debug context, including the
+gdbserver.
+</td></tr>
+
+<tr><td>cache.enable_register</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Enable the core register cache. Affects core register accesses made through the target debug context,
+including the gdbserver.
 </td></tr>
 
 <tr><td>cache.read_code_from_elf</td>
@@ -136,9 +152,11 @@ Log details of loaded .FLM flash algos.
 
 <tr><td>debug.traceback</td>
 <td>bool</td>
-<td>True</td>
+<td>False</td>
 <td>
-Print tracebacks for exceptions.
+Print tracebacks for exceptions, including errors that are only logged as well as critical errors that cause pyocd to terminate.
+
+Disabled by default, unless the log level is raised to Debug.
 </td></tr>
 
 <tr><td>enable_multicore_debug</td>
@@ -146,8 +164,9 @@ Print tracebacks for exceptions.
 <td>False</td>
 <td>
 Whether to put pyOCD into multicore debug mode. The primary effect is to modify the default software
-reset type for secondary cores to use VECTRESET, which will fall back to emulated reset if the
-secondary core is not v7-M.
+reset type for secondary cores to use VECTRESET, which will fall back to emulated reset for
+secondary cores that are not v7-M architecture (VECTRESET is only supported on v7-M). The core that is
+considered the primary core is selected by the `primary_core` option.
 </td></tr>
 
 <tr><td>fast_program</td>
@@ -239,6 +258,47 @@ Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(
 list of available targets.
 </td></tr>
 
+<tr><td>pack.debug_sequences.debugvars</td>
+<td>str</td>
+<td><i>No default</i></td>
+<td>
+Variable definition statements to change configurable variables defined by and used in the target's debug sequences.
+Should be set to a string containing C-style variable assignment statements. C-compatible integer expressions
+are allowed, and can refer to previously defined variables. Only those debug variables whose value is being
+changed need to be assigned a value; others will retain their default value.
+</td></tr>
+
+<tr><td>pack.debug_sequences.disabled_sequences</td>
+<td>str, list of str</td>
+<td><i>No default</i></td>
+<td>
+Comma-separated list of names of debug sequences to disable for a CMSIS-Pack based target.
+Disabled sequences can be restricted to a given core by appending a colon and processor
+name to the sequence's name. If set in a YAML config file, the value must be a list of sequence
+names instead of using a single comma-separated value.
+
+Only top-level sequences can be disabled. If a sequence is called from another sequence it will
+always be executed even if listed in this option.
+
+Ignored for builtin targets.
+</td></tr>
+
+<tr><td>pack.debug_sequences.enable</td>
+<td>bool</td>
+<td><i>True</i></td>
+<td>
+Global enable for debug sequences for CMSIS-Pack based targets. Ignored for builtin targets.
+</td></tr>
+
+<tr><td>primary_core</td>
+<td>int</td>
+<td>0</td>
+<td>
+Core number for the primary/boot core of an asymmetric multicore target. Becomes the default selected
+core in the commander and the `SoCTarget` class. Also the core that will control system reset when
+`enable_multicore_debug` is set.
+</td></tr>
+
 <tr><td>probeserver.port</td>
 <td>int</td>
 <td>5555</td>
@@ -258,8 +318,11 @@ executed.
 <td>str</td>
 <td>'sw'</td>
 <td>
-Which type of reset to use by default (one of 'default', 'hw', 'sw', 'sw_sysresetreq',
-'sw_vectreset', 'sw_emulated').
+Which type of reset to use by default. Must be one of `default`, `hw`, `sw`, `sw_system`, `sw_core`,
+`sw_sysresetreq`, `sw_vectreset`, `sw_emulated`, `system`, `core`, `sysresetreq`, `vectreset`,
+`emulated`). The default is `sw`, which itself defaults to `sw_system`. `default` causes the target type's
+default reset type to be used; this is usually `sw`. If `enable_multicore_debug` is
+set to true, then `sw` for secondary cores will default to `sw_core`.
 </td></tr>
 
 <tr><td>reset.hold_time</td>
@@ -304,7 +367,11 @@ Timeout in seconds for waiting for the core to halt after a reset and halt.
 <td>bool</td>
 <td>True</td>
 <td>
-Whether to resume a halted target when disconnecting.
+Whether to disable debug control and resume the target when disconnecting.
+
+When True, then upon disconnect all CPUs are resumed, and DWT and other trace related blocks are disabled (`DEMCR` system register is cleared).
+If False, the target CPU states are left unchanged and any enabled debug hardware (DWT, ITM) remains enabled.
+In all cases, breakpoints and watchpoints are removed prior to disconnect.
 </td></tr>
 
 <tr><td>scan_all_aps</td>
@@ -448,6 +515,13 @@ semihosting will print to the console.
 <td>
 Whether to use GDB syscalls for semihosting file access operations, or to have pyOCD perform the
 operations. This is most useful if GDB is running on a remote system.
+</td></tr>
+
+<tr><td>semihost.commandline</td>
+<td>str</td>
+<td><i>Empty</i></td>
+<td>
+Program command line string, used for the SYS_GET_CMDLINE semihosting request.
 </td></tr>
 
 <tr><td>step_into_interrupt</td>

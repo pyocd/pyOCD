@@ -22,6 +22,7 @@ from . import target_imxrt
 from . import target_kinetis
 from . import target_lpc5500
 from . import target_nRF52
+from . import target_nRF91
 
 class FamilyInfo(NamedTuple):
     """@brief Container for family matching information."""
@@ -38,8 +39,8 @@ class FamilyInfo(NamedTuple):
 # present), or the 'Dname' or 'Dvariant' part numbers. The comparisons are performed in order from
 # specific to general, starting with the part number.
 FAMILIES = [
-    FamilyInfo("NXP",                   re.compile(r'LPC55.?[0-9]{2}.*'),   target_lpc5500.LPC5500Family    ),
     FamilyInfo("NXP",                   re.compile(r'MIMXRT[0-9]{4}.*'),    target_imxrt.IMXRT              ),
     FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),        target_kinetis.Kinetis          ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),       target_nRF52.NRF52              ),
+    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF91[0-9]+.*'),       target_nRF91.NRF91              ),
     ]

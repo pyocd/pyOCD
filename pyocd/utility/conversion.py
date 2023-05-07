@@ -17,13 +17,11 @@
 
 import struct
 import binascii
-from typing import (Any, Iterator, Sequence, Tuple, cast)
+from typing import (Any, Iterator, List, Sequence, Tuple, cast)
 
 from .mask import align_up
 
-ByteList = Sequence[int]
-
-def byte_list_to_nbit_le_list(data: ByteList, bitwidth: int, pad: int = 0x00) -> Sequence[int]:
+def byte_list_to_nbit_le_list(data: Sequence[int], bitwidth: int, pad: int = 0x00) -> List[int]:
     """@brief Convert a list of bytes to a list of n-bit integers (little endian)
 
     If the length of the data list is not a multiple of `bitwidth` // 8, then the pad value is used
@@ -46,7 +44,7 @@ def byte_list_to_nbit_le_list(data: ByteList, bitwidth: int, pad: int = 0x00) ->
         res.append(sum((padded_data[i] << (i * 8)) for i in range(bytewidth)))
     return res
 
-def nbit_le_list_to_byte_list(data: Sequence[int], bitwidth: int) -> ByteList:
+def nbit_le_list_to_byte_list(data: Sequence[int], bitwidth: int) -> List[int]:
     """@brief Convert a list of n-bit values into a byte list.
 
     @param data List of n-bit values.
@@ -55,7 +53,7 @@ def nbit_le_list_to_byte_list(data: Sequence[int], bitwidth: int) -> ByteList:
     """
     return [(x >> shift) & 0xff for x in data for shift in range(0, bitwidth, 8)]
 
-def byte_list_to_u32le_list(data: ByteList, pad: int = 0x00) -> Sequence[int]:
+def byte_list_to_u32le_list(data: Sequence[int], pad: int = 0x00) -> List[int]:
     """@brief Convert a list of bytes to a list of 32-bit integers (little endian)
 
     If the length of the data list is not a multiple of 4, then the pad value is used
@@ -69,11 +67,11 @@ def byte_list_to_u32le_list(data: ByteList, pad: int = 0x00) -> Sequence[int]:
                    data[i * 4 + 3] << 24)
     remainder = (len(data) % 4)
     if remainder != 0:
-        padCount = 4 - remainder
-        res += byte_list_to_u32le_list(list(data[-remainder:]) + [pad] * padCount)
+        pad_count = 4 - remainder
+        res += byte_list_to_u32le_list(list(data[-remainder:]) + [pad] * pad_count)
     return res
 
-def u32le_list_to_byte_list(data: Sequence[int]) -> ByteList:
+def u32le_list_to_byte_list(data: Sequence[int]) -> List[int]:
     """@brief Convert a word array into a byte array"""
     res = []
     for x in data:
@@ -83,18 +81,18 @@ def u32le_list_to_byte_list(data: Sequence[int]) -> ByteList:
         res.append((x >> 24) & 0xff)
     return res
 
-def u16le_list_to_byte_list(data: Sequence[int]) -> ByteList:
+def u16le_list_to_byte_list(data: Sequence[int]) -> List[int]:
     """@brief Convert a halfword array into a byte array"""
-    byteData = []
+    byte_data = []
     for h in data:
-        byteData.extend([h & 0xff, (h >> 8) & 0xff])
-    return byteData
+        byte_data.extend([h & 0xff, (h >> 8) & 0xff])
+    return byte_data
 
-def byte_list_to_u16le_list(byteData: ByteList) -> Sequence[int]:
+def byte_list_to_u16le_list(byte_data: Sequence[int]) -> List[int]:
     """@brief Convert a byte array into a halfword array"""
     data = []
-    for i in range(0, len(byteData), 2):
-        data.append(byteData[i] | (byteData[i + 1] << 8))
+    for i in range(0, len(byte_data), 2):
+        data.append(byte_data[i] | (byte_data[i + 1] << 8))
     return data
 
 def u32_to_float32(data: int) -> float:
@@ -173,7 +171,7 @@ def byte_to_hex2(val: int) -> str:
     """@brief Create 2-digit hexadecimal string from 8-bit value"""
     return "%02x" % int(val)
 
-def hex_to_byte_list(data: str) -> ByteList:
+def hex_to_byte_list(data: str) -> List[int]:
     """@brief Convert string of hex bytes to list of integers"""
     return list(binascii.unhexlify(data))
 
@@ -193,5 +191,3 @@ def pairwise(iterable: Iterator[Any]) -> Iterator[Tuple[Any, Any]]:
         if len(r) == 2:
             yield cast(Tuple[Any, Any], tuple(r))
             r = []
-    if len(r) > 0:
-        yield (r[0], r[1])

@@ -101,6 +101,7 @@ from . import target_musca_b1
 from . import target_musca_s1
 from . import target_LPC5526Jxxxxx
 from . import target_LPC55S69Jxxxxx
+from . import target_LPC55S16
 from . import target_LPC55S36
 from . import target_LPC55S28Jxxxxx
 from . import target_M251
@@ -121,6 +122,10 @@ from . import target_HC32L07x
 from . import target_MPS3_AN522
 from . import target_MPS3_AN540
 from . import target_RP2040
+from . import target_ytm32b1ld0
+from . import target_ytm32b1le0
+from . import target_ytm32b1me0
+from . import target_ytm32b1md1
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -235,6 +240,7 @@ BUILTIN_TARGETS = {
           'musca_s1' : target_musca_s1.MuscaS1,
           'lpc5526'  : target_LPC5526Jxxxxx.LPC5526,
           'lpc55s69' : target_LPC55S69Jxxxxx.LPC55S69,
+          'lpc55s16' : target_LPC55S16.LPC55S16,
           'lpc55s36' : target_LPC55S36.LPC55S36,
           'lpc55s28' : target_LPC55S28Jxxxxx.LPC55S28,
           'cy8c64xx_cm0_full_flash' : target_CY8C64xx.cy8c64xx_cm0_full_flash,
@@ -279,4 +285,8 @@ BUILTIN_TARGETS = {
           'rp2040' : target_RP2040.RP2040Core0,
           'rp2040_core0' : target_RP2040.RP2040Core0,
           'rp2040_core1' : target_RP2040.RP2040Core1,
+          'ytm32b1ld0': target_ytm32b1ld0.YTM32B1LD0,
+          'ytm32b1le0': target_ytm32b1le0.YTM32B1LE0,
+          'ytm32b1me0': target_ytm32b1me0.YTM32B1ME0,
+          'ytm32b1md1': target_ytm32b1md1.YTM32B1MD1,
          }

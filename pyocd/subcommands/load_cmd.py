@@ -62,6 +62,8 @@ class LoadSubcommand(SubcommandBase):
                  "all must be of this type.")
         parser_options.add_argument("--skip", metavar="BYTES", default=0, type=int_base_0,
             help="Skip programming the first N bytes. Binary files only.")
+        parser_options.add_argument("--no-reset", action="store_true",
+            help="Specify to prevent resetting device after programming has finished.")
 
         parser.add_argument("file", metavar="<file-path>", nargs="+",
             help="File to write to memory. Binary files can have an optional base address appended to the file "
@@ -89,14 +91,17 @@ class LoadSubcommand(SubcommandBase):
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
                             connect_mode=self._args.connect_mode,
-                            options=convert_session_options(self._args.options))
+                            options=convert_session_options(self._args.options),
+                            option_defaults=self._modified_option_defaults(),
+                            )
         if session is None:
             LOG.error("No target device available")
             return 1
         with session:
             programmer = FileProgrammer(session,
                             chip_erase=self._args.erase,
-                            trust_crc=self._args.trust_crc)
+                            trust_crc=self._args.trust_crc,
+                            no_reset=self._args.no_reset)
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()

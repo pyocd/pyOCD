@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="PACK.xsd" schemaVersion="1.4">
+  <name>LPC55S36_DFP</name>
+  <vendor>NXP</vendor>
+  <description>Device Family Pack for LPC55S36</description>
+  <url>https://mcuxpresso.nxp.com/cmsis_pack/repo/</url>
+  <license>Licenses.txt</license>
+  <releases>
+    <release version="13.0.0" date="2022-04-01">NXP CMSIS Packs based on MCUXpresso SDK 2.10.2</release>
+  </releases>
+  <keywords>
+    <keyword>Device Family Pack</keyword>
+  </keywords>
+  <taxonomy>
+    <description Cclass="Board Support" Cgroup="SDK Project Template">NXP MCUXpresso SDK Project Template</description>
+    <description Cclass="Device" Cgroup="SDK Project Template">NXP MCUXpresso SDK RTE Device Project Template</description>
+    <description Cclass="Device" Cgroup="SDK Drivers">NXP MCUXpresso SDK Peripheral Drivers</description>
+    <description Cclass="Device" Cgroup="SDK Utilities">NXP MCUXpresso SDK Utilities</description>
+    <description Cclass="Device" Cgroup="Startup">NXP MCUXpresso SDK Start up</description>
+    <description Cclass="CMSIS Driver">NXP MCUXpresso SDK Peripheral CMSIS Drivers</description>
+  </taxonomy>
+  <requirements>
+    <packages>
+      <package name="CMSIS" vendor="ARM" version="5.6.0"/>
+    </packages>
+    <languages>
+      <language name="C" version="99"/>
+    </languages>
+  </requirements>
+  <devices>
+    <family Dfamily="LPC55S36" Dvendor="NXP:11">
+      <debugconfig default="swd" clock="5000000" swj="true"/>
+      <sequences>
+        <sequence name="EnableTraceClk">
+          <block>
+        __var SYSCON_NS_Base_Addr = 0x40000000;
+        __var IOCON_NS_Base_Addr  = 0x40001000;
+        __var TRACECLKSEL_Addr    = SYSCON_NS_Base_Addr + 0x268;
+        __var TRACECLKDIV_Addr    = SYSCON_NS_Base_Addr + 0x308;
+        __var AHBCLKCTRLSET0_Addr = IOCON_NS_Base_Addr  + 0x220;
+        __var clksel              = 0;
+        __var clkdiv              = 0;
+      </block>
+          <control if="__traceout &amp; 0x3">
+            <block>
+          clksel = Read32(TRACECLKSEL_Addr);  // Read current TRACECLKSEL value
+        </block>
+            <control if="clksel &gt; 2" info="Trace (TPIU) Clock not selected?">
+              <block>
+            Write32(TRACECLKSEL_Addr, 0x0);   // Select Trace divided clock
+          </block>
+            </control>
+            <block>
+          clkdiv = (Read32(TRACECLKDIV_Addr) &amp; 0xFF);  // Read current TRACECLKDIV value, preserve divider but clear rest to enable
+          Write32(TRACECLKDIV_Addr, clkdiv);
+
+          Write32(AHBCLKCTRLSET0_Addr, (1 &lt;&lt; 13));   // Enable IOCON clock
+        </block>
+          </control>
+        </sequence>
+        <sequence name="EnableDebugMailbox">
+          <block>
+        __var status=0x55aa;
+        Message(0, "LPC55xx connect srcipt start");
+
+        // Read APIDR
+        __dp = 0;
+        __ap = 2;
+        status = ReadAP(0xFC);
+        Message(0, "APIDR: 0x%08X", status);
+
+        // Read DPIDR
+        __dp = 0;
+        __ap = 2;
+        status = ReadDP(0x0);
+        Message(0, "DPIDR: 0x%08X", status);
+
+        // Active DebugMailbox
+        __dp = 0;
+        __ap = 2;
+        WriteAP(0x0, 0x00000021);
+        DAP_Delay(30000);
+        ReadAP(0x0);
+
+        // Enter Debug Session
+        __dp = 0;
+        __ap = 2;
+        WriteAP(0x4, 0x00000007);
+        DAP_Delay(30000);
+        ReadAP(0x8);
+
+        __dp = 0;
+        __ap = 0;
+
+        Message(0, "LPC55xx connect srcipt end");
+      </block>
+        </sequence>
+        <sequence name="DebugPortStart">
+          <block>
+        __var SW_DP_ABORT  = 0x0;
+        __var DP_CTRL_STAT = 0x4;
+        __var DP_SELECT    = 0x8;
+        __var powered_down = 0;
+        // Switch to DP Register Bank 0
+        WriteDP(DP_SELECT, 0x00000000);
+
+        // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
+        powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
+      </block>
+          <control if="powered_down">
+            <block>
+          // Request Debug/System Power-Up
+          WriteDP(DP_CTRL_STAT, 0x50000000);
+        </block>
+            <!-- Wait for Power-Up Request to be acknowledged -->
+            <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000"/>
+            <!-- SWD Specific Part of sequence -->
+            <control if="(__protocol &amp; 0xFFFF) == 2">
+              <block>
+            // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
+            WriteDP(DP_CTRL_STAT, 0x50000F00);
+
+            // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
+            WriteDP(SW_DP_ABORT, 0x0000001E);
+
+            Sequence("EnableDebugMailbox");
+          </block>
+            </control>
+          </control>
+        </sequence>
+        <sequence name="DebugDeviceUnlock">
+          <control if="__traceout &amp; 0x3" info="Trace output via TPIU selected">
+            <block>
+          Sequence("EnableTraceClk");       // Enable trace clock to enable TPIU register accesses
+        </block>
+          </control>
+        </sequence>
+        <sequence name="ResetCatchSet">
+          <block>
+        __var SCS_Addr    = 0xE000E000;
+        __var DHCSR_Addr  = SCS_Addr + 0xDF0;
+        __var DEMCR_Addr  = SCS_Addr + 0xDFC;
+        __var resetVector = 0xFFFFFFFF;                                    // Reset Vector
+
+        Write32(0xE000EDFC, Read32(DEMCR_Addr) &amp; (~0x00000001));       // Clear Reset Vector Catch
+
+        Write32(0x40034010, 0x00000000);                                   // Program Flash Word Start Address to 0x0 to read reset vector (STARTA)
+        Write32(0x40034014, 0x00000000);                                   // Program Flash Word Stop Address to 0x0 to read reset vector (STOPA)
+        Write32(0x40034080, 0x00000000);                                   // DATAW0: Prepare for read
+        Write32(0x40034084, 0x00000000);                                   // DATAW1: Prepare for read
+        Write32(0x40034088, 0x00000000);                                   // DATAW2: Prepare for read
+        Write32(0x4003408C, 0x00000000);                                   // DATAW3: Prepare for read
+        Write32(0x40034090, 0x00000000);                                   // DATAW4: Prepare for read
+        Write32(0x40034094, 0x00000000);                                   // DATAW5: Prepare for read
+        Write32(0x40034098, 0x00000000);                                   // DATAW6: Prepare for read
+        Write32(0x4003409C, 0x00000000);                                   // DATAW7: Prepare for read
+
+        Write32(0x40034FE8, 0x0000000F);                                   // Clear FLASH Controller Status (INT_CLR_STATUS)
+        Write32(0x40034000, 0x00000003);                                   // Read single Flash Word (CMD_READ_SINGLE_WORD)
+      </block>
+          <control while="(Read32(0x40034FE0) &amp; 0x00000004) == 0" timeout="100000" info="Wait for flash word read to finish"/>
+          <control if="(Read32(0x40034FE0) &amp; 0xB) == 0" info="No Error reading Flash Word with Reset Vector">
+            <block>
+          // Lowest flash page readable, read via AHB (flash controller for some reason returns garbage)
+          resetVector = Read32(0x00000004);                                // Read Reset Vector (Address 0x00000004)
+        </block>
+          </control>
+          <control if="resetVector != 0xFFFFFFFF" info="Breakpoint on user application reset vector">
+            <!-- we have a valid breakpoint address -->
+            <block>
+          Write32(0xE0002008, resetVector|1);                              // Program FPB Comparator 0 with reset handler address
+          Write32(0xE0002000, 0x00000003);                                 // Enable FPB
+        </block>
+          </control>
+          <control if="resetVector == 0xFFFFFFFF" info="Enable reset vector catch">
+            <!-- we do not have a valid breakpoint address -->
+            <block>
+          Write32(DEMCR_Addr, (Read32(DEMCR_Addr) | 0x00000001));          // Enable Reset Vector Catch in DEMCR
+        </block>
+          </control>
+          <block>
+        // Read DHCSR to clear potentially set DHCSR.S_RESET_ST bit
+        Read32(DHCSR_Addr);
+      </block>
+        </sequence>
+        <sequence name="ResetCatchClear">
+          <block>
+        __var DEMCR_Addr = 0xE000EDFC;
+
+        // Clear FPB Comparators 0 and 1
+        Write32(0xE0002008, 0x00000000);
+
+        // Disable FPB
+        Write32(0xE0002000, 0x00000002);
+
+        // Clear Reset Vector Catch
+        Write32(DEMCR_Addr, Read32(DEMCR_Addr) &amp; (~0x00000001));
+      </block>
+        </sequence>
+        <sequence name="WaitForStopAfterReset">
+          <block>
+        __var SCS_Addr    = 0xE000E000;
+        __var DHCSR_Addr  = SCS_Addr + 0xDF0;
+
+        // Give bootloader time to do what it needs to do
+        DAP_Delay(BootTime);  // try 10ms
+
+        Sequence("EnableDebugMailbox");
+      </block>
+          <!-- Reset Recovery: Wait for DHCSR.S_RESET_ST bit to clear on read -->
+          <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="500000"/>
+          <control if="(Read32(DHCSR_Addr) &amp; 0x00020000) == 0">
+            <block>
+          Write32(DHCSR_Addr, 0xA05F0003);  // Force halt until finding a proper catch. Probably works better from flash.
+        </block>
+          </control>
+        </sequence>
+        <sequence name="ResetHardware">
+          <block>
+        __var nReset      = 0x80;
+        __var canReadPins = 0;
+        __var SCS_Addr    = 0xE000E000;
+        __var DHCSR_Addr  = SCS_Addr + 0xDF0;
+
+        // De-assert nRESET line
+        canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
+      </block>
+          <!-- Keep reset active for 50 ms -->
+          <control while="1" timeout="50000"/>
+          <control if="canReadPins">
+            <!-- Assert nRESET line and wait max. 1s for recovery -->
+            <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
+          </control>
+          <control if="!canReadPins">
+            <block>
+          // Assert nRESET line
+          DAP_SWJ_Pins(nReset, nReset, 0);
+        </block>
+            <!-- Wait 100ms for recovery if nRESET not readable -->
+            <control while="1" timeout="100000"/>
+          </control>
+          <control if="(__connection &amp; (1 &lt;&lt; 17)) == 0">
+            <block>
+          Sequence("WaitForStopAfterReset");
+        </block>
+          </control>
+        </sequence>
+        <sequence name="ResetSystem">
+          <block>
+        // System Control Space (SCS) offset as defined in Armv6-M/Armv7-M.
+        __var SCS_Addr   = 0xE000E000;
+        __var AIRCR_Addr = SCS_Addr + 0xD0C;
+        __var DHCSR_Addr = SCS_Addr + 0xDF0;
+
+        __var ap0_disable=0x55aa;
+
+        __errorcontrol = 1;
+
+        // Execute SYSRESETREQ via AIRCR
+        Write32(AIRCR_Addr, 0x05FA0004);
+
+        __errorcontrol = 0;
+
+        // Give bootloader time to do what it needs to do
+        DAP_Delay(BootTime);  // try 10ms
+
+        // Read AP0 CSW
+        __dp = 0;
+        __ap = 0;
+        ap0_disable = ReadAP(0x0);
+        ap0_disable = ((ap0_disable &amp; 0x40) == 0);
+        Message(0, "AP0 DIS: %x", ap0_disable);
+      </block>
+          <control if="ap0_disable">
+            <block>
+          Sequence("WaitForStopAfterReset");
+        </block>
+          </control>
+        </sequence>
+        <sequence name="ResetProcessor" disable="1"/>
+        <sequence name="TraceStart">
+          <control if="__traceout &amp; 0x1" info="SWO Trace output selected">
+            <block>
+          Sequence("EnableTraceClk");       // Enable and configure trace clock
+        </block>
+            <control if="SWO_Pin == 0" info="SWO via PIO0_10">
+              <block>
+            Write32(0x40001028, 0x00000046); // Configure PIO0_10: FUNC - 6, MODE - 0, SLEW - 1, INVERT - 0, DIGMODE - 0, OD - 0
+          </block>
+            </control>
+            <control if="SWO_Pin == 1" info="SWO via PIO0_8">
+              <block>
+            Write32(0x40001020, 0x00000044); // Configure PIO0_10: FUNC - 4, MODE - 0, SLEW - 1, INVERT - 0, DIGMODE - 0, OD - 0
+          </block>
+            </control>
+          </control>
+        </sequence>
+      </sequences>
+      <debugvars configfile="arm/LPC55xx.dbgconf">
+  // Debug Access Variables, can be modified by user via copies of DBGCONF files as created by uVision. Also see sub-family level.
+  __var SWO_Pin               = 0;                    // Serial Wire Output pin: 0 = PIO0_10, 1 = PIO0_8
+  __var Dbg_CR                = 0x00000000;           // DBG_CR
+  __var BootTime              = 10000;                // 10 milliseconds
+</debugvars>
+      <description>Arm Cortex-M33-based Microcontroller Family</description>
+      <device Dname="LPC55S36">
+        <processor Dcore="Cortex-M33" Dfpu="SP_FPU" Dmpu="MPU" Dtz="TZ" Ddsp="DSP" Dendian="Little-endian" Dclock="150000000"/>
+        <environment name="iar">
+          <file category="linkerfile" name="iar/LPC55S36_flash.icf"/>
+        </environment>
+        <memory name="BootROM" start="0x03000000" size="0x020000" access="rx"/>
+        <memory name="BootROM_alias" start="0x13000000" size="0x020000" access="rx" alias="BootROM"/>
+        <memory name="PROGRAM_FLASH" start="0x00000000" size="0x03d800" access="rx" default="1" startup="1"/>
+        <memory name="PROGRAM_FLASH_alias" start="0x10000000" size="0x03d800" access="rw" alias="PROGRAM_FLASH"/>
+        <memory name="SRAM" start="0x20000000" size="0x01c000" access="rw" default="1"/>
+        <memory name="SRAMX" start="0x04000000" size="0x4000" access="rw" default="1"/>
+        <memory name="SRAMX_alias" start="0x14000000" size="0x4000" access="rw" alias="SRAMX"/>
+        <memory name="SRAM_alias" start="0x30000000" size="0x01c000" access="rw" alias="SRAM"/>
+        <algorithm name="LPC553XX_256.FLM" start="0x00000000" size="0x00040000" RAMstart="0x20000000" RAMsize="0x00001000" default="1"/>
+        <algorithm name="LPC553XX_S_256.FLM" start="0x10000000" size="0x00040000" RAMstart="0x20000000" RAMsize="0x00001000" default="1"/>
+        <algorithm name="LPC553XX_FLEXSPI.FLM" start="0x08000000" size="0x04000000" RAMstart="0x20000000" RAMsize="0x00001000" default="1"/>
+        <algorithm name="LPC553XX_FLEXSPI_S.FLM" start="0x18000000" size="0x04000000" RAMstart="0x20000000" RAMsize="0x00001000" default="1"/>
+        <debug svd="LPC55S36.xml"/>
+        <variant Dvariant="LPC55S36JBD100">
+          <compile header="fsl_device_registers.h" define="CPU_LPC55S36JBD100"/>
+        </variant>
+        <variant Dvariant="LPC55S36JHI48">
+          <compile header="fsl_device_registers.h" define="CPU_LPC55S36JHI48"/>
+        </variant>
+      </device>
+    </family>
+  </devices>
+</package>

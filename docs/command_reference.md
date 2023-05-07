@@ -15,7 +15,10 @@ that ambiguous because it matches multiple commands, an error will be reported s
 command names. In addition, commonly used commands often have a short alias. The alias takes
 precedence even when it is a prefix of multiple other commands.
 
-<!-- Maintainer note: the following is auto-generated. Edit the command INFO source material. -->
+<!--
+Maintainer note: the following is auto-generated. Edit the command class INFO dict source material,
+then run ./scripts/generate_command_help.py.
+-->
 
 All commands
 ------------
@@ -128,9 +131,9 @@ Resume execution of the target.
 <tr><td>
 <a href="#core"><tt>core</tt></a>
 </td><td>
-[NUM]
+[NUMBER | NAME]
 </td><td>
-Select CPU core by number or print selected core.
+Select CPU core by number or name, or print selected core.
 </td></tr>
 
 <tr><td>
@@ -195,7 +198,7 @@ Write DP register.
 </td><td>
 [halt|-halt|-h] [TYPE]
 </td><td>
-Reset the target, optionally specifying the reset type.
+Reset the target, optionally with halt and/or specifying the reset type.
 </td></tr>
 
 <tr><td>
@@ -403,6 +406,16 @@ Print core or peripheral register(s).
 Set the value of a core or peripheral register.
 </td></tr>
 
+<tr><td colspan="3"><b>Rtt</b></td></tr>
+
+<tr><td>
+<a href="#rtt"><tt>rtt</tt></a>
+</td><td>
+rtt {setup,start,stop,channels,server}
+</td><td>
+Control SEGGER RTT compatible interface.
+</td></tr>
+
 <tr><td colspan="3"><b>Semihosting</b></td></tr>
 
 <tr><td>
@@ -469,6 +482,16 @@ Show the target's current state.
 Control thread awareness.
 </td></tr>
 
+<tr><td colspan="3"><b>Utility</b></td></tr>
+
+<tr><td>
+<a href="#sleep"><tt>sleep</tt></a>
+</td><td>
+MILLISECONDS
+</td><td>
+Sleep for a number of milliseconds before continuing.
+</td></tr>
+
 <tr><td colspan="3"><b>Values</b></td></tr>
 
 <tr><td>
@@ -503,6 +526,14 @@ command can be read, written, or both.
 <tr><th>Value</th><th>Access</th><th>Description</th></tr>
 
 <tr><td>
+<a href="#accessible-pins"><tt>accessible-pins</tt></a>
+</td><td>
+read-write
+</td><td>
+Display which debug probe pins can be read and written with the 'pins' value.
+</td></tr>
+
+<tr><td>
 <a href="#aps"><tt>aps</tt></a>
 </td><td>
 read-only
@@ -516,6 +547,14 @@ List discovered Access Ports.
 read-only
 </td><td>
 Information about CPU cores in the target.
+</td></tr>
+
+<tr><td>
+<a href="#debug-sequences"><tt>debug-sequences</tt></a>
+</td><td>
+read-only
+</td><td>
+Show the available debug sequences from the target's DFP.
 </td></tr>
 
 <tr><td>
@@ -616,6 +655,14 @@ List of target peripheral instances.
 </td></tr>
 
 <tr><td>
+<a href="#pins"><tt>pins</tt></a>
+</td><td>
+read-write
+</td><td>
+Current debug probe protocol I/O pin states.
+</td></tr>
+
+<tr><td>
 <a href="#probe-uid"><tt>probe-uid</tt></a>,
 <a href="#probe-uid"><tt>uid</tt></a>
 </td><td>
@@ -630,6 +677,14 @@ Target's unique ID.
 read-only
 </td><td>
 Display available register groups for the selected core.
+</td></tr>
+
+<tr><td>
+<a href="#reset-type"><tt>reset-type</tt></a>
+</td><td>
+read-write
+</td><td>
+Show reset configuration and all available reset types for each core. Set current reset type.
 </td></tr>
 
 <tr><td>
@@ -750,8 +805,8 @@ Resume execution of the target. The target's state is read back after resuming. 
 
 ##### `core`
 
-**Usage**: core [NUM] \
-Select CPU core by number or print selected core.
+**Usage**: core [NUMBER | NAME] \
+Select CPU core by number or name, or print selected core.
 
 
 ##### `halt`
@@ -803,7 +858,7 @@ Write DP register.
 ##### `reset`
 
 **Usage**: reset [halt|-halt|-h] [TYPE] \
-Reset the target, optionally specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', 'vectreset', or 'emulated'.
+Reset the target, optionally with halt and/or specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.
 
 
 ##### `unlock`
@@ -969,6 +1024,14 @@ Print core or peripheral register(s). If no arguments are provided, the 'general
 Set the value of a core or peripheral register. The REG parameter must be a core register name or a peripheral.register. When a peripheral register is written, if the -r option is passed then it is read back and the updated value printed. The -p option forces evaluating the register name as a peripheral register name. If the -f option is passed, then individual fields of peripheral registers will be printed in addition to the full value.
 
 
+### Rtt
+
+##### `rtt`
+
+**Usage**: rtt rtt {setup,start,stop,channels,server} \
+Control SEGGER RTT compatible interface.
+
+
 ### Semihosting
 
 ##### `arm`
@@ -1023,6 +1086,14 @@ Show the target's current state.
 Control thread awareness.
 
 
+### Utility
+
+##### `sleep`
+
+**Usage**: sleep MILLISECONDS \
+Sleep for a number of milliseconds before continuing.
+
+
 ### Values
 
 ##### `set`
@@ -1041,6 +1112,12 @@ Display a value.
 Value details
 -------------
 
+##### `accessible-pins`
+
+**Access**: read-write \
+**Usage**: show accessible-pins, set accessible-pins VALUE \
+Display which debug probe pins can be read and written with the 'pins' value.
+
 ##### `aps`
 
 **Access**: read-only \
@@ -1052,6 +1129,12 @@ List discovered Access Ports.
 **Access**: read-only \
 **Usage**: show cores \
 Information about CPU cores in the target.
+
+##### `debug-sequences`
+
+**Access**: read-only \
+**Usage**: show debug-sequences \
+Show the available debug sequences from the target's DFP. Only available for CMSIS-Pack based targets.
 
 ##### `fault`
 
@@ -1130,6 +1213,12 @@ The current value of one or more session options. When setting, each argument sh
 **Usage**: show peripherals \
 List of target peripheral instances.
 
+##### `pins`
+
+**Access**: read-write \
+**Usage**: show pins, set pins VALUE \
+Current debug probe protocol I/O pin states. The pins value is a mask containing the state of all accessible protocol pins. See the `accessible-pins` value for protocol pins that can be read and written by the connected debug probe.
+
 ##### `probe-uid`
 
 **Aliases**: `uid` \
@@ -1142,6 +1231,12 @@ Target's unique ID.
 **Access**: read-only \
 **Usage**: show register-groups \
 Display available register groups for the selected core.
+
+##### `reset-type`
+
+**Access**: read-write \
+**Usage**: show reset-type, set reset-type VALUE \
+Show reset configuration and all available reset types for each core. Set current reset type.
 
 ##### `step-into-interrupts`
 

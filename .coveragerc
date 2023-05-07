@@ -10,3 +10,12 @@ equiv_source =
 [report]
 skip_empty = true
 precision = 1
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def [a-z_]*dump
+    assert False
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
