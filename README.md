@@ -7,12 +7,7 @@ pyOCD
 
 ### News
 
-- A new CI pipeline for functional tests is now running on a new test farm. Full results are [publicly
-    accessible](https://dev.azure.com/pyocd/pyocd/_build?definitionId=1&_a=summary) on Azure Pipelines.
-- pyOCD has several new community resources: the [pyocd.io](https://pyocd.io/) website,
-    a [Slack workspace](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA),
-    and a [mailing list](https://groups.google.com/g/pyocd) for announcements.
-- Branch configuration changes: the default branch `master` has been renamed to `main`, and a `develop` branch has been added to be used for active development. New pull requests should generally target `develop`. See [this discussion](https://github.com/pyocd/pyOCD/discussions/1169) for more information about this change.
+- The v0.35 release adds [Open-CMSIS-Pack debug sequence support](https://pyocd.io/docs/open_cmsis_pack_support.html).
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
@@ -63,7 +58,7 @@ Configuration and customization is supported through [config files](https://pyoc
 Requirements
 ------------
 
-- Python 3.6.0 or later.†
+- Python 3.7.0 or later.†
 - macOS, Linux, Windows 7 or newer, or FreeBSD
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU

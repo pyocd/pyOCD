@@ -13,6 +13,7 @@
 - [Target support](target_support.md)
 - [Debug probes](debug_probes.md)
 - [Configuration](configuration.md)
+- [Open-CMSIS-Pack support](open_cmsis_pack_support.md)
 - [User scripts](user_scripts.md)
 - [Remote probe access](remote_probe_access.md)
 - [Configuring logging](configuring_logging.md)

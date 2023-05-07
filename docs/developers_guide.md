@@ -18,7 +18,7 @@ dependencies for the current platform by following the detailed steps below.
 
 Install the necessary tools listed below. Skip any step where a compatible tool already exists.
 
-* [Install Python](https://www.python.org/downloads/) version 3.6.0 or above. Add to PATH.
+* [Install Python](https://www.python.org/downloads/) version 3.7.0 or above. Add to PATH.
     *  Note that on Windows, the 32-bit Python 2.7 must be installed for the Python-enabled `arm-none-eabi-gdb-py` to
         work properly and for the `test/gdb_test.py` functional test to pass.
 * [Install Git](https://git-scm.com/downloads). Add to PATH.
