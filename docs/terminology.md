@@ -38,7 +38,7 @@ These are the key terms used by pyOCD and its documentation.
     Python and other similar tools.
 - **session**: Represents a connection to a debug probe and the runtime object graph.
 - **session option**: A named setting that controls some feature of pyOCD. Options are associated with
-    a session, and each session can have different values for a given option.. They can be set from the
+    a session, and each session can have different values for a given option. They can be set from the
     command line or configuration files.
 - **SoC**: System on Chip, a complete computer on a single chip, like a microcontroller.
 - **SWD**: Serial Wire Debug, an Arm standard for a 2-signal serial wire protocol that is an alternative to

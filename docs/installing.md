@@ -2,7 +2,7 @@
 title: Installing
 ---
 
-PyOCD requires [Python](https://python.org/) 3.6 or later. It runs on macOS,
+PyOCD requires [Python](https://python.org/) 3.7 or later. It runs on macOS,
 Linux, FreeBSD, and Windows platforms.
 
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/). The
@@ -27,6 +27,10 @@ Support for Cyclone and/or Multilink debug probes by [PE Micro](https://pemicro.
 driver plug-in that is a separate package from pyOCD. There are two ways to install the PE Micro probe plug-in.
 Either substitute `pyocd[pemicro]` for `pyocd` in the commands above, or separately install `pyocd-pemicro`
 using pip.
+
+### Segger J-Link probe support
+
+To access Segger J-Link debug probes, first install the [J-Link driver package](https://www.segger.com/downloads/jlink/).
 
 
 ### Permissions issues
