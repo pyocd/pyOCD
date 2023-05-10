@@ -579,9 +579,9 @@ class LockedValue(ValueBase):
 
     def display(self, args):
         if self.context.target.is_locked():
-            self.context.write("Taget is locked")
+            self.context.write("Target is locked")
         else:
-            self.context.write("Taget is unlocked")
+            self.context.write("Target is unlocked")
 
 class RegisterGroupsValue(ValueBase):
     INFO = {
