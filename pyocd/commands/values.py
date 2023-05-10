@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,6 +33,7 @@ from ..utility.cmdline import (
     convert_vector_catch,
     convert_reset_type,
     )
+from ..utility.mask import msb
 from .base import ValueBase
 
 if TYPE_CHECKING:
@@ -321,7 +322,8 @@ class AccessiblePinsValue(ValueBase):
         if DebugProbe.Capability.PIN_ACCESS not in self.context.probe.capabilities:
             raise exceptions.CommandError("debug probe does not support pin access")
 
-        r_pins, w_pins = self.context.probe.get_accessible_pins()
+        # Display accessibility of protocol pins.
+        r_pins, w_pins = self.context.probe.get_accessible_pins(DebugProbe.PinGroup.PROTOCOL_PINS)
 
         def pin_desc(mask: int) -> str:
             desc = ""
@@ -340,6 +342,14 @@ class AccessiblePinsValue(ValueBase):
         self.context.write(f"  TDO =       {pin_desc(DebugProbe.ProtocolPin.TDO)}")
         self.context.write(f"  nRESET =    {pin_desc(DebugProbe.ProtocolPin.nRESET)}")
         self.context.write(f"  nTRST =     {pin_desc(DebugProbe.ProtocolPin.nTRST)}")
+
+        # Test if there are any accessible GPIO pins.
+        r_pins, w_pins = self.context.probe.get_accessible_pins(DebugProbe.PinGroup.GPIO_PINS)
+
+        if (r_pins | w_pins) != 0:
+            self.context.write(f"GPIO pins:")
+            for b in range(msb(r_pins | w_pins) + 1):
+                self.context.write(f"  GPIO {b:<6} {pin_desc(1 << b)}")
 
 class PinsValue(ValueBase):
     INFO = {
