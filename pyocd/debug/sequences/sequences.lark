@@ -108,7 +108,7 @@ fncall:                 IDENT "("  ")"
 !_compound_assign_op: "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | "="
 
 BINDIGIT: "0".."1"
-INTLIT: "0x" HEXDIGIT+ | "0b" BINDIGIT+ | DIGIT+
+INTLIT: ( "0x" HEXDIGIT+ | "0b" BINDIGIT+ | DIGIT+ ) ( "u" | "U" )?
 
 STRLIT: ESCAPED_STRING
 
