@@ -228,7 +228,7 @@ def commands_test(board_id):
             try:
                 print("\nTEST: %s" % cmd)
                 context.process_command_line(cmd)
-            except:
+            except Exception:
                 if print_result:
                     print("TEST FAILED")
                 failed_commands.append(cmd)
@@ -285,4 +285,3 @@ if __name__ == "__main__":
     logging.basicConfig(level=level)
     DAPAccess.set_args(args.daparg)
     commands_test(args.uid)
-

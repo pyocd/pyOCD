@@ -98,7 +98,7 @@ def user_script_test(board_id):
             try:
                 print("\nTEST: %s" % cmd)
                 context.process_command_line(cmd)
-            except:
+            except Exception:
                 print("TEST FAILED")
                 traceback.print_exc(file=sys.stdout)
                 return False
@@ -140,4 +140,3 @@ if __name__ == "__main__":
     session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = UserScriptTest()
     result = [test.run(session.board)]
-

@@ -1,6 +1,7 @@
 # setuptools_scm will ensure all files tracked by git are included
 
 include pyocd/debug/svd/svd_data.zip
+include pyocd/debug/sequences/sequences.lark
 recursive-exclude pyocd/debug/svd/data *
 global-exclude __pycache__ *.py[cod] .* .DS_Store
 prune .github

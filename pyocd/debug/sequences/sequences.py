@@ -70,7 +70,7 @@ class _ConvertLiterals(lark.visitors.Transformer):
     such as during optimization.
     """
     def INTLIT(self, tok: LarkToken) -> int: # pylint: disable=invalid-name
-        return int(tok.value, base=0)
+        return int(tok.value.upper().rstrip('U'), base=0)
 
     def STRLIT(self, tok: LarkToken) -> LarkToken:
         tok.value = tok.value.strip('"')

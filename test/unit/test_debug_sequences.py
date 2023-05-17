@@ -289,6 +289,15 @@ class TestDebugSequenceParser:
         assert e.children[2].children[0] == LarkToken('PLUS', '+')
         assert e.children[2].children[1] == 1
 
+    @pytest.mark.parametrize("literal", [
+            "1000", "0x3e8", "0x3E8", "0b1111101000",
+            "1000u", "1000U", "0x3e8u", "0x3e8U", "0b1111101000u", "0b1111101000U",
+        ])
+    def test_unsigned_int_lit(self, literal):
+        ast = Parser().parse(f"{literal};")
+        print("ast=", ast)
+        assert ast.children[0].children[0] == 1000
+
 class TestDebugSequenceBlockExecute:
     def test_semicolons(self, block_context):
         block_context.current_scope.set("a", 0)

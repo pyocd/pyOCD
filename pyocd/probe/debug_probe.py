@@ -61,6 +61,9 @@ class DebugProbe:
     - swd_sequence(): Capability.SWD_SEQUENCE
     - jtag_sequence(): Capability.JTAG_SEQUENCE
     - swo_*(): Capability.SWO
+    - get_accessible_pins(): Capability.PIN_ACCESS
+    - read_pins(): Capability.PIN_ACCESS
+    - write_pins(): Capability.PIN_ACCESS
     """
 
     class Protocol(Enum):
