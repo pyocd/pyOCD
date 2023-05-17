@@ -136,7 +136,7 @@ class PicoLink(object):
             'B', self._qulen.to_bytes(4, 'little'))
         try:
             self._wr_ep.write(self._queue)
-        except:
+        except Exception:
             # Anything from the USB layer assumes probe is no longer connected
             raise exceptions.ProbeDisconnected(
                 'Cannot access probe ' + self._probe_id)

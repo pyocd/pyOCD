@@ -723,7 +723,7 @@ class ClockFrequencyValue(ValueBase):
             raise exceptions.CommandError("no clock frequency provided")
         try:
             freq_Hz = convert_frequency(args[0])
-        except:
+        except Exception:
             raise exceptions.CommandError("invalid frequency")
         self.context.probe.set_clock(freq_Hz)
         if self.context.probe.wire_protocol == DebugProbe.Protocol.SWD:
@@ -837,4 +837,3 @@ class ResetTypeValue(ValueBase):
             raise exceptions.CommandError("invalid reset type")
 
         self.context.session.options['reset_type'] = new_reset_type
-

@@ -196,7 +196,7 @@ class RecordingLogHandler(logging.Handler):
         try:
             message = self.format(record)
             self.stream.write(six.u(message + "\n"))
-        except:
+        except Exception:
             self.handleError(record)
 
 class TestResult(object):
@@ -308,4 +308,3 @@ class Test(object):
         if len(result_list) <= 0:
             passed = False
         return passed
-
