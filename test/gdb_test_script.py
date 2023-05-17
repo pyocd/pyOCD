@@ -481,7 +481,7 @@ def run_test():
             print("Test completed with %i errors" % fail_count)
         else:
             print("Test completed successfully")
-    except:
+    except Exception:
         print("Main Error:")
         traceback.print_exc()
         fail_count += 1
@@ -528,7 +528,7 @@ def run_generator(event):
     stop_delay = 0
     try:
         stop_delay = generator.send(event)
-    except:
+    except Exception:
         print("Error")
         traceback.print_exc()
     interrupt_arg = {"aborted": False}

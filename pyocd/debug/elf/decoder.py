@@ -202,7 +202,7 @@ class DwarfAddressDecoder(object):
                             if fromAddr == toAddr:
                                 toAddr += 1
                             self.line_tree.addi(fromAddr, toAddr, info)
-                    except:
+                    except Exception:
                         LOG.debug("Problematic lineprog:")
                         self._dump_lineprog(lineprog)
                         raise
@@ -234,5 +234,3 @@ class DwarfAddressDecoder(object):
                 high_pc = 0xffffffff
             filename = os.path.basename(prog._parent.attributes['DW_AT_name'].value.replace('\\', '/'))
             LOG.debug("%s%s%08x %08x %s", name, (' ' * (50-len(name))), low_pc, high_pc, filename)
-
-
