@@ -1044,16 +1044,20 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 else:
                     LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
 
+        # Restore to original state.
+        self.clear_reset_catch(reset_type)
+
+        self._check_t_bit()
+
+    def _check_t_bit(self):
         # Make sure the thumb bit is set in XPSR in case the reset handler
         # points to an invalid address. Only do this if the core is actually halted, otherwise we
         # can't access XPSR.
         if self.get_state() == Target.State.HALTED:
             xpsr = self.read_core_register('xpsr')
+            assert isinstance(xpsr, int)
             if xpsr & self.XPSR_THUMB == 0:
-                self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
-
-        # Restore to original state.
-        self.clear_reset_catch(reset_type)
+                LOG.warning("T bit in XPSR is invalid; the vector table may be invalid or corrupt")
 
     def get_state(self):
         dhcsr = self.read_memory(CortexM.DHCSR)
@@ -1573,5 +1577,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     def in_thread_mode_on_main_stack(self) -> bool:
         if not self._target_context:
             return False
-        return (self._target_context.read_core_register('ipsr') == 0 and
-                (self._target_context.read_core_register('control') & CortexM.CONTROL_SPSEL) == 0)
+        ipsr = self._target_context.read_core_register('ipsr')
+        control = self._target_context.read_core_register('control')
+        assert isinstance(ipsr, int)
+        assert isinstance(control, int)
+        return (ipsr == 0 and (control & CortexM.CONTROL_SPSEL) == 0)
