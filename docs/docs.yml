@@ -1,0 +1,44 @@
+- title: Getting started
+  docs:
+  - installing
+  - installing_on_non_x86
+  - gdb_setup
+- title: User documentation
+  docs:
+  - target_support
+  - debug_probes
+  - configuration
+  - open_cmsis_pack_support
+  - user_scripts
+  - remote_probe_access
+  - configuring_logging
+  - security
+  - multicore_debug
+  - semihosting
+  - swo_swv
+  - memory_attributes
+  - target_family_notes
+- title: Reference
+  docs:
+  - terminology
+  - builtin-targets
+  - options
+  - command_reference
+  - env_vars
+- title: Python API
+  docs:
+  - python_api
+  - api_examples
+  - api/architecture
+  - api/using_session_options
+- title: Developers
+  docs:
+  - developers_guide
+  - adding_new_targets
+#  - how_to_build
+  - automated_tests
+  - title: Internal design
+    docs:
+    - architecture
+    - developer/board_ids
+    - remote_probe_protocol
