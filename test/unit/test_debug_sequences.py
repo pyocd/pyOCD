@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -128,7 +128,7 @@ def context(session, delegate):
     return c
 
 @pytest.fixture(scope='function')
-def block_context(context):
+def block_context(context: DebugSequenceExecutionContext):
     # Return a context set up to be able to run a Block.
     #
     # First create a sequence node with no children. Use the private _create_scope() method to get
@@ -272,7 +272,7 @@ class TestDebugSequenceParser:
     def test_assign_minus_negative(self):
         ast = Parser().parse("a = 1 - -1;")
         print("ast=", ast)
-        e = ast.children[0].children[2] # start.assign_stmt.binary_expr
+        e = ast.children[0].children[0].children[2] # start.expr_stmt.assign_expr.binary_expr
         assert e.children[0] == 1
         assert e.children[1] == LarkToken('MINUS', '-')
         assert e.children[2].data == 'unary_expr'
@@ -282,7 +282,7 @@ class TestDebugSequenceParser:
     def test_assign_minus_positive(self):
         ast = Parser().parse("a = 1 - +1;")
         print("ast=", ast)
-        e = ast.children[0].children[2] # start.assign_stmt.binary_expr
+        e = ast.children[0].children[0].children[2] # start.expr_stmt.assign_expr.binary_expr
         assert e.children[0] == 1
         assert e.children[1] == LarkToken('MINUS', '-')
         assert e.children[2].data == 'unary_expr'
@@ -297,6 +297,51 @@ class TestDebugSequenceParser:
         ast = Parser().parse(f"{literal};")
         print("ast=", ast)
         assert ast.children[0].children[0] == 1000
+
+    def test_simple_assign_expr(self):
+        ast = Parser().parse("x = 10;")
+        print("ast=", ast)
+        e = ast.children[0].children[0] # start.expr_stmt.assign_expr
+        assert e.children[2] == 10
+
+    def test_multi_assign_expr(self):
+        # ast= start
+        # expr_stmt
+        #     assign_expr
+        #     x
+        #     =
+        #     binary_expr
+        #         assign_expr
+        #         y
+        #         +=
+        #         binary_expr
+        #             1
+        #             +
+        #             1
+        #         +
+        #         2
+        ast = Parser().parse("x = (y += (1 + 1)) + 2;")
+        print("ast=", ast.pretty())
+        e = ast.children[0].children[0] # start.expr_stmt.assign_expr
+        assert e.data == LarkToken('RULE', 'assign_expr')
+        assert e.children[0] == 'x'
+        e = e.children[2].children[0]
+        assert e.data == LarkToken('RULE', 'assign_expr')
+        assert e.children[0] == 'y'
+        assert e.children[1] == "+="
+
+    def test_assign_expr_precedence_1(self):
+        ast = Parser().parse("x = 1 ? 2 : 3;")
+        print("ast=", ast.pretty())
+        e = ast.children[0].children[0] # start.expr_stmt.assign_expr
+        assert e.data == LarkToken('RULE', 'assign_expr')
+
+    def test_assign_expr_precedence_2(self):
+        ast = Parser().parse("1 ? x = 2 : 3;")
+        print("ast=", ast.pretty())
+        e = ast.children[0].children[0] # start.expr_stmt.assign_expr
+        assert e.data == LarkToken('RULE', 'ternary_expr')
+        assert e.children[1].data == LarkToken('RULE', 'assign_expr')
 
 class TestDebugSequenceBlockExecute:
     def test_semicolons(self, block_context):
@@ -440,7 +485,7 @@ class TestDebugSequenceBlockExecute:
         actual = block_context.current_scope.get("x")
         assert actual == result
 
-    def test_unary_op_assign(self, block_context):
+    def test_unary_op_assign_block(self, block_context):
         # Statement from Infineon.PSoC6_DFP
         s = Block("__Result = -1; // DAP is unavailable")
         logging.info(f"Block: {s._ast.pretty()}")
@@ -476,6 +521,13 @@ class TestDebugSequenceBlockExecute:
         s = Block("__var x = 1; %s;" % expr)
         s.execute(block_context)
         assert block_context.current_scope.get("x") == result
+
+    def test_assign_expr_block(self, block_context):
+        s = Block("__var x; __var y; x = 1 + (y = 2);")
+        logging.info(f"Block: {s._ast.pretty()}")
+        s.execute(block_context)
+        assert block_context.current_scope.get("x") == 3
+        assert block_context.current_scope.get("y") == 2
 
 class TestConstantFolder:
     def _get_folded_ast(self, expr):
@@ -706,6 +758,14 @@ class TestDebugSequences:
         seq = DebugSequence('test')
         seq.add_child(Block("__var x = 0;"))
         w = WhileControl("x < 2")
+        w.add_child(Block("x += 1;"))
+        seq.add_child(w)
+        seq.execute(context)
+
+    def test_exec_while_with_assign(self, context: DebugSequenceExecutionContext):
+        seq = DebugSequence('test')
+        seq.add_child(Block("__var x = 0; __var y = 0;"))
+        w = WhileControl("x < (y = 2)")
         w.add_child(Block("x += 1;"))
         seq.add_child(w)
         seq.execute(context)
