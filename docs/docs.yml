@@ -9,6 +9,7 @@
   - debug_probes
   - configuration
   - open_cmsis_pack_support
+  - gdbserver
   - user_scripts
   - remote_probe_access
   - configuring_logging
