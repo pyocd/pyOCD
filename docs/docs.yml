@@ -3,7 +3,7 @@
   - installing
   - installing_on_non_x86
   - gdb_setup
-- title: User documentation
+- title: User guide
   docs:
   - target_support
   - debug_probes
@@ -27,9 +27,9 @@
   - env_vars
 - title: Python API
   docs:
+  - api/architecture
   - python_api
   - api_examples
-  - api/architecture
   - api/using_session_options
 - title: Developers
   docs:
