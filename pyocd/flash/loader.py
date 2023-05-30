@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,29 +15,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
-import logging
-from pyocd.core.target import Target
-from time import time
-from typing import (Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union)
+from __future__ import annotations
 
-from .builder import (
-    FlashBuilder,
-    MemoryBuilder,
-    ProgrammingInfo,
-    get_page_count,
-    get_sector_count,
-)
+import logging
+from dataclasses import dataclass
+from time import time
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, cast)
+
 from ..core import exceptions
+from ..core.target import Target
 from ..utility.progress import print_progress
+from .builder import (FlashBuilder, MemoryBuilder, ProgrammingInfo, get_page_count, get_sector_count)
 
 if TYPE_CHECKING:
+    from ..core.memory_map import MemoryMap, MemoryRegion, RamRegion
     from ..core.session import Session
-    from ..core.memory_map import (
-        MemoryRegion,
-        MemoryMap,
-        RamRegion,
-    )
 
 LOG = logging.getLogger(__name__)
 
@@ -54,8 +46,9 @@ class RamBuilder(MemoryBuilder):
     ## Maximum number of bytes to write at once. This is primarily done so progress is updated occasionally.
     _MAX_WRITE_SIZE = 4096
 
-    def __init__(self, session: "Session", region: "RamRegion") -> None:
+    def __init__(self, session: "Session", region: MemoryRegion) -> None:
         """@brief Constructor."""
+        assert region.is_writable, "Memory region passed to RamBuilder must be directly writable"
         super().__init__()
         self._session = session
         self._region = region
@@ -247,7 +240,9 @@ class MemoryLoader:
                     region_builder = region.flash.get_flash_builder()
                     region_builder.log_performance = False
                 elif region.is_writable:
-                    region_builder = RamBuilder(self._session, region)
+                    # Casting to a RamRegion is technically not quite right, since we're only checking
+                    # that the region is writable
+                    region_builder = RamBuilder(self._session, cast(RamRegion, region))
                 else:
                     raise ValueError(f"memory region at address {address:#010x} is not writable")
 
