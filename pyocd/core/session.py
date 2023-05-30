@@ -25,6 +25,7 @@ import weakref
 from inspect import (getfullargspec, signature)
 from types import SimpleNamespace
 from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
+from typing_extensions import Self
 
 from . import exceptions
 from .options_manager import OptionsManager
@@ -94,8 +95,11 @@ class Session(Notifier):
     ## @brief Weak reference to the most recently created session.
     _current_session: Optional[weakref.ref] = None
 
+    ## An empty session used for options when there is no other session available.
+    _options_session: Optional["Session"] = None
+
     @classmethod
-    def get_current(cls) -> "Session":
+    def get_current(cls) -> Self:
         """@brief Return the most recently created Session instance or a default Session.
 
         By default this method will return the most recently created Session object that is
@@ -111,7 +115,10 @@ class Session(Notifier):
             if session is not None:
                 return session
 
-        return Session(None)
+        # There isn't another session available, so lazily create the options session and return it.
+        if cls._options_session is None:
+            cls._options_session = cls(None)
+        return cls._options_session
 
     def __init__(
             self,
