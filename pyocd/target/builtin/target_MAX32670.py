@@ -145,7 +145,7 @@ class MAX32670(CoreSightTarget):
     VENDOR = "Maxim"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion(    start=0,           length=0x60000,  blocksize=0x2000, is_boot_memory=True, algo=FLASH_ALGO),
+        FlashRegion(    start=0x10000000,  length=0x60000,  blocksize=0x2000, is_boot_memory=True, algo=FLASH_ALGO),
         RamRegion(      start=0x20000000,  length=0x28000),
         )
 
