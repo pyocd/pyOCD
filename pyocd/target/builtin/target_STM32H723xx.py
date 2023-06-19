@@ -19,7 +19,7 @@ import logging
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...coresight.cortex_m import CortexM
-from ...coresight import dap,ap
+from ...coresight.minimal_mem_ap import MinimalMemAP as MiniAP
 
 LOG = logging.getLogger(__name__)
 
@@ -50,50 +50,6 @@ class FlashPeripheral:
         self.flash_optsr_cur = self.flashaddr + 0x1c
         self.flash_optsr_prg = self.flashaddr + 0x20
 
-
-class MiniAP(object):
-    """Minimalistic Access Port implementation."""
-    AP0_CSW_ADDR = 0x00
-
-    AP0_CSW_OR = 0x4b000012
-    AP0_TAR_ADDR = 0x04
-    AP0_IDR_ADDR = 0xFC
-    AP0_DRW_ADDR = 0x0C
-
-    def __init__(self, dp):
-        self.dp = dp
-
-    def write_ap(self,addr, val):
-        return self.dp.write_ap(addr, val)
-
-    def read_ap(self, addr):
-        return self.dp.read_ap(addr)
-
-    def init(self):
-        DP_CTRL_STAT = self.dp.read_reg( dap.DP_CTRL_STAT);
-        LOG.info("DP_CTRL_STAT 0x%08x", DP_CTRL_STAT)
-
-        # Init AP #0
-        IDR = self.read_ap(MiniAP.AP0_IDR_ADDR)
-        LOG.info("IDR 0x%08x", IDR)
-
-        # Check expected ADP-AP
-
-        # ap0.IDR=\\
-        # ap1.IDR == 0x84770001
-        # ap2.IDR == 0x54770002
-        assert IDR == 0x84770001, f"Wrong IDR read from device: 0x{IDR:08x}"
-
-        CSW = self.read_ap( MiniAP.AP0_CSW_ADDR)
-        self.write_ap(  MiniAP.AP0_CSW_ADDR, CSW | MiniAP.AP0_CSW_OR)
-
-    def read32(self, addr):
-        self.write_ap( MiniAP.AP0_TAR_ADDR, addr)
-        return self.read_ap( MiniAP.AP0_DRW_ADDR)
-
-    def write32(self, addr, val):
-        self.write_ap( MiniAP.AP0_TAR_ADDR, addr)
-        self.write_ap( MiniAP.AP0_DRW_ADDR, val)
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
