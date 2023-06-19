@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import (Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple, TYPE_CHECKING, Union, overload)
+from typing import (cast, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple, TYPE_CHECKING, Union, overload)
 from typing_extensions import Literal
 
 from ..core import (exceptions, memory_interface)
@@ -439,23 +439,22 @@ class DebugPort(DelegateHavingMixIn):
         self._probe_supports_apv2_addresses = (DebugProbe.Capability.APv2_ADDRESSES in caps)
         self._have_probe_capabilities = True
 
+    # Usually when we call a debug sequence, we first check if the sequence exists. For the below
+    # methods, we rely on .call_pre_discovery_debug_sequence() to do this for us.
     def connect_debug_port_hook(self) -> Optional[bool]:
-        if self.has_debug_sequence('DebugPortSetup'):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('DebugPortSetup')
-            return True
+        from .coresight_target import CoreSightTarget
+        cst = cast(CoreSightTarget, self.session.target)
+        return cst.call_pre_discovery_debug_sequence('DebugPortSetup')
 
     def enable_debug_port_hook(self) -> Optional[bool]:
-        if self.has_debug_sequence('DebugPortStart'):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('DebugPortStart')
-            return True
+        from .coresight_target import CoreSightTarget
+        cst = cast(CoreSightTarget, self.session.target)
+        return cst.call_pre_discovery_debug_sequence('DebugPortStart')
 
     def disable_debug_port_hook(self) -> Optional[bool]:
-        if self.has_debug_sequence('DebugPortStop'):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('DebugPortStop')
-            return True
+        from .coresight_target import CoreSightTarget
+        cst = cast(CoreSightTarget, self.session.target)
+        return cst.call_pre_discovery_debug_sequence('DebugPortStop')
 
     def _connect(self) -> None:
         # Connect the probe.

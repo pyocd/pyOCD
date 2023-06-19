@@ -105,9 +105,15 @@ Only top-level sequences can be disabled individually. If a debug sequence is ca
 This section documents details of the debug sequence engine provided by pyOCD, supported features, and any notable differences with other debuggers (primarily Keil MDK, which provided the first implementation and against which Packs are generally most thoroughly tested by their authors).
 
 
-### CPU-specific DebugPort sequences
+### Core-specific sequences
 
-Like all other debug sequences, `DebugPortSetup`, `DebugPortStart`, and `DebugPortStop` can be customised per CPU core. If a DFP has multiple CPU-specific instances of these sequences, they may behave differently in pyOCD than other debuggers. Many debuggers only "connect" to a single CPU chosen by the user when debugging or running a project. PyOCD is somewhat different in that it connects to the device as a whole, and then debugs a chosen core after the connection is established (which more closely reflects the hardware situation).
+The DFP debug sequence architecture is currently based on the fact that most debuggers only "connect" to a single CPU core chosen by the user when debugging or running a project. All debug sequences can be customised per core, and there can be separate sequences for each core.
+
+PyOCD is somewhat different in that it connects to the device as a whole, and then debugs one or more cores after the connection is established. This more closely reflects the hardware situation.
+
+This primarily impacts the `DebugPortSetup`, `DebugPortStart`, `DebugPortStop`, and `DebugDeviceUnlock` debug sequences that affect the entire SoC. These relate to the connect procedure for the Arm ADI DP (Debug Port) used for SWD/JTAG communications. While most sequences can be run separately for each core, these are run only once per target connection. The core-specific variant that is selected can affect the rest of the debugging session. (Technically, this is also true for debuggers that are presented as debugging a single core, in cases where a second instance of that debugger can be started to debug another core. But, the way it's presented to the user is different.)
+
+The `primary_core` session option is used to select which core-specific version of the `DebugPort*`/`DebugDeviceUnlock` sequences is run during the target connection process. For all other sequences, the core-specific version that is run depends on which core is performing the action.
 
 
 ### Custom default reset sequences
