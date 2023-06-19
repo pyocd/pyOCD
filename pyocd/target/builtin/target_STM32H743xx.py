@@ -227,7 +227,7 @@ class STM32H743xx(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(STM32H743xx, self).__init__(session, self.MEMORY_MAP)
+        super().__init__(session, self.MEMORY_MAP)
 
     def assert_reset_for_connect(self):
         self.dp.assert_reset(1)
@@ -285,7 +285,7 @@ class STM32H743xx(CoreSightTarget):
         # -> Release reset
         # -> [Core is halted and reset is released]
         # -> Continue [discovery, create cores, etc]
-        seq = super(STM32H743xx, self).create_init_sequence()
+        seq = super().create_init_sequence()
         if self.session.options.get('connect_mode') in ('halt', 'under-reset'):
             seq.insert_before('dp_init', ('assert_reset_for_connect', self.assert_reset_for_connect))
             seq.insert_after('dp_init', ('safe_reset_and_halt', self.safe_reset_and_halt))
