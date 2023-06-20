@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2023 David van Rijn 
+# Copyright (c) 2023 David van Rijn
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -161,7 +161,7 @@ class STM32H743xx(CoreSightTarget):
                                                         page_size=0x400,
                                                         algo=FLASH_ALGO),
         #ITCM
-        RamRegion(   start=0x20000000, length=0x20000,
+        RamRegion(   start=0x00000000, length=0x10000,
                   is_cachable=False,
                   access="rwx"),
         #DTCM
