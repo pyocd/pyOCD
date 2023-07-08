@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
 
 import logging
 from typing import (Callable, Dict, List, Optional, overload, Sequence, Union, TYPE_CHECKING)
@@ -59,7 +61,7 @@ class SoCTarget(TargetGraphNode):
 
     VENDOR = "Generic"
 
-    def __init__(self, session: "Session", memory_map: Optional["MemoryMap"] = None) -> None:
+    def __init__(self, session: Session, memory_map: Optional[MemoryMap] = None) -> None:
         super().__init__(session, memory_map)
         self.vendor: str = self.VENDOR
         self.part_families: List[str] = getattr(self, 'PART_FAMILIES', [])
@@ -133,7 +135,7 @@ class SoCTarget(TargetGraphNode):
         return self.selected_core_or_raise.supported_security_states
 
     @property
-    def core_registers(self) -> "CoreRegistersIndex":
+    def core_registers(self) -> CoreRegistersIndex:
         return self.selected_core_or_raise.core_registers
 
     def add_core(self, core: CoreTarget) -> None:
@@ -241,25 +243,25 @@ class SoCTarget(TargetGraphNode):
     def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
         return self.selected_core_or_raise.read_memory_block32(addr, size)
 
-    def read_core_register(self, id: "CoreRegisterNameOrNumberType") -> "CoreRegisterValueType":
+    def read_core_register(self, id: CoreRegisterNameOrNumberType) -> CoreRegisterValueType:
         return self.selected_core_or_raise.read_core_register(id)
 
-    def write_core_register(self, id: "CoreRegisterNameOrNumberType", data: "CoreRegisterValueType") -> None:
+    def write_core_register(self, id: CoreRegisterNameOrNumberType, data: CoreRegisterValueType) -> None:
         return self.selected_core_or_raise.write_core_register(id, data)
 
-    def read_core_register_raw(self, reg: "CoreRegisterNameOrNumberType") -> int:
+    def read_core_register_raw(self, reg: CoreRegisterNameOrNumberType) -> int:
         return self.selected_core_or_raise.read_core_register_raw(reg)
 
-    def read_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"]) -> List[int]:
+    def read_core_registers_raw(self, reg_list: Sequence[CoreRegisterNameOrNumberType]) -> List[int]:
         return self.selected_core_or_raise.read_core_registers_raw(reg_list)
 
-    def write_core_register_raw(self, reg: "CoreRegisterNameOrNumberType", data: int) -> None:
+    def write_core_register_raw(self, reg: CoreRegisterNameOrNumberType, data: int) -> None:
         self.selected_core_or_raise.write_core_register_raw(reg, data)
 
-    def write_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"], data_list: Sequence[int]) -> None:
+    def write_core_registers_raw(self, reg_list: Sequence[CoreRegisterNameOrNumberType], data_list: Sequence[int]) -> None:
         self.selected_core_or_raise.write_core_registers_raw(reg_list, data_list)
 
-    def find_breakpoint(self, addr: int) -> Optional["Breakpoint"]:
+    def find_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         return self.selected_core_or_raise.find_breakpoint(addr)
 
     def set_breakpoint(self, addr: int, type: Target.BreakpointType = Target.BreakpointType.AUTO) -> bool:
@@ -305,7 +307,7 @@ class SoCTarget(TargetGraphNode):
     def get_vector_catch(self) -> int:
         return self.selected_core_or_raise.get_vector_catch()
 
-    def get_target_context(self, core: Optional[int] = None) -> "DebugContext":
+    def get_target_context(self, core: Optional[int] = None) -> DebugContext:
         if core is not None:
             core_obj = self.cores[core]
         else:
@@ -318,7 +320,7 @@ class SoCTarget(TargetGraphNode):
     def trace_stop(self):
         self.call_delegate('trace_stop', target=self, mode=0)
 
-    def add_target_command_groups(self, command_set: "CommandSet"):
+    def add_target_command_groups(self, command_set: CommandSet):
         """@brief Hook for adding target-specific commands to a command set."""
         self.call_delegate('add_target_command_groups', target=self, command_set=command_set)
 

@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from enum import Enum
-from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING, Set)
+from typing import (Callable, List, Optional, Sequence, TYPE_CHECKING, Set)
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
@@ -187,7 +189,7 @@ class Target(MemoryInterface, DelegateHavingMixIn):
         ## PMU event. v8.1-M only.
         PMU = 7
 
-    def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
+    def __init__(self, session: Session, memory_map: Optional[MemoryMap] = None) -> None:
         self._session = session
         # Make a target-specific copy of the memory map. This is safe to do without locking
         # because the memory map may not be mutated until target initialization.
@@ -196,11 +198,11 @@ class Target(MemoryInterface, DelegateHavingMixIn):
         self._svd_device: Optional[SVDDevice] = None
 
     @property
-    def session(self) -> "Session":
+    def session(self) -> Session:
         return self._session
 
     @property
-    def svd_device(self) -> Optional["SVDDevice"]:
+    def svd_device(self) -> Optional[SVDDevice]:
         return self._svd_device
 
     @property
@@ -208,7 +210,7 @@ class Target(MemoryInterface, DelegateHavingMixIn):
         raise NotImplementedError()
 
     @property
-    def core_registers(self) -> "CoreRegistersIndex":
+    def core_registers(self) -> CoreRegistersIndex:
         raise NotImplementedError()
 
     @property
@@ -219,7 +221,7 @@ class Target(MemoryInterface, DelegateHavingMixIn):
     def is_locked(self) -> bool:
         return False
 
-    def create_init_sequence(self) -> "CallSequence":
+    def create_init_sequence(self) -> CallSequence:
         raise NotImplementedError()
 
     def init(self) -> None:
@@ -245,25 +247,25 @@ class Target(MemoryInterface, DelegateHavingMixIn):
     def mass_erase(self) -> None:
         raise NotImplementedError()
 
-    def read_core_register(self, id: "CoreRegisterNameOrNumberType") -> "CoreRegisterValueType":
+    def read_core_register(self, id: CoreRegisterNameOrNumberType) -> CoreRegisterValueType:
         raise NotImplementedError()
 
-    def write_core_register(self, id: "CoreRegisterNameOrNumberType", data: "CoreRegisterValueType") -> None:
+    def write_core_register(self, id: CoreRegisterNameOrNumberType, data: CoreRegisterValueType) -> None:
         raise NotImplementedError()
 
-    def read_core_register_raw(self, reg: "CoreRegisterNameOrNumberType") -> int:
+    def read_core_register_raw(self, reg: CoreRegisterNameOrNumberType) -> int:
         raise NotImplementedError()
 
-    def read_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"]) -> List[int]:
+    def read_core_registers_raw(self, reg_list: Sequence[CoreRegisterNameOrNumberType]) -> List[int]:
         raise NotImplementedError()
 
-    def write_core_register_raw(self, reg: "CoreRegisterNameOrNumberType", data: int) -> None:
+    def write_core_register_raw(self, reg: CoreRegisterNameOrNumberType, data: int) -> None:
         raise NotImplementedError()
 
-    def write_core_registers_raw(self, reg_list: Sequence["CoreRegisterNameOrNumberType"], data_list: Sequence[int]) -> None:
+    def write_core_registers_raw(self, reg_list: Sequence[CoreRegisterNameOrNumberType], data_list: Sequence[int]) -> None:
         raise NotImplementedError()
 
-    def find_breakpoint(self, addr: int) -> Optional["Breakpoint"]:
+    def find_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         raise NotImplementedError()
 
     def set_breakpoint(self, addr: int, type: BreakpointType = BreakpointType.AUTO) -> bool:
@@ -315,12 +317,12 @@ class Target(MemoryInterface, DelegateHavingMixIn):
     def get_vector_catch(self) -> int:
         raise NotImplementedError()
 
-    def get_target_context(self, core: Optional[int] = None) -> "DebugContext":
+    def get_target_context(self, core: Optional[int] = None) -> DebugContext:
         raise NotImplementedError()
 
 class TargetGraphNode(Target, GraphNode):
     """@brief Abstract class for a target that is a graph node."""
 
-    def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
+    def __init__(self, session: Session, memory_map: Optional[MemoryMap] = None) -> None:
         Target.__init__(self, session, memory_map)
         GraphNode.__init__(self)
