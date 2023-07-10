@@ -421,10 +421,7 @@ class GenericRTTControlBlock(RTTControlBlock):
             self._cb_search_size_words = 0
         else:
             self._cb_search_size_words = size // 4
-
-        extra_id_bytes = SEGGER_RTT_CB.acID.size - len(control_block_id)
-        control_block_bytes = control_block_id + b'\0' * extra_id_bytes
-        self._control_block_id = struct.unpack("<IIII", control_block_bytes)
+        self._control_block_id = control_block_id
 
     def _find_control_block(self) -> Optional[int]:
         addr: int = self._cb_search_address & ~0x3
@@ -436,20 +433,20 @@ class GenericRTTControlBlock(RTTControlBlock):
         offset: int = 0
 
         while search_size:
-            read_size = min(search_size, 32)
-            data = self.target.read_memory_block32(addr, read_size)
+            read_size = min(search_size, 8)
+            data = self.target.read_memory_block8(addr, read_size)
 
             if not data:
                 break
 
-            for word in data:
-                if word == self._control_block_id[offset]:
+            for byte in data:
+                if byte == self._control_block_id[offset]:
                     offset += 1
                     if offset == id_len:
                         break
                 else:
                     num_skip_words = (offset + 1)
-                    addr += (num_skip_words * 4)
+                    addr += (num_skip_words * 1)
                     search_size -= num_skip_words
                     offset = 0
 
