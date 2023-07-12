@@ -260,6 +260,7 @@ class MemoryRegion(MemoryRangeBase):
         'is_readable': lambda r: 'r' in r.access,
         'is_writable': lambda r: 'w' in r.access,
         'is_executable': lambda r: 'x' in r.access,
+        'is_erasable' : True,
         'is_secure': lambda r: 's' in r.access,
         'is_nonsecure': lambda r: not r.is_secure,
         }
