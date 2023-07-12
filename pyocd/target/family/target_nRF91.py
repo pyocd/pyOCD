@@ -31,6 +31,8 @@ from ...flash.eraser import FlashEraser
 from ...flash.file_programmer import FileProgrammer
 from ...utility.timeout import Timeout
 from ...utility.progress import print_progress
+from ...commands.base import CommandBase
+from ...commands.execution_context import CommandSet
 
 from typing import (Callable, Optional, TYPE_CHECKING, Union)
 ProgressCallback = Callable[[Union[int, float]], None]
@@ -382,6 +384,40 @@ FLASH_ALGO_UICR = {
     )
 }
 
+class nRF91ModemFirmwareUpdateCommand(CommandBase):
+    INFO = {
+            'names': ['nrf91-update-modem-fw'],
+            'group': 'nrf91',
+            'category': 'nrf91',
+            'nargs': '*',
+            'usage': "[-f] mfw_nrf91xx_x.x.x.zip",
+            'help': "Update modem firmware for an nRF91 target.",
+            'extra_help':
+                "If -f is specified, modem firmware is written to the device, "
+                "even if the correct version is already present."
+            }
+    
+    file_path = ""
+    needs_update = False
+
+    def parse(self, args):
+        if len(args) == 0 or not args[-1].endswith(".zip"):
+            raise exceptions.CommandError(f"invalid argument")
+        self.file_path = args[-1]
+        for a in args:
+            if a == '-f':
+                self.needs_update = True
+
+
+    def execute(self):
+        if not self.needs_update:
+            try:
+                ModemUpdater(self.context.session).verify(self.file_path)
+            except:
+                self.needs_update = True
+        if self.needs_update:
+            ModemUpdater(self.context.session).program_and_verify(self.file_path)
+
 class NRF91(CoreSightTarget):
 
     VENDOR = "Nordic Semiconductor"
@@ -570,6 +606,9 @@ class NRF91(CoreSightTarget):
             self._wait_nvmc_readynext()
         self.write32(0x50039504, 0)  # NVMC.CONFIG = ReadOnly
         self._wait_nvmc_ready()
+
+    def add_target_command_groups(self, command_set: CommandSet) -> None:
+        command_set.add_command_group('nrf91')
 
     def _wait_nvmc_ready(self):
         with Timeout(MASS_ERASE_TIMEOUT) as to:
