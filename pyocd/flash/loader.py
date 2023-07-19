@@ -23,12 +23,13 @@ from time import time
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, cast)
 
 from ..core import exceptions
+from ..core.memory_map import RamRegion
 from ..core.target import Target
 from ..utility.progress import print_progress
 from .builder import (FlashBuilder, MemoryBuilder, ProgrammingInfo, get_page_count, get_sector_count)
 
 if TYPE_CHECKING:
-    from ..core.memory_map import MemoryMap, MemoryRegion, RamRegion
+    from ..core.memory_map import MemoryMap, MemoryRegion
     from ..core.session import Session
 
 LOG = logging.getLogger(__name__)
