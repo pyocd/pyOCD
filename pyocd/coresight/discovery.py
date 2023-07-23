@@ -121,22 +121,24 @@ class ADIv5Discovery(CoreSightDiscovery):
             return
 
         ap_list = []
-        apsel = 0
         invalid_count = 0
-        while apsel < self.MAX_APSEL:
+        for apsel in range(self.MAX_APSEL):
             try:
                 isValid = AccessPort.probe(self.dp, apsel)
                 if isValid:
                     ap_list.append(apsel)
                     invalid_count = 0
-                elif not self.session.options.get('scan_all_aps'):
+                else:
                     invalid_count += 1
-                    if invalid_count == self.session.options.get('adi.v5.max_invalid_ap_count'):
-                        break
             except exceptions.Error as e:
                 LOG.error("Error probing AP#%d: %s", apsel, e,
                     exc_info=self.session.log_tracebacks)
-            apsel += 1
+                invalid_count += 1
+
+            # Stop scanning if we've seen a maximum number of invalid APs, unless `scan_all_aps` is set.
+            if not self.session.options.get('scan_all_aps') \
+                    and invalid_count >= self.session.options.get('adi.v5.max_invalid_ap_count'):
+                break
 
         # Update the AP list once we know it's complete.
         self.dp.valid_aps = ap_list
