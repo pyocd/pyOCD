@@ -34,21 +34,21 @@ class TraceFunnel(CoreSightComponent):
 
     def __init__(self, ap, cmpid=None, addr=None):
         """@brief Standard CoreSight component constructor."""
-        super(TraceFunnel, self).__init__(ap, cmpid, addr)
+        super().__init__(ap, cmpid, addr)
         self._available_channels = 2
 
     @property
-    def available_channels(self):
+    def available_channels(self) -> int:
         """@brief Number of input ports connected to the funnel"""
         return self._available_channels
 
-    def init(self):
+    def init(self) -> None:
         """@brief Reads Funnel connected channels and enables them all by default."""
         devid = self.ap.read32(self.address + TraceFunnel.DEVID)
         self._available_channels = devid & TraceFunnel.DEVID_PORTCOUNT_MASK
         self.enable()
 
-    def set_enabled_channels(self, channels):
+    def set_enabled_channels(self, channels: int) -> bool:
         """@brief Sets the enabled Trace Funnel channels.
 
         @param channels Word describing the desired state for the funnel channels.
@@ -66,10 +66,10 @@ class TraceFunnel(CoreSightComponent):
 
         return True
 
-    def enable(self):
+    def enable(self) -> None:
         """@brief Enables all channels"""
         self.set_enabled_channels(2**self.available_channels-1)
 
-    def disable(self):
+    def disable(self) -> None:
         """@brief Disables all channels"""
         self.set_enabled_channels(0x00)
