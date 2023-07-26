@@ -26,6 +26,7 @@ from .itm import ITM
 from .tpiu import TPIU
 from .gpr import GPR
 from .sdc600 import SDC600
+from .funnel import TraceFunnel
 
 if TYPE_CHECKING:
     from .component import CoreSightComponent
@@ -120,7 +121,7 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_ID, CORESIGHT_CLASS, 0x193, 0x00, 0x0a57) : CmpInfo('TSGEN',           'CS-600',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x906, 0x14, 0)      : CmpInfo('CTI',             'CS-400',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x907, 0x21, 0)      : CmpInfo('ETB',             'CS-400',   None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('Trace Funnel',    'CS-400',   None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('Trace Funnel',    'CS-400',   TraceFunnel.factory ),
     (ARM_ID, CORESIGHT_CLASS, 0x909, 0x22, 0)      : CmpInfo('Trace Replicator',None,       None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',            'CS-400',   TPIU.factory        ),
     (ARM_ID, CORESIGHT_CLASS, 0x913, 0x43, 0)      : CmpInfo('ITM',             'CS-400',   None                ),
@@ -159,7 +160,7 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_ID, CORESIGHT_CLASS, 0x9e8, 0x21, 0)      : CmpInfo('ETR',             'CS-600',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9e9, 0x21, 0)      : CmpInfo('ETB',             'CS-600',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9ea, 0x32, 0)      : CmpInfo('ETF',             'CS-600',   None                ),
-    (ARM_ID, CORESIGHT_CLASS, 0x9eb, 0x12, 0)      : CmpInfo('ATB Funnel',      'CS-600',   None                ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9eb, 0x12, 0)      : CmpInfo('ATB Funnel',      'CS-600',   TraceFunnel.factory ),
     (ARM_ID, CORESIGHT_CLASS, 0x9ec, 0x22, 0)      : CmpInfo('ATB Replicator',  'CS-600',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9ed, 0x14, 0x1a14) : CmpInfo('CTI',             'CS-600',   None                ),
     (ARM_ID, CORESIGHT_CLASS, 0x9ee, 0x00, 0)      : CmpInfo('CATU',            'CS-600',   None                ),
