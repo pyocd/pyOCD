@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,11 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import logging
 import platform
 import six
 import threading
+import queue
+from typing import Optional
 
 from .interface import Interface
 from .common import (
@@ -65,10 +66,13 @@ class HidApiUSB(Interface):
                 or generate_device_unique_id(self.vid, self.pid, six.ensure_str(info['path']))
         self.device_info = info
         self.device = dev
+        self.closed = True
         self.thread = None
         self.read_sem = threading.Semaphore(0)
         self.closed_event = threading.Event()
-        self.received_data = collections.deque()
+        self.received_data: queue.SimpleQueue[bytes] = queue.SimpleQueue()
+        self._read_thread_did_exit: bool = False
+        self._read_thread_exception: Optional[Exception] = None
 
     def set_packet_count(self, count):
         # hidapi for macos has an arbitrary limit on the number of packets it will queue for reading.
@@ -94,21 +98,28 @@ class HidApiUSB(Interface):
             self.thread.daemon = True
             self.thread.start()
 
+        self.closed = False
+
     def rx_task(self):
         try:
             while not self.closed_event.is_set():
                 self.read_sem.acquire()
                 if not self.closed_event.is_set():
-                    read_data = self.device.read(self.packet_size)
+                    read_data = bytes(self.device.read(self.packet_size))
 
-                    if TRACE.isEnabledFor(logging.DEBUG):
-                        # Strip off trailing zero bytes to reduce clutter.
-                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in bytes(read_data).rstrip(b'\x00')]))
+                    # This trace log is commented out to reduce clutter, but left in to leave available
+                    # when debugging rx_task issues.
+                    # if TRACE.isEnabledFor(logging.DEBUG):
+                    #     # Strip off trailing zero bytes to reduce clutter.
+                    #     TRACE.debug("  USB RD < (%d) %s", len(read_data),
+                    #                 ' '.join([f'{i:02x}' for i in read_data.rstrip(b'\x00')]))
 
-                    self.received_data.append(read_data)
+                    self.received_data.put(read_data)
+        except Exception as err:
+            TRACE.debug("rx_task exception: %s", err)
+            self._read_thread_exception = err
         finally:
-            # Set last element of rcv_data to None on exit
-            self.received_data.append(None)
+            self._swo_thread_did_exit = True
 
     @staticmethod
     def get_all_connected_interfaces():
@@ -164,42 +175,44 @@ class HidApiUSB(Interface):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
-            read_data = self.device.read(self.packet_size)
+            read_data = bytes(self.device.read(self.packet_size))
 
             if TRACE.isEnabledFor(logging.DEBUG):
                 # Strip off trailing zero bytes to reduce clutter.
-                TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in bytes(read_data).rstrip(b'\x00')]))
+                TRACE.debug("  USB IN < (%d) %s", len(read_data),
+                            ' '.join([f'{i:02x}' for i in read_data.rstrip(b'\x00')]))
 
             return read_data
 
-        # Other OSes use the read thread, so we check for and pull data from the queue.
-        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
-            while t_o.check():
-                if len(self.received_data) != 0:
-                    break
-            else:
-                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
+        # Check for terminated read thread.
+        if self.closed:
+            return b''
+        elif self._read_thread_did_exit:
+            raise DAPAccessIntf.DeviceError("Probe %s read thread exited unexpectedly" % self.serial_number) from self._read_thread_exception
 
-        if self.received_data[0] is None:
-            raise DAPAccessIntf.DeviceError(f"Device {self.serial_number} read thread exited")
+        try:
+            read_data = self.received_data.get(True, self.DEFAULT_USB_TIMEOUT_S)
+        except queue.Empty:
+            raise DAPAccessIntf.DeviceError(f"Timeout reading from probe {self.serial_number}") from None
 
         # Trace when the higher layer actually gets a packet previously read.
         if TRACE.isEnabledFor(logging.DEBUG):
             # Strip off trailing zero bytes to reduce clutter.
-            TRACE.debug("  USB RD < (%d) %s", len(self.received_data[0]),
-                    ' '.join([f'{i:02x}' for i in bytes(self.received_data[0]).rstrip(b'\x00')]))
+            TRACE.debug("  USB RD < (%d) %s", len(read_data),
+                    ' '.join([f'{i:02x}' for i in read_data.rstrip(b'\x00')]))
 
-        return self.received_data.popleft()
+        return read_data
 
     def close(self):
         """@brief Close the interface"""
         assert not self.closed_event.is_set()
 
         LOG.debug("closing interface")
+        self.closed = True
         if not _IS_WINDOWS:
             self.closed_event.set()
             self.read_sem.release()
+            assert self.thread
             self.thread.join()
             self.thread = None
 
@@ -207,5 +220,7 @@ class HidApiUSB(Interface):
             # are cleared and ready if we're re-opened.
             self.closed_event.clear()
             self.read_sem = threading.Semaphore(0)
-            self.received_data = collections.deque()
+            self.received_data = queue.SimpleQueue()
+            self._read_thread_did_exit = False
+            self._read_thread_exception = None
         self.device.close()
