@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,17 +14,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
 
 import argparse
-import os
 import sys
 from time import sleep
 from random import randrange
 import math
 import logging
+import traceback
 
 from pyocd.core.helpers import ConnectHelper
+from pyocd.core.target import Target
 from pyocd.core.memory_map import MemoryType
 from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.utility.conversion import (float32_to_u32, u16le_list_to_byte_list)
@@ -31,6 +32,7 @@ from pyocd.utility.mask import same
 
 from test_util import (
     Test,
+    TestResult,
     get_session_options,
     get_test_binary_path,
     )
@@ -49,20 +51,40 @@ RANGE_STEP_CODE = u16le_list_to_byte_list([
         0x1AC0, # subs    r0, r3
         0xBE00, # bkpt    #0
         ])
+RANGE_STEP_SW_BKPT_OFFSET = 4
+RANGE_STEP_CODE_BKPT_OFFSET = 18
+
+class BasicTestResult(TestResult):
+    def __init__(self):
+        super().__init__(None, None, None)
+        self.name = "basic"
 
 class BasicTest(Test):
     def __init__(self):
-        super(BasicTest, self).__init__("Basic Test", run_basic_test)
+        super(BasicTest, self).__init__("Basic Test", basic_test)
 
-def run_basic_test(board_id):
-    return basic_test(board_id, None)
+    def run(self, board):
+        try:
+            result = self.test_function(board.unique_id, None)
+        except Exception as e:
+            result = BasicTestResult()
+            result.passed = False
+            print("Exception %s when testing board %s" % (e, board.unique_id))
+            traceback.print_exc(file=sys.stdout)
+        result.board = board
+        result.test = self
+        return result
 
 def basic_test(board_id, file):
+    test_pass_count = 0
+    test_count = 0
+    result = BasicTestResult()
+
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
+        assert board
         addr = 0
         size = 0
-        f = None
         binary_file = "l1_"
 
         if file is None:
@@ -141,7 +163,7 @@ def basic_test(board_id, file):
         sleep(0.2)
 
 
-        print("\n\n------ TEST STEP ------")
+        print("\n\n------ TEST STEP FROM FLASH ------")
 
         print("reset and halt")
         target.reset_and_halt()
@@ -156,7 +178,7 @@ def basic_test(board_id, file):
             print("STEP: pc: 0x%X" % newPC)
             sleep(0.2)
 
-        print("\n\n------ TEST RANGE STEP ------")
+        print("\n\n------ TEST STEP ------")
 
         # Add some extra room before end of memory, and a second copy so there are instructions
         # after the final bkpt. Add 1 because region end is always odd.
@@ -171,23 +193,127 @@ def basic_test(board_id, file):
             print("Failed to write range step test code to RAM")
         else:
             print("wrote range test step code to RAM successfully")
+            test_pass_count += 1
+        test_count += 1
 
+        print("Test basic single step")
+        target.write_core_register('pc', test_addr)
+        currentPC = target.read_core_register('pc')
+        print(f"start PC: {currentPC:#x}")
+        expected_end = test_addr + 2
+        target.step()
+        newPC = target.read_core_register('pc')
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+
+        print("Test basic range step")
         target.write_core_register('pc', test_addr)
         currentPC = target.read_core_register('pc')
         print("start PC: 0x%X" % currentPC)
-        target.step(start=test_addr, end=test_end_addr)
+        range_end_addr = test_addr + 0xc
+        expected_end = range_end_addr + 2 # extra 2 because the range end is inclusive
+        target.step(start=test_addr, end=range_end_addr)
         newPC = target.read_core_register('pc')
-        print("end PC: 0x%X" % newPC)
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        halt_reason = target.get_halt_reason()
+        print(f"halt reason: {halt_reason.name}")
 
         # Now test again to ensure the bkpt stops it.
+        print("Test range step stops at bkpt instruction")
         target.write_core_register('pc', test_addr)
         currentPC = target.read_core_register('pc')
         print("start PC: 0x%X" % currentPC)
         target.step(start=test_addr, end=test_end_addr + 4) # include bkpt
         newPC = target.read_core_register('pc')
-        print("end PC: 0x%X" % newPC)
+        expected_end = test_addr + RANGE_STEP_CODE_BKPT_OFFSET
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            test_pass_count += 1
+        test_count += 1
         halt_reason = target.get_halt_reason()
-        print("halt reason: %s (should be BREAKPOINT)" % halt_reason.name)
+        print("halt reason: %s (should be DEBUG)" % halt_reason.name)
+        if halt_reason == Target.HaltReason.DEBUG:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+
+        # Test again with sw breakpoint
+        print("Test range step halts on sw bkpt")
+        expected_end = test_addr + RANGE_STEP_SW_BKPT_OFFSET
+        target.set_breakpoint(expected_end, type=Target.BreakpointType.SW)
+        target.write_core_register('pc', test_addr)
+        currentPC = target.read_core_register('pc')
+        print("start PC: 0x%X" % currentPC)
+        target.step(start=test_addr, end=test_addr + 16)
+        newPC = target.read_core_register('pc')
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+
+        print("Test step over software breakpoint")
+        target.write_core_register('pc', test_addr + RANGE_STEP_SW_BKPT_OFFSET)
+        currentPC = target.read_core_register('pc')
+        print("start PC: 0x%X" % currentPC)
+        expected_end = test_addr + RANGE_STEP_SW_BKPT_OFFSET + 2
+        target.step()
+        newPC = target.read_core_register('pc')
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        target.remove_breakpoint(test_addr + RANGE_STEP_SW_BKPT_OFFSET)
+
+        print("Test step over bkpt instruction")
+        target.write_core_register('pc', test_addr + RANGE_STEP_CODE_BKPT_OFFSET)
+        currentPC = target.read_core_register('pc')
+        print("start PC: 0x%X" % currentPC)
+        expected_end = test_addr + RANGE_STEP_CODE_BKPT_OFFSET + 2
+        target.step()
+        newPC = target.read_core_register('pc')
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+
+        print("Test step over sw bkpt set on bkpt instruction")
+        target.set_breakpoint(test_addr + RANGE_STEP_CODE_BKPT_OFFSET)
+        target.write_core_register('pc', test_addr + RANGE_STEP_CODE_BKPT_OFFSET)
+        currentPC = target.read_core_register('pc')
+        print("start PC: 0x%X" % currentPC)
+        expected_end = test_addr + RANGE_STEP_CODE_BKPT_OFFSET + 2
+        target.step()
+        newPC = target.read_core_register('pc')
+        print(f"end PC: {newPC:#x} (should be {expected_end:#x})")
+        if newPC == expected_end:
+            print("TEST PASSED")
+            test_pass_count += 1
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        target.remove_breakpoint(test_addr + RANGE_STEP_CODE_BKPT_OFFSET)
 
         print("\n\n------ TEST READ / WRITE MEMORY ------")
         target.halt()
@@ -199,6 +325,9 @@ def basic_test(board_id, file):
         print("read32 at 0x%X: 0x%X" % (addr, res))
         if res != val:
             print("ERROR in READ/WRITE 32")
+        else:
+            test_pass_count += 1
+        test_count += 1
 
         print("\nREAD16/WRITE16")
         val = randrange(0, 0xffff)
@@ -208,6 +337,9 @@ def basic_test(board_id, file):
         print("read16 at 0x%X: 0x%X" % (addr + 2, res))
         if res != val:
             print("ERROR in READ/WRITE 16")
+        else:
+            test_pass_count += 1
+        test_count += 1
 
         print("\nREAD8/WRITE8")
         val = randrange(0, 0xff)
@@ -217,6 +349,9 @@ def basic_test(board_id, file):
         print("read8 at 0x%X: 0x%X" % (addr + 1, res))
         if res != val:
             print("ERROR in READ/WRITE 8")
+        else:
+            test_pass_count += 1
+        test_count += 1
 
 
         print("\n\n------ TEST READ / WRITE MEMORY BLOCK ------")
@@ -232,6 +367,8 @@ def basic_test(board_id, file):
             print("TEST FAILED")
         else:
             print("TEST PASSED")
+            test_pass_count += 1
+        test_count += 1
 
 
         print("\n\n------ TEST RESET ------")
@@ -264,6 +401,7 @@ def basic_test(board_id, file):
 
             print("Verifying erased sector @ 0x%x (%d bytes)" % (address, sector_size))
             data = target.read_memory_block8(address, sector_size)
+            test_count += 1
             if data != [flash.region.erased_byte_value] * sector_size:
                 print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
             else:
@@ -275,6 +413,8 @@ def basic_test(board_id, file):
                 data = target.read_memory_block8(address, page_size)
                 if data != fill:
                     print("FAILED to program page @ 0x%x (%d bytes)" % (address, page_size))
+                else:
+                    test_pass_count += 1
 
         # Erase the middle sector
         if sectors_to_test > 1:
@@ -288,6 +428,9 @@ def basic_test(board_id, file):
         data = target.read_memory_block8(address, sector_size)
         if data != [flash.region.erased_byte_value] * sector_size:
             print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
+        else:
+            test_pass_count += 1
+        test_count += 1
 
         # Re-verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
         did_pass = False
@@ -302,13 +445,18 @@ def basic_test(board_id, file):
                 break
         if did_pass:
             print("TEST PASSED")
+            test_pass_count += 1
         else:
             print("TEST FAILED")
+        test_count += 1
 
         print("\n\n----- FLASH NEW BINARY -----")
         FileProgrammer(session).program(binary_file, base_address=addr_bin)
 
         target.reset()
+
+        result.passed = test_count == test_pass_count
+        return result
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='A CMSIS-DAP python debugger')
