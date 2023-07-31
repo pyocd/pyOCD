@@ -88,7 +88,7 @@ class HC32L130(CoreSightTarget):
     VENDOR = "HDSC"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
+        FlashRegion( start=0x00000000, length=0x10000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
         RamRegion(   start=0x20000000, length=0x1000)
