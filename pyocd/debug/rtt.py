@@ -4,6 +4,7 @@
 # Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
 # Copyright (C) 2022 Johan Carlsson <johan.carlsson@teenage.engineering>
 # Copyright (c) 2022 Samuel Dewan
+# Copyright (C) 2023 Tejaswini Dasika <tejaswinidasika@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -387,7 +388,7 @@ class GenericRTTControlBlock(RTTControlBlock):
 
     target: SoCTarget
     _cb_search_address: int
-    _cb_search_size_words: int
+    _cb_search_size_bytes: int
     _control_block_id: Sequence[int]
 
     def __init__(self, target: SoCTarget, address: int = None,
@@ -418,17 +419,14 @@ class GenericRTTControlBlock(RTTControlBlock):
         if size is None:
             # Address was specified, but size was not. Assume that the control
             # block is located exactly at the provided address.
-            self._cb_search_size_words = 0
+            self._cb_search_size_bytes = 0
         else:
-            self._cb_search_size_words = size // 4
-
-        extra_id_bytes = SEGGER_RTT_CB.acID.size - len(control_block_id)
-        control_block_bytes = control_block_id + b'\0' * extra_id_bytes
-        self._control_block_id = struct.unpack("<IIII", control_block_bytes)
+            self._cb_search_size_bytes = size
+        self._control_block_id = control_block_id
 
     def _find_control_block(self) -> Optional[int]:
         addr: int = self._cb_search_address & ~0x3
-        search_size: int  = self._cb_search_size_words
+        search_size: int  = self._cb_search_size_bytes
         if search_size < len(self._control_block_id):
             search_size = len(self._control_block_id)
 
@@ -437,19 +435,19 @@ class GenericRTTControlBlock(RTTControlBlock):
 
         while search_size:
             read_size = min(search_size, 32)
-            data = self.target.read_memory_block32(addr, read_size)
+            data = self.target.read_memory_block8(addr, read_size)
 
             if not data:
                 break
 
-            for word in data:
-                if word == self._control_block_id[offset]:
+            for byte in data:
+                if byte == self._control_block_id[offset]:
                     offset += 1
                     if offset == id_len:
                         break
                 else:
                     num_skip_words = (offset + 1)
-                    addr += (num_skip_words * 4)
+                    addr += (num_skip_words * 1)
                     search_size -= num_skip_words
                     offset = 0
 
