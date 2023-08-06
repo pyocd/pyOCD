@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -16,6 +16,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
 
 import logging
 from enum import Enum
@@ -310,9 +312,9 @@ class DebugPort(DelegateHavingMixIn):
         self.target = target
         assert target.session
         self._session = target.session
-        self.valid_aps: Optional[List["APAddressBase"]] = None
+        self.valid_aps: Optional[List[APAddressBase]] = None
         self.dpidr = DPIDR(0, 0, 0, 0, 0)
-        self.aps: Dict["APAddressBase", "AccessPort"] = {}
+        self.aps: Dict[APAddressBase, AccessPort] = {}
         self._access_number: int = 0
         self._cached_dp_select: Optional[int] = None
         self._protocol: Optional[DebugProbe.Protocol] = None
@@ -340,7 +342,7 @@ class DebugPort(DelegateHavingMixIn):
         return self._probe
 
     @property
-    def session(self) -> "Session":
+    def session(self) -> Session:
         return self._session
 
     @property
@@ -353,7 +355,7 @@ class DebugPort(DelegateHavingMixIn):
         return self._base_addr
 
     @property
-    def apacc_memory_interface(self) -> "APAccessMemoryInterface":
+    def apacc_memory_interface(self) -> APAccessMemoryInterface:
         """@brief Memory interface for performing APACC transactions."""
         if self._apacc_mem_interface is None:
             self._apacc_mem_interface = APAccessMemoryInterface(self)
@@ -602,7 +604,7 @@ class DebugPort(DelegateHavingMixIn):
         """@brief Invalidate cached DP registers."""
         self._cached_dp_select = None
 
-    def _reset_did_occur(self, notification: "Notification") -> None:
+    def _reset_did_occur(self, notification: Notification) -> None:
         """@brief Handles reset notifications to invalidate register cache.
 
         The cache is cleared on all resets just to be safe. On most devices, warm resets do not reset
@@ -1040,7 +1042,7 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
     Only 32-bit transfers are supported.
     """
 
-    def __init__(self, dp: DebugPort, ap_address: Optional["APAddressBase"] = None) -> None:
+    def __init__(self, dp: DebugPort, ap_address: Optional[APAddressBase] = None) -> None:
         """@brief Constructor.
 
         @param self
