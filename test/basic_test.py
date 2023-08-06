@@ -386,6 +386,7 @@ def basic_test(board_id, file):
         page_size = rom_region.page_size
         sectors_to_test = min(rom_region.length // sector_size, 3)
         addr_flash = rom_region.start + rom_region.length - sector_size * sectors_to_test
+        address = addr_flash
         fill = [0x55] * page_size
         for i in range(0, sectors_to_test):
             address = addr_flash + sector_size * i
@@ -399,12 +400,21 @@ def basic_test(board_id, file):
             flash.init(flash.Operation.ERASE)
             flash.erase_sector(address)
 
-            print("Verifying erased sector @ 0x%x (%d bytes)" % (address, sector_size))
-            data = target.read_memory_block8(address, sector_size)
-            test_count += 1
-            if data != [flash.region.erased_byte_value] * sector_size:
-                print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
+            did_erase_ok = True
+            if rom_region.are_erased_sectors_readable:
+                print("Verifying erased sector @ 0x%x (%d bytes)" % (address, sector_size))
+                data = target.read_memory_block8(address, sector_size)
+                test_count += 1
+                if data != [flash.region.erased_byte_value] * sector_size:
+                    print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
+                    did_erase_ok = False
+                else:
+                    print("TEST PASSED")
+                    test_pass_count += 1
             else:
+                print("Erased sectors are unreadable, can't verify erase")
+
+            if did_erase_ok:
                 print("Programming page @ 0x%x (%d bytes)" % (address, page_size))
                 flash.init(flash.Operation.PROGRAM)
                 flash.program_page(address, fill)
@@ -414,41 +424,48 @@ def basic_test(board_id, file):
                 if data != fill:
                     print("FAILED to program page @ 0x%x (%d bytes)" % (address, page_size))
                 else:
+                    print("TEST PASSED")
                     test_pass_count += 1
+                test_count += 1
 
-        # Erase the middle sector
+        # If there's more than one sector to test, erase the middle sector and verify.
         if sectors_to_test > 1:
             address = addr_flash + sector_size
             print("Erasing sector @ 0x%x (%d bytes)" % (address, sector_size))
             flash.init(flash.Operation.ERASE)
             flash.erase_sector(address)
+
+            # Re-verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
+            did_pass = False
+            for i in range(0, sectors_to_test):
+                address = addr_flash + sector_size * i
+
+                # Middle page should be erased.
+                if i == 1:
+                    if rom_region.are_erased_sectors_readable:
+                        print("Verifying erased sector @ 0x%x (%d bytes)" % (address, sector_size))
+                        data = target.read_memory_block8(address, sector_size)
+                        did_pass = (data == [flash.region.erased_byte_value] * sector_size)
+                        if not did_pass:
+                            print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
+                    else:
+                        print("Erased sectors are unreadable, can't verify erase")
+                        did_pass = True
+                # Other pages should still contain programmed data.
+                else:
+                    print("Verifying page @ 0x%x (%d bytes) was not erased" % (address, page_size))
+                    data = target.read_memory_block8(address, page_size)
+                    did_pass = (data == fill)
+                    if not did_pass:
+                        print("FAILED verify for page @ 0x%x (%d bytes)" % (address, page_size))
+            if did_pass:
+                print("TEST PASSED")
+                test_pass_count += 1
+            else:
+                print("TEST FAILED")
+            test_count += 1
+
         flash.cleanup()
-
-        print("Verifying erased sector @ 0x%x (%d bytes)" % (address, sector_size))
-        data = target.read_memory_block8(address, sector_size)
-        if data != [flash.region.erased_byte_value] * sector_size:
-            print("FAILED to erase sector @ 0x%x (%d bytes)" % (address, sector_size))
-        else:
-            test_pass_count += 1
-        test_count += 1
-
-        # Re-verify the 1st and 3rd page were not erased, and that the 2nd page is fully erased
-        did_pass = False
-        for i in range(0, sectors_to_test):
-            address = addr_flash + sector_size * i
-            print("Verifying page @ 0x%x (%d bytes)" % (address, page_size))
-            data = target.read_memory_block8(address, page_size)
-            expected = ([flash.region.erased_byte_value] * page_size) if (i == 1) else fill
-            did_pass = (data == expected)
-            if not did_pass:
-                print("FAILED verify for page @ 0x%x (%d bytes)" % (address, page_size))
-                break
-        if did_pass:
-            print("TEST PASSED")
-            test_pass_count += 1
-        else:
-            print("TEST FAILED")
-        test_count += 1
 
         print("\n\n----- FLASH NEW BINARY -----")
         FileProgrammer(session).program(binary_file, base_address=addr_bin)
