@@ -937,7 +937,7 @@ class FlashBuilder(MemoryBuilder):
             for sector in self.sector_list:
                 if sector.are_any_pages_not_same():
                     # Erase the sector
-                    for addr in self.sector.addrs:
+                    for addr in sector.addrs:
                         self.flash.erase_sector(addr)
 
                     # Update progress
