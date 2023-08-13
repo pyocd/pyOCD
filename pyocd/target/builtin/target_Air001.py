@@ -17,6 +17,7 @@
 
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...debug.svd.loader import SVDFile
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,
@@ -81,3 +82,4 @@ class Air001(CoreSightTarget):
 
     def __init__(self, session):
         super().__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("AIR001.svd")
