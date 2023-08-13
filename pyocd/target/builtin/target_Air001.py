@@ -70,7 +70,7 @@ FLASH_ALGO = {
 
 class Air001(CoreSightTarget):
 
-    VENDOR = "Puya"
+    VENDOR = "AirM2M"
     
     MEMORY_MAP = MemoryMap(
         FlashRegion(start=0x0800_0000, length=0x8000, 
