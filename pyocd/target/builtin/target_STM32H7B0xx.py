@@ -101,7 +101,7 @@ FLASH_ALGO = {
     )
 }
 
-class STM32H7B0(CoreSightTarget):
+class STM32H7B0xx(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
 

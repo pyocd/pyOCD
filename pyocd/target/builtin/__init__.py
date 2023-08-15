@@ -218,7 +218,7 @@ BUILTIN_TARGETS = {
           'stm32l031x6' : target_STM32L031x6.STM32L031x6,
           'stm32h723xx' : target_STM32H723xx.STM32H723xx,
           'stm32h743xx' : target_STM32H743xx.STM32H743xx,
-          'stm32h7b0' : target_STM32H7B0xx.STM32H7B0,
+          'stm32h7b0xx' : target_STM32H7B0xx.STM32H7B0xx,
           'w7500': target_w7500.W7500,
           's5js100': target_s5js100.S5JS100,
           'lpc11xx_32': target_LPC1114FN28_102.LPC11XX_32,
