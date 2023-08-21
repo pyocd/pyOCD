@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2023 Brian Pugh
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -94,12 +95,22 @@ def _stub_progress(percent):
 
 class _FlashSector:
     """@brief Info about an erase sector and all pages to be programmed within it."""
-    def __init__(self, sector_info):
+    def __init__(self, sector_info, n_subsectors: int = 1):
         self.addr: int = sector_info.base_addr
-        self.size: int = sector_info.size
+        self._subsector_size: int = sector_info.size
         self.max_page_count: int = 0
         self.page_list: List[_FlashPage] = []
         self.erase_weight: float = sector_info.erase_weight
+        self.n_subsectors = n_subsectors
+
+    @property
+    def size(self):
+        return self.n_subsectors * self._subsector_size
+
+    @property
+    def addrs(self):
+        for i in range(self.n_subsectors):
+            yield self.addr + (i * self._subsector_size)
 
     def add_page(self, page):
         # The first time a page is added, compute the page count for this sector. This
@@ -122,8 +133,8 @@ class _FlashSector:
             page.same = False
 
     def __repr__(self):
-        return "<_FlashSector@%x addr=%x size=%x wgt=%g pages=%s>" % (
-            id(self), self.addr, self.size, self.erase_weight, self.page_list)
+        return "<_FlashSector@%x addr=%x size=%x wgt=%g pages=%s, subsectors=%d>" % (
+            id(self), self.addr, self.size, self.erase_weight, self.page_list, self.n_subsectors)
 
 class _FlashPage:
     """@brief A page to be programmed and its data."""
@@ -187,8 +198,8 @@ class FlashBuilder(MemoryBuilder):
         self.flash = flash
         self.flash_start = flash.region.start
         self.flash_operation_list = []
-        self.sector_list = []
-        self.page_list = []
+        self.sector_list: List[_FlashSector] = []
+        self.page_list: List[_FlashPage] = []
         self.perf = ProgrammingInfo()
         self.enable_double_buffering = True
         self.log_performance = True
@@ -285,11 +296,23 @@ class FlashBuilder(MemoryBuilder):
         if page_info is None:
             raise FlashFailure("attempt to program invalid flash address", address=flash_addr)
 
-        current_sector = _FlashSector(sector_info)
-        self.sector_list.append(current_sector)
+        def create_flash_sector(sector_info, page_info):
+            if page_info.size > sector_info.size:
+                assert page_info.size % sector_info.size == 0, \
+                    f"Sector ({sector_info.size} bytes) do not fit evenly into page ({page_info.size} bytes)"
+                n_subsectors = page_info.size // sector_info.size
+            else:
+                n_subsectors = 1
+
+            return _FlashSector(sector_info, n_subsectors=n_subsectors)
+
         current_page = _FlashPage(page_info)
-        current_sector.add_page(current_page)
+        current_sector = create_flash_sector(sector_info, page_info)
+
         self.page_list.append(current_page)
+        self.sector_list.append(current_sector)
+
+        current_sector.add_page(current_page)
 
         def fill_end_of_page_gap():
             # Fill the gap at the end of the soon to be previous page if there is one
@@ -314,7 +337,7 @@ class FlashBuilder(MemoryBuilder):
                     sector_info = self.flash.get_sector_info(flash_addr)
                     if sector_info is None:
                         raise FlashFailure("attempt to program invalid flash address", address=flash_addr)
-                    current_sector = _FlashSector(sector_info)
+                    current_sector = create_flash_sector(sector_info, page_info)
                     self.sector_list.append(current_sector)
 
                 # Check if operation is in a different page
@@ -807,11 +830,11 @@ class FlashBuilder(MemoryBuilder):
 
         for sector in self.sector_list:
             if sector.are_any_pages_not_same():
-
                 if self.region.is_erasable:
                     # Erase the sector
                     self.flash.init(self.flash.Operation.ERASE)
-                    self.flash.erase_sector(sector.addr)
+                    for addr in sector.addrs:
+                        self.flash.erase_sector(addr)
                     self.flash.uninit()
 
                     actual_sector_erase_weight += sector.erase_weight
@@ -909,14 +932,14 @@ class FlashBuilder(MemoryBuilder):
         # to read from flash while simultaneously programming it.
         progress = self._scan_pages_for_same(progress_cb)
 
-
         if self.region.is_erasable:
             # Erase all sectors up front.
             self.flash.init(self.flash.Operation.ERASE)
             for sector in self.sector_list:
                 if sector.are_any_pages_not_same():
                     # Erase the sector
-                    self.flash.erase_sector(sector.addr)
+                    for addr in sector.addrs:
+                        self.flash.erase_sector(addr)
 
                     # Update progress
                     progress += sector.erase_weight
