@@ -516,13 +516,15 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.has_fpu = ((sp_val == self.MVFR0_SINGLE_PRECISION_SUPPORTED) or
                 (dp_val == self.MVFR0_DOUBLE_PRECISION_SUPPORTED))
 
+        # Deferred reads must always be evaluated, to prevent the read queue getting stuck, so read
+        # this outside the 'if' below even if we don't use it.
+        mvfr2 = mvfr2_cb()
+
         if self.has_fpu:
             self._extensions.append(CortexMExtension.FPU)
 
             # Now check the VFP version by looking for support for the misc FP instructions added in
             # FPv5 (VMINNM, VMAXNM, etc).
-
-            mvfr2 = mvfr2_cb()
             vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
 
             if dp_val == self.MVFR0_DOUBLE_PRECISION_SUPPORTED:
