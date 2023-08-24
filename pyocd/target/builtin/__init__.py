@@ -132,8 +132,7 @@ from . import target_ytm32b1md1
 from . import target_STM32H723xx
 from . import target_STM32H743xx
 from . import target_Air001
-from . import target_Air32F103xB
-from . import target_Air32F103xC
+from . import target_Air32F103xx
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -306,6 +305,9 @@ BUILTIN_TARGETS = {
           'ytm32b1me0': target_ytm32b1me0.YTM32B1ME0,
           'ytm32b1md1': target_ytm32b1md1.YTM32B1MD1,
           'air001': target_Air001.Air001,
-          'air32f103xb': target_Air32F103xB.Air32F103xB,
-          'air32f103xc': target_Air32F103xC.Air32F103xC,
+          'air32f103xb': target_Air32F103xx.Air32F103xB,
+          'air32f103xc': target_Air32F103xx.Air32F103xC,
+          'air32f103xp': target_Air32F103xx.Air32F103xP,
+          'air32f103xe': target_Air32F103xx.Air32F103xE,
+          'air32f103xg': target_Air32F103xx.Air32F103xG,
          }
