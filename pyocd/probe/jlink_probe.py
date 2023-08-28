@@ -21,12 +21,14 @@ from time import sleep
 import pylink
 from pylink.enums import JLinkInterfaces
 from pylink.errors import (JLinkException, JLinkWriteException, JLinkReadException)
-from typing import (TYPE_CHECKING, Optional, Tuple)
+from typing import (TYPE_CHECKING, Optional, Tuple, Any, Sequence, Union, Callable)
 
 from .debug_probe import DebugProbe
+from ..core.memory_interface import MemoryInterface
 from ..core import exceptions
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
+from ..utility import conversion
 
 if TYPE_CHECKING:
     from pylink.structs import JLinkHardwareStatus
@@ -126,6 +128,7 @@ class JLinkProbe(DebugProbe):
         self._default_protocol = None
         self._is_open = False
         self._product_name = six.ensure_str(info.acProduct)
+        self._memory_interfaces = {}
 
     @property
     def description(self):
@@ -211,6 +214,7 @@ class JLinkProbe(DebugProbe):
         try:
             self._link.close()
             self._is_open = False
+            self._memory_interfaces = {}
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
@@ -450,6 +454,19 @@ class JLinkProbe(DebugProbe):
         for v in values:
             self.write_ap(addr, v)
 
+    def get_memory_interface_for_ap(self, ap_address):
+        assert self._is_open
+        # JLink memory access commands only support AP 0
+        if ap_address.apsel != 0:
+            return None
+        # JLink memory access commands require to be conneected to the target
+        if not self._link.target_connected():
+            return None
+        apsel = ap_address.apsel
+        if apsel not in self._memory_interfaces:
+            self._memory_interfaces[apsel] = JLinkMemoryInterface(self._link, apsel)
+        return self._memory_interfaces[apsel]
+
     def swo_start(self, baudrate):
         try:
             self._link.swo_start(int(baudrate))
@@ -482,6 +499,110 @@ class JLinkProbe(DebugProbe):
             return exceptions.TransferFaultError(str(exc))
         else:
             return exc
+
+class JLinkMemoryInterface(MemoryInterface):
+    """@brief Concrete memory interface for a single AP."""
+
+    def __init__(self, link, apsel):
+        self._link = link
+        self._apsel = apsel
+
+    def write_memory(self, addr: int, data: int, transfer_size: int=32, **attrs: Any) -> None:
+        """@brief Write a single memory location.
+
+        By default the transfer size is a word.
+        """
+        assert transfer_size in (8, 16, 32)
+        addr &= 0xffffffff
+        if transfer_size == 32:
+            self._link.memory_write32(addr, [data])
+        elif transfer_size == 16:
+            self._link.memory_write16(addr, [data])
+        elif transfer_size == 8:
+            self._link.memory_write8(addr, [data])
+
+    def read_memory(self, addr: int, transfer_size: int=32, now: bool=True, **attrs: Any) \
+            -> Union[int, Callable[[], int]]:
+        """@brief Read a memory location.
+
+        By default, a word will be read.
+        """
+        assert transfer_size in (8, 16, 32)
+        addr &= 0xffffffff
+        if transfer_size == 32:
+            result = self._link.memory_read32(addr, 1)[0]
+        elif transfer_size == 16:
+            result = self._link.memory_read16(addr, 1)[0]
+        elif transfer_size == 8:
+            result = self._link.memory_read8(addr, 1)[0]
+
+        def read_callback():
+            return result
+        return result if now else read_callback
+
+    def write_memory_block32(self, addr: int, data: Sequence[int], **attrs: Any) -> None:
+        addr &= 0xffffffff
+        self._link.memory_write32(addr, data)
+
+    def read_memory_block32(self, addr: int, size: int, **attrs: Any) -> Sequence[int]:
+        addr &= 0xffffffff
+        return self._link.memory_read32(addr, size)
+
+    def read_memory_block8(self, addr: int, size: int, **attrs: Any) -> Sequence[int]:
+        addr &= 0xffffffff
+        res = []
+
+        # Transfers are handled in 3 phases:
+        #   1. read 8-bit chunks until the first aligned address is reached,
+        #   2. read 32-bit chunks from all aligned addresses,
+        #   3. read 8-bit chunks from the remaining unaligned addresses.
+        # If the requested size is so small that phase-1 would not even reach
+        # aligned address, go straight to phase-3.
+
+        # 1. read leading unaligned bytes
+        unaligned_count = 3 & (4 - addr)
+        if (size > unaligned_count > 0):
+            res += self._link.memory_read8(addr, unaligned_count)
+            size -= unaligned_count
+            addr += unaligned_count
+
+        # 2. read aligned block of 32 bits
+        if (size >= 4):
+            aligned_size = size & ~3
+            res += conversion.u32le_list_to_byte_list(self._link.memory_read32(addr, aligned_size//4))
+            size -= aligned_size
+            addr += aligned_size
+
+        # 3. read trailing unaligned bytes
+        if (size > 0):
+            res += self._link.memory_read8(addr, size)
+
+        return res
+
+    def write_memory_block8(self, addr: int, data: Sequence[int], **attrs: Any) -> None:
+        addr &= 0xffffffff
+        size = len(data)
+        idx = 0
+
+        # write leading unaligned bytes
+        unaligned_count = 3 & (4 - addr)
+        if (size > unaligned_count > 0):
+            self._link.memory_write8(addr, data[:unaligned_count], self._apsel, csw)
+            size -= unaligned_count
+            addr += unaligned_count
+            idx += unaligned_count
+
+        # write aligned block of 32 bits
+        if (size >= 4):
+            aligned_size = size & ~3
+            self._link.memory_write32(addr, conversion.byte_list_to_u32le_list(data[idx:idx + aligned_size]))
+            size -= aligned_size
+            addr += aligned_size
+            idx += aligned_size
+
+        # write trailing unaligned bytes
+        if (size > 0):
+            self._link.memory_write8(addr, data[idx:])
 
 class JLinkProbePlugin(Plugin):
     """@brief Plugin class for JLinkProbe."""
