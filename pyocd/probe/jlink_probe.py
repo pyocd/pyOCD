@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2023 Marian Muller Rebeyrol
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -587,7 +588,7 @@ class JLinkMemoryInterface(MemoryInterface):
         # write leading unaligned bytes
         unaligned_count = 3 & (4 - addr)
         if (size > unaligned_count > 0):
-            self._link.memory_write8(addr, data[:unaligned_count], self._apsel, csw)
+            self._link.memory_write8(addr, data[:unaligned_count])
             size -= unaligned_count
             addr += unaligned_count
             idx += unaligned_count
