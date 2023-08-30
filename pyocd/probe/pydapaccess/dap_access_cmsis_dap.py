@@ -60,6 +60,10 @@ class SWOStatus:
     RUNNING = 3
     ERROR = 4
 
+class DAP_LED:
+    DAP_DEBUGGER_CONNECTED = 0
+    DAP_TARGET_RUNNING = 1
+
 LOG = logging.getLogger(__name__)
 
 TRACE = LOG.getChild("trace")
@@ -922,6 +926,9 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         elif self._dap_port == DAPAccessIntf.PORT.JTAG:
             self.configure_jtag()
 
+        self._protocol.set_led(DAP_LED.DAP_DEBUGGER_CONNECTED, 1)
+        self._protocol.set_led(DAP_LED.DAP_TARGET_RUNNING, 0)
+
     @locked
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
         self.flush()
@@ -950,6 +957,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @locked
     def disconnect(self):
         self.flush()
+        self._protocol.set_led(DAP_LED.DAP_DEBUGGER_CONNECTED, 0)
+        self._protocol.set_led(DAP_LED.DAP_TARGET_RUNNING, 0)
         self._protocol.disconnect()
 
     def has_swo(self):
