@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2021 Maxim Integrated (Part of Analog Devices)
+# Copyright (c) 2021 Maxim Integrated (now owned by Analog Devices, Inc.)
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
