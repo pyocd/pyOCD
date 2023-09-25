@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2023 PyOCD Authors
+# Copyright (c) 2023 Analog Devices, Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
