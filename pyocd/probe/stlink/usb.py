@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +26,7 @@ from binascii import hexlify
 
 from ...core import exceptions
 from .. import common
+from ...utility.signals import ThreadSignalBlocker
 
 LOG = logging.getLogger(__name__)
 
@@ -235,41 +236,48 @@ class STLinkUSBInterface:
         paddedCmd = bytearray(self.CMD_SIZE)
         paddedCmd[0:len(cmd)] = cmd
 
-        try:
-            # Command phase.
-            if TRACE.isEnabledFor(logging.DEBUG):
-                TRACE.debug("  USB CMD> (%d) %s", len(paddedCmd), ' '.join([f'{i:02x}' for i in paddedCmd]))
-            count = self._ep_out.write(paddedCmd, timeout)
-            assert count == len(paddedCmd)
-
-            # Optional data out phase.
-            if writeData is not None:
+        # Block signals while we transfer.
+        with ThreadSignalBlocker():
+            try:
+                # Command phase.
                 if TRACE.isEnabledFor(logging.DEBUG):
-                    TRACE.debug("  USB OUT> (%d) %s", len(writeData), ' '.join([f'{i:02x}' for i in writeData]))
-                count = self._ep_out.write(writeData, timeout)
-                assert count == len(writeData)
+                    TRACE.debug("  USB CMD> (%d) %s", len(paddedCmd), ' '.join([f'{i:02x}' for i in paddedCmd]))
+                count = self._ep_out.write(paddedCmd, timeout)
+                assert count == len(paddedCmd)
 
-            # Optional data in phase.
-            if readSize is not None:
-                if TRACE.isEnabledFor(logging.DEBUG):
-                    TRACE.debug("  USB IN < (req %d bytes)", readSize)
-                data = self._read(readSize)
-                if TRACE.isEnabledFor(logging.DEBUG):
-                    TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
+                # Optional data out phase.
+                if writeData is not None:
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        TRACE.debug("  USB OUT> (%d) %s", len(writeData), ' '.join([f'{i:02x}' for i in writeData]))
+                    count = self._ep_out.write(writeData, timeout)
+                    assert count == len(writeData)
 
-                # Verify we got all requested data.
-                if len(data) < readSize:
-                    raise exceptions.ProbeError("received incomplete command response from STLink "
-                            f"(got {len(data)}, expected {readSize}")
+                # Optional data in phase.
+                if readSize is not None:
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        TRACE.debug("  USB IN < (req %d bytes)", readSize)
+                    data = self._read(readSize)
+                    if TRACE.isEnabledFor(logging.DEBUG):
+                        TRACE.debug("  USB IN < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
 
-                return data
-        except usb.core.USBError as exc:
-            raise exceptions.ProbeError("USB Error: %s" % exc) from exc
+                    # Verify we got all requested data.
+                    if len(data) < readSize:
+                        raise exceptions.ProbeError("received incomplete command response from STLink "
+                                f"(got {len(data)}, expected {readSize}")
+
+                    return data
+            except usb.core.USBError as exc:
+                raise exceptions.ProbeError("USB Error: %s" % exc) from exc
         return None
 
     def read_swv(self, size, timeout=1000):
         assert self._ep_swv
-        return bytearray(self._ep_swv.read(size, timeout))
+        # Block signals while we transfer.
+        with ThreadSignalBlocker():
+            try:
+                return bytearray(self._ep_swv.read(size, timeout))
+            except usb.core.USBError as exc:
+                raise exceptions.ProbeError("USB Error: %s" % exc) from exc
 
     def __repr__(self):
         return "<{} @ {:#x} vid={:#06x} pid={:#06x} sn={} version={}>".format(

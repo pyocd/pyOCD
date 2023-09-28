@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Federico Zuccardi Merli
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,6 +32,7 @@ from ..core import exceptions
 from ..core.options import OptionInfo
 from ..core.plugin import Plugin
 from ..utility.mask import parity32_high
+from ..utility.signals import ThreadSignalBlocker
 
 LOG = logging.getLogger(__name__)
 
@@ -135,7 +136,8 @@ class PicoLink(object):
         self._queue[:self.PKT_HDR_LEN] = array(
             'B', self._qulen.to_bytes(4, 'little'))
         try:
-            self._wr_ep.write(self._queue)
+            with ThreadSignalBlocker():
+                self._wr_ep.write(self._queue)
         except Exception:
             # Anything from the USB layer assumes probe is no longer connected
             raise exceptions.ProbeDisconnected(
@@ -150,7 +152,8 @@ class PicoLink(object):
         try:
             # A single read is enough, as the 8 kB buffer in the Picoprobe can
             # contain about 454 ACKs+Register reads, and I never queue more than 256
-            received = self._rd_ep.read(self._bits)
+            with ThreadSignalBlocker():
+                received = self._rd_ep.read(self._bits)
         except Exception:
             # Anything from the USB layer assumes probe is no longer connected
             raise exceptions.ProbeDisconnected(
