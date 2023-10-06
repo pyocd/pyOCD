@@ -14,31 +14,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
-from ...core import exceptions
-from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM
 
-LOG = logging.getLogger(__name__)
+class AMA3BFamily(CortexM):
+    REG_MCU_CTRL_BOOTLOADER = 0x400201A0
+    REG_MCU_CTRL_SCRATCH0 = 0x400201B0
 
-class AMA3BFamily(CoreSightTarget):
-
-    VENDOR = "Ambiq"
-
-    def create_init_sequence(self):
-        seq = super(AMA3BFamily, self).create_init_sequence()
-        seq.wrap_task('discovery',
-            lambda seq: seq.replace_task('create_cores', self.create_cores)
-            )
-        return seq
-
-    def create_cores(self):
-        try:
-            core = CortexM(self.session, self.aps[0], self.memory_map, 0)
-            core.default_reset_type = self.ResetType.SW_SYSRESETREQ
-            self.aps[0].core = core
-            core.init()
-            self.add_core(core)
-        except exceptions.Error:
-            LOG.error("No Apollo3 were discovered")
+    def set_reset_catch(self, reset_type=None):
+        # Refer to document A-SOCA3B-UGGA02EN for details
+        # If Debugger Support is disabled by the SDBG bit in INFO0_SECURITY,
+        # The least significant bit of register REG_MCU_CTRL_SCRATCH0 must be
+        # set to indicate that a halt is requested by the debugger after
+        # primary boot.
+        
+        # Check if secure boot is enabled for:
+        #   bit 31:30 warm reset
+        #   bit 29:28 cold reset
+        #   bit 27:26 secure boot feature enabled
+        secure_boot = False
+        reg_bootloader = self.read_memory(self.REG_MCU_CTRL_BOOTLOADER)
+        if (reg_bootloader & 0xFC000000):
+            secure_boot = True
+        
+        if(secure_boot is True):
+            # Modify only the least significant bit and preserve the scratch
+            # register as it could be used by the application firmware.
+            reg_scratch0 = self.read_memory(self.REG_MCU_CTRL_SCRATCH0) | 0x01
+            self.write_memory(self.REG_MCU_CTRL_SCRATCH0, reg_scratch0)
+        else:
+            super(AMA3BFamily, self).set_reset_catch(reset_type)
