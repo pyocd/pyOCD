@@ -19,7 +19,6 @@ import logging
 from ...core import exceptions
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...coresight.coresight_target import CoreSightTarget
-from ...coresight.cortex_m import CortexM
 from ...debug.svd.loader import SVDFile
 from ..family.target_ama3b import AMA3BFamily
 
@@ -165,4 +164,4 @@ class AMA3B1KK_KBR(CoreSightTarget):
             core.init()
             self.add_core(core)
         except exceptions.Error:
-            LOG.error("No Apollo3 were discovered")
+            LOG.error("No Apollo3 Core found")
