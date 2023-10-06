@@ -16,9 +16,12 @@
 
 import logging
 
-from ..family.target_ama3b import AMA3BFamily
+from ...core import exceptions
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+from ...coresight.coresight_target import CoreSightTarget
+from ...coresight.cortex_m import CortexM
 from ...debug.svd.loader import SVDFile
+from ..family.target_ama3b import AMA3BFamily
 
 LOG = logging.getLogger(__name__)
 
@@ -127,22 +130,39 @@ FLASH_ALGO = {
     )
 }
 
-class AMA3B1KK_KBR(AMA3BFamily):
+class AMA3B1KK_KBR(CoreSightTarget):
+
+    VENDOR = "Ambiq Micro"
+
     MEMORY_MAP = MemoryMap(
         FlashRegion(name='flash', start=0x0000C000, length=0x000F4000, access='rx',
             page_size=0x2000,
             sector_size=0x2000,
             is_boot_memory=True,
             algo=FLASH_ALGO),
+
         RamRegion(  name='sram',  start=0x10000000, length=0x00060000, access='rwx')
     )
 
-    def __init__(self, session):
-        super(AMA3B1KK_KBR, self).__init__(session, self.MEMORY_MAP)
+    CortexM_Core = AMA3BFamily
+
+    def __init__(self, link):
+        super(AMA3B1KK_KBR, self).__init__(link, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("apollo3.svd")
 
-    def set_reset_catch(self, reset_type=None):
-        super(AMA3B1KK_KBR, self).set_reset_catch(reset_type)
+    def create_init_sequence(self):
+        seq = super(AMA3B1KK_KBR, self).create_init_sequence()
+        seq.wrap_task('discovery',
+            lambda seq: seq.replace_task('create_cores', self.create_cores)
+            )
+        return seq
 
-    def reset(self, reset_type=None):
-        super(AMA3B1KK_KBR, self).reset(reset_type)
+    def create_cores(self):
+        try:
+            core = self.CortexM_Core(self.session, self.aps[0], self.memory_map, 0)
+            core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+            self.aps[0].core = core
+            core.init()
+            self.add_core(core)
+        except exceptions.Error:
+            LOG.error("No Apollo3 were discovered")
