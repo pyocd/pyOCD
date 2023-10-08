@@ -174,6 +174,10 @@ DAPLink firmware updates are available on the [daplink.io](https://daplink.io/) 
 The Microchip (previously Atmel) EDBG probe firmware, at the time of this writing, provides a CMSIS-DAP v1 interface.
 On macOS, reading command responses always times out. The probe works on other OSes, however.
 
+### TI XDS110
+
+XDS110 firmware version 03.00.00.25 is known to have an issue when using multiple outstanding packets (the default setting). To work around this, set the `cmsis_dap.limit_packets` session option, e.g. `-Ocmsis_dap.limit_packets=1` on the command line. Earlier firmware versions most likely exhibit the issue; it is unknown whether it is fixed in more recent versions.
+
 
 ### PE Micro Cyclone and Multilink
 
