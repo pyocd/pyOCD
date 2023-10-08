@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
 
 from enum import (Enum, IntFlag)
 import threading
@@ -141,7 +143,7 @@ class DebugProbe:
                 cls,
                 unique_id: Optional[str] = None,
                 is_explicit: bool = False
-            ) -> Sequence["DebugProbe"]:
+            ) -> Sequence[DebugProbe]:
         """@brief Returns a list of DebugProbe instances.
 
         To filter the list of returned probes, the `unique_id` parameter may be set to a string with a full or
@@ -160,7 +162,7 @@ class DebugProbe:
         raise NotImplementedError()
 
     @classmethod
-    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional["DebugProbe"]:
+    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional[DebugProbe]:
         """@brief Returns a DebugProbe instance for a probe with the given unique ID.
 
         If no probe is connected with a fully matching unique ID, then None will be returned.
@@ -174,16 +176,16 @@ class DebugProbe:
 
     def __init__(self) -> None:
         """@brief Constructor."""
-        self._session: Optional["Session"] = None
+        self._session: Optional[Session] = None
         self._lock = threading.RLock()
 
     @property
-    def session(self) -> Optional["Session"]:
+    def session(self) -> Optional[Session]:
         """@brief Session associated with this probe."""
         return self._session
 
     @session.setter
-    def session(self, the_session: "Session") -> None:
+    def session(self, the_session: Session) -> None:
         self._session = the_session
 
     @property
@@ -245,11 +247,11 @@ class DebugProbe:
         raise NotImplementedError()
 
     @property
-    def associated_board_info(self) -> Optional["BoardInfo"]:
+    def associated_board_info(self) -> Optional[BoardInfo]:
         """@brief Info about the board associated with this probe, if known."""
         return None
 
-    def create_associated_board(self) -> Optional["Board"]:
+    def create_associated_board(self) -> Optional[Board]:
         """@brief Create a board instance representing the board of which the probe is a component.
 
         If the probe is part of a board, then this method will create a Board instance that
@@ -503,7 +505,7 @@ class DebugProbe:
         """@brief Write one AP register multiple times."""
         raise NotImplementedError()
 
-    def get_memory_interface_for_ap(self, ap_address: "APAddressBase") -> Optional["MemoryInterface"]:
+    def get_memory_interface_for_ap(self, ap_address: APAddressBase) -> Optional[MemoryInterface]:
         """@brief Returns a @ref pyocd.core.memory_interface.MemoryInterface "MemoryInterface" for
             the specified AP.
 

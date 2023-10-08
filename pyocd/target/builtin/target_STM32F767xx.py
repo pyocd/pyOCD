@@ -20,40 +20,13 @@ import logging
 from ...coresight.coresight_target import CoreSightTarget
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...coresight.cortex_m import CortexM
+from ...coresight.minimal_mem_ap import MinimalMemAP as MiniAP
 
 LOG = logging.getLogger(__name__)
 
 class DBGMCU:
     CR = 0xE0042004
     CR_VALUE = 0x7 # DBG_STANDBY | DBG_STOP | DBG_SLEEP
-
-
-class MiniAP(object):
-    """Minimalistic Access Port implementation."""
-    AP0_CSW_ADDR = 0x00
-    AP0_CSW_ADDR_VAL = 0x03000012
-    AP0_TAR_ADDR = 0x04
-    AP0_IDR_ADDR = 0xFC
-    AP0_DRW_ADDR = 0x0C
-
-    def __init__(self, dp):
-        self.dp = dp
-
-    def init(self):
-        # Init AP #0
-        IDR = self.dp.read_ap(MiniAP.AP0_IDR_ADDR)
-        # Check expected MEM-AP
-        assert IDR == 0x74770001
-        self.dp.write_ap(MiniAP.AP0_CSW_ADDR, MiniAP.AP0_CSW_ADDR_VAL)
-
-    def read32(self, addr):
-        self.dp.write_ap(MiniAP.AP0_TAR_ADDR, addr)
-        return self.dp.read_ap(MiniAP.AP0_DRW_ADDR)
-
-    def write32(self, addr, val):
-        self.dp.write_ap(MiniAP.AP0_TAR_ADDR, addr)
-        self.dp.write_ap(MiniAP.AP0_DRW_ADDR, val)
-
 
 FLASH_ALGO = {
     'load_address' : 0x20000000,

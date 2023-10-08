@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
 
 from time import sleep
 import logging
@@ -55,7 +57,7 @@ class _TemporaryOpen:
         self._suppress_exceptions = suppress_exceptions
         self._did_open_link: bool = False
 
-    def __enter__(self) -> "_TemporaryOpen":
+    def __enter__(self) -> _TemporaryOpen:
         try:
             # Temporarily open the device if not already opened.
             if not self._device.is_open:
@@ -69,7 +71,7 @@ class _TemporaryOpen:
 
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_value: Optional[Exception], traceback: Optional["TracebackType"]) -> bool:
+    def __exit__(self, exc_type: Optional[type], exc_value: Optional[Exception], traceback: Optional[TracebackType]) -> bool:
         # Close the device if we had to open it.
         if self._did_open_link:
             self._device.close()
@@ -134,14 +136,14 @@ class CMSISDAPProbe(DebugProbe):
                 cls,
                 unique_id: Optional[str] = None,
                 is_explicit: bool = False
-            ) -> Sequence["DebugProbe"]:
+            ) -> Sequence[DebugProbe]:
         try:
             return [cls(dev) for dev in DAPAccess.get_connected_devices()]
         except DAPAccess.Error as exc:
             raise cls._convert_exception(exc) from exc
 
     @classmethod
-    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional["DebugProbe"]:
+    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional[DebugProbe]:
         try:
             dap_access = DAPAccess.get_device(unique_id)
             if dap_access is not None:
@@ -208,7 +210,7 @@ class CMSISDAPProbe(DebugProbe):
         return self._caps
 
     @property
-    def associated_board_info(self) -> Optional["BoardInfo"]:
+    def associated_board_info(self) -> Optional[BoardInfo]:
         """@brief Info about the board associated with this probe, if known."""
         # Get internal board info if available.
         if (self.board_id is not None) and (self.board_id in BOARD_ID_TO_INFO):
@@ -246,7 +248,7 @@ class CMSISDAPProbe(DebugProbe):
 
         return info
 
-    def create_associated_board(self) -> Optional["Board"]:
+    def create_associated_board(self) -> Optional[Board]:
         assert self.session is not None
 
         board_info = self.associated_board_info
@@ -663,7 +665,7 @@ class CMSISDAPProbe(DebugProbe):
 
         if now:
             TRACE.debug("trace: read_ap_multi(addr=%#010x, count=%i) -> [%s]", addr, count,
-                    ", ".join(["%#010x" % v for v in result]))
+                    ", ".join(["%#010x" % v for v in result])) # type: ignore # result is always iterable if now is True
             return result
         else:
             return read_ap_repeat_callback

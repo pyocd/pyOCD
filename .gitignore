@@ -92,3 +92,7 @@ pyocd_user.py
 # Mac
 .DS_Store
 
+# kdevelop
+.kdev4
+*.kdev4
+*.kate-swp

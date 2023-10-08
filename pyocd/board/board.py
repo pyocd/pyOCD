@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2006-2013,2018 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2023 Benjamin Sølberg
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -77,7 +78,7 @@ class Board(GraphNode):
             if session.options.get('warning.cortex_m_default'):
                 LOG.warning("Generic 'cortex_m' target type is selected by default; is this "
                             "intentional? You will be able to debug most devices, but not program "
-                            " flash. To set the target type use the '--target' argument or "
+                            "flash. To set the target type use the '--target' argument or "
                             "'target_override' option. Use 'pyocd list --targets' to see available "
                             "targets types.")
 

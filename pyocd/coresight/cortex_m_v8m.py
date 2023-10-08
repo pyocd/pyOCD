@@ -39,6 +39,12 @@ class CortexM_v8M(CortexM):
     DSCSR_SBRSEL = 0x00000002
     DSCSR_SBRSELEN = 0x00000001
 
+    # Processor Feature Register 0
+    PFR0 = 0xE000ED40
+    PFR0_RAS_MASK = 0xf0000000
+    PFR0_RAS_SHIFT = 28
+    PFR0_RAS_VERSION_1 = 2
+
     # Processor Feature Register 1
     PFR1 = 0xE000ED44
     PFR1_SECURITY_MASK = 0x000000f0
@@ -47,12 +53,37 @@ class CortexM_v8M(CortexM):
     PFR1_SECURITY_EXT_V8_0 = 0x1 # Base security extension.
     PFR1_SECURITY_EXT_V8_1 = 0x3 # v8.1-M adds several instructions.
 
+    # Debug Feature Register 0
+    DFR0 = 0xE000ED48
+    DFR0_UDE_MASK = 0xf0000000
+    DFR0_UDE_SHIFT = 28
+    DFR0_UDE_SUPPORTED = 1
+
     # Media and FP Feature Register 1
     MVFR1 = 0xE000EF44
     MVFR1_MVE_MASK = 0x00000f00
     MVFR1_MVE_SHIFT = 8
     MVFR1_MVE__INTEGER = 0x1
     MVFR1_MVE__FLOAT = 0x2
+    MVFR1_FP16_MASK = 0x00f00000
+    MVFR1_FP16_SHIFT = 20
+    MVFR1_FP16__SUPPORTED = 0x1 # FP16 format support is present.
+
+    # Instruction Set Attribute Register 0
+    ISAR0 = 0xE000ED60
+    ISAR0_CMPBRANCH_MASK = 0x0000f000
+    ISAR0_CMPBRANCH_SHIFT = 12
+    ISAR0_CMPBRANCH__LOB = 0x3 # LOB instructions from v8.1-M are present.
+
+    # Instruction Set Attribute Register 5
+    ISAR5 = 0xE000ED74
+    ISAR5_PACBTI_MASK = 0x00f00000
+    ISAR5_PACBTI_SHIFT = 20
+    ISAR5_PACBTI__NONE = 0x0 # PACBTI is not present.
+
+    # PMU Type register
+    PMU_TYPE = 0xE0003E00
+    PMU_TYPE_N_MASK  = 0x0000000f
 
     def __init__(self, rootTarget, ap, memory_map=None, core_num=0, cmpid=None, address=None):
         super().__init__(rootTarget, ap, memory_map, core_num, cmpid, address)
@@ -71,50 +102,109 @@ class CortexM_v8M(CortexM):
 
     def _read_core_type(self):
         """@brief Read the CPUID register and determine core type and architecture."""
-        # Read CPUID register
-        cpuid = self.read32(CortexM.CPUID)
+        # Schedule deferred reads.
+        cpuid_cb = self.read32(self.CPUID, now=False)
+        pfr0_cb = self.read32(self.PFR0, now=False)
+        pfr1_cb = self.read32(self.PFR1, now=False)
+        dfr0_cb = self.read32(self.DFR0, now=False)
+        isar0_cb = self.read32(self.ISAR0, now=False)
+        isar3_cb = self.read32(self.ISAR3, now=False)
+        isar5_cb = self.read32(self.ISAR5, now=False)
+        pmu_type_cb = self.read32(self.PMU_TYPE, now=False)
+        mpu_type_cb = self.read32(self.MPU_TYPE, now=False)
 
+        # Read CPUID register
+        cpuid = cpuid_cb()
         implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
         arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
 
-        pfr1 = self.read32(self.PFR1)
-        pfr1_sec = ((pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT)
+        # Check for DSP extension
+        isar3 = isar3_cb()
+        isar3_simd = (isar3 & self.ISAR3_SIMD_MASK) >> self.ISAR3_SIMD_SHIFT
+        if isar3_simd == self.ISAR3_SIMD__DSP:
+            self._extensions.append(CortexMExtension.DSP)
+
+        # Check for RAS extension.
+        pfr0 = pfr0_cb()
+        pfr0_ras = (pfr0 & self.PFR0_RAS_MASK) >> self.PFR0_RAS_SHIFT
+        if pfr0_ras == self.PFR0_RAS_VERSION_1:
+            self._extensions.append(CortexMExtension.RAS)
+
+        # Check for the security extension.
+        pfr1 = pfr1_cb()
+        pfr1_sec = (pfr1 & self.PFR1_SECURITY_MASK) >> self.PFR1_SECURITY_SHIFT
         self.has_security_extension = pfr1_sec in (self.PFR1_SECURITY_EXT_V8_0, self.PFR1_SECURITY_EXT_V8_1)
         if self.has_security_extension:
             self._extensions.append(CortexMExtension.SEC)
         if pfr1_sec == self.PFR1_SECURITY_EXT_V8_1:
             self._extensions.append(CortexMExtension.SEC_V81)
 
+        # Check for UDE extension.
+        dfr0 = dfr0_cb()
+        dfr0_ude = (dfr0 & self.DFR0_UDE_MASK) >> self.DFR0_UDE_SHIFT
+        if dfr0_ude == self.DFR0_UDE_SUPPORTED:
+            self._extensions.append(CortexMExtension.UDE)
+
+        # Check for PACBTI extension.
+        isar5 = isar5_cb()
+        isar5_pacbti = (isar5 & self.ISAR5_PACBTI_MASK) >> self.ISAR5_PACBTI_SHIFT
+        if isar5_pacbti != self.ISAR5_PACBTI__NONE:
+            self._extensions.append(CortexMExtension.PACBTI)
+
+        # Check for PMU extension.
+        pmu_type = pmu_type_cb()
+        pmu_type_n = pmu_type & self.PMU_TYPE_N_MASK
+        if pmu_type_n > 0:
+            self._extensions.append(CortexMExtension.PMU)
+
+        # Check for MPU extension
+        mpu_type = mpu_type_cb()
+        mpu_type_dregions = (mpu_type & self.MPU_TYPE_DREGIONS_MASK) >> self.MPU_TYPE_DREGIONS_SHIFT
+        if mpu_type_dregions > 0:
+            self._extensions.append(CortexMExtension.MPU)
+
+        # Determine the base/main variant.
         if arch == self.ARMv8M_BASE:
             self._architecture = CoreArchitecture.ARMv8M_BASE
         else:
             self._architecture = CoreArchitecture.ARMv8M_MAIN
 
-        self._core_name = CORE_TYPE_NAME.get((implementer, self.core_type), f"Unknown (CPUID={cpuid:#010x})")
-
-        if self.has_security_extension:
-            LOG.info("CPU core #%d is %s r%dp%d (security ext present)",
-                    self.core_number, self._core_name, self.cpu_revision, self.cpu_patch)
+        # Determine the architecture major/minor version.
+        # The presence of low-overhead loop and branch instructions is used to distinguish v8.1-M from v8.0-M.
+        isar0 = isar0_cb()
+        isar0_cmpbranch = (isar0 & self.ISAR0_CMPBRANCH_MASK) >> self.ISAR0_CMPBRANCH_SHIFT
+        if isar0_cmpbranch == self.ISAR0_CMPBRANCH__LOB:
+            self._arch_version = (8, 1)
         else:
-            LOG.info("CPU core #%d is %s r%dp%d", self.core_number, self._core_name, self.cpu_revision, self.cpu_patch)
+            self._arch_version = (8, 0)
+
+        self._core_name = CORE_TYPE_NAME.get((implementer, self.core_type), f"Unknown (CPUID={cpuid:#010x})")
 
     def _check_for_fpu(self):
         """@brief Determine if a core has an FPU.
 
         In addition to the tests performed by CortexM, this method tests for the MVE extension.
         """
+        # Schedule this deferred read before calling the super implementation.
+        mvfr1_cb = self.read32(self.MVFR1, now=False)
+
         super()._check_for_fpu()
 
         # Check for MVE.
-        mvfr1 = self.read32(self.MVFR1)
+        mvfr1 = mvfr1_cb()
         mve = (mvfr1 & self.MVFR1_MVE_MASK) >> self.MVFR1_MVE_SHIFT
         if mve == self.MVFR1_MVE__INTEGER:
             self._extensions.append(CortexMExtension.MVE)
         elif mve == self.MVFR1_MVE__FLOAT:
             self._extensions += [CortexMExtension.MVE, CortexMExtension.MVE_FP]
+
+        # Check for half-precision FP.
+        fp16 = (mvfr1 & self.MVFR1_FP16_MASK) >> self.MVFR1_FP16_SHIFT
+        if fp16 == self.MVFR1_FP16__SUPPORTED:
+            self._extensions.append(CortexMExtension.FPU_HP)
 
     def _build_registers(self):
         super()._build_registers()

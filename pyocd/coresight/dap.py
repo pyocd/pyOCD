@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -17,9 +17,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 from enum import Enum
-from typing import (Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple, TYPE_CHECKING, Union, overload)
+from typing import (cast, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple, TYPE_CHECKING, Union, overload)
 from typing_extensions import Literal
 
 from ..core import (exceptions, memory_interface)
@@ -310,9 +312,9 @@ class DebugPort(DelegateHavingMixIn):
         self.target = target
         assert target.session
         self._session = target.session
-        self.valid_aps: Optional[List["APAddressBase"]] = None
+        self.valid_aps: Optional[List[APAddressBase]] = None
         self.dpidr = DPIDR(0, 0, 0, 0, 0)
-        self.aps: Dict["APAddressBase", "AccessPort"] = {}
+        self.aps: Dict[APAddressBase, AccessPort] = {}
         self._access_number: int = 0
         self._cached_dp_select: Optional[int] = None
         self._protocol: Optional[DebugProbe.Protocol] = None
@@ -340,7 +342,7 @@ class DebugPort(DelegateHavingMixIn):
         return self._probe
 
     @property
-    def session(self) -> "Session":
+    def session(self) -> Session:
         return self._session
 
     @property
@@ -353,7 +355,7 @@ class DebugPort(DelegateHavingMixIn):
         return self._base_addr
 
     @property
-    def apacc_memory_interface(self) -> "APAccessMemoryInterface":
+    def apacc_memory_interface(self) -> APAccessMemoryInterface:
         """@brief Memory interface for performing APACC transactions."""
         if self._apacc_mem_interface is None:
             self._apacc_mem_interface = APAccessMemoryInterface(self)
@@ -437,23 +439,22 @@ class DebugPort(DelegateHavingMixIn):
         self._probe_supports_apv2_addresses = (DebugProbe.Capability.APv2_ADDRESSES in caps)
         self._have_probe_capabilities = True
 
+    # Usually when we call a debug sequence, we first check if the sequence exists. For the below
+    # methods, we rely on .call_pre_discovery_debug_sequence() to do this for us.
     def connect_debug_port_hook(self) -> Optional[bool]:
-        if self.has_debug_sequence('DebugPortSetup'):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('DebugPortSetup')
-            return True
+        from .coresight_target import CoreSightTarget
+        cst = cast(CoreSightTarget, self.session.target)
+        return cst.call_pre_discovery_debug_sequence('DebugPortSetup')
 
     def enable_debug_port_hook(self) -> Optional[bool]:
-        if self.has_debug_sequence('DebugPortStart'):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('DebugPortStart')
-            return True
+        from .coresight_target import CoreSightTarget
+        cst = cast(CoreSightTarget, self.session.target)
+        return cst.call_pre_discovery_debug_sequence('DebugPortStart')
 
     def disable_debug_port_hook(self) -> Optional[bool]:
-        if self.has_debug_sequence('DebugPortStop'):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('DebugPortStop')
-            return True
+        from .coresight_target import CoreSightTarget
+        cst = cast(CoreSightTarget, self.session.target)
+        return cst.call_pre_discovery_debug_sequence('DebugPortStop')
 
     def _connect(self) -> None:
         # Connect the probe.
@@ -602,7 +603,7 @@ class DebugPort(DelegateHavingMixIn):
         """@brief Invalidate cached DP registers."""
         self._cached_dp_select = None
 
-    def _reset_did_occur(self, notification: "Notification") -> None:
+    def _reset_did_occur(self, notification: Notification) -> None:
         """@brief Handles reset notifications to invalidate register cache.
 
         The cache is cleared on all resets just to be safe. On most devices, warm resets do not reset
@@ -1040,7 +1041,7 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
     Only 32-bit transfers are supported.
     """
 
-    def __init__(self, dp: DebugPort, ap_address: Optional["APAddressBase"] = None) -> None:
+    def __init__(self, dp: DebugPort, ap_address: Optional[APAddressBase] = None) -> None:
         """@brief Constructor.
 
         @param self

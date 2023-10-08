@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -163,7 +163,7 @@ class CoreSightTarget(SoCTarget):
             raise exceptions.Error(f"invalid 'primary_core' session option '{primary_core}' "
                            f"(valid values are {', '.join(str(i) for i, _ in enumerate(ap_map.values()))})")
 
-    def _call_pre_discovery_debug_sequence(self, sequence: str) -> bool:
+    def call_pre_discovery_debug_sequence(self, sequence: str) -> bool:
         """@brief Run a debug sequence before discovery has been performed.
 
         The primary core's pname cannot be looked up via the `node_name` property of the core
@@ -192,7 +192,7 @@ class CoreSightTarget(SoCTarget):
         if self.delegate_implements('unlock_device'):
             self.call_delegate('unlock_device')
         else:
-            self._call_pre_discovery_debug_sequence('DebugDeviceUnlock')
+            self.call_pre_discovery_debug_sequence('DebugDeviceUnlock')
 
     def create_discoverer(self) -> None:
         """@brief Init task to create the discovery object.
@@ -215,7 +215,7 @@ class CoreSightTarget(SoCTarget):
                 # Set the state variable indicating we're running ResetHardware for pre-reset, used
                 # by the debug sequence delegate's get_connection_type() method.
                 self.session.context_state.is_performing_pre_reset = True
-                if not self._call_pre_discovery_debug_sequence('ResetHardware'):
+                if not self.call_pre_discovery_debug_sequence('ResetHardware'):
                     self.dp.reset()
             finally:
                 self.session.context_state.is_performing_pre_reset = False

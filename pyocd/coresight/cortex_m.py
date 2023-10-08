@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 from time import sleep
-from typing import (Any, Callable, List, Optional, Set, overload, Sequence, TYPE_CHECKING, Union, cast)
+from typing import (Any, Callable, List, Optional, Set, Tuple, overload, Sequence, TYPE_CHECKING, Union, cast)
 from typing_extensions import Literal
 
 from ..core.target import Target
@@ -40,10 +42,14 @@ from .ap import MEM_AP
 if TYPE_CHECKING:
     from .coresight_target import CoreSightTarget
     from .rom_table import CoreSightComponentID
+    from ..core.core_registers import (
+        CoreRegistersIndex,
+        CoreRegisterNameOrNumberType,
+        CoreRegisterValueType,
+    )
     from ..core.session import Session
     from ..core.memory_interface import MemoryInterface
     from ..core.memory_map import MemoryMap
-    from ..core.target_delegate import DelegateResult
     from ..debug.context import DebugContext
     from ..debug.elf.elf import ELFBinaryFile
 
@@ -186,10 +192,21 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     MVFR2_VFP_MISC_SHIFT = 4
     MVFR2_VFP_MISC_SUPPORTED = 4
 
+    # Instruction Set Attribute Register 3
+    ISAR3 = 0xE000ED6C
+    ISAR3_SIMD_MASK = 0x000000f0
+    ISAR3_SIMD_SHIFT = 4
+    ISAR3_SIMD__DSP = 0x3 # SIMD instructions from DSP extension are present
+
+    # MPU Type register
+    MPU_TYPE = 0xE000ED90
+    MPU_TYPE_DREGIONS_MASK = 0x0000ff00
+    MPU_TYPE_DREGIONS_SHIFT = 8
+
     _RESET_RECOVERY_SLEEP_INTERVAL = 0.01 # 10 ms
 
     @classmethod
-    def factory(cls, ap: "MemoryInterface", cmpid: "CoreSightComponentID", address: int) -> Any:
+    def factory(cls, ap: MemoryInterface, cmpid: CoreSightComponentID, address: int) -> Any:
         assert isinstance(ap, MEM_AP)
 
         # Create a new core instance.
@@ -209,24 +226,25 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return core
 
     def __init__(self,
-            session: "Session",
+            session: Session,
             ap: MEM_AP,
-            memory_map: Optional["MemoryMap"] = None,
+            memory_map: Optional[MemoryMap] = None,
             core_num: int = 0,
-            cmpid: Optional["CoreSightComponentID"] = None,
+            cmpid: Optional[CoreSightComponentID] = None,
             address: Optional[int] = None
             ) -> None:
         CoreTarget.__init__(self, session, memory_map)
         CoreSightCoreComponent.__init__(self, ap, cmpid, address)
 
         self._architecture: CoreArchitecture = CoreArchitecture.ARMv6M
+        self._arch_version: Tuple[int, int] = (0, 0)
         self._extensions: List[CortexMExtension] = []
         self.core_type = 0
         self.has_fpu: bool = False
         self._core_number: int = core_num
         self._core_name: str = "Unknown"
         self._run_token: int = 0
-        self._target_context: Optional["DebugContext"] = None
+        self._target_context: Optional[DebugContext] = None
         self._elf = None
         self.target_xml = None
         self._core_registers = CoreRegistersIndex()
@@ -256,7 +274,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.bp_manager = BreakpointManager(self)
         self.bp_manager.add_provider(self.sw_bp)
 
-    def add_child(self, cmp: "CoreSightComponent") -> None:
+    def add_child(self, cmp: CoreSightComponent) -> None:
         """@brief Connect related CoreSight components."""
         super().add_child(cmp)
 
@@ -281,6 +299,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self._architecture
 
     @property
+    def architecture_version(self) -> Tuple[int, int]:
+        """@brief Architecture major and minor version numbers."""
+        return self._arch_version
+
+    @property
     def extensions(self) -> List[CortexMExtension]:
         """@brief List of extensions supported by this core."""
         return self._extensions
@@ -298,11 +321,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         return self._supported_reset_types
 
     @property
-    def elf(self) -> Optional["ELFBinaryFile"]:
+    def elf(self) -> Optional[ELFBinaryFile]:
         return self._elf
 
     @elf.setter
-    def elf(self, elffile: "ELFBinaryFile") -> None:
+    def elf(self, elffile: ELFBinaryFile) -> None:
         self._elf = elffile
 
     @property
@@ -369,6 +392,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self._check_for_fpu()
         self._init_reset_types()
         self._build_registers()
+        self._log_core_description()
         self.get_vector_catch() # Cache the current vector cache settings.
         self.sw_bp.init()
 
@@ -432,23 +456,39 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     def _read_core_type(self) -> None:
         """@brief Read the CPUID register and determine core type and architecture."""
         # Read CPUID register
-        cpuid = self.read32(CortexM.CPUID)
+        cpuid_cb = self.read32(CortexM.CPUID, now=False)
+        isar3_cb = self.read32(CortexM.ISAR3, now=False)
+        mpu_type_cb = self.read32(CortexM.MPU_TYPE, now=False)
 
+        # Check CPUID
+        cpuid = cpuid_cb()
         implementer = (cpuid & CortexM.CPUID_IMPLEMENTER_MASK) >> CortexM.CPUID_IMPLEMENTER_POS
         arch = (cpuid & CortexM.CPUID_ARCHITECTURE_MASK) >> CortexM.CPUID_ARCHITECTURE_POS
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
 
+        # Check for DSP extension
+        isar3 = isar3_cb()
+        isar3_simd = (isar3 & self.ISAR3_SIMD_MASK) >> self.ISAR3_SIMD_SHIFT
+        if isar3_simd == self.ISAR3_SIMD__DSP:
+            self._extensions.append(CortexMExtension.DSP)
+
+        # Check for MPU extension
+        mpu_type = mpu_type_cb()
+        mpu_type_dregions = (mpu_type & self.MPU_TYPE_DREGIONS_MASK) >> self.MPU_TYPE_DREGIONS_SHIFT
+        if mpu_type_dregions > 0:
+            self._extensions.append(CortexMExtension.MPU)
+
         # Set the arch version.
         if arch == CortexM.ARMv7M:
             self._architecture = CoreArchitecture.ARMv7M
+            self._arch_version = (7, 0)
         else:
             self._architecture = CoreArchitecture.ARMv6M
+            self._arch_version = (6, 0)
 
         self._core_name = CORE_TYPE_NAME.get((implementer, self.core_type), f"Unknown (CPUID={cpuid:#010x})")
-
-        LOG.info("CPU core #%d is %s r%dp%d", self.core_number, self._core_name, self.cpu_revision, self.cpu_patch)
 
     def _check_for_fpu(self) -> None:
         """@brief Determine if a core has an FPU.
@@ -467,32 +507,57 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # write to CPACR and checking the result. This test has the unfortunate property of not
         # working on certain cores when the core is held in reset, because CPACR is not accessible
         # under reset on all cores. Thus we use MVFR0.
-        mvfr0 = self.read32(CortexM.MVFR0)
+        mvfr0_cb = self.read32(CortexM.MVFR0, now=False)
+        mvfr2_cb = self.read32(CortexM.MVFR2, now=False)
+
+        mvfr0 = mvfr0_cb()
         sp_val = (mvfr0 & CortexM.MVFR0_SINGLE_PRECISION_MASK) >> CortexM.MVFR0_SINGLE_PRECISION_SHIFT
         dp_val = (mvfr0 & CortexM.MVFR0_DOUBLE_PRECISION_MASK) >> CortexM.MVFR0_DOUBLE_PRECISION_SHIFT
         self.has_fpu = ((sp_val == self.MVFR0_SINGLE_PRECISION_SUPPORTED) or
                 (dp_val == self.MVFR0_DOUBLE_PRECISION_SUPPORTED))
+
+        # Deferred reads must always be evaluated, to prevent the read queue getting stuck, so read
+        # this outside the 'if' below even if we don't use it.
+        mvfr2 = mvfr2_cb()
 
         if self.has_fpu:
             self._extensions.append(CortexMExtension.FPU)
 
             # Now check the VFP version by looking for support for the misc FP instructions added in
             # FPv5 (VMINNM, VMAXNM, etc).
-
-            mvfr2 = self.read32(CortexM.MVFR2)
             vfp_misc_val = (mvfr2 & CortexM.MVFR2_VFP_MISC_MASK) >> CortexM.MVFR2_VFP_MISC_SHIFT
 
             if dp_val == self.MVFR0_DOUBLE_PRECISION_SUPPORTED:
                 # FPv5 with double-precision
-                fpu_type = "FPv5-D16-M"
                 self._extensions.append(CortexMExtension.FPU_DP)
+                self._extensions.append(CortexMExtension.FPU_V5)
             elif vfp_misc_val == self.MVFR2_VFP_MISC_SUPPORTED:
                 # FPv5 with only single-precision
-                fpu_type = "FPv5-SP-D16-M"
+                self._extensions.append(CortexMExtension.FPU_V5)
+            else:
+                # FPv4 has only single-precision, only present on the CM4F.
+                self._extensions.append(CortexMExtension.FPU_V4)
+
+    def _log_core_description(self) -> None:
+        core_desc = f"CPU core #{self.core_number}: {self._core_name} r{self.cpu_revision}p{self.cpu_patch}, v{self.architecture_version[0]}.{self.architecture_version[1]}-M architecture"
+        LOG.info(core_desc)
+
+        if self._extensions:
+            exts_desc = f"  Extensions: [{', '.join(sorted(x.name for x in self._extensions))}]"
+            LOG.info(exts_desc)
+
+        if self.has_fpu:
+            if CortexMExtension.FPU_V5 in self._extensions:
+                if CortexMExtension.FPU_DP in self._extensions:
+                    # FPv5 with double-precision
+                    fpu_type = "FPv5-D16-M"
+                else:
+                    # FPv5 with only single-precision
+                    fpu_type = "FPv5-SP-D16-M"
             else:
                 # FPv4 has only single-precision, only present on the CM4F.
                 fpu_type = "FPv4-SP-D16-M"
-            LOG.info("FPU present: " + fpu_type)
+            LOG.info("  FPU present: " + fpu_type)
 
     def _init_reset_types(self) -> None:
         """@brief Adjust supported reset types based on the architecture."""
@@ -664,7 +729,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 break
 
             # Read program counter and compare to [start, end)
-            program_counter = self.read_core_register('pc')
+            program_counter = self.read_core_register_raw('pc')
             if (program_counter < start) or (end <= program_counter):
                 break
 
@@ -1054,8 +1119,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # points to an invalid address. Only do this if the core is actually halted, otherwise we
         # can't access XPSR.
         if self.get_state() == Target.State.HALTED:
-            xpsr = self.read_core_register('xpsr')
-            assert isinstance(xpsr, int)
+            xpsr = self.read_core_register_raw('xpsr')
             if xpsr & self.XPSR_THUMB == 0:
                 LOG.warning("T bit in XPSR is invalid; the vector table may be invalid or corrupt")
 
@@ -1126,7 +1190,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 else:
                     raise KeyError("register %s not available in this CPU", info.name)
 
-    def read_core_register(self, reg):
+    def read_core_register(self, reg: CoreRegisterNameOrNumberType) -> CoreRegisterValueType:
         """@brief Read one core register.
 
         The core must be halted or reads will fail.
@@ -1144,7 +1208,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         regValue = self.read_core_register_raw(reg_info.index)
         return reg_info.from_raw(regValue)
 
-    def read_core_register_raw(self, reg):
+    def read_core_register_raw(self, reg: CoreRegisterNameOrNumberType) -> int:
         """@brief Read a core register without type conversion.
 
         The core must be halted or reads will fail.
@@ -1161,7 +1225,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         vals = self.read_core_registers_raw([reg])
         return vals[0]
 
-    def read_core_registers_raw(self, reg_list):
+    def read_core_registers_raw(self, reg_list: Sequence[CoreRegisterNameOrNumberType]) -> List[int]:
         """@brief Read one or more core registers.
 
         The core must be halted or reads will fail.
@@ -1181,7 +1245,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.check_reg_list(reg_list)
         return self._base_read_core_registers_raw(reg_list)
 
-    def _base_read_core_registers_raw(self, reg_list):
+    def _base_read_core_registers_raw(self, reg_list: List[int]) -> List[int]:
         """@brief Private core register read routine.
 
         Items in the _reg_list_ must be pre-converted to index and only include valid
@@ -1277,7 +1341,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         return reg_vals
 
-    def write_core_register(self, reg, data):
+    def write_core_register(self, reg: CoreRegisterNameOrNumberType, data: CoreRegisterValueType) -> None:
         """@brief Write a CPU register.
 
         The core must be halted or the write will fail.
@@ -1293,7 +1357,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         reg_info = CortexMCoreRegisterInfo.get(reg)
         self.write_core_register_raw(reg_info.index, reg_info.to_raw(data))
 
-    def write_core_register_raw(self, reg, data):
+    def write_core_register_raw(self, reg: CoreRegisterNameOrNumberType, data: int) -> None:
         """@brief Write a CPU register without type conversion.
 
         The core must be halted or the write will fail.
@@ -1308,7 +1372,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """
         self.write_core_registers_raw([reg], [data])
 
-    def write_core_registers_raw(self, reg_list, data_list):
+    def write_core_registers_raw(self, reg_list: Sequence[CoreRegisterNameOrNumberType], data_list: Sequence[int]) -> None:
         """@brief Write one or more core registers.
 
         The core must be halted or writes will fail.
@@ -1330,7 +1394,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.check_reg_list(reg_list)
         self._base_write_core_registers_raw(reg_list, data_list)
 
-    def _base_write_core_registers_raw(self, reg_list, data_list):
+    def _base_write_core_registers_raw(self, reg_list: Sequence[int], data_list: Sequence[int]) -> None:
         """@brief Private core register write routine.
 
         Items in the _reg_list_ must be pre-converted to index and only include valid
@@ -1577,8 +1641,5 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     def in_thread_mode_on_main_stack(self) -> bool:
         if not self._target_context:
             return False
-        ipsr = self._target_context.read_core_register('ipsr')
-        control = self._target_context.read_core_register('control')
-        assert isinstance(ipsr, int)
-        assert isinstance(control, int)
-        return (ipsr == 0 and (control & CortexM.CONTROL_SPSEL) == 0)
+        return (self._target_context.read_core_register_raw('ipsr') == 0 and
+                (self._target_context.read_core_register_raw('control') & CortexM.CONTROL_SPSEL) == 0)

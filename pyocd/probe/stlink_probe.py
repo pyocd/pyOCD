@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020,2022 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
 
 from time import sleep
 from typing import (Any, Callable, Dict, List, Optional, Sequence, Union, TYPE_CHECKING)
@@ -44,11 +46,11 @@ class StlinkProbe(DebugProbe):
 
     @classmethod
     def get_all_connected_probes(cls, unique_id: Optional[str] = None,
-            is_explicit: bool = False) -> List["StlinkProbe"]:
+            is_explicit: bool = False) -> List[StlinkProbe]:
         return [cls(dev) for dev in STLinkUSBInterface.get_all_connected_devices()]
 
     @classmethod
-    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional["StlinkProbe"]:
+    def get_probe_with_id(cls, unique_id: str, is_explicit: bool = False) -> Optional[StlinkProbe]:
         for dev in STLinkUSBInterface.get_all_connected_devices():
             if dev.serial_number == unique_id:
                 return cls(dev)
@@ -65,7 +67,7 @@ class StlinkProbe(DebugProbe):
         self._caps = set()
 
     @property
-    def board_id(self) -> str:
+    def board_id(self) -> Optional[str]:
         """@brief Lazily loaded 4-character board ID."""
         if self._board_id is None:
             self._board_id = self._get_board_id()
@@ -136,7 +138,7 @@ class StlinkProbe(DebugProbe):
         return self._caps
 
     @property
-    def associated_board_info(self) -> Optional["BoardInfo"]:
+    def associated_board_info(self) -> Optional[BoardInfo]:
         if (self.board_id is not None) and (self.board_id in BOARD_ID_TO_INFO):
             return BOARD_ID_TO_INFO[self.board_id]
         else:

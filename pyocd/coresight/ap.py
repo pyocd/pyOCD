@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
@@ -330,7 +332,7 @@ class AccessPort:
     """@brief Base class for a CoreSight Access Port (AP) instance."""
 
     @staticmethod
-    def probe(dp: "DebugPort", ap_num: int) -> bool:
+    def probe(dp: DebugPort, ap_num: int) -> bool:
         """@brief Determine if an AP exists with the given AP number.
 
         Only applicable for ADIv5.
@@ -344,9 +346,9 @@ class AccessPort:
 
     @staticmethod
     def create(
-            dp: "DebugPort",
+            dp: DebugPort,
             ap_address: APAddressBase,
-            cmpid: Optional["CoreSightComponentID"] = None
+            cmpid: Optional[CoreSightComponentID] = None
         ) -> "AccessPort":
         """@brief Create a new AP object.
 
@@ -393,12 +395,12 @@ class AccessPort:
 
     def __init__(
                 self,
-                dp: "DebugPort",
+                dp: DebugPort,
                 ap_address: APAddressBase,
                 idr: Optional[int] = None,
                 name: Optional[str] = None,
                 flags: int = 0,
-                cmpid: Optional["CoreSightComponentID"] = None
+                cmpid: Optional[CoreSightComponentID] = None
             ) -> None:
         """@brief AP constructor.
         @param self
@@ -421,12 +423,12 @@ class AccessPort:
         self.rom_addr = 0
         self.has_rom_table = False
         self.rom_table = None
-        self.core: Optional["CoreTarget"] = None
+        self.core: Optional[CoreTarget] = None
         self._flags = flags
         self._cmpid = cmpid
 
     @property
-    def description(self):
+    def description(self) -> str:
         """ @brief The AP's type and version description.
 
         If the AP is an unknown proprietary type, then only the string "proprietary" is returned.
@@ -437,7 +439,6 @@ class AccessPort:
             return f"{self.type_name} var{self.variant} rev{self.revision}"
         else:
             return "proprietary"
-
 
     @property
     def short_description(self) -> str:
@@ -541,12 +542,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
 
     def __init__(
                 self,
-                dp: "DebugPort",
+                dp: DebugPort,
                 ap_address: APAddressBase,
                 idr: Optional[int] = None,
                 name: Optional[str] = None,
                 flags: int = 0,
-                cmpid: Optional["CoreSightComponentID"] = None
+                cmpid: Optional[CoreSightComponentID] = None
             ) -> None:
         super().__init__(dp, ap_address, idr, name, flags, cmpid)
 
@@ -899,14 +900,14 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         The AP is locked during the lifetime of the context manager. This means that only the
         calling thread can perform memory transactions.
         """
-        def __init__(self, ap: "MEM_AP", hprot: Optional[int] = None, hnonsec: Optional[int] = None):
+        def __init__(self, ap: MEM_AP, hprot: Optional[int] = None, hnonsec: Optional[int] = None):
             self._ap = ap
             self._hprot = hprot
             self._saved_hprot = None
             self._hnonsec = hnonsec
             self._saved_hnonsec = None
 
-        def __enter__(self) -> "MEM_AP._MemAttrContext":
+        def __enter__(self) -> MEM_AP._MemAttrContext:
             self._ap.lock()
             if self._hprot is not None:
                 self._saved_hprot = self._ap.hprot
@@ -916,7 +917,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                 self._ap.hnonsec = self._hnonsec
             return self
 
-        def __exit__(self, exc_type: type, value: Any, traceback: "TracebackType") -> None:
+        def __exit__(self, exc_type: type, value: Any, traceback: TracebackType) -> None:
             if self._saved_hprot is not None:
                 self._ap.hprot = self._saved_hprot
             if self._saved_hnonsec is not None:
@@ -991,7 +992,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """@brief Invalidate cached registers associated with this AP."""
         self._cached_csw = -1
 
-    def _reset_did_occur(self, notification: "Notification") -> None:
+    def _reset_did_occur(self, notification: Notification) -> None:
         """@brief Handles reset notifications to invalidate CSW cache."""
         # We clear the cache on all resets just to be safe.
         self._invalidate_cache()
@@ -1096,13 +1097,13 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         def read_mem_cb() -> int:
             try:
                 if transfer_size <= 32:
-                    res = result_cb()
+                    res = result_cb() # type: ignore # ignore possibly unbound result_cb
                     if transfer_size == 8:
                         res = (res >> ((addr & 0x03) << 3) & 0xff)
                     elif transfer_size == 16:
                         res = (res >> ((addr & 0x02) << 3) & 0xffff)
                 else:
-                    res_mw = result_cb_mw()
+                    res_mw = result_cb_mw() # type: ignore # ignore possibly unbound result_cb_mw
                     res = sum((w << (32 * i)) for i, w in enumerate(res_mw))
                 TRACE.debug("read_mem:%06d %s(ap=0x%x; addr=0x%08x, size=%d) -> 0x%08x }",
                     num, "" if now else "...", self.address.nominal_address, addr, transfer_size, res)
@@ -1212,6 +1213,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             addr += n
         return resp
 
+    # Note: the "type: ignore"s below are ok because the accelerated memory interface accepts
+    # attribute keyword args. The MemoryInterface class should be extended to accept attribute args
+    # too, but that changes a lot of places. So for now just ignore the type error. This will be
+    # addressed anyway when the memory API is refactored.
     @locked
     def _accelerated_write_memory(self, addr: int, data: int, transfer_size: int=32) -> None:
         """@brief Write one memory location using the probe's accelerated memory interface.
@@ -1220,7 +1225,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         self._accelerated_memory_interface.write_memory(addr, data, transfer_size,
-                csw=self._csw)
+                csw=self._csw) # type: ignore
 
     @locked
     def _accelerated_read_memory(self, addr: int, transfer_size: int=32, now: bool=True) \
@@ -1231,7 +1236,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         return self._accelerated_memory_interface.read_memory(addr, transfer_size, now,
-                csw=self._csw)
+                csw=self._csw) # type: ignore
 
     @locked
     def _accelerated_write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
@@ -1241,7 +1246,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         self._accelerated_memory_interface.write_memory_block32(addr, data,
-                csw=self._csw)
+                csw=self._csw) # type: ignore
 
     @locked
     def _accelerated_read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
@@ -1251,7 +1256,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         return self._accelerated_memory_interface.read_memory_block32(addr, size,
-                csw=self._csw)
+                csw=self._csw) # type: ignore
 
     @locked
     def _accelerated_write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
@@ -1261,7 +1266,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         self._accelerated_memory_interface.write_memory_block8(addr, data,
-                csw=self._csw)
+                csw=self._csw) # type: ignore
 
     @locked
     def _accelerated_read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
@@ -1271,7 +1276,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         return self._accelerated_memory_interface.read_memory_block8(addr, size,
-                csw=self._csw)
+                csw=self._csw) # type: ignore
 
     def _handle_error(self, error: Exception, num: int) -> None:
         self.dp._handle_error(error, num)
