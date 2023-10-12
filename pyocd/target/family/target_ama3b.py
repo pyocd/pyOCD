@@ -41,7 +41,7 @@ class AMA3BFamily(CortexM):
         reg_bootloader = self.read_memory(self.REG_MCU_CTRL_BOOTLOADER)
         if (reg_bootloader & 0xFC000000):
             secure_boot = True
-        LOG.info("AMA3B Secure Boot: %x" % secure_boot)
+        LOG.debug("AMA3B Secure Boot: %x" % secure_boot)
         
         if(secure_boot is True):
             # Modify only the least significant bit and preserve the scratch
@@ -50,4 +50,4 @@ class AMA3BFamily(CortexM):
             self.write_memory(self.REG_MCU_CTRL_SCRATCH0, reg_scratch0)
         else:
             LOG.debug("normal_set_reset_catch")
-            super(AMA3BFamily, self).set_reset_catch(reset_type)
+            super().set_reset_catch(reset_type)

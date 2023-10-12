@@ -146,11 +146,11 @@ class AMA3B1KK_KBR(CoreSightTarget):
     CortexM_Core = AMA3BFamily
 
     def __init__(self, link):
-        super(AMA3B1KK_KBR, self).__init__(link, self.MEMORY_MAP)
+        super().__init__(link, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("apollo3.svd")
 
     def create_init_sequence(self):
-        seq = super(AMA3B1KK_KBR, self).create_init_sequence()
+        seq = super().create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.replace_task('create_cores', self.create_cores)
             )
