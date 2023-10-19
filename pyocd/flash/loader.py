@@ -94,6 +94,9 @@ class RamBuilder(MemoryBuilder):
         if progress_cb is not None:
             progress_cb(1.0)
 
+        if kwargs.get("no_reset", False) is False:
+            target.reset_and_halt()
+
         # Return some performance numbers.
         return ProgrammingInfo(
             program_time=time() - start_time,
