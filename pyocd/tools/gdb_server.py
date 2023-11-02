@@ -78,7 +78,7 @@ class GDBServerTool(object):
         parser.add_argument("-s", "--step-int", dest="step_into_interrupt", default=None, action="store_true", help="Allow single stepping to step into interrupts.")
         parser.add_argument("-f", "--frequency", dest="frequency", default=None, type=int, help="Set the SWD clock frequency in Hz.")
         parser.add_argument("-o", "--persist", dest="persist", default=None, action="store_true", help="Keep GDB server running even after remote has detached.")
-        parser.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=False, action="store_true", help="Replace software breakpoints with hardware breakpoints (ignored).")
+        parser.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=False, action="store_true", help="Replace software breakpoints with hardware breakpoints.")
         group = parser.add_mutually_exclusive_group()
         group.add_argument("-ce", "--chip_erase", action="store_true", help="Use chip erase when programming.")
         group.add_argument("-se", "--sector_erase", action="store_true", help="Use sector erase when programming.")
@@ -133,6 +133,7 @@ class GDBServerTool(object):
             'fast_program' : args.fast_program,
             'enable_semihosting' : args.enable_semihosting,
             'semihost_console_type' : args.semihost_console_type,
+            'soft_bkpt_as_hard' : args.soft_bkpt_as_hard,
             'telnet_port' : args.telnet_port,
             'semihost_use_syscalls' : args.semihost_use_syscalls,
             'serve_local_only' : args.serve_local_only,

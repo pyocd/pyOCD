@@ -196,6 +196,8 @@ BUILTIN_OPTIONS = [
     OptionInfo('xpsr_control_fields', bool, False,
         "When set to True, XPSR and CONTROL registers will have their respective bitfields defined "
         "for presentation in gdb."),
+    OptionInfo('soft_bkpt_as_hard', bool, False,
+        "Replace software breakpoints with hardware breakpoints."),
     ]
 
 ## @brief The runtime dictionary of options.
