@@ -80,7 +80,7 @@ MAIN_FLASH_ALGO = {
     )
 }
 DATA_FLASH_ALGO = {
-    'load_address' : 0x20000000,
+    'load_address' : 0x20060000,
 
     # Flash algorithm as a hex string
     'instructions': [
