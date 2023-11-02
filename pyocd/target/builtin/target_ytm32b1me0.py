@@ -128,7 +128,7 @@ DATA_FLASH_ALGO = {
 
 class YTM32B1ME0(CoreSightTarget):
 
-    VENDOR = "YTMicro"
+    VENDOR = "Yuntu Microelectronics"
     
     MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x00000000,  length=0x100000,      blocksize=0x800, is_boot_memory=True, algo=MAIN_FLASH_ALGO),
