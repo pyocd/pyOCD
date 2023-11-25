@@ -130,6 +130,7 @@ from . import target_ytm32b1le0
 from . import target_ytm32b1me0
 from . import target_ytm32b1md1
 from . import target_ytm32b1ha0
+from . import target_ytm32b1mc0
 from . import target_STM32H723xx
 from . import target_STM32H743xx
 from . import target_STM32H7B0xx
@@ -310,6 +311,7 @@ BUILTIN_TARGETS = {
           'ytm32b1md14': target_ytm32b1md1.YTM32B1MD1,
           'ytm32b1md24': target_ytm32b1md1.YTM32B1MD1,
           'ytm32b1ha01': target_ytm32b1ha0.YTM32B1HA0,
+          'ytm32b1mc03': target_ytm32b1mc0.YTM32B1MC0,
           'air001': target_Air001.Air001,
           'air32f103xb': target_Air32F103xx.Air32F103xB,
           'air32f103xc': target_Air32F103xx.Air32F103xC,
