@@ -57,8 +57,6 @@ MAIN_FLASH_ALGO = {
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
-        0x20000200,
-        0x20000300
     ],
     'min_program_length' : 0x100,
 
@@ -110,16 +108,14 @@ DATA_FLASH_ALGO = {
     'pc_eraseAll': 0x2000012d,
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000210,
-    'begin_stack' : 0x20001420,
-    'end_stack' : 0x20000420,
+    'begin_stack' : 0x20002420,
+    'end_stack' : 0x20001420,
     'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
-        0x20000220,
-        0x20000320
     ],
     'min_program_length' : 0x100,
 

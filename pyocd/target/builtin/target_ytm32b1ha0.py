@@ -59,8 +59,6 @@ MAIN_FLASH_ALGO = {
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
-        0x20060240,
-        0x20060640
     ],
     'min_program_length' : 0x400,
 
@@ -122,8 +120,6 @@ DATA_FLASH_ALGO = {
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
-        0x20060260,
-        0x20060360
     ],
     'min_program_length' : 0x100,
 
