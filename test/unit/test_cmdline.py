@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import pytest
-import six
 
 from pyocd.utility.cmdline import (
     split_command_line,
@@ -89,7 +88,7 @@ class TestConvertVectorCatch(object):
         assert convert_vector_catch(vc) == msk
 
     @pytest.mark.parametrize(("vc", "msk"),
-        [(six.b(x), y) for x,y in VECTOR_CATCH_CHAR_MAP.items()])
+        [(x.encode('latin1'), y) for x,y in VECTOR_CATCH_CHAR_MAP.items()])
     def test_vc_b(self, vc, msk):
         assert convert_vector_catch(vc) == msk
 
