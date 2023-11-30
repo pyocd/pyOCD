@@ -14,14 +14,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
 
 import logging
 import os
 import sys
 import traceback
 from xml.etree import ElementTree
-import six
 import subprocess
 import tempfile
 import threading
@@ -195,7 +193,7 @@ class RecordingLogHandler(logging.Handler):
     def emit(self, record):
         try:
             message = self.format(record)
-            self.stream.write(six.u(message + "\n"))
+            self.stream.write(message + "\n")
         except Exception:
             self.handleError(record)
 
@@ -244,10 +242,10 @@ class TestResult(object):
 
     def filter_output(self, output):
         """@brief Hex-encode null byte and control characters."""
-        result = six.text_type()
+        result = str()
         for c in output:
             if (c not in ('\n', '\r', '\t')) and (0 <= ord(c) <= 31):
-                result += u"\\x{:02x}".format(ord(c))
+                result += "\\x{:02x}".format(ord(c))
             else:
                 result += c
         return result

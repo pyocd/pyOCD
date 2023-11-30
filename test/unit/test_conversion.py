@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import pytest
-import six
 
 from pyocd.utility.conversion import (
     byte_list_to_nbit_le_list,
@@ -245,7 +244,7 @@ ESCAPEES = (0x23, 0x24, 0x2a, 0x7d) # == ('#', '$', '}', '*')
 class TestGdbEscape(object):
     # Verify all chars that shouldn't be escaped pass through unmodified.
     @pytest.mark.parametrize("data",
-        [six.int2byte(x) for x in range(256) if (x not in ESCAPEES)])
+        [bytes((x,)) for x in range(256) if (x not in ESCAPEES)])
     def test_escape_passthrough(self, data):
         assert escape(data) == data
 
@@ -263,9 +262,9 @@ class TestGdbEscape(object):
 
     # Verify all chars that shouldn't be escaped pass through unmodified.
     @pytest.mark.parametrize("data",
-        [six.int2byte(x) for x in range(256) if (x not in ESCAPEES)])
+        [bytes((x,)) for x in range(256) if (x not in ESCAPEES)])
     def test_unescape_passthrough(self, data):
-        assert unescape(data) == [six.byte2int(data)]
+        assert unescape(data) == [data[0]]
 
     @pytest.mark.parametrize(("expected", "data"), [
             (0x23, b'}\x03'),
