@@ -15,7 +15,7 @@ If using an IDE like Microsoft Visual Studio Code or Eclipse Embedded with plugi
 
 From the commander, a gdbserver can be run with the [`gdbserver` command]({% link _docs/command_reference.md %}#gdbserver-1).
 
-The default gdbserver TCP/IP port number is 333. This can be changed using the `-p` / `--port` or the `gdbserver_port` session option.
+The default gdbserver TCP/IP port number is 3333. This can be changed using the `-p` / `--port` or the `gdbserver_port` session option.
 
 ### Multicore targets
 
