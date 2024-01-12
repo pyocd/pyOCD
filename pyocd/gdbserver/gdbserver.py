@@ -954,7 +954,7 @@ class GDBServer(threading.Thread):
                 # Must return an empty packet for an unrecognized qXfer.
                 return self.create_rsp_packet(b"")
 
-        elif query[0].startswith(b'C'):
+        elif query[0] == b'C':
             if not self.is_threading_enabled():
                 return self.create_rsp_packet(b"QC1")
             else:
