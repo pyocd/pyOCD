@@ -4,6 +4,7 @@
 # Copyright (C) 2021 Simon D. Levy <simon.d.levy@gmail.com>
 # Copyright (C) 2022 Johan Carlsson <johan.carlsson@teenage.engineering>
 # Copyright (c) 2022 Samuel Dewan
+# Copyright (c) 2024 Ein Terakawa <applause@elfmimi.jp>
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -387,8 +388,8 @@ class GenericRTTControlBlock(RTTControlBlock):
 
     target: SoCTarget
     _cb_search_address: int
-    _cb_search_size_words: int
-    _control_block_id: Sequence[int]
+    _cb_search_size: int
+    _control_block_id: bytes
 
     def __init__(self, target: SoCTarget, address: int = None,
                  size: int = None, control_block_id: bytes = b'SEGGER RTT'):
@@ -418,45 +419,32 @@ class GenericRTTControlBlock(RTTControlBlock):
         if size is None:
             # Address was specified, but size was not. Assume that the control
             # block is located exactly at the provided address.
-            self._cb_search_size_words = 0
+            self._cb_search_size = 0
         else:
-            self._cb_search_size_words = size // 4
-
-        extra_id_bytes = SEGGER_RTT_CB.acID.size - len(control_block_id)
-        control_block_bytes = control_block_id + b'\0' * extra_id_bytes
-        self._control_block_id = struct.unpack("<IIII", control_block_bytes)
+            self._cb_search_size = size
+        self._control_block_id = control_block_id
 
     def _find_control_block(self) -> Optional[int]:
-        addr: int = self._cb_search_address & ~0x3
-        search_size: int  = self._cb_search_size_words
-        if search_size < len(self._control_block_id):
-            search_size = len(self._control_block_id)
+        id_bytes: bytes = self._control_block_id
+        id_size: int = len(id_bytes)
+        addr: int = self._cb_search_address
+        search_size: int  = max(self._cb_search_size, id_size)
+        carry_over_size: int = (1 - id_size) // 4 * 4 # it's negative!
+        chunk_size: int = 1024
 
-        id_len = len(self._control_block_id)
-        offset: int = 0
-
+        data: bytes = b''
         while search_size:
-            read_size = min(search_size, 32)
-            data = self.target.read_memory_block32(addr, read_size)
+            read_size: int = min(search_size, chunk_size)
+            prev: bytes = data[carry_over_size:]
+            data = bytes(self.target.read_memory_block8(addr, read_size))
+            idx: int = (prev + data).find(id_bytes)
+            if idx >= 0:
+                return addr - len(prev) + idx
 
-            if not data:
-                break
+            addr += read_size
+            search_size -= read_size
 
-            for word in data:
-                if word == self._control_block_id[offset]:
-                    offset += 1
-                    if offset == id_len:
-                        break
-                else:
-                    num_skip_words = (offset + 1)
-                    addr += (num_skip_words * 4)
-                    search_size -= num_skip_words
-                    offset = 0
-
-            if offset == id_len:
-                break
-
-        return addr if offset == id_len else None
+        return None
 
     def start(self):
         """@brief Find the RTT control block on the target.
