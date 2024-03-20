@@ -113,6 +113,8 @@ from . import target_M261
 from . import target_M460
 from . import target_M480
 from . import target_M2354
+from . import target_M2L31
+from . import target_M55M1
 from . import target_HC32F448
 from . import target_HC32F45x
 from . import target_HC32F460
@@ -274,6 +276,8 @@ BUILTIN_TARGETS = {
           'm467hjhae' : target_M460.M467HJHAE,
           'm487jidae' : target_M480.M487JIDAE,
           'm2354kjfae' : target_M2354.M2354KJFAE,
+          'm2l31kidae' : target_M2L31.M2L31KIDAE,
+          'm55m1h2ljae' : target_M55M1.M55M1H2LJAE,
           'hc32f448xa' : target_HC32F448.HC32F448xA,
           'hc32f448xc' : target_HC32F448.HC32F448xC,
           'hc32f451xc' : target_HC32F45x.HC32F451xC,
