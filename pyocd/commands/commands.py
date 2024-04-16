@@ -391,8 +391,12 @@ class ResetCommand(CommandBase):
             else:
                 self.context.write("Successfully halted device on reset")
         else:
-            self.context.write("Resetting target")
-            self.context.selected_core.reset(self.reset_type)
+            if self.context.selected_core is None:
+                self.context.write("Resetting via probe")
+                self.context.probe.reset()
+            else:
+                self.context.write("Resetting target")
+                self.context.selected_core.reset(self.reset_type)
 
 class DisassembleCommand(CommandBase):
     INFO = {

@@ -10,6 +10,7 @@ This example shows basic connection, loading a firmware binary, and some simple 
 #!/usr/bin/env python3
 from pyocd.core.helpers import ConnectHelper
 from pyocd.flash.file_programmer import FileProgrammer
+import time
 
 import logging
 logging.basicConfig(level=logging.INFO)

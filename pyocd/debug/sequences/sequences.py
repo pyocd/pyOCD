@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -670,7 +670,7 @@ class SemanticChecker:
                 raise DebugSequenceSemanticError(
                         f"line {tree.meta.line}: cannot store a string to variable '{name}'")
 
-        def assign_stmt(self, tree: LarkTree) -> None:
+        def assign_expr(self, tree: LarkTree) -> None:
             # Assigned variable must have been previously declared.
             # TODO disabled until declarations are fully tracked in scopes.
             assert _is_token(tree.children[0], 'IDENT')
@@ -827,7 +827,7 @@ class Interpreter:
 
             self._scope.set(name, value)
 
-        def assign_stmt(self, tree: LarkTree) -> None:
+        def assign_expr(self, tree: LarkTree) -> int:
             values = self.visit_children(tree)
 
             name = values[0].value
@@ -843,6 +843,9 @@ class Interpreter:
                 value = _BINARY_OPS[op](left, value)
 
             self._scope.set(name, value)
+
+            # Return the variable's value as the assignment expression's value.
+            return value
 
         def expr_stmt(self, tree: LarkTree) -> int:
             values = self.visit_children(tree)

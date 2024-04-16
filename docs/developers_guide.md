@@ -60,7 +60,7 @@ If you switch branches, you may need to reinstall.
 
 Because the `develop` branch doesn't have version tags except older tags from the `develop` branch point,
 the version number of pyOCD might be significantly out of date. If this is an issue, you can override the
-version by setting the `SETUPTOOLS_SCM_PRETEND_VERSION` environmment variable to the desired version number
+version by setting the `SETUPTOOLS_SCM_PRETEND_VERSION` environment variable to the desired version number
 (without a "v" prefix).
 
 **Step 4.** Develop
@@ -122,3 +122,66 @@ Maintainers will cherry-pick commits between `main` and `develop` as necessary t
 If you have any questions about how best to submit changes or the branch policy, please ask in the
 [Slack](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA) workspace or
 [GitHub Discussions](https://github.com/pyocd/pyOCD/discussions). We'll be happy to help.
+
+
+## Debugging pyOCD
+
+### VS Code
+
+Debugging pyOCD launched by VS Code is straightforward, and is much like debugging any package.
+
+1. First, set up the pyOCD development and virtualenv as described above.
+
+2. Set up the launch config as follows.
+
+    - Set `pythonPath` to the python executable in the virtualenv.
+
+    - Set `module` to `pyocd.__main__`, to debug pyOCD entry point as a module. This works better than trying to debug the script `.../pyocd/__main__.py` as it ensures the relative module references inside pyOCD work correctly..
+
+    For instance, here is a VS Code launch config for pyOCD's gdbserver:
+
+        {
+            "name": "pyocd gdbserver",
+            "type": "python",
+            "request": "launch",
+            "module": "pyocd.__main__",
+            "console": "integratedTerminal",
+            "stopOnEntry": true,
+            "pythonPath": "/Users/username/projects/pyOCD/venv/bin/python3",
+            "showReturnValue": true,
+            "args": ["gdb", "-v"]
+        }
+
+
+It's also possible to debug pyOCD remotely. This is useful either for cases where it is launched by another tool and you cannot directly control the command line , or is on another machine.
+
+For remote debug, use a launch config like this:
+
+        {
+            "name": "Python: Attach using port",
+            "type": "python",
+            "request": "attach",
+            "port": 5678,
+        }
+
+If the pyOCD process is on another machine, add a `host` key to the launch config with the host name. (This defaults to localhost.)
+
+Install [debugpy](https://github.com/microsoft/debugpy/) with pip into your virtual environment.
+
+To remotely debug pyOCD from the command line, run it with the `debugpy` module. For instance, `python -m debugpy --listen 5678 -m pyocd gdb -v`. Additionally, `--wait-for-client` can be added after the port number to wait for the debug client to connect before running pyOCD.
+
+If you don't control pyOCD's launch, then `debugpy` can be called directly from pyOCD's code. Add the following code to pyocd. Inside `pyocd.__main__.PyOCDTool.run()` is a good location, though it can be done at module level in `__main__.py`.
+
+```py
+import debugpy
+debugpy.listen(5678)
+```
+
+To pause pyOCD's execution and wait for the debug client to connect, add this line as well:
+```py
+debugpy.wait_for_client()
+```
+
+
+
+

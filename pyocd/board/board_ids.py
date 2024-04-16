@@ -317,4 +317,5 @@ BOARD_ID_TO_INFO = {
     "9906": BoardInfo(  "micro:bit v2",         "nrf52833",         "microbitv2.bin",       ),
     "C004": BoardInfo(  "tinyK20",              "k20d50m",          "l1_k20d50m.bin",       ),
     "C006": BoardInfo(  "VBLUno51",             "nrf51",            "l1_nrf51.bin",         ),
+    "D000": BoardInfo(  "NM180410",             "ama3b1kk_kbr",     "l1_ama3b1kk_kbr.bin",  ),
 }
