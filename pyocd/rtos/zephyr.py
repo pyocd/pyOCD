@@ -274,8 +274,12 @@ class ZephyrThreadProvider(ThreadProvider):
 
     def init(self, symbolProvider):
         # Lookup required symbols.
-        self._symbols = self._lookup_symbols(self.ZEPHYR_SYMBOLS, symbolProvider)
+        self._symbols = self._lookup_symbols(self.ZEPHYR_SYMBOLS, symbolProvider, True)
         if self._symbols is None:
+            return False
+        if len(self._symbols) != len(self.ZEPHYR_SYMBOLS):
+            LOG.warning("Zephyr kernel detected. Build your Zephyr application with `CONFIG_DEBUG_THREAD_INFO=y` to " +
+                        "enable thread awareness.")
             return False
 
         self._update()
