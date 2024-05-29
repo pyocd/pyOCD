@@ -25,7 +25,7 @@ from ..family.target_ama3b import AMA3BFamily
 LOG = logging.getLogger(__name__)
 
 FLASH_ALGO = {
-    'load_address' : 0x20000000,
+    'load_address' : 0x10000000,
 
     # Flash algorithm as a hex string
     'instructions': [
@@ -107,23 +107,23 @@ FLASH_ALGO = {
     ],
 
     # Relative function addresses
-    'pc_init': 0x20000005,
-    'pc_unInit': 0x20000017,
-    'pc_program_page': 0x20000073,
-    'pc_erase_sector': 0x20000051,
-    'pc_eraseAll': 0x2000001b,
+    'pc_init': 0x10000005,
+    'pc_unInit': 0x10000017,
+    'pc_program_page': 0x10000073,
+    'pc_erase_sector': 0x10000051,
+    'pc_eraseAll': 0x1000001b,
 
-    'static_base' : 0x20000000 + 0x00000004 + 0x00000100,
-    'begin_stack' : 0x20005930,
-    'end_stack' : 0x20004930,
-    'begin_data' : 0x20000000 + 0x1000,
+    'static_base' : 0x10000000 + 0x00000004 + 0x00000100,
+    'begin_stack' : 0x10005930,
+    'end_stack' : 0x10004930,
+    'begin_data' : 0x10000000 + 0x1000,
     'page_size' : 0x2000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
     # Enable double buffering
     'page_buffers' : [
-        0x20000930,
-        0x20002930
+        0x10000930,
+        0x10002930
     ],
     'min_program_length' : 0x2000,
 
@@ -141,6 +141,7 @@ FLASH_ALGO = {
     'sector_sizes': (
         (0x0, 0x2000),
     )
+
 }
 
 class AMA3B2KK_KBR(CoreSightTarget):
@@ -154,8 +155,7 @@ class AMA3B2KK_KBR(CoreSightTarget):
             is_boot_memory=True,
             algo=FLASH_ALGO),
 
-        RamRegion(  name='tcm',  start=0x10000000, length=0x00010000, access='rwx'),
-        RamRegion(  name='sram',  start=0x10010000, length=0x000B0000, access='rwx')
+        RamRegion(  name='sram',  start=0x10000000, length=0x000C0000, access='rwx')
     )
 
     CortexM_Core = AMA3BFamily
