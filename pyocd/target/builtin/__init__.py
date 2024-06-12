@@ -140,6 +140,7 @@ from . import target_ytm32b1me0
 from . import target_ytm32b1md1
 from . import target_STM32H723xx
 from . import target_STM32H743xx
+from . import target_STM32H750xx
 from . import target_STM32H7B0xx
 from . import target_Air001
 from . import target_Air32F103xx
@@ -232,6 +233,7 @@ BUILTIN_TARGETS = {
           'stm32l031x6' : target_STM32L031x6.STM32L031x6,
           'stm32h723xx' : target_STM32H723xx.STM32H723xx,
           'stm32h743xx' : target_STM32H743xx.STM32H743xx,
+          'stm32h750xx' : target_STM32H750xx.STM32H750xx,
           'stm32h7b0xx' : target_STM32H7B0xx.STM32H7B0xx,
           'w7500': target_w7500.W7500,
           's5js100': target_s5js100.S5JS100,
