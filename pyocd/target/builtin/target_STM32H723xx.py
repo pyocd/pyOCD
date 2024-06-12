@@ -120,7 +120,7 @@ class STM32H723xx(CoreSightTarget):
     VENDOR = "STMicroelectronics"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x100000, sector_size=0x8000,
+        FlashRegion( start=0x08000000, length=0x100000, sector_size=0x20000,
                                                         page_size=0x400,
                                                         is_boot_memory=True,
                                                         algo=FLASH_ALGO),
@@ -232,9 +232,9 @@ class STM32H723xx(CoreSightTarget):
         bank = FlashPeripheral()
         optsr = self.read32(bank.flash_optsr_prg)
         rdp = optsr & 0x0000_ff00
-        if rdp == 0xaa:
+        if rdp == 0xaa00:
             return False;
-        if rdp == 0xcc:
+        if rdp == 0xcc00:
             LOG.warning("MCU permanently locked. No unlock possible")
         return True
 
