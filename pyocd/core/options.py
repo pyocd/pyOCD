@@ -146,6 +146,8 @@ BUILTIN_OPTIONS = [
         "Name of test firmware binary."),
     OptionInfo('user_script', str, None,
         "Path of the user script file."),
+    OptionInfo('verify', bool, True,
+        "Controls whether a verify pass should be performed after flash programming has finished. Default is True"),
     OptionInfo('warning.cortex_m_default', bool, True,
         "Whether to show the warning about use of the cortex_m target type. Default is True."),
 
