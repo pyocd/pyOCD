@@ -101,7 +101,8 @@ class LoadSubcommand(SubcommandBase):
             programmer = FileProgrammer(session,
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc,
-                            no_reset=self._args.no_reset)
+                            no_reset=self._args.no_reset,
+                            verify=self._args.verify)
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()
