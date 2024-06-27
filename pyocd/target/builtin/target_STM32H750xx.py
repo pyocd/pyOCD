@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2023 David van Rijn
+# Copyright (c) 2024 Andreas Fritiofson
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +41,7 @@ class DBGMCU:
 
 class FlashPeripheral:
     def __init__(self, bank=0):
-        assert bank < 2, "only two banks on this device"
+        assert bank < 1, "only one bank on this device"
 
         # only per-bank registers are offset
         offset = 0x100 if bank == 1 else 0
@@ -140,26 +140,23 @@ FLASH_ALGO = {
 
     # Flash information
     'flash_start': 0x8000000,
-    'flash_size': 0x200000,
+    'flash_size': 0x20000,
     'sector_sizes': (
         (0x0, 0x20000),
     )
 }
 
 
-class STM32H743xx(CoreSightTarget):
+class STM32H750xx(CoreSightTarget):
 
     VENDOR = "STMicroelectronics"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x0800_0000, length=0x10_0000, sector_size=0x2_0000,
+        FlashRegion( start=0x0800_0000, length=0x2_0000, sector_size=0x2_0000,
                                                     page_size=0x400,
                                                     is_boot_memory=True,
                                                     algo=FLASH_ALGO),
 
-        FlashRegion( start=0x0810_0000, length=0x10_0000, sector_size=0x2_0000,
-                                                        page_size=0x400,
-                                                        algo=FLASH_ALGO),
         #ITCM
         RamRegion(   start=0x00000000, length=0x10000,
                   is_cachable=False,
@@ -248,7 +245,7 @@ class STM32H743xx(CoreSightTarget):
 
         return seq
 
-    def _unlock_flash_peripheral(self, flash_banks=[0,1]):
+    def _unlock_flash_peripheral(self, flash_banks=[0]):
 
         banks = [FlashPeripheral(n) for n in flash_banks]
 
@@ -271,7 +268,7 @@ class STM32H743xx(CoreSightTarget):
             self.write32(bank.flash_optkeyr, 0x4C5D_6E7F)
 
 
-    def is_locked(self, flash_banks=[0,1]):
+    def is_locked(self, flash_banks=[0]):
         banks = [FlashPeripheral(n) for n in flash_banks]
 
         # return true if either bank
@@ -284,7 +281,7 @@ class STM32H743xx(CoreSightTarget):
                 return True
         return False
 
-    def disable_read_protection(self, flash_banks=[0,1]):
+    def disable_read_protection(self, flash_banks=[0]):
         self._unlock_flash_peripheral(flash_banks)
         banks = [FlashPeripheral(n) for n in flash_banks]
 
@@ -302,7 +299,25 @@ class STM32H743xx(CoreSightTarget):
 
         self.reset_and_halt()
 
-    def mass_erase(self, flash_banks=[0,1]):
+    def read_protect(self, flash_banks=[0]):
+        self._unlock_flash_peripheral(flash_banks)
+        banks = [FlashPeripheral(n) for n in flash_banks]
+
+        for bank in banks:
+            while self.read32(bank.flash_sr) & 1:
+                time.sleep(0.1)
+
+            optsr = self.read32(bank.flash_optsr_prg)
+            self.write32(bank.flash_optsr_prg, optsr & 0xffff_00ff)
+
+        # on trigger on both changes
+        self.write32(bank.flash_optcr, 2)
+        while self.read32(bank.flash_sr) & 1:
+            time.sleep(0.1)
+
+        self.reset_and_halt()
+
+    def mass_erase(self, flash_banks=[0]):
         self._unlock_flash_peripheral(flash_banks)
         banks = [FlashPeripheral(n) for n in flash_banks]
 
