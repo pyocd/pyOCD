@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import pytest
-import six
 from unittest import mock
 
 from .test_rom_table import (MockCoreSightComponent, MockCoreSight, MockCSSOC600Components)
