@@ -49,8 +49,8 @@ MAIN_FLASH_ALGO = {
     'pc_eraseAll': 0x200000cf,
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000001f8,
-    'begin_stack' : 0x20002400,
-    'end_stack' : 0x20001400,
+    'begin_stack' : 0x20003400,
+    'end_stack' : 0x20002400,
     'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,

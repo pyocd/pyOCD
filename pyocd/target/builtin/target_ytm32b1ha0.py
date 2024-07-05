@@ -51,8 +51,8 @@ MAIN_FLASH_ALGO = {
     'pc_eraseAll': 0x20060125,
 
     'static_base' : 0x20060000 + 0x00000004 + 0x00000230,
-    'begin_stack' : 0x20062a40,
-    'end_stack' : 0x20061a40,
+    'begin_stack' : 0x20063a40,
+    'end_stack' : 0x20062a40,
     'begin_data' : 0x20060000 + 0x1000,
     'page_size' : 0x400,
     'analyzer_supported' : False,
@@ -112,8 +112,8 @@ DATA_FLASH_ALGO = {
     'pc_eraseAll': 0x200600fd,
 
     'static_base' : 0x20060000 + 0x00000004 + 0x0000024c,
-    'begin_stack' : 0x20002460,
-    'end_stack' : 0x20061460,
+    'begin_stack' : 0x20003460,
+    'end_stack' : 0x20062460,
     'begin_data' : 0x20060000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
