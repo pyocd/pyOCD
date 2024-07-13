@@ -29,11 +29,11 @@ class TestAutoflush:
     def test_flushed(self, mock_obj):
         with Autoflush(mock_obj):
             pass
-        assert mock_obj.flush.called
+        mock_obj.flush.assert_called()
 
     def test_transfer_err_not_flushed(self, mock_obj):
         with pytest.raises(TransferError):
             with Autoflush(mock_obj):
                 raise TransferError("bad joojoo")
-        assert mock_obj.flush.not_called
+        mock_obj.flush.assert_not_called()
 
