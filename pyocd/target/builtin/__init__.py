@@ -24,6 +24,7 @@ from . import target_MIMXRT1052xxxxB
 from . import target_MIMXRT1062xxxxA
 from . import target_MIMXRT1064xxxxA
 from . import target_MIMXRT1176xxxxx
+from . import target_MIMX95
 from . import target_MKE15Z256xxx7
 from . import target_MKE17Z256xxx7
 from . import target_MKE18F256xxx16
@@ -208,6 +209,10 @@ BUILTIN_TARGETS = {
           'mimxrt1064': target_MIMXRT1064xxxxA.MIMXRT1064xxxxA,
           'mimxrt1170_cm7': target_MIMXRT1176xxxxx.MIMXRT1176xxxxx_CM7,
           'mimxrt1170_cm4': target_MIMXRT1176xxxxx.MIMXRT1176xxxxx_CM4,
+          'mimx95_cm7': target_MIMX95.MIMX95_CM7,
+          'mimx95_cm7_mx25um': target_MIMX95.MIMX95_CM7_MX25UM,
+          'mimx95_cm33': target_MIMX95.MIMX95_CM33,
+          'mimx95_cm33_mx25um': target_MIMX95.MIMX95_CM33_MX25UM,
           'nrf51': target_nRF51822_xxAA.NRF51,
           'nrf51822': target_nRF51822_xxAA.NRF51,
           'nrf52': target_nRF52832_xxAA.NRF52832,
