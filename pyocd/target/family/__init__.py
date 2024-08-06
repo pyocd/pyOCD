@@ -23,6 +23,7 @@ from . import target_kinetis
 from . import target_lpc5500
 from . import target_nRF52
 from . import target_nRF91
+from . import target_rp2
 
 class FamilyInfo(NamedTuple):
     """@brief Container for family matching information."""
