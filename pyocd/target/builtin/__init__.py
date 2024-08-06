@@ -127,7 +127,7 @@ from . import target_HC32L07x
 from . import target_MPS2_AN521
 from . import target_MPS3_AN522
 from . import target_MPS3_AN540
-from . import target_RP2040
+from ..family import target_rp2
 from . import target_ytm32b1ld0
 from . import target_ytm32b1le0
 from . import target_ytm32b1me0
@@ -306,9 +306,10 @@ BUILTIN_TARGETS = {
           'hc32l072' : target_HC32L07x.HC32L072,
           'hc32l073' : target_HC32L07x.HC32L073,
           'hc32f072' : target_HC32L07x.HC32F072,
-          'rp2040' : target_RP2040.RP2040Core0,
-          'rp2040_core0' : target_RP2040.RP2040Core0,
-          'rp2040_core1' : target_RP2040.RP2040Core1,
+          'rp2040' : target_rp2.RP2040Core0,
+          'rp2040_core0' : target_rp2.RP2040Core0,
+          'rp2040_core1' : target_rp2.RP2040Core1,
+          'rp2350' : target_rp2.RP2350,
           'ytm32b1ld0': target_ytm32b1ld0.YTM32B1LD0,
           'ytm32b1le0': target_ytm32b1le0.YTM32B1LE0,
           'ytm32b1me0': target_ytm32b1me0.YTM32B1ME0,
