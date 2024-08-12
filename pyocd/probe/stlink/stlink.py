@@ -21,6 +21,8 @@ import threading
 from enum import Enum
 from typing import (List, Optional, Sequence, Tuple, Union)
 import usb.core
+import time
+
 
 from .constants import (Commands, Status, SWD_FREQ_MAP, JTAG_FREQ_MAP)
 from ...core import exceptions
@@ -470,11 +472,20 @@ class STLink(object):
 
     def read_mem32(self, addr: int, size: int, apsel: int, csw: int):
         assert (addr & 0x3) == 0 and (size & 0x3) == 0, "address and size must be word aligned"
-        return self._read_mem(addr, size, Commands.JTAG_READMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
+        for attempt in range(10):
+            try:
+                return self._read_mem(addr, size, Commands.JTAG_READMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
+            except:
+                time.sleep(0.1)
 
     def write_mem32(self, addr: int, data: Sequence[int], apsel: int, csw: int):
         assert (addr & 0x3) == 0 and (len(data) & 3) == 0, "address and size must be word aligned"
-        self._write_mem(addr, data, Commands.JTAG_WRITEMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
+        for attempt in range(10):
+            try:
+                self._write_mem(addr, data, Commands.JTAG_WRITEMEM_32BIT, self.MAXIMUM_TRANSFER_SIZE, apsel, csw)
+                return
+            except:
+                time.sleep(0.1)
 
     def read_mem16(self, addr: int, size: int, apsel: int, csw: int):
         assert (addr & 0x1) == 0 and (size & 0x1) == 0, "address and size must be half-word aligned"
