@@ -15,8 +15,11 @@
 # limitations under the License.
 
 import logging
+from time import sleep
 
+from ...core import exceptions
 from ...coresight.cortex_m import CortexM
+from ...utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 
@@ -51,3 +54,20 @@ class AMA3BFamily(CortexM):
         else:
             LOG.debug("normal_set_reset_catch")
             super().set_reset_catch(reset_type)
+
+    def wait_halted(self):
+        with Timeout(5.0) as t_o:
+            while t_o.check():
+                try:
+                    if not self.is_running():
+                        break
+                except exceptions.TransferError:
+                    self.flush()
+                    sleep(0.01)
+            else:
+                raise Exception("Timeout waiting for target halt")
+
+    def reset_and_halt(self, reset_type=None):
+        super().reset(reset_type)
+        self.halt()
+        self.wait_halted()
