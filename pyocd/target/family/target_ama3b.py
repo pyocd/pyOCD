@@ -66,22 +66,3 @@ class AMA3BFamily(CortexM):
 
         # restore reset vector catch setting
         self.write_memory(CortexM.DEMCR, demcr)
-
-    def reset(self, reset_type):
-        # Save CortexM.DEMCR
-        demcr = self.read_memory(CortexM.DEMCR)
-
-        # Clear the reset vector catch and make sure DWT and ITM blocks are enabled.
-        self.write32(CortexM.DEMCR, (demcr & ~CortexM.DEMCR_VC_CORERESET) | CortexM.DEMCR_TRCENA)
-
-        super().reset(reset_type)
-
-        # wait until the unit resets
-        with Timeout(1.0) as t_o:
-            while t_o.check():
-                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
-                    break
-                sleep(0.01)
-
-        # restore reset vector catch setting
-        self.write_memory(CortexM.DEMCR, demcr)
