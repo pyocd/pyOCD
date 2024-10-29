@@ -21,10 +21,10 @@ from ...debug.svd.loader import SVDFile
 
 class DBGMCU:
     STPCTL = 0xE0042020
-    STPCTL_VALUE = 0x7FFFFF
+    STPCTL_VALUE = 0x0001F0C7
 
     STPCTL1 = 0xE0042028
-    STPCTL1_VALUE = 0xFFF
+    STPCTL1_VALUE = 0x0000001F
 
     TRACECTL = 0xE0042024
     TRACECTL_VALUE = 0x0
@@ -32,9 +32,9 @@ class DBGMCU:
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string
+    # Flash algorithm as a hex string. HDSC.HC32F448.1.0.1.pack 9215
     'instructions': [
-    0xE00ABE00, 
+    0xE00ABE00,
     0x4770ba40, 0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0x4770bac0, 0x0030ea4f, 0x00004770,
     0x0030ea4f, 0x00004770, 0x0030ea4f, 0x00004770, 0x49052000, 0x49057008, 0x20016008, 0x39264902,
     0x002af881, 0x00004770, 0x40054026, 0x40010418, 0x6800480d, 0x0001f000, 0x480cb118, 0x6008490c,
@@ -110,9 +110,9 @@ FLASH_ALGO = {
 FLASH_ALGO_OTP = {
     'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string
+    # Flash algorithm as a hex string. HDSC.HC32F448.1.0.1.pack 9215
     'instructions': [
-    0xE00ABE00, 
+    0xE00ABE00,
     0x4770ba40, 0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0x4770bac0, 0x0030ea4f, 0x00004770,
     0x0030ea4f, 0x00004770, 0x0030ea4f, 0x00004770, 0x49052000, 0x49057008, 0x20016008, 0x39264902,
     0x002af881, 0x00004770, 0x40054026, 0x40010418, 0x6800480d, 0x0001f000, 0x480cb118, 0x6008490c,
