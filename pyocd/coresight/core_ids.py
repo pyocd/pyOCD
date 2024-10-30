@@ -39,6 +39,7 @@ ARM_CortexM35P = 0xD31
 ARM_CortexM55 = 0xD22
 ARM_CortexM85 = 0xD23
 ARM_China_StarMC1 = 0x132
+ARM_China_StarMC2 = 0xD24
 
 # pylint: enable=invalid_name
 
@@ -58,6 +59,7 @@ CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
         (CPUID_ARM,        ARM_CortexM55):     "Cortex-M55",
         (CPUID_ARM,        ARM_CortexM85):     "Cortex-M85",
         (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
+        (CPUID_ARM_CHINA,  ARM_China_StarMC2): "Star-MC2",
     }
 
 class CoreArchitecture(Enum):
