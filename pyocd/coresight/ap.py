@@ -798,7 +798,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             is_adiv5_base = (base & AP_BASE_FORMAT_MASK) != 0
             is_base_present = (base & AP_BASE_ENTRY_PRESENT_MASK) != 0
             is_legacy_base_present = not is_adiv5_base and not is_base_present
-            if is_legacy_base_present:
+            if base == 0xe00fe002:
+                self.has_rom_table = True
+                self.rom_addr = 0xe00fe000
+            elif is_legacy_base_present:
                 self.has_rom_table = True
                 self.rom_addr = base & AP_BASE_LEGACY_BASEADDR_MASK # clear format and present bits
             elif (base == AP_BASE_LEGACY_NOTPRESENT) or (not is_base_present):
