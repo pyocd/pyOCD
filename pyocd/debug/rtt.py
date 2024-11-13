@@ -436,6 +436,7 @@ class GenericRTTControlBlock(RTTControlBlock):
         while search_size:
             read_size = min(search_size, 32)
             data = self.target.read_memory_block8(addr, read_size)
+            offset = 0
 
             if not data:
                 break
