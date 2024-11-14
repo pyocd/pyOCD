@@ -108,7 +108,7 @@ class PackFlashAlgo:
         self.symbols = symbols
 
         ro_rw_zi = self._find_sections(self.SECTIONS_TO_FIND)
-        ro_rw_zi = self._algo_fill_zi_if_missing(ro_rw_zi)
+        ro_rw_zi = self._algo_fill_rw_and_zi_if_missing(ro_rw_zi)
         error_msg = self._algo_check_for_section_problems(ro_rw_zi)
         if error_msg is not None:
             raise FlashAlgoException(error_msg)
@@ -272,14 +272,14 @@ class PackFlashAlgo:
                 sections[i] = section
         return tuple(sections)
 
-    def _algo_fill_zi_if_missing(self, ro_rw_zi: RoRwZiType) -> RoRwZiType:
-        """@brief Create an empty zi section if it is missing"""
+    def _algo_fill_rw_and_zi_if_missing(self, ro_rw_zi: RoRwZiType) -> RoRwZiType:
+        """@brief Create an empty rw and/or zi sections if they are missing"""
         s_ro, s_rw, s_zi = ro_rw_zi
-        if s_rw is None:
-            return ro_rw_zi
-        if s_zi is not None:
-            return ro_rw_zi
-        s_zi = MemoryRange(start=(s_rw.start + s_rw.length), length=0)
+        if s_rw is None and s_zi is None:
+            s_rw = MemoryRange(start=(s_ro.start + s_ro.length), length=0)
+            s_zi = MemoryRange(start=(s_rw.start + s_rw.length), length=0)
+        elif s_zi is None:
+            s_zi = MemoryRange(start=(s_rw.start + s_rw.length), length=0)
         return s_ro, s_rw, s_zi
 
     def _algo_check_for_section_problems(self, ro_rw_zi: RoRwZiType) -> Optional[str]:
@@ -308,9 +308,12 @@ class PackFlashAlgo:
         for section in (sect_ro, sect_rw):
             start = section.start
             size = section.length
-            data = section.data
-            assert len(data) == size
-            algo_data[start:start + size] = data
+
+            # `sect_rw` may be empty and not contain any data.
+            if size > 0:
+                data = section.data
+                assert len(data) == size
+                algo_data[start:start + size] = data
         return algo_data
 
 
