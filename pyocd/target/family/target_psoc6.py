@@ -86,7 +86,6 @@ class CortexM_PSoC6(CortexM):
     def reset_and_halt(self, reset_type=None):
         self.halt()
         self.reset(reset_type)
-        sleep(0.5)
         self.halt()
         self.wait_halted()
 

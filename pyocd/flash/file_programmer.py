@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,27 +16,25 @@
 # limitations under the License.
 
 import io
-import os
-import logging
-import itertools
 import bincopy
+import errno
+import itertools
+import logging
+import os
+from typing import (IO, TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, Union)
+
 from elftools.elf.elffile import ELFFile
 from intelhex import IntelHex
-import errno
-from typing import (Any, Callable, Dict, IO, List, Optional, Tuple, TYPE_CHECKING, Union)
 
-from .loader import (
-    FlashLoader,
-    ProgressCallback,
-)
 from ..core import exceptions
+from .loader import (FlashLoader, ProgressCallback)
 
 if TYPE_CHECKING:
     from ..core.session import Session
 
 LOG = logging.getLogger(__name__)
 
-def ranges(i: List[int]) -> List[Tuple[int, int]]:
+def ranges(i: List[int]) -> Iterator[Tuple[int, int]]:
     """Accepts a sorted list of byte addresses. Breaks the addresses into contiguous ranges.
     Yields 2-tuples of the start and end address for each contiguous range.
 
@@ -196,6 +194,7 @@ class FileProgrammer(object):
         # If no base address is specified use the start of the boot memory.
         address = kwargs.get('base_address', None)
         if address is None:
+            assert self._session.target
             boot_memory = self._session.target.memory_map.get_boot_memory()
             if boot_memory is None:
                 raise exceptions.TargetSupportError("No boot memory is defined for this device")

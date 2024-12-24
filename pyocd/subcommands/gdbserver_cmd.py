@@ -89,6 +89,8 @@ class GdbserverSubcommand(SubcommandBase):
             help="Allow single stepping to step into interrupts.")
         gdbserver_options.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+',
             help="Run command (OpenOCD compatibility).")
+        gdbserver_options.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=False, action="store_true",
+            help="Replace software breakpoints with hardware breakpoints.")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, gdbserver_parser]
 
@@ -147,6 +149,7 @@ class GdbserverSubcommand(SubcommandBase):
                 'enable_semihosting' : self._args.enable_semihosting,
                 'serve_local_only' : self._args.serve_local_only,
                 'vector_catch' : self._args.vector_catch,
+                'soft_bkpt_as_hard' : self._args.soft_bkpt_as_hard,
                 })
 
             # Split list of cores to serve.

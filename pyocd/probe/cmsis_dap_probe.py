@@ -240,7 +240,11 @@ class CMSISDAPProbe(DebugProbe):
                         assert target_device_name
                         board = "Generic " + (part_number or target_device_name)
 
-                    info = BoardInfo(name=board, target=target_device_name, vendor=vendor)
+                    # If we also have the ID based info, then use the test binary from that.
+                    binary_name = info.binary if (info is not None) else None
+
+                    # Create a new board info object with the data from the probe.
+                    info = BoardInfo(name=board, target=target_device_name, vendor=vendor, binary=binary_name)
 
         return info
 

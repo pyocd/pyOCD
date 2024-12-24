@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2021 Arm Limited
 # Copyright (c) 2021 mentha
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,8 @@ import logging
 import threading
 import errno
 import platform
+import queue
+from typing import List, Optional
 
 from .interface import Interface
 from .common import (
@@ -67,14 +69,18 @@ class PyUSBv2(Interface):
         self.kernel_driver_was_attached = False
         self.closed = True
         self.thread = None
-        self.rx_stop_event = None
+        self.rx_stop_event = threading.Event()
         self.swo_thread = None
-        self.swo_stop_event = None
-        self.rcv_data = []
-        self.swo_data = []
+        self.swo_stop_event = threading.Event()
+        self.rcv_data: queue.SimpleQueue[bytes] = queue.SimpleQueue()
+        self.swo_data: queue.SimpleQueue[bytes] = queue.SimpleQueue()
         self.read_sem = threading.Semaphore(0)
         self.packet_size = 512
         self.is_swo_running = False
+        self._read_thread_did_exit: bool = False
+        self._read_thread_exception: Optional[Exception] = None
+        self._swo_thread_did_exit: bool = False
+        self._swo_thread_exception: Optional[Exception] = None
 
     @property
     def has_swo_ep(self):
@@ -91,8 +97,7 @@ class PyUSBv2(Interface):
         # Get device handle
         dev = libusb_package.find(custom_match=HasCmsisDapv2Interface(self.serial_number))
         if dev is None:
-            raise DAPAccessIntf.DeviceError("Device %s not found" %
-                                            self.serial_number)
+            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} not found")
 
         # get active config
         config = dev.get_active_configuration()
@@ -100,8 +105,7 @@ class PyUSBv2(Interface):
         # Get CMSIS-DAPv2 interface
         interface = usb.util.find_descriptor(config, custom_match=_match_cmsis_dap_v2_interface)
         if interface is None:
-            raise DAPAccessIntf.DeviceError("Device %s has no CMSIS-DAPv2 interface" %
-                                            self.serial_number)
+            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} has no CMSIS-DAPv2 interface")
         interface_number = interface.bInterfaceNumber
 
         # Find endpoints. CMSIS-DAPv2 endpoints are in a fixed order.
@@ -110,14 +114,13 @@ class PyUSBv2(Interface):
             ep_in = interface.endpoints()[1]
             ep_swo = interface.endpoints()[2] if len(interface.endpoints()) > 2 else None
         except IndexError:
-            raise DAPAccessIntf.DeviceError("CMSIS-DAPv2 device %s is missing endpoints" %
-                                            self.serial_number)
+            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} is missing expected endpoints")
 
         # Explicitly claim the interface
         try:
             usb.util.claim_interface(dev, interface_number)
         except usb.core.USBError as exc:
-            raise DAPAccessIntf.DeviceError("Unable to open device") from exc
+            raise DAPAccessIntf.DeviceError(f"Unable to claim interface for probe {self.serial_number}") from exc
 
         # Update all class variables if we made it here
         self.ep_out = ep_out
@@ -140,14 +143,12 @@ class PyUSBv2(Interface):
             pass
 
         # Start RX thread
-        self.rx_stop_event = threading.Event()
-        thread_name = "CMSIS-DAP receive (%s)" % self.serial_number
+        thread_name = "CMSIS-DAPv2 receive (%s)" % self.serial_number
         self.thread = threading.Thread(target=self.rx_task, name=thread_name)
         self.thread.daemon = True
         self.thread.start()
 
     def start_swo(self):
-        self.swo_stop_event = threading.Event()
         thread_name = "SWO receive (%s)" % self.serial_number
         self.swo_thread = threading.Thread(target=self.swo_rx_task, name=thread_name)
         self.swo_thread.daemon = True
@@ -157,36 +158,46 @@ class PyUSBv2(Interface):
     def stop_swo(self):
         self.swo_stop_event.set()
         self.swo_thread.join()
+        self.swo_stop_event.clear()
         self.swo_thread = None
-        self.swo_stop_event = None
         self.is_swo_running = False
+        self._swo_thread_did_exit = False
 
     def rx_task(self):
         try:
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+                    read_data = self.ep_in.read(self.packet_size,
+                                                timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
 
-                    if TRACE.isEnabledFor(logging.DEBUG):
-                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in read_data]))
+                    # This trace log is commented out to reduce clutter, but left in to leave available
+                    # when debugging rx_task issues.
+                    # if TRACE.isEnabledFor(logging.DEBUG):
+                    #     TRACE.debug("  USB IN < (%d) %s", len(read_data),
+                    #                 ' '.join([f'{i:02x}' for i in read_data]))
 
-                    self.rcv_data.append(read_data)
+                    self.rcv_data.put(read_data)
+        except Exception as err:
+            TRACE.debug("rx_task exception: %s", err)
+            self._read_thread_exception = err
         finally:
-            # Set last element of rcv_data to None on exit
-            self.rcv_data.append(None)
+            self._swo_thread_did_exit = True
 
     def swo_rx_task(self):
         try:
             while not self.swo_stop_event.is_set():
                 try:
-                    self.swo_data.append(self.ep_swo.read(self.ep_swo.wMaxPacketSize,
-                            timeout=self.DEFAULT_USB_TIMEOUT_MS))
+                    data = self.ep_swo.read(self.ep_swo.wMaxPacketSize,
+                            timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                    self.swo_data.put(data)
                 except usb.core.USBError:
                     pass
+        except Exception as err:
+            self._swo_thread_exception = err
         finally:
             # Set last element of swo_data to None on exit
-            self.swo_data.append(None)
+            self._swo_thread_did_exit = True
 
     @staticmethod
     def get_all_connected_interfaces():
@@ -199,11 +210,7 @@ class PyUSBv2(Interface):
             return []
 
         # iterate on all devices found
-        boards = []
-        for board in all_devices:
-            new_board = PyUSBv2(board)
-            boards.append(new_board)
-
+        boards = [PyUSBv2(board) for board in all_devices]
         return boards
 
     def write(self, data):
@@ -222,30 +229,36 @@ class PyUSBv2(Interface):
 
     def read(self):
         """@brief Read data on the IN endpoint."""
-        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
-            while t_o.check():
-                if len(self.rcv_data) != 0:
-                    break
-            else:
-                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
+        if self.closed:
+            return b''
+        elif self._read_thread_did_exit:
+            raise DAPAccessIntf.DeviceError("Probe %s read thread exited unexpectedly" % self.serial_number) from self._read_thread_exception
 
-        if self.rcv_data[0] is None:
-            raise DAPAccessIntf.DeviceError("Device %s read thread exited unexpectedly" % self.serial_number)
+        try:
+            data = self.rcv_data.get(True, self.DEFAULT_USB_TIMEOUT_S)
+        except queue.Empty:
+            raise DAPAccessIntf.DeviceError(f"Timeout reading from probe {self.serial_number}") from None
 
         # Trace when the higher layer actually gets a packet previously read.
         if TRACE.isEnabledFor(logging.DEBUG):
-            TRACE.debug("  USB RD < (%d) %s", len(self.rcv_data[0]), ' '.join([f'{i:02x}' for i in self.rcv_data[0]]))
+            TRACE.debug("  USB RD < (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
 
-        return self.rcv_data.pop(0)
+        return data
 
     def read_swo(self):
         # Accumulate all available SWO data.
         data = bytearray()
-        while len(self.swo_data):
-            if self.swo_data[0] is None:
-                raise DAPAccessIntf.DeviceError("Device %s SWO thread exited unexpectedly" % self.serial_number)
-            data += self.swo_data.pop(0)
+        if not self.is_swo_running:
+            return data
+        elif self._swo_thread_did_exit:
+            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} read thread exited unexpectedly") \
+                from self._read_thread_exception
+
+        while True:
+            try:
+                data += self.swo_data.get(block=False)
+            except queue.Empty:
+                break
 
         return data
 
@@ -259,9 +272,9 @@ class PyUSBv2(Interface):
         self.rx_stop_event.set()
         self.read_sem.release()
         self.thread.join()
-        assert self.rcv_data[-1] is None
-        self.rcv_data = []
-        self.swo_data = []
+        self.rx_stop_event.clear() # Reset the stop event.
+        self.rcv_data = queue.SimpleQueue() # Recreate queue to ensure it's empty.
+        self.swo_data = queue.SimpleQueue()
         usb.util.release_interface(self.dev, self.intf_number)
         usb.util.dispose_resources(self.dev)
         self.ep_out = None
@@ -270,6 +283,8 @@ class PyUSBv2(Interface):
         self.dev = None
         self.intf_number = None
         self.thread = None
+        self._read_thread_did_exit = False
+        self._read_thread_exception = None
 
 def _match_cmsis_dap_v2_interface(interface):
     """@brief Returns true for a CMSIS-DAP v2 interface.

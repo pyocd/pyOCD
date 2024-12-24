@@ -136,6 +136,8 @@ class GDBServer(threading.Thread):
         self.semihost_use_syscalls = session.options.get('semihost_use_syscalls') # Not subscribed.
         self.serve_local_only = session.options.get('serve_local_only') # Not subscribed.
         self.report_core = session.options.get('report_core_number')
+        self.soft_bkpt_as_hard = session.options.get('soft_bkpt_as_hard')
+
         # Subscribe to changes for those of the above options that make sense to change at runtime.
         self.session.options.subscribe(self._option_did_change, [
                 'vector_catch',
@@ -143,6 +145,7 @@ class GDBServer(threading.Thread):
                 'persist',
                 'enable_semihosting',
                 'report_core_number',
+                'soft_bkpt_as_hard',
                 ])
 
         self.packet_size = 2048
@@ -464,7 +467,8 @@ class GDBServer(threading.Thread):
         # handle software breakpoint Z0/z0
         if data[1:2] == b'0':
             if data[0:1] == b'Z':
-                if not self.target.set_breakpoint(addr, Target.BreakpointType.SW):
+                bkpt_type = Target.BreakpointType.HW if self.soft_bkpt_as_hard else Target.BreakpointType.SW
+                if not self.target.set_breakpoint(addr, bkpt_type):
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
                 self.target.remove_breakpoint(addr)
@@ -1266,4 +1270,5 @@ class GDBServer(threading.Thread):
             LOG.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
         elif notification.event == 'report_core_number':
             self.report_core = notification.data.new_value
-
+        elif notification.event == 'soft_bkpt_as_hard':
+            self.soft_bkpt_as_hard = notification.data.new_value

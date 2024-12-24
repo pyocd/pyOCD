@@ -1,6 +1,6 @@
 // Lark grammar for debug sequence expressions
 //
-// Copyright (c) 2020-2021 Chris Reed
+// Copyright (c) 2020-2023 Chris Reed
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,25 +29,26 @@
 // 11. &&
 // 12. ||
 // 13. ?:
+// 14. assignments: = += -= *= /= %= &= |= ^= <<= >>=
 
 start:                  statement*
 
 ?statement:             decl_stmt ";"?
-    |                   assign_stmt ";"?
     |                   expr_stmt ";"?
 
 // Allow __var declarations with no initialiser expression even though this is disallowed
 // by the specification, for greater compatibility.
 decl_stmt:              "__var" IDENT ["=" expr]
 
-assign_stmt:            IDENT _compound_assign_op expr
-
 // This creates a tree node for expression statements that is easy to identify.
 expr_stmt:              expr
 
 ?expr:                  logical_or_expr
     |                   ternary_expr
+    |                   assign_expr
     |                   STRLIT
+
+assign_expr:            IDENT _compound_assign_op expr
 
 ternary_expr:           expr "?" expr ":" expr
 
