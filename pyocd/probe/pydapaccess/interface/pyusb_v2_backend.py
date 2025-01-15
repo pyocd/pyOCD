@@ -150,6 +150,7 @@ class PyUSBv2(Interface):
 
     def start_swo(self):
         thread_name = "SWO receive (%s)" % self.serial_number
+        self._swo_thread_did_exit = False
         self.swo_thread = threading.Thread(target=self.swo_rx_task, name=thread_name)
         self.swo_thread.daemon = True
         self.swo_thread.start()
