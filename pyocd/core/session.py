@@ -599,7 +599,7 @@ class UserScriptFunctionProxy:
         for arg in self._spec.args:
             if arg in kwargs:
                 args[arg] = kwargs[arg]
-        self._fn(**args)
+        return self._fn(**args)
 
 class UserScriptDelegateProxy:
     """@brief Delegate proxy for user scripts."""
