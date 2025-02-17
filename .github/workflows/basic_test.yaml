@@ -93,9 +93,9 @@ jobs:
         twine check dist/*
 
     - name: Upload pytest test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: pytest-results-${{ matrix.python-version }}
+        name: pytest-results-${{ matrix.python-version }}-${{ matrix.os }}
         path: |
           test-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
           .coverage*
