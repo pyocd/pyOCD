@@ -461,18 +461,23 @@ class DebugPort(DelegateHavingMixIn):
         return cst.call_pre_discovery_debug_sequence('DebugPortStop')
 
     def _connect(self) -> None:
-        # Connect the probe.
-        probe_conn = ProbeConnector(self.probe)
-        probe_conn.connect(self._protocol)
+        try:
+            # Connect the probe.
+            probe_conn = ProbeConnector(self.probe)
+            probe_conn.connect(self._protocol)
 
-        # Attempt to connect DP.
-        connector = DPConnector(self.probe)
-        if not self.connect_debug_port_hook():
-            connector.connect()
-            self.dpidr = connector.idr
-        else:
-            # We still need to read the IDR for our own use.
-            self.dpidr = connector.read_idr()
+            # Attempt to connect DP.
+            connector = DPConnector(self.probe)
+            if not self.connect_debug_port_hook():
+                connector.connect()
+                self.dpidr = connector.idr
+            else:
+                # We still need to read the IDR for our own use.
+                self.dpidr = connector.read_idr()
+        except exceptions.Error as err:
+            LOG.error("%s", err)
+            raise exceptions.Error(
+                "Target not detected. Check connection to target. Potentially reduce debug clock.") from err
         assert self.dpidr
 
         # Report on DP version.
