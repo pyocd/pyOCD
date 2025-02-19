@@ -474,6 +474,7 @@ class FlashRegion(MemoryRegion):
         'erased_byte_value': 0xff,
         'access': 'rx', # By default flash is not writable.
         'are_erased_sectors_readable': True,
+        'core_index': 0, # Core to be used to access this region
         })
 
     _algo: Optional[Dict[str, Any]]

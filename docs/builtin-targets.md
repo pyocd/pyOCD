@@ -721,6 +721,11 @@ title: Built-in targets
     <td>NRF52840</td>
     </tr>
 
+    <tr><td><code>nrf53</code></td>
+    <td>Nordic Semiconductor</td>
+    <td>NRF5340</td>
+    </tr>
+
     <tr><td><code>nrf91</code></td>
     <td>Nordic Semiconductor</td>
     <td>NRF91XX</td>

@@ -286,12 +286,12 @@ class CoreSightTarget(SoCTarget):
             argspec = getfullargspec(klass.__init__)
             if 'flash_algo' in argspec.args:
                 if region.algo is not None:
-                    obj = klass(self, region.algo)
+                    obj = klass(self._cores[region.core_index], region.algo)
                 else:
                     LOG.warning("flash region '%s' has no flash algo" % region.name)
                     continue
             else:
-                obj = klass(self) # type:ignore
+                obj = klass(self._cores[region.core_index]) # type:ignore
 
             # Set the region in the flash instance.
             obj.region = region
