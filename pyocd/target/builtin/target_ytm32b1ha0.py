@@ -1,0 +1,153 @@
+# pyOCD debugger
+# Copyright (c) 2022 Yuntu Microelectronics
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from ...coresight.coresight_target import CoreSightTarget
+from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
+
+MAIN_FLASH_ALGO = {
+    'load_address' : 0x20060000,
+
+    # Flash algorithm as a hex string
+    'instructions': [
+    0xe7fdbe00,
+    0x48804601, 0x4a7f6840, 0x29006050, 0x487ed005, 0x60104a7e, 0x4a7bb2c8, 0xbf006090, 0x68404879,
+    0x40102280, 0xd0f92800, 0x68404876, 0x40104a78, 0xd0012800, 0x47702001, 0xe7fc2000, 0x4604b570,
+    0x4616460d, 0x69404873, 0x04092101, 0x49714388, 0xf3bf6148, 0x20008f4f, 0x6008496f, 0x8f4ff3bf,
+    0x3840486d, 0x21016900, 0x496b4308, 0x61083940, 0x496b486a, 0x486b6008, 0x46086008, 0x08406840,
+    0x60480040, 0x49642003, 0x60083940, 0x4862bf00, 0x68803840, 0x0f800780, 0xd1f82803, 0x495e2001,
+    0x60483940, 0x485cbf00, 0x68c03840, 0xd1fa2801, 0x4859bf00, 0x68803840, 0x40082104, 0xd1f82804,
+    0x49552000, 0x60083940, 0x494e4857, 0x20006008, 0xff96f7ff, 0x4601bd70, 0x47702000, 0x4604b510,
+    0x68404848, 0x60484947, 0x68004608, 0x03092101, 0x49444308, 0xf3bf6008, 0xf3bf8f6f, 0x484b8f4f,
+    0xf3bf6020, 0xf3bf8f6f, 0x483e8f4f, 0x21016800, 0x43880309, 0x6008493b, 0xf7ff2011, 0xbd10ff71,
+    0x2400b510, 0x06402001, 0xffd8f7ff, 0x20214604, 0xf7ff0500, 0x4304ffd3, 0x06402003, 0xffcef7ff,
+    0x20004304, 0xb510bd10, 0x482e4604, 0x492d6840, 0x46086048, 0x21016800, 0x43080309, 0x60084929,
+    0x8f6ff3bf, 0x8f4ff3bf, 0x60204830, 0x8f6ff3bf, 0x8f4ff3bf, 0x68004823, 0x03092101, 0x49214388,
+    0x20106008, 0xff3cf7ff, 0xb5f7bd10, 0x4604b082, 0x9e04460d, 0x20204627, 0x95009001, 0x4819bf00,
+    0x49186840, 0x46086048, 0x21016800, 0x43080309, 0x60084914, 0x8f6ff3bf, 0x8f4ff3bf, 0xe0022000,
+    0xc702ce02, 0x28081c40, 0xf3bfdbfa, 0xf3bf8f6f, 0x480c8f4f, 0x21016800, 0x43880309, 0x60084909,
+    0xf7ff2002, 0x2800ff0d, 0x2001d002, 0xbdf0b005, 0x98009901, 0x90001a40, 0x28009800, 0x2000dccf,
+    0x0000e7f4, 0x40040000, 0xfd9573f5, 0x40040200, 0x1f00001e, 0xe000e000, 0x401f0040, 0x0000b631,
+    0x401a8000, 0x0000c278, 0x00188200, 0x12345678, 0x00000000
+    ],
+
+    # Relative function addresses
+    'pc_init': 0x20060041,
+    'pc_unInit': 0x200600db,
+    'pc_program_page': 0x2006018f,
+    'pc_erase_sector': 0x2006014b,
+    'pc_eraseAll': 0x20060125,
+
+    'static_base' : 0x20060000 + 0x00000004 + 0x00000230,
+    'begin_stack' : 0x20062a40,
+    'end_stack' : 0x20061a40,
+    'begin_data' : 0x20060000 + 0x1000,
+    'page_size' : 0x400,
+    'analyzer_supported' : False,
+    'analyzer_address' : 0x00000000,
+    # Enable double buffering
+    'page_buffers' : [
+    ],
+    'min_program_length' : 0x400,
+
+    # Relative region addresses and sizes
+    'ro_start': 0x4,
+    'ro_size': 0x230,
+    'rw_start': 0x234,
+    'rw_size': 0x4,
+    'zi_start': 0x238,
+    'zi_size': 0x0,
+
+    # Flash information
+    'flash_start': 0x2000000,
+    'flash_size': 0x2200000,
+    'sector_sizes': (
+        (0x0, 0x800),
+    )
+}
+DATA_FLASH_ALGO = {
+    'load_address' : 0x20060000,
+
+    # Flash algorithm as a hex string
+    'instructions': [
+    0xe7fdbe00,
+    0x2201b510, 0x49190410, 0x4383680b, 0xf3bf600b, 0x48178f4f, 0x64012100, 0x8f4ff3bf, 0x43136903,
+    0x4b146103, 0x601c4c14, 0x601c4c14, 0x4394685c, 0x2303605c, 0x68846003, 0x2c03401c, 0x6042d1fb,
+    0x2a0168c2, 0x6882d1fc, 0xd5fc0752, 0x480c6001, 0x4a0c1f01, 0x6801600a, 0x68016001, 0xd5fc0609,
+    0x48096801, 0x1e414008, 0xbd104188, 0xe000e014, 0x401f0000, 0x401a8000, 0x0000b631, 0x0000c278,
+    0x40040004, 0x00188200, 0x1f00001e, 0x47702000, 0x4914b510, 0x600a680a, 0x03122201, 0x681c1f0b,
+    0x601c4314, 0x8f6ff3bf, 0x8f4ff3bf, 0x60044c0e, 0x8f6ff3bf, 0x8f4ff3bf, 0x06406808, 0x6818d5fc,
+    0x60184390, 0x60086808, 0x4a094808, 0x20116002, 0x68086048, 0xd5fc0600, 0x48066809, 0x1e414008,
+    0xbd104188, 0x40040004, 0x12345678, 0x40040200, 0xfd9573f5, 0x1f00001e, 0x4815b510, 0x60016801,
+    0x03092101, 0x68131f02, 0x6013430b, 0x8f6ff3bf, 0x8f4ff3bf, 0x065b2303, 0x601c4c0e, 0x8f6ff3bf,
+    0x8f4ff3bf, 0x065b6803, 0x6813d5fc, 0x6013438b, 0x60016801, 0x4a094908, 0x2111600a, 0x68016041,
+    0xd5fc0609, 0x48066801, 0x1e414008, 0xbd104188, 0x40040004, 0x12345678, 0x40040200, 0xfd9573f5,
+    0x1f00001e, 0x4914b510, 0x600a680a, 0x03122201, 0x681c1f0b, 0x601c4314, 0x8f6ff3bf, 0x8f4ff3bf,
+    0x60044c0e, 0x8f6ff3bf, 0x8f4ff3bf, 0x06406808, 0x6818d5fc, 0x60184390, 0x60086808, 0x4a094808,
+    0x20106002, 0x68086048, 0xd5fc0600, 0x48066809, 0x1e414008, 0xbd104188, 0x40040004, 0x12345678,
+    0x40040200, 0xfd9573f5, 0x1f00001e, 0xb081b5f0, 0x68234c1a, 0x23016023, 0x031d9300, 0x68371f26,
+    0x6037432f, 0x8f6ff3bf, 0x8f4ff3bf, 0x59d32700, 0x1d3f51c3, 0xd0fa2f04, 0x19c019d2, 0x8f6ff3bf,
+    0x8f4ff3bf, 0x065b6823, 0x6833d5fc, 0x603343ab, 0x60236823, 0x4d0b4b0a, 0x9e00601d, 0x68236066,
+    0xd5fc061b, 0x4d086823, 0xd103422b, 0x29003908, 0x2600dccf, 0xb0014630, 0x46c0bdf0, 0x40040004,
+    0x40040200, 0xfd9573f5, 0x1f00001e, 0x00000000
+    ],
+
+    # Relative function addresses
+    'pc_init': 0x20060005,
+    'pc_unInit': 0x20060091,
+    'pc_program_page': 0x200601d1,
+    'pc_erase_sector': 0x20060169,
+    'pc_eraseAll': 0x200600fd,
+
+    'static_base' : 0x20060000 + 0x00000004 + 0x0000024c,
+    'begin_stack' : 0x20002460,
+    'end_stack' : 0x20061460,
+    'begin_data' : 0x20060000 + 0x1000,
+    'page_size' : 0x100,
+    'analyzer_supported' : False,
+    'analyzer_address' : 0x00000000,
+    # Enable double buffering
+    'page_buffers' : [
+    ],
+    'min_program_length' : 0x100,
+
+    # Relative region addresses and sizes
+    'ro_start': 0x4,
+    'ro_size': 0x24c,
+    'rw_start': 0x250,
+    'rw_size': 0x4,
+    'zi_start': 0x254,
+    'zi_size': 0x0,
+
+    # Flash information
+    'flash_start': 0x6000000,
+    'flash_size': 0x40000,
+    'sector_sizes': (
+        (0x0, 0x400),
+    )
+}
+
+class YTM32B1HA0(CoreSightTarget):
+
+    VENDOR = "Yuntu Microelectronics"
+
+    MEMORY_MAP = MemoryMap(
+        FlashRegion(    start=0x02000000,  length=0x200000,      blocksize=0x800, is_boot_memory=True, algo=MAIN_FLASH_ALGO),
+        FlashRegion(    start=0x06000000,  length=0x040000,      blocksize=0x400, is_boot_memory=False, algo=DATA_FLASH_ALGO),
+        RamRegion(      start=0x20060000,  length=0x10000)
+        )
+
+    def __init__(self, session):
+        super().__init__(session, self.MEMORY_MAP)
