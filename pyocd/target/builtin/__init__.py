@@ -138,6 +138,7 @@ from . import target_STM32H7B0xx
 from . import target_Air001
 from . import target_Air32F103xx
 from . import target_AMA3B1KK
+from . import target_XC2XX
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -306,6 +307,9 @@ BUILTIN_TARGETS = {
           'hc32l072' : target_HC32L07x.HC32L072,
           'hc32l073' : target_HC32L07x.HC32L073,
           'hc32f072' : target_HC32L07x.HC32F072,
+          'xc277' : target_XC2XX.XC277,
+          'xc275' : target_XC2XX.XC275,
+          'xc274' : target_XC2XX.XC274,
           'rp2040' : target_RP2040.RP2040Core0,
           'rp2040_core0' : target_RP2040.RP2040Core0,
           'rp2040_core1' : target_RP2040.RP2040Core1,
