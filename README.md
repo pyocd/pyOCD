@@ -95,6 +95,46 @@ The pyOCD documentation is available on the [pyocd.io website](https://pyocd.io/
 In addition to user guides, you can generate reference documentation using Doxygen with the
 supplied [config file](docs/Doxyfile).
 
+libusb-installation
+-------------------
+
+```
+$ python3 -mpip install -U pyocd
+```
+
+This command can't install libusb automatically, so you must install it manually.
+
+## install libusb in Ubuntu
+
+```bash
+sudo apt install libusb-dev
+```
+
+## install libusb in Windows
+
+open this website https://github.com/libusb/libusb/releases/ 
+
+> Note: The Windows binaries in libusb-1.0.27.7z are provided as-is and may not work for your toolchain.
+
+unlike other cross-platform software, libusb releases website hasn't used platform as postfix, such as libusb-win.7z,
+you maybe confuse firstly :)
+
+download libusb-1.0.27.7z, 
+
+### add libusb-1.0.dll to your environment
+
+copy ".\libusb-1.0.27\VS2022\MS64\dll\libusb-1.0.dll" into "C:\Windows\System32"
+
+related link [pyocd library cannot find libusb python library: answer](https://stackoverflow.com/a/63717685/22152846)
+
+### more elegant solution
+
+```pwsh
+$env:Path += "C:\app\libusb-1.0.27\VS2022\MS64\dll;" # use your libusb path
+```
+
+add this powershell command to you profile `notepad.exe $profile`
+
 
 Installing
 ----------
@@ -112,6 +152,8 @@ $ python3 -mpip install -U pyocd
 ```
 
 _Note: depending on your system, you may need to use `python` instead of `python3`._
+
+**Warning:** before you use this shell command, you must install dependency such **libusb**, see [install libusb](#libusb-installation)
 
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/) as well as
 [on GitHub](https://github.com/pyocd/pyOCD/releases).
