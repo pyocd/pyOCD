@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import pytest
-import six
 
 from pyocd.utility.sequencer import CallSequence
 
@@ -127,10 +126,10 @@ class TestCallSequence:
         assert cs.count == 2
         it = iter(cs)
         print("it=",repr(it),dir(it))
-        assert six.next(it) == ('a', task_a)
-        assert six.next(it) == ('b', task_b)
+        assert next(it) == ('a', task_a)
+        assert next(it) == ('b', task_b)
         with pytest.raises(StopIteration):
-            six.next(it)
+            next(it)
 
     def test_get(self):
         results = []
