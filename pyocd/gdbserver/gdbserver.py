@@ -469,6 +469,7 @@ class GDBServer(threading.Thread):
             if data[0:1] == b'Z':
                 bkpt_type = Target.BreakpointType.HW if self.soft_bkpt_as_hard else Target.BreakpointType.SW
                 if not self.target.set_breakpoint(addr, bkpt_type):
+                    LOG.error(f"Error setting {bkpt_type.name} breakpoint at 0x{addr:08x}")
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
                 self.target.remove_breakpoint(addr)
@@ -478,6 +479,7 @@ class GDBServer(threading.Thread):
         if data[1:2] == b'1':
             if data[0:1] == b'Z':
                 if self.target.set_breakpoint(addr, Target.BreakpointType.HW) is False:
+                    LOG.error(f"Error setting {Target.BreakpointType.HW.name} breakpoint at 0x{addr:08x}")
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
                 self.target.remove_breakpoint(addr)
