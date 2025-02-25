@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -380,7 +380,7 @@ class DebugSequence(DebugSequenceNode):
             scope.set('__ap', default_ap_address.nominal_address
                                 if isinstance(default_ap_address, APv1Address)
                                 else 0)
-            scope.set('__apid',  default_ap_address.nominal_address
+            scope.set('__apid',  default_ap_address.apid
                                     if isinstance(default_ap_address, APv2Address)
                                     else 0)
 
