@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -258,8 +258,9 @@ class ADIv6Discovery(CoreSightDiscovery):
         """
         try:
             # Create a memory interface for this component.
-            ap_address = APv2Address(cmpid.address)
-            memif = APAccessMemoryInterface(self.dp, ap_address)
+            # ap_address = APv2Address(cmpid.address)
+            # memif = APAccessMemoryInterface(self.dp, ap_address)
+            memif = APAccessMemoryInterface(self.dp)
 
             # Instantiate the component and attach to the target.
             component = cmpid.factory(memif, cmpid, cmpid.address)
