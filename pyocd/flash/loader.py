@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -229,7 +229,7 @@ class MemoryLoader:
         """
         while len(data):
             # Look up the memory region for this address.
-            region = self._map.get_region_for_address(address)
+            region = self._map.get_region_for_address(address, self._session.target.selected_core.node_name)
             if region is None:
                 raise ValueError("no memory region defined for address 0x%08x" % address)
 
