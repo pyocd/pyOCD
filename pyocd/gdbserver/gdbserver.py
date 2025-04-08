@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # SPDX-License-Identifier: Apache-2.0
@@ -430,6 +430,9 @@ class GDBServer(threading.Thread):
                 if msgStart == 0:
                     reply = handler()
                 else:
+                    # Select current core
+                    if self.board.target.selected_core != self.core:
+                        self.board.target.selected_core = self.core
                     reply = handler(msg[msgStart:])
 
             return reply
