@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -301,7 +301,13 @@ class CoreSightTarget(SoCTarget):
 
         # Update the memory map in each core.
         for core in self.cores.values():
-            core.memory_map = self.memory_map
+            pname_memory = []
+            for memory in self.memory_map:
+                pname = memory.attributes.get('pname')
+                if (pname is not None) and (pname != core.node_name):
+                    continue
+                pname_memory.append(memory)
+            core.memory_map = MemoryMap(pname_memory)
 
     def check_for_cores(self) -> None:
         """@brief Init task: verify that at least one core was discovered."""
