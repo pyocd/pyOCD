@@ -466,13 +466,83 @@ class CbuildRun:
         })
         TARGET[target] = tgt
 
+    def _get_memory_to_process(self) -> List[dict]:
+        DEFAULT_MEMORY_MAP = sorted([
+            {"name": "Code",                 "access": "rx",  "start": 0x00000000, "size": 0x20000000},
+            {"name": "SRAM",                 "access": "rwx", "start": 0x20000000, "size": 0x20000000},
+            {"name": "Peripherals",          "access": "rwp", "start": 0x40000000, "size": 0x20000000},
+            {"name": "RAM1",                 "access": "rwx", "start": 0x60000000, "size": 0x20000000},
+            {"name": "RAM2",                 "access": "rwx", "start": 0x80000000, "size": 0x20000000},
+            {"name": "Devices-Shareable",    "access": "rwp", "start": 0xA0000000, "size": 0x20000000},
+            {"name": "Devices-NonShareable", "access": "rwp", "start": 0xC0000000, "size": 0x20000000},
+            {"name": "System-Peripherals",   "access": "rwp", "start": 0xE0000000, "size": 0x20000000}
+        ], key=lambda mem: mem['start'])
+
+        def _fill_memory_gap(region: dict, start: int, end: int) -> dict:
+            _memory = region.copy()
+            _memory['start'] = start
+            _memory['size'] = end - start
+            return _memory
+
+        # Create a copy of PDSC and user-defined memory regions from system resources
+        defined_memory = deepcopy(self.system_resources.get('memory', []))
+        # Mark memory as 'defined'
+        for memory in defined_memory:
+            memory['defined'] = True
+        # Filter out memory regions that have alias and start at the same address ('s'/'n' access)
+        alias_memory = {(m['alias'], m['start']) for m in defined_memory if 'alias' in m}
+        if alias_memory:
+            defined_memory = [m for m in defined_memory if (m['name'], m['start']) not in alias_memory]
+        # Check if default memory map should be used
+        if self._use_default_memory_map:
+            # If no user-defined memory is present, use only the default memory map
+            if not defined_memory:
+                memory_to_process = DEFAULT_MEMORY_MAP
+            else:
+                memory_to_process = []
+                # Sort PDSC and user-defined memory by start address
+                defined_memory.sort(key=lambda mem: mem['start'])
+                # Get first defined memory
+                mem_iter = iter(defined_memory)
+                memory = next(mem_iter, None)
+                # Start from beginning of the address space
+                next_memory_start = 0x00000000
+                # Loop over the default memory regions
+                for default_memory in DEFAULT_MEMORY_MAP:
+                    default_memory_end = default_memory['start'] + default_memory['size']
+                    # Search for region overlaps with PDSC and user-defined memory regions
+                    while next_memory_start < default_memory_end:
+                        if memory is not None:
+                            # Exact match: insert defined memory region
+                            if next_memory_start == memory['start']:
+                                memory.pop('pname', None)
+                                memory_to_process.append(memory)
+                                next_memory_start = memory['start'] + memory['size']
+                                while memory is not None and memory['start'] < next_memory_start:
+                                    memory = next(mem_iter, None)
+                                continue
+                            # Partial overlap: fill gap to next defined memory region with default memory region
+                            if next_memory_start <= memory['start'] < default_memory_end:
+                                _memory = _fill_memory_gap(default_memory, next_memory_start, memory['start'])
+                                memory_to_process.append(_memory)
+                                next_memory_start = memory['start']
+                                continue
+                        # No region overlap: use default memory region
+                        _memory = _fill_memory_gap(default_memory, next_memory_start, default_memory_end)
+                        memory_to_process.append(_memory)
+                        next_memory_start = default_memory_end
+            return memory_to_process
+        else:
+            # If default map is not used, return only PDSC and user-defined memory regions
+            return defined_memory
+
     def _build_memory_map(self) -> None:
         """@brief Constructs the device's memory map including flash and RAM segmentation.
 
         Processes defined regions, fills gaps, and handles flash algorithm overlays.
         """
         regions = []
-        memory_to_process = deepcopy(self.system_resources.get('memory', []))
+        memory_to_process = self._get_memory_to_process()
 
         def _memory_slice(memory: dict, start: int, size: int) -> None:
             # Create a copy of current memory and amend region start and length
