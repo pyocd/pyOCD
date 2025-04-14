@@ -21,9 +21,11 @@ from .conftest import mock
 from pyocd.core.exceptions import TransferError
 from pyocd.utility.autoflush import Autoflush
 
+
 @pytest.fixture(scope='function')
 def mock_obj():
     return mock.Mock()
+
 
 class TestAutoflush:
     def test_flushed(self, mock_obj):
@@ -35,5 +37,4 @@ class TestAutoflush:
         with pytest.raises(TransferError):
             with Autoflush(mock_obj):
                 raise TransferError("bad joojoo")
-        assert mock_obj.flush.not_called
-
+        mock_obj.flush.assert_not_called()
