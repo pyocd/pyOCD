@@ -66,9 +66,9 @@ class LoadSubcommand(SubcommandBase):
         parser_options.add_argument("--no-reset", action="store_true",
             help="Specify to prevent resetting device after programming has finished.")
 
-        parser.add_argument("file", metavar="<file-path>", nargs="+",
+        parser.add_argument("file", metavar="<file-path>", nargs="*",
             help="File to write to memory. Binary files can have an optional base address appended to the file "
-                 "name as '@<address>', for instance 'app.bin@0x20000'.")
+                 "name as '@<address>', for instance 'app.bin@0x20000'. Optional if '--cbuild-run' is used.")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, parser]
 
@@ -77,6 +77,9 @@ class LoadSubcommand(SubcommandBase):
         self._increase_logging(["pyocd.flash.loader", __name__])
 
         # Validate arguments.
+        if (self._args.cbuild_run is None) and not self._args.file:
+            raise ValueError("Positional argument <file-path> is required when '--cbuild-run' is not used.")
+
         if (self._args.base_address is not None) and (len(self._args.file) > 1):
             raise ValueError("--base-address cannot be set when loading more than one file; "
                     "use a base address suffix instead")
@@ -104,6 +107,10 @@ class LoadSubcommand(SubcommandBase):
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc,
                             no_reset=self._args.no_reset)
+            if not self._args.file and self._args.cbuild_run:
+                # Populate file list from cbuild-run output if not provided explicitly
+                cbuild_files = session.target._cbuild_device.output
+                self._args.file = cbuild_files.keys()
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()
@@ -119,6 +126,8 @@ class LoadSubcommand(SubcommandBase):
                         return 1
                 else:
                     base_address = self._args.base_address
+                    if base_address is None and self._args.cbuild_run:
+                        base_address = cbuild_files[filename]
 
                 # Resolve our path.
                 file_path = Path(filename).expanduser().resolve()

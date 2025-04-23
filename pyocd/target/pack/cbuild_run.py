@@ -327,10 +327,26 @@ class CbuildRun:
         return None
 
     @property
-    def output(self) -> List[dict]:
-        if self._valid:
-            return self._data.get('output', [])
-        return []
+    def output(self) -> Dict[str, Optional[int]]:
+        """@brief Set of loadable output files (file, offset)."""
+        if not self._valid:
+            return {}
+
+        # Supported loadable files
+        f_type = {'elf', 'hex', 'bin'}
+
+        # Filter only loadable supported files from the output node
+        loadable_files = [f for f in self._data.get('output', [])
+                          if 'image' in f.get('load', '') and f.get('type') in f_type]
+
+        load_files = {}
+        for f in loadable_files:
+            # Get load offset (None if not specified)
+            offset = f.get('load-offset')
+            # Add filename and it's offset to return value
+            load_files[f['file']] = offset
+
+        return load_files
 
     @property
     def debug_sequences(self) -> List[dict]:
