@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Benjamin Sølberg
 # SPDX-License-Identifier: Apache-2.0
@@ -22,6 +22,7 @@ from typing import (Any, Optional, TYPE_CHECKING)
 from ..core import exceptions
 from ..target import (TARGET, normalise_target_type_name)
 from ..target.pack import pack_target
+from ..target.pack.cbuild_run import CbuildRun
 from ..utility.graph import GraphNode
 
 if TYPE_CHECKING:
@@ -63,10 +64,18 @@ class Board(GraphNode):
         """
         super().__init__()
 
+        # Create cbuild_run if option is provided
+        if session.options.is_set('cbuild_run'):
+            cbuild_run = CbuildRun(session.options.get('cbuild_run'))
+        else:
+            cbuild_run = None
+
         # Use the session option if no target type was given to us.
         if target is None:
             if session.options.is_set('target_override'):
                 target = session.options.get('target_override')
+            elif cbuild_run and cbuild_run.target:
+                target = cbuild_run.target
             elif board_info:
                 target = board_info.target
 
@@ -99,11 +108,15 @@ class Board(GraphNode):
         self._delegate = None
         self._inited = False
 
+        # Create target from cbuild-run information.
+        if cbuild_run and cbuild_run.target:
+            cbuild_run.populate_target(target)
+
         # Create targets from provided CMSIS pack.
         if session.options['pack'] is not None:
             pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
 
-        # Create targets from the cmsis-pack-manager cache.
+        # Create target from the cmsis-pack-manager cache.
         if self._target_type not in TARGET:
             pack_target.ManagedPacks.populate_target(target)
 
