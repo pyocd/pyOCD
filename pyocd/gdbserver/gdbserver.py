@@ -430,9 +430,6 @@ class GDBServer(threading.Thread):
                 if msgStart == 0:
                     reply = handler()
                 else:
-                    # Select current core
-                    if self.board.target.selected_core != self.core:
-                        self.board.target.selected_core = self.core
                     reply = handler(msg[msgStart:])
 
             return reply
@@ -805,6 +802,10 @@ class GDBServer(threading.Thread):
     def flash_op(self, data):
         ops = data.split(b':')[0]
         LOG.debug("flash op: %s", ops)
+
+        # Select current core
+        if self.board.target.selected_core != self.core:
+            self.board.target.selected_core = self.core
 
         if ops == b'FlashErase':
             return self.create_rsp_packet(b"OK")
