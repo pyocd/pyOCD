@@ -99,6 +99,7 @@ class CbuildRunTargetMethods:
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
                             ('update_processor_name', self.update_processor_name),
+                            ('update_primary_core', self.update_primary_core),
                             ('configure_core_reset', self.configure_core_reset)
                             )
             )
@@ -123,6 +124,16 @@ class CbuildRunTargetMethods:
 
         if processors_map:
             self._cbuild_device.processors_map = processors_map
+
+    @staticmethod
+    def _cbuild_target_start_processor(self) -> None:
+        """@brief Updates the primary processor, based on 'start-pname' node in .cbuild-run.yml"""
+        start_pname = self._cbuild_device.debugger.get('start-pname')
+        if start_pname is not None and self.primary_core_pname != start_pname:
+            core_number = next((core.core_number for core in self.cores.values() if core.node_name == start_pname), None)
+            if core_number is not None:
+                self.session.options['primary_core'] = core_number
+                self.selected_core = core_number
 
     @staticmethod
     def _cbuild_target_configure_core_reset(self) -> None:
@@ -237,6 +248,17 @@ class CbuildRunTargetMethods:
         if 'Unknown' not in pname:
             core.node_name = pname
         CoreSightTarget.add_core(_self, core)
+
+    @staticmethod
+    def _cbuild_target_get_gdbserver_port(self, pname: str) -> Optional[int]:
+        """@brief GDB Server port for processor name."""
+        assert pname
+        server_map = self._cbuild_device.debugger.get('gdbserver', [])
+        if any('pname' in server for server in server_map):
+            port = next((i['port'] for i in server_map if i.get('pname') == pname), None)
+        else:
+            port = next((i['port'] for i in server_map), None)
+        return port
 
 
 class CbuildRun:
@@ -423,6 +445,12 @@ class CbuildRun:
         return {}
 
     @property
+    def start_pname(self) -> Optional[str]:
+        """@brief Selected start processor name."""
+        pname = self.debugger.get('start-pname')
+        return pname
+
+    @property
     def system_resources(self) -> Dict[str, list]:
         """@brief System Resources section of cbuild-run."""
         if self._valid:
@@ -477,8 +505,10 @@ class CbuildRun:
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
+                    "update_primary_core" : CbuildRunTargetMethods._cbuild_target_start_processor,
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
-                    "add_core": CbuildRunTargetMethods._cbuild_target_add_core
+                    "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
+                    "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port
         })
         TARGET[target] = tgt
 
