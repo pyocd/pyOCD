@@ -51,6 +51,10 @@ from ...debug.sequences.sequences import (
 
 LOG = logging.getLogger(__name__)
 
+class CbuildRunError(exceptions.Error):
+    """Custom exception for errors encountered during processing of .cbuild-run.yml"""
+    pass
+
 @dataclass
 class ProcessorInfo:
     """@brief Descriptor for a processor defined in a DFP."""
@@ -260,6 +264,10 @@ class CbuildRunTargetMethods:
             port = next((i['port'] for i in server_map), None)
         return port
 
+    @staticmethod
+    def _cbuild_target_get_output(self) -> Dict[str, Optional[int]]:
+        return self._cbuild_device.output
+
 
 class CbuildRun:
     """@brief Parser for the .cbuild-run.yml file (CSolution Run and Debug Management)."""
@@ -285,6 +293,8 @@ class CbuildRun:
                 if 'cbuild-run' in yml_data:
                     self._data = yml_data['cbuild-run']
                     self._valid = True
+                else:
+                    raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
         except IOError as err:
             LOG.error("Error attempting to access .cbuild-run.yml file '%s': %s", yml_path, err)
 
@@ -508,7 +518,8 @@ class CbuildRun:
                     "update_primary_core" : CbuildRunTargetMethods._cbuild_target_start_processor,
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
                     "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
-                    "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port
+                    "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port,
+                    "get_output": CbuildRunTargetMethods._cbuild_target_get_output
         })
         TARGET[target] = tgt
 
@@ -773,7 +784,7 @@ class CbuildRunSequences:
                 continue
 
             pname = elem.get('pname')
-            info = elem.get('info')
+            info = elem.get('info', '')
             sequence = DebugSequence(name, True, pname, info)
 
             if 'blocks' in elem:
