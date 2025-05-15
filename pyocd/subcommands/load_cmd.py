@@ -109,7 +109,7 @@ class LoadSubcommand(SubcommandBase):
                             no_reset=self._args.no_reset)
             if not self._args.file and self._args.cbuild_run:
                 # Populate file list from cbuild-run output if not provided explicitly
-                cbuild_files = session.target._cbuild_device.output
+                cbuild_files = session.target.get_output()
                 self._args.file = cbuild_files.keys()
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
