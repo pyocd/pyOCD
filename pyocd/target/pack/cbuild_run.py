@@ -18,6 +18,7 @@ import logging
 import yaml
 import os
 import io
+import platform
 
 from pathlib import Path
 from copy import deepcopy
@@ -292,11 +293,38 @@ class CbuildRun:
                 yml_data = yaml.safe_load(yml_file)
                 if 'cbuild-run' in yml_data:
                     self._data = yml_data['cbuild-run']
+                    self._cmsis_pack_root()
                     self._valid = True
                 else:
                     raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
         except IOError as err:
             LOG.error("Error attempting to access .cbuild-run.yml file '%s': %s", yml_path, err)
+
+    def _cmsis_pack_root(self) -> None:
+        """@brief Sets the CMSIS_PACK_ROOT environment variable if not already set.
+
+        Platform dependant default values are defined in:
+        https://open-cmsis-pack.github.io/cmsis-toolbox/installation/#environment-variables
+        """
+        # Check if the CMSIS_PACK_ROOT environment variable is already set.
+        # This variable specifies the root directory for CMSIS packs, which are essential for device support.
+        if 'CMSIS_PACK_ROOT' in os.environ:
+            return
+
+        # Get the system platform
+        system = platform.system()
+
+        # Set the CMSIS_PACK_ROOT environment variable based on the platform
+        if system == 'Windows':
+            # Windows detected, set the Windows default path
+            os.environ['CMSIS_PACK_ROOT'] = os.path.expandvars("${LOCALAPPDATA}\\Arm\\Packs")
+        elif system in {'Linux', 'Darwin'}:
+            # Note: WSL is treated as 'Linux'
+            # Linux or macOS detected, set the Linux/macOS default path
+            os.environ['CMSIS_PACK_ROOT'] = os.path.expandvars("${HOME}/.cache/arm/packs")
+        else:
+            raise CbuildRunError(f"Unsupported platform '{system}' for CMSIS_PACK_ROOT. "
+                                 "Please set the CMSIS_PACK_ROOT environment variable manually.")
 
     @property
     def target(self) -> str:
