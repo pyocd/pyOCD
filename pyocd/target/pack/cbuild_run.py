@@ -380,7 +380,8 @@ class CbuildRun:
         try:
             for desc in self.system_descriptions:
                 if desc['type'] == 'svd':
-                    svd_path = Path(os.path.expandvars(desc['file']))
+                    norm_path = os.path.normpath(desc['file'])
+                    svd_path = Path(os.path.expandvars(norm_path))
                     return io.BytesIO(svd_path.read_bytes())
         except (KeyError, IndexError):
             LOG.error("Could not locate SVD in cbuild-run system-descriptions.")
@@ -517,7 +518,7 @@ class CbuildRun:
         if self._valid and ('device-pack' in self._data):
             vendor, _pack = self._data['device-pack'].split('::', 1)
             name, version = _pack.split('@', 1)
-            pack = f"${{CMSIS_PACK_ROOT}}/{vendor}/{name}/{version}"
+            pack = os.path.normpath(f"${{CMSIS_PACK_ROOT}}/{vendor}/{name}/{version}")
             return [os.path.expandvars(pack)]
         return []
 
@@ -692,7 +693,8 @@ class CbuildRun:
                             flash_attrs['_RAMsize'] = algorithm['ram-size']
                         if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
                             LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", algorithm['algorithm'])
-                        flash_attrs['flm'] = PackFlashAlgo(os.path.expandvars(algorithm['algorithm']))
+                        algorithm_path = os.path.normpath(algorithm['algorithm'])
+                        flash_attrs['flm'] = PackFlashAlgo(os.path.expandvars(algorithm_path))
                         # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
                         # the default lambdas for sector_size and blocksize returning each other's value.
                         flash_attrs['sector_size'] = 0
@@ -721,7 +723,8 @@ class CbuildRun:
                 if item['type'] == 'svd':
                     if (pname is not None) and (item.get('pname') not in (None, pname)):
                         continue
-                    svd_path = os.path.expandvars(item['file'])
+                    norm_path = os.path.normpath(item['file'])
+                    svd_path = os.path.expandvars(norm_path)
                     break
             return svd_path
 
