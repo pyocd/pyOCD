@@ -93,7 +93,7 @@ KNOWN_DEVICE_STRINGS: List[str] = (
     )
 
 ## List of VID/PID pairs for CMSIS-DAP probes that have multiple HID interfaces that must be
-# filtered by usage page. Currently these are only NXP probes.
+# filtered by usage page. Currently these are only NXP and Cypress probes.
 CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE: List[VidPidPair] = [
     NXP_LPCLINK2_ID,
     NXP_MCULINK_ID,
