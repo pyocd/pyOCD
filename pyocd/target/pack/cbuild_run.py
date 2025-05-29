@@ -118,7 +118,7 @@ class CbuildRunTargetMethods:
         """
         processors_map = {}
         for core in self.cores.values():
-            if core.node_name is None:
+            if core.node_name is None or core.node_name == 'Unknown':
                 core.node_name = core.name
 
             for proc in self._cbuild_device.processors_map.values():
@@ -250,8 +250,7 @@ class CbuildRunTargetMethods:
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
         pname = _self._cbuild_device.processors_ap_map[cast(CortexM, core).ap.address].name
-        if 'Unknown' not in pname:
-            core.node_name = pname
+        core.node_name = pname
         CoreSightTarget.add_core(_self, core)
 
     @staticmethod
