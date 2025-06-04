@@ -531,11 +531,9 @@ class CbuildRun:
         elif target != normalise_target_type_name(self.target):
             return
 
-        # Check if we're even going to populate this target.
+        # Check if we're overwriting an existing target.
         if target in TARGET:
-            LOG.debug("did not populate target from cbuild-run.yml for device %s because "
-                      "there is already a %s target installed", self.target, target)
-            return
+            LOG.info("Internal target %s already exists, overwriting with cbuild-run target", target)
 
         # Generate target subclass and install it.
         tgt = type(target.capitalize(), (CoreSightTarget,), {
