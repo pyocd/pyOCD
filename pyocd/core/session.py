@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -548,7 +548,11 @@ class Session(Notifier):
 
             self._probe.open()
             self._closed = False
-            self._probe.set_clock(self.options.get('frequency'))
+            frequency = self.options.get('frequency')
+            if self.options.is_set('cbuild_run'):
+                if self.target.debugger_clock is not None:
+                    frequency = self.target.debugger_clock
+            self._probe.set_clock(frequency)
             if init_board:
                 self._board.init()
                 self._inited = True

@@ -483,6 +483,11 @@ class CbuildRun:
         return {}
 
     @property
+    def debugger_clock(self) -> Optional[int]:
+        """@brief Debugger clock frequency in Hz."""
+        return self.debugger.get('clock', None)
+
+    @property
     def start_pname(self) -> Optional[str]:
         """@brief Selected start processor name."""
         pname = self.debugger.get('start-pname')
@@ -538,6 +543,7 @@ class CbuildRun:
         # Generate target subclass and install it.
         tgt = type(target.capitalize(), (CoreSightTarget,), {
                     "_cbuild_device": self,
+                    "debugger_clock": self.debugger_clock,
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
