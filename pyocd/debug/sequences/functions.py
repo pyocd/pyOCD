@@ -46,6 +46,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def __init__(self) -> None:
         self._ap_cache: Dict[APAddressBase, MEM_AP] = {}
+        self._transfer_error_ignored = False
 
     @property
     def target(self) -> CoreSightTarget:
@@ -145,13 +146,14 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         """@brief Whether the debug sequence has set __errorcontrol to ignore faults."""
         errcontrol = self.context.get_variable('__errorcontrol') & 1
         if errcontrol:
-            try:
-                # Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register
-                self.dap_writeabort(0x1E)
-            except exceptions.TransferError:
-                # Suppress TransferError intentionally — this block attempts to recover communication.
-                pass
+            self._transfer_error_ignored = True
         return errcontrol
+
+    def _handle_ignore_errors(self) -> None:
+        """@brief Clear sticky error bits if transfer errors were ignored."""
+        if self._transfer_error_ignored:
+            self._get_dp().clear_sticky_err()
+            self._transfer_error_ignored = False
 
     def sequence(self, name: str) -> None:
         # This call will raise if the named sequence is invalid. However, we should have already
@@ -177,6 +179,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def read8(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             return self._get_mem_ap().read8(addr)
         except exceptions.TransferError as err:
             if self._get_ignore_errors():
@@ -187,6 +190,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def read16(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             return self._get_mem_ap().read16(addr)
         except exceptions.TransferError as err:
             if self._get_ignore_errors():
@@ -197,6 +201,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def read32(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             return self._get_mem_ap().read32(addr)
         except exceptions.TransferError as err:
             if self._get_ignore_errors():
@@ -207,6 +212,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def read64(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             return self._get_mem_ap().read64(addr)
         except exceptions.TransferError as err:
             if self._get_ignore_errors():
@@ -217,6 +223,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def readap(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             ap_addr = self._get_ap_addr()
             reg_addr = ap_addr.address | addr
             return self._get_dp().read_ap(reg_addr)
@@ -229,6 +236,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def readaccessap(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             dp = self._get_dp(True)
             apacc = dp.apacc_memory_interface
             return apacc.read32(addr)
@@ -241,6 +249,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def readdp(self, addr: int) -> int:
         try:
+            self._handle_ignore_errors()
             return self._get_dp(True).read_dp(addr)
         except exceptions.TransferError as err:
             if self._get_ignore_errors():
@@ -251,6 +260,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def write8(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             self._get_mem_ap().write8(addr, val)
             self.target.flush()
         except exceptions.TransferError as err:
@@ -261,6 +271,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def write16(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             self._get_mem_ap().write16(addr, val)
             self.target.flush()
         except exceptions.TransferError as err:
@@ -271,6 +282,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def write32(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             self._get_mem_ap().write32(addr, val)
             self.target.flush()
         except exceptions.TransferError as err:
@@ -281,6 +293,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def write64(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             self._get_mem_ap().write64(addr, val)
             self.target.flush()
         except exceptions.TransferError as err:
@@ -291,6 +304,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def writeap(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             ap_addr = self._get_ap_addr()
             reg_addr = ap_addr.address | addr
             self._get_dp().write_ap(reg_addr, val)
@@ -303,6 +317,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def writeaccessap(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             dp = self._get_dp(True)
             apacc = dp.apacc_memory_interface
             apacc.write32(addr, val)
@@ -315,6 +330,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     def writedp(self, addr: int, val: int) -> None:
         try:
+            self._handle_ignore_errors()
             self._get_dp(True).write_dp(addr, val)
             self.target.flush()
         except exceptions.TransferError as err:
