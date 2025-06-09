@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,7 +53,7 @@ class ResetSubcommand(SubcommandBase):
                  "from the core chosen with --core will be used (usually 'sw' but can be differ based "
                  "on the target type).")
         reset_options.add_argument("-c", "--core", default=0, type=int_base_0,
-            help="Core number used to perform software reset. Only applies to software reset methods."
+            help="Core number used to perform software reset. Only applies to software reset methods. "
                  "Default is core 0.")
         reset_options.add_argument("-l", "--halt", action="store_true",
             help="Halt the core on the first instruction after reset. Defaults to disabled.")
@@ -77,6 +78,7 @@ class ResetSubcommand(SubcommandBase):
                             user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
+                            cbuild_run=self._args.cbuild_run,
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
@@ -130,4 +132,3 @@ class ResetSubcommand(SubcommandBase):
             LOG.info("Done.")
         finally:
             session.close()
-

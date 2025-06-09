@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,6 +92,8 @@ class GdbserverSubcommand(SubcommandBase):
             help="Run command (OpenOCD compatibility).")
         gdbserver_options.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=False, action="store_true",
             help="Replace software breakpoints with hardware breakpoints.")
+        gdbserver_options.add_argument("--reset-run", action="store_true",
+            help="Reset and run before running GDB server")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, gdbserver_parser]
 
@@ -182,6 +185,7 @@ class GdbserverSubcommand(SubcommandBase):
                 config_file=self._args.config,
                 no_config=self._args.no_config,
                 pack=self._args.pack,
+                cbuild_run=self._args.cbuild_run,
                 unique_id=self._args.unique_id,
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
@@ -215,6 +219,10 @@ class GdbserverSubcommand(SubcommandBase):
                     session.probeserver = probe_server
                     probe_server.start()
 
+                # Reset and run the target
+                if self._args.reset_run:
+                    session.board.target.reset()
+
                 # Start up the gdbservers.
                 for core_number, core in session.board.target.cores.items():
                     # Don't create a server for CPU-less memory Access Port.
@@ -223,7 +231,11 @@ class GdbserverSubcommand(SubcommandBase):
                     # Don't create a server if this core is not listed by the user.
                     if core_number not in core_list:
                         continue
-                    gdb = GDBServer(session, core=core_number)
+                    # Read pname and port mapping from cbuild-run.
+                    port_number = None
+                    if self._args.cbuild_run:
+                        port_number = session.target.get_gdbserver_port(core.node_name)
+                    gdb = GDBServer(session, core=core_number, port=port_number)
                     # Only subscribe to the server for the first core, so echo messages aren't printed
                     # multiple times.
                     if not gdbs:

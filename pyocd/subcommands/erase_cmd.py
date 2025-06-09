@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,6 +81,7 @@ class EraseSubcommand(SubcommandBase):
                             user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
+                            cbuild_run=self._args.cbuild_run,
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
@@ -99,5 +101,3 @@ class EraseSubcommand(SubcommandBase):
             eraser.erase(addresses)
 
         return 0
-
-

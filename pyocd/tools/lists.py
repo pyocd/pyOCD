@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -167,7 +167,12 @@ class ListGenerator(object):
                 continue
 
             # Filter by source.
-            source = 'pack' if hasattr(t, '_pack_device') else 'builtin'
+            if hasattr(t, '_pack_device'):
+                source = 'pack'
+            elif hasattr(t, '_cbuild_device'):
+                source = 'cbuild-run'
+            else:
+                source = 'builtin'
             if source_filter and source_filter != source:
                 continue
 
