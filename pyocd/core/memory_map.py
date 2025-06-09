@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -780,7 +780,7 @@ class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
                 return r
         return None
 
-    def get_region_for_address(self, address: int) -> Optional[MemoryRegion]:
+    def get_region_for_address(self, address: int, pname: Optional[str] = None) -> Optional[MemoryRegion]:
         """@brief Returns the first region containing the given address.
 
         @param self
@@ -788,6 +788,8 @@ class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
         @return MemoryRegion or None.
         """
         for r in self._regions:
+            if (pname is not None) and (r.attributes.get('pname') not in (None, pname)):
+                continue
             if r.contains_address(address):
                 return r
         return None
