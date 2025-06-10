@@ -114,7 +114,8 @@ class FlashEraser(object):
 
             while sector_addr < end_addr:
                 # Look up the flash memory region for the current address.
-                region = self._session.target.memory_map.get_region_for_address(sector_addr)
+                pname = self._session.target.selected_core.node_name
+                region = self._session.target.memory_map.get_region_for_address(sector_addr, pname)
                 if region is None:
                     LOG.warning("address 0x%08x is not within a memory region", sector_addr)
                     break

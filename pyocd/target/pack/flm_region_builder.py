@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2022-2023 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -94,6 +95,8 @@ class FlmFlashRegionBuilder:
                 # If we got a valid algo from the FLM, set it on the region.
                 if algo is not None:
                     region.algo = algo
+                    # Disable reads of erased sectors if Verify function is provided in the algorithm
+                    region.are_erased_sectors_readable = 'Verify' not in pack_algo.symbols
 
                 # Set region page/sector sizes and algorithm range; add sector subregions.
                 self._update_flash_attributes(region, pack_algo, page_size, algo)

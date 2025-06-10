@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2023 Brian Pugh
 # SPDX-License-Identifier: Apache-2.0
@@ -201,7 +201,7 @@ class FlashBuilder(MemoryBuilder):
         self.sector_list: List[_FlashSector] = []
         self.page_list: List[_FlashPage] = []
         self.perf = ProgrammingInfo()
-        self.enable_double_buffering = True
+        self.enable_double_buffering = False
         self.log_performance = True
         self._buffered_data_size = 0
         self.program_byte_count = 0
