@@ -62,7 +62,7 @@ class TransferTimeoutError(TransferError):
     pass
 
 class TransferProtocolError(TransferError):
-    """@brief An error occurred with the SWD transfer protocol."""
+    """@brief SWD transfer protocol error occurred"""
     pass
 
 class TransferFaultError(TransferError):
