@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
@@ -1016,6 +1016,9 @@ class DebugPort(DelegateHavingMixIn):
             # This may put the AP that was aborted into an unpredictable state. Should consider
             # attempting to reset debug logic.
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
+        elif isinstance(error, exceptions.TransferProtocolError):
+            if self.probe.wire_protocol == DebugProbe.Protocol.SWD:
+                self._swd_reset()
 
     def clear_sticky_err(self) -> None:
         self._invalidate_cache()
@@ -1027,6 +1030,28 @@ class DebugPort(DelegateHavingMixIn):
                     | CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
         else:
             assert False
+
+    def _swd_reset(self) -> None:
+        """@brief Reset the SWD interface.
+
+        This method is used to reset the SWD interface when a protocol error occurs. It is not
+        intended to be used for resetting the target.
+        """
+        self._invalidate_cache()
+        try:
+            self.lock()
+            swj = SWJSequenceSender(self.probe, False)
+            for i in range(2):
+                try:
+                    swj.line_reset()                        # > 50 cycles SWDIO/TMS High.
+                    swj.idle_cycles(8)                      # At least 2 idle cycles (SWDIO/TMS Low).
+                    self.probe.read_dp(DP_IDR, now=True)    # Read DP IDR to take connection out of reset state.
+                    break                                   # Success, so break out of the loop.
+                except exceptions.TargetError as error:
+                    if i != 0:
+                        raise                               # Raise the error if this is the second attempt.
+        finally:
+            self.unlock()
 
 class APAccessMemoryInterface(memory_interface.MemoryInterface):
     """@brief Memory interface for performing simple APACC transactions.

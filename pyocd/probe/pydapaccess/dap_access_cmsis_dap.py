@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2021 Arm Limited
+# Copyright (c) 2006-2013,2018-2021,2025 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -373,7 +373,7 @@ class _Command(object):
             else:
                 raise DAPAccessIntf.TransferError("Unexpected ACK value (%d) returned by probe" % ack)
         elif (response & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
-            raise DAPAccessIntf.TransferError("SWD protocol error")
+            raise DAPAccessIntf.TransferProtocolError("SWD protocol error")
 
     def _decode_transfer_data(self, data):
         """@brief Take a byte array and extract the data from it
