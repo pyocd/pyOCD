@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -513,8 +513,8 @@ class HprotValue(ValueBase):
             'extra_help':
 """This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
 or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
-For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
-its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+For AXI-APs, the value is {AxPROT[2:0], AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+bits 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
 Manual for your device's MEM-AP for details."""
             }
 
