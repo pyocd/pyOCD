@@ -311,6 +311,71 @@ title: Built-in targets
     <td>HC32M120</td>
     </tr>
 
+    <tr><td><code>hc32f115x8</code></td>
+    <td>HDSC</td>
+    <td>HC32F115x8</td>
+    </tr>
+
+    <tr><td><code>hc32f115</code></td>
+    <td>HDSC</td>
+    <td>HC32F115x8</td>
+    </tr>
+
+    <tr><td><code>hc32f155xa</code></td>
+    <td>HDSC</td>
+    <td>HC32F155xA</td>
+    </tr>
+
+    <tr><td><code>hc32f155xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F155xC</td>
+    </tr>
+
+    <tr><td><code>hc32f155</code></td>
+    <td>HDSC</td>
+    <td>HC32F155xC</td>
+    </tr>
+
+    <tr><td><code>hc32f334x8</code></td>
+    <td>HDSC</td>
+    <td>HC32F334x8</td>
+    </tr>
+
+    <tr><td><code>hc32f334xa</code></td>
+    <td>HDSC</td>
+    <td>HC32F334xA</td>
+    </tr>
+
+    <tr><td><code>hc32f334</code></td>
+    <td>HDSC</td>
+    <td>HC32F334xA</td>
+    </tr>
+
+    <tr><td><code>hc32f467xg</code></td>
+    <td>HDSC</td>
+    <td>HC32F467xG</td>
+    </tr>
+
+    <tr><td><code>hc32f467</code></td>
+    <td>HDSC</td>
+    <td>HC32F467xG</td>
+    </tr>
+
+    <tr><td><code>hc32f472xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F472xC</td>
+    </tr>
+
+    <tr><td><code>hc32f472xe</code></td>
+    <td>HDSC</td>
+    <td>HC32F472xE</td>
+    </tr>
+
+    <tr><td><code>hc32f472</code></td>
+    <td>HDSC</td>
+    <td>HC32F472xE</td>
+    </tr>
+
     <tr><td><code>hc32m423xa</code></td>
     <td>HDSC</td>
     <td>HC32M423xA</td>
@@ -666,6 +731,11 @@ title: Built-in targets
     <td>AN522</td>
     </tr>
 
+    <tr><td><code>mps2_an521</code></td>
+    <td>Arm</td>
+    <td>AN521</td>
+    </tr>
+
     <tr><td><code>mps3_an540</code></td>
     <td>Arm</td>
     <td>AN540</td>
@@ -721,6 +791,11 @@ title: Built-in targets
     <td>NRF52840</td>
     </tr>
 
+    <tr><td><code>nrf54l</code></td>
+    <td>Nordic Semiconductor</td>
+    <td>NRF54L15</td>
+    </tr>
+
     <tr><td><code>nrf91</code></td>
     <td>Nordic Semiconductor</td>
     <td>NRF91XX</td>
@@ -739,6 +814,11 @@ title: Built-in targets
     <tr><td><code>rp2040_core1</code></td>
     <td>Raspberry Pi</td>
     <td>RP2040Core1</td>
+    </tr>
+
+    <tr><td><code>rp2350</code></td>
+    <td>Raspberry Pi</td>
+    <td>RP2350</td>
     </tr>
 
     <tr><td><code>rtl8195am</code></td>
@@ -816,6 +896,11 @@ title: Built-in targets
     <td>STM32H743xx</td>
     </tr>
 
+    <tr><td><code>stm32h750xx</code></td>
+    <td>STMicroelectronics</td>
+    <td>STM32H750xx</td>
+    </tr>
+
     <tr><td><code>stm32h7b0xx</code></td>
     <td>STMicroelectronics</td>
     <td>STM32H7B0xx</td>
@@ -871,6 +956,9 @@ title: Built-in targets
     <td>YTM32B1ME0</td>
     </tr>
 
+    <tr><td><code>ama3b1kk_kbr</code></td>
+    <td>Ambiq Micro</td>
+    <td>AMA3B1KK_KBR</td>
+    </tr>
 
 </table>
-
