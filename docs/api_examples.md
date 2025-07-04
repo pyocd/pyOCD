@@ -84,7 +84,7 @@ with ConnectHelper.session_with_chosen_probe() as session:
     assert pc == addr & ~0x01                         # mask off LSB
 
     # Remove breakpoint.
-    target.remove_breakpoint()
+    target.remove_breakpoint(addr)
 ```
 
 Note that you currently need to manually remove a breakpoint in order to step or run over it.
