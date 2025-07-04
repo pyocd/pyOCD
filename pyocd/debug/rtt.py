@@ -426,6 +426,7 @@ class GenericRTTControlBlock(RTTControlBlock):
 
     def _find_control_block(self) -> Optional[int]:
         addr: int = self._cb_search_address & ~0x3
+        search_addr: int = addr
         search_size: int  = self._cb_search_size_bytes
         if search_size < len(self._control_block_id):
             search_size = len(self._control_block_id)
@@ -435,7 +436,7 @@ class GenericRTTControlBlock(RTTControlBlock):
 
         while search_size:
             read_size = min(search_size, 32)
-            data = self.target.read_memory_block8(addr, read_size)
+            data = self.target.read_memory_block8(search_addr, read_size)
 
             if not data:
                 break
@@ -453,6 +454,8 @@ class GenericRTTControlBlock(RTTControlBlock):
 
             if offset == id_len:
                 break
+
+            search_addr += read_size
 
         return addr if offset == id_len else None
 
