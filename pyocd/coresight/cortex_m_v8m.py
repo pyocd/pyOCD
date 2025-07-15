@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -104,6 +104,7 @@ class CortexM_v8M(CortexM):
         """@brief Read the CPUID register and determine core type and architecture."""
         # Schedule deferred reads.
         cpuid_cb = self.read32(self.CPUID, now=False)
+        clidr_cb = self.read32(self.CLIDR, now=False)
         pfr0_cb = self.read32(self.PFR0, now=False)
         pfr1_cb = self.read32(self.PFR1, now=False)
         dfr0_cb = self.read32(self.DFR0, now=False)
@@ -120,6 +121,12 @@ class CortexM_v8M(CortexM):
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
+
+        # Check cache type and configure AP to use cacheable access if cache is present.
+        clidr = clidr_cb()
+        clidr_ctype1 = (clidr >> CortexM.CLIDR_CTYPE1_SHIFT) & CortexM.CLIDR_CTYPE_MASK
+        if clidr_ctype1 != CortexM.CLIDR_CTYPE_NO_CACHE:
+            self.ap.set_cacheable()
 
         # Check for DSP extension
         isar3 = isar3_cb()

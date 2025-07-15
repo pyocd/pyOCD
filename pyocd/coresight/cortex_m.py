@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -197,6 +197,22 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     ISAR3_SIMD_MASK = 0x000000f0
     ISAR3_SIMD_SHIFT = 4
     ISAR3_SIMD__DSP = 0x3 # SIMD instructions from DSP extension are present
+
+    # Cache Level ID Register
+    CLIDR = 0xE000ED78
+    CLIDR_CTYPE1_SHIFT = 0
+    CLIDR_CTYPE2_SHIFT = 3
+    CLIDR_CTYPE3_SHIFT = 6
+    CLIDR_CTYPE4_SHIFT = 9
+    CLIDR_CTYPE5_SHIFT = 12
+    CLIDR_CTYPE6_SHIFT = 15
+    CLIDR_CTYPE7_SHIFT = 18
+    CLIDR_CTYPE_MASK = 0x00000007
+    CLIDR_CTYPE_NO_CACHE = 0x0
+    CLIDR_CTYPE_I_CACHE_ONLY = 0x1
+    CLIDR_CTYPE_D_CACHE_ONLY = 0x2
+    CLIDR_CTYPE_I_AND_D_CACHE = 0x3
+    CLIDR_CTYPE_UNIFIED_CACHE = 0x4
 
     # MPU Type register
     MPU_TYPE = 0xE000ED90
@@ -458,6 +474,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # Read CPUID register
         cpuid_cb = self.read32(CortexM.CPUID, now=False)
         isar3_cb = self.read32(CortexM.ISAR3, now=False)
+        clidr_cb = self.read32(CortexM.CLIDR, now=False)
         mpu_type_cb = self.read32(CortexM.MPU_TYPE, now=False)
 
         # Check CPUID
@@ -470,13 +487,19 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         # Check for DSP extension
         isar3 = isar3_cb()
-        isar3_simd = (isar3 & self.ISAR3_SIMD_MASK) >> self.ISAR3_SIMD_SHIFT
-        if isar3_simd == self.ISAR3_SIMD__DSP:
+        isar3_simd = (isar3 & CortexM.ISAR3_SIMD_MASK) >> CortexM.ISAR3_SIMD_SHIFT
+        if isar3_simd == CortexM.ISAR3_SIMD__DSP:
             self._extensions.append(CortexMExtension.DSP)
+
+        # Check cache type and configure AP to use cacheable access if cache is present.
+        clidr = clidr_cb()
+        clidr_ctype1 = (clidr >> CortexM.CLIDR_CTYPE1_SHIFT) & CortexM.CLIDR_CTYPE_MASK
+        if clidr_ctype1 != CortexM.CLIDR_CTYPE_NO_CACHE:
+            self.ap.set_cacheable()
 
         # Check for MPU extension
         mpu_type = mpu_type_cb()
-        mpu_type_dregions = (mpu_type & self.MPU_TYPE_DREGIONS_MASK) >> self.MPU_TYPE_DREGIONS_SHIFT
+        mpu_type_dregions = (mpu_type & CortexM.MPU_TYPE_DREGIONS_MASK) >> CortexM.MPU_TYPE_DREGIONS_SHIFT
         if mpu_type_dregions > 0:
             self._extensions.append(CortexMExtension.MPU)
 
