@@ -953,6 +953,13 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._hnonsec = value & self._mask_hnonsec
         self._csw = self.csw_encode_hnonsec(self._csw, self._hnonsec)
 
+    def set_cacheable(self) -> None:
+        """@brief Set cacheable access.
+
+        """
+        # Implemented in subclasses.
+        pass
+
     class _MemAttrContext:
         """@brief Context manager for temporarily setting HPROT and/or HNONSEC.
 
@@ -1460,6 +1467,15 @@ class AHB_AP(MEM_AP):
 
         # Invoke superclass.
         super().find_components()
+
+    def set_cacheable(self) -> None:
+        """@brief Set cacheable access.
+
+        """
+        if self._flags & AP_HPROT_EXT:
+            self.hprot |= HPROT_CACHEABLE | HPROT_LOOKUP | HPROT_SHAREABLE
+        else:
+            self.hprot |= HPROT_CACHEABLE
 
 class AXI_AP(MEM_AP):
     """@brief AXI-AP access port subclass."""
