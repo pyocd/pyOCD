@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -73,6 +73,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
 
             # Insert BKPT #0 instruction.
             self._core.write16(addr, self.BKPT_INSTR)
+            self._core.invalidate_instruction_cache(addr)
 
             # Create bp object.
             bp = SoftwareBreakpoint(self)
@@ -93,6 +94,7 @@ class SoftwareBreakpointProvider(BreakpointProvider):
         try:
             # Restore original instruction.
             self._core.write16(bp.addr, bp.original_instr)
+            self._core.invalidate_instruction_cache(bp.addr)
 
             # Remove from our list.
             del self._breakpoints[bp.addr]

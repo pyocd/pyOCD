@@ -126,6 +126,7 @@ class CortexM_v8M(CortexM):
         clidr = clidr_cb()
         clidr_ctype1 = (clidr >> CortexM.CLIDR_CTYPE1_SHIFT) & CortexM.CLIDR_CTYPE_MASK
         if clidr_ctype1 != CortexM.CLIDR_CTYPE_NO_CACHE:
+            self.has_cache = True
             self.ap.set_cacheable()
 
         # Check for DSP extension
