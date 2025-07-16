@@ -177,6 +177,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     DBGKEY = (0xA05F << 16)
 
+    # I-Cache Invalidate Registers
+    ICIALLU = 0xE000EF50
+    ICIMVAU = 0xE000EF58
+
     # Media and FP Feature Register 0
     MVFR0 = 0xE000EF40
     MVFR0_SINGLE_PRECISION_MASK = 0x000000f0
@@ -257,6 +261,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self._extensions: List[CortexMExtension] = []
         self.core_type = 0
         self.has_fpu: bool = False
+        self.has_cache: bool = False
         self._core_number: int = core_num
         self._core_name: str = "Unknown"
         self._run_token: int = 0
@@ -473,8 +478,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """@brief Read the CPUID register and determine core type and architecture."""
         # Read CPUID register
         cpuid_cb = self.read32(CortexM.CPUID, now=False)
-        isar3_cb = self.read32(CortexM.ISAR3, now=False)
         clidr_cb = self.read32(CortexM.CLIDR, now=False)
+        isar3_cb = self.read32(CortexM.ISAR3, now=False)
         mpu_type_cb = self.read32(CortexM.MPU_TYPE, now=False)
 
         # Check CPUID
@@ -485,17 +490,18 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
 
+        # Check cache type and configure AP to use cacheable access if cache is present.
+        clidr = clidr_cb()
+        clidr_ctype1 = (clidr >> CortexM.CLIDR_CTYPE1_SHIFT) & CortexM.CLIDR_CTYPE_MASK
+        if clidr_ctype1 != CortexM.CLIDR_CTYPE_NO_CACHE:
+            self.has_cache = True
+            self.ap.set_cacheable()
+
         # Check for DSP extension
         isar3 = isar3_cb()
         isar3_simd = (isar3 & CortexM.ISAR3_SIMD_MASK) >> CortexM.ISAR3_SIMD_SHIFT
         if isar3_simd == CortexM.ISAR3_SIMD__DSP:
             self._extensions.append(CortexMExtension.DSP)
-
-        # Check cache type and configure AP to use cacheable access if cache is present.
-        clidr = clidr_cb()
-        clidr_ctype1 = (clidr >> CortexM.CLIDR_CTYPE1_SHIFT) & CortexM.CLIDR_CTYPE_MASK
-        if clidr_ctype1 != CortexM.CLIDR_CTYPE_NO_CACHE:
-            self.ap.set_cacheable()
 
         # Check for MPU extension
         mpu_type = mpu_type_cb()
@@ -777,6 +783,18 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 | CortexM.DFSR_BKPT
                 | CortexM.DFSR_HALTED
                 )
+
+    def invalidate_instruction_cache(self, address: Optional[int] = None):
+        """@brief Invalidate the instruction cache if present.
+
+        If `address` is provided, invalidates the cache line containing that address using ICIMVAU.
+        If not provided, invalidates the entire instruction cache using ICIALLU.
+        """
+        if self.has_cache:
+            if address is None:
+                self.write32(self.ICIALLU, 0)
+            else:
+                self.write32(self.ICIMVAU, address)
 
     def _perform_emulated_reset(self):
         """@brief Emulate a software reset by writing registers.
