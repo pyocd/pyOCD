@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
@@ -25,11 +25,13 @@ from typing import Optional
 
 from .interface import Interface
 from .common import (
+    USB_CLASS_HID,
     filter_device_by_usage_page,
     generate_device_unique_id,
     is_known_cmsis_dap_vid_pid,
     )
 from ..dap_access_api import DAPAccessIntf
+from .pyusb_backend import MatchCmsisDapv1Interface
 from ....utility.compatibility import to_str_safe
 from ....utility.timeout import Timeout
 
@@ -39,6 +41,11 @@ TRACE.setLevel(logging.CRITICAL)
 
 try:
     import hid
+    import usb.util
+    try:
+        from libusb_package import find as usb_find
+    except ImportError:
+        from usb.core import find as usb_find
 except ImportError:
     IS_AVAILABLE = False
 else:
@@ -73,6 +80,8 @@ class HidApiUSB(Interface):
         self.received_data: queue.SimpleQueue[bytes] = queue.SimpleQueue()
         self._read_thread_did_exit: bool = False
         self._read_thread_exception: Optional[Exception] = None
+        self.report_in_size = None
+        self.report_out_size = None
 
     def set_packet_count(self, count):
         # hidapi for macos has an arbitrary limit on the number of packets it will queue for reading.
@@ -83,6 +92,40 @@ class HidApiUSB(Interface):
         self.packet_count = count
 
     def open(self):
+        # Get device handle
+        dev = usb_find(idVendor=self.vid, idProduct=self.pid, serial_number=self.serial_number)
+        if dev is None:
+            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} not found")
+
+        # get active config
+        config = dev.get_active_configuration()
+
+        # Get count of HID interfaces and create the matcher object
+        hid_interface_count = len(list(usb.util.find_descriptor(config, find_all=True, bInterfaceClass=USB_CLASS_HID)))
+        matcher = MatchCmsisDapv1Interface(hid_interface_count)
+
+        # Get CMSIS-DAPv1 interface
+        interface = usb.util.find_descriptor(config, custom_match=matcher)
+        if interface is None:
+            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} has no CMSIS-DAPv1 interface")
+
+        # Set report sizes, assuming HID report size matches endpoint wMaxPacketSize.
+        for endpoint in interface:
+            if usb.util.endpoint_type(endpoint.bmAttributes) == usb.util.ENDPOINT_TYPE_INTR:
+                if endpoint.bEndpointAddress & usb.util.ENDPOINT_IN:
+                    self.report_in_size = endpoint.wMaxPacketSize
+                else:
+                    self.report_out_size = endpoint.wMaxPacketSize
+
+        if self.report_in_size is None:
+            raise DAPAccessIntf.DeviceError(
+                f"Could not determine packet sizes for {self.serial_number}")
+
+        if self.report_out_size is None:
+            # No interrupt OUT endpoint. Out reports will be sent via control transfer.
+            # Assuming out report size matches in report size.
+            self.report_out_size = self.report_in_size
+
         try:
             self.device.open_path(self.device_info['path'])
         except IOError as exc:
@@ -105,7 +148,7 @@ class HidApiUSB(Interface):
             while not self.closed_event.is_set():
                 self.read_sem.acquire()
                 if not self.closed_event.is_set():
-                    read_data = bytes(self.device.read(self.packet_size))
+                    read_data = bytes(self.device.read(self.report_in_size))
 
                     # This trace log is commented out to reduce clutter, but left in to leave available
                     # when debugging rx_task issues.
@@ -166,7 +209,7 @@ class HidApiUSB(Interface):
         """@brief Write data on the OUT endpoint associated to the HID interface"""
         if TRACE.isEnabledFor(logging.DEBUG):
             TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
-        data.extend([0] * (self.packet_size - len(data)))
+        data.extend([0] * (self.report_out_size - len(data)))
         if not _IS_WINDOWS:
             self.read_sem.release()
         self.device.write([0] + data)
@@ -175,7 +218,7 @@ class HidApiUSB(Interface):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
-            read_data = bytes(self.device.read(self.packet_size))
+            read_data = bytes(self.device.read(self.report_in_size))
 
             if TRACE.isEnabledFor(logging.DEBUG):
                 # Strip off trailing zero bytes to reduce clutter.
@@ -216,7 +259,7 @@ class HidApiUSB(Interface):
             self.thread.join()
             self.thread = None
 
-            # Clear closed event, recreate read sem and receiveed data deque so they
+            # Clear closed event, recreate read sem and received data deque so they
             # are cleared and ready if we're re-opened.
             self.closed_event.clear()
             self.read_sem = threading.Semaphore(0)
@@ -224,3 +267,12 @@ class HidApiUSB(Interface):
             self._read_thread_did_exit = False
             self._read_thread_exception = None
         self.device.close()
+
+    def set_packet_size(self, size):
+        # Custom logic for HID backend
+        if size > min(self.report_in_size, self.report_out_size):
+            raise DAPAccessIntf.DeviceError(
+                f"DAP_Info Packet Size {size} exceeds endpoint wMaxPacketSize {min(self.report_in_size, self.report_out_size)}"
+            )
+        else:
+            self.packet_size = size
