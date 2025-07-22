@@ -288,6 +288,8 @@ class CbuildRun:
         self._use_default_memory_map: bool = True
 
         try:
+            # Normalize the path to ensure compatibility across platforms.
+            yml_path = os.path.normpath(yml_path)
             with open(yml_path, 'r') as yml_file:
                 yml_data = yaml.safe_load(yml_file)
                 if 'cbuild-run' in yml_data:
@@ -296,6 +298,10 @@ class CbuildRun:
                     self._valid = True
                 else:
                     raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
+                # Set cbuild-run path as the current working directory.
+                base_path = Path(yml_path).parent
+                os.chdir(base_path)
+                LOG.debug("Working directory set to '%s'", os.getcwd())
         except IOError as err:
             LOG.error("Error attempting to access .cbuild-run.yml file '%s': %s", yml_path, err)
 
