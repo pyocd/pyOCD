@@ -78,10 +78,8 @@ class FlmFlashRegionBuilder:
                 if self._session.options.get("debug.log_flm_info"):
                     LOG.debug("Flash algo info: %s", pack_algo.flash_info)
 
-                # Get the page size. If it's unreasonably small, then use the smallest sector size.
+                # Get the page size.
                 page_size = pack_algo.page_size
-                if page_size <= 32:
-                    page_size = min(s[1] for s in pack_algo.sector_sizes)
 
                 # Select the RAM to use for the algo.
                 try:
