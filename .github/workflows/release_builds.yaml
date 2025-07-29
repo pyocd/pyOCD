@@ -1,0 +1,77 @@
+name: pyOCD Release Builds
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  build_artifacts:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest, ubuntu-24.04-arm]
+        include:
+          - os: windows-latest
+            artifact_name: pyocd-windows
+          - os: ubuntu-latest
+            artifact_name: pyocd-linux
+          - os: macos-latest
+            artifact_name: pyocd-macos
+          - os: ubuntu-24.04-arm
+            artifact_name: pyocd-linux-arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install packages
+        run: pip install . build twine pyinstaller
+
+      - name: Build wheel and source distribution
+        run: python -m build
+
+      - name: Check distribution files
+        run: twine check dist/*
+
+      - name: Setup build environment
+        run: python get_site-packages.py
+
+      - name: Verify environment
+        run: |
+          echo "Site packages: ${{ env.SITE_PACKAGES }}"
+          python -c "import sys; print(sys.version)"
+
+      - name: Build with PyInstaller
+        run: pyinstaller pyocd.spec --log-level=ERROR --clean
+
+      - name: Test binary
+        run: |
+          ./dist/pyocd/pyocd --version
+          ./dist/pyocd/pyocd --help
+
+      - name: Upload PyInstaller artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/pyocd/*
+          retention-days: 7
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: pyocd-distribution
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          retention-days: 7

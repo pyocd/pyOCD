@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2020 Arm Limited
+# Copyright (c) 2013-2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
@@ -22,6 +22,7 @@ from enum import Enum
 
 from ..core import exceptions
 from ..core.target import Target
+from ..coresight.cortex_m import CortexM
 from ..core.exceptions import (FlashFailure, FlashEraseFailure, FlashProgramFailure)
 from ..utility.mask import (align_down, msb)
 from ..utility.timeout import Timeout
@@ -567,6 +568,9 @@ class Flash:
         if init:
             reg_list.append('sp')
             data_list.append(self.begin_stack)
+        if init and isinstance(self.target.selected_core, CortexM):
+            reg_list.append('xpsr')
+            data_list.append(CortexM.XPSR_THUMB)
         reg_list.append('lr')
         data_list.append(self.flash_algo['load_address'] + 1)
         self.target.write_core_registers_raw(reg_list, data_list)

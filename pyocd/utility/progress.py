@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2019,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +29,7 @@ class ProgressReport(object):
         self._file = file or sys.stdout
         self.prev_progress = 0
         self.backwards_progress = False
+        self.started = False
         self.done = False
         self.last = 0
 
@@ -41,17 +42,17 @@ class ProgressReport(object):
             LOG.debug("progress out of bounds: %.3f", progress)
 
         # Reset state on 0.0
-        if progress == 0.0:
+        if progress == 0.0 and not self.started:
             self._start()
 
         # Check for backwards progress
         if progress < self.prev_progress:
             self.backwards_progress = True
-        self.prev_progress = progress
 
         # print progress bar
-        if not self.done:
+        if not self.done and progress > self.prev_progress:
             self._update(progress)
+            self.prev_progress = progress
 
             # Finish on 1.0
             if progress >= 1.0:
@@ -63,6 +64,7 @@ class ProgressReport(object):
     def _start(self):
         self.prev_progress = 0
         self.backwards_progress = False
+        self.started = True
         self.done = False
         self.last = 0
 

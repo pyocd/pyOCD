@@ -22,7 +22,9 @@ from . import target_imxrt
 from . import target_kinetis
 from . import target_lpc5500
 from . import target_nRF52
+from . import target_nRF54L
 from . import target_nRF91
+from . import target_rp2
 
 class FamilyInfo(NamedTuple):
     """@brief Container for family matching information."""
@@ -41,5 +43,6 @@ class FamilyInfo(NamedTuple):
 FAMILIES = [
     FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),        target_kinetis.Kinetis          ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),       target_nRF52.NRF52              ),
+    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF54L[0-9]+.*'),      target_nRF54L.NRF54L              ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF91[0-9]+.*'),       target_nRF91.NRF91              ),
     ]

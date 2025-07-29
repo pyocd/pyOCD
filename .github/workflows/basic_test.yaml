@@ -27,14 +27,12 @@ jobs:
         - macos-latest
         - windows-latest
         python-version:
-        - "3.7"
         - "3.8"
         - "3.9"
         - "3.10"
         - "3.11"
-        exclude:
-          - os: macos-latest
-            python-version: "3.7"
+        - "3.12"
+        - "3.13"
 
     steps:
     # Only check out HEAD. We don't need the full history.
@@ -93,9 +91,9 @@ jobs:
         twine check dist/*
 
     - name: Upload pytest test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: pytest-results-${{ matrix.python-version }}
+        name: pytest-results-${{ matrix.python-version }}-${{ matrix.os }}
         path: |
           test-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
           .coverage*

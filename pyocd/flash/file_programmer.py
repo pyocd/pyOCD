@@ -62,7 +62,7 @@ class FileProgrammer(object):
     def __init__(self,
             session: "Session",
             progress: Optional[ProgressCallback] = None,
-            chip_erase: Optional[bool] = None,
+            chip_erase: Optional[str] = None,
             smart_flash: Optional[bool] = None,
             trust_crc: Optional[bool] = None,
             keep_unwritten: Optional[bool] = None,

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -206,10 +206,11 @@ class APAddressBase:
     address format.
     """
 
-    def __init__(self, address: int, dp: int = 0) -> None:
+    def __init__(self, address: int, dp: int = 0, apid: int = 0) -> None:
         """@brief Constructor accepting the nominal address."""
         self._nominal_address = address
         self._dp = dp
+        self._apid = apid
 
     @property
     def ap_version(self) -> APVersion:
@@ -240,6 +241,11 @@ class APAddressBase:
     def dp_index(self) -> int:
         """@brief Index of the DP to which this AP is attached."""
         return self._dp
+
+    @property
+    def apid(self) -> int:
+        """@brief Unique AP identifier."""
+        return self._apid
 
     def __hash__(self) -> int:
         return hash(self.nominal_address | (self._dp << 64))
@@ -787,6 +793,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self._impl_hnonsec = (csw & CSW_HNONSEC_MASK) >> CSW_HNONSEC_SHIFT
             LOG.debug("%s implemented HPROT=%x HNONSEC=%x", self.short_description, self._impl_hprot,
                     self._impl_hnonsec)
+
+            if (self._flags & AP_SPROT):
+                if (original_csw & CSW_SDEVICEEN) == 0:
+                    self._hnonsec = NONSECURE
 
             # Update current HPROT and HNONSEC, and the current base CSW value.
             self.hprot = self._hprot & self._impl_hprot
@@ -1355,6 +1365,7 @@ AP_4K_WRAP = 0x1 # The AP has a 4 kB auto-increment modulus.
 AP_ALL_TX_SZ = 0x2 # The AP is known to support 8-, 16-, and 32-bit transfers, *unless* Large Data is implemented.
 AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
 AP_DBGSWEN = 0x8 # The AP is known to support the DBGSWEN flag.
+AP_SPROT = 0x10 # The AP is known to support the SPROT field.
 
 ## Map from AP IDR fields to AccessPort subclass.
 #
@@ -1380,20 +1391,20 @@ AP_TYPE_MAP: Dict[Tuple[int, int, int, int], Tuple[str, Type[AccessPort], int]] 
 #   |JEP106        |Class              |Var|Type                    |Name      |Class
     (AP_JEP106_ARM, AP_CLASS_JTAG_AP,   0,  0):                     ("JTAG-AP", AccessPort, 0   ),
     (AP_JEP106_ARM, AP_CLASS_COM_AP,    0,  0):                     ("SDC-600", AccessPort, 0   ),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_SPROT ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ|AP_4K_WRAP|AP_MSTRTYPE ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    3,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    4,  AP_TYPE_AHB):           ("AHB-AP",  AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB):           ("APB-AP",  MEM_AP,     AP_DBGSWEN   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI):           ("AXI-AP",  MEM_AP,     AP_ALL_TX_SZ ),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ|AP_SPROT ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    2,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB4):          ("APB4-AP", MEM_AP,     0   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    1,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
-    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ ),
+    (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ|AP_SPROT ),
     (AP_JEP106_ARM_CHINA,
                     AP_CLASS_MEM_AP,    1,  AP_TYPE_AHB5):          ("AHB5-AP", AHB_AP,     AP_ALL_TX_SZ ),
     }

@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.35 release adds [Open-CMSIS-Pack debug sequence support](https://pyocd.io/docs/open_cmsis_pack_support.html).
+- The v0.37 release adds [CMSIS-Toolbox Run and Debug Management support](https://pyocd.io/docs/target_support.html).
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
@@ -58,7 +58,7 @@ Configuration and customization is supported through [config files](https://pyoc
 Requirements
 ------------
 
-- Python 3.7.0 or later.†
+- Python 3.8.0 or later.†
 - macOS, Linux, Windows 7 or newer, or FreeBSD
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU
@@ -202,4 +202,4 @@ PyOCD is licensed with the permissive Apache 2.0 license. See the
 [LICENSE](https://github.com/pyocd/pyOCD/tree/main/LICENSE) file for the full text of the license. All
 documentation and the website are licensed with [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-Copyright © 2006-2022 PyOCD Authors
+Copyright © 2006-2025 PyOCD Authors

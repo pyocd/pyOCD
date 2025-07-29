@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,7 +62,7 @@ class ThreadProvider(object):
                 syms[name] = addr
             elif not allowPartial:
                 return None
-        return syms
+        return syms if syms else None
 
     def init(self, symbolProvider):
         """@retval True The provider was successfully initialzed.

@@ -5,6 +5,7 @@
 # Copyright (C) 2022 Johan Carlsson <johan.carlsson@teenage.engineering>
 # Copyright (C) 2022 Samuel Dewan
 # Copyright (C) 2022 Zhengji Li
+# Copyright (C) 2024 Laurens Miers
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -117,12 +118,13 @@ class RTTSubcommand(SubcommandBase):
                 kb = KBHit()
 
                 if self._args.log_file is None:
-                    if len(control_block.down_channels) < 1:
-                        LOG.error("No down channels.")
-                        return 1
-                    down_chan: RTTDownChannel = control_block.down_channels[self._args.down_channel_id]
-                    down_name = down_chan.name if down_chan.name is not None else ""
-                    LOG.info(f"Writing to down channel {self._args.down_channel_id} (\"{down_name}\")")
+                    if control_block.down_channels:
+                        down_chan: RTTDownChannel = control_block.down_channels[self._args.down_channel_id]
+                        down_name = down_chan.name if down_chan.name is not None else ""
+                        LOG.info(f"Writing to down channel {self._args.down_channel_id} (\"{down_name}\")")
+                    else:
+                        down_chan = None
+                        LOG.info("No down channel, input will be ignored")
 
                     self.viewer_loop(up_chan, down_chan, kb)
                 else:
@@ -197,6 +199,10 @@ class RTTSubcommand(SubcommandBase):
 
             # write buffer to target
             if not cmd:
+                continue
+
+            # If no channel, ignore command
+            if not down_chan:
                 continue
 
             # write cmd buffer to down buffer 0 (host -> target)

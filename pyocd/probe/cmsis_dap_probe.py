@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -718,6 +718,8 @@ class CMSISDAPProbe(DebugProbe):
             return exceptions.TransferFaultError(*exc.args)
         elif isinstance(exc, DAPAccess.TransferTimeoutError):
             return exceptions.TransferTimeoutError(*exc.args)
+        elif isinstance(exc, DAPAccess.TransferProtocolError):
+            return exceptions.TransferProtocolError(*exc.args)
         elif isinstance(exc, DAPAccess.TransferError):
             return exceptions.TransferError(*exc.args)
         elif isinstance(exc, (DAPAccess.DeviceError, DAPAccess.CommandError)):
