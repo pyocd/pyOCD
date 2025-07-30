@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
+import bincopy
 import errno
 import itertools
 import logging
@@ -55,6 +57,7 @@ class FileProgrammer(object):
     - Binary (.bin)
     - Intel Hex (.hex)
     - ELF (.elf or .axf)
+    - Motorola S-record (.srec)
     """
     def __init__(self,
             session: "Session",
@@ -97,10 +100,11 @@ class FileProgrammer(object):
         self._loader = None
 
         self._format_handlers: Dict[str, Callable[..., None]] = {
-            'axf': self._program_elf,
-            'bin': self._program_bin,
-            'elf': self._program_elf,
-            'hex': self._program_hex,
+            'axf':  self._program_elf,
+            'bin':  self._program_bin,
+            'elf':  self._program_elf,
+            'hex':  self._program_hex,
+            'srec': self._program_srec,
             }
 
     def program(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any):
@@ -158,8 +162,8 @@ class FileProgrammer(object):
         # Open the file if a path was provided.
         if is_path:
             mode = 'rb'
-            if file_format == 'hex':
-                # hex file must be read as plain text file
+            if file_format == 'hex' or file_format == 'srec':
+                # hex and srec files must be read as plain text file
                 mode = 'r'
             assert isinstance(file_or_path, str)
             file_obj = open(file_or_path, mode)
@@ -174,6 +178,14 @@ class FileProgrammer(object):
         finally:
             if is_path and file_obj is not None:
                 file_obj.close()
+
+    def _program_srec(self, file_obj: IO[bytes], **kwargs: Any) -> None:
+        """@brief SREC file format loader"""
+        assert self._loader
+
+        bf = bincopy.BinFile()
+        bf.add_srec(file_obj.read())
+        self._program_hex(io.StringIO(bf.as_ihex()), **kwargs)
 
     def _program_bin(self, file_obj: IO[bytes], **kwargs: Any) -> None:
         """@brief Binary file format loader"""
