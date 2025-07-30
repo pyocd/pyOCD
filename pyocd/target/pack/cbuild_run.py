@@ -127,13 +127,19 @@ class CbuildRunTargetMethods:
                     processors_map[core.name] = proc
                     break
 
+            if LOG.isEnabledFor(logging.INFO):
+                core_info = f"core {core.core_number}: {core.name} r{core.cpu_revision}p{core.cpu_patch}"
+                if core.node_name != core.name:
+                    core_info += f", pname: {core.node_name}"
+                LOG.info(core_info)
+
         if processors_map:
             self._cbuild_device.processors_map = processors_map
 
     @staticmethod
     def _cbuild_target_start_processor(self) -> None:
         """@brief Updates the primary processor, based on 'start-pname' node in .cbuild-run.yml"""
-        start_pname = self._cbuild_device.debugger.get('start-pname')
+        start_pname = self._cbuild_device.start_pname
         if start_pname is not None and self.primary_core_pname != start_pname:
             core_number = next((core.core_number for core in self.cores.values() if core.node_name == start_pname), None)
             if core_number is not None:
@@ -152,7 +158,7 @@ class CbuildRunTargetMethods:
             try:
                 proc_info = self._cbuild_device.processors_ap_map[core_ap_addr]
             except KeyError:
-                LOG.debug("core #%d not specified", core_num)
+                LOG.debug("core %d not specified", core_num)
                 continue
 
             # Get this processor's list of sequences.
@@ -181,7 +187,7 @@ class CbuildRunTargetMethods:
                 updated_reset_types.add(Target.ResetType.SW_CORE) # type:ignore
 
             core._supported_reset_types = updated_reset_types
-            LOG.debug("updated DFP core #%d reset types: %s", core_num, core._supported_reset_types)
+            LOG.debug("Updated core %d reset types: %s", core_num, core._supported_reset_types)
 
             default_reset_seq = proc_info.default_reset_sequence
 
@@ -192,13 +198,13 @@ class CbuildRunTargetMethods:
                 if default_reset_seq in sequences:
                     # Custom reset sequence, not yet supported by pyocd.
                     LOG.warning("DFP device definition error: custom reset sequences are not yet supported "
-                                "by pyocd; core #%d (%s) requested default reset sequence %s",
-                                core_num, proc_info.name, default_reset_seq)
+                                "by pyocd; core %d requested default reset sequence %s",
+                                core_num, default_reset_seq)
                 else:
                     # Invalid/unknown default reset sequence.
                     LOG.warning("DFP device definition error: specified default reset sequence %s "
-                                "for core #%d (%s) does not exist",
-                                default_reset_seq, core_num, proc_info.name)
+                                "for core %d does not exist",
+                                default_reset_seq, core_num)
 
             # Handle multicore debug mode causing secondary cores to default to processor reset.
             did_force_core_reset = False
@@ -206,8 +212,8 @@ class CbuildRunTargetMethods:
                     and (core_num != self.session.options.get('primary_core'))):
                 if not is_reset_sequence_enabled('ResetProcessor'):
                     LOG.warning("Multicore debug mode cannot select processor reset for secondary core "
-                                "#%d (%s) because it is disabled by the DFP; using emulated processor "
-                                "reset instead", core_num, proc_info.name)
+                                "%d because it is disabled by the DFP; using emulated processor "
+                                "reset instead", core_num)
                     core.default_reset_type = Target.ResetType.SW_EMULATED
                     continue
                 else:
@@ -219,8 +225,8 @@ class CbuildRunTargetMethods:
                 # Only log a warning if we didn't decide to use core reset due to multicore mode.
                 if not did_force_core_reset:
                     LOG.warning("DFP device definition conflict: specified default reset sequence %s "
-                            "for core #%d (%s) is disabled by the DFP",
-                            default_reset_seq, core_num, proc_info.name)
+                            "for core #%d is disabled by the DFP",
+                            default_reset_seq, core_num)
 
                 # Map from disabled default to primary and secondary fallbacks.
                 RESET_FALLBACKS: Dict[str, Tuple[str, str]] = {
@@ -237,13 +243,12 @@ class CbuildRunTargetMethods:
                     default_reset_seq = fallbacks[1]
                 else:
                     LOG.warning("DFP device definition conflict: all reset types are disabled for "
-                            "core #%d (%s) by the DFP; using emulated core reset",
+                            "core %d by the DFP; using emulated core reset",
                             default_reset_seq, core_num)
                     core.default_reset_type = Target.ResetType.SW_EMULATED
                     continue
 
-            LOG.info("Setting core #%d (%s) default reset sequence to %s",
-                    core_num, proc_info.name, default_reset_seq)
+            LOG.debug("Setting core %d default reset sequence to %s", core_num, default_reset_seq)
             core.default_reset_type = RESET_SEQUENCE_TO_TYPE_MAP[default_reset_seq]
 
     @staticmethod
@@ -275,10 +280,14 @@ class CbuildRun:
         """@brief Reads a .cbuild-run.yml file and validates its content."""
         self._data: Dict[str, Any] = {}
         self._valid: bool = False
+        self._device: Optional[str] = None
+        self._vendor: Optional[str] = None
         self._vars: Optional[Dict[str, str]] = None
         self._sequences: Optional[List[dict]] = None
+        self._debugger: Optional[Dict[str, Any]] = None
         self._debug_topology: Optional[Dict[str, Any]] = None
         self._memory_map: Optional[MemoryMap] = None
+        self._programming: Optional[List[dict]] = None
         self._valid_dps: List[int] = []
         self._apids: Dict[int, APAddressBase] = {}
         self._uses_apv2: bool = False
@@ -286,22 +295,25 @@ class CbuildRun:
         self._processors_map: Dict[str, ProcessorInfo] = {}
         self._processors_ap_map: Dict[APAddressBase, ProcessorInfo] = {}
         self._use_default_memory_map: bool = True
+        self._system_resources: Optional[Dict[str, list]] = None
+        self._system_descriptions: Optional[List[dict]] = None
+        self._device_pack: Optional[List[str]] = None
 
         try:
             # Normalize the path to ensure compatibility across platforms.
             yml_path = os.path.normpath(yml_path)
             with open(yml_path, 'r') as yml_file:
                 yml_data = yaml.safe_load(yml_file)
-                if 'cbuild-run' in yml_data:
-                    self._data = yml_data['cbuild-run']
-                    self._cmsis_pack_root()
-                    self._valid = True
-                else:
-                    raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
-                # Set cbuild-run path as the current working directory.
-                base_path = Path(yml_path).parent
-                os.chdir(base_path)
-                LOG.debug("Working directory set to '%s'", os.getcwd())
+            if 'cbuild-run' in yml_data:
+                self._data = yml_data['cbuild-run']
+                self._cmsis_pack_root()
+                self._valid = True
+            else:
+                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
+            # Set cbuild-run path as the current working directory.
+            base_path = Path(yml_path).parent
+            os.chdir(base_path)
+            LOG.debug("Working directory set to: '%s'", os.getcwd())
         except IOError as err:
             LOG.error("Error attempting to access .cbuild-run.yml file '%s': %s", yml_path, err)
 
@@ -330,6 +342,7 @@ class CbuildRun:
         else:
             raise CbuildRunError(f"Unsupported platform '{system}' for CMSIS_PACK_ROOT. "
                                  "Please set the CMSIS_PACK_ROOT environment variable manually.")
+        LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
 
     @property
     def target(self) -> str:
@@ -337,11 +350,11 @@ class CbuildRun:
 
         Read `device` field from .cbuild-run.yml file, without 'vendor'.
         """
-        if self._valid:
+        if self._device is None:
             device = self._data.get('device', '')
-            return device.split('::')[1] if '::' in device else device
-        else:
-            return ''
+            self._device = device.split('::')[1] if '::' in device else device
+            LOG.info("Target device: %s", self._device)
+        return self._device
 
     @property
     def part_number(self) -> str:
@@ -353,11 +366,11 @@ class CbuildRun:
 
         Read 'vendor' part of `device` field from .cbuild-run.yml file.
         """
-        if self._valid and ('device' in self._data):
+        if self._vendor is None:
             device = self._data.get('device', '')
-            return device.split('::')[0] if '::' in device else ''
-        else:
-            return ''
+            self._vendor = device.split('::')[0] if '::' in device else ''
+            LOG.debug("Vendor: %s", self._vendor)
+        return self._vendor
 
     @property
     def families(self) -> List[str]:
@@ -387,6 +400,7 @@ class CbuildRun:
                 if desc['type'] == 'svd':
                     norm_path = os.path.normpath(desc['file'])
                     svd_path = Path(os.path.expandvars(norm_path))
+                    LOG.debug("SVD path: %s", svd_path)
                     return io.BytesIO(svd_path.read_bytes())
         except (KeyError, IndexError):
             LOG.error("Could not locate SVD in cbuild-run system-descriptions.")
@@ -411,26 +425,24 @@ class CbuildRun:
             offset = f.get('load-offset')
             # Add filename and it's offset to return value
             load_files[f['file']] = offset
-
+            LOG.debug("Loadable file: %s", f['file'])
         return load_files
 
     @property
     def debug_sequences(self) -> List[dict]:
         """@brief Debug sequences node."""
-        if self._valid and ('debug-sequences' in self._data):
-            if self._sequences is None:
-                self._sequences = self._data.get('debug-sequences', [])
-            return self._sequences
-        return []
+        if self._sequences is None:
+            self._sequences = self._data.get('debug-sequences', [])
+            LOG.debug("Read %d debug sequences", len(self._sequences))
+        return self._sequences
 
     @property
     def debug_vars(self) -> Dict[str, str]:
         """@brief Debug variables."""
-        if self._valid and ('debug-vars' in self._data):
-            if self._vars is None:
-                self._vars = self._data.get('debug-vars', {})
-            return self._vars
-        return {}
+        if self._vars is None:
+            self._vars = self._data.get('debug-vars', {})
+            LOG.debug("Read debug variables")
+        return self._vars
 
     @property
     def valid_dps(self) -> List[int]:
@@ -463,6 +475,7 @@ class CbuildRun:
     @processors_map.setter
     def processors_map(self, proc_map: Dict[str, ProcessorInfo]) -> None:
         self._processors_map = proc_map
+        LOG.debug("Updated processors map")
 
     @property
     def processors_ap_map(self) -> Dict[APAddressBase, ProcessorInfo]:
@@ -477,60 +490,72 @@ class CbuildRun:
     @property
     def programming(self) -> List[dict]:
         """@brief Programming section of cbuild-run."""
-        if self._valid:
-            return self._data.get('programming', [])
-        return []
+        if self._programming is None:
+            self._programming = self._data.get('programming', [])
+            LOG.debug("Read %d programming algorithms", len(self._programming))
+        return self._programming
 
     @property
     def debugger(self) -> Dict[str, Any]:
         """@brief Debugger section of cbuild-run."""
-        if self._valid:
-            return self._data.get('debugger', {})
-        return {}
+        if self._debugger is None:
+            self._debugger = self._data.get('debugger', {})
+            LOG.debug("Read debugger configuration: %s", self._debugger)
+        return self._debugger
 
     @property
     def debugger_clock(self) -> Optional[int]:
         """@brief Debugger clock frequency in Hz."""
-        return self.debugger.get('clock', None)
+        _debugger_clock = self.debugger.get('clock')
+        if _debugger_clock is not None:
+            LOG.debug("Debugger clock frequency: %s Hz", _debugger_clock)
+        return _debugger_clock
 
     @property
     def start_pname(self) -> Optional[str]:
         """@brief Selected start processor name."""
-        pname = self.debugger.get('start-pname')
-        return pname
+        _start_pname = self.debugger.get('start-pname')
+        if _start_pname is not None:
+           LOG.info("start-pname: %s", _start_pname)
+        return _start_pname
 
     @property
     def system_resources(self) -> Dict[str, list]:
         """@brief System Resources section of cbuild-run."""
-        if self._valid:
-            return self._data.get('system-resources', {})
-        return {}
+        if self._system_resources is None:
+            self._system_resources = self._data.get('system-resources', {})
+            LOG.debug("Read system resources")
+        return self._system_resources
 
     @property
     def system_descriptions(self) -> List[dict]:
         """@brief System Descriptions section of cbuild-run."""
-        if self._valid:
-            return self._data.get('system-descriptions', [])
-        return []
+        if self._system_descriptions is None:
+            self._system_descriptions = self._data.get('system-descriptions', [])
+            LOG.debug("Read system description files")
+        return self._system_descriptions
 
     @property
     def debug_topology(self) -> Dict[str, Any]:
         """@brief Debug Topology section of cbuild-run."""
-        if self._valid and ('debug-topology' in self._data):
-            if self._debug_topology is None:
-                self._debug_topology = self._data.get('debug-topology', {})
-            return self._debug_topology
-        return {}
+        if self._debug_topology is None:
+            self._debug_topology = self._data.get('debug-topology', {})
+            LOG.debug("Read debug topology")
+        return self._debug_topology
 
     @property
     def device_pack(self) -> List[str]:
         """@brief Value of 'device-pack' (DFP) prefixed with CMSIS_PACK_ROOT."""
-        if self._valid and ('device-pack' in self._data):
-            vendor, _pack = self._data['device-pack'].split('::', 1)
-            name, version = _pack.split('@', 1)
-            pack = os.path.normpath(f"${{CMSIS_PACK_ROOT}}/{vendor}/{name}/{version}")
-            return [os.path.expandvars(pack)]
-        return []
+        if self._device_pack is None:
+            if 'device-pack' in self._data:
+                vendor, _pack = self._data['device-pack'].split('::', 1)
+                name, version = _pack.split('@', 1)
+                pack = os.path.normpath(f"${{CMSIS_PACK_ROOT}}/{vendor}/{name}/{version}")
+                self._device_pack = [os.path.expandvars(pack)]
+            else:
+                self._device_pack = []
+            LOG.debug("Device pack: %s", self._device_pack)
+        return self._device_pack
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
@@ -581,6 +606,7 @@ class CbuildRun:
 
         # Create a copy of PDSC and user-defined memory regions from system resources
         defined_memory = deepcopy(self.system_resources.get('memory', []))
+        LOG.debug("Read defined memory regions")
         # Mark memory as 'defined'
         for memory in defined_memory:
             memory['defined'] = True
@@ -910,10 +936,10 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         # Make all vars read-only.
         self._debugvars.freeze()
 
-        if LOG.isEnabledFor(logging.INFO):
+        if LOG.isEnabledFor(logging.DEBUG):
             for name in sorted(self._debugvars.variables):
                 value = self._debugvars.get(name)
-                LOG.info("debugvar '%s' = %#x (%d)", name, value, value)
+                LOG.debug("debugvar '%s' = %#x (%d)", name, value, value)
 
         return self._debugvars
 
