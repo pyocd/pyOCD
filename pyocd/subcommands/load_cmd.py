@@ -106,7 +106,8 @@ class LoadSubcommand(SubcommandBase):
             programmer = FileProgrammer(session,
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc,
-                            no_reset=self._args.no_reset)
+                            no_reset=self._args.no_reset,
+                            verify=self._args.verify)
             if not self._args.file and self._args.cbuild_run:
                 # Populate file list from cbuild-run output if not provided explicitly
                 cbuild_files = session.target.get_output()

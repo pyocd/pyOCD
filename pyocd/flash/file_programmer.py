@@ -63,7 +63,8 @@ class FileProgrammer(object):
             smart_flash: Optional[bool] = None,
             trust_crc: Optional[bool] = None,
             keep_unwritten: Optional[bool] = None,
-            no_reset: Optional[bool] = None
+            no_reset: Optional[bool] = None,
+            verify: Optional[bool] = None
         ):
         """@brief Constructor.
 
@@ -86,6 +87,8 @@ class FileProgrammer(object):
             be read from memory and restored while programming.
         @param no_reset Boolean indicating whether if the device should not be reset after the
             programming process has finished.
+        @param verify Boolean indicating whether a verify pass should be performed after the
+            programming process has finished.
         """
         self._session = session
         self._chip_erase = chip_erase
@@ -93,6 +96,7 @@ class FileProgrammer(object):
         self._trust_crc = trust_crc
         self._keep_unwritten = keep_unwritten
         self._no_reset = no_reset
+        self._verify = verify
         self._progress = progress
         self._loader = None
 
@@ -152,7 +156,8 @@ class FileProgrammer(object):
                                     smart_flash=self._smart_flash,
                                     trust_crc=self._trust_crc,
                                     keep_unwritten=self._keep_unwritten,
-                                    no_reset=self._no_reset)
+                                    no_reset=self._no_reset,
+                                    verify=self._verify)
 
         # file_obj = None
         # Open the file if a path was provided.
