@@ -586,7 +586,7 @@ class FlashBuilder(MemoryBuilder):
         # Cleanup flash algo and reset target after programming.
         self.flash.cleanup()
 
-        if no_reset is not True:
+        if not no_reset:
             self.flash.target.reset_and_halt()
 
         if self.log_performance:
