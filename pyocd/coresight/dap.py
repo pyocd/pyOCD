@@ -144,6 +144,9 @@ class ProbeConnector:
         # Convert protocol from setting if not passed as parameter.
         if protocol is None:
             protocol_name = self._session.options.get('dap_protocol').strip().lower()
+            if self._session.options.is_set('cbuild_run'):
+                if self._session.target.debugger_protocol is not None:
+                    protocol_name = self._session.target.debugger_protocol
             protocol = DebugProbe.PROTOCOL_NAME_MAP[protocol_name]
             if protocol not in self._probe.supported_wire_protocols:
                 raise exceptions.DebugError("requested wire protocol %s not supported by the debug probe" % protocol.name)
@@ -1139,4 +1142,3 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
         result_cbs = [self._dp.read_ap(addr + i * 4, now=False) for i in range(size)]
         result = [cb() for cb in result_cbs]
         return result
-
