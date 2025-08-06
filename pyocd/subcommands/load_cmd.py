@@ -115,6 +115,11 @@ class LoadSubcommand(SubcommandBase):
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()
 
+                # Get the file format from the command line argument or from the cbuild-run output.
+                file_format = self._args.format
+                if self._args.cbuild_run:
+                    file_format = cbuild_files[filename][0]
+
                 # Look for a base address suffix. If the supplied argument including an address suffix
                 # references an existing file, then the address suffix is not extracted.
                 if "@" in filename and not file_path.exists():
@@ -127,7 +132,7 @@ class LoadSubcommand(SubcommandBase):
                 else:
                     base_address = self._args.base_address
                     if base_address is None and self._args.cbuild_run:
-                        base_address = cbuild_files[filename]
+                        base_address = cbuild_files[filename][1]
 
                 # Resolve our path.
                 file_path = Path(filename).expanduser().resolve()
@@ -141,6 +146,6 @@ class LoadSubcommand(SubcommandBase):
                 programmer.program(filename,
                                 base_address=base_address,
                                 skip=self._args.skip,
-                                file_format=self._args.format)
+                                file_format=file_format)
 
         return 0
