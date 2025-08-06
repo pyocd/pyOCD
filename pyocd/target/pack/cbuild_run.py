@@ -512,6 +512,14 @@ class CbuildRun:
         return _debugger_clock
 
     @property
+    def debugger_protocol(self) -> Optional[str]:
+        """@brief Debugger protocol."""
+        _debugger_protocol = self.debugger.get('protocol')
+        if _debugger_protocol is not None:
+            LOG.debug("Debugger protocol: %s", _debugger_protocol)
+        return _debugger_protocol
+
+    @property
     def start_pname(self) -> Optional[str]:
         """@brief Selected start processor name."""
         _start_pname = self.debugger.get('start-pname')
@@ -575,6 +583,7 @@ class CbuildRun:
         tgt = type(target.capitalize(), (CoreSightTarget,), {
                     "_cbuild_device": self,
                     "debugger_clock": self.debugger_clock,
+                    "debugger_protocol" : self.debugger_protocol,
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
