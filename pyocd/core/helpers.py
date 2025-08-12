@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -90,6 +90,7 @@ class ConnectHelper:
               will be returned.
         """
         printedMessage = False
+        waitedForProbe = False
         while True:
             allProbes = DebugProbeAggregator.get_all_connected_probes(unique_id=unique_id)
             sortedProbes = sorted(allProbes, key=lambda probe:probe.description + probe.unique_id)
@@ -107,7 +108,13 @@ class ConnectHelper:
                     print(colorama.Fore.YELLOW + msg + colorama.Style.RESET_ALL)
                     printedMessage = True
                 sleep(0.01)
+                waitedForProbe = True
             assert len(sortedProbes) == 0
+
+        if waitedForProbe:
+            # Wait for the debug probe to be fully initialized.
+            # This is necessary for some debug probes that take a while to be ready.
+            sleep(2)
 
         return sortedProbes
 
