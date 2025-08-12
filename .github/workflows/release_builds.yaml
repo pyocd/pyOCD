@@ -26,7 +26,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -34,10 +36,22 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Get version from setuptools_scm
+        shell: bash
+        run: |
+          pip install setuptools-scm
+          ver=$(python -c "import setuptools_scm; print(setuptools_scm.get_version())")
+          echo "VERSION=$ver" >> $GITHUB_ENV
+          echo "Version: $ver"
+
       - name: Install packages
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ env.VERSION }}
         run: pip install . build twine pyinstaller
 
       - name: Build wheel and source distribution
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ env.VERSION }}
         run: python -m build
 
       - name: Check distribution files
@@ -62,7 +76,7 @@ jobs:
       - name: Upload PyInstaller artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: ${{ matrix.artifact_name }}-${{ env.VERSION }}
           path: dist/pyocd/*
           retention-days: 7
 
@@ -70,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: matrix.os == 'ubuntu-latest'
         with:
-          name: pyocd-distribution
+          name: pyocd-distribution-${{ env.VERSION }}
           path: |
             dist/*.whl
             dist/*.tar.gz
