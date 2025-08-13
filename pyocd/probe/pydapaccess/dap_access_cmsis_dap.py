@@ -365,13 +365,14 @@ class _Command(object):
         ack = response & DAPTransferResponse.ACK_MASK
         if ack != DAPTransferResponse.ACK_OK:
             if ack == DAPTransferResponse.ACK_FAULT:
-                raise DAPAccessIntf.TransferFaultError()
+                raise DAPAccessIntf.TransferFaultError("SWD/JTAG communication failure (FAULT ACK received)")
             elif ack == DAPTransferResponse.ACK_WAIT:
-                raise DAPAccessIntf.TransferTimeoutError()
+                raise DAPAccessIntf.TransferTimeoutError("SWD/JTAG communication failure (WAIT ACK received)")
             elif ack == DAPTransferResponse.ACK_NO_ACK:
-                raise DAPAccessIntf.TransferError("No ACK received")
+                raise DAPAccessIntf.TransferError("SWD/JTAG communication failure (No ACK received); " \
+                                                  "check USB cable, reduce debugger clock")
             else:
-                raise DAPAccessIntf.TransferError("Unexpected ACK value (%d) returned by probe" % ack)
+                raise DAPAccessIntf.TransferError("SWD/JTAG communication failure (Unexpected ACK value '%d' received)" % ack)
         elif (response & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
             raise DAPAccessIntf.TransferProtocolError("SWD protocol error")
 
