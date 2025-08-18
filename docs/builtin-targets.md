@@ -831,6 +831,11 @@ title: Built-in targets
     <td>RTL8762C</td>
     </tr>
 
+    <tr><td><code>s32k312</code></td>
+    <td>NXP</td>
+    <td>S32K312</td>
+    </tr>
+
     <tr><td><code>s32k344</code></td>
     <td>NXP</td>
     <td>S32K344</td>
