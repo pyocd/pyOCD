@@ -18,7 +18,6 @@
 
 import logging
 import platform
-import six
 import threading
 import queue
 from typing import Optional
@@ -70,7 +69,7 @@ class HidApiUSB(Interface):
         self.vendor_name = info['manufacturer_string'] or f"{self.vid:#06x}"
         self.product_name = info['product_string'] or f"{self.pid:#06x}"
         self.serial_number = info['serial_number'] \
-                or generate_device_unique_id(self.vid, self.pid, six.ensure_str(info['path']))
+                or generate_device_unique_id(self.vid, self.pid, str(info['path']))
         self.device_info = info
         self.device = dev
         self.closed = True

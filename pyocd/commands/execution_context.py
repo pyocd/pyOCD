@@ -21,7 +21,6 @@ import logging
 import sys
 from typing import (Any, Callable, cast, Dict, IO, Iterator, List, NamedTuple, Optional, Sequence,
         TYPE_CHECKING)
-import six
 import pprint
 import subprocess
 from shutil import get_terminal_size
@@ -493,6 +492,6 @@ class CommandExecutionContext:
         """@brief Evaluate a system call command."""
         try:
             output = subprocess.check_output(invocation.cmd, stderr=subprocess.STDOUT, shell=True)
-            self.write(six.ensure_str(output), end='')
+            self.write(str(output), end='')
         except subprocess.CalledProcessError as err:
             raise exceptions.CommandError(str(err)) from err
