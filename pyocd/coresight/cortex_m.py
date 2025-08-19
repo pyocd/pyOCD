@@ -225,6 +225,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     _RESET_RECOVERY_SLEEP_INTERVAL = 0.01 # 10 ms
 
+    # bkpt instruction and mask to ignore the 8-bit immediate
+    _BKPT_MASK = 0xff00
+    _BKPT = 0xbe00
+
     @classmethod
     def factory(cls, ap: MemoryInterface, cmpid: CoreSightComponentID, address: int) -> Any:
         assert isinstance(ap, MEM_AP)
@@ -677,6 +681,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         address range of [_start_, _end_). The core will be repeatedly stepped until the PC falls outside this
         range, a debug event occurs, or the optional callback returns True.
 
+        If there is a software breakpoint set on the starting PC, then it will be temporarily removed.
+        Similarly, if the starting instruction is `bkpt` then the PC will be advanced over the instruction
+        automatically. A software breakpoint or `bkpt` instruction at a location within the requested step
+        range other than the starting PC will cause a stepping to halt as usual.
+
         The _disable_interrupts_ parameter controls whether to allow stepping into interrupts. This function
         preserves the previous interrupt mask state.
 
@@ -731,13 +740,64 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         if maskints_differs:
             self.write32(CortexM.DHCSR, dhcsr_step | CortexM.C_HALT)
 
+        # Get current PC.
+        program_counter = self.read_core_register_raw('pc') & ~1
+
+        # Set start and end addresses. Start equal to end means a single step.
+        # End is adjusted since the end param is inclusive. Adding 2 is ok; the end simply needs to be
+        # greater than the address of the final instruction in the step range, so it doesn't actually matter
+        # whether that instruction is a halfword or word wide.
+        if start == end:
+            start = program_counter
+            end = program_counter + 2
+        else:
+            end += 2
+
+        # Check if there is a software breakpoint at the starting PC. If so, we have to remove the bp,
+        # step, and finally reinsert the bp.
+        #
+        # Note that we have to manually flush the breakpoint manager to apply bp changes to the target
+        # since this method is the one that sends the notifications normally used by the manager for
+        # flushing, and we only send one before (and after) the whole step procedure.
+        bp = self.bp_manager.find_breakpoint(program_counter)
+        if bp and bp.type is Target.BreakpointType.SW:
+            reinsert_sw_bp = True
+            reinsert_sw_bp_addr = program_counter
+            self.bp_manager.remove_breakpoint(program_counter);
+            self.bp_manager.flush()
+        else:
+            reinsert_sw_bp = False
+            reinsert_sw_bp_addr = 0
+
+        # If the instruction at the starting PC is BKPT, then we have to manually advance the PC.
+        # This can happen if the original code included a BKPT. It's even possible to have a sw bp
+        # controlled by pyocd set at the address of a BKPT in the original code.
+        #
+        # Otherwise, single step using current C_MASKINTS setting with a write to DHCSR.
+        instr = self.read16(program_counter)
+        if (instr & self._BKPT_MASK) == self._BKPT:
+            program_counter += 2
+            self.write_core_register_raw('pc', program_counter + 1)
+            self.flush()
+
+            # Handle the case where there is both a sw breakpoint and a bkpt instruction. If this happens
+            # but
+            if reinsert_sw_bp:
+                self.bp_manager.set_breakpoint(reinsert_sw_bp_addr, type=Target.BreakpointType.SW)
+                self.bp_manager.flush()
+                reinsert_sw_bp = False
+
         # Get the step timeout. A timeout of 0 means no timeout, so we have to pass None to the Timeout class.
         step_timeout = self.session.options.get('cpu.step.instruction.timeout') or None
 
         exit_step_loop = False
-        while True:
-            # Single step using current C_MASKINTS setting
+
+        # Loop as long as the program counter is within the requested range. Other conditions will
+        # also cause the loop to exit.
+        while start <= program_counter < end:
+            # Perform the single step.
             self.write32(CortexM.DHCSR, dhcsr_step)
+            self.flush()
 
             # Wait for halt to auto set.
             #
@@ -753,14 +813,17 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                     if (self.read32(CortexM.DHCSR) & CortexM.C_HALT) != 0:
                         break
 
-            # Range is empty, 'range step' will degenerate to 'step'
-            if (start == end) or exit_step_loop:
+            if reinsert_sw_bp:
+                self.bp_manager.set_breakpoint(reinsert_sw_bp_addr, type=Target.BreakpointType.SW)
+                self.bp_manager.flush()
+                reinsert_sw_bp = False
+
+            # Exit if the hook callback requested it.
+            if exit_step_loop:
                 break
 
-            # Read program counter and compare to [start, end)
-            program_counter = self.read_core_register_raw('pc')
-            if (program_counter < start) or (end <= program_counter):
-                break
+            # Read the updated program counter.
+            program_counter = self.read_core_register_raw('pc') & ~1
 
             # Check for stop reasons other than HALTED, which will have been set by our step action.
             if (self.read32(CortexM.DFSR) & ~CortexM.DFSR_HALTED) != 0:
@@ -1212,6 +1275,13 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.session.notify(Target.Event.PRE_RUN, self, Target.RunType.RESUME)
         self._run_token += 1
         self.clear_debug_cause_bits()
+
+        # Step over a bkpt instruction if there is one at the current PC.
+        pc = self.read_core_register_raw('pc') & ~1
+        instr = self.read16(pc)
+        if (instr & self._BKPT_MASK) == self._BKPT:
+            self.write_core_register_raw('pc', pc + 2)
+
         self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN)
         self.flush()
         self.session.notify(Target.Event.POST_RUN, self, Target.RunType.RESUME)
