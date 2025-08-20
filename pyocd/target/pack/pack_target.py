@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2017-2020 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2025 Morten Engelhardt Olsen
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -510,8 +511,11 @@ class _PackTargetMethods:
     @staticmethod
     def _pack_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        pname = _self._pack_device.processors_ap_map[cast(CortexM, core).ap.address].name
-        core.node_name = pname
+        try:
+            pname = _self._pack_device.processors_ap_map[cast(CortexM, core).ap.address].name
+            core.node_name = pname
+        except KeyError:
+            LOG.info("No pname found for core #%d", core.core_number)
         CoreSightTarget.add_core(_self, core)
 
     @staticmethod
@@ -646,5 +650,3 @@ def is_pack_target_available(target_name: str, session: Session) -> bool:
                 (target_name.lower() == dev.part_number.lower())
                 for dev in ManagedPacks.get_installed_targets()
                 )
-
-
