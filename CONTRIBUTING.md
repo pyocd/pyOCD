@@ -1,11 +1,9 @@
-Contributing
-============
+# Contributing
 
 We appreciate your contributions! Because this is an open source project, we want to keep it as easy
 as possible to contribute changes. However, we need contributors to follow a few guidelines.
 
 By contributing to pyOCD you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
-
 
 ## Coding style
 
@@ -17,12 +15,12 @@ annotations, static type checking isn't actual performed by CI. Also, it is perf
 the errant module.
 
 Other formatting requirements:
+
 - 4 space indents, no tabs are allowed.
 - No trailing whitespace.
 - All source files must end with a newline (an empty line at the end).
 - Lines should generally not be longer than 120 characters, though this is not a hard rule. Overall readability
   is more important.
-
 
 ## Process
 
@@ -43,7 +41,6 @@ The [developers' guide](docs/developers_guide.md) describes how to create your d
 environment. The [automated tests guide](docs/automated_tests.md) provides information about the
 available types of tests and describes how to run the tests.
 
-
 ## License
 
 By creating a pull request on GitHub asking to merge your content into pyOCD, you agree to the [Developer Certificate of
@@ -63,5 +60,3 @@ case must be considered individually. If you are the owner of the source code, t
 relicense to Apache 2.0. The most important thing is that the license is compatible with Apache 2.0. Examples
 are MIT, the BSD licenses, and similar. GPL-licensed code is expressly disallowed to be contributed, as the
 GPL is not compatible with Apache 2.0 (or any of the Apache-compatible licenses).
-
-
