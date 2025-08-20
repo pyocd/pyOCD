@@ -516,6 +516,7 @@ class _PackTargetMethods:
             core.node_name = pname
         except KeyError:
             LOG.info("No pname found for core #%d", core.core_number)
+            core.node_name = cast(CortexM, core).architecture.name
         CoreSightTarget.add_core(_self, core)
 
     @staticmethod
