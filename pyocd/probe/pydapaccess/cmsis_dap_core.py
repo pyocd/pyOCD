@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2021 Arm Limited
+# Copyright (c) 2006-2013,2018-2021,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -478,7 +478,7 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_JTAG_SEQUENCE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError("exected DAP_JTAG_SEQUENCE")
+            raise DAPAccessIntf.DeviceError("expected DAP_JTAG_SEQUENCE")
 
         if resp[1] != DAP_OK:
             # DAP JTAG Sequence failed
