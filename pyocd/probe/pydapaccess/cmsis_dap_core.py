@@ -478,7 +478,7 @@ class CMSISDAPProtocol(object):
         resp = self.interface.read()
         if resp[0] != Command.DAP_JTAG_SEQUENCE:
             # Response is to a different command
-            raise DAPAccessIntf.DeviceError("exected DAP_JTAG_SEQUENCE")
+            raise DAPAccessIntf.DeviceError("expected DAP_JTAG_SEQUENCE")
 
         if resp[1] != DAP_OK:
             # DAP JTAG Sequence failed
