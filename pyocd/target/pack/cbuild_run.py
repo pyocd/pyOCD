@@ -297,7 +297,6 @@ class CbuildRun:
         self._use_default_memory_map: bool = True
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
-        self._device_pack: Optional[List[str]] = None
 
         try:
             # Normalize the path to ensure compatibility across platforms.
@@ -306,7 +305,7 @@ class CbuildRun:
                 yml_data = yaml.safe_load(yml_file)
             if 'cbuild-run' in yml_data:
                 self._data = yml_data['cbuild-run']
-                self._cmsis_pack_root()
+                self._check_packs()
                 self._valid = True
             else:
                 raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
@@ -343,6 +342,38 @@ class CbuildRun:
             raise CbuildRunError(f"Unsupported platform '{system}' for CMSIS_PACK_ROOT. "
                                  "Please set the CMSIS_PACK_ROOT environment variable manually.")
         LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
+
+    def _check_packs(self) -> None:
+        """@brief Checks if the required CMSIS packs are installed."""
+        def _installed(cmsis_pack: str) -> bool:
+            try:
+                vendor, pack = cmsis_pack.split('::', 1)
+                name, version = pack.split('@', 1)
+            except ValueError:
+                raise CbuildRunError(f"Invalid pack format '{cmsis_pack}'. Expected 'Vendor::Pack@Version'.")
+
+            cmsis_pack_path = cmsis_pack_root / vendor / name / version
+            return cmsis_pack_path.is_dir()
+
+        # Set the CMSIS_PACK_ROOT environment variable if not already set.
+        self._cmsis_pack_root()
+        cmsis_pack_root: Path = Path(os.environ.get('CMSIS_PACK_ROOT'))
+        # Get the device and board packs from the .cbuild-run.yml data.
+        device_pack: Optional[str] = self._data.get('device-pack')
+        board_pack: Optional[str] = self._data.get('board-pack')
+        # Create a list to hold missing packs.
+        missing_packs: List[str] = []
+
+        # Check if required device and board packs are installed.
+        for pack in dict.fromkeys((device_pack, board_pack)):
+            if pack is not None and not _installed(pack):
+                missing_packs.append(pack)
+        # Write missing packs to a file and raise an error.
+        if missing_packs:
+            with open('packs.txt', 'w', encoding="utf-8") as f:
+                f.writelines(pack + '\n' for pack in missing_packs)
+            # Raise exception if packs are missing
+            raise CbuildRunError("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
 
     @property
     def target(self) -> str:
@@ -552,20 +583,6 @@ class CbuildRun:
             self._debug_topology = self._data.get('debug-topology', {})
             LOG.debug("Read debug topology")
         return self._debug_topology
-
-    @property
-    def device_pack(self) -> List[str]:
-        """@brief Value of 'device-pack' (DFP) prefixed with CMSIS_PACK_ROOT."""
-        if self._device_pack is None:
-            if 'device-pack' in self._data:
-                vendor, _pack = self._data['device-pack'].split('::', 1)
-                name, version = _pack.split('@', 1)
-                pack = os.path.normpath(f"${{CMSIS_PACK_ROOT}}/{vendor}/{name}/{version}")
-                self._device_pack = [os.path.expandvars(pack)]
-            else:
-                self._device_pack = []
-            LOG.debug("Device pack: %s", self._device_pack)
-        return self._device_pack
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
