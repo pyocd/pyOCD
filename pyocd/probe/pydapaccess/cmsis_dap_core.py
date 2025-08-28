@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2021 Arm Limited
+# Copyright (c) 2006-2013,2018-2021,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -294,7 +294,7 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def transfer_configure(self, idle_cycles=0x02, wait_retry=0x0050, match_retry=0x0000):
+    def transfer_configure(self, idle_cycles=2, wait_retry=100, match_retry=0):
         cmd = []
         cmd.append(Command.DAP_TRANSFER_CONFIGURE)
         cmd.append(idle_cycles)
