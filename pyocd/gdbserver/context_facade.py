@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016,2018-2020 Arm Limited
+# Copyright (c) 2016,2018-2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -59,7 +59,8 @@ class GDBDebugContextFacade(object):
     """@brief Provides GDB specific transformations to a DebugContext."""
 
     ## The order certain target features should appear in target XML.
-    REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.vfp")
+    REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.m-system", "org.gnu.gdb.arm.secext",
+                              "org.gnu.gdb.arm.m-profile-mve", "org.gnu.gdb.arm.vfp")
 
     def __init__(self, context):
         self._context = context
@@ -151,8 +152,8 @@ class GDBDebugContextFacade(object):
         else:
             LOG.warning("GDB: attempt to set invalid register (regnum %d)", gdb_regnum)
 
-    def gdb_get_register(self, gdb_regnum):
-        """@brief Set single core register.
+    def get_register(self, gdb_regnum):
+        """@brief get single core register.
 
         @param self The object.
         @param gdb_regnum The regnum of register in target XML sent to GDB.
@@ -318,5 +319,3 @@ class GDBDebugContextFacade(object):
 
     def flush(self):
         self._context.core.flush()
-
-

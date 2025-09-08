@@ -916,7 +916,7 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(resp)
 
     def read_register(self, which):
-        return self.create_rsp_packet(self.target_facade.gdb_get_register(which))
+        return self.create_rsp_packet(self.target_facade.get_register(which))
 
     def write_register(self, data):
         reg = int(data.split(b'=')[0], 16)
