@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2016-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,26 +35,27 @@ class RegisterCache(object):
     Same logic applies for XPSR submasks.
     """
 
-    CFBP_INDEX = index_for_reg('cfbp')
+    CFBP_INDEX_LIST = [
+        index_for_reg('cfbp'),
+        index_for_reg('cfbp_s'),
+        index_for_reg('cfbp_ns')
+    ]
+
+    CFBP_REGS_LIST = [
+        [index_for_reg(name) for name in ['control',    'faultmask',    'basepri',    'primask'   ]],
+        [index_for_reg(name) for name in ['control_s',  'faultmask_s',  'basepri_s',  'primask_s' ]],
+        [index_for_reg(name) for name in ['control_ns', 'faultmask_ns', 'basepri_ns', 'primask_ns']]
+    ]
+
     XPSR_INDEX = index_for_reg('xpsr')
 
-    CFBP_REGS = [index_for_reg(name) for name in [
-                'cfbp',
-                'control',
-                'faultmask',
-                'basepri',
-                'primask',
-                ]]
+    XPSR_REGS = [
+        index_for_reg(name) for name in ['apsr', 'iapsr', 'eapsr', 'ipsr', 'epsr', 'iepsr']
+    ]
 
-    XPSR_REGS = [index_for_reg(name) for name in [
-                    'xpsr',
-                    'apsr',
-                    'iapsr',
-                    'eapsr',
-                    'ipsr',
-                    'epsr',
-                    'iepsr',
-                    ]]
+    SP_REGS = [
+        index_for_reg(name) for name in ['sp', 'msp', 'psp', 'msp_s', 'psp_s', 'msp_ns', 'psp_ns']
+    ]
 
     def __init__(self, context, core):
         self._context = context
@@ -103,18 +104,20 @@ class RegisterCache(object):
         cached_set = set(r for r in reg_list if r in self._cache)
         self._metrics.hits += len(cached_set)
 
-        # Read uncached registers from the target.
+        # Create list of uncached registers.
         read_list = list(reg_set.difference(cached_set))
-        reading_cfbp = any(r for r in read_list if r in self.CFBP_REGS)
-        reading_xpsr = any(r for r in read_list if r in self.XPSR_REGS)
-        if reading_cfbp:
-            if not self.CFBP_INDEX in read_list:
-                read_list.append(self.CFBP_INDEX)
-            cfbp_index = read_list.index(self.CFBP_INDEX)
-        if reading_xpsr:
-            if not self.XPSR_INDEX in read_list:
-                read_list.append(self.XPSR_INDEX)
-            xpsr_index = read_list.index(self.XPSR_INDEX)
+
+        read_cfbp_flags = []
+        for index, regs in zip(self.CFBP_INDEX_LIST, self.CFBP_REGS_LIST):
+            read_cfpb = any(r for r in read_list if r in regs or r == index)
+            read_cfbp_flags.append(read_cfpb)
+            if read_cfpb and index not in read_list:
+                read_list.append(index)
+
+        read_xpsr = any(r for r in read_list if r in self.XPSR_REGS or r == self.XPSR_INDEX)
+        if read_xpsr and self.XPSR_INDEX not in read_list:
+            read_list.append(self.XPSR_INDEX)
+
         self._metrics.misses += len(read_list)
 
         # Read registers not in the cache from the target.
@@ -129,21 +132,20 @@ class RegisterCache(object):
             values = []
 
         # Update all CFBP based registers.
-        if reading_cfbp:
-            v = values[cfbp_index]
-            self._cache[self.CFBP_INDEX] = v
-            for r in self.CFBP_REGS:
-                if r == self.CFBP_INDEX:
-                    continue
-                self._cache[r] = (v >> ((-r - 1) * 8)) & 0xff
+        for read_cfbp, index, regs in zip(read_cfbp_flags, self.CFBP_INDEX_LIST, self.CFBP_REGS_LIST):
+            if read_cfbp:
+                i = read_list.index(index)
+                v = values[i]
+                self._cache[index] = v
+                for r in regs:
+                    self._cache[r] = (v >> ((r & 3) * 8)) & 0xff
 
         # Update all XPSR based registers.
-        if reading_xpsr:
-            v = values[xpsr_index]
+        if read_xpsr:
+            i = read_list.index(self.XPSR_INDEX)
+            v = values[i]
             self._cache[self.XPSR_INDEX] = v
             for r in self.XPSR_REGS:
-                if r == self.XPSR_INDEX:
-                    continue
                 self._cache[r] = v & CortexMCoreRegisterInfo.get(r).psr_mask
 
         # Build the results list in the same order as requested registers.
@@ -170,21 +172,34 @@ class RegisterCache(object):
         reg_list = self._convert_and_check_registers(reg_list)
         self._metrics.writes += len(reg_list)
 
-        writing_cfbp = any(r for r in reg_list if r in self.CFBP_REGS)
-        writing_xpsr = any(r for r in reg_list if r in self.XPSR_REGS)
-
         # Update cached register values.
         for i, r in enumerate(reg_list):
             v = data_list[i]
             self._cache[r] = v
 
-        # Just remove all cached CFBP and XPSR based register values.
-        if writing_cfbp:
-            for r in self.CFBP_REGS:
+        # Remove cached CFBP based register values when writing to them.
+        if any(r for r in reg_list if r in self.CFBP_INDEX_LIST):
+            # If writing to any variant of CFBP register, remove all CFBP based registers from the cache.
+            for index, regs in zip(self.CFBP_INDEX_LIST, self.CFBP_REGS_LIST):
+                for r in regs + [index]:
+                    self._cache.pop(r, None)
+        else:
+            # If writing to any variant of CFBP sub-register (CONTROL, FAULTMASK, BASEPRI, PRIMASK),
+            # remove only variants of that sub-register from the cache.
+            for pos in range(len(self.CFBP_REGS_LIST[0])):
+                sub_regs = [regs[pos] for regs in self.CFBP_REGS_LIST]
+                if any(r in sub_regs for r in reg_list):
+                    for r in sub_regs:
+                        self._cache.pop(r, None)
+
+        # Remove all cached XPSR based register values when writing any of them.
+        if any(r for r in reg_list if r in self.XPSR_REGS or r == self.XPSR_INDEX):
+            for r in self.XPSR_REGS + [self.XPSR_INDEX]:
                 self._cache.pop(r, None)
 
-        if writing_xpsr:
-            for r in self.XPSR_REGS:
+        # Remove all cached SP register values when writing any of them.
+        if any(r for r in reg_list if r in self.SP_REGS):
+            for r in self.SP_REGS:
                 self._cache.pop(r, None)
 
         # Write new register values to target.
@@ -197,4 +212,3 @@ class RegisterCache(object):
 
     def invalidate(self):
         self._reset_cache()
-

@@ -1326,7 +1326,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         reg_cb_list = []
         for reg in reg_list:
             if CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
-                reg = CortexMCoreRegisterInfo.get('cfbp').index
+                reg = reg >> 8
             elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
                 reg = CortexMCoreRegisterInfo.get('xpsr').index
 
@@ -1353,7 +1353,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
             # Special handling for registers that are combined into a single DCRSR number.
             if CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
-                val = (val >> ((-reg - 1) * 8)) & 0xff
+                val = (val >> ((reg & 3) * 8)) & 0xff
             elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
                 val &= CortexMCoreRegisterInfo.get(reg).psr_mask
 
@@ -1455,9 +1455,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         # Read special register if it is present in the list and
         # convert doubles to single float register writes.
-        cfbpValue = None
         xpsrValue = None
         reg_data_list = []
+        reg_data_list_extra = []
         for reg, data in zip(reg_list, data_list):
             if CortexMCoreRegisterInfo.get(reg).is_double_float_register:
                 # Replace double with two single float register writes. For instance,
@@ -1465,34 +1465,43 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 singleLow = data & 0xffffffff
                 singleHigh = (data >> 32) & 0xffffffff
                 reg_data_list += [(-reg, singleLow), (-reg + 1, singleHigh)]
-            elif CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister and cfbpValue is None:
-                cfbpValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('cfbp').index])[0]
-                reg_data_list.append((reg, data))
-            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister and xpsrValue is None:
-                xpsrValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('xpsr').index])[0]
-                reg_data_list.append((reg, data))
+            elif CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
+                read_reg32 = True
+                shift = (reg & 3) * 8
+                mask = 0xffffffff ^ (0xff << shift)
+                for i, (reg32, data32) in enumerate(reg_data_list_extra):
+                    if reg32 == (reg >> 8):
+                        # Already have a write for this register, just update the byte.
+                        data32 = (data32 & mask) | ((data & 0xff) << shift)
+                        reg_data_list_extra[i] = (reg32, data32)
+                        read_reg32 = False
+                        break
+                if read_reg32:
+                    reg32 = reg >> 8
+                    data32 = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get(reg32).index])[0]
+                    data32 = (data32 & mask) | ((data & 0xff) << shift)
+                    reg_data_list_extra.append((reg32, data32))
+
+            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
+                if xpsrValue is None:
+                    # Read initial XPSR value.
+                    xpsrValue = self._base_read_core_registers_raw([CortexMCoreRegisterInfo.get('xpsr').index])[0]
+                mask = CortexMCoreRegisterInfo.get(reg).psr_mask
+                data = (xpsrValue & (0xffffffff ^ mask)) | (data & mask)
+                xpsrValue = data
             else:
                 # Other register, just copy directly.
                 reg_data_list.append((reg, data))
 
+        if xpsrValue is not None:
+            reg = CortexMCoreRegisterInfo.get('xpsr').index
+            data = xpsrValue
+            reg_data_list.append((reg, data))
+        reg_data_list.extend(reg_data_list_extra)
+
         # Write out registers
         dhcsr_cb_list = []
         for reg, data in reg_data_list:
-            if CortexMCoreRegisterInfo.get(reg).is_cfbp_subregister:
-                # Mask in the new special register value so we don't modify the other register
-                # values that share the same DCRSR number.
-                shift = (-reg - 1) * 8
-                mask = 0xffffffff ^ (0xff << shift)
-                data = (cfbpValue & mask) | ((data & 0xff) << shift)
-                cfbpValue = data # update special register for other writes that might be in the list
-                reg = CortexMCoreRegisterInfo.get('cfbp').index
-            elif CortexMCoreRegisterInfo.get(reg).is_psr_subregister:
-                mask = CortexMCoreRegisterInfo.get(reg).psr_mask
-                assert xpsrValue is not None
-                data = (xpsrValue & (0xffffffff ^ mask)) | (data & mask)
-                xpsrValue = data
-                reg = CortexMCoreRegisterInfo.get('xpsr').index
-
             # write DCRDR
             self.write_memory(CortexM.DCRDR, data)
 
