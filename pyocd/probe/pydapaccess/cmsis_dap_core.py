@@ -294,7 +294,7 @@ class CMSISDAPProtocol(object):
 
         return resp[1]
 
-    def transfer_configure(self, idle_cycles=2, wait_retry=100, match_retry=0):
+    def transfer_configure(self, idle_cycles=2, wait_retry=150, match_retry=0):
         cmd = []
         cmd.append(Command.DAP_TRANSFER_CONFIGURE)
         cmd.append(idle_cycles)
