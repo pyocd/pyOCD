@@ -27,6 +27,7 @@ from pyocd.core.target import Target
 from pyocd.debug import semihost
 from pyocd.utility.server import StreamServer
 from pyocd.utility.timeout import Timeout
+from pyocd.utility.compatibility import to_bytes_safe
 
 @pytest.fixture(scope='module')
 def tgt(request):
@@ -127,7 +128,7 @@ class RecordingSemihostIOHandler(semihost.SemihostIOHandler):
         d = self._in_data[fd][:length]
         self._in_data[fd] = self._in_data[fd][length:]
         assert self.agent
-        self.agent.context.write_memory_block8(ptr, bytearray(bytes(d)))
+        self.agent.context.write_memory_block8(ptr, bytearray(to_bytes_safe(d)))
         return length - len(d)
 
     def readc(self):
@@ -169,7 +170,7 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_OPEN)
 
         # Write filename
-        filename = bytearray(bytes(filename) + b'\x00')
+        filename = bytearray(to_bytes_safe(filename) + b'\x00')
         self.ctx.write_memory_block8(argsptr + 12, filename)
 
         self.ctx.write32(argsptr, argsptr + 12) # null terminated filename
@@ -196,7 +197,7 @@ class SemihostRequestBuilder:
         argsptr = self.setup_semihost_request(semihost.SemihostingRequests.SYS_WRITE)
 
         # Write data
-        data = bytes(data)
+        data = to_bytes_safe(data)
         self.ctx.write_memory_block8(argsptr + 12, data)
 
         self.ctx.write32(argsptr, fd) # fd
@@ -387,7 +388,7 @@ class TestSemihosting:
             assert result == 0
 
             result = semihost_builder.do_flen(fd)
-            assert result == len(bytes(writeData))
+            assert result == len(to_bytes_safe(writeData))
 
         if pos != -1:
             result = semihost_builder.do_seek(fd, pos)
@@ -395,7 +396,7 @@ class TestSemihosting:
 
         result, data = semihost_builder.do_read(fd, readLen)
         assert result == readResult
-        assert data == bytes(writeData[pos:pos + readLen])
+        assert data == to_bytes_safe(writeData[pos:pos + readLen])
 
         result = semihost_builder.do_close(fd)
         assert result == 0
@@ -675,7 +676,7 @@ class TestSemihostIOHandlerBase:
         ])
     def test_std_open(self, ctx, ramrgn, ioh, filename, mode, expectedFd):
         handler, agent = ioh
-        ctx.write_memory_block8(ramrgn.start, bytearray(bytes(filename) + b'\x00'))
+        ctx.write_memory_block8(ramrgn.start, bytearray(to_bytes_safe(filename) + b'\x00'))
         assert handler._std_open(ramrgn.start, len(filename), mode) == (expectedFd, filename)
 
     @pytest.mark.parametrize(("op", "args"), [
