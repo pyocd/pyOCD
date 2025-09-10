@@ -92,12 +92,26 @@ class HidApiUSB(Interface):
         self.packet_count = count
 
     def open(self):
-        # Get device handle
-        dev = usb_find(idVendor=self.vid, idProduct=self.pid, serial_number=self.serial_number)
-        if dev is None:
-            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} not found")
 
-        # get active config
+        # Use pyUSB to get HID Interrupt EP wMaxPacketSize, since hidapi is not reliable
+
+        # Get device handle.
+        # If multiple identical (same PID & VID) probes without serial number are connected,
+        # assume they share the same wMaxPacketSize.
+
+        usb_serial = self.device_info['serial_number']
+
+        kwargs = {'idVendor': self.vid, 'idProduct': self.pid}
+        if usb_serial:  # only pass a real USB serial
+            kwargs['serial_number'] = usb_serial
+
+        probe_id = usb_serial or f"VID={self.vid:#06x}:PID={self.pid:#06x}"
+
+        dev = usb_find(**kwargs)
+        if dev is None:
+            raise DAPAccessIntf.DeviceError(f"Probe {probe_id} not found")
+
+        # Get active config
         config = dev.get_active_configuration()
 
         # Get count of HID interfaces and create the matcher object
@@ -107,7 +121,7 @@ class HidApiUSB(Interface):
         # Get CMSIS-DAPv1 interface
         interface = usb.util.find_descriptor(config, custom_match=matcher)
         if interface is None:
-            raise DAPAccessIntf.DeviceError(f"Probe {self.serial_number} has no CMSIS-DAPv1 interface")
+            raise DAPAccessIntf.DeviceError(f"Probe {probe_id} has no CMSIS-DAPv1 interface")
 
         # Set report sizes, assuming HID report size matches endpoint wMaxPacketSize.
         for endpoint in interface:
@@ -119,7 +133,7 @@ class HidApiUSB(Interface):
 
         if self.report_in_size is None:
             raise DAPAccessIntf.DeviceError(
-                f"Could not determine packet sizes for {self.serial_number}")
+                f"Could not determine packet sizes for probe {probe_id}")
 
         if self.report_out_size is None:
             # No interrupt OUT endpoint. Out reports will be sent via control transfer.
