@@ -371,12 +371,10 @@ class ConsoleIOHandler(SemihostIOHandler):
         # Stuff data into provided buffer.
         if data:
             self.agent.context.write_memory_block8(ptr, data)
-
-        result = length - len(data)
-        if not data:
+            return length - len(data)
+        else:
             self._errno = 5
             return -1
-        return result
 
     def readc(self):
         data = self._stdin_file.read(1)
