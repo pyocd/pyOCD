@@ -373,7 +373,8 @@ class CbuildRun:
             with open('packs.txt', 'w', encoding="utf-8") as f:
                 f.writelines(pack + '\n' for pack in missing_packs)
             # Raise exception if packs are missing
-            raise CbuildRunError("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
+            # raise CbuildRunError("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
+            LOG.warning("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
 
     @property
     def target(self) -> str:
