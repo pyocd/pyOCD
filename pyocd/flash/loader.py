@@ -143,6 +143,7 @@ class MemoryLoader:
     _trust_crc: Optional[bool]
     _keep_unwritten: Optional[bool]
     _no_reset: Optional[bool]
+    _verify: Optional[bool]
 
     def __init__(self,
             session: "Session",
@@ -151,7 +152,8 @@ class MemoryLoader:
             smart_flash: Optional[bool] = None,
             trust_crc: Optional[bool] = None,
             keep_unwritten: Optional[bool] = None,
-            no_reset: Optional[bool] = None
+            no_reset: Optional[bool] = None,
+            verify: Optional[bool] = None
         ):
         """@brief Constructor.
 
@@ -173,6 +175,8 @@ class MemoryLoader:
             data. This parameter sets whether the existing contents of those unwritten ranges will
             be read from memory and restored while programming.
         @param no_reset Boolean indicating whether if the device should not be reset after the
+            programming process has finished.
+        @param verify Boolean indicating whether a verify pass should be performed after the
             programming process has finished.
         """
         self._session = session
@@ -198,6 +202,8 @@ class MemoryLoader:
                             else self._session.options.get('keep_unwritten')
         self._no_reset = no_reset if (no_reset is not None) \
                             else self._session.options.get('no_reset')
+        self._verify = verify if (verify is not None) \
+                            else self._session.options.get('verify')
 
         self._reset_state()
 
@@ -296,7 +302,8 @@ class MemoryLoader:
                                     smart_flash=self._smart_flash,
                                     fast_verify=self._trust_crc,
                                     keep_unwritten=self._keep_unwritten,
-                                    no_reset=self._no_reset)
+                                    no_reset=self._no_reset,
+                                    verify=self._verify)
             perfList.append(perf)
             didChipErase = True
 

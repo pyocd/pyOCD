@@ -132,6 +132,11 @@ class _FlashSector:
         for page in self.page_list:
             page.same = False
 
+    def mark_all_pages_unknown(self):
+        """@brief Sets the same flag to False for all pages in this sector."""
+        for page in self.page_list:
+            page.same = None
+
     def __repr__(self):
         return "<_FlashSector@%x addr=%x size=%x wgt=%g pages=%s, subsectors=%d>" % (
             id(self), self.addr, self.size, self.erase_weight, self.page_list, self.n_subsectors)
@@ -417,7 +422,7 @@ class FlashBuilder(MemoryBuilder):
                 page = add_page_with_existing_data()
                 sector_page_addr += page.size
 
-    def program(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True, no_reset=False):
+    def program(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True, no_reset=False, verify=True):
         """@brief Determine fastest method of flashing and then run flash programming.
 
         Data must have already been added with add_data().
@@ -443,6 +448,8 @@ class FlashBuilder(MemoryBuilder):
             data. This parameter sets whether the existing contents of those unwritten ranges will
             be read from memory and restored while programming.
         @param no_reset Boolean indicating whether if the device should not be reset after the
+            programming process has finished.
+        @param verify Boolean indicating whether a verify pass should be performed after the
             programming process has finished.
         """
 
@@ -535,12 +542,6 @@ class FlashBuilder(MemoryBuilder):
             else:
                 flash_operation = self._sector_erase_program(progress_cb)
 
-        # Cleanup flash algo and reset target after programming.
-        self.flash.cleanup()
-
-        if no_reset is not True:
-            self.flash.target.reset_and_halt()
-
         program_finish = time()
         self.perf.program_time = program_finish - program_start
         self.perf.program_type = flash_operation
@@ -570,6 +571,23 @@ class FlashBuilder(MemoryBuilder):
         self.perf.erase_sector_count = erase_sector_count
         self.perf.skipped_byte_count = skipped_byte_count
         self.perf.skipped_page_count = skipped_page_count
+
+        if verify:
+            LOG.info("Verifying")
+            # Reset same flag for all pages to enable rescanning
+            for sector in self.sector_list:
+                sector.mark_all_pages_unknown()
+            self._scan_pages_for_same(progress_cb)
+            failed_pages = [page for page in self.page_list if page.same is False]
+            if failed_pages:
+                LOG.debug("Verify failed for pages {}".format(failed_pages))
+                raise FlashProgramFailure('flash verify failure', address=failed_pages[0].addr)
+
+        # Cleanup flash algo and reset target after programming.
+        self.flash.cleanup()
+
+        if not no_reset:
+            self.flash.target.reset_and_halt()
 
         if self.log_performance:
             if chip_erase:
@@ -899,12 +917,6 @@ class FlashBuilder(MemoryBuilder):
                 if self.sector_erase_weight > 0:
                     progress_cb(float(progress) / float(self.sector_erase_weight))
 
-        # If we have to program any pages of a sector, then mark all pages of that sector
-        # as needing to be programmed, since the sector will be erased.
-        for sector in self.sector_list:
-            if sector.are_any_pages_not_same():
-                sector.mark_all_pages_not_same()
-
         return progress
 
     def _next_nonsame_page(self, i):
@@ -937,6 +949,8 @@ class FlashBuilder(MemoryBuilder):
             self.flash.init(self.flash.Operation.ERASE)
             for sector in self.sector_list:
                 if sector.are_any_pages_not_same():
+                    # If the sector is erased, all its pages must be programmed
+                    sector.mark_all_pages_not_same()
                     # Erase the sector
                     for addr in sector.addrs:
                         self.flash.erase_sector(addr)
