@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -419,7 +419,7 @@ class STLink(object):
 
                         exc = exceptions.TransferFaultError("read")
                         exc.fault_address = faultAddr
-                        exc.fault_length = thisTransferSize - (faultAddr - addr)
+                        exc.fault_length = addr - faultAddr
                         raise exc
                     elif status in self._ERROR_CLASSES:
                         raise self._ERROR_CLASSES[status](error_message)
@@ -461,7 +461,7 @@ class STLink(object):
 
                         exc = exceptions.TransferFaultError("write")
                         exc.fault_address = faultAddr
-                        exc.fault_length = thisTransferSize - (faultAddr - addr)
+                        exc.fault_length = addr - faultAddr
                         raise exc
                     elif status in self._ERROR_CLASSES:
                         raise self._ERROR_CLASSES[status](error_message)
