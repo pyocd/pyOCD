@@ -16,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import six
 import logging
 from time import sleep
 import pylink
@@ -30,6 +29,7 @@ from ..core import exceptions
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
 from ..utility import conversion
+from ..utility.compatibility import to_str_safe
 
 if TYPE_CHECKING:
     from pylink.structs import JLinkHardwareStatus
@@ -128,7 +128,7 @@ class JLinkProbe(DebugProbe):
         self._protocol = None
         self._default_protocol = None
         self._is_open = False
-        self._product_name = six.ensure_str(info.acProduct)
+        self._product_name = to_str_safe(info.acProduct)
         self._memory_interfaces = {}
 
     @property

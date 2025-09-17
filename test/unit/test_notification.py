@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import pytest
-import six
 from enum import Enum
 
 from pyocd.utility.notification import (Notification, Notifier)
