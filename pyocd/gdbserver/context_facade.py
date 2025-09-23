@@ -24,6 +24,7 @@ from ..utility.mask import (align_up, round_up_div)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.memory_map import MemoryType
+from ..coresight.core_ids import CortexMExtension
 from . import signals
 
 LOG = logging.getLogger(__name__)
@@ -249,31 +250,66 @@ class GDBDebugContextFacade(object):
                 prop.text = hex(r.blocksize).rstrip("L")
         return MAP_XML_HEADER + ElementTree.tostring(root)
 
-    def _define_xpsr_control_fields(self, xml_feature):
-        """@brief Define XPSR and CONTROL register types with fields."""
+    def _define_m_profile_types(self, xml_feature):
+        """@brief Define 'org.gnu.gdb.arm.m-profile' types."""
+        xpsr = ElementTree.SubElement(xml_feature, 'flags', id="xpsr", size="4")
+        # APSR fields
+        ElementTree.SubElement(xpsr, "field", name="N",   start="31", end="31", type="bool")
+        ElementTree.SubElement(xpsr, "field", name="Z",   start="30", end="30", type="bool")
+        ElementTree.SubElement(xpsr, "field", name="C",   start="29", end="29", type="bool")
+        ElementTree.SubElement(xpsr, "field", name="V",   start="28", end="28", type="bool")
+        ElementTree.SubElement(xpsr, "field", name="Q",   start="27", end="27", type="bool")
+        ElementTree.SubElement(xpsr, "field", name="GE",  start="16", end="19", type="int")
+        #IPSR fields
+        ElementTree.SubElement(xpsr, "field", name="EXC", start="0",  end="8",  type="int")
+        #EPSR fields
+        ElementTree.SubElement(xpsr, "field", name="T",   start="24", end="24", type="bool")
+
+    def _define_m_system_types(self, xml_feature):
+        """@brief Define 'org.gnu.gdb.arm.m-system' types."""
         control = ElementTree.SubElement(xml_feature, 'flags', id="control", size="4")
         ElementTree.SubElement(control, "field", name="nPRIV", start="0", end="0", type="bool")
         ElementTree.SubElement(control, "field", name="SPSEL", start="1", end="1", type="bool")
         if self._context.core.has_fpu:
             ElementTree.SubElement(control, "field", name="FPCA", start="2", end="2", type="bool")
-        if Target.SecurityState.SECURE in self._context.core.supported_security_states:
-            ElementTree.SubElement(control, "field", name="SFPA", start="3", end="3", type="bool")
+            if Target.SecurityState.SECURE in self._context.core.supported_security_states:
+                ElementTree.SubElement(control, "field", name="SFPA", start="3", end="3", type="bool")
+        if (CortexMExtension.PACBTI in self._context.core.extensions):
+            ElementTree.SubElement(control, "field", name="BTI_EN",  start="4", end="4", type="bool")
+            ElementTree.SubElement(control, "field", name="UBTI_EN", start="5", end="5", type="bool")
+            ElementTree.SubElement(control, "field", name="PAC_EN",  start="6", end="6", type="bool")
+            ElementTree.SubElement(control, "field", name="UPAC_EN", start="7", end="7", type="bool")
 
-        apsr = ElementTree.SubElement(xml_feature, 'flags', id="apsr", size="4")
-        ElementTree.SubElement(apsr, "field", name="N", start="31", end="31", type="bool")
-        ElementTree.SubElement(apsr, "field", name="Z", start="30", end="30", type="bool")
-        ElementTree.SubElement(apsr, "field", name="C", start="29", end="29", type="bool")
-        ElementTree.SubElement(apsr, "field", name="V", start="28", end="28", type="bool")
-        ElementTree.SubElement(apsr, "field", name="Q", start="27", end="27", type="bool")
-        ElementTree.SubElement(apsr, "field", name="GE", start="16", end="19", type="int")
+    def _define_m_profile_mve_types(self, xml_feature):
+        """@brief Define 'org.gnu.gdb.arm.m-profile-mve' types."""
+        vpr = ElementTree.SubElement(xml_feature, 'flags', id="vpr", size="4")
+        ElementTree.SubElement(vpr, "field", name="P0",     start="0",  end="15", type="int")
+        ElementTree.SubElement(vpr, "field", name="MASK01", start="16", end="19", type="int")
+        ElementTree.SubElement(vpr, "field", name="MASK23", start="20", end="23", type="int")
 
-        ipsr = ElementTree.SubElement(xml_feature, 'struct', id="ipsr", size="4")
-        ElementTree.SubElement(ipsr, "field", name="EXC", start="0", end="8", type="int")
-
-        xpsr = ElementTree.SubElement(xml_feature, 'union', id="xpsr")
-        ElementTree.SubElement(xpsr, "field", name="xpsr", type="uint32")
-        ElementTree.SubElement(xpsr, "field", name="apsr", type="apsr")
-        ElementTree.SubElement(xpsr, "field", name="ipsr", type="ipsr")
+    def _define_vfp_types(self, xml_feature):
+        """@brief Define 'org.gnu.gdb.arm.vfp' types."""
+        fpscr = ElementTree.SubElement(xml_feature, 'flags', id="fpscr", size="4")
+        ElementTree.SubElement(fpscr, "field", name="N",     start="31", end="31", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="Z",     start="30", end="30", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="C",     start="29", end="29", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="V",     start="28", end="28", type="bool")
+        if (CortexMExtension.MVE in self._context.core.extensions):
+            ElementTree.SubElement(fpscr, "field", name="QC",   start="27", end="27", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="AHP",   start="26", end="26", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="DN",    start="25", end="25", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="FZ",    start="24", end="24", type="bool")
+        ElementTree.SubElement(fpscr, "field", name="RMode", start="22", end="23", type="int")
+        if (CortexMExtension.FPU_HP in self._context.core.extensions):
+            ElementTree.SubElement(fpscr, "field", name="FZ16", start="19", end="19", type="bool")
+        if (self._context.core.architecture_version == (8, 1)):
+            ElementTree.SubElement(fpscr, "field", name="LTPSIZE", start="16", end="18", type="int")
+        ElementTree.SubElement(fpscr, "field", name="IDC",   start="7",  end="7",  type="bool")
+        ElementTree.SubElement(fpscr, "field", name="IXC",   start="4",  end="4",  type="bool")
+        ElementTree.SubElement(fpscr, "field", name="UFC",   start="3",  end="3",  type="bool")
+        ElementTree.SubElement(fpscr, "field", name="OFC",   start="2",  end="2",  type="bool")
+        ElementTree.SubElement(fpscr, "field", name="DZC",   start="1",  end="1",  type="bool")
+        ElementTree.SubElement(fpscr, "field", name="IOC",   start="0",  end="0",  type="bool")
 
     def _build_target_xml(self):
         # Extract list of registers, group into gdb features.
@@ -290,7 +326,7 @@ class GDBDebugContextFacade(object):
         # Add any remaining features at the end of the feature list.
         features += unordered_features
 
-        use_xpsr_control_fields = self._context.session.options.get('xpsr_control_fields')
+        use_register_fields = self._context.session.options.get('register_fields')
 
         xml_root = ElementTree.Element('target')
 
@@ -299,13 +335,20 @@ class GDBDebugContextFacade(object):
 
             xml_feature = ElementTree.SubElement(xml_root, "feature", name=feature_name)
 
-            # Special case for XPSR and CONTROL bitfield presentation.
-            if (feature_name == "org.gnu.gdb.arm.m-profile") and use_xpsr_control_fields:
-                self._define_xpsr_control_fields(xml_feature)
+            # Define feature types when option 'register_fields' is enabled.
+            if use_register_fields:
+                if feature_name == "org.gnu.gdb.arm.m-profile":
+                    self._define_m_profile_types(xml_feature)
+                elif feature_name == "org.gnu.gdb.arm.m-system":
+                    self._define_m_system_types(xml_feature)
+                elif feature_name == "org.gnu.gdb.arm.m-profile-mve":
+                    self._define_m_profile_mve_types(xml_feature)
+                elif feature_name == "org.gnu.gdb.arm.vfp":
+                    self._define_vfp_types(xml_feature)
 
             # Add XML for the registers in this feature.
             for reg in regs:
-                if use_xpsr_control_fields and (reg.name in ('xpsr', 'control')):
+                if use_register_fields and (reg.name in ('xpsr', 'control', 'vpr', 'fpscr')):
                     reg_type = reg.name
                 else:
                     reg_type = reg.gdb_type

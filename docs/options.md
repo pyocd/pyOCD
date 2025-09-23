@@ -590,11 +590,11 @@ The source letters are:
 - <tt>n</tt>=none
 </td></tr>
 
-<tr><td>xpsr_control_fields</td>
+<tr><td>register_fields</td>
 <td>bool</td>
-<td>False</td>
+<td>True</td>
 <td>
-When set to True, XPSR and CONTROL registers will have their respective bitfields defined for
+When set to True, registers with bitfields will have their respective bitfields defined for
 presentation in gdb.
 </td></tr>
 
