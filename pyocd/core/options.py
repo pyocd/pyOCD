@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -193,8 +193,8 @@ BUILTIN_OPTIONS = [
         "Base TCP port number for the semihosting telnet server."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
-    OptionInfo('xpsr_control_fields', bool, False,
-        "When set to True, XPSR and CONTROL registers will have their respective bitfields defined "
+    OptionInfo('register_fields', bool, True,
+        "When set to True, registers with bitfields will have their respective bitfields defined "
         "for presentation in gdb."),
     OptionInfo('soft_bkpt_as_hard', bool, False,
         "Replace software breakpoints with hardware breakpoints."),
