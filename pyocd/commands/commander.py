@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -210,6 +210,7 @@ class PyOCDCommander:
                         user_script=self.args.script,
                         no_config=self.args.no_config,
                         pack=self.args.pack,
+                        cbuild_run=self.args.cbuild_run,
                         target_override=self.args.target_override,
                         connect_mode=connect_mode,
                         frequency=self.args.frequency,
