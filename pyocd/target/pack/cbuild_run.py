@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import yaml
 import os
@@ -23,19 +25,16 @@ import platform
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (cast, Optional, Set, Dict, List, Tuple, IO, Any)
+from typing import (cast, Optional, Set, Dict, List, Tuple, IO, Any, TYPE_CHECKING)
 from .flash_algo import PackFlashAlgo
 from .reset_sequence_maps import (RESET_SEQUENCE_TO_TYPE_MAP, RESET_TYPE_TO_SEQUENCE_MAP)
 from .. import (normalise_target_type_name, TARGET)
-from ...coresight.cortex_m import CortexM
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.ap import (APAddressBase, APv1Address, APv2Address)
 from ...core import exceptions
 from ...core.target import Target
 from ...core.session import Session
-from ...core.core_target import CoreTarget
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP)
-from ...utility.sequencer import CallSequence
 from ...probe.debug_probe import DebugProbe
 from ...debug.svd.loader import SVDFile
 from ...debug.sequences.scope import Scope
@@ -49,6 +48,12 @@ from ...debug.sequences.sequences import (
     WhileControl,
     DebugSequenceExecutionContext
 )
+
+if TYPE_CHECKING:
+    from ...coresight.cortex_m import CortexM
+    from ...core.core_target import CoreTarget
+    from ...utility.sequencer import CallSequence
+    from ...commands.execution_context import CommandSet
 
 LOG = logging.getLogger(__name__)
 
@@ -254,7 +259,7 @@ class CbuildRunTargetMethods:
     @staticmethod
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        pname = _self._cbuild_device.processors_ap_map[cast(CortexM, core).ap.address].name
+        pname = _self._cbuild_device.processors_ap_map[cast('CortexM', core).ap.address].name
         core.node_name = pname
         CoreSightTarget.add_core(_self, core)
 
@@ -273,6 +278,10 @@ class CbuildRunTargetMethods:
     def _cbuild_target_get_output(self) -> Dict[str, Optional[int]]:
         return self._cbuild_device.output
 
+    @staticmethod
+    def _cbuild_target_add_target_command_groups(_self, command_set: CommandSet):
+        """@brief Add pack related commands to the command set."""
+        command_set.add_command_group('pack-target')
 
 class CbuildRun:
     """@brief Parser for the .cbuild-run.yml file (CSolution Run and Debug Management)."""
@@ -611,7 +620,8 @@ class CbuildRun:
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
                     "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
                     "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port,
-                    "get_output": CbuildRunTargetMethods._cbuild_target_get_output
+                    "get_output": CbuildRunTargetMethods._cbuild_target_get_output,
+                    "add_target_command_groups": CbuildRunTargetMethods._cbuild_target_add_target_command_groups,
         })
         TARGET[target] = tgt
 
