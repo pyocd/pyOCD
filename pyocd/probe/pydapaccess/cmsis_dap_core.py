@@ -485,7 +485,7 @@ class CMSISDAPProtocol(object):
             raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE failed")
 
         if len(resp) > 2:
-            return resp[2]
+            return resp[2:]
 
     def jtag_configure(self, devices_irlen=None):
         # Default to a single device with an IRLEN of 4.

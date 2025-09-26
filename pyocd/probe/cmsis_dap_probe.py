@@ -371,7 +371,7 @@ class CMSISDAPProbe(DebugProbe):
         TRACE.debug("trace: jtag_sequence(cycles=%i, tms=%x, read_tdo=%s, tdi=%x)", cycles, tms, read_tdo, tdi)
 
         try:
-            self._link.jtag_sequence(cycles, tms, read_tdo, tdi)
+            return self._link.jtag_sequence(cycles, tms, read_tdo, tdi)
         except DAPAccess.Error as exc:
             raise self._convert_exception(exc) from exc
 
