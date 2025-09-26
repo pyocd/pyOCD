@@ -843,7 +843,7 @@ class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
         start, end = check_range(start, end, length, range)
         return [r for r in self._regions if r.intersects_range(start, end)]
 
-    def iter_matching_regions(self, **kwargs: Any) -> Iterator[MemoryRegion]:
+    def iter_matching_regions(self, pname: Optional[str] = None, **kwargs: Any) -> Iterator[MemoryRegion]:
         """@brief Iterate over regions matching given criteria.
 
         Useful attributes to match on include 'type', 'name', 'is_default', and others.
@@ -852,7 +852,11 @@ class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
         @param kwargs Values for region attributes that must match.
         """
         for r in self._regions:
-            # Check attributes.
+            # Check pname filter first (allow regions with no pname to match).
+            if pname is not None and r.attributes.get('pname') not in (None, pname):
+                continue
+
+            # Check other attributes.
             mismatch = False
             for k, v in kwargs.items():
                 try:
@@ -862,6 +866,7 @@ class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
                 except AttributeError:
                     # Don't match regions without the specified attribute.
                     mismatch = True
+                    break
             if mismatch:
                 continue
 
@@ -929,7 +934,3 @@ class MemoryMap(MemoryRangeBase, collections.abc.Sequence):
 
     def __repr__(self) -> str:
         return "<MemoryMap@0x%08x regions=%s>" % (id(self), repr(self._regions))
-
-
-
-
