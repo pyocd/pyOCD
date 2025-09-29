@@ -24,7 +24,7 @@ from ..utility.mask import (align_up, round_up_div)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.memory_map import MemoryType
-from ..coresight.core_ids import CortexMExtension
+from ..coresight.core_ids import (CoreArchitecture, CortexMExtension)
 from . import signals
 
 LOG = logging.getLogger(__name__)
@@ -312,6 +312,29 @@ class GDBDebugContextFacade(object):
         ElementTree.SubElement(fpscr, "field", name="IOC",   start="0",  end="0",  type="bool")
 
     def _build_target_xml(self):
+        xml_root = ElementTree.Element('target')
+
+        # Add architecture element.
+        architecture = 'arm'
+        arch = self._context.core.architecture
+        if arch == CoreArchitecture.ARMv6M:
+            architecture = 'armv6s-m'
+        elif arch == CoreArchitecture.ARMv7M:
+            if (CortexMExtension.DSP in self._context.core.extensions):
+                architecture = 'armv7e-m'
+            else:
+                # gdb does not recognize 'armv7-m', use 'armv7e-m' instead.
+                # architecture = 'armv7-m'
+                architecture = 'armv7e-m'
+        elif arch == CoreArchitecture.ARMv8M_BASE:
+            architecture = 'armv8-m.base'
+        elif arch == CoreArchitecture.ARMv8M_MAIN:
+            if self._context.core.architecture_version == (8, 1):
+                architecture = 'armv8.1-m.main'
+            else:
+                architecture = 'armv8-m.main'
+        ElementTree.SubElement(xml_root, 'architecture').text = architecture
+
         # Extract list of registers, group into gdb features.
         regs_sorted_by_feature = sorted(self._register_list, key=lambda r: r.gdb_feature) # Must sort for groupby().
         regs_by_feature = {k: list(g) for k, g in groupby(regs_sorted_by_feature, key=lambda r: r.gdb_feature)}
@@ -328,12 +351,10 @@ class GDBDebugContextFacade(object):
 
         use_register_fields = self._context.session.options.get('register_fields')
 
-        xml_root = ElementTree.Element('target')
-
         for feature_name in features:
             regs = regs_by_feature[feature_name]
 
-            xml_feature = ElementTree.SubElement(xml_root, "feature", name=feature_name)
+            xml_feature = ElementTree.SubElement(xml_root, 'feature', name=feature_name)
 
             # Define feature types when option 'register_fields' is enabled.
             if use_register_fields:
