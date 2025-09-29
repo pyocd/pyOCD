@@ -61,6 +61,6 @@ if not USB_BACKEND:
     elif "BSD" in system:
         USB_BACKEND = "pyusb"
     else:
-        raise DAPAccessIntf.DeviceError("No USB backend found")
+        raise DAPAccessIntf.DeviceError("Unknown platform! No USB Interface backend autoselected.")
 
 USB_BACKEND_V2 = "pyusb_v2"
