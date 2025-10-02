@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2019,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -49,10 +49,10 @@ class GDBServerPacketIOThread(threading.Thread):
     ## 100 ms timeout for socket and receive queue reads.
     RECEIVE_TIMEOUT = 0.1
 
-    def __init__(self, abstract_socket):
-        super().__init__()
-        self.name = "gdb-packet-thread-port%d" % abstract_socket.port
-        self._abstract_socket = abstract_socket
+    def __init__(self, socket, idx):
+        super().__init__(daemon=True)
+        self.name = "gdb-packet-io-%d" % idx
+        self._socket = socket
         self._receive_queue = queue.Queue()
         self._shutdown_event = threading.Event()
         self.interrupt_event = threading.Event()
@@ -63,7 +63,6 @@ class GDBServerPacketIOThread(threading.Thread):
         self.drop_reply = False
         self._last_packet = b''
         self._closed = False
-        self.setDaemon(True)
         self.start()
 
     def set_send_acks(self, ack):
@@ -72,8 +71,9 @@ class GDBServerPacketIOThread(threading.Thread):
         else:
             self._clear_send_acks = True
 
-    def stop(self):
+    def stop(self, timeout: float = 1.0):
         self._shutdown_event.set()
+        self.join(timeout)
 
     def send(self, packet):
         if self._closed or not packet:
@@ -104,11 +104,11 @@ class GDBServerPacketIOThread(threading.Thread):
     def run(self):
         LOG.debug("Starting GDB server packet I/O thread")
 
-        self._abstract_socket.set_timeout(self.RECEIVE_TIMEOUT)
+        self._socket.set_timeout(self.RECEIVE_TIMEOUT)
 
         while not self._shutdown_event.is_set():
             try:
-                data = self._abstract_socket.read()
+                data = self._socket.read()
 
                 # Handle closed connection
                 if len(data) == 0:
@@ -143,7 +143,7 @@ class GDBServerPacketIOThread(threading.Thread):
         try:
             remaining = len(packet)
             while remaining:
-                written = self._abstract_socket.write(packet)
+                written = self._socket.write(packet)
                 remaining -= written
                 if remaining:
                     packet = packet[written:]
@@ -206,9 +206,8 @@ class GDBServerPacketIOThread(threading.Thread):
 
         if self.send_acks:
             ack = b'+' if goodPacket else b'-'
-            self._abstract_socket.write(ack)
+            self._socket.write(ack)
             TRACE_ACK.debug(ack)
 
         if goodPacket:
             self._receive_queue.put(packet)
-

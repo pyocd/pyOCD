@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2018 Arm Limited
+# Copyright (c) 2016-2018,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,9 @@ from ..utility.compatibility import to_bytes_safe
 class GDBSymbolProvider(SymbolProvider):
     """@brief Request symbol information from gdb."""
 
-    def __init__(self, gdbserver):
+    def __init__(self, gdbserver, client):
         self._gdbserver = gdbserver
+        self._client = client
 
     def get_symbol_value(self, name):
-        return self._gdbserver.get_symbol(to_bytes_safe(name))
+        return self._gdbserver.get_symbol(self._client,to_bytes_safe(name))
