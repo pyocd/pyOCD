@@ -1119,21 +1119,21 @@ class GDBServer(threading.Thread):
         # has a non-empty annex.
         if query == b'memory-map':
             if annex != b'':
-                return self.create_rsp_packet(b"E00")
+                return b"E00"
             xml = self.target_facade.get_memory_map_xml()
         elif query == b'features':
             if annex == b'target.xml':
                 xml = self.target_facade.get_target_xml()
             else:
-                return self.create_rsp_packet(b"E00")
+                return b"E00"
         elif query == b'threads':
             if annex != b'':
-                return self.create_rsp_packet(b"E00")
+                return b"E00"
             xml = self.get_threads_xml()
         else:
             # Unrecognised query object, so return empty packet.
             LOG.debug("Unsupported XML query (%s), annex (%s)", query, annex)
-            return self.create_rsp_packet(b"")
+            return b""
 
         size_xml = len(xml)
 
@@ -1141,7 +1141,7 @@ class GDBServer(threading.Thread):
 
         if offset > size_xml:
             LOG.error('GDB requested xml offset > size for %s!', query)
-            return self.create_rsp_packet(b"E16") # EINVAL
+            return b"E16" # EINVAL
 
         if size > (self.packet_size - 4):
             size = self.packet_size - 4
