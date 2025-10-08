@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -124,5 +124,4 @@ class CC3220SF(CoreSightTarget):
         super(CC3220SF, self).__init__(session, self.MEMORY_MAP)
 
     def post_connect_hook(self):
-        self.cores[0].default_reset_type = self.ResetType.SW_VECTRESET
-
+        self.cores[0].default_reset_type = self.ResetType.VECTRESET

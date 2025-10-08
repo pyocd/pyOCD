@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2025 Arm Limited
 # Copyright (c) 2019 Monadnock Systems Ltd.
 # Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
@@ -696,7 +696,7 @@ class ModemUpdater(object):
             LOG.warning("UICR.HFXOCNT is not set, setting it to 0x20")
             self._target.write_uicr(addr=0x00FF8020, value=0x00000020)
 
-        self._target.reset_and_halt(reset_type=Target.ResetType.SW)
+        self._target.reset_and_halt(reset_type=Target.ResetType.SYSTEM)
 
         # 1. configure IPC to be in non-secure mode
         self._target.write32(addr=0x500038A8, value=0x00000002)

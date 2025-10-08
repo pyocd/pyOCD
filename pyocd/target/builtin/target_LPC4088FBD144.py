@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2016 Arm Limited
+# Copyright (c) 2006-2016,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -87,7 +87,7 @@ class LPC4088(CoreSightTarget):
 
     def reset(self, reset_type=None):
         # Use hardware reset since software reset cause a debug logic reset
-        super(LPC4088, self).reset(self.ResetType.HW)
+        super(LPC4088, self).reset(self.ResetType.NSRST)
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
         super(LPC4088, self).reset_and_halt(reset_type)

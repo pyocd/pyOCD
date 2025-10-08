@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2023 NXP
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -514,10 +515,10 @@ class S32K344(CoreSightTarget):
         super(S32K344, self).__init__(session, self.MEMORY_MAP)
 
     def reset(self, reset_type=None):
-        super(S32K344, self).reset(self.ResetType.SW_VECTRESET)
+        super(S32K344, self).reset(self.ResetType.VECTRESET)
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
-        super(S32K344, self).reset_and_halt(self.ResetType.SW_VECTRESET)
+        super(S32K344, self).reset_and_halt(self.ResetType.VECTRESET)
 
     def create_init_sequence(self):
         seq = super(S32K344, self).create_init_sequence()
@@ -542,4 +543,3 @@ class S32K344(CoreSightTarget):
 
     def enable_s32k344_debug(self):
         self.dp.aps[SDA_AP_ID].write_reg(SDA_AP_DBGENCTRL_ADDR, SDA_AP_EN_ALL)
-

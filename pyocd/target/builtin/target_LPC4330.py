@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2015,2018 Arm Limited
+# Copyright (c) 2006-2015,2018,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -336,7 +336,7 @@ class LPC4330(CoreSightTarget):
     def reset(self, reset_type=None):
         # Always use software reset for LPC4330 since the hardware version
         # will reset the DAP.
-        super(LPC4330, self).reset(self.ResetType.SW)
+        super(LPC4330, self).reset(self.ResetType.SYSTEM)
 
     def reset_and_halt(self, reset_type=None):
         if self.ignoreReset:
@@ -352,7 +352,7 @@ class LPC4330(CoreSightTarget):
 
         # Always use software reset for LPC4330 since the hardware version
         # will reset the DAP.
-        super(LPC4330, self).reset_and_halt(self.ResetType.SW)
+        super(LPC4330, self).reset_and_halt(self.ResetType.SYSTEM)
 
         # Map shadow memory to SPIFI FLASH
         self.write_memory(0x40043100, 0x80000000)
