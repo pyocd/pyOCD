@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2019,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -58,23 +58,24 @@ class Target(MemoryInterface, DelegateHavingMixIn):
 
     class ResetType(Enum):
         """@brief Available reset methods."""
-        ## Hardware reset via the nRESET signal.
-        HW = 1
         ## Software reset using the core's default software reset method.
-        SW = 2
-        ## Software reset the entire system .
-        SW_SYSTEM = 3
-        ## Software reset using the AIRCR.SYSRESETREQ bit (alias of #SW_SYSTEM).
-        SW_SYSRESETREQ = SW_SYSTEM
-        ## Software reset the core only.
-        SW_CORE = 4
-        ## Software reset using the AIRCR.VECTRESET bit (alias of #SW_CORE).
-        #
-        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to SW_EMULATED,
-        # unless a target-specific core reset method is made available.
-        SW_VECTRESET = SW_CORE
-        ## Emulated software reset.
-        SW_EMULATED = 5
+        DEFAULT = 1
+        ## Open-CMSIS-Pack Debug sequence 'ResetHardware' if available, otherwise a hardware reset using the nSRST signal.
+        HARDWARE = 2
+        ## Open-CMSIS-Pack Debug sequence 'ResetSystem' if available, otherwise a software reset using SYSRESETREQ.
+        SYSTEM = 3
+        ## Open-CMSIS-Pack Debug sequence 'ResetProcessor' if available, otherwise a software reset using VECTRESET.
+        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to EMULATED.
+        CORE = 4
+        ## Hardware reset via the nSRST signal.
+        NSRST = 5
+        ## Software reset using the AIRCR.SYSRESETREQ bit.
+        SYSRESETREQ = 6
+        ## Software reset using the AIRCR.VECTRESET bit.
+        # v6-M and v8-M targets do not support VECTRESET, so they will fall back to EMULATED.
+        VECTRESET = 7
+        ## Emulated software reset. Does not trigger a reset vector catch.
+        EMULATED = 8
 
     class BreakpointType(Enum):
         """@brief Types of breakpoints."""

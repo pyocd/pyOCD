@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -187,7 +187,7 @@ class S5JS100(CoreSightTarget):
     def create_s5js100_core(self):
         core = CortexM_S5JS100(
             self.session, self.aps[self.AP_NUM], self.memory_map, 0)
-        core.default_reset_type = self.ResetType.SW
+        core.default_reset_type = self.ResetType.SYSTEM
         self.aps[self.AP_NUM].core = core
         core.init()
         self.add_core(core)

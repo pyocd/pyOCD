@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -202,74 +202,70 @@ def cortex_test(board_id):
 
         print("\n\n------ Testing Reset Types ------")
         def reset_methods(fnc):
-            test_hw_reset = Target.ResetType.HW in target.selected_core.supported_reset_types
-            test_system_reset = Target.ResetType.SW_SYSTEM in target.selected_core.supported_reset_types
-            test_core_reset = Target.ResetType.SW_CORE in target.selected_core.supported_reset_types
-            test_emulated_reset = Target.ResetType.SW_EMULATED in target.selected_core.supported_reset_types
+            test_hw_reset = Target.ResetType.NSRST in target.selected_core.supported_reset_types
+            test_system_reset = Target.ResetType.SYSRESETREQ in target.selected_core.supported_reset_types
+            test_core_reset = Target.ResetType.VECTRESET in target.selected_core.supported_reset_types
+            test_emulated_reset = Target.ResetType.EMULATED in target.selected_core.supported_reset_types
 
             if test_hw_reset:
                 print("Hardware reset")
-                fnc(reset_type=Target.ResetType.HW)
-                print("Hardware reset (default=HW)")
-                target.selected_core.default_reset_type = Target.ResetType.HW
+                fnc(reset_type=Target.ResetType.NSRST)
+                print("Hardware reset (default=NSRST)")
+                target.selected_core.default_reset_type = Target.ResetType.NSRST
                 fnc(reset_type=None)
             else:
                 print("Hardware reset is disabled")
             if test_system_reset:
-                print("Software reset (default=SYSTEM)")
-                target.selected_core.default_reset_type = Target.ResetType.SW_SYSTEM
+                print("Software reset (default=SYSRESETREQ)")
+                target.selected_core.default_reset_type = Target.ResetType.SYSRESETREQ
                 fnc(reset_type=None)
             else:
                 print("System reset is disabled")
             if test_core_reset:
-                print("Software reset (default=CORE)")
-                target.selected_core.default_reset_type = Target.ResetType.SW_CORE
+                print("Software reset (default=VECTRESET)")
+                target.selected_core.default_reset_type = Target.ResetType.VECTRESET
                 fnc(reset_type=None)
             else:
                 print("Core reset is disabled")
             if test_emulated_reset:
-                print("Software reset (default=emulated)")
-                target.selected_core.default_reset_type = Target.ResetType.SW_EMULATED
+                print("Software reset (default=EMULATED)")
+                target.selected_core.default_reset_type = Target.ResetType.EMULATED
                 fnc(reset_type=None)
             else:
                 print("Emulated reset is disabled")
 
             if test_system_reset:
-                print("(Default) Software reset (SYSTEM)")
-                target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSTEM
-                fnc(reset_type=Target.ResetType.SW)
+                print("(Default) Software reset (SYSRESETREQ)")
+                target.selected_core.default_reset_type = Target.ResetType.SYSRESETREQ
+                fnc(reset_type=Target.ResetType.DEFAULT)
             if test_core_reset:
-                print("(Default) Software reset (CORE)")
-                target.selected_core.default_software_reset_type = Target.ResetType.SW_CORE
-                fnc(reset_type=Target.ResetType.SW)
+                print("(Default) Software reset (VECTRESET)")
+                target.selected_core.default_reset_type = Target.ResetType.VECTRESET
+                fnc(reset_type=Target.ResetType.DEFAULT)
             if test_emulated_reset:
-                print("(Default) Software reset (emulated)")
-                target.selected_core.default_software_reset_type = Target.ResetType.SW_EMULATED
-                fnc(reset_type=Target.ResetType.SW)
+                print("(Default) Software reset (EMULATED)")
+                target.selected_core.default_reset_type = Target.ResetType.EMULATED
+                fnc(reset_type=Target.ResetType.DEFAULT)
 
             if test_system_reset:
-                print("Software reset (option=default)")
-                target.selected_core.default_reset_type = Target.ResetType.SW
-                target.selected_core.default_software_reset_type = Target.ResetType.SW_SYSTEM
+                print("Software reset (option=DEFAULT)")
+                target.selected_core.default_reset_type = Target.ResetType.DEFAULT
                 session.options['reset_type'] = 'default'
                 fnc(reset_type=None)
             if test_hw_reset:
-                print("Reset (option=hw)")
-                session.options['reset_type'] = 'hw'
+                print("Reset (option=NSRST)")
+                session.options['reset_type'] = 'n_srst'
                 fnc(reset_type=None)
-            print("Software reset (option=sw)")
-            session.options['reset_type'] = 'sw'
-            fnc(reset_type=None)
             if test_system_reset:
-                print("Software reset (option=system)")
-                session.options['reset_type'] = 'system'
+                print("Software reset (option=SYSRESETREQ)")
+                session.options['reset_type'] = 'sysresetreq'
                 fnc(reset_type=None)
             if test_core_reset:
-                print("Software reset (option=core)")
-                session.options['reset_type'] = 'core'
+                print("Software reset (option=VECTRESET)")
+                session.options['reset_type'] = 'vectreset'
                 fnc(reset_type=None)
             if test_emulated_reset:
-                print("Software reset (option=emulated)")
+                print("Software reset (option=EMULATED)")
                 session.options['reset_type'] = 'emulated'
                 fnc(reset_type=None)
 

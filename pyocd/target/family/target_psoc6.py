@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019 Arm Limited
+# Copyright (c) 2013-2019,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,16 +33,16 @@ class CortexM_PSoC6(CortexM):
     VTBASE_CM4 = None
 
     def reset(self, reset_type=None):
-        if reset_type is not Target.ResetType.HW:
+        if reset_type is not Target.ResetType.NSRST:
             self.session.notify(Target.Event.PRE_RESET, self)
         self._run_token += 1
-        if reset_type is Target.ResetType.HW:
+        if reset_type is Target.ResetType.NSRST:
             self._ap.dp.reset()
             sleep(0.5)
             self._ap.dp.connect()
             self.fpb.enable()
         else:
-            if reset_type is Target.ResetType.SW_VECTRESET:
+            if reset_type is Target.ResetType.VECTRESET:
                 mask = CortexM.NVIC_AIRCR_VECTRESET
             else:
                 mask = CortexM.NVIC_AIRCR_SYSRESETREQ
@@ -68,7 +68,7 @@ class CortexM_PSoC6(CortexM):
 
                     sleep(0.01)
 
-        if reset_type is not Target.ResetType.HW:
+        if reset_type is not Target.ResetType.HARDWARE:
             self.session.notify(Target.Event.POST_RESET, self)
 
     def wait_halted(self):
@@ -108,7 +108,7 @@ class CortexM_PSoC6(CortexM):
 
         self.set_breakpoint(entry)
         self.bp_manager.flush()
-        self.reset(self.ResetType.SW_SYSRESETREQ)
+        self.reset(self.ResetType.SYSTEM)
         sleep(0.2)
         self.wait_halted()
         self.remove_breakpoint(entry)
@@ -142,9 +142,9 @@ class PSoC6(CoreSightTarget):
 
     def create_psoc_cores(self):
         core0 = self.cortex_m_core_class(self.session, self.aps[1], self.memory_map, 0)
-        core0.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        core0.default_reset_type = self.ResetType.SYSTEM
         core1 = self.cortex_m_core_class(self.session, self.aps[2], self.memory_map, 1)
-        core1.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        core1.default_reset_type = self.ResetType.SYSTEM
 
         self.aps[1].core = core0
         self.aps[2].core = core1
@@ -185,18 +185,18 @@ class CortexM_PSoC64(CortexM):
         self._skip_reset_and_halt = value
 
     def reset(self, reset_type=None):
-        if reset_type is not Target.ResetType.HW:
+        if reset_type is not Target.ResetType.HARDWARE:
             self.session.notify(Target.Event.PRE_RESET, self)
 
         self._run_token += 1
 
-        if reset_type is Target.ResetType.HW:
+        if reset_type is Target.ResetType.HARDWARE:
             self._ap.dp.reset()
             self.reinit_dap()
             self.fpb.enable()
 
         else:
-            if reset_type is Target.ResetType.SW_VECTRESET:
+            if reset_type is Target.ResetType.CORE:
                 mask = CortexM.NVIC_AIRCR_VECTRESET
             else:
                 mask = CortexM.NVIC_AIRCR_SYSRESETREQ
@@ -218,7 +218,7 @@ class CortexM_PSoC64(CortexM):
                 except exceptions.TransferError:
                     pass
 
-        if reset_type is not Target.ResetType.HW:
+        if reset_type is not Target.ResetType.HARDWARE:
             self.session.notify(Target.Event.POST_RESET, self)
 
     def wait_halted(self):
@@ -285,7 +285,7 @@ class CortexM_PSoC64(CortexM):
 
         LOG.info("Acquiring target...")
 
-        self.reset(self.ResetType.SW_SYSRESETREQ)
+        self.reset(self.ResetType.SYSTEM)
         try:
             self.flush()
         except exceptions.TransferError:
@@ -416,7 +416,7 @@ class PSoC64(CoreSightTarget):
 
     def create_psoc_core(self):
         sysap = SYS_AP_PSoC64(self.session, self.aps[0], self.memory_map, 0, self.DEFAULT_ACQUIRE_TIMEOUT)
-        sysap.default_reset_type = self.ResetType.SW_SYSRESETREQ
+        sysap.default_reset_type = self.ResetType.SYSRESETREQ
         self.aps[0].core = sysap
         sysap.init()
         self.add_core(sysap)
@@ -424,7 +424,7 @@ class PSoC64(CoreSightTarget):
         if self.AP_NUM:
             core = self.cortex_m_core_class(self.session, self.aps[self.AP_NUM], self.memory_map, 1,
                                      self.DEFAULT_ACQUIRE_TIMEOUT)
-            core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+            core.default_reset_type = self.ResetType.SYSRESETREQ
             self.aps[self.AP_NUM].core = core
             core.init()
             self.add_core(core)

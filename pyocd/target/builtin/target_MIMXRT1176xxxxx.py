@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 NXP
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -846,7 +846,7 @@ class MIMXRT1176xxxxx_CM7(CoreSightTarget):
 
     def create_cores(self):
         core0 = CortexM(self.session, self.aps[0], self.memory_map, 0)
-        core0.default_reset_type = self.ResetType.SW_CORE
+        core0.default_reset_type = self.ResetType.CORE
 
         self.aps[0].core = core0
 
@@ -928,11 +928,10 @@ class MIMXRT1176xxxxx_CM4(CoreSightTarget):
 
     def create_cores(self):
         core = CortexM(self.session, self.aps[1], self.memory_map, 1)
-        core.default_reset_type = self.ResetType.SW_CORE
+        core.default_reset_type = self.ResetType.CORE
 
         self.aps[0].core = core
 
         core.init()
 
         self.add_core(core)
-

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2023 Northern Mechatronics, Inc.
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -159,7 +160,7 @@ class AMA3B1KK_KBR(CoreSightTarget):
     def create_cores(self):
         try:
             core = self.CortexM_Core(self.session, self.aps[0], self.memory_map, 0)
-            core.default_reset_type = self.ResetType.SW_SYSRESETREQ
+            core.default_reset_type = self.ResetType.SYSRESETREQ
             self.aps[0].core = core
             core.init()
             self.add_core(core)
