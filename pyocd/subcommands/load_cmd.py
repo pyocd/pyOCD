@@ -35,7 +35,7 @@ class LoadSubcommand(SubcommandBase):
 
     NAMES = ['load', 'flash']
     HELP = "Load one or more images into target device memory."
-    EPILOG = "Supported file formats are: binary, Intel hex, and ELF32."
+    EPILOG = "Supported file formats are: binary (.bin), ELF32/AXF (.elf and .axf), Intel hex (.hex), and Motorola S-record (.srec)."
     DEFAULT_LOG_LEVEL = logging.WARNING
 
     ## @brief Valid erase mode options.
@@ -58,7 +58,7 @@ class LoadSubcommand(SubcommandBase):
                  "Only allowed if a single binary file is being loaded.")
         parser_options.add_argument("--trust-crc", action="store_true",
             help="Use only the CRC of each page to determine if it already has the same data.")
-        parser_options.add_argument("--format", choices=("bin", "hex", "elf"),
+        parser_options.add_argument("--format", choices=("axf", "bin", "elf", "hex", "srec"),
             help="File format. Default is to use the file's extension. If multiple files are provided, then "
                  "all must be of this type.")
         parser_options.add_argument("--skip", metavar="BYTES", default=0, type=int_base_0,
