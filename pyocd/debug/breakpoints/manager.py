@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -63,6 +63,8 @@ class BreakpointManager:
         # Subscribe to some notifications.
         self._session.subscribe(self._pre_run_handler, Target.Event.PRE_RUN)
         self._session.subscribe(self._pre_disconnect_handler, Target.Event.PRE_DISCONNECT)
+        self._session.subscribe(self._pre_reset_catch_handler, Target.Event.PRE_HALT, self._core)
+        self._session.subscribe(self._post_reset_catch_handler, Target.Event.POST_HALT, self._core)
 
     def add_provider(self, provider: "BreakpointProvider") -> None:
         self._providers[provider.bp_type] = provider
@@ -161,12 +163,12 @@ class BreakpointManager:
 
         # Get added breakpoints.
         for bp in self._updated_breakpoints.values():
-            if not bp.addr in self._breakpoints:
+            if bp.addr not in self._breakpoints:
                 added.append(bp)
 
         # Get removed breakpoints.
         for bp in self._breakpoints.values():
-            if not bp.addr in self._updated_breakpoints:
+            if bp.addr not in self._updated_breakpoints:
                 removed.append(bp)
 
         # Return the list of pages to update.
@@ -314,4 +316,17 @@ class BreakpointManager:
     def _pre_disconnect_handler(self, notification: "Notification") -> None:
         pass
 
+    def _pre_reset_catch_handler(self, notification: "Notification") -> None:
+        # Remove all breakpoints before a reset. A reset debug sequence may clear
+        # or override some breakpoints, so we need to start fresh afterward.
+        if notification.data == Target.HaltReason.VECTOR_CATCH:
+            LOG.debug("removing all breakpoints before reset")
+            self.remove_all_breakpoints()
 
+    def _post_reset_catch_handler(self, notification: "Notification") -> None:
+        # A reset debug sequence may disable the FPB. Mark it as disabled so the
+        # FPB provider will re-enable it when the next breakpoint is set.
+        if notification.data == Target.HaltReason.VECTOR_CATCH:
+            LOG.debug("disabling hardware breakpoints after reset")
+            if self._fpb is not None:
+                self._fpb.enabled = False
