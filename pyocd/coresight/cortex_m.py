@@ -1090,6 +1090,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         """
         LOG.debug("set reset catch, core %d", self.core_number)
 
+        # Send pre-halt notification.
+        self.session.notify(Target.Event.PRE_HALT, self, Target.HaltReason.VECTOR_CATCH)
+
         # First let the delegate object have a chance.
         delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
 
@@ -1132,6 +1135,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             demcr = self.read_memory(CortexM.DEMCR)
             if (demcr & CortexM.DEMCR_VC_CORERESET) != 0:
                 self.write_memory(CortexM.DEMCR, demcr & ~CortexM.DEMCR_VC_CORERESET)
+
+        # Send post-halt notification.
+        self.session.notify(Target.Event.POST_HALT, self, Target.HaltReason.VECTOR_CATCH)
 
     def reset_and_halt(self, reset_type=None):
         """@brief Perform a reset and stop the core on the reset handler."""
