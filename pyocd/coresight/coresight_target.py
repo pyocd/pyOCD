@@ -82,6 +82,9 @@ class CoreSightTarget(SoCTarget):
                 DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
                 )
 
+    def flush(self) -> None:
+        self.dp.flush()
+
     def load_svd(self) -> None:
         def svd_load_completed_cb(svdDevice):
             self._svd_device = svdDevice

@@ -419,6 +419,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         self.call_delegate('did_start_debug_core', core=self)
 
+    def flush(self) -> None:
+        """@brief Flush any pending operations to the core."""
+        self.parent.flush()
+
     def disconnect(self, resume: bool = True) -> None:
         self.call_delegate('will_stop_debug_core', core=self)
 
