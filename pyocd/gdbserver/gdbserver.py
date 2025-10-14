@@ -58,6 +58,35 @@ LOG = logging.getLogger(__name__)
 TRACE_MEM = LOG.getChild("trace.mem")
 TRACE_MEM.setLevel(logging.CRITICAL)
 
+# When a client thread sets the active index, this filter will
+# prepend "Client<index>: " to log messages emitted on that thread.
+class _ClientLogFilter(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self._tls = threading.local()
+
+    def set_client(self, index: int) -> None:
+        self._tls.client_index = index
+
+    def clear_client(self) -> None:
+        self._tls.client_index = None
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        idx = getattr(self._tls, 'client_index', None)
+        if idx is not None:
+            try:
+                msg = record.getMessage()
+            except Exception:
+                msg = str(record.msg)
+            record.msg = "Client %d: %s" % (idx, msg)
+            record.args = ()
+        return True
+
+# Single shared filter instance for this module's logger.
+_client_log_filter = _ClientLogFilter()
+LOG.addFilter(_client_log_filter)
+TRACE_MEM.addFilter(_client_log_filter)
+
 def unescape(data: bytes) -> List[int]:
     """@brief De-escapes binary data from Gdb.
 
@@ -120,8 +149,10 @@ class GDBClientSession(threading.Thread):
 
 
     def run(self) -> None:
-        LOG.info("GDB client session started.")
+        # Set the log filter to include the client index in messages from this thread.
+        _client_log_filter.set_client(self.index)
 
+        LOG.debug("Thread started")
         try:
             self._packet_io = GDBServerPacketIOThread(self._connected_socket, self.index)
         except Exception as e:
@@ -140,13 +171,13 @@ class GDBClientSession(threading.Thread):
                             self._server.is_target_running = False
                             self._server.send_stop_notification(self)
                         else:
-                            LOG.warning("Got unexpected ctrl-c in all-stop mode; ignoring")
+                            LOG.warning("Unexpected Ctrl-C ignored in all-stop mode")
                         self.interrupt_clear()
 
                     if self.non_stop and self._server.is_target_running:
                         try:
                             if self._server.target.get_state() == Target.State.HALTED:
-                                LOG.debug("state halted")
+                                LOG.debug("Target halted")
                                 self._server.is_target_running = False
                                 self._server.send_stop_notification(self)
                         except Exception as e:
@@ -156,7 +187,7 @@ class GDBClientSession(threading.Thread):
                     try:
                         packet = self.receive(block=not self.non_stop)
                     except ConnectionClosedException:
-                        LOG.debug("gdbserver connection loop exiting; client closed connection")
+                        LOG.debug("Connection closed")
                         break
 
                     if self._server.shutdown_event.is_set():
@@ -177,20 +208,22 @@ class GDBClientSession(threading.Thread):
                 except Exception as e:
                     LOG.error("Unexpected exception: %s", e, exc_info=self._server.session.log_tracebacks)
         finally:
-            LOG.debug("gdbserver exiting Client session")
+            LOG.debug("Thread stopping")
 
             try:
                 self.cleanup()
             except Exception as e:
-                LOG.error("Error during client cleanup: %s", e, exc_info=self._server.session.log_tracebacks)
+                LOG.error("Error cleaning up session: %s", e, exc_info=self._server.session.log_tracebacks)
 
             # Notify server that session detached.
             try:
                 self._server.notify_client_detached(self)
-            except Exception:
-                LOG.exception("notify_client_detached() failed")
+            except Exception as e:
+                LOG.error("Failed to notify server of client detachment: %s",
+                        e, exc_info=self._server.session.log_tracebacks)
 
-            LOG.info("GDB client session stopped")
+            _client_log_filter.clear_client()
+            LOG.info("Client %d disconnected", self.index)
 
     # packet_io wrapper methods
     def send(self, data):
@@ -226,13 +259,13 @@ class GDBClientSession(threading.Thread):
             if  self._packet_io is not None:
                 self._packet_io.stop()
         except Exception as e:
-            LOG.debug("Error stopping packet I/O: %s", e)
+            LOG.debug("Error stopping packet I/O thread: %s", e, exc_info=self._server.session.log_tracebacks)
 
         try:
             if  self._connected_socket is not None:
                 self._connected_socket.close()
         except Exception as e:
-            LOG.debug("Error closing socket: %s", e)
+            LOG.debug("Error closing socket: %s", e, exc_info=self._server.session.log_tracebacks)
         finally:
             self.is_socket_connected = False
 
@@ -346,7 +379,7 @@ class GDBServer(threading.Thread):
             console_file = self.telnet_server
             semihost_console = semihost.ConsoleIOHandler(self.telnet_server)
         else:
-            LOG.info("Semihosting will be output to console")
+            LOG.info("Semihosting output to console")
             console_file = sys.stdout
             self.telnet_server = None
             semihost_console = semihost_io_handler
@@ -365,7 +398,7 @@ class GDBServer(threading.Thread):
 
         if session.options.get("enable_swv") and core == 0:
             if "swv_system_clock" not in session.options:
-                LOG.warning("Cannot enable SWV due to missing swv_system_clock option")
+                LOG.warning("SWV not enabled; swv_system_clock option missing")
             else:
                 sys_clock = int(session.options.get("swv_system_clock"))
                 swo_clock = int(session.options.get("swv_clock"))
@@ -434,11 +467,11 @@ class GDBServer(threading.Thread):
         if self.is_alive():
             self.shutdown_event.set()
             if wait:
-                LOG.debug("gdbserver shutdown event set; waiting for exit")
+                LOG.debug("GDB server on port %d shutdown event; waiting for thread exit", self.port)
                 self.join()
             else:
-                LOG.debug("gdbserver shutdown event set")
-            LOG.info("GDB server thread stopped")
+                LOG.debug("GDB server on port %d shutdown event", self.port)
+            LOG.info("GDB server on port %d stopped", self.port)
 
 
     def _cleanup_client_sessions(self):
@@ -452,7 +485,7 @@ class GDBServer(threading.Thread):
                     self.client_sessions.remove(client)
 
     def _cleanup(self):
-        LOG.debug("GDB server cleaning up")
+        LOG.debug("GDB server on port %d cleaning up", self.port)
         self._cleanup_client_sessions()
         if self.semihost:
             self.semihost.cleanup()
@@ -469,7 +502,7 @@ class GDBServer(threading.Thread):
         self.listen_socket.close()
 
     def run(self):
-        LOG.info('GDB server listening on port %d (core %d)', self.port, self.core)
+        LOG.info("GDB server listening on port %d (core %d)", self.port, self.core)
 
         # Notify listeners that the server is running after a short delay.
         #
@@ -488,7 +521,7 @@ class GDBServer(threading.Thread):
                     if connected_socket:
                         remote_address = connected_socket.get_remote_address()
                 except Exception as e:
-                    LOG.error("accept() error: %s", e, exc_info=self.session.log_tracebacks)
+                    LOG.error("Error accepting socket connection on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
                     connected_socket = None
 
                 if connected_socket is None:
@@ -510,10 +543,13 @@ class GDBServer(threading.Thread):
 
                         # Start the per-client handler thread (server.run_session() will be invoked there).
                     client.start()
-                    LOG.info("Client connected on port %d", self.port)
+                    if remote_address:
+                        LOG.info("Client %d connected on port %d from remote address %s", index, self.port, remote_address)
+                    else:
+                        LOG.info("Client %d connected on port %d (remote=unknown)", index, self.port)
 
                 except Exception as e:
-                    LOG.error("Failed to start client session: %s", e, exc_info=self.session.log_tracebacks)
+                    LOG.error("Error starting client session on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
 
                     try:
                         if client is not None:
@@ -533,10 +569,10 @@ class GDBServer(threading.Thread):
                             except Exception:
                                 pass
 
-                    except Exception as cleanup_err:
-                        LOG.error("Error during client session cleanup: %s", cleanup_err)
+                    except Exception as e:
+                        LOG.error("Error cleaning up client session on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
         finally:
-            LOG.debug("GDB server main loop exiting")
+            LOG.debug("GDB server on port %d exiting", self.port)
             self._cleanup()
 
     def notify_client_detached(self, client: GDBClientSession):
@@ -552,7 +588,7 @@ class GDBServer(threading.Thread):
 
             # Client is detached from the target. If its socket connection is closed, remove it from the session list.
             if client in self.client_sessions and not client.is_socket_connected:
-                LOG.debug("Removing client from session list")
+                LOG.debug("Removing from session list")
                 self.client_sessions.remove(client)
 
             # Resume target if no client is attached to program
@@ -566,7 +602,8 @@ class GDBServer(threading.Thread):
                     if self.target.get_state() == Target.State.HALTED:
                         self.target.resume()
                 except Exception as e:
-                    LOG.error("Error resuming target: %s", e)
+                    LOG.error("Error resuming target after client detached: %s",
+                              e, exc_info=self.session.log_tracebacks)
                 self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
 
             # Decide server lifecycle on connected sessions
@@ -580,7 +617,7 @@ class GDBServer(threading.Thread):
             try:
                 handler, msgStart = self.COMMANDS[msg[1:2]]
             except (KeyError, IndexError):
-                LOG.error("Unknown RSP command (%s)", msg[1:2])
+                LOG.error("Unknown RSP command (%s)", to_str_safe(msg[1:2]))
                 return self.create_rsp_packet(b"")
 
             with self.lock:
@@ -592,17 +629,17 @@ class GDBServer(threading.Thread):
             return reply
 
         except Exception as e:
-            LOG.error("Unhandled exception in handle_message (%s): %s",
-                    msg[1:2], e, exc_info=self.session.log_tracebacks)
+            LOG.error("Unhandled exception processing RSP command (%s): %s",
+                    to_str_safe(msg[1:2]), e, exc_info=self.session.log_tracebacks)
             return self.create_rsp_packet(b"E01")
 
     def extended_remote(self, client):
-        LOG.debug("extended remote enabled")
+        LOG.debug("Command: Extended mode")
         client.is_extended_remote = True
         return self.create_rsp_packet(b"OK")
 
     def detach(self, client, data):
-        LOG.info("Client session detached")
+        LOG.debug("Command: Detach")
         # In extended-remote mode, detach should detach from the program but not close the connection. gdb assumes
         # the server connection is still valid.
         try:
@@ -612,53 +649,58 @@ class GDBServer(threading.Thread):
                 # In normal mode, we close the connection and stop the client thread.
                 client.stop()
         except Exception as e:
-            LOG.exception("Error while detaching client: %s", e)
-            # Ensure we return OK to gdb even if an error occurred.
+            LOG.error("Command: Detach: Error = %s", e, exc_info=self.session.log_tracebacks)
+        # Ensure we return OK to gdb even if an error occurred.
         return self.create_rsp_packet(b"OK")
 
     def kill(self, client):
-        LOG.debug("Client session killed")
+        LOG.debug("Command: Kill")
         try:
             client.stop()
-        except Exception:
-            LOG.debug("Failed to stop client during kill()")
+        except Exception as e:
+            LOG.error("Command: Kill: Error stopping client: %s", e, exc_info=self.session.log_tracebacks)
         try:
             self.target.reset()
         except Exception as e:
-            LOG.exception("Error during kill handling: %s", e)
+            LOG.error("Command: Kill: Error resetting target: %s", e, exc_info=self.session.log_tracebacks)
         # No reply for 'k' command.
 
     def restart(self, client, data):
-        LOG.debug("Client restarted")
+        LOG.debug("Command: Restart")
         try:
             client.is_attached_to_target = True
             self.target.reset_and_halt()
         except Exception as e:
-            LOG.exception("Error during restart: %s", e)
+            LOG.error("Command: Restart: Error resetting and halting target: %s", e, exc_info=self.session.log_tracebacks)
         # No reply for 'R' command.
 
     def breakpoint(self, client, data):
         # handle breakpoint/watchpoint commands
         split = data.split(b'#')[0].split(b',')
         addr = int(split[1], 16)
-        LOG.debug("GDB breakpoint %s%d @ %x" % (data[0:1], int(data[1:2]), addr))
 
         # handle software breakpoint Z0/z0
         if data[1:2] == b'0':
             if data[0:1] == b'Z':
                 bkpt_type = Target.BreakpointType.HW if self.soft_bkpt_as_hard else Target.BreakpointType.SW
+                LOG.debug("Command: Set software breakpoint (addr=0x%08x)", addr)
                 if not self.target.set_breakpoint(addr, bkpt_type):
+                    LOG.debug("Command: Set software breakpoint (addr=0x%08x): Failed", addr)
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
+                LOG.debug("Command: Clear software breakpoint (addr=0x%08x)", addr)
                 self.target.remove_breakpoint(addr)
             return self.create_rsp_packet(b"OK")
 
         # handle hardware breakpoint Z1/z1
         if data[1:2] == b'1':
             if data[0:1] == b'Z':
+                LOG.debug("Command: Set hardware breakpoint (addr=0x%08x)", addr)
                 if self.target.set_breakpoint(addr, Target.BreakpointType.HW) is False:
+                    LOG.debug("Command: Set hardware breakpoint (addr=0x%08x): Failed", addr)
                     return self.create_rsp_packet(b'E01') #EPERM
             else:
+                LOG.debug("Command: Clear hardware breakpoint (addr=0x%08x)", addr)
                 self.target.remove_breakpoint(addr)
             return self.create_rsp_packet(b"OK")
 
@@ -673,24 +715,38 @@ class GDBServer(threading.Thread):
             # Read-Write watch
             watchpoint_type = Target.WatchpointType.READ_WRITE
         else:
+            LOG.debug("Command: Set/Clear Break/Watchpoint: Invalid command=%s", to_str_safe(data[0:2]))
             return self.create_rsp_packet(b'E01') #EPERM
+
+        _WP_NAMES = {
+            Target.WatchpointType.WRITE: "Write",
+            Target.WatchpointType.READ: "Read",
+            Target.WatchpointType.READ_WRITE: "Access",
+        }
 
         size = int(split[2], 16)
         if data[0:1] == b'Z':
+            LOG.debug("Command: Set %s watchpoint (addr=0x%08x)", _WP_NAMES[watchpoint_type], addr)
             if self.target.set_watchpoint(addr, size, watchpoint_type) is False:
+                LOG.debug("Command: Set %s watchpoint (addr=0x%08x): Failed", _WP_NAMES[watchpoint_type], addr)
                 return self.create_rsp_packet(b'E01') #EPERM
         else:
+            LOG.debug("Command: Clear %s watchpoint (addr=0x%08x)", _WP_NAMES[watchpoint_type], addr)
             self.target.remove_watchpoint(addr, size, watchpoint_type)
         return self.create_rsp_packet(b"OK")
 
     def set_thread(self, client, data):
-        if not self.is_threading_enabled():
-            return self.create_rsp_packet(b'OK')
-
-        LOG.debug("set_thread:%s", data)
         op = data[0:1]
         thread_id = int(data[1:-3], 16)
+        LOG.debug("Command: Set thread (threadId=%s, operation=%s)",
+                  ("0x%08x" % thread_id) if thread_id >= 0 else str(thread_id), to_str_safe(op))
+
+        if not self.is_threading_enabled():
+            LOG.debug("Command: Set thread: Threading not enabled")
+            return self.create_rsp_packet(b'OK')
+
         if not (thread_id in (0, -1) or self.thread_provider.is_valid_thread_id(thread_id)):
+            LOG.debug("Command: Set thread (threadId=0x%08x): Invalid threadId", thread_id)
             return self.create_rsp_packet(b'E01')
 
         if op == b'c':
@@ -706,6 +762,8 @@ class GDBServer(threading.Thread):
                     thread = self.thread_provider.get_thread(thread_id)
                 client.target_facade.set_context(thread.context)
         else:
+            LOG.debug("Command: Set thread (threadId=%s, operation=%s): Invalid thread operation",
+                      ("0x%08x" % thread_id) if thread_id >= 0 else str(thread_id), to_str_safe(op))
             return self.create_rsp_packet(b'E01')
 
         return self.create_rsp_packet(b'OK')
@@ -719,11 +777,15 @@ class GDBServer(threading.Thread):
             isAlive = (threadId == 1)
 
         if isAlive:
+            LOG.debug("Command: Is thread alive (threadId=0x%08x): OK", threadId)
             return self.create_rsp_packet(b'OK')
         else:
+            LOG.debug("Command: Is thread alive (threadId=0x%08x): Not Alive (E00)", threadId)
             return self.create_rsp_packet(b'E00')
 
     def stop_reason_query(self, client):
+        LOG.debug("Command: Stop reason query")
+
         # In non-stop mode, if no threads are stopped we need to reply with OK.
         if client.non_stop and self.is_target_running:
             return self.create_rsp_packet(b"OK")
@@ -731,8 +793,6 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(self.get_t_response(client))
 
     def _get_resume_step_addr(self, data):
-        if data is None:
-            return None
         data = data.split(b'#')[0]
         if b';' not in data:
             return None
@@ -742,14 +802,21 @@ class GDBServer(threading.Thread):
         # Csig[;addr]
         elif data[0:1] in (b'C', b'S'):
             addr = int(data[1:].split(b';')[1], base=16)
-        else:
-            raise exceptions.DebugError("invalid step address received from gdb")
+        # else:
+        #     # Address is currently igonored - no need to log error
+        #     LOG.error("Invalid step address received from gdb")
         return addr
 
     def resume(self, client, data):
-#         addr = self._get_resume_step_addr(data)
+        if data and data[0:1] in (b'c', b'C'):
+            addr = self._get_resume_step_addr(data)
+            if addr:
+                LOG.debug("Command: Continue (addr=%d): Address is ignored", addr)
+            else:
+                LOG.debug("Command: Continue")
+
         self.target.resume()
-        LOG.debug("target resumed")
+        LOG.debug("Target resumed")
 
         if self.first_run_after_reset_or_flash:
             self.first_run_after_reset_or_flash = False
@@ -772,7 +839,7 @@ class GDBServer(threading.Thread):
             # Wait for a ctrl-c to be received.
             if client.wait_for_interrupt(0.01):
                 self.lock.acquire()
-                LOG.debug("receive CTRL-C")
+                LOG.debug("Ctrl-C received, halting target")
                 client.interrupt_clear()
 
                 # Be careful about reading the target state. If we previously got a fault (the timeout
@@ -784,7 +851,7 @@ class GDBServer(threading.Thread):
                     # Note: if the target is not actually halted, gdb can get confused from this point on.
                     # But there's not much we can do if we're getting faults attempting to control it.
                     if not fault_retry_timeout.is_running:
-                        LOG.error('Error reading target status: %s', e, exc_info=self.session.log_tracebacks)
+                        LOG.error("Error reading target status after halt: %s", e, exc_info=self.session.log_tracebacks)
                     val = ('S%02x' % signals.SIGINT).encode()
                 break
 
@@ -799,7 +866,7 @@ class GDBServer(threading.Thread):
                 # If we were able to successfully read the target state after previously receiving a fault,
                 # then clear the timeout.
                 if fault_retry_timeout.is_running:
-                    LOG.info("Target control reestablished.")
+                    LOG.info("Target control re-established.")
                     fault_retry_timeout.clear()
 
                 if state == Target.State.HALTED:
@@ -818,7 +885,7 @@ class GDBServer(threading.Thread):
                             continue
 
                     pc = self.target_context.read_core_register('pc')
-                    LOG.debug("state halted; pc=0x%08x", pc)
+                    LOG.debug("Target halted at pc=0x%08x", pc)
                     val = self.get_t_response(client)
                     break
             except exceptions.TransferError as e:
@@ -834,21 +901,25 @@ class GDBServer(threading.Thread):
                     self.target.halt()
                 except exceptions.Error:
                     pass
-                LOG.warning('Error while target was running: %s', e, exc_info=self.session.log_tracebacks)
+                LOG.warning("Error while target running: %s", e, exc_info=self.session.log_tracebacks)
                 # This exception was not a transfer error, so reading the target state should be ok.
                 val = ('S%02x' % client.target_facade.get_signal_value()).encode()
                 break
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
-            LOG.error("Timed out while attempting to reestablish control over target.")
+            LOG.error("Timeout re-establishing target control.")
             val = ('S%02x' % signals.SIGSEGV).encode()
 
         return self.create_rsp_packet(val)
 
     def step(self, client, data, start=0, end=0):
-        #addr = self._get_resume_step_addr(data)
-        LOG.debug("GDB step: %s (start=0x%x, end=0x%x)", data, start, end)
+        if data and data[0:1] in (b's', b'S'):
+            addr = self._get_resume_step_addr(data)
+            if addr:
+                LOG.debug("Command: Step (addr=%d): Address is ignored", addr)
+            else:
+                LOG.debug("Command: Step")
 
         # Use the step hook to check for an interrupt event.
         def step_hook():
@@ -858,7 +929,7 @@ class GDBServer(threading.Thread):
 
         # Clear and handle an interrupt.
         if client.is_interrupted():
-            LOG.debug("Received Ctrl-C during step")
+            LOG.debug("Ctrl-C received during step")
             client.interrupt_clear()
             response = self.get_t_response(client, forceSignal=signals.SIGINT)
         else:
@@ -866,11 +937,8 @@ class GDBServer(threading.Thread):
 
         return self.create_rsp_packet(response)
 
-    def halt(self, client):
-        self.target.halt()
-        return self.create_rsp_packet(self.get_t_response(client))
-
     def send_stop_notification(self, client, forceSignal=None):
+        LOG.debug("Notification: Stop")
         data = self.get_t_response(client, forceSignal=forceSignal)
         packet = b'%Stop:' + data + b'#' + checksum(data)
         client.send(packet)
@@ -882,25 +950,30 @@ class GDBServer(threading.Thread):
         if cmd.startswith(b'Flash'):
             return self.flash_op(data)
 
-        # v_cont capabilities query.
+        # vCont capabilities query.
         elif b'Cont?' == cmd:
-            return self.create_rsp_packet(b"vCont;c;C;s;S;r;t")
+            response = b"vCont;c;C;s;S;r;t"
+            LOG.debug("Command: Request list of actions supported by 'vCont': %s", to_str_safe(response))
+            return self.create_rsp_packet(response)
 
-        # v_cont, thread action command.
+        # vCont, thread action command.
         elif cmd.startswith(b'Cont'):
             return self.v_cont(client, cmd)
 
         # vStopped, part of thread stop state notification sequence.
         elif b'Stopped' in cmd:
             # Because we only support one thread for now, we can just reply OK to vStopped.
+            LOG.debug("Command: vStopped notification")
             return self.create_rsp_packet(b"OK")
 
+        LOG.debug("Command: %s: Unknown command", to_str_safe(cmd))
         return self.create_rsp_packet(b"")
 
-    # Example: $v_cont;s:1;c#c1
+    # Example: $vCont;s:1;c#c1
     def v_cont(self, client, cmd):
         ops = cmd.split(b';')[1:] # split and remove 'Cont' from list
         if not ops:
+            LOG.debug("Command: vCont: No operations")
             return self.create_rsp_packet(b"OK")
 
         # Maps the thread unique ID to an action char (byte).
@@ -927,15 +1000,15 @@ class GDBServer(threading.Thread):
             else:
                 default_action = action
 
-        LOG.debug("thread_actions=%s; default_action=%s", repr(thread_actions), default_action)
-
         # Only the current thread is supported at the moment.
         if thread_actions[currentThread] is None:
             if default_action is None:
+                LOG.debug("Command: vCont (threadId=0x%08x): No action for current thread", currentThread)
                 return self.create_rsp_packet(b'E01')
             thread_actions[currentThread] = default_action
 
         if thread_actions[currentThread][0:1] in (b'c', b'C'):
+            LOG.debug("Command: vCont (threadId=0x%08x, action=continue)", currentThread)
             if client.non_stop:
                 self.target.resume()
                 self.is_target_running = True
@@ -947,6 +1020,9 @@ class GDBServer(threading.Thread):
             end = 0
             if thread_actions[currentThread][0:1] == b'r':
                 start, end = [int(addr, base=16) for addr in thread_actions[currentThread][1:].split(b',')]
+                LOG.debug("Command: vCont (threadId=0x%08x, action=step, start=0x%08x, end=0x%08x)", currentThread, start, end)
+            else:
+                LOG.debug("Command: vCont (threadId=0x%08x, action=step)", currentThread)
 
             if client.non_stop:
                 self.target.step(not self.step_into_interrupt, start, end)
@@ -956,6 +1032,7 @@ class GDBServer(threading.Thread):
             else:
                 return self.step(client, None, start, end)
         elif thread_actions[currentThread] == b't':
+            LOG.debug("Command: vCont (threadId=0x%08x, action=stop)", currentThread)
             # Must ignore t command in all-stop mode.
             if not client.non_stop:
                 return self.create_rsp_packet(b"")
@@ -964,22 +1041,22 @@ class GDBServer(threading.Thread):
             self.is_target_running = False
             self.send_stop_notification(client, forceSignal=0)
         else:
-            LOG.error("Unsupported v_cont action '%s'" % thread_actions[1])
+            LOG.error("Command: vCont (threadId=0x%08x, action='%s'): Unsupported action", currentThread, to_str_safe(thread_actions[currentThread]))
 
     def flash_op(self, data):
         ops = data.split(b':')[0]
-        LOG.debug("flash op: %s", ops)
 
         # Select current core
         if self.board.target.selected_core != self.core:
             self.board.target.selected_core = self.core
 
         if ops == b'FlashErase':
+            LOG.debug("Command: Flash erase")
             return self.create_rsp_packet(b"OK")
 
         elif ops == b'FlashWrite':
             write_addr = int(data.split(b':')[1], 16)
-            LOG.debug("flash write addr: 0x%x", write_addr)
+            LOG.debug("Command: Flash write (addr=0x%08x)", write_addr)
             # search for second ':' (beginning of data encoded in the message)
             second_colon = 0
             idx_begin = 0
@@ -999,6 +1076,7 @@ class GDBServer(threading.Thread):
 
         # we need to flash everything
         elif b'FlashDone' in ops :
+            LOG.debug("Command: Flash done")
             # Only program if we received data.
             if self.flash_loader is not None:
                 try:
@@ -1023,7 +1101,7 @@ class GDBServer(threading.Thread):
         length = split[1].split(b'#')[0]
         length = int(length, 16)
 
-        TRACE_MEM.debug("GDB getMem: addr=%x len=%x", addr, length)
+        TRACE_MEM.debug("Command: Read memory (addr=0x%08x, len=%d)", addr, length)
 
         try:
             mem = self.target_context.read_memory_block8(addr, length)
@@ -1031,7 +1109,7 @@ class GDBServer(threading.Thread):
             self.target_context.flush()
             val = hex_encode(bytearray(mem))
         except exceptions.TransferError as e:
-            LOG.debug("get_memory failed at 0x%x: %s", addr, str(e))
+            LOG.debug("Command: Read memory (addr=0x%08x, len=%d): Error = %s", addr, length, str(e))
             val = b'E01' #EPERM
         return self.create_rsp_packet(val)
 
@@ -1045,7 +1123,7 @@ class GDBServer(threading.Thread):
         split = split[1].split(b'#')
         data = hex_to_byte_list(split[0])
 
-        TRACE_MEM.debug("GDB writeMemHex: addr=%x len=%x", addr, length)
+        TRACE_MEM.debug("Command: Write memory hex (addr=0x%08x, len=%d)", addr, length)
 
         try:
             if length > 0:
@@ -1054,7 +1132,7 @@ class GDBServer(threading.Thread):
                 self.target_context.flush()
             resp = b"OK"
         except exceptions.TransferError as e:
-            LOG.debug("write_memory_hex failed at 0x%x: %s", addr, str(e))
+            LOG.debug("Command: Write memory hex (addr=0x%08x, len=%d): Error = %s", addr, length, str(e))
             resp = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
@@ -1064,11 +1142,11 @@ class GDBServer(threading.Thread):
         addr = int(split[0], 16)
         length = int(split[1].split(b':')[0], 16)
 
-        TRACE_MEM.debug("GDB writeMem: addr=%x len=%x", addr, length)
-
         idx_begin = data.index(b':') + 1
         data = data[idx_begin:len(data) - 3]
         data = unescape(data)
+
+        TRACE_MEM.debug("Command: Write memory (addr=0x%08x, len=%d)", addr, length)
 
         try:
             if length > 0:
@@ -1077,33 +1155,36 @@ class GDBServer(threading.Thread):
                 self.target_context.flush()
             resp = b"OK"
         except exceptions.TransferError as e:
-            LOG.debug("write_memory failed at 0x%x: %s", addr, str(e))
+            LOG.debug("Command: Write memory (addr=0x%08x, len=%d): Error = %s", addr, length, str(e))
             resp = b'E01' #EPERM
 
         return self.create_rsp_packet(resp)
 
     def read_register(self, client, which):
+        TRACE_MEM.debug("Command: Read register (reg_num=0x%x)", which)
         return self.create_rsp_packet(client.target_facade.get_register(which))
 
     def write_register(self, client, data):
         reg = int(data.split(b'=')[0], 16)
         val = data.split(b'=')[1].split(b'#')[0]
+        TRACE_MEM.debug("Command: Write register (reg_num=0x%x, value=%s)", reg, to_str_safe(val))
         client.target_facade.set_register(reg, val)
         return self.create_rsp_packet(b"OK")
 
     def get_registers(self, client):
+        TRACE_MEM.debug("Command: Read general registers")
         return self.create_rsp_packet(client.target_facade.get_register_context())
 
     def set_registers(self, client, data):
+        TRACE_MEM.debug("Command: Write general registers (registers_data=%s)", to_str_safe(data))
         client.target_facade.set_register_context(data)
         return self.create_rsp_packet(b"OK")
 
     def handle_query(self, client, msg):
         query = msg.split(b':')
-        LOG.debug('GDB received query: %s', query)
 
         if query is None:
-            LOG.error('GDB received query packet malformed')
+            LOG.error("Command: General query: Malformed packet received")
             return None
 
         if query[0] == b'Supported':
@@ -1116,6 +1197,7 @@ class GDBServer(threading.Thread):
             if client.target_facade.get_memory_map_xml() is not None:
                 features.append(b'qXfer:memory-map:read+')
             resp = b';'.join(features)
+            LOG.debug("Command: Query supported features (gdb features=%s): %s", client.gdb_features, features)
             return self.create_rsp_packet(resp)
 
         elif query[0] == b'Xfer':
@@ -1125,30 +1207,37 @@ class GDBServer(threading.Thread):
                 resp = self.handle_query_xml(client, query[1], query[3], int(data[0], 16), int(data[1].split(b'#')[0], 16))
                 return self.create_rsp_packet(resp)
             else:
-                LOG.debug("Unsupported qXfer request: %s:%s:%s:%s", query[1], query[2], query[3], query[4])
+                LOG.debug("Command: Query Xfer:%s:%s: Unsupported request", to_str_safe(query[1]), to_str_safe(query[2]))
                 # Must return an empty packet for an unrecognized qXfer.
                 return self.create_rsp_packet(b"")
 
         elif query[0] == b'C':
             if not self.is_threading_enabled():
-                return self.create_rsp_packet(b"QC1")
+                thread_id = 1
             else:
-                return self.create_rsp_packet(("QC%x" % self.thread_provider.get_current_thread_id()).encode())
+                thread_id = self.thread_provider.get_current_thread_id()
+            LOG.debug("Command: Query current thread ID: 0x%08x", thread_id)
+            return self.create_rsp_packet(("QC%x" % thread_id).encode())
 
         elif query[0].find(b'Attached') != -1:
+            LOG.debug("Command: Query attached: 1")
             return self.create_rsp_packet(b"1")
 
         elif query[0].find(b'TStatus') != -1:
+            LOG.debug("Command: Query TStatus: Not supported")
             return self.create_rsp_packet(b"")
 
         elif query[0].find(b'Tf') != -1:
+            LOG.debug("Command: Query Tf: Not supported")
             return self.create_rsp_packet(b"")
 
         elif b'Offsets' in query[0]:
             resp = b"Text=0;Data=0;Bss=0"
+            LOG.debug("Command: Query offsets: %s", to_str_safe(resp))
             return self.create_rsp_packet(resp)
 
         elif b'Symbol' in query[0]:
+            LOG.debug("Command: Query Symbol")
             if self.did_init_thread_providers:
                 return self.create_rsp_packet(b"OK")
             return self.init_thread_providers(client)
@@ -1158,21 +1247,22 @@ class GDBServer(threading.Thread):
             return self.handle_remote_command(cmd)
 
         else:
+            LOG.debug("Command: Query %s: Not supported",  to_str_safe(query[0]))
             return self.create_rsp_packet(b"")
 
     def init_thread_providers(self, client):
         if not self.session.options.get('rtos.enable'):
-            LOG.debug("Skipping RTOS load because it was disabled.")
+            LOG.debug("RTOS loading disabled by option")
             return self.create_rsp_packet(b"OK")
 
         forced_rtos_name = self.session.options.get('rtos.name')
         if forced_rtos_name and (forced_rtos_name not in RTOS.keys()):
-            LOG.error("%s was specified as the RTOS but no plugin with that name exists", forced_rtos_name)
+            LOG.error("Specified RTOS plugin '%s' not found", to_str_safe(forced_rtos_name))
             return self.create_rsp_packet(b"OK")
 
         symbol_provider = GDBSymbolProvider(self, client)
 
-        LOG.info("Attempting to load RTOS plugins")
+        LOG.debug("Attempting to load RTOS plugins")
         for rtos_name, rtos_class in RTOS.items():
             if (forced_rtos_name is not None) and (rtos_name != forced_rtos_name):
                 continue
@@ -1180,13 +1270,13 @@ class GDBServer(threading.Thread):
                 LOG.debug("Attempting to load %s", rtos_name)
                 rtos = rtos_class(self.target)
                 if rtos.init(symbol_provider):
-                    LOG.info("%s loaded successfully", rtos_name)
+                    LOG.info("Loaded %s RTOS plugin", rtos_name)
                     self.thread_provider = rtos
                     break
                 elif forced_rtos_name is not None:
-                    LOG.error("%s was specified as the RTOS but failed to load", rtos_name)
+                    LOG.error("Specified RTOS '%s' failed to load", rtos_name)
             except exceptions.Error as e:
-                LOG.error("Error during symbol lookup: %s", e, exc_info=self.session.log_tracebacks)
+                LOG.error("Error during RTOS symbol lookup: %s", e, exc_info=self.session.log_tracebacks)
 
         self.did_init_thread_providers = True
 
@@ -1203,7 +1293,7 @@ class GDBServer(threading.Thread):
             try:
                 packet = client.receive()
             except ConnectionClosedException:
-                LOG.debug("GDB client closed connection during symbol lookup")
+                LOG.error("Connection closed during gdb symbol lookup")
                 client.is_socket_connected = False
                 return None
             assert packet is not None
@@ -1211,7 +1301,7 @@ class GDBServer(threading.Thread):
             # Parse symbol value reply packet.
             packet = packet[1:-3]
             if not packet.startswith(b'qSymbol:'):
-                LOG.error("Got unexpected response from gdb when asking for symbol value")
+                LOG.error("Unexpected response from gdb for symbol value request")
                 return None
             packet = packet[8:]
             sym_value, sym_name = packet.split(b':')
@@ -1219,7 +1309,7 @@ class GDBServer(threading.Thread):
             sym_name = hex_decode(sym_name)
             if sym_name != name:
                 LOG.error("Symbol value reply from gdb has unexpected symbol name (expected '%s', received '%s')",
-                        name, sym_name)
+                        to_str_safe(name), to_str_safe(sym_name))
                 return None
             if sym_value:
                 sym_value = hex8_to_u32le(sym_value)
@@ -1234,7 +1324,7 @@ class GDBServer(threading.Thread):
         """@brief Pass remote commands to the commander command processor."""
         # Convert the command line to a string.
         cmd = to_str_safe(cmd)
-        LOG.debug('Remote command: %s', cmd)
+        LOG.debug("Command: Remote (cmd=%s)", cmd)
 
         # Create a new stream to collect the command output.
         stream = io.StringIO()
@@ -1250,11 +1340,11 @@ class GDBServer(threading.Thread):
             stream.write("Error: cannot exit gdbserver\n")
         except exceptions.TransferError as err:
             stream.write("Transfer failed: %s\n" % err)
-            LOG.error("Transfer failure while executing remote command '%s': %s", cmd, err,
+            LOG.error("Command: Remote (cmd=%s): Transfer error = %s", cmd, err,
                     exc_info=self.session.log_tracebacks)
         except Exception as err:
             stream.write("Unexpected error: %s\n" % err)
-            LOG.error("Error while executing remote command '%s': %s", cmd, err,
+            LOG.error("Command: Remote (cmd=%s): Unexpected error = %s", cmd, err,
                     exc_info=self.session.log_tracebacks)
 
         # Convert back to bytes, hex encode, then return the response packet.
@@ -1270,42 +1360,47 @@ class GDBServer(threading.Thread):
 
     def handle_general_set(self, client, msg):
         feature = msg.split(b'#')[0]
-        LOG.debug("GDB general set: %s", feature)
 
         if feature == b'StartNoAckMode':
             # Disable acks after the reply and ack.
             client.set_send_acks(False)
+            LOG.debug("Command: General set StartNoAckMode")
             return self.create_rsp_packet(b"OK")
 
         elif feature.startswith(b'NonStop'):
             enable = feature.split(b':')[1]
             client.non_stop = (enable == b'1')
+            LOG.debug("Command: General set NonStop=%s", (enable == b'1'))
             return self.create_rsp_packet(b"OK")
 
         else:
+            LOG.debug("Command: General set %s not supported", to_str_safe(feature))
             return self.create_rsp_packet(b"")
 
     def handle_query_xml(self, client, query: bytes, annex: bytes, offset: int, size: int) -> bytes:
-        LOG.debug('GDB query %s: annex: %s, offset: %s, size: %s', query, annex, offset, size)
+        requested_size = size
 
         # For each query object, we check the annex and return E00 for invalid values. Only 'features'
         # has a non-empty annex.
         if query == b'memory-map':
             if annex != b'':
+                LOG.debug("Command: Query Xfer:memory-map:read (annex=%s, offset=%d, size=%d): Annex not empty", to_str_safe(annex), offset, size)
                 return b"E00"
             xml = client.target_facade.get_memory_map_xml()
         elif query == b'features':
             if annex == b'target.xml':
                 xml = client.target_facade.get_target_xml()
             else:
+                LOG.debug("Command: Query Xfer:features:read (annex=%s, offset=%d, size=%d): Unsupported annex", to_str_safe(annex), offset, size)
                 return b"E00"
         elif query == b'threads':
             if annex != b'':
+                LOG.debug("Command: Query Xfer:threads:read (annex=%s, offset=%d, size=%d): Annex not empty", to_str_safe(annex), offset, size)
                 return b"E00"
             xml = self.get_threads_xml()
         else:
             # Unrecognised query object, so return empty packet.
-            LOG.debug("Unsupported XML query (%s), annex (%s)", query, annex)
+            LOG.debug("Command: Query Xfer:%s:read (annex=%s, offset=%d, size=%d): Unsupported XML query", to_str_safe(query), to_str_safe(annex), offset,size)
             return b""
 
         size_xml = len(xml)
@@ -1313,7 +1408,7 @@ class GDBServer(threading.Thread):
         prefix = b'm'
 
         if offset > size_xml:
-            LOG.error('GDB requested xml offset > size for %s!', query)
+            LOG.error("Command: Query Xfer:%s:read (annex=%s, offset=%d, size=%d): Offset out of bounds", to_str_safe(query), to_str_safe(annex), offset, size)
             return b"E16" # EINVAL
 
         if size > (self.packet_size - 4):
@@ -1327,6 +1422,7 @@ class GDBServer(threading.Thread):
 
         resp = prefix + escape(xml[offset:offset + size])
 
+        LOG.debug("Command: Query Xfer:%s:read (annex=%s, offset=%d, size=%d): %s", to_str_safe(query), to_str_safe(annex), offset, requested_size, to_str_safe(xml[offset:offset + size]))
         return resp
 
     def create_rsp_packet(self, data):
@@ -1336,7 +1432,7 @@ class GDBServer(threading.Thread):
     def syscall(self, op: str) -> Tuple[int, int]:
         client = self._semihosting_client
 
-        LOG.debug("GDB server syscall: %s", op)
+        LOG.debug("Syscall request: %s", op)
         request = self.create_rsp_packet(b'F' + op.encode())
         client.send(request)
 
@@ -1345,7 +1441,7 @@ class GDBServer(threading.Thread):
             try:
                 packet = client.receive(False)
             except ConnectionClosedException:
-                LOG.debug("GDB client closed connection during syscall handling")
+                LOG.error("Connection closed during syscall")
                 client.is_socket_connected = False
                 break
             if packet is None:
@@ -1354,7 +1450,7 @@ class GDBServer(threading.Thread):
 
             # Check for file I/O response.
             if packet[0:1] == b'$' and packet[1:2] == b'F':
-                LOG.debug("Syscall: got syscall response %r", packet)
+                LOG.debug("Syscall response received: %r", packet)
                 args = packet[2:packet.index(b'#')].split(b',')
                 result = int(args[0], base=16)
                 errno = int(args[1], base=16) if len(args) > 1 else 0
@@ -1373,7 +1469,7 @@ class GDBServer(threading.Thread):
 
             # check if detach
             if packet[1:2] == b'D':
-                LOG.warning("GDB server received detach request while waiting for file I/O completion")
+                LOG.warning("Detach received during syscall")
                 break
 
         return -1, 0
@@ -1390,7 +1486,7 @@ class GDBServer(threading.Thread):
         # Optionally append core
         if self.report_core:
             response += ("core:%x;" % self.core).encode()
-        LOG.debug("Tresponse=%s", response)
+        LOG.debug("Stop reply: %s", to_str_safe(response))
         return response
 
     def get_threads_xml(self):
@@ -1432,7 +1528,7 @@ class GDBServer(threading.Thread):
     def event_handler(self, notification):
         if notification.event == Target.Event.POST_RESET:
             # Invalidate threads list if flash is reprogrammed.
-            LOG.debug("Received POST_RESET event")
+            LOG.debug("POST_RESET event received")
             self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = False
@@ -1451,7 +1547,7 @@ class GDBServer(threading.Thread):
             self.persist = notification.data.new_value
         elif notification.event == 'enable_semihosting':
             self.enable_semihosting = notification.data.new_value
-            LOG.info("Semihosting %s", ('enabled' if self.enable_semihosting else 'disabled'))
+            LOG.info("Semihosting %s", ("enabled" if self.enable_semihosting else "disabled"))
         elif notification.event == 'report_core_number':
             self.report_core = notification.data.new_value
         elif notification.event == 'soft_bkpt_as_hard':
