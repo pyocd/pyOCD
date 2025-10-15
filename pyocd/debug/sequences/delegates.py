@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,6 +63,11 @@ class DebugSequenceDelegate:
         """@brief Return the named debug sequence object.
 
         Expected to raise if the sequence isn't available.
+        """
+        raise NotImplementedError()
+
+    def default_reset_sequence(self, pname: str) -> str:
+        """@brief Return the default reset sequence name for the specified processor name.
         """
         raise NotImplementedError()
 
