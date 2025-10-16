@@ -22,6 +22,7 @@ from pathlib import Path
 
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
+from ..core.target import Target
 from ..flash.file_programmer import FileProgrammer
 from ..utility.cmdline import (
     convert_session_options,
@@ -106,7 +107,11 @@ class LoadSubcommand(SubcommandBase):
             programmer = FileProgrammer(session,
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc,
-                            no_reset=self._args.no_reset)
+                            no_reset=True)  # We handle this reset below
+
+            # Reset and halt the target before programming.
+            session.target.reset_and_halt()
+
             if not self._args.file and self._args.cbuild_run:
                 # Populate file list from cbuild-run output if not provided explicitly
                 cbuild_files = session.target.get_output()
@@ -147,5 +152,9 @@ class LoadSubcommand(SubcommandBase):
                                 base_address=base_address,
                                 skip=self._args.skip,
                                 file_format=file_format)
+
+            # Reset the target after programming unless --no-reset was specified.
+            if not self._args.no_reset:
+                session.target.reset(Target.ResetType.NSRST)
 
         return 0

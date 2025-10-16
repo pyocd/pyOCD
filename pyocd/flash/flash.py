@@ -199,7 +199,7 @@ class Flash:
         assert flashRegion.is_flash
         self._region = flashRegion
 
-    def init(self, operation, address=None, clock=0, reset=True):
+    def init(self, operation, address=None, clock=0, reset=False):
         """@brief Prepare the flash algorithm for performing operations.
 
         First, the target is prepared to execute flash algo operations, including loading the algo
