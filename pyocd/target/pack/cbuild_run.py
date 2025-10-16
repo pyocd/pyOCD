@@ -209,18 +209,20 @@ class CbuildRun:
         self._system_descriptions: Optional[List[dict]] = None
 
         try:
-            # Normalize the path to ensure compatibility across platforms.
-            yml_path = os.path.normpath(yml_path)
-            with open(yml_path, 'r') as yml_file:
+            # Convert to Path object early and resolve to absolute path
+            yml_file_path = Path(yml_path).resolve()
+
+            with yml_file_path.open('r') as yml_file:
                 yml_data = yaml.safe_load(yml_file)
             if 'cbuild-run' in yml_data:
                 self._data = yml_data['cbuild-run']
                 self._check_packs()
                 self._valid = True
             else:
-                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
-            # Set cbuild-run path as the current working directory.
-            base_path = Path(yml_path).parent
+                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_file_path}'")
+
+            # Set cbuild-run path as the current working directory
+            base_path = yml_file_path.parent
             os.chdir(base_path)
             LOG.debug("Working directory set to: '%s'", os.getcwd())
         except OSError as err:
@@ -243,14 +245,16 @@ class CbuildRun:
         # Set the CMSIS_PACK_ROOT environment variable based on the platform
         if system == 'Windows':
             # Windows detected, set the Windows default path
-            os.environ['CMSIS_PACK_ROOT'] = os.path.expandvars("${LOCALAPPDATA}\\Arm\\Packs")
+            cmsis_pack_root = Path(os.path.expandvars("${LOCALAPPDATA}\\Arm\\Packs")).expanduser().resolve()
         elif system in {'Linux', 'Darwin'}:
-            # Note: WSL is treated as 'Linux'
             # Linux or macOS detected, set the Linux/macOS default path
-            os.environ['CMSIS_PACK_ROOT'] = os.path.expandvars("${HOME}/.cache/arm/packs")
+            # Note: WSL is treated as 'Linux'
+            cmsis_pack_root = Path(os.path.expandvars("${HOME}/.cache/arm/packs")).expanduser().resolve()
         else:
             raise CbuildRunError(f"Unsupported platform '{system}' for CMSIS_PACK_ROOT. "
                                  "Please set the CMSIS_PACK_ROOT environment variable manually.")
+
+        os.environ['CMSIS_PACK_ROOT'] = str(cmsis_pack_root)
         LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
 
     def _check_packs(self) -> None:
@@ -340,8 +344,7 @@ class CbuildRun:
         try:
             for desc in self.system_descriptions:
                 if desc['type'] == 'svd':
-                    norm_path = os.path.normpath(desc['file'])
-                    svd_path = Path(os.path.expandvars(norm_path))
+                    svd_path = Path(os.path.expandvars(desc['file'])).expanduser().resolve()
                     LOG.debug("SVD path: %s", svd_path)
                     return io.BytesIO(svd_path.read_bytes())
         except (KeyError, IndexError):
@@ -668,8 +671,8 @@ class CbuildRun:
                             flash_attrs['_RAMsize'] = algorithm['ram-size']
                         if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
                             LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", algorithm['algorithm'])
-                        algorithm_path = os.path.normpath(algorithm['algorithm'])
-                        flash_attrs['flm'] = PackFlashAlgo(os.path.expandvars(algorithm_path))
+                        algorithm_path = Path(os.path.expandvars(algorithm['algorithm'])).expanduser().resolve()
+                        flash_attrs['flm'] = PackFlashAlgo(str(algorithm_path))
                         # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
                         # the default lambdas for sector_size and blocksize returning each other's value.
                         flash_attrs['sector_size'] = 0
@@ -698,8 +701,7 @@ class CbuildRun:
                 if item['type'] == 'svd':
                     if (pname is not None) and (item.get('pname') not in (None, pname)):
                         continue
-                    norm_path = os.path.normpath(item['file'])
-                    svd_path = os.path.expandvars(norm_path)
+                    svd_path = str(Path(os.path.expandvars(item['file'])).expanduser().resolve())
                     break
             return svd_path
 
