@@ -868,7 +868,7 @@ Write DP register.
 ##### `reset`
 
 **Usage**: reset [halt|-halt|-h] [TYPE] \
-Reset the target, optionally with halt and/or specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.
+Reset the target, optionally with halt and/or specifying the reset type. The reset type must be one of 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'.
 
 
 ##### `unlock`

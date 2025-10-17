@@ -824,7 +824,6 @@ class ResetTypeValue(ValueBase):
             self.context.write(f"\nCore {cm_core.core_number} ({cm_core.node_name}):")
             self.context.write(f"  Effective:  {actual_reset_type.name}")
             self.context.write(f"  Default:    {cm_core.default_reset_type.name}")
-            self.context.write(f"  Default SW: {cm_core.default_software_reset_type.name}")
             self.context.write("  Available:  " + ", ".join(r.name for r in cm_core.supported_reset_types))
 
     def modify(self, args):

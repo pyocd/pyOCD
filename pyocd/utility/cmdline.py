@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -239,24 +239,16 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
                 options[name] = value
     return options
 
-## Map to convert from reset type names to enums.
-RESET_TYPE_MAP: Dict[str, Optional[Target.ResetType]] = {
-        'default': None,
-        'hw': Target.ResetType.HW,
-        'sw': Target.ResetType.SW,
-        'hardware': Target.ResetType.HW,
-        'software': Target.ResetType.SW,
-        'sw_system': Target.ResetType.SW_SYSTEM,
-        'sw_core': Target.ResetType.SW_CORE,
-        'sw_sysresetreq': Target.ResetType.SW_SYSRESETREQ,
-        'sw_vectreset': Target.ResetType.SW_VECTRESET,
-        'sw_emulated': Target.ResetType.SW_EMULATED,
-        'system': Target.ResetType.SW_SYSTEM,
-        'core': Target.ResetType.SW_CORE,
-        'sysresetreq': Target.ResetType.SW_SYSRESETREQ,
-        'vectreset': Target.ResetType.SW_VECTRESET,
-        'emulated': Target.ResetType.SW_EMULATED,
-    }
+RESET_TYPE_MAP: Dict[Tuple[str, ...], Target.ResetType] = {
+    ('default', 'sw', 'software'): Target.ResetType.DEFAULT,            # Legacy alias 'sw' and 'software'  [deprecated]
+    ('system', 'sw_system'): Target.ResetType.SYSTEM,                   # Legacy alias 'sw_system'          [deprecated]
+    ('core', 'sw_core'): Target.ResetType.CORE,                         # Legacy alias 'sw_core'            [deprecated]
+    ('hardware', 'hw'): Target.ResetType.HARDWARE,                      # Legacy alias 'hw'                 [deprecated]
+    ('sysresetreq', 'sw_sysresetreq'): Target.ResetType.SYSRESETREQ,    # Legacy alias 'sw_sysresetreq'     [deprecated]
+    ('vectreset', 'sw_vectreset'): Target.ResetType.VECTRESET,          # Legacy alias 'sw_vectreset'       [deprecated]
+    ('n_srst'): Target.ResetType.NSRST,
+    ('emulated', 'sw_emulated'): Target.ResetType.EMULATED,             # Legacy alias 'sw_emulated'        [deprecated]
+}
 
 def convert_reset_type(value: str) -> Optional[Target.ResetType]:
     """@brief Convert a reset_type session option value to the Target.ResetType enum.
@@ -264,9 +256,10 @@ def convert_reset_type(value: str) -> Optional[Target.ResetType]:
     @exception ValueError Raised if an unknown reset_type value is passed.
     """
     value = value.lower()
-    if value not in RESET_TYPE_MAP:
+    reset_type = next((v for k, v in RESET_TYPE_MAP.items() if value in k), None)
+    if reset_type is None:
         raise ValueError("unexpected value for reset_type option ('%s')" % value)
-    return RESET_TYPE_MAP[value]
+    return reset_type
 
 def convert_frequency(value: str) -> int:
     """@brief Applies scale suffix to frequency value string.
@@ -298,4 +291,3 @@ def int_base_0(x: str) -> int:
 def flatten_args(args: Iterable[Iterable[Any]]) -> List[Any]:
     """@brief Converts a list of lists to a single list."""
     return [item for sublist in args for item in sublist]
-

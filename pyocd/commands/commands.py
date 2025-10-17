@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 David Runge
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
@@ -364,10 +364,8 @@ class ResetCommand(CommandBase):
             'nargs': [0, 1, 2],
             'usage': "[halt|-halt|-h] [TYPE]",
             'help': "Reset the target, optionally with halt and/or specifying the reset type.",
-            'extra_help': "The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', "
-                          "'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', "
-                          "'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.",
-
+            'extra_help': "The reset type must be one of 'default', 'hardware', 'system', 'core', "
+                          "'n_srst', 'sysresetreq', 'vectreset' or 'emulated'."
             }
 
     def parse(self, args):
@@ -1753,4 +1751,3 @@ def print_disasm(context, code, start_addr, max_instructions=None):
             break
 
     context.write(text)
-

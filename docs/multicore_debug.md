@@ -10,7 +10,7 @@ devices using gdb.
 
 By default, the primary core is core number 0. For Arm CoreSight based devices, this will be the core with the lowest associated access port address. Use the `primary_core` session option to change the primary core.
 
-When performing multicore debug where multiple gdb instances are connected simultaneously, it is important to set the `enable_multicore_debug` session option to true. This changes secondary cores to have their default reset type set to core-only reset (`sw_core`). This prevents competing reset requests from the multiple gdb instances causing havoc. On v7-M architecture cores, VECTRESET is used. However, VECTRESET is not supported on other core architecture, so non-v7-M architectures will fall back to an emulated core reset.
+When performing multicore debug where multiple gdb instances are connected simultaneously, it is important to set the `enable_multicore_debug` session option to true. This changes secondary cores to have their default reset type set to core-only reset. This prevents competing reset requests from the multiple gdb instances causing havoc.
 
 To debug a multicore device, run `pyocd gdbserver` as usual. This will connect to the device, detect
 the cores, and create the gdb server instances on separate ports. Next, start up two gdb instances
@@ -26,4 +26,3 @@ values will be reported as 0 until the core is released from reset.
 Usually you want to have the primary core load code and/or configure the reset vector for secondary cores prior to releasing those cores from reset. For this situation, configure the second
 core's gdb to not load any code to the target. This usage is highly device-specific, though, and may
 depend on whether the secondary core's code is running out of flash or RAM.
-
