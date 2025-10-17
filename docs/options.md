@@ -316,13 +316,12 @@ executed.
 
 <tr><td>reset_type</td>
 <td>str</td>
-<td>'sw'</td>
+<td>'default'</td>
 <td>
-Which type of reset to use by default. Must be one of `default`, `hw`, `sw`, `sw_system`, `sw_core`,
-`sw_sysresetreq`, `sw_vectreset`, `sw_emulated`, `system`, `core`, `sysresetreq`, `vectreset`,
-`emulated`). The default is `sw`, which itself defaults to `sw_system`. `default` causes the target type's
-default reset type to be used; this is usually `sw`. If `enable_multicore_debug` is
-set to true, then `sw` for secondary cores will default to `sw_core`.
+Which type of reset to use. Must be one of 'default', 'hardware', 'system', 'core', 'n_srst',
+'sysresetreq', 'vectreset' or 'emulated'. The 'default' option causes the target type's
+default reset type to be used; this is usually `system`. If `enable_multicore_debug` is
+set to true, then secondary cores will default to `core`.
 </td></tr>
 
 <tr><td>reset.hold_time</td>
