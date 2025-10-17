@@ -26,8 +26,8 @@ from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import (cast, Optional, Set, Dict, List, Tuple, IO, Any, TYPE_CHECKING)
+
 from .flash_algo import PackFlashAlgo
-from .reset_sequence_maps import (RESET_SEQUENCE_TO_TYPE_MAP, RESET_TYPE_TO_SEQUENCE_MAP)
 from .. import (normalise_target_type_name, TARGET)
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.ap import (APAddressBase, APv1Address, APv2Address)
@@ -153,108 +153,28 @@ class CbuildRunTargetMethods:
 
     @staticmethod
     def _cbuild_target_configure_core_reset(self) -> None:
-        """@brief Configures supported and default reset types for each core.
+        """@brief Configures default reset types for each core."""
+        SELECTED_RESET_MAP = {
+            'default': Target.ResetType.DEFAULT,
+            'hardware': Target.ResetType.HARDWARE,
+            'system': Target.ResetType.SYSTEM,
+            'core': Target.ResetType.CORE
+        }
 
-        Based on the debug sequences defined in the .cbuild-run.yml, updates each core's
-        reset capabilities and selects fallback mechanisms if needed.
-        """
         for core_num, core in self.cores.items():
-            core_ap_addr = core.ap.address
-            try:
-                proc_info = self._cbuild_device.processors_ap_map[core_ap_addr]
-            except KeyError:
-                LOG.debug("core %d not specified", core_num)
-                continue
-
-            # Get this processor's list of sequences.
-            sequences = self.debug_sequence_delegate.sequences_for_pname(proc_info.name)
-
-            def is_reset_sequence_enabled(name: str) -> bool:
-                return (name not in sequences) or sequences[name].is_enabled
-
-            # Set the supported reset types by filtering existing supported reset types.
-            updated_reset_types: Set[Target.ResetType] = set()
-            for resettype in core._supported_reset_types:
-                # These two types are not in the map, and should always be present.
-                if resettype in (Target.ResetType.SW, Target.ResetType.SW_EMULATED):
-                    updated_reset_types.add(resettype)
+            _selected_reset = self._cbuild_device.debugger.get('reset')
+            if _selected_reset is not None:
+                try:
+                    proc_info = self._cbuild_device.processors_ap_map[core.ap.address]
+                except KeyError:
+                    LOG.debug("core %d not specified in debug_topology, skipping reset configuration", core_num)
                     continue
 
-                resettype_sequence_name = RESET_TYPE_TO_SEQUENCE_MAP[resettype]
-                if is_reset_sequence_enabled(resettype_sequence_name):
-                    updated_reset_types.add(resettype)
-
-            # Special case to enable processor reset even when the core doesn't support VECTRESET, if
-            # there is a non-default ResetProcessor sequence definition.
-            if ((Target.ResetType.SW_CORE not in updated_reset_types) # type:ignore
-                    and ('ResetProcessor' in sequences)
-                    and sequences['ResetProcessor'].is_enabled):
-                updated_reset_types.add(Target.ResetType.SW_CORE) # type:ignore
-
-            core._supported_reset_types = updated_reset_types
-            LOG.debug("Updated core %d reset types: %s", core_num, core._supported_reset_types)
-
-            default_reset_seq = proc_info.default_reset_sequence
-
-            # Check that the default reset sequence is a standard sequence. The specification allows for
-            # custom reset sequences to be used, but that is not supported by pyocd yet.
-            # TODO support custom default reset sequences (requires a new reset type)
-            if default_reset_seq not in RESET_SEQUENCE_TO_TYPE_MAP:
-                if default_reset_seq in sequences:
-                    # Custom reset sequence, not yet supported by pyocd.
-                    LOG.warning("DFP device definition error: custom reset sequences are not yet supported "
-                                "by pyocd; core %d requested default reset sequence %s",
-                                core_num, default_reset_seq)
+                _reset_type = SELECTED_RESET_MAP.get(_selected_reset.lower())
+                if _reset_type is None:
+                    LOG.warning("core %d: unsupported reset type '%s'; will use 'default'", core_num, _selected_reset)
                 else:
-                    # Invalid/unknown default reset sequence.
-                    LOG.warning("DFP device definition error: specified default reset sequence %s "
-                                "for core %d does not exist",
-                                default_reset_seq, core_num)
-
-            # Handle multicore debug mode causing secondary cores to default to processor reset.
-            did_force_core_reset = False
-            if (self.session.options.get('enable_multicore_debug')
-                    and (core_num != self.session.options.get('primary_core'))):
-                if not is_reset_sequence_enabled('ResetProcessor'):
-                    LOG.warning("Multicore debug mode cannot select processor reset for secondary core "
-                                "%d because it is disabled by the DFP; using emulated processor "
-                                "reset instead", core_num)
-                    core.default_reset_type = Target.ResetType.SW_EMULATED
-                    continue
-                else:
-                    default_reset_seq = 'ResetProcessor'
-                    did_force_core_reset = True
-
-            # Verify that the specified default reset sequence hasn't been disabled.
-            if not is_reset_sequence_enabled(default_reset_seq):
-                # Only log a warning if we didn't decide to use core reset due to multicore mode.
-                if not did_force_core_reset:
-                    LOG.warning("DFP device definition conflict: specified default reset sequence %s "
-                            "for core #%d is disabled by the DFP",
-                            default_reset_seq, core_num)
-
-                # Map from disabled default to primary and secondary fallbacks.
-                RESET_FALLBACKS: Dict[str, Tuple[str, str]] = {
-                    'ResetSystem':      ('ResetProcessor', 'ResetHardware'),
-                    'ResetHardware':    ('ResetSystem', 'ResetProcessor'),
-                    'ResetProcessor':   ('ResetSystem', 'ResetHardware'),
-                }
-
-                # Select another default.
-                fallbacks = RESET_FALLBACKS[default_reset_seq]
-                if is_reset_sequence_enabled(fallbacks[0]):
-                    default_reset_seq = fallbacks[0]
-                elif is_reset_sequence_enabled(fallbacks[1]):
-                    default_reset_seq = fallbacks[1]
-                else:
-                    LOG.warning("DFP device definition conflict: all reset types are disabled for "
-                            "core %d by the DFP; using emulated core reset",
-                            default_reset_seq, core_num)
-                    core.default_reset_type = Target.ResetType.SW_EMULATED
-                    continue
-
-            LOG.debug("Setting core %d default reset sequence to %s", core_num, default_reset_seq)
-            core.default_reset_type = RESET_SEQUENCE_TO_TYPE_MAP[default_reset_seq]
+                    core.default_reset_type = _reset_type
 
     @staticmethod
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
@@ -929,13 +849,16 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
     - Handling pyOCD wire protocols and connection parameters.
     """
     ## Map from pyocd reset types to the __connection variable reset type field.
-    # 0=error, 1=hw, 2=SYSRESETREQ, 3=VECTRESET
+    # 0=error, 1=HARDWARE, 2=SYSRESETREQ, 3=VECTRESET
     RESET_TYPE_MAP = {
-        Target.ResetType.HW: 1,
-        Target.ResetType.SW: 2, # TODO pick default sw reset type
-        Target.ResetType.SW_SYSRESETREQ: 2,
-        Target.ResetType.SW_VECTRESET: 3,
-        Target.ResetType.SW_EMULATED: 2, # no direct match
+        Target.ResetType.HARDWARE: 1,
+        Target.ResetType.NSRST: 1,
+        Target.ResetType.DEFAULT: 2,
+        Target.ResetType.SYSTEM: 2,
+        Target.ResetType.SYSRESETREQ: 2,
+        Target.ResetType.CORE: 3,
+        Target.ResetType.VECTRESET: 3,
+        Target.ResetType.EMULATED: 3, # no direct match
     }
 
     def __init__(self, target: CoreSightTarget, device: CbuildRun) -> None:
@@ -1041,6 +964,10 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
         return self.sequences_for_pname(pname)[name]
+
+    def default_reset_sequence(self, pname: str) -> str:
+        proc_map = self.cmsis_pack_device.processors_map
+        return proc_map[pname].default_reset_sequence
 
     def get_protocol(self) -> int:
         """@brief Return the value for the __protocol variable.
