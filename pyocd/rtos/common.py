@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -88,7 +88,7 @@ class HandlerModeThread(TargetThread):
 
     @property
     def description(self):
-        ipsr = self._target_context.read_core_register('ipsr');
+        ipsr = self._target_context.read_core_register('ipsr')
         return self._target_context.core.exception_number_to_name(ipsr)
 
     @property
@@ -104,6 +104,3 @@ class HandlerModeThread(TargetThread):
 
     def __repr__(self):
         return str(self)
-
-
-
