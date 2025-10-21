@@ -103,9 +103,8 @@ class PackFlashAlgo:
         self.sector_sizes = self.flash_info.sector_info_list
 
         symbols: Dict[str, int] = {}
-        x = self._extract_symbols(self.REQUIRED_SYMBOLS)
-        symbols.update(x)
-        symbols.update(self._extract_symbols(self.EXTRA_SYMBOLS, default=0xFFFFFFFF))
+        symbols.update(self._extract_symbols(self.REQUIRED_SYMBOLS, required=True))
+        symbols.update(self._extract_symbols(self.EXTRA_SYMBOLS))
         self.symbols = symbols
 
         ro_rw_zi = self._find_sections(self.SECTIONS_TO_FIND)
@@ -235,15 +234,21 @@ class PackFlashAlgo:
             )
         # TODO - analyzer support
 
+        # Start of actual code (after the flash blob header) when loaded into RAM.
         code_start = addr_load + self._FLASH_BLOB_HEADER_SIZE
+
+        # Helper to get a symbol address relative to code_start. Returns 0xFFFFFFFF when symbol is not present.
+        def _sym(sym: str) -> int:
+            return (code_start + self.symbols[sym]) if (sym in self.symbols) else 0xFFFFFFFF
+
         flash_algo = {
             "load_address": addr_load,
             "instructions": instructions,
-            "pc_init": code_start + self.symbols["Init"],
-            "pc_unInit": code_start + self.symbols["UnInit"],
-            "pc_eraseAll": code_start + self.symbols["EraseChip"],
-            "pc_erase_sector": code_start + self.symbols["EraseSector"],
-            "pc_program_page": code_start + self.symbols["ProgramPage"],
+            "pc_init": _sym("Init"),
+            "pc_unInit": _sym("UnInit"),
+            "pc_eraseAll": _sym("EraseChip"),
+            "pc_erase_sector": _sym("EraseSector"),
+            "pc_program_page": _sym("ProgramPage"),
             "page_buffers": page_buffers,
             "begin_data": page_buffers[0],
             "begin_stack": addr_stack,
@@ -254,16 +259,15 @@ class PackFlashAlgo:
         }
         return flash_algo
 
-    def _extract_symbols(self, symbols: Set[str], default: Optional[int] = None) -> Dict[str, int]:
-        """@brief Fill 'symbols' field with required flash algo symbols"""
+    def _extract_symbols(self, symbols: Set[str], required: bool = False) -> Dict[str, int]:
+        """@brief Fill 'symbols' field with flash algo symbols"""
         to_ret: Dict[str, int] = {}
         for symbol in symbols:
             symbolInfo = self.elf.symbol_decoder.get_symbol_for_name(symbol)
             if symbolInfo is None:
-                if default is not None:
-                    to_ret[symbol] = default
-                    continue
-                raise FlashAlgoException("Missing symbol %s" % symbol)
+                if required:
+                    raise FlashAlgoException("Missing symbol %s" % symbol)
+                continue
             to_ret[symbol] = symbolInfo.address
         return to_ret
 

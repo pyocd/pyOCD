@@ -133,6 +133,7 @@ def cortex_test(board_id):
         gdbFacade = GDBDebugContextFacade(debugContext)
 
         print("\n\n----- FLASH NEW BINARY BEFORE TEST -----")
+        target.reset_and_halt()
         FileProgrammer(session).program(binary_file, base_address=addr_bin)
         # Let the target run for a bit so it
         # can initialize the watchdog if it needs to

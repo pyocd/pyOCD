@@ -845,13 +845,12 @@ class FlashBuilder(MemoryBuilder):
 
                 # The sector was erased, so we must program all pages in the sector
                 # regardless of whether they were the same or not.
+                self.flash.init(self.flash.Operation.PROGRAM)
                 for page in sector.page_list:
 
                     progress += page.get_program_weight()
 
-                    self.flash.init(self.flash.Operation.PROGRAM)
                     self.flash.program_page(page.addr, page.data)
-                    self.flash.uninit()
 
                     actual_sector_erase_count += 1
                     actual_sector_erase_weight += page.get_program_weight()
@@ -859,6 +858,7 @@ class FlashBuilder(MemoryBuilder):
                     # Update progress
                     if self.sector_erase_weight > 0:
                         progress_cb(float(progress) / float(self.sector_erase_weight))
+                self.flash.uninit()
 
         progress_cb(1.0)
 

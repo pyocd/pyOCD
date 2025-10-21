@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,6 +98,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test Basic Load ------")
         loader = FlashLoader(session, chip_erase="sector")
+        target.reset_and_halt()
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
@@ -117,6 +118,7 @@ def flash_loader_test(board_id):
             orig_data_length = data_length
 
         loader = FlashLoader(session, chip_erase="sector")
+        target.reset_and_halt()
         loader.add_data(addr, test_data)
         loader.add_data(addr + boot_blocksize, test_data)
         loader.commit()
@@ -133,6 +135,7 @@ def flash_loader_test(board_id):
         print("\n------ Test Basic Sector Erase ------")
         addr = (boot_end_addr + 1) - (boot_blocksize * num_test_sectors)
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
+        target.reset_and_halt()
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
         if target.memory_map.get_region_for_address(addr).is_data_erased(verify_data):
@@ -144,6 +147,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test Load Chip Erase ------")
         loader = FlashLoader(session, chip_erase="chip")
+        target.reset_and_halt()
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
@@ -156,6 +160,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
+        target.reset_and_halt()
         programmer.program(binary_file, file_format='bin', base_address=boot_start_addr)
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
@@ -167,6 +172,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test Intel Hex File Load ------")
         programmer = FileProgrammer(session)
+        target.reset_and_halt()
         programmer.program(temp_test_hex_name, file_format='hex')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
@@ -178,6 +184,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test ELF File Load ------")
         programmer = FileProgrammer(session)
+        target.reset_and_halt()
         programmer.program(temp_test_elf_name, file_format='elf')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
@@ -211,4 +218,3 @@ if __name__ == "__main__":
     session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = FlashLoaderTest()
     result = [test.run(session.board)]
-
