@@ -109,8 +109,18 @@ class LoadSubcommand(SubcommandBase):
                             trust_crc=self._args.trust_crc,
                             no_reset=True)  # We handle this reset below
 
-            # Reset and halt the target before programming.
-            session.target.reset_and_halt()
+            # Get a list of all secondary cores.
+            secondary_cores = [c for c in session.target.cores.values() if c != session.target.primary_core]
+            try:
+                # Set reset catch for all secondary cores.
+                for core in secondary_cores:
+                    core.set_reset_catch()
+                # Reset and halt the primary core.
+                session.target.reset_and_halt()
+            finally:
+                # Clear reset catch for all secondary cores.
+                for core in secondary_cores:
+                    core.clear_reset_catch()
 
             if not self._args.file and self._args.cbuild_run:
                 # Populate file list from cbuild-run output if not provided explicitly
