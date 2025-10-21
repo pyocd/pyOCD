@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -122,6 +122,7 @@ def test_gdb(board_id=None, n=0):
         ignore_hw_bkpt_result = int(fpb.revision == 1 and ram_region.start >= 0x20000000)
 
         # Program with initial test image
+        board.target.reset_and_halt()
         FileProgrammer(session).program(binary_file, base_address=rom_region.start)
 
     # Generate an elf from the binary test file.

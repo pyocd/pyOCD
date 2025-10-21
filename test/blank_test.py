@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +36,7 @@ for i in range(0, 10):
         board = session.board
         flash = session.target.memory_map.get_boot_memory().flash
         # Erase and then reset - This locks Kinetis devices
+        board.target.reset_and_halt()
         flash.init(flash.Operation.ERASE)
         flash.erase_all()
         flash.cleanup()
@@ -54,6 +55,7 @@ print("\n\n------ Flashing new code ------")
 with ConnectHelper.session_with_chosen_probe(**get_session_options()) as session:
     board = session.board
     binary_file = get_test_binary_path(board.test_binary)
+    board.target.reset_and_halt()
     FileProgrammer(session).program(binary_file)
 
 print("\n\n------ Testing Attaching to regular board ------")

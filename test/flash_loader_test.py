@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -156,6 +156,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test Binary File Load ------")
         programmer = FileProgrammer(session)
+        target.reset_and_halt()
         programmer.program(binary_file, file_format='bin', base_address=boot_start_addr)
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
@@ -167,6 +168,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test Intel Hex File Load ------")
         programmer = FileProgrammer(session)
+        target.reset_and_halt()
         programmer.program(temp_test_hex_name, file_format='hex')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
@@ -178,6 +180,7 @@ def flash_loader_test(board_id):
 
         print("\n------ Test ELF File Load ------")
         programmer = FileProgrammer(session)
+        target.reset_and_halt()
         programmer.program(temp_test_elf_name, file_format='elf')
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
         if same(verify_data, data):
@@ -211,4 +214,3 @@ if __name__ == "__main__":
     session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = FlashLoaderTest()
     result = [test.run(session.board)]
-
