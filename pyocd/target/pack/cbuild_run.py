@@ -153,28 +153,9 @@ class CbuildRunTargetMethods:
 
     @staticmethod
     def _cbuild_target_configure_core_reset(self) -> None:
-        """@brief Configures default reset types for each core."""
-        SELECTED_RESET_MAP = {
-            'default': Target.ResetType.DEFAULT,
-            'hardware': Target.ResetType.HARDWARE,
-            'system': Target.ResetType.SYSTEM,
-            'core': Target.ResetType.CORE
-        }
-
-        for core_num, core in self.cores.items():
-            _selected_reset = self._cbuild_device.debugger.get('reset')
-            if _selected_reset is not None:
-                try:
-                    proc_info = self._cbuild_device.processors_ap_map[core.ap.address]
-                except KeyError:
-                    LOG.debug("core %d not specified in debug_topology, skipping reset configuration", core_num)
-                    continue
-
-                _reset_type = SELECTED_RESET_MAP.get(_selected_reset.lower())
-                if _reset_type is None:
-                    LOG.warning("core %d: unsupported reset type '%s'; will use 'default'", core_num, _selected_reset)
-                else:
-                    core.default_reset_type = _reset_type
+        """@brief Configures default reset types for each core, based on .cbuild-run.yml."""
+        # Currently unimplemented, serves as a stub for future functionality.
+        return None
 
     @staticmethod
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
