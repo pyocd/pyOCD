@@ -33,7 +33,6 @@ from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.ap import (APAddressBase, APv1Address, APv2Address)
 from ...core import exceptions
 from ...core.target import Target
-from ...core.session import Session
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP)
 from ...probe.debug_probe import DebugProbe
 from ...debug.svd.loader import SVDFile
@@ -50,6 +49,7 @@ from ...debug.sequences.sequences import (
 )
 
 if TYPE_CHECKING:
+    from ...core.session import Session
     from ...coresight.cortex_m import CortexM
     from ...core.core_target import CoreTarget
     from ...utility.sequencer import CallSequence
@@ -87,7 +87,7 @@ class CbuildRunTargetMethods:
     including memory mapping, core reset configuration, and processor name updates.
     """
     @staticmethod
-    def _cbuild_target_init(self, session: Session) -> None:
+    def _cbuild_target_init(self, session: "Session") -> None:
         """@brief Initializes a target dynamically based on a parsed .cbuild-run.yml description.
 
         Sets memory maps, SVD files, and debug sequence delegates.
@@ -397,7 +397,7 @@ class CbuildRun:
             # Get load offset (None if not specified)
             _offset = f.get('load-offset')
             # Add filename, it's type and offset to return value
-            load_files[f['file']] = [_type, _offset]
+            load_files[f['file']] = (_type, _offset)
             LOG.debug("Loadable file: %s", f['file'])
         return load_files
 

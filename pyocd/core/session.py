@@ -33,6 +33,7 @@ from typing_extensions import Self
 from . import exceptions
 from .options_manager import OptionsManager
 from ..utility.notification import Notifier
+from ..target.pack.cbuild_run import CbuildRun
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -177,6 +178,7 @@ class Session(Notifier):
         self._gdbservers: Dict[int, GDBServer] = {}
         self._probeserver: Optional[DebugProbeServer] = None
         self._context_state = SimpleNamespace()
+        self._cbuild_run: Optional[CbuildRun] = None
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -195,6 +197,15 @@ class Session(Notifier):
 
         # Switch the working dir to the project dir.
         os.chdir(self.project_dir)
+
+        # Load options from the cbuild-run file.
+        if self.options.is_set('cbuild_run'):
+            if self.options.is_set('target_override'):
+                LOG.warning("Ignoring cbuild-run file because target_override option is set")
+            else:
+                self._cbuild_run = CbuildRun(self.options.get('cbuild_run'))
+                cbuild_run_config = self._get_cbuild_run_config(command)
+                self._options.add_back(cbuild_run_config)
 
         # Load options from the config file.
         config = self._get_config()
@@ -254,6 +265,11 @@ class Session(Notifier):
                     LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
 
         return {}
+
+    def _get_cbuild_run_config(self, command: Optional[str]) -> Dict[str, Any]:
+        debugger_options: Dict[str, Any] = {}
+
+        return debugger_options
 
     def find_user_file(self, option_name: Optional[str], filename_list: List[str]) -> Optional[str]:
         """@brief Search the project directory for a file.
@@ -414,6 +430,11 @@ class Session(Notifier):
         to store context relevant state information between separate components.
         """
         return self._context_state
+
+    @property
+    def cbuild_run(self) -> Optional[CbuildRun]:
+        """@brief The CbuildRun instance if a cbuild-run file was loaded."""
+        return self._cbuild_run
 
     def __enter__(self) -> "Session":
         assert self._probe is not None
