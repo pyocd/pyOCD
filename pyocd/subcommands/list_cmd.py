@@ -23,7 +23,7 @@ from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..core.session import Session
 from ..tools.lists import ListGenerator
-from ..target.pack import pack_target, cbuild_run
+from ..target.pack import pack_target
 from ..utility.cmdline import convert_session_options
 
 LOG = logging.getLogger(__name__)
@@ -99,8 +99,8 @@ class ListSubcommand(SubcommandBase):
             if session.options['pack'] is not None:
                 pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
             # Create target from provided CbuildRun file.
-            if session.options['cbuild_run'] is not None:
-                cbuild_run.CbuildRun(session.options['cbuild_run']).populate_target()
+            if self._args.cbuild_run:
+                session.cbuild_run.populate_target()
 
             obj = ListGenerator.list_targets(name_filter=self._args.name,
                                             vendor_filter=self._args.vendor,

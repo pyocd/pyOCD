@@ -22,7 +22,6 @@ from typing import (Any, Optional, TYPE_CHECKING)
 from ..core import exceptions
 from ..target import (TARGET, normalise_target_type_name)
 from ..target.pack import pack_target
-from ..target.pack.cbuild_run import CbuildRun
 from ..utility.graph import GraphNode
 
 if TYPE_CHECKING:
@@ -64,11 +63,8 @@ class Board(GraphNode):
         """
         super().__init__()
 
-        # Create cbuild_run if option is provided
-        if session.options.is_set('cbuild_run'):
-            cbuild_run = CbuildRun(session.options.get('cbuild_run'))
-        else:
-            cbuild_run = None
+        # Create cbuild_run reference.
+        cbuild_run = session.cbuild_run
 
         # Use the session option if no target type was given to us.
         if target is None:

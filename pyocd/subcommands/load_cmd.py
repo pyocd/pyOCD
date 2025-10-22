@@ -132,17 +132,19 @@ class LoadSubcommand(SubcommandBase):
                     for core in secondary_cores:
                         core.clear_reset_catch(reset_type)
 
-            if not self._args.file and self._args.cbuild_run:
-                # Populate file list from cbuild-run output if not provided explicitly
+            cbuild_files = {}
+            if self._args.cbuild_run:
                 cbuild_files = session.target.get_output()
-                self._args.file = cbuild_files.keys()
+                # Populate file list from cbuild-run output if not provided explicitly
+                if not self._args.file:
+                    self._args.file = cbuild_files.keys()
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()
 
                 # Get the file format from the command line argument or from the cbuild-run output.
                 file_format = self._args.format
-                if self._args.cbuild_run:
+                if file_format is None and cbuild_files:
                     file_format = cbuild_files[filename][0]
 
                 # Look for a base address suffix. If the supplied argument including an address suffix
@@ -156,7 +158,7 @@ class LoadSubcommand(SubcommandBase):
                         return 1
                 else:
                     base_address = self._args.base_address
-                    if base_address is None and self._args.cbuild_run:
+                    if base_address is None and cbuild_files:
                         base_address = cbuild_files[filename][1]
 
                 # Resolve our path.
