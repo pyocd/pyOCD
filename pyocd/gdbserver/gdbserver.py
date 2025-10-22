@@ -1475,13 +1475,16 @@ class GDBServer(threading.Thread):
         return -1, 0
 
     def get_t_response(self, client, forceSignal=None):
-        response = client.target_facade.get_t_response(forceSignal)
-
-        # Append thread
-        if not self.is_threading_enabled():
-            response += b"thread:1;"
+        if self.is_threading_enabled():
+            currentThread = self.thread_provider.current_thread
+            currentThreadId = currentThread.unique_id
+            client.target_facade.set_context(currentThread.context)
         else:
-            response += ("thread:%x;" % self.thread_provider.current_thread.unique_id).encode()
+            currentThreadId = 1
+            client.target_facade.set_context(self.target_context)
+
+        response  = client.target_facade.get_t_response(forceSignal)
+        response += ("thread:%x;" % currentThreadId).encode()
 
         # Optionally append core
         if self.report_core:
