@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.37 release adds [CMSIS-Toolbox Run and Debug Management support](https://pyocd.io/docs/target_support.html).
+- The v0.40 release introduces support for multiple concurrent GDB client connections to the same GDB server.
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
