@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2016-2020,2025 Arm Limited
 # Copyright (c) 2022 Intel Corporation
 # Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -106,7 +106,8 @@ class ZephyrThreadContext(DebugContext):
         for reg in reg_list:
 
             # If this is a stack pointer register, add an offset to account for the exception stack frame
-            if reg == 13:
+            if (reg == index_for_reg('sp') or
+                reg == index_for_reg('psp')):
                 val = sp + exceptionFrame
                 LOG.debug("Reading register %d = 0x%x", reg, val)
                 reg_vals.append(val)

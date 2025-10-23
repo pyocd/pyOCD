@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
+from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK, EXC_RETURN_SECURE_STACK_MASK)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.plugin import Plugin
@@ -135,6 +135,7 @@ class RTXThreadContext(DebugContext):
         super(RTXThreadContext, self).__init__(parent)
         self._thread = thread
         self._has_fpu = self.core.has_fpu
+        self._has_security_extension = Target.SecurityState.SECURE in self.core.supported_security_states
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [index_for_reg(reg) for reg in reg_list]
@@ -157,11 +158,10 @@ class RTXThreadContext(DebugContext):
         else:
             sp = self._thread.get_stack_pointer()
 
-        # Determine which register offset table to use and the offsets past the saved state.
-        hwStacked = 0x20
-        swStacked = 0x20
-        table = self.NOFPU_REGISTER_OFFSETS
-        if self._has_fpu:
+        # Read exception LR (holds EXC_RETURN) to determine stacking info.
+        hasExtendedFrame = False
+        hasSecureStack = False
+        if self._has_fpu or self._has_security_extension:
             try:
                 if inException and self.core.is_vector_catch():
                     # Vector catch has just occurred, take live LR
@@ -174,16 +174,32 @@ class RTXThreadContext(DebugContext):
 
                 # Check bit 4 of the exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) == 0:
-                    table = self.FPU_REGISTER_OFFSETS
-                    hwStacked = 0x68
-                    swStacked = 0x60
+                    hasExtendedFrame = True
+
+                # Check bit 6 of the exception LR to determine if Secure stack is used.
+                if (exceptionLR & EXC_RETURN_SECURE_STACK_MASK) != 0:
+                    hasSecureStack = True
+
             except exceptions.TransferError:
                 LOG.debug("Transfer error while reading thread's saved LR")
 
+        # Determine which register offset table to use and the offsets past the saved state.
+        if hasExtendedFrame:
+            table = self.FPU_REGISTER_OFFSETS
+            hwStacked = 0x68
+            swStacked = 0x60
+        else:
+            table = self.NOFPU_REGISTER_OFFSETS
+            hwStacked = 0x20
+            swStacked = 0x20
+
         for reg in reg_list:
 
-            # Must handle stack pointer specially.
-            if reg == 13:
+            # Must handle stack pointer(s) specially.
+            if (reg == index_for_reg('sp') or
+                reg == index_for_reg('psp') or
+                (reg == index_for_reg('psp_s') and hasSecureStack) or
+                (reg == index_for_reg('psp_ns') and not hasSecureStack)):
                 if inException:
                     reg_vals.append(sp + hwStacked)
                 else:
@@ -244,7 +260,6 @@ class RTXTargetThread(TargetThread):
         self._state = 0
         self._priority = 0
         self._thread_context = RTXThreadContext(self._target_context, self)
-        self._has_fpu = self._thread_context.core.has_fpu
         try:
             name_ptr = self._target_context.read32(self._base + RTXTargetThread.NAME_OFFSET)
             self._name = read_c_string(self._target_context, name_ptr)
