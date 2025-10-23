@@ -646,7 +646,7 @@ class GDBServer(threading.Thread):
             if client.is_extended_remote:
                 self.notify_client_detached(client)
             else:
-                # In normal mode, we close the connection and stop the client thread.
+                # In normal mode, close the connection and stop the client thread
                 client.stop()
         except Exception as e:
             LOG.error("Command: Detach: Error = %s", e, exc_info=self.session.log_tracebacks)
@@ -655,14 +655,12 @@ class GDBServer(threading.Thread):
 
     def kill(self, client):
         LOG.debug("Command: Kill")
-        try:
-            client.stop()
-        except Exception as e:
-            LOG.error("Command: Kill: Error stopping client: %s", e, exc_info=self.session.log_tracebacks)
-        try:
-            self.target.reset()
-        except Exception as e:
-            LOG.error("Command: Kill: Error resetting target: %s", e, exc_info=self.session.log_tracebacks)
+        if not client.is_extended_remote:
+            # In normal mode, close the connection and stop the client thread
+            try:
+                client.stop()
+            except Exception as e:
+                LOG.error("Command: Kill: Error stopping client: %s", e, exc_info=self.session.log_tracebacks)
         # No reply for 'k' command.
 
     def restart(self, client, data):
