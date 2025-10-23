@@ -966,7 +966,7 @@ class GDBServer(threading.Thread):
             LOG.debug("Command: vStopped notification")
             return self.create_rsp_packet(b"OK")
 
-        LOG.debug("Command: %s: Unknown command", to_str_safe(cmd))
+        LOG.debug("Command: v%s: Unknown command", to_str_safe(cmd))
         return self.create_rsp_packet(b"")
 
     # Example: $vCont;s:1;c#c1
