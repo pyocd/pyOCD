@@ -181,11 +181,12 @@ class RTTServer:
             self.up_buffers[i] = self.up_buffers[i][bytes_written:]
 
             # Read from worker
-            self.down_buffers[i] += worker.get_down_data()
-
+            new_down_data = worker.get_down_data()
+            
             # Write data to down channel
             try:
                 down_chan: RTTDownChannel = self.control_block.down_channels[i]
+                self.down_buffers[i] += new_down_data
             except IndexError:
                 pass
             else:
