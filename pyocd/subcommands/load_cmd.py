@@ -26,6 +26,7 @@ from ..core.target import Target
 from ..flash.file_programmer import FileProgrammer
 from ..utility.cmdline import (
     convert_session_options,
+    convert_reset_type,
     int_base_0,
 )
 
@@ -64,7 +65,13 @@ class LoadSubcommand(SubcommandBase):
                  "all must be of this type.")
         parser_options.add_argument("--skip", metavar="BYTES", default=0, type=int_base_0,
             help="Skip programming the first N bytes. Binary files only.")
-        parser_options.add_argument("--no-reset", action="store_true",
+        
+        # Make reset method and no-reset mutually exclusive
+        reset_group = parser_options.add_mutually_exclusive_group()
+        reset_group.add_argument("-m", "--method", default='sw', dest='reset_type', metavar="METHOD",
+            help="Reset method to use after programming (default, hw, sw, sysresetreq, vectreset, emulated). "
+                 "Default is 'sw'.")
+        reset_group.add_argument("--no-reset", action="store_true",
             help="Specify to prevent resetting device after programming has finished.")
 
         parser.add_argument("file", metavar="<file-path>", nargs="*",
@@ -84,6 +91,13 @@ class LoadSubcommand(SubcommandBase):
         if (self._args.base_address is not None) and (len(self._args.file) > 1):
             raise ValueError("--base-address cannot be set when loading more than one file; "
                     "use a base address suffix instead")
+
+        # Verify selected reset type.
+        try:
+            _ = convert_reset_type(self._args.reset_type)
+        except ValueError:
+            LOG.error("Invalid reset method: %s", self._args.reset_type)
+            return 1
 
         session = ConnectHelper.session_with_chosen_probe(
                             project_dir=self._args.project_dir,
@@ -165,6 +179,7 @@ class LoadSubcommand(SubcommandBase):
 
             # Reset the target after programming unless --no-reset was specified.
             if not self._args.no_reset:
-                session.target.reset(Target.ResetType.NSRST)
+                the_reset_type = convert_reset_type(self._args.reset_type)
+                session.target.reset(the_reset_type)
 
         return 0
