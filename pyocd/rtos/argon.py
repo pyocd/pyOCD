@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2016-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -197,8 +197,10 @@ class ArgonThreadContext(DebugContext):
                 swStacked = 0x60
 
         for reg in reg_list:
-            # Must handle stack pointer specially.
-            if reg == 13:
+
+            # Must handle stack pointer(s) specially.
+            if (reg == index_for_reg('sp') or
+                reg == index_for_reg('psp')):
                 if inException:
                     reg_vals.append(sp + hwStacked)
                 else:
@@ -537,4 +539,3 @@ class ArgonPlugin(Plugin):
     @property
     def description(self):
         return "Argon RTOS"
-

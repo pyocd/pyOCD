@@ -26,6 +26,11 @@ LOG = logging.getLogger(__name__)
 # on the frame. The bit is 0 if the frame is extended.
 EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
 
+## Mask on EXC_RETURN indicating whether a Secure or Non-secure stack is used
+# to restore stack frame on exception return. The bit is 0 if the Non-secure
+# stack is used or 1 if the Secure stack is used.
+EXC_RETURN_SECURE_STACK_MASK = (1 << 6)
+
 def read_c_string(context, ptr):
     """@brief Reads a null-terminated C string from the target."""
     if ptr == 0:
