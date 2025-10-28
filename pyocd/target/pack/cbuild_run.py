@@ -189,7 +189,6 @@ class CbuildRun:
     def __init__(self, yml_path: str) -> None:
         """@brief Reads a .cbuild-run.yml file and validates its content."""
         self._data: Dict[str, Any] = {}
-        self._valid: bool = False
         self._device: Optional[str] = None
         self._vendor: Optional[str] = None
         self._vars: Optional[Dict[str, str]] = None
@@ -207,6 +206,7 @@ class CbuildRun:
         self._use_default_memory_map: bool = True
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
+        self._required_packs: Dict[str, Optional[Path]] = {}
 
         try:
             # Convert to Path object early and resolve to absolute path
@@ -216,8 +216,8 @@ class CbuildRun:
                 yml_data = yaml.safe_load(yml_file)
             if 'cbuild-run' in yml_data:
                 self._data = yml_data['cbuild-run']
-                self._check_packs()
-                self._valid = True
+                # Ensure CMSIS_PACK_ROOT is set
+                self._cmsis_pack_root()
             else:
                 raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_file_path}'")
 
@@ -257,38 +257,54 @@ class CbuildRun:
         os.environ['CMSIS_PACK_ROOT'] = str(cmsis_pack_root)
         LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
 
-    def _check_packs(self) -> None:
-        """@brief Checks if the required CMSIS packs are installed."""
-        def _installed(cmsis_pack: str) -> bool:
+    def _get_required_packs(self) -> None:
+        """@brief Determines required CMSIS packs from the .cbuild-run.yml file."""
+        if not self._required_packs:
+            cmsis_pack_root = Path(os.environ['CMSIS_PACK_ROOT']).expanduser().resolve()
+
+            def _pack_path(cmsis_pack: str) -> Optional[Path]:
+                try:
+                    vendor, pack = cmsis_pack.split('::', 1)
+                    name, version = pack.split('@', 1)
+                except ValueError:
+                    LOG.error("Invalid pack format '%s'. Expected 'Vendor::Pack@Version'", cmsis_pack)
+                    return None
+
+                return cmsis_pack_root / vendor / name / version
+
+            for pack_type in ('device-pack', 'board-pack'):
+                pack = self._data.get(pack_type)
+                if pack is not None:
+                    self._required_packs[pack] = _pack_path(pack)
+
+    def _check_path(self, file_path: Path) -> Path:
+        """@brief Checks if the required CMSIS pack is installed."""
+        file_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
+        # If the path exists, we don't need to do any further checks
+        if file_path.exists():
+            return file_path
+
+        def _is_under(parent: Path, child: Path) -> bool:
             try:
-                vendor, pack = cmsis_pack.split('::', 1)
-                name, version = pack.split('@', 1)
+                child.relative_to(parent)
+                return True
             except ValueError:
-                raise CbuildRunError(f"Invalid pack format '{cmsis_pack}'. Expected 'Vendor::Pack@Version'.")
+                return False
 
-            cmsis_pack_path = cmsis_pack_root / vendor / name / version
-            return cmsis_pack_path.is_dir()
+        self._get_required_packs()
 
-        # Set the CMSIS_PACK_ROOT environment variable if not already set.
-        self._cmsis_pack_root()
-        cmsis_pack_root: Path = Path(os.environ.get('CMSIS_PACK_ROOT'))
-        # Get the device and board packs from the .cbuild-run.yml data.
-        device_pack: Optional[str] = self._data.get('device-pack')
-        board_pack: Optional[str] = self._data.get('board-pack')
-        # Create a list to hold missing packs.
-        missing_packs: List[str] = []
+        # Verify pack installation only if the file is located within a required pack.
+        for pack, pack_path in self._required_packs.items():
+            if pack_path is not None and _is_under(pack_path, file_path):
+                if not pack_path.exists():
+                    raise CbuildRunError(f"Pack '{pack}' is required but not installed. "
+                                         f"Install with: cpackget add {pack}")
+                elif not file_path.exists():
+                    raise CbuildRunError(f"Installed pack '{pack}' is corrupted or incomplete. "
+                                         f"Reinstall with: cpackget add -F {pack}")
 
-        # Check if required device and board packs are installed.
-        for pack in dict.fromkeys((device_pack, board_pack)):
-            if pack is not None and not _installed(pack):
-                missing_packs.append(pack)
-        # Write missing packs to a file and raise an error.
-        if missing_packs:
-            with open('packs.txt', 'w', encoding="utf-8") as f:
-                f.writelines(pack + '\n' for pack in missing_packs)
-            # Raise exception if packs are missing
-            # raise CbuildRunError("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
-            LOG.warning("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
+        # If we reach here, the file was not found and is not under any required pack.
+        raise CbuildRunError(f"File '{file_path}' is required but not found")
 
     @property
     def target(self) -> str:
@@ -344,9 +360,11 @@ class CbuildRun:
         try:
             for desc in self.system_descriptions:
                 if desc['type'] == 'svd':
-                    svd_path = Path(os.path.expandvars(desc['file'])).expanduser().resolve()
+                    svd_path = self._check_path(Path(desc['file']))
                     LOG.debug("SVD path: %s", svd_path)
                     return io.BytesIO(svd_path.read_bytes())
+        except CbuildRunError as err:
+            LOG.error("SVD file error: %s", err)
         except (KeyError, IndexError):
             LOG.error("Could not locate SVD in cbuild-run system-descriptions.")
         return None
@@ -354,9 +372,6 @@ class CbuildRun:
     @property
     def output(self) -> Dict[str, Tuple[str, Optional[int]]]:
         """@brief Set of loadable output files (file, [type, offset])."""
-        if not self._valid:
-            return {}
-
         # Supported loadable files
         FILE_TYPE = {'elf', 'hex', 'bin'}
 
@@ -500,9 +515,6 @@ class CbuildRun:
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
-        if not self._valid:
-            return
-
         if target is None:
             target = normalise_target_type_name(self.target)
         elif target != normalise_target_type_name(self.target):
@@ -671,7 +683,7 @@ class CbuildRun:
                             flash_attrs['_RAMsize'] = algorithm['ram-size']
                         if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
                             LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", algorithm['algorithm'])
-                        algorithm_path = Path(os.path.expandvars(algorithm['algorithm'])).expanduser().resolve()
+                        algorithm_path = self._check_path(Path(algorithm['algorithm']))
                         flash_attrs['flm'] = PackFlashAlgo(str(algorithm_path))
                         # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
                         # the default lambdas for sector_size and blocksize returning each other's value.
@@ -770,7 +782,7 @@ class CbuildRunSequences:
 
     @property
     def sequences(self) -> Set[DebugSequence]:
-        if self._sequences == set():
+        if not self._sequences:
             self._build_sequences()
         return self._sequences
 
