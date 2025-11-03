@@ -1514,7 +1514,7 @@ class GDBServer(threading.Thread):
 
     def is_threading_enabled(self):
         return (self.thread_provider is not None) and self.thread_provider.is_enabled \
-            and (self.thread_provider.get_actual_current_thread_id() is not None)
+            and (self.thread_provider.current_thread is not None)
 
     def is_target_in_reset(self):
         return self.target.get_state() == Target.State.RESET
