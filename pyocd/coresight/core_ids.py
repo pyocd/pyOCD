@@ -36,10 +36,11 @@ ARM_CortexM0p = 0xC60
 ARM_CortexM23 = 0xD20
 ARM_CortexM33 = 0xD21
 ARM_CortexM35P = 0xD31
+ARM_CortexM52 = 0xD24
 ARM_CortexM55 = 0xD22
 ARM_CortexM85 = 0xD23
 ARM_China_StarMC1 = 0x132
-
+ARM_China_StarMC3 = 0xD25
 # pylint: enable=invalid_name
 
 ## @brief User-friendly names for core types.
@@ -55,9 +56,11 @@ CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
         (CPUID_ARM,        ARM_CortexM23):     "Cortex-M23",
         (CPUID_ARM,        ARM_CortexM33):     "Cortex-M33",
         (CPUID_ARM,        ARM_CortexM35P):    "Cortex-M35P",
+        (CPUID_ARM_CHINA,  ARM_CortexM52):      "Cortex-M52",
         (CPUID_ARM,        ARM_CortexM55):     "Cortex-M55",
         (CPUID_ARM,        ARM_CortexM85):     "Cortex-M85",
         (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
+        (CPUID_ARM_CHINA,  ARM_China_StarMC3): "Star-MC3",
     }
 
 class CoreArchitecture(Enum):
