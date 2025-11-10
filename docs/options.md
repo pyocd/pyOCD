@@ -234,6 +234,22 @@ Whether to preserve existing flash content for ranges of sectors that will be er
 with new data.
 </td></tr>
 
+<tr><td>load.pre_reset</td>
+<td>str</td>
+<td><i>No default</i></td>
+<td>
+Specify the type of reset to perform before programming. The value must be one of
+'off', 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'.
+</td></tr>
+
+<tr><td>load.post_reset</td>
+<td>str</td>
+<td><i>No default</i></td>
+<td>
+Specify the type of reset to perform after programming. The value must be one of
+'off', 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'.
+</td></tr>
+
 <tr><td>logging</td>
 <td>str, dict</td>
 <td><i>No default</i></td>
