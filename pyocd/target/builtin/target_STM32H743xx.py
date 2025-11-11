@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2023 David van Rijn
+# Copyright (C) 2024 Adam Gausmann
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -168,6 +169,10 @@ class STM32H743xx(CoreSightTarget):
         RamRegion(   start=0x20000000, length=0x20000,
                   is_cachable=False,
                   access="rw"),
+
+        # AXI SRAM
+        RamRegion(   start=0x24000000, length=0x80000),
+
         #sram1
         RamRegion(   start=0x30000000, length=0x20000,
                   is_powered_on_boot=False),
@@ -321,6 +326,3 @@ class STM32H743xx(CoreSightTarget):
             while self.read32(bank.flash_sr) & 1:
                 time.sleep(0.1)
             LOG.info("mass_erase bank %i done", bank.bank)
-
-
-
