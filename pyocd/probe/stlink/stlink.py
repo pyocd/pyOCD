@@ -31,7 +31,7 @@ from ...utility.mask import bfx
 LOG = logging.getLogger(__name__)
 
 class STLink(object):
-    """@brief STLink V2 and V3 command-level interface.
+    """@brief STLink V2, V3, and V4 command-level interface.
     """
     class Protocol(Enum):
         """@brief Protocol options to pass to STLink.enter_debug() method.
@@ -56,17 +56,17 @@ class STLink(object):
     ## Firmware version that adds DP bank support.
     #
     # Keys are the hardware version, value is the minimum JTAG version.
-    MIN_JTAG_VERSION_DPBANKSEL = {2: 32, 3: 2}
+    MIN_JTAG_VERSION_DPBANKSEL = {2: 32, 3: 2, 4: 2}
 
     ## Firmware version that supports JTAG_GET_BOARD_IDENTIFIERS.
     #
     # Keys are the hardware version, value is the minimum JTAG version.
-    MIN_JTAG_VERSION_GET_BOARD_IDS = {2: 36, 3: 6}
+    MIN_JTAG_VERSION_GET_BOARD_IDS = {2: 36, 3: 6, 4: 6}
 
     ## Firmware versions that support CSW settings on memory access commands.
     #
     # Keys are the hardware version, value is the minimum JTAG version.
-    MIN_JTAG_VERSION_MEM_CSW = {2: 32, 3: 2}
+    MIN_JTAG_VERSION_MEM_CSW = {2: 32, 3: 2, 4: 2}
 
     ## Port number to use to indicate DP registers.
     DP_PORT = 0xffff
@@ -166,9 +166,9 @@ class STLink(object):
         # TODO create version bitfield constants
         self._hw_version = bfx(ver, 15, 12)
         self._jtag_version = bfx(ver, 11, 6)
-        self._msc_version = bfx(ver, 5, 0)
+        msc_v = bfx(ver, 5, 0)
 
-        # For STLinkV3 we must use the extended get version command.
+        # For STLinkV3 and V4 we must use the extended get version command.
         if self._hw_version >= 3:
             # GET_VERSION_EXT response structure (byte offsets):
             #   0: HW version
@@ -176,13 +176,29 @@ class STLink(object):
             #   2: JTAG/SWD version
             #   3: MSC/VCP version
             #   4: Bridge version
-            #   5-7: reserved
+            #   5: Power interface version (for V4)
+            #   6-7: reserved
             #   8-9: ST_VID
             #   10-11: STLINK_PID
             response = self._device.transfer([Commands.GET_VERSION_EXT], readSize=12)
-            hw_vers, _, self._jtag_version, self._msc_version = struct.unpack('<4B', response[0:4])
 
-        self._version_str = "V%dJ%dM%d" % (self._hw_version, self._jtag_version, self._msc_version)
+            _, swim_v, self._jtag_version, msc_v, bridge_v, power_v = struct.unpack('<6B', response[0:6])
+
+        # Build version string
+        if self._hw_version >= 3:
+            # V3/V4 extended format: (omit components if 0)
+            parts = [f"V{self._hw_version}", f"J{self._jtag_version}"]
+            if swim_v != 0:
+                parts.append(f"S{swim_v}")
+            if msc_v != 0:
+                parts.append(f"M{msc_v}")
+            if bridge_v != 0:
+                parts.append(f"B{bridge_v}")
+            if power_v != 0:
+                parts.append(f"P{power_v}")
+            self._version_str = "".join(parts)
+        else:
+            self._version_str = "V%dJ%dM%d" % (self._hw_version, self._jtag_version, msc_v)
         LOG.debug("STLink probe %s firmware version: %s", self.serial_number, self._version_str)
 
         # Check versions.
@@ -252,7 +268,7 @@ class STLink(object):
     def set_prescaler(self, prescaler: int) -> None:
         assert prescaler in (1, 2, 4)
 
-        # The SWITCH_STLINK_FREQ command is only supported on V3.
+        # The SWITCH_STLINK_FREQ command is only supported on V3 and V4.
         if self._hw_version < 3:
             return
         with self._lock:

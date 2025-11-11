@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -67,7 +67,7 @@ class STLinkUSBInterface:
         0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP, No MSD
         0x3754: STLinkInfo('V3',    0x01,   0x81,   0x82),  # No MSD
         0x3755: STLinkInfo('V3',    0x01,   0x81,   0x82),
-        0x3757: STLinkInfo('V3',    0x01,   0x81,   0x82),
+        0x3757: STLinkInfo('V3',    0x01,   0x81,   0x82),  # Also for V4
         }
 
     ## STLink devices only have one USB interface.
