@@ -175,7 +175,7 @@ class HidApiUSB(Interface):
             TRACE.debug("rx_task exception: %s", err)
             self._read_thread_exception = err
         finally:
-            self._swo_thread_did_exit = True
+            self._read_thread_did_exit = True
 
     @staticmethod
     def get_all_connected_interfaces():
