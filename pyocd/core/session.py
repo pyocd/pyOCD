@@ -278,6 +278,7 @@ class Session(Notifier):
         debugger_options['dap_swj_enable'] = self.cbuild_run.swj_enable
         debugger_options['dap_dormant'] = self.cbuild_run.dormant
         debugger_options['frequency'] = self.cbuild_run.debugger_clock
+        debugger_options['primary_core'] = self.cbuild_run.primary_core
 
         connect_mode = self.cbuild_run.connect_mode
         if command == 'load' and connect_mode == 'attach' and self.cbuild_run.pre_load_halt:

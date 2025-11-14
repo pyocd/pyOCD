@@ -113,7 +113,6 @@ class CbuildRunTargetMethods:
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
                             ('update_processor_name', self.update_processor_name),
-                            ('update_primary_core', self.update_primary_core),
                             ('configure_core_reset', self.configure_core_reset)
                             )
             )
@@ -144,16 +143,6 @@ class CbuildRunTargetMethods:
 
         if processors_map:
             self._cbuild_device.processors_map = processors_map
-
-    @staticmethod
-    def _cbuild_target_start_processor(self) -> None:
-        """@brief Updates the primary processor, based on 'start-pname' node in .cbuild-run.yml"""
-        start_pname = self._cbuild_device.start_pname
-        if start_pname is not None and self.primary_core_pname != start_pname:
-            core_number = next((core.core_number for core in self.cores.values() if core.node_name == start_pname), None)
-            if core_number is not None:
-                self.session.options['primary_core'] = core_number
-                self.selected_core = core_number
 
     @staticmethod
     def _cbuild_target_configure_core_reset(self) -> None:
@@ -549,6 +538,16 @@ class CbuildRun:
         return self.debug_topology.get('dormant', False)
 
     @property
+    def primary_core(self) -> Optional[int]:
+        """@brief Primary core number from debugger settings."""
+        _primary_core = None
+        _start_pname = self.start_pname
+        for i, proc_info in enumerate(sorted(self.processors_ap_map.values(), key=lambda p: p.ap_address.address)):
+            if proc_info.name == _start_pname:
+                _primary_core = i
+        return _primary_core
+
+    @property
     def pre_load_halt(self) -> bool:
         """@brief Pre-load halt flag from debugger settings."""
         return self.debugger.get('load-setup', {}).get('halt', True)
@@ -599,7 +598,6 @@ class CbuildRun:
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
-                    "update_primary_core" : CbuildRunTargetMethods._cbuild_target_start_processor,
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
                     "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
                     "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port,
