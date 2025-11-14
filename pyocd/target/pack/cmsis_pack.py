@@ -1025,8 +1025,11 @@ class CmsisPackDevice:
         try:
             svdPath = self._info.debugs[0].attrib['svd']
             return self.get_file(svdPath)
+        except FileNotFoundError as err:
+            LOG.error("SVD file error: %s", err)
         except (KeyError, IndexError):
-            return None
+            LOG.error("Could not locate SVD in CMSIS-Pack.")
+        return None
 
     @property
     def sequences(self) -> Set[DebugSequence]:
@@ -1287,4 +1290,3 @@ class CmsisPackDevice:
 
     def __repr__(self):
         return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
-

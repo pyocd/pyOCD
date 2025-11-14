@@ -386,7 +386,8 @@ class _PackTargetMethods:
         self.part_families = self._pack_device.families
         self.part_number = self._pack_device.part_number
 
-        self._svd_location = SVDFile(filename=self._pack_device.svd)
+        _svd = self._pack_device.svd
+        self._svd_location = SVDFile(filename=_svd) if _svd else None
 
         self.debug_sequence_delegate = PackDebugSequenceDelegate(self, self._pack_device)
 
