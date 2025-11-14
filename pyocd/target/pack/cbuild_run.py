@@ -95,7 +95,8 @@ class CbuildRunTargetMethods:
         super(self.__class__, self).__init__(session, self._cbuild_device.memory_map)
         self.vendor = self._cbuild_device.vendor
         self.part_number = self._cbuild_device.target
-        self._svd_location = SVDFile(filename=self._cbuild_device.svd)
+        _svd = self._cbuild_device.svd
+        self._svd_location = SVDFile(filename=_svd) if _svd else None
         self.debug_sequence_delegate = CbuildRunDebugSequenceDelegate(self, self._cbuild_device)
 
     @staticmethod
@@ -354,15 +355,15 @@ class CbuildRun:
         return self._memory_map
 
     @property
-    def svd(self) -> Optional[IO[bytes]]:
-        """@brief File-like object for the device's SVD file."""
+    def svd(self) -> Optional[str]:
+        """@brief Path to the SVD file for the target device."""
         #TODO handle multicore devices
         try:
             for desc in self.system_descriptions:
                 if desc['type'] == 'svd':
                     svd_path = self._check_path(Path(desc['file']))
                     LOG.debug("SVD path: %s", svd_path)
-                    return io.BytesIO(svd_path.read_bytes())
+                    return str(svd_path)
         except CbuildRunError as err:
             LOG.error("SVD file error: %s", err)
         except (KeyError, IndexError):
