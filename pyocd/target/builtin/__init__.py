@@ -61,6 +61,7 @@ from . import target_nRF51822_xxAA
 from . import target_nRF52832_xxAA
 from . import target_nRF52833_xxAA
 from . import target_nRF52840_xxAA
+from . import target_nRF54LM20A
 from . import target_nRF54L15
 from . import target_nRF91xx
 from . import target_S32K344
@@ -216,6 +217,7 @@ BUILTIN_TARGETS = {
           'nrf52840' : target_nRF52840_xxAA.NRF52840,
           'nrf91' : target_nRF91xx.NRF91XX,
           'nrf54l' : target_nRF54L15.NRF54L15,
+          'nrf54lm20a' : target_nRF54LM20A.NRF54LM20A,
           's32k344': target_S32K344.S32K344,
           'stm32f103rc': target_STM32F103RC.STM32F103RC,
           'stm32f051': target_STM32F051T8.STM32F051,
