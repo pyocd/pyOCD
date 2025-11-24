@@ -36,6 +36,7 @@ from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP)
 from ...probe.debug_probe import DebugProbe
 from ...debug.svd.loader import SVDFile
+from ...utility.cmdline import convert_reset_type
 from ...debug.sequences.scope import Scope
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
@@ -157,7 +158,20 @@ class CbuildRunTargetMethods:
     @staticmethod
     def _cbuild_target_configure_core_reset(self) -> None:
         """@brief Configures default reset types for each core, based on .cbuild-run.yml."""
-        # Currently unimplemented, serves as a stub for future functionality.
+        reset_configuration = self._cbuild_device.debugger.get('reset', [])
+        if not reset_configuration:
+            # No reset configuration provided.
+            return None
+
+        for core in self.cores.values():
+            if any('pname' in r for r in reset_configuration):
+                reset = next((r['type'] for r in reset_configuration if r.get('pname') == core.node_name), None)
+            else:
+                reset = next((r['type'] for r in reset_configuration), None)
+            if reset is not None:
+                reset_type = convert_reset_type(reset)
+                if reset_type is not None:
+                    core.default_reset_type = reset_type
         return None
 
     @staticmethod
@@ -533,6 +547,26 @@ class CbuildRun:
     def dormant(self) -> bool:
         """@brief Dormant mode enable flag from debug topology."""
         return self.debug_topology.get('dormant', False)
+
+    @property
+    def pre_reset(self) -> Optional[str]:
+        """@brief Pre-reset type from debugger settings."""
+        reset = self.debugger.get('load-setup', {}).get('pre-reset')
+        reset = 'off' if reset is False else reset # PyYAML: value 'off' maps to boolean False
+        if reset not in {'off', 'hardware', 'system', 'core', None}:
+            LOG.warning("Invalid pre-reset type '%s' in cbuild-run, defaulting to 'reset_type'", reset)
+            reset = None
+        return reset
+
+    @property
+    def post_reset(self) -> Optional[str]:
+        """@brief Post-reset type from debugger settings."""
+        reset = self.debugger.get('load-setup', {}).get('post-reset', 'hardware')
+        reset = 'off' if reset is False else reset # PyYAML: value 'off' maps to boolean False
+        if reset not in {'off', 'hardware', 'system', 'core'}:
+            LOG.warning("Invalid post-reset type '%s' in cbuild-run, defaulting to 'hardware'", reset)
+            reset = 'hardware'
+        return reset
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
