@@ -549,6 +549,11 @@ class CbuildRun:
         return self.debug_topology.get('dormant', False)
 
     @property
+    def pre_load_halt(self) -> bool:
+        """@brief Pre-load halt flag from debugger settings."""
+        return self.debugger.get('load-setup', {}).get('halt', True)
+
+    @property
     def pre_reset(self) -> Optional[str]:
         """@brief Pre-reset type from debugger settings."""
         reset = self.debugger.get('load-setup', {}).get('pre-reset')
@@ -567,6 +572,15 @@ class CbuildRun:
             LOG.warning("Invalid post-reset type '%s' in cbuild-run, defaulting to 'hardware'", reset)
             reset = 'hardware'
         return reset
+
+    @property
+    def connect_mode(self) -> str:
+        """@brief Connection mode from debugger section."""
+        connect = self.debugger.get('connect', 'attach')
+        if connect not in {'pre-reset', 'under-reset', 'halt', 'attach'}:
+            LOG.warning("Invalid connect mode '%s' in cbuild-run, defaulting to 'attach'", connect)
+            connect = 'attach'
+        return connect
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
