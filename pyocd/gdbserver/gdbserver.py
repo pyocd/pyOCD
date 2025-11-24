@@ -291,7 +291,7 @@ class GDBServer(threading.Thread):
     ## Timer delay for sending the notification that the server is listening.
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
 
-    def __init__(self, session, core=None, port=None):
+    def __init__(self, session, core=None):
         super().__init__(daemon=True)
         self.session = session
         self.board = session.board
@@ -303,21 +303,30 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
 
-        if port is None:
+        if session.options.is_set('cbuild_run.gdbserver_ports'):
+            # Per-core gdbserver ports configured.
+            _port = session.options.get('cbuild_run.gdbserver_ports')[self.core]
+            # Check if no port was configured for this core, use 0 in that case.
+            self.port = _port if _port is not None else 0
+        else:
             self.port = session.options.get('gdbserver_port')
             if self.port != 0:
                 self.port += self.core
-        else:
-            self.port = port
 
         self.client_sessions: List[GDBClientSession] = []
         # Lock to protect access to the sessions list
         self.client_sessions_lock = threading.Lock()
         self.client_last_index = 0
 
-        self.telnet_port = session.options.get('telnet_port')
-        if self.telnet_port != 0:
-            self.telnet_port += self.core
+        if session.options.is_set('cbuild_run.telnet_ports'):
+            # Per-core telnet ports configured.
+            _telnet_port = session.options.get('cbuild_run.telnet_ports')[self.core]
+            # Check if no port was configured for this core, use 0 in that case.
+            self.telnet_port = _telnet_port if _telnet_port is not None else 0
+        else:
+            self.telnet_port = session.options.get('telnet_port')
+            if self.telnet_port != 0:
+                self.telnet_port += self.core
 
         self.vector_catch = session.options.get('vector_catch')
         self.target.set_vector_catch(convert_vector_catch(self.vector_catch))

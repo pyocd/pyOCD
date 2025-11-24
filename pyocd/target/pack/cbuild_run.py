@@ -25,7 +25,7 @@ import platform
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (cast, Optional, Set, Dict, List, Tuple, IO, Any, TYPE_CHECKING)
+from typing import (cast, Optional, Set, Dict, List, Tuple, Union, IO, Any, TYPE_CHECKING)
 
 from .flash_algo import PackFlashAlgo
 from .. import (normalise_target_type_name, TARGET)
@@ -169,17 +169,6 @@ class CbuildRunTargetMethods:
         pname = _self._cbuild_device.processors_ap_map[cast('CortexM', core).ap.address].name
         core.node_name = pname
         CoreSightTarget.add_core(_self, core)
-
-    @staticmethod
-    def _cbuild_target_get_gdbserver_port(self, pname: str) -> Optional[int]:
-        """@brief GDB Server port for processor name."""
-        assert pname
-        server_map = self._cbuild_device.debugger.get('gdbserver', [])
-        if any('pname' in server for server in server_map):
-            port = next((i['port'] for i in server_map if i.get('pname') == pname), None)
-        else:
-            port = next((i['port'] for i in server_map), None)
-        return port
 
     @staticmethod
     def _cbuild_target_get_output(self) -> Dict[str, Optional[int]]:
@@ -581,6 +570,20 @@ class CbuildRun:
             connect = 'attach'
         return connect
 
+    @property
+    def gdbserver_port(self) -> Optional[Union[int, Tuple]]:
+        """@brief GDB server port assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        return self._get_server_ports('gdbserver')
+
+    @property
+    def telnet_port(self) -> Optional[Union[int, Tuple]]:
+        """@brief Telnet server port assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        return self._get_server_ports('telnet')
+
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
         if target is None:
@@ -600,11 +603,25 @@ class CbuildRun:
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
                     "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
-                    "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port,
                     "get_output": CbuildRunTargetMethods._cbuild_target_get_output,
                     "add_target_command_groups": CbuildRunTargetMethods._cbuild_target_add_target_command_groups,
         })
         TARGET[target] = tgt
+
+    def _get_server_ports(self, server_type: str) -> Optional[Union[int, Tuple]]:
+        """@brief Generic method to get server port assignments from debugger section."""
+        server_map = self.debugger.get(server_type, [])
+        sorted_processors = sorted(self.processors_ap_map.values(), key=lambda p: p.ap_address.address)
+        has_pname = any('pname' in server for server in server_map)
+
+        if has_pname:
+            ports = tuple(
+                next((s['port'] for s in server_map if s.get('pname') == proc_info.name), None)
+                for proc_info in sorted_processors
+            )
+        else:
+            ports = next((s['port'] for s in server_map), None)
+        return ports
 
     def _get_memory_to_process(self) -> List[dict]:
         DEFAULT_MEMORY_MAP = sorted([
