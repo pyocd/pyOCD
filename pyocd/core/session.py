@@ -279,6 +279,10 @@ class Session(Notifier):
         debugger_options['dap_dormant'] = self.cbuild_run.dormant
         debugger_options['frequency'] = self.cbuild_run.debugger_clock
 
+        # Set reset types for load operations.
+        debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
+        debugger_options['load.post_reset'] = self.cbuild_run.post_reset
+
         LOG.debug("cbuild-run debugger options: %s", debugger_options)
         return debugger_options
 
