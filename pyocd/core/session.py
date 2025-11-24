@@ -279,6 +279,11 @@ class Session(Notifier):
         debugger_options['dap_dormant'] = self.cbuild_run.dormant
         debugger_options['frequency'] = self.cbuild_run.debugger_clock
 
+        connect_mode = self.cbuild_run.connect_mode
+        if command == 'load' and connect_mode == 'attach' and self.cbuild_run.pre_load_halt:
+            connect_mode = 'halt'
+        debugger_options['connect_mode'] = connect_mode
+
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
         debugger_options['load.post_reset'] = self.cbuild_run.post_reset
