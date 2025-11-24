@@ -203,6 +203,12 @@ BUILTIN_OPTIONS = [
         "for presentation in gdb."),
     OptionInfo('soft_bkpt_as_hard', bool, False,
         "Replace software breakpoints with hardware breakpoints."),
+
+    # Internal cbuild-run session options
+    OptionInfo('cbuild_run.gdbserver_ports', tuple, None,
+        "List of TCP ports for the gdbserver."),
+    OptionInfo('cbuild_run.telnet_ports', tuple, None,
+        "List of TCP ports for telnet server."),
     ]
 
 ## @brief The runtime dictionary of options.

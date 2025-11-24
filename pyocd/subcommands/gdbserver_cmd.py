@@ -231,11 +231,7 @@ class GdbserverSubcommand(SubcommandBase):
                     # Don't create a server if this core is not listed by the user.
                     if core_number not in core_list:
                         continue
-                    # Read pname and port mapping from cbuild-run.
-                    port_number = None
-                    if self._args.cbuild_run:
-                        port_number = session.target.get_gdbserver_port(core.node_name)
-                    gdb = GDBServer(session, core=core_number, port=port_number)
+                    gdb = GDBServer(session, core=core_number)
                     # Only subscribe to the server for the first core, so echo messages aren't printed
                     # multiple times.
                     if not gdbs:

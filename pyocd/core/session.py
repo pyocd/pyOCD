@@ -285,6 +285,22 @@ class Session(Notifier):
             connect_mode = 'halt'
         debugger_options['connect_mode'] = connect_mode
 
+        # Only set gdbserver_port if it wasn't already set in options (command line).
+        if not self.options.is_set('gdbserver_port'):
+            gbdserver_ports = self.cbuild_run.gdbserver_port
+            if isinstance(gbdserver_ports, int):
+                debugger_options['gdbserver_port'] = gbdserver_ports
+            else:
+                debugger_options['cbuild_run.gdbserver_ports'] = gbdserver_ports
+
+        # Only set telnet_port if it wasn't already set in options (command line).
+        if not self.options.is_set('telnet_port'):
+            telnet_ports = self.cbuild_run.telnet_port
+            if isinstance(telnet_ports, int):
+                debugger_options['telnet_port'] = telnet_ports
+            else:
+                debugger_options['cbuild_run.telnet_ports'] = telnet_ports
+
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
         debugger_options['load.post_reset'] = self.cbuild_run.post_reset
