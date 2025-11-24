@@ -269,6 +269,17 @@ class Session(Notifier):
     def _get_cbuild_run_config(self, command: Optional[str]) -> Dict[str, Any]:
         debugger_options: Dict[str, Any] = {}
 
+        # Return empty dict if no cbuild-run file was specified.
+        if self.cbuild_run is None:
+            return debugger_options
+
+        # Map cbuild-run debugger options to pyOCD session options.
+        debugger_options['dap_protocol'] = self.cbuild_run.debugger_protocol
+        debugger_options['dap_swj_enable'] = self.cbuild_run.swj_enable
+        debugger_options['dap_dormant'] = self.cbuild_run.dormant
+        debugger_options['frequency'] = self.cbuild_run.debugger_clock
+
+        LOG.debug("cbuild-run debugger options: %s", debugger_options)
         return debugger_options
 
     def find_user_file(self, option_name: Optional[str], filename_list: List[str]) -> Optional[str]:
@@ -576,11 +587,7 @@ class Session(Notifier):
 
             self._probe.open()
             self._closed = False
-            frequency = self.options.get('frequency')
-            if self.options.is_set('cbuild_run'):
-                if self.target.debugger_clock is not None:
-                    frequency = self.target.debugger_clock
-            self._probe.set_clock(frequency)
+            self._probe.set_clock(self.options.get('frequency'))
             if init_board:
                 self._board.init()
                 self._inited = True
