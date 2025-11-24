@@ -524,6 +524,16 @@ class CbuildRun:
             LOG.debug("Read debug topology")
         return self._debug_topology
 
+    @property
+    def swj_enable(self) -> bool:
+        """@brief SWJ (Serial Wire JTAG) enable flag from debug topology."""
+        return self.debug_topology.get('swj', True)
+
+    @property
+    def dormant(self) -> bool:
+        """@brief Dormant mode enable flag from debug topology."""
+        return self.debug_topology.get('dormant', False)
+
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
         if target is None:
@@ -538,8 +548,6 @@ class CbuildRun:
         # Generate target subclass and install it.
         tgt = type(target.capitalize(), (CoreSightTarget,), {
                     "_cbuild_device": self,
-                    "debugger_clock": self.debugger_clock,
-                    "debugger_protocol" : self.debugger_protocol,
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
@@ -994,9 +1002,9 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
             protocol = 2
         else:
             protocol = 0 # Error
-        if self._device.debug_topology.get('swj', True):
+        if self._device.swj_enable:
             protocol |= 1 << 16
-        if self._device.debug_topology.get('dormant', False):
+        if self._device.dormant:
             protocol |= 1 << 17
         return protocol
 
