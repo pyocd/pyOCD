@@ -205,6 +205,8 @@ class HidApiUSB(Interface):
             # Update report sizes
             self.report_in_size = in_report_size
             self.report_out_size = out_report_size
+            LOG.debug("Updated HID report sizes: IN=%s, OUT=%s",
+                      self.report_in_size, self.report_out_size)
             return True
 
         except Exception as e:
