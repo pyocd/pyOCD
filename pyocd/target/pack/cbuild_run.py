@@ -278,11 +278,11 @@ class CbuildRun:
                 if pack is not None:
                     self._required_packs[pack] = _pack_path(pack)
 
-    def _check_path(self, file_path: Path) -> Path:
-        """@brief Checks if the required CMSIS pack is installed."""
+    def _check_path(self, file_path: Path, required: bool = False) -> Path:
+        """@brief Checks if the required files are accessible and verifies pack installation if needed."""
         file_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
-        # If the path exists, we don't need to do any further checks
-        if file_path.exists():
+        # If the file exists, we don't need to do any further checks
+        if file_path.is_file():
             return file_path
 
         def _is_under(parent: Path, child: Path) -> bool:
@@ -292,20 +292,28 @@ class CbuildRun:
             except ValueError:
                 return False
 
-        self._get_required_packs()
+        # Use warning logging for non-required files
+        log = LOG.warning
+        err = f"File '{file_path}' not found"
+        if required:
+            # Switch to using error logging for required files
+            log = LOG.error
+            err = f"File '{file_path}' is required but not found"
 
+        self._get_required_packs()
         # Verify pack installation only if the file is located within a required pack.
         for pack, pack_path in self._required_packs.items():
             if pack_path is not None and _is_under(pack_path, file_path):
                 if not pack_path.exists():
-                    raise CbuildRunError(f"Pack '{pack}' is required but not installed. "
-                                         f"Install with: cpackget add {pack}")
-                elif not file_path.exists():
-                    raise CbuildRunError(f"Installed pack '{pack}' is corrupted or incomplete. "
-                                         f"Reinstall with: cpackget add -F {pack}")
+                    log("Pack '%s' is required but not installed. "
+                              "Install with: cpackget add %s", pack, pack)
+                else:
+                    log("Installed pack '%s' is corrupted or incomplete. "
+                          "Reinstall with: cpackget add -F %s", pack, pack)
+                # We've found the relevant pack, no need to check further
+                break
 
-        # If we reach here, the file was not found and is not under any required pack.
-        raise CbuildRunError(f"File '{file_path}' is required but not found")
+        raise CbuildRunError(err)
 
     @property
     def target(self) -> str:
@@ -365,9 +373,9 @@ class CbuildRun:
                     LOG.debug("SVD path: %s", svd_path)
                     return str(svd_path)
         except CbuildRunError as err:
-            LOG.error("SVD file error: %s", err)
+            LOG.warning("SVD file error: %s", err)
         except (KeyError, IndexError):
-            LOG.error("Could not locate SVD in cbuild-run system-descriptions.")
+            LOG.warning("Could not locate SVD in cbuild-run system-descriptions.")
         return None
 
     @property
@@ -684,7 +692,7 @@ class CbuildRun:
                             flash_attrs['_RAMsize'] = algorithm['ram-size']
                         if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
                             LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", algorithm['algorithm'])
-                        algorithm_path = self._check_path(Path(algorithm['algorithm']))
+                        algorithm_path = self._check_path(Path(algorithm['algorithm']), required=True)
                         flash_attrs['flm'] = PackFlashAlgo(str(algorithm_path))
                         # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
                         # the default lambdas for sector_size and blocksize returning each other's value.
