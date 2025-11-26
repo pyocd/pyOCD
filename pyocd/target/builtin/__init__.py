@@ -41,6 +41,7 @@ from . import target_MKV11Z128xxx7
 from . import target_MKW01Z128xxx4
 from . import target_MKW24D512xxx5
 from . import target_MKW36Z512xxx4
+from . import target_MKW38A512xxx4
 from . import target_MKW40Z160xxx4
 from . import target_MKW41Z512xxx4
 from . import target_MK22FN1M0Axxx12
@@ -174,6 +175,7 @@ BUILTIN_TARGETS = {
           'kw01z4': target_MKW01Z128xxx4.KW01Z4,
           'kw24d5': target_MKW24D512xxx5.KW24D5,
           'kw36z4': target_MKW36Z512xxx4.KW36Z4,
+          'kw38a4': target_MKW38A512xxx4.KW38A4,
           'kw40z4': target_MKW40Z160xxx4.KW40Z4,
           'kw41z4': target_MKW41Z512xxx4.KW41Z4,
           'k20d50m': target_MK20DX128xxx5.K20D50M,
