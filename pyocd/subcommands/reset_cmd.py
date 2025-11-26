@@ -86,6 +86,7 @@ class ResetSubcommand(SubcommandBase):
                             connect_mode=self._args.connect_mode,
                             resume_on_disconnect=not self._args.halt,
                             reset_type=self._args.reset_type,
+                            command=self._args.cmd,
                             options=convert_session_options(self._args.options),
                             option_defaults=self._modified_option_defaults(),
                             )

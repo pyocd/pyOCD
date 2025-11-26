@@ -132,6 +132,7 @@ class Session(Notifier):
             auto_open: bool = True,
             options: Optional[Mapping[str, Any]] = None,
             option_defaults: Optional[Mapping[str, Any]] = None,
+            command: Optional[str] = None,
             **kwargs
             ) -> None:
         """@brief Session constructor.
@@ -166,6 +167,7 @@ class Session(Notifier):
         self._probe = probe
         self._closed: bool = True
         self._inited: bool = False
+        self._command = command
         self._user_script_namespace: Dict[str, Any] = {}
         self._user_script_proxy: Optional[UserScriptDelegateProxy] = None
         self._user_script_print_proxy = PrintProxy()
@@ -330,6 +332,11 @@ class Session(Notifier):
     def probe(self) -> Optional[DebugProbe]:
         """@brief The @ref pyocd.probe.debug_probe.DebugProbe "DebugProbe" instance."""
         return self._probe
+
+    @property
+    def command(self) -> Optional[str]:
+        """@brief The current command being executed in the session."""
+        return self._command
 
     @property
     def board(self) -> Optional[Board]:
