@@ -95,8 +95,10 @@ class CbuildRunTargetMethods:
         super(self.__class__, self).__init__(session, self._cbuild_device.memory_map)
         self.vendor = self._cbuild_device.vendor
         self.part_number = self._cbuild_device.target
-        _svd = self._cbuild_device.svd
-        self._svd_location = SVDFile(filename=_svd) if _svd else None
+        if session.command not in ('load', 'erase', 'reset'):
+            # SVD file is not required for load/erase/reset commands
+            _svd = self._cbuild_device.svd
+            self._svd_location = SVDFile(filename=_svd) if _svd else None
         self.debug_sequence_delegate = CbuildRunDebugSequenceDelegate(self, self._cbuild_device)
 
     @staticmethod
@@ -292,13 +294,13 @@ class CbuildRun:
             except ValueError:
                 return False
 
-        # Use warning logging for non-required files
-        log = LOG.warning
-        err = f"File '{file_path}' not found"
+        # Select appropriate logging level and error message based on whether the file is required
         if required:
-            # Switch to using error logging for required files
             log = LOG.error
             err = f"File '{file_path}' is required but not found"
+        else:
+            log = LOG.warning
+            err = f"File '{file_path}' not found"
 
         self._get_required_packs()
         # Verify pack installation only if the file is located within a required pack.
