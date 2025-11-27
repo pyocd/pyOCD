@@ -263,7 +263,7 @@ class ADIv6Discovery(CoreSightDiscovery):
             memif = APAccessMemoryInterface(self.dp)
 
             # Instantiate the component and attach to the target.
-            component = cmpid.factory(memif, cmpid, cmpid.address)
+            component = cmpid.factory(memif, cmpid, 0)
             self.target.add_child(component)
             component.init()
         except exceptions.Error as e:
