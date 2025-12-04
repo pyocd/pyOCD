@@ -305,14 +305,12 @@ class PackFlashAlgo:
         """Create a binary blob of the flash algo which can execute from ram"""
         sect_ro, sect_rw, sect_zi = ro_rw_zi
         assert sect_ro and sect_rw and sect_zi
-        algo_size = max(sect_ro.end, sect_rw.end, sect_zi.end)
+        algo_size = max(sect_ro.end, sect_rw.end, sect_zi.end) + 1
         algo_data = bytearray(algo_size)
         for section in (sect_ro, sect_rw):
-            start = section.start
-            size = section.length
-            data = section.data
-            assert len(data) == size
-            algo_data[start:start + size] = data
+            if hasattr(section, "data"):
+                assert len(section.data) == section.length
+                algo_data[section.start : section.start + section.length] = section.data
         return algo_data
 
 
