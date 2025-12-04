@@ -57,7 +57,7 @@ CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
         (CPUID_ARM,        ARM_CortexM23):     "Cortex-M23",
         (CPUID_ARM,        ARM_CortexM33):     "Cortex-M33",
         (CPUID_ARM,        ARM_CortexM35P):    "Cortex-M35P",
-        (CPUID_ARM_CHINA,  ARM_CortexM52):      "Cortex-M52",
+        (CPUID_ARM_CHINA,  ARM_CortexM52):     "Cortex-M52",
         (CPUID_ARM,        ARM_CortexM55):     "Cortex-M55",
         (CPUID_ARM,        ARM_CortexM85):     "Cortex-M85",
         (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
