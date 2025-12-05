@@ -34,6 +34,7 @@ from ...coresight.ap import (APAddressBase, APv1Address, APv2Address)
 from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP)
+from ...coresight.cortex_m import CortexM
 from ...probe.debug_probe import DebugProbe
 from ...debug.svd.loader import SVDFile
 from ...utility.cmdline import convert_reset_type
@@ -103,42 +104,42 @@ class CbuildRunTargetMethods:
         self.debug_sequence_delegate = CbuildRunDebugSequenceDelegate(self, self._cbuild_device)
 
     @staticmethod
-    def _cbuild_target_create_init_sequence(self) -> CallSequence:
+    def _cbuild_target_create_init_sequence(_self) -> CallSequence:
         """@brief Creates an initialization call sequence for runtime-configured targets.
 
         Extends the standard discovery sequence to configure processor names
         and reset behavior after core discovery.
         """
-        seq = super(self.__class__, self).create_init_sequence()
+        seq = super(_self.__class__, _self).create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
-                            ('update_processor_name', self.update_processor_name),
-                            ('configure_core_reset', self.configure_core_reset)
+                            ('update_processor_name', _self.update_processor_name),
+                            ('configure_core_reset', _self.configure_core_reset)
                             )
             )
         return seq
 
     @staticmethod
-    def _cbuild_target_update_processor_name(self) -> None:
+    def _cbuild_target_update_processor_name(_self) -> None:
         """@brief Updates processor names post-discovery based on Access Port (AP) addresses.
 
         Maps discovered cores to known processors to ensure consistent naming.
         """
-        ap_to_proc = {proc.ap_address: proc for proc in self._cbuild_device.processors_map.values()}
+        ap_to_proc = {proc.ap_address: proc for proc in _self._cbuild_device.processors_map.values()}
         info_logging_enabled = LOG.isEnabledFor(logging.INFO)
 
-        for core in self.cores.values():
+        for core in _self.cores.values():
             if core.node_name in ('Unknown', None):
                 core.node_name = core.name
 
             proc = ap_to_proc.get(core.ap.address)
             if proc is not None and 'Unknown' in proc.name:
                 # Remove old processor entry with 'Unknown' name
-                self._cbuild_device.processors_map.pop(proc.name, None)
+                _self._cbuild_device.processors_map.pop(proc.name, None)
                 # Update processor name
                 proc.name = core.name
                 # Insert new processor entry with correct name
-                self._cbuild_device.processors_map[core.name] = proc
+                _self._cbuild_device.processors_map[core.name] = proc
 
             if info_logging_enabled:
                 core_info = f"core {core.core_number}: {core.name} r{core.cpu_revision}p{core.cpu_patch}"
@@ -147,14 +148,14 @@ class CbuildRunTargetMethods:
                 LOG.info(core_info)
 
     @staticmethod
-    def _cbuild_target_configure_core_reset(self) -> None:
+    def _cbuild_target_configure_core_reset(_self) -> None:
         """@brief Configures default reset types for each core, based on .cbuild-run.yml."""
-        reset_configuration = self._cbuild_device.debugger.get('reset', [])
+        reset_configuration = _self._cbuild_device.debugger.get('reset', [])
         if not reset_configuration:
             # No reset configuration provided.
             return None
 
-        for core in self.cores.values():
+        for core in _self.cores.values():
             if any('pname' in r for r in reset_configuration):
                 reset = next((r['type'] for r in reset_configuration if r.get('pname') == core.node_name), None)
             else:
@@ -168,7 +169,7 @@ class CbuildRunTargetMethods:
     @staticmethod
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        proc = _self._cbuild_device.processors_ap_map.get(cast('CortexM', core).ap.address)
+        proc = _self._cbuild_device.processors_ap_map.get(cast(CortexM, core).ap.address)
         if proc is not None:
             core.node_name = proc.name
         else:
@@ -176,8 +177,8 @@ class CbuildRunTargetMethods:
         CoreSightTarget.add_core(_self, core)
 
     @staticmethod
-    def _cbuild_target_get_output(self) -> Dict[str, Optional[int]]:
-        return self._cbuild_device.output
+    def _cbuild_target_get_output(_self) -> Dict[str, Tuple[str, Optional[int]]]:
+        return _self._cbuild_device.output
 
     @staticmethod
     def _cbuild_target_add_target_command_groups(_self, command_set: CommandSet):
@@ -800,17 +801,17 @@ class CbuildRun:
             return svd_path
 
         _processors = {}
-        for processor in self.debug_topology.get('processors', {}):
+        for processor in self.debug_topology.get('processors', []):
             apid = processor.get('apid')
             pname = processor.get('pname', 'Unknown')
             reset_sequence = processor.get('reset-sequence', 'ResetSystem')
             if apid is not None:
                 _processors[apid] = (pname, reset_sequence)
 
-        for debugport in self.debug_topology.get('debugports', {}):
+        for debugport in self.debug_topology.get('debugports', []):
             dpid = debugport.get('dpid', 0)
             self._valid_dps.append(dpid)
-            for accessport in debugport.get('accessports', {}):
+            for accessport in debugport.get('accessports', []):
                 apid = accessport.get('apid', 0)
 
                 if 'address' in accessport:
