@@ -392,10 +392,48 @@ class _PackTargetMethods:
         self.debug_sequence_delegate = PackDebugSequenceDelegate(self, self._pack_device)
 
     @staticmethod
+    def _pack_target_create_init_sequence(_self) -> CallSequence:
+        """@brief Creates an initialization call sequence for runtime-configured targets.
+
+        Extends the standard discovery sequence to configure processor names.
+        """
+        seq = super(_self.__class__, _self).create_init_sequence()
+        seq.wrap_task('discovery',
+            lambda seq: seq.insert_after('create_cores',
+                            ('update_processor_name', _self.update_processor_name)
+                            )
+            )
+        return seq
+
+    @staticmethod
+    def _pack_target_update_processor_name(_self) -> None:
+        """@brief Updates processor names post-discovery based on Access Port (AP) addresses.
+
+        Maps discovered cores to known processors to ensure consistent naming.
+        """
+        ap_to_proc = {proc.ap_address: proc for proc in _self._pack_device.processors_map.values()}
+
+        for core in _self.cores.values():
+            if core.node_name in ('Unknown', None):
+                core.node_name = core.name
+
+            proc = ap_to_proc.get(core.ap.address)
+            if proc is not None and 'Unknown' in proc.name:
+                # Remove old processor entry with 'Unknown' name
+                _self._pack_device.processors_map.pop(proc.name, None)
+                # Update processor name
+                proc.name = core.name
+                # Insert new processor entry with correct name
+                _self._pack_device.processors_map[core.name] = proc
+
+    @staticmethod
     def _pack_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        pname = _self._pack_device.processors_ap_map[cast(CortexM, core).ap.address].name
-        core.node_name = pname
+        proc = _self._pack_device.processors_ap_map.get(cast(CortexM, core).ap.address)
+        if proc is not None:
+            core.node_name = proc.name
+        else:
+            LOG.info("Found core without 'pname' description (core %s)", core.core_number)
         CoreSightTarget.add_core(_self, core)
 
     @staticmethod
@@ -445,6 +483,8 @@ class PackTargets:
             targetClass = type(subclassName, (superklass,), {
                         "_pack_device": dev,
                         "__init__": _PackTargetMethods._pack_target__init__,
+                        "create_init_sequence": _PackTargetMethods._pack_target_create_init_sequence,
+                        "update_processor_name": _PackTargetMethods._pack_target_update_processor_name,
                         "add_core": _PackTargetMethods._pack_target_add_core,
                         "add_target_command_groups": _PackTargetMethods._pack_target_add_target_command_groups,
                     })

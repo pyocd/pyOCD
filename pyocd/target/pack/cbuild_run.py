@@ -124,25 +124,27 @@ class CbuildRunTargetMethods:
 
         Maps discovered cores to known processors to ensure consistent naming.
         """
-        processors_map = {}
+        ap_to_proc = {proc.ap_address: proc for proc in self._cbuild_device.processors_map.values()}
+        info_logging_enabled = LOG.isEnabledFor(logging.INFO)
+
         for core in self.cores.values():
-            if core.node_name is None or core.node_name == 'Unknown':
+            if core.node_name in ('Unknown', None):
                 core.node_name = core.name
 
-            for proc in self._cbuild_device.processors_map.values():
-                if ('Unknown' in proc.name) and (proc.ap_address == core.ap.address):
-                    proc.name = core.name
-                    processors_map[core.name] = proc
-                    break
+            proc = ap_to_proc.get(core.ap.address)
+            if proc is not None and 'Unknown' in proc.name:
+                # Remove old processor entry with 'Unknown' name
+                self._cbuild_device.processors_map.pop(proc.name, None)
+                # Update processor name
+                proc.name = core.name
+                # Insert new processor entry with correct name
+                self._cbuild_device.processors_map[core.name] = proc
 
-            if LOG.isEnabledFor(logging.INFO):
+            if info_logging_enabled:
                 core_info = f"core {core.core_number}: {core.name} r{core.cpu_revision}p{core.cpu_patch}"
                 if core.node_name != core.name:
                     core_info += f", pname: {core.node_name}"
                 LOG.info(core_info)
-
-        if processors_map:
-            self._cbuild_device.processors_map = processors_map
 
     @staticmethod
     def _cbuild_target_configure_core_reset(self) -> None:
@@ -166,8 +168,11 @@ class CbuildRunTargetMethods:
     @staticmethod
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        pname = _self._cbuild_device.processors_ap_map[cast('CortexM', core).ap.address].name
-        core.node_name = pname
+        proc = _self._cbuild_device.processors_ap_map.get(cast('CortexM', core).ap.address)
+        if proc is not None:
+            core.node_name = proc.name
+        else:
+            LOG.info("Found core without 'pname' description (core %s)", core.core_number)
         CoreSightTarget.add_core(_self, core)
 
     @staticmethod
@@ -436,11 +441,6 @@ class CbuildRun:
         if not self._processors_map:
             self._build_aps_map()
         return self._processors_map
-
-    @processors_map.setter
-    def processors_map(self, proc_map: Dict[str, ProcessorInfo]) -> None:
-        self._processors_map = proc_map
-        LOG.debug("Updated processors map")
 
     @property
     def processors_ap_map(self) -> Dict[APAddressBase, ProcessorInfo]:
