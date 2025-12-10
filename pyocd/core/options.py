@@ -209,6 +209,12 @@ BUILTIN_OPTIONS = [
         "List of TCP ports for the gdbserver."),
     OptionInfo('cbuild_run.telnet_ports', tuple, None,
         "List of TCP ports for telnet server."),
+    OptionInfo('cbuild_run.telnet_modes', tuple, None,
+        "List of telnet modes for each core."),
+    OptionInfo('cbuild_run.telnet_files_in', tuple, None,
+        "List of telnet input file paths for each core."),
+    OptionInfo('cbuild_run.telnet_files_out', tuple, None,
+        "List of telnet output file paths for each core."),
     ]
 
 ## @brief The runtime dictionary of options.
