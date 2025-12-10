@@ -409,6 +409,12 @@ class GenericRTTControlBlock(RTTControlBlock):
         if address is None:
             memory_map: MemoryMap = self.target.get_memory_map()
             ram_region: MemoryRegion = memory_map.get_default_region_of_type(MemoryType.RAM)
+            if ram_region is None:
+                ram_region = memory_map.get_first_matching_region(
+                    type=MemoryType.RAM)
+            if ram_region is None:
+                raise exceptions.RTTError(
+                    "No RAM region found for control block search")
 
             self._cb_search_address = ram_region.start
             if size is None:
