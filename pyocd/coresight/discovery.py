@@ -54,7 +54,9 @@ class CoreSightDiscovery(object):
         try:
             LOG.debug("Creating %s component", cmpid.name)
             cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
-            cmp.init()
+            # Call component's init method if it was created successfully
+            if cmp is not None:
+                cmp.init()
         except exceptions.Error as err:
             LOG.error("Error attempting to create component %s: %s", cmpid.name, err,
                     exc_info=self.session.log_tracebacks)
