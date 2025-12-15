@@ -227,7 +227,10 @@ class CbuildRun:
             os.chdir(base_path)
             LOG.debug("Working directory set to: '%s'", os.getcwd())
         except OSError as err:
-            raise CbuildRunError(f"Error attempting to access '{yml_path}': {err.strerror}") from err
+            if yml_path == "":
+                raise CbuildRunError("Cannot access *.cbuild-run.yml file: no path provided")
+            else:
+                raise CbuildRunError(f"Cannot access *.cbuild-run.yml file '{yml_path}': {err.strerror}") from err
 
     def _cmsis_pack_root(self) -> None:
         """@brief Sets the CMSIS_PACK_ROOT environment variable if not already set.
