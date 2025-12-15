@@ -243,6 +243,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # Add the new core to the root target.
         root.add_core(core)
 
+        # Check if core was added to the root target.
+        if core.core_number not in root.cores:
+            return None
+
         root._new_core_num += 1
 
         return core

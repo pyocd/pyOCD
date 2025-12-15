@@ -172,9 +172,9 @@ class CbuildRunTargetMethods:
         proc = _self._cbuild_device.processors_ap_map.get(cast(CortexM, core).ap.address)
         if proc is not None:
             core.node_name = proc.name
+            CoreSightTarget.add_core(_self, core)
         else:
-            LOG.info("Found core without 'pname' description (core %s)", core.core_number)
-        CoreSightTarget.add_core(_self, core)
+            LOG.info("Skipping core not described in debug topology")
 
     @staticmethod
     def _cbuild_target_get_output(_self) -> Dict[str, Tuple[str, Optional[int]]]:
