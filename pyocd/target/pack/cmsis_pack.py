@@ -4,6 +4,7 @@
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2025 Morten Engelhardt Olsen
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +26,7 @@ import logging
 import io
 import errno
 from pathlib import Path
+import posixpath
 from typing import (Any, Callable, Dict, List, IO, Optional, Tuple, TypeVar, Set, Union)
 
 from .flash_algo import PackFlashAlgo
@@ -193,12 +195,12 @@ class CmsisPack:
         """@brief Return file-like object for a file within the pack.
 
         @param self
-        @param filename Relative path within the pack. May use forward or back slashes.
+        @param filename Relative path within the pack. May use forward or back slashes and '..'.
         @return A BytesIO object is returned that contains all of the data from the file
             in the pack. This is done to isolate the returned file from how the pack was
             opened (due to particularities of the ZipFile implementation).
         """
-        filename = filename.replace('\\', '/')
+        filename = posixpath.normpath(filename.replace('\\', '/'))
 
         # Some vendors place their pdsc in some subdirectories of the pack archive,
         # use relative directory to the pdsc file while reading other files.
