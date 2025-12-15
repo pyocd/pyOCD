@@ -190,6 +190,7 @@ class CbuildRun:
     def __init__(self, yml_path: str) -> None:
         """@brief Reads a .cbuild-run.yml file and validates its content."""
         self._data: Dict[str, Any] = {}
+        self._cbuild_name: str = ""
         self._device: Optional[str] = None
         self._vendor: Optional[str] = None
         self._vars: Optional[Dict[str, str]] = None
@@ -204,6 +205,7 @@ class CbuildRun:
         self._built_apid_map: bool = False
         self._processors_map: Dict[str, ProcessorInfo] = {}
         self._processors_ap_map: Dict[APAddressBase, ProcessorInfo] = {}
+        self._sorted_processors: List[ProcessorInfo] = []
         self._use_default_memory_map: bool = True
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
@@ -217,6 +219,7 @@ class CbuildRun:
                 yml_data = yaml.safe_load(yml_file)
             if 'cbuild-run' in yml_data:
                 self._data = yml_data['cbuild-run']
+                self._cbuild_name = yml_file_path.stem.split('.cbuild-run')[0]
                 # Ensure CMSIS_PACK_ROOT is set
                 self._cmsis_pack_root()
             else:
@@ -457,6 +460,13 @@ class CbuildRun:
         return self._processors_ap_map
 
     @property
+    def sorted_processors(self) -> List[ProcessorInfo]:
+        """@brief List of processors sorted by AP address."""
+        if not self._sorted_processors:
+            self._sorted_processors = sorted(self.processors_ap_map.values(), key=lambda p: p.ap_address.address)
+        return self._sorted_processors
+
+    @property
     def programming(self) -> List[dict]:
         """@brief Programming section of cbuild-run."""
         if self._programming is None:
@@ -487,14 +497,6 @@ class CbuildRun:
         if _debugger_protocol is not None:
             LOG.debug("Debugger protocol: %s", _debugger_protocol)
         return _debugger_protocol
-
-    @property
-    def start_pname(self) -> Optional[str]:
-        """@brief Selected start processor name."""
-        _start_pname = self.debugger.get('start-pname')
-        if _start_pname is not None:
-           LOG.info("start-pname: %s", _start_pname)
-        return _start_pname
 
     @property
     def system_resources(self) -> Dict[str, list]:
@@ -533,12 +535,12 @@ class CbuildRun:
     @property
     def primary_core(self) -> Optional[int]:
         """@brief Primary core number from debugger settings."""
-        _primary_core = None
-        _start_pname = self.start_pname
-        for i, proc_info in enumerate(sorted(self.processors_ap_map.values(), key=lambda p: p.ap_address.address)):
-            if proc_info.name == _start_pname:
-                _primary_core = i
-        return _primary_core
+        start_pname = self.debugger.get('start-pname')
+        if start_pname is not None:
+            LOG.info("start-pname: %s", start_pname)
+            return next((i for i, proc_info in enumerate(self.sorted_processors)
+                        if proc_info.name == start_pname), None)
+        return None
 
     @property
     def pre_load_halt(self) -> bool:
@@ -575,18 +577,114 @@ class CbuildRun:
         return connect
 
     @property
-    def gdbserver_port(self) -> Optional[Union[int, Tuple]]:
+    def gdbserver_ports(self) -> Optional[Tuple]:
         """@brief GDB server port assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
         return self._get_server_ports('gdbserver')
 
     @property
-    def telnet_port(self) -> Optional[Union[int, Tuple]]:
+    def telnet_ports(self) -> Optional[Tuple]:
         """@brief Telnet server port assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
         return self._get_server_ports('telnet')
+
+    @property
+    def telnet_modes(self) -> Tuple:
+        """@brief Telnet server mode assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        SUPPORTED_MODES = { 'off', 'telnet', 'file', 'console' }
+        MODE_ALIASES = { False: 'off',
+                        'monitor': 'telnet',
+                        'server': 'telnet'
+                      }
+        # Get telnet configuration from debugger section
+        telnet_config = self.debugger.get('telnet', [])
+        valid_config = any('mode' in t for t in telnet_config)
+        # Determine global mode if specified, default to 'off' otherwise
+        global_mode = next((t.get('mode') for t in telnet_config if 'pname' not in t), 'off')
+        global_mode = MODE_ALIASES.get(global_mode, global_mode)
+        # Build list of telnet modes for each core
+        telnet_modes = []
+        for core in self.sorted_processors:
+            mode = next((t.get('mode') for t in telnet_config if t.get('pname') == core.name), global_mode)
+            mode = MODE_ALIASES.get(mode, mode)
+            if mode not in SUPPORTED_MODES:
+                if valid_config:
+                    LOG.warning("Invalid telnet mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
+                            mode, core.name, global_mode)
+                mode = global_mode
+            telnet_modes.append(mode)
+
+        return tuple(telnet_modes)
+
+    @property
+    def telnet_files(self) -> Dict[str, Optional[Tuple]]:
+        """@brief Telnet file path assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        # Get telnet configuration from debugger section
+        telnet_config = self.debugger.get('telnet', [])
+        telnet_modes = self.telnet_modes
+
+        if not any(mode == 'file' for mode in telnet_modes):
+            # No telnet file paths needed
+            return {'in': None, 'out': None}
+
+        def _resolve_path(file_path: Optional[str], strict: bool = False) -> Optional[str]:
+            if file_path is None:
+                return None
+            try:
+                return str(Path(os.path.expandvars(str(file_path))).expanduser().resolve(strict=strict))
+            except FileNotFoundError:
+                if strict:
+                    LOG.warning("Telnet file '%s' not found, using default value", file_path)
+                return None
+            except OSError:
+                return None
+
+        in_files = []
+        out_files = []
+
+        # Per pname configuration
+        config_by_pname = {t['pname']: t for t in telnet_config if 'pname' in t}
+
+        if config_by_pname:
+            # Build config per pname
+            for proc_info, mode in zip(self.sorted_processors, telnet_modes):
+                if mode != 'file':
+                    in_files.append(None)
+                    out_files.append(None)
+                    continue
+
+                config = config_by_pname.get(proc_info.name, {})
+                in_files.append(_resolve_path(config.get('file-in'), strict=True))
+                out_file = _resolve_path(config.get('file-out'))
+                if out_file is None:
+                    out_file = f"{self._cbuild_name}.{proc_info.name}.out"
+                out_files.append(out_file)
+        else:
+            config = next((t for t in telnet_config if t.get('mode') == 'file'), None)
+            if config is not None:
+                if len(self.sorted_processors) > 1:
+                    LOG.warning("Ignoring invalid telnet file configuration for multicore target in cbuild-run")
+                    for proc_info, mode in zip(self.sorted_processors, telnet_modes):
+                        in_files.append(None)
+                        if mode != 'file':
+                            out_files.append(None)
+                        else:
+                            out_files.append(f"{self._cbuild_name}.{proc_info.name}.out")
+                else:
+                    in_files.append(_resolve_path(config.get('file-in'), strict=True))
+                    out_file = _resolve_path(config.get('file-out'))
+                    if out_file is None:
+                        out_file = f"{self._cbuild_name}.out"
+                    out_files.append(out_file)
+
+        return {'in': tuple(in_files) if any(in_files) else None,
+                'out': tuple(out_files) if any(out_files) else None}
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
@@ -612,20 +710,28 @@ class CbuildRun:
         })
         TARGET[target] = tgt
 
-    def _get_server_ports(self, server_type: str) -> Optional[Union[int, Tuple]]:
+    def _get_server_ports(self, server_type: str) -> Optional[Tuple]:
         """@brief Generic method to get server port assignments from debugger section."""
-        server_map = self.debugger.get(server_type, [])
-        sorted_processors = sorted(self.processors_ap_map.values(), key=lambda p: p.ap_address.address)
-        has_pname = any('pname' in server for server in server_map)
+        server_config = self.debugger.get(server_type, [])
+        if not server_config:
+            # No server configuration provided.
+            return None
 
-        if has_pname:
-            ports = tuple(
-                next((s['port'] for s in server_map if s.get('pname') == proc_info.name), None)
-                for proc_info in sorted_processors
-            )
+        ports = []
+        if any('pname' in server for server in server_config):
+            for proc_info in self.sorted_processors:
+                ports.append(next((s.get('port') for s in server_config if s.get('pname') == proc_info.name), None))
         else:
-            ports = next((s['port'] for s in server_map), None)
-        return ports
+            port = next((s.get('port') for s in server_config), None)
+            if port is not None:
+                if len(self.sorted_processors) > 1:
+                    LOG.warning("Ignoring invalid %s port configuration for multicore target in cbuild-run", server_type)
+                    return None
+                ports.append(port)
+            else:
+                return None
+
+        return tuple(ports)
 
     def _get_memory_to_process(self) -> List[dict]:
         DEFAULT_MEMORY_MAP = sorted([
