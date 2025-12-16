@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 import threading
 from typing import Dict, Optional, Tuple, Type
 
@@ -192,6 +193,46 @@ class StdioConsole(StdioBase):
         self._out_text = sys.stdout
         self._in_text = sys.stdin
 
+        # Reader thread setup for non-blocking stdin
+        self._read_buffer = bytearray()
+        self._buffer_lock = threading.Lock()
+        self._stop_reader = threading.Event()
+
+
+        # Start the reader thread
+        self._reader_thread = threading.Thread(
+            target=self._reader_worker,
+            name=f"StdioConsole-Reader-{core}",
+            daemon=True
+        )
+        self._reader_thread.start()
+
+    def _reader_worker(self) -> None:
+        """Background thread that reads from stdin and puts data in buffer."""
+        while not self._stop_reader.is_set():
+            try:
+                # Read from binary stdin if available
+                if self._in_bin is not None:
+                    # Read one byte at a time to be responsive to stop event
+                    data = self._in_bin.read(1)
+                    if data:
+                        with self._buffer_lock:
+                            self._read_buffer.extend(data)
+                    else:
+                        time.sleep(0.01)
+                else:
+                    # Fallback: read from text stdin
+                    char = self._in_text.read(1)
+                    if char:
+                        with self._buffer_lock:
+                            self._read_buffer.extend(to_bytes_safe(char))
+                    else:
+                        time.sleep(0.01)
+            except Exception as e:
+                LOG.debug("Error in StdioConsole reader thread: %s", e)
+                break
+
+
     def write(self, data: bytes) -> int:
         if self._out_bin is not None:
             try:
@@ -213,18 +254,20 @@ class StdioConsole(StdioBase):
             return 0
 
     def read(self, max_bytes: int) -> bytes:
-        try:
-            if self._in_bin is not None:
-                return self._in_bin.read(max_bytes) or b""
-        except Exception:
-            pass
+        with self._buffer_lock:
+            if not self._read_buffer:
+                return b""
 
-        # Fallback: stdin has no .buffer, read text and encode.
-        try:
-            text = self._in_text.read(max_bytes) or ""
-            return to_bytes_safe(text)
-        except Exception:
-            return b""
+            # Get all available data (up to max_bytes if specified)
+            data = bytes(self._read_buffer[:max_bytes])
+            # Remove the read data from buffer
+            del self._read_buffer[:max_bytes]
+            return data
+
+    def shutdown(self) -> None:
+        self._stop_reader.set()
+        self._reader_thread.join(timeout=1.0)
+
 
     @property
     def info(self) -> str:
