@@ -33,6 +33,7 @@ from typing_extensions import Self
 from . import exceptions
 from .options_manager import OptionsManager
 from ..utility.notification import Notifier
+from ..target.pack.cbuild_run import CbuildRun
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -132,6 +133,7 @@ class Session(Notifier):
             auto_open: bool = True,
             options: Optional[Mapping[str, Any]] = None,
             option_defaults: Optional[Mapping[str, Any]] = None,
+            command: Optional[str] = None,
             **kwargs
             ) -> None:
         """@brief Session constructor.
@@ -166,6 +168,7 @@ class Session(Notifier):
         self._probe = probe
         self._closed: bool = True
         self._inited: bool = False
+        self._command = command
         self._user_script_namespace: Dict[str, Any] = {}
         self._user_script_proxy: Optional[UserScriptDelegateProxy] = None
         self._user_script_print_proxy = PrintProxy()
@@ -175,6 +178,7 @@ class Session(Notifier):
         self._gdbservers: Dict[int, GDBServer] = {}
         self._probeserver: Optional[DebugProbeServer] = None
         self._context_state = SimpleNamespace()
+        self._cbuild_run: Optional[CbuildRun] = None
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -193,6 +197,15 @@ class Session(Notifier):
 
         # Switch the working dir to the project dir.
         os.chdir(self.project_dir)
+
+        # Load options from the cbuild-run file.
+        if self.options.is_set('cbuild_run'):
+            if self.options.is_set('target_override'):
+                LOG.warning("Ignoring cbuild-run file because target_override option is set")
+            else:
+                self._cbuild_run = CbuildRun(self.options.get('cbuild_run'))
+                cbuild_run_config = self._get_cbuild_run_config(command)
+                self._options.add_back(cbuild_run_config)
 
         # Load options from the config file.
         config = self._get_config()
@@ -252,6 +265,46 @@ class Session(Notifier):
                     LOG.warning("Error attempting to access config file '%s': %s", configPath, err)
 
         return {}
+
+    def _get_cbuild_run_config(self, command: Optional[str]) -> Dict[str, Any]:
+        debugger_options: Dict[str, Any] = {}
+
+        # Return empty dict if no cbuild-run file was specified.
+        if self.cbuild_run is None:
+            return debugger_options
+
+        # Map cbuild-run debugger options to pyOCD session options.
+        debugger_options['dap_protocol'] = self.cbuild_run.debugger_protocol
+        debugger_options['dap_swj_enable'] = self.cbuild_run.swj_enable
+        debugger_options['dap_dormant'] = self.cbuild_run.dormant
+        debugger_options['frequency'] = self.cbuild_run.debugger_clock
+        debugger_options['primary_core'] = self.cbuild_run.primary_core
+
+        connect_mode = self.cbuild_run.connect_mode
+        if command == 'load' and connect_mode == 'attach' and self.cbuild_run.pre_load_halt:
+            connect_mode = 'halt'
+        debugger_options['connect_mode'] = connect_mode
+
+        # Only set gdbserver_port if it wasn't already set in options (command line).
+        if not self.options.is_set('gdbserver_port'):
+            debugger_options['cbuild_run.gdbserver_ports'] = self.cbuild_run.gdbserver_ports
+
+        # Only set telnet_port if it wasn't already set in options (command line).
+        if not self.options.is_set('telnet_port'):
+            debugger_options['cbuild_run.telnet_ports'] = self.cbuild_run.telnet_ports
+
+        if not self.options.is_set('semihost_console_type'):
+            debugger_options['cbuild_run.telnet_modes'] = self.cbuild_run.telnet_modes
+            telnet_files = self.cbuild_run.telnet_files
+            debugger_options['cbuild_run.telnet_files_in'] = telnet_files.get('in')
+            debugger_options['cbuild_run.telnet_files_out'] = telnet_files.get('out')
+
+        # Set reset types for load operations.
+        debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
+        debugger_options['load.post_reset'] = self.cbuild_run.post_reset
+
+        LOG.debug("cbuild-run debugger options: %s", debugger_options)
+        return debugger_options
 
     def find_user_file(self, option_name: Optional[str], filename_list: List[str]) -> Optional[str]:
         """@brief Search the project directory for a file.
@@ -332,6 +385,11 @@ class Session(Notifier):
         return self._probe
 
     @property
+    def command(self) -> Optional[str]:
+        """@brief The current command being executed in the session."""
+        return self._command
+
+    @property
     def board(self) -> Optional[Board]:
         """@brief The @ref pyocd.board.board.Board "Board" object."""
         return self._board
@@ -407,6 +465,11 @@ class Session(Notifier):
         to store context relevant state information between separate components.
         """
         return self._context_state
+
+    @property
+    def cbuild_run(self) -> Optional[CbuildRun]:
+        """@brief The CbuildRun instance if a cbuild-run file was loaded."""
+        return self._cbuild_run
 
     def __enter__(self) -> "Session":
         assert self._probe is not None
@@ -548,11 +611,7 @@ class Session(Notifier):
 
             self._probe.open()
             self._closed = False
-            frequency = self.options.get('frequency')
-            if self.options.is_set('cbuild_run'):
-                if self.target.debugger_clock is not None:
-                    frequency = self.target.debugger_clock
-            self._probe.set_clock(frequency)
+            self._probe.set_clock(self.options.get('frequency'))
             if init_board:
                 self._board.init()
                 self._inited = True

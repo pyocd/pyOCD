@@ -243,6 +243,10 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # Add the new core to the root target.
         root.add_core(core)
 
+        # Check if core was added to the root target.
+        if core.core_number not in root.cores:
+            return None
+
         root._new_core_num += 1
 
         return core
@@ -873,24 +877,22 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         # Select the actual reset type to use, based on priority:
         # 1. reset_type parameter
-        # 2. cbuild-run user option
-        # 3. session option
+        # 2. session option
+        # 3. cbuild-run user option (modifies default_reset_type)
         # 4. core default_reset_type property
 
         if reset_type is None:
             # No explicit reset_type parameter provided, check user options.
-            if self.session.options.is_set('cbuild_run'):
+            option_reset_type = self.session.options.get('reset_type')
+            if option_reset_type == 'default':
                 _reset_type = self.default_reset_type
-            elif self.session.options.get('reset_type') != 'default':
-                option_reset_type = self.session.options.get('reset_type')
+            else:
                 try:
                     _reset_type = cmdline.convert_reset_type(option_reset_type)
                 except ValueError:
                     LOG.warning("invalid reset type '%s' specified in user options; falling back to 'default'",
                                 option_reset_type)
                     _reset_type = self.default_reset_type
-            else:
-                _reset_type = self.default_reset_type
 
             reset_type = _reset_type
 
@@ -980,7 +982,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 else:
                     LOG.debug("Core %d did not come out of reset within timeout", self.core_number)
 
-    def reset_hook(self, reset_type: Target.ResetType) -> Optional[bool]:
+    def reset_hook(self, reset_type: Target.ResetType) -> None:
         # Map our reset type to a reset sequence name.
         result = self.call_delegate('will_reset', core=self, reset_type=reset_type)
 
@@ -988,14 +990,20 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             # Check if the reset type is DEFAULT, SYSTEM, CORE, or HARDWARE.
             # These map to standard debug sequence names. Other reset types
             # are handled directly by _perform_reset().
-            if reset_type in (Target.ResetType.DEFAULT,
-                              Target.ResetType.HARDWARE,
-                              Target.ResetType.SYSTEM,
-                              Target.ResetType.CORE):
+            STANDARD_RESET_SEQUENCES = {
+                        'ResetHardware':    Target.ResetType.HARDWARE,
+                        'ResetSystem':      Target.ResetType.SYSTEM,
+                        'ResetProcessor':   Target.ResetType.CORE,
+                        }
+            if reset_type in (Target.ResetType.DEFAULT, *STANDARD_RESET_SEQUENCES.values()):
                 # Check if a custom reset sequence is defined.
                 if reset_type == Target.ResetType.DEFAULT:
                     # Use the core's default reset sequence.
                     reset_sequence_name = self.debug_sequence_delegate.default_reset_sequence(self.node_name)
+                    # See if the default reset sequence name maps to a standard reset type.
+                    if reset_sequence_name in STANDARD_RESET_SEQUENCES:
+                        # Update reset_type so we can use it later in _perform_reset().
+                        reset_type = STANDARD_RESET_SEQUENCES[reset_sequence_name]
                 elif reset_type == Target.ResetType.HARDWARE:
                     reset_sequence_name = 'ResetHardware'
                 elif reset_type == Target.ResetType.SYSTEM:
@@ -1008,13 +1016,18 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                     LOG.debug("running '%s' debug sequence, core %d", reset_sequence_name, self.core_number)
                     self.debug_sequence_delegate.run_sequence(reset_sequence_name, pname=self.node_name)
                     result = True
-                elif reset_sequence_name not in ('ResetSystem', 'ResetProcessor', 'ResetHardware'):
+                elif reset_sequence_name not in STANDARD_RESET_SEQUENCES:
                     # Custom reset sequence was specified but not found. Warn the user, but don't fall back
                     # to a different reset method.
                     LOG.error("skipping missing '%s' debug sequence, core %d", reset_sequence_name, self.core_number)
                     result = True
 
-        return result
+        if not result:
+            # No delegate or debug sequence handled the reset, so do it ourselves.
+            LOG.debug("no delegate or debug sequence handled reset; performing %s reset, core %d",
+                      reset_type.name, self.core_number)
+
+            self._perform_reset(reset_type)
 
     def _inner_reset(self, reset_type: Optional[Target.ResetType], is_halting: bool) -> None:
         """@brief Internal routine for resetting the core.
@@ -1029,10 +1042,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         self._run_token += 1
 
-        # Give the delegate a chance to overide reset. If the delegate returns True, then it
-        # handled the reset on its own.
-        if not self.reset_hook(reset_type):
-            self._perform_reset(reset_type)
+        self.reset_hook(reset_type)
 
         # Unless this is a halting reset, make sure the core is not halted. Some DFP debug sequences
         # (or user scripts) can leave the core halted after a reset.

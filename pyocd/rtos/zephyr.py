@@ -2,6 +2,7 @@
 # Copyright (c) 2016-2020,2025 Arm Limited
 # Copyright (c) 2022 Intel Corporation
 # Copyright (c) 2022 Chris Reed
+# Copyright (c) 2025 STMicroelectronics
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,22 +149,29 @@ class ZephyrThreadContext(DebugContext):
 class ZephyrThread(TargetThread):
     """@brief A Zephyr task."""
 
-    READY = 0
+    # Keep in sync with include/zephyr/kernel_structs.h
+    DUMMY = 1 << 0 # attribute rather than state
     PENDING = 1 << 1
-    PRESTART = 1 << 2
+    SLEEPING = 1 << 2
     DEAD = 1 << 3
     SUSPENDED = 1 << 4
-    POLLING = 1 << 5
-    RUNNING = 1 << 6
+    ABORTING = 1 << 5
+    SUSPENDING = 1 << 6
+    QUEUED = 1 << 7 # thread in ready queue
+
+    # Not a real value; for bookkeeping purposes only
+    RUNNING = 1 << 31
 
     STATE_NAMES = {
-            READY : "Ready",
+            DUMMY : "Dummy",
             PENDING : "Pending",
-            PRESTART : "Prestart",
+            SLEEPING : "Sleeping",
             DEAD : "Dead",
             SUSPENDED : "Suspended",
-            POLLING : "Polling",
-            RUNNING : "Running",
+            ABORTING : "Aborting",
+            SUSPENDING : "Suspending",
+            QUEUED : "Ready",
+            RUNNING : "Running"
         }
 
     def __init__(self, targetContext, provider, base, offsets):
@@ -173,7 +181,7 @@ class ZephyrThread(TargetThread):
         self._base = base
         self._thread_context = ZephyrThreadContext(self._target_context, self)
         self._offsets = offsets
-        self._state = ZephyrThread.READY
+        self._state = 0
         self._priority = 0
         self._name = "Unnamed"
 
@@ -225,6 +233,25 @@ class ZephyrThread(TargetThread):
 
     @property
     def description(self):
+        # Idle threads must be handled separately: when not running,
+        # they are neither SLEEPING, PENDING nor QUEUED and simply
+        # exist in a "limbo state" outside scheduler consideration.
+        #
+        # NOTE: RUNNING state indicates that 'current' of a CPU is
+        # equal to self._base, unlike all other values which come
+        # directly from 'base.thread_state'; as such, it will be
+        # valid even for idle threads, unlike all other values.
+        #
+        # HACK: assume threads called "idle" are idle threads.
+        # A proper method would check that this is one of the threads
+        # in the "z_idle_threads" array (or that it matches one of
+        # _kernel.cpus[].idle_thread, which is the same thing).
+        if self._name == "idle":
+            if self.state == ZephyrThread.RUNNING:
+                return "Running"
+            else:
+                return "Ready"
+
         return "%s; Priority %d" % (self.STATE_NAMES.get(self.state, "UNKNOWN"), self.priority)
 
     @property

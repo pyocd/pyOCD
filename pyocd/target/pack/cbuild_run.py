@@ -25,7 +25,7 @@ import platform
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (cast, Optional, Set, Dict, List, Tuple, IO, Any, TYPE_CHECKING)
+from typing import (cast, Optional, Set, Dict, List, Tuple, Union, IO, Any, TYPE_CHECKING)
 
 from .flash_algo import PackFlashAlgo
 from .. import (normalise_target_type_name, TARGET)
@@ -33,10 +33,11 @@ from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.ap import (APAddressBase, APv1Address, APv2Address)
 from ...core import exceptions
 from ...core.target import Target
-from ...core.session import Session
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP)
+from ...coresight.cortex_m import CortexM
 from ...probe.debug_probe import DebugProbe
 from ...debug.svd.loader import SVDFile
+from ...utility.cmdline import convert_reset_type
 from ...debug.sequences.scope import Scope
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
@@ -50,6 +51,7 @@ from ...debug.sequences.sequences import (
 )
 
 if TYPE_CHECKING:
+    from ...core.session import Session
     from ...coresight.cortex_m import CortexM
     from ...core.core_target import CoreTarget
     from ...utility.sequencer import CallSequence
@@ -87,7 +89,7 @@ class CbuildRunTargetMethods:
     including memory mapping, core reset configuration, and processor name updates.
     """
     @staticmethod
-    def _cbuild_target_init(self, session: Session) -> None:
+    def _cbuild_target_init(self, session: "Session") -> None:
         """@brief Initializes a target dynamically based on a parsed .cbuild-run.yml description.
 
         Sets memory maps, SVD files, and debug sequence delegates.
@@ -95,89 +97,88 @@ class CbuildRunTargetMethods:
         super(self.__class__, self).__init__(session, self._cbuild_device.memory_map)
         self.vendor = self._cbuild_device.vendor
         self.part_number = self._cbuild_device.target
-        self._svd_location = SVDFile(filename=self._cbuild_device.svd)
+        if session.command not in ('load', 'erase', 'reset'):
+            # SVD file is not required for load/erase/reset commands
+            _svd = self._cbuild_device.svd
+            self._svd_location = SVDFile(filename=_svd) if _svd else None
         self.debug_sequence_delegate = CbuildRunDebugSequenceDelegate(self, self._cbuild_device)
 
     @staticmethod
-    def _cbuild_target_create_init_sequence(self) -> CallSequence:
+    def _cbuild_target_create_init_sequence(_self) -> CallSequence:
         """@brief Creates an initialization call sequence for runtime-configured targets.
 
         Extends the standard discovery sequence to configure processor names
         and reset behavior after core discovery.
         """
-        seq = super(self.__class__, self).create_init_sequence()
+        seq = super(_self.__class__, _self).create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
-                            ('update_processor_name', self.update_processor_name),
-                            ('update_primary_core', self.update_primary_core),
-                            ('configure_core_reset', self.configure_core_reset)
+                            ('update_processor_name', _self.update_processor_name),
+                            ('configure_core_reset', _self.configure_core_reset)
                             )
             )
         return seq
 
     @staticmethod
-    def _cbuild_target_update_processor_name(self) -> None:
+    def _cbuild_target_update_processor_name(_self) -> None:
         """@brief Updates processor names post-discovery based on Access Port (AP) addresses.
 
         Maps discovered cores to known processors to ensure consistent naming.
         """
-        processors_map = {}
-        for core in self.cores.values():
-            if core.node_name is None or core.node_name == 'Unknown':
+        ap_to_proc = {proc.ap_address: proc for proc in _self._cbuild_device.processors_map.values()}
+        info_logging_enabled = LOG.isEnabledFor(logging.INFO)
+
+        for core in _self.cores.values():
+            if core.node_name in ('Unknown', None):
                 core.node_name = core.name
 
-            for proc in self._cbuild_device.processors_map.values():
-                if ('Unknown' in proc.name) and (proc.ap_address == core.ap.address):
-                    proc.name = core.name
-                    processors_map[core.name] = proc
-                    break
+            proc = ap_to_proc.get(core.ap.address)
+            if proc is not None and 'Unknown' in proc.name:
+                # Remove old processor entry with 'Unknown' name
+                _self._cbuild_device.processors_map.pop(proc.name, None)
+                # Update processor name
+                proc.name = core.name
+                # Insert new processor entry with correct name
+                _self._cbuild_device.processors_map[core.name] = proc
 
-            if LOG.isEnabledFor(logging.INFO):
+            if info_logging_enabled:
                 core_info = f"core {core.core_number}: {core.name} r{core.cpu_revision}p{core.cpu_patch}"
                 if core.node_name != core.name:
                     core_info += f", pname: {core.node_name}"
                 LOG.info(core_info)
 
-        if processors_map:
-            self._cbuild_device.processors_map = processors_map
-
     @staticmethod
-    def _cbuild_target_start_processor(self) -> None:
-        """@brief Updates the primary processor, based on 'start-pname' node in .cbuild-run.yml"""
-        start_pname = self._cbuild_device.start_pname
-        if start_pname is not None and self.primary_core_pname != start_pname:
-            core_number = next((core.core_number for core in self.cores.values() if core.node_name == start_pname), None)
-            if core_number is not None:
-                self.session.options['primary_core'] = core_number
-                self.selected_core = core_number
-
-    @staticmethod
-    def _cbuild_target_configure_core_reset(self) -> None:
+    def _cbuild_target_configure_core_reset(_self) -> None:
         """@brief Configures default reset types for each core, based on .cbuild-run.yml."""
-        # Currently unimplemented, serves as a stub for future functionality.
+        reset_configuration = _self._cbuild_device.debugger.get('reset', [])
+        if not reset_configuration:
+            # No reset configuration provided.
+            return None
+
+        for core in _self.cores.values():
+            if any('pname' in r for r in reset_configuration):
+                reset = next((r['type'] for r in reset_configuration if r.get('pname') == core.node_name), None)
+            else:
+                reset = next((r['type'] for r in reset_configuration), None)
+            if reset is not None:
+                reset_type = convert_reset_type(reset)
+                if reset_type is not None:
+                    core.default_reset_type = reset_type
         return None
 
     @staticmethod
     def _cbuild_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        pname = _self._cbuild_device.processors_ap_map[cast('CortexM', core).ap.address].name
-        core.node_name = pname
-        CoreSightTarget.add_core(_self, core)
-
-    @staticmethod
-    def _cbuild_target_get_gdbserver_port(self, pname: str) -> Optional[int]:
-        """@brief GDB Server port for processor name."""
-        assert pname
-        server_map = self._cbuild_device.debugger.get('gdbserver', [])
-        if any('pname' in server for server in server_map):
-            port = next((i['port'] for i in server_map if i.get('pname') == pname), None)
+        proc = _self._cbuild_device.processors_ap_map.get(cast(CortexM, core).ap.address)
+        if proc is not None:
+            core.node_name = proc.name
+            CoreSightTarget.add_core(_self, core)
         else:
-            port = next((i['port'] for i in server_map), None)
-        return port
+            LOG.info("Skipping core not described in debug topology")
 
     @staticmethod
-    def _cbuild_target_get_output(self) -> Dict[str, Optional[int]]:
-        return self._cbuild_device.output
+    def _cbuild_target_get_output(_self) -> Dict[str, Tuple[str, Optional[int]]]:
+        return _self._cbuild_device.output
 
     @staticmethod
     def _cbuild_target_add_target_command_groups(_self, command_set: CommandSet):
@@ -189,7 +190,7 @@ class CbuildRun:
     def __init__(self, yml_path: str) -> None:
         """@brief Reads a .cbuild-run.yml file and validates its content."""
         self._data: Dict[str, Any] = {}
-        self._valid: bool = False
+        self._cbuild_name: str = ""
         self._device: Optional[str] = None
         self._vendor: Optional[str] = None
         self._vars: Optional[Dict[str, str]] = None
@@ -204,27 +205,35 @@ class CbuildRun:
         self._built_apid_map: bool = False
         self._processors_map: Dict[str, ProcessorInfo] = {}
         self._processors_ap_map: Dict[APAddressBase, ProcessorInfo] = {}
+        self._sorted_processors: List[ProcessorInfo] = []
         self._use_default_memory_map: bool = True
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
+        self._required_packs: Dict[str, Optional[Path]] = {}
 
         try:
-            # Normalize the path to ensure compatibility across platforms.
-            yml_path = os.path.normpath(yml_path)
-            with open(yml_path, 'r') as yml_file:
+            # Convert to Path object early and resolve to absolute path
+            yml_file_path = Path(yml_path).resolve()
+
+            with yml_file_path.open('r') as yml_file:
                 yml_data = yaml.safe_load(yml_file)
             if 'cbuild-run' in yml_data:
                 self._data = yml_data['cbuild-run']
-                self._check_packs()
-                self._valid = True
+                self._cbuild_name = yml_file_path.stem.split('.cbuild-run')[0]
+                # Ensure CMSIS_PACK_ROOT is set
+                self._cmsis_pack_root()
             else:
-                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_path}'")
-            # Set cbuild-run path as the current working directory.
-            base_path = Path(yml_path).parent
+                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_file_path}'")
+
+            # Set cbuild-run path as the current working directory
+            base_path = yml_file_path.parent
             os.chdir(base_path)
             LOG.debug("Working directory set to: '%s'", os.getcwd())
         except OSError as err:
-            raise CbuildRunError(f"Error attempting to access '{yml_path}': {err.strerror}") from err
+            if yml_path == "":
+                raise CbuildRunError("Cannot access *.cbuild-run.yml file: no path provided")
+            else:
+                raise CbuildRunError(f"Cannot access *.cbuild-run.yml file '{yml_path}': {err.strerror}") from err
 
     def _cmsis_pack_root(self) -> None:
         """@brief Sets the CMSIS_PACK_ROOT environment variable if not already set.
@@ -243,48 +252,74 @@ class CbuildRun:
         # Set the CMSIS_PACK_ROOT environment variable based on the platform
         if system == 'Windows':
             # Windows detected, set the Windows default path
-            os.environ['CMSIS_PACK_ROOT'] = os.path.expandvars("${LOCALAPPDATA}\\Arm\\Packs")
+            cmsis_pack_root = Path(os.path.expandvars("${LOCALAPPDATA}\\Arm\\Packs")).expanduser().resolve()
         elif system in {'Linux', 'Darwin'}:
-            # Note: WSL is treated as 'Linux'
             # Linux or macOS detected, set the Linux/macOS default path
-            os.environ['CMSIS_PACK_ROOT'] = os.path.expandvars("${HOME}/.cache/arm/packs")
+            # Note: WSL is treated as 'Linux'
+            cmsis_pack_root = Path(os.path.expandvars("${HOME}/.cache/arm/packs")).expanduser().resolve()
         else:
             raise CbuildRunError(f"Unsupported platform '{system}' for CMSIS_PACK_ROOT. "
                                  "Please set the CMSIS_PACK_ROOT environment variable manually.")
+
+        os.environ['CMSIS_PACK_ROOT'] = str(cmsis_pack_root)
         LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
 
-    def _check_packs(self) -> None:
-        """@brief Checks if the required CMSIS packs are installed."""
-        def _installed(cmsis_pack: str) -> bool:
+    def _get_required_packs(self) -> None:
+        """@brief Determines required CMSIS packs from the .cbuild-run.yml file."""
+        if not self._required_packs:
+            cmsis_pack_root = Path(os.environ['CMSIS_PACK_ROOT']).expanduser().resolve()
+
+            def _pack_path(cmsis_pack: str) -> Optional[Path]:
+                try:
+                    vendor, pack = cmsis_pack.split('::', 1)
+                    name, version = pack.split('@', 1)
+                except ValueError:
+                    LOG.error("Invalid pack format '%s'. Expected 'Vendor::Pack@Version'", cmsis_pack)
+                    return None
+
+                return cmsis_pack_root / vendor / name / version
+
+            for pack_type in ('device-pack', 'board-pack'):
+                pack = self._data.get(pack_type)
+                if pack is not None:
+                    self._required_packs[pack] = _pack_path(pack)
+
+    def _check_path(self, file_path: Path, required: bool = False) -> Path:
+        """@brief Checks if the required files are accessible and verifies pack installation if needed."""
+        file_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
+        # If the file exists, we don't need to do any further checks
+        if file_path.is_file():
+            return file_path
+
+        def _is_under(parent: Path, child: Path) -> bool:
             try:
-                vendor, pack = cmsis_pack.split('::', 1)
-                name, version = pack.split('@', 1)
+                child.relative_to(parent)
+                return True
             except ValueError:
-                raise CbuildRunError(f"Invalid pack format '{cmsis_pack}'. Expected 'Vendor::Pack@Version'.")
+                return False
 
-            cmsis_pack_path = cmsis_pack_root / vendor / name / version
-            return cmsis_pack_path.is_dir()
+        # Select appropriate logging level and error message based on whether the file is required
+        if required:
+            log = LOG.error
+            err = f"File '{file_path}' is required but not found"
+        else:
+            log = LOG.warning
+            err = f"File '{file_path}' not found"
 
-        # Set the CMSIS_PACK_ROOT environment variable if not already set.
-        self._cmsis_pack_root()
-        cmsis_pack_root: Path = Path(os.environ.get('CMSIS_PACK_ROOT'))
-        # Get the device and board packs from the .cbuild-run.yml data.
-        device_pack: Optional[str] = self._data.get('device-pack')
-        board_pack: Optional[str] = self._data.get('board-pack')
-        # Create a list to hold missing packs.
-        missing_packs: List[str] = []
+        self._get_required_packs()
+        # Verify pack installation only if the file is located within a required pack.
+        for pack, pack_path in self._required_packs.items():
+            if pack_path is not None and _is_under(pack_path, file_path):
+                if not pack_path.exists():
+                    log("Pack '%s' is required but not installed. "
+                              "Install with: cpackget add %s", pack, pack)
+                else:
+                    log("Installed pack '%s' is corrupted or incomplete. "
+                          "Reinstall with: cpackget add -F %s", pack, pack)
+                # We've found the relevant pack, no need to check further
+                break
 
-        # Check if required device and board packs are installed.
-        for pack in dict.fromkeys((device_pack, board_pack)):
-            if pack is not None and not _installed(pack):
-                missing_packs.append(pack)
-        # Write missing packs to a file and raise an error.
-        if missing_packs:
-            with open('packs.txt', 'w', encoding="utf-8") as f:
-                f.writelines(pack + '\n' for pack in missing_packs)
-            # Raise exception if packs are missing
-            # raise CbuildRunError("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
-            LOG.warning("Missing required CMSIS packs. Install with 'cpackget add -f packs.txt'")
+        raise CbuildRunError(err)
 
     @property
     def target(self) -> str:
@@ -334,26 +369,24 @@ class CbuildRun:
         return self._memory_map
 
     @property
-    def svd(self) -> Optional[IO[bytes]]:
-        """@brief File-like object for the device's SVD file."""
+    def svd(self) -> Optional[str]:
+        """@brief Path to the SVD file for the target device."""
         #TODO handle multicore devices
         try:
             for desc in self.system_descriptions:
                 if desc['type'] == 'svd':
-                    norm_path = os.path.normpath(desc['file'])
-                    svd_path = Path(os.path.expandvars(norm_path))
+                    svd_path = self._check_path(Path(desc['file']))
                     LOG.debug("SVD path: %s", svd_path)
-                    return io.BytesIO(svd_path.read_bytes())
+                    return str(svd_path)
+        except CbuildRunError as err:
+            LOG.warning("SVD file error: %s", err)
         except (KeyError, IndexError):
-            LOG.error("Could not locate SVD in cbuild-run system-descriptions.")
+            LOG.warning("Could not locate SVD in cbuild-run system-descriptions.")
         return None
 
     @property
     def output(self) -> Dict[str, Tuple[str, Optional[int]]]:
         """@brief Set of loadable output files (file, [type, offset])."""
-        if not self._valid:
-            return {}
-
         # Supported loadable files
         FILE_TYPE = {'elf', 'hex', 'bin'}
 
@@ -368,7 +401,7 @@ class CbuildRun:
             # Get load offset (None if not specified)
             _offset = f.get('load-offset')
             # Add filename, it's type and offset to return value
-            load_files[f['file']] = [_type, _offset]
+            load_files[f['file']] = (_type, _offset)
             LOG.debug("Loadable file: %s", f['file'])
         return load_files
 
@@ -416,11 +449,6 @@ class CbuildRun:
             self._build_aps_map()
         return self._processors_map
 
-    @processors_map.setter
-    def processors_map(self, proc_map: Dict[str, ProcessorInfo]) -> None:
-        self._processors_map = proc_map
-        LOG.debug("Updated processors map")
-
     @property
     def processors_ap_map(self) -> Dict[APAddressBase, ProcessorInfo]:
         """@brief Map of AP address objects and processor info objects."""
@@ -430,6 +458,13 @@ class CbuildRun:
                 for proc in self.processors_map.values()
             }
         return self._processors_ap_map
+
+    @property
+    def sorted_processors(self) -> List[ProcessorInfo]:
+        """@brief List of processors sorted by AP address."""
+        if not self._sorted_processors:
+            self._sorted_processors = sorted(self.processors_ap_map.values(), key=lambda p: p.ap_address.address)
+        return self._sorted_processors
 
     @property
     def programming(self) -> List[dict]:
@@ -464,14 +499,6 @@ class CbuildRun:
         return _debugger_protocol
 
     @property
-    def start_pname(self) -> Optional[str]:
-        """@brief Selected start processor name."""
-        _start_pname = self.debugger.get('start-pname')
-        if _start_pname is not None:
-           LOG.info("start-pname: %s", _start_pname)
-        return _start_pname
-
-    @property
     def system_resources(self) -> Dict[str, list]:
         """@brief System Resources section of cbuild-run."""
         if self._system_resources is None:
@@ -495,11 +522,178 @@ class CbuildRun:
             LOG.debug("Read debug topology")
         return self._debug_topology
 
+    @property
+    def swj_enable(self) -> bool:
+        """@brief SWJ (Serial Wire JTAG) enable flag from debug topology."""
+        return self.debug_topology.get('swj', True)
+
+    @property
+    def dormant(self) -> bool:
+        """@brief Dormant mode enable flag from debug topology."""
+        return self.debug_topology.get('dormant', False)
+
+    @property
+    def primary_core(self) -> Optional[int]:
+        """@brief Primary core number from debugger settings."""
+        start_pname = self.debugger.get('start-pname')
+        if start_pname is not None:
+            LOG.info("start-pname: %s", start_pname)
+            return next((i for i, proc_info in enumerate(self.sorted_processors)
+                        if proc_info.name == start_pname), None)
+        return None
+
+    @property
+    def pre_load_halt(self) -> bool:
+        """@brief Pre-load halt flag from debugger settings."""
+        return self.debugger.get('load-setup', {}).get('halt', True)
+
+    @property
+    def pre_reset(self) -> Optional[str]:
+        """@brief Pre-reset type from debugger settings."""
+        reset = self.debugger.get('load-setup', {}).get('pre-reset')
+        reset = 'off' if reset is False else reset # PyYAML: value 'off' maps to boolean False
+        if reset not in {'off', 'hardware', 'system', 'core', None}:
+            LOG.warning("Invalid pre-reset type '%s' in cbuild-run, defaulting to 'reset_type'", reset)
+            reset = None
+        return reset
+
+    @property
+    def post_reset(self) -> Optional[str]:
+        """@brief Post-reset type from debugger settings."""
+        reset = self.debugger.get('load-setup', {}).get('post-reset', 'hardware')
+        reset = 'off' if reset is False else reset # PyYAML: value 'off' maps to boolean False
+        if reset not in {'off', 'hardware', 'system', 'core'}:
+            LOG.warning("Invalid post-reset type '%s' in cbuild-run, defaulting to 'hardware'", reset)
+            reset = 'hardware'
+        return reset
+
+    @property
+    def connect_mode(self) -> str:
+        """@brief Connection mode from debugger section."""
+        connect = self.debugger.get('connect', 'attach')
+        if connect not in {'pre-reset', 'under-reset', 'halt', 'attach'}:
+            LOG.warning("Invalid connect mode '%s' in cbuild-run, defaulting to 'attach'", connect)
+            connect = 'attach'
+        return connect
+
+    @property
+    def gdbserver_ports(self) -> Optional[Tuple]:
+        """@brief GDB server port assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        return self._get_server_ports('gdbserver')
+
+    @property
+    def telnet_ports(self) -> Optional[Tuple]:
+        """@brief Telnet server port assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        return self._get_server_ports('telnet')
+
+    @property
+    def telnet_modes(self) -> Tuple:
+        """@brief Telnet server mode assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        SUPPORTED_MODES = { 'off', 'telnet', 'file', 'console' }
+        MODE_ALIASES = { False: 'off',
+                        'monitor': 'telnet',
+                        'server': 'telnet'
+                      }
+        # Get telnet configuration from debugger section
+        telnet_config = self.debugger.get('telnet') or []
+        valid_config = any('mode' in t for t in telnet_config)
+        # Determine global mode if specified, default to 'off' otherwise
+        global_mode = next((t.get('mode') for t in telnet_config if 'pname' not in t), 'off')
+        global_mode = MODE_ALIASES.get(global_mode, global_mode)
+        # Build list of telnet modes for each core
+        telnet_modes = []
+        for core in self.sorted_processors:
+            mode = next((t.get('mode') for t in telnet_config if t.get('pname') == core.name), global_mode)
+            mode = MODE_ALIASES.get(mode, mode)
+            if mode not in SUPPORTED_MODES:
+                if valid_config:
+                    LOG.warning("Invalid telnet mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
+                            mode, core.name, global_mode)
+                mode = global_mode
+            telnet_modes.append(mode)
+
+        return tuple(telnet_modes)
+
+    @property
+    def telnet_files(self) -> Dict[str, Optional[Tuple]]:
+        """@brief Telnet file path assignments from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        # Get telnet configuration from debugger section
+        telnet_config = self.debugger.get('telnet') or []
+        telnet_modes = self.telnet_modes
+
+        if not any(mode == 'file' for mode in telnet_modes):
+            # No telnet file paths needed
+            return {'in': None, 'out': None}
+
+        def _resolve_path(file_path: Optional[str], strict: bool = False) -> Optional[str]:
+            if file_path is None:
+                return None
+            resolved_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
+            # In strict mode check if the file exists
+            if strict and not resolved_path.is_file():
+                LOG.warning("Telnet file '%s' not found", resolved_path)
+
+            return str(resolved_path)
+
+        in_files = []
+        out_files = []
+
+        # Per pname configuration
+        config_by_pname = {t['pname']: t for t in telnet_config if 'pname' in t}
+
+        if config_by_pname:
+            # Build config per pname
+            for proc_info, mode in zip(self.sorted_processors, telnet_modes):
+                if mode != 'file':
+                    in_files.append(None)
+                    out_files.append(None)
+                    continue
+
+                config = config_by_pname.get(proc_info.name, {})
+                # Check for file-in and file-out, use defaults if not provided
+                in_file = _resolve_path(config.get('file-in'), strict=True)
+                if in_file is None:
+                    in_file = f"{self._cbuild_name}.{proc_info.name}.in"
+                in_files.append(in_file)
+                out_file = _resolve_path(config.get('file-out'))
+                if out_file is None:
+                    out_file = f"{self._cbuild_name}.{proc_info.name}.out"
+                out_files.append(out_file)
+        else:
+            config = next((t for t in telnet_config if t.get('mode') == 'file'), None)
+            if config is not None:
+                if len(self.sorted_processors) > 1:
+                    LOG.warning("Ignoring invalid telnet file configuration for multicore target in cbuild-run")
+                    for proc_info, mode in zip(self.sorted_processors, telnet_modes):
+                        if mode != 'file':
+                            in_files.append(None)
+                            out_files.append(None)
+                        else:
+                            in_files.append(f"{self._cbuild_name}.{proc_info.name}.in")
+                            out_files.append(f"{self._cbuild_name}.{proc_info.name}.out")
+                else:
+                    in_file = _resolve_path(config.get('file-in'), strict=True)
+                    if in_file is None:
+                        in_file = f"{self._cbuild_name}.in"
+                    in_files.append(in_file)
+                    out_file = _resolve_path(config.get('file-out'))
+                    if out_file is None:
+                        out_file = f"{self._cbuild_name}.out"
+                    out_files.append(out_file)
+
+        return {'in': tuple(in_files) if any(in_files) else None,
+                'out': tuple(out_files) if any(out_files) else None}
+
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
-        if not self._valid:
-            return
-
         if target is None:
             target = normalise_target_type_name(self.target)
         elif target != normalise_target_type_name(self.target):
@@ -512,19 +706,38 @@ class CbuildRun:
         # Generate target subclass and install it.
         tgt = type(target.capitalize(), (CoreSightTarget,), {
                     "_cbuild_device": self,
-                    "debugger_clock": self.debugger_clock,
-                    "debugger_protocol" : self.debugger_protocol,
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
                     "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
-                    "update_primary_core" : CbuildRunTargetMethods._cbuild_target_start_processor,
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
                     "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
-                    "get_gdbserver_port": CbuildRunTargetMethods._cbuild_target_get_gdbserver_port,
                     "get_output": CbuildRunTargetMethods._cbuild_target_get_output,
                     "add_target_command_groups": CbuildRunTargetMethods._cbuild_target_add_target_command_groups,
         })
         TARGET[target] = tgt
+
+    def _get_server_ports(self, server_type: str) -> Optional[Tuple]:
+        """@brief Generic method to get server port assignments from debugger section."""
+        server_config = self.debugger.get(server_type, [])
+        if not server_config:
+            # No server configuration provided.
+            return None
+
+        ports = []
+        if any('pname' in server for server in server_config):
+            for proc_info in self.sorted_processors:
+                ports.append(next((s.get('port') for s in server_config if s.get('pname') == proc_info.name), None))
+        else:
+            port = next((s.get('port') for s in server_config), None)
+            if port is not None:
+                if len(self.sorted_processors) > 1:
+                    LOG.warning("Ignoring invalid %s port configuration for multicore target in cbuild-run", server_type)
+                    return None
+                ports.append(port)
+            else:
+                return None
+
+        return tuple(ports)
 
     def _get_memory_to_process(self) -> List[dict]:
         DEFAULT_MEMORY_MAP = sorted([
@@ -668,8 +881,8 @@ class CbuildRun:
                             flash_attrs['_RAMsize'] = algorithm['ram-size']
                         if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
                             LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", algorithm['algorithm'])
-                        algorithm_path = os.path.normpath(algorithm['algorithm'])
-                        flash_attrs['flm'] = PackFlashAlgo(os.path.expandvars(algorithm_path))
+                        algorithm_path = self._check_path(Path(algorithm['algorithm']), required=True)
+                        flash_attrs['flm'] = PackFlashAlgo(str(algorithm_path))
                         # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
                         # the default lambdas for sector_size and blocksize returning each other's value.
                         flash_attrs['sector_size'] = 0
@@ -698,23 +911,22 @@ class CbuildRun:
                 if item['type'] == 'svd':
                     if (pname is not None) and (item.get('pname') not in (None, pname)):
                         continue
-                    norm_path = os.path.normpath(item['file'])
-                    svd_path = os.path.expandvars(norm_path)
+                    svd_path = str(Path(os.path.expandvars(item['file'])).expanduser().resolve())
                     break
             return svd_path
 
         _processors = {}
-        for processor in self.debug_topology.get('processors', {}):
+        for processor in self.debug_topology.get('processors', []):
             apid = processor.get('apid')
             pname = processor.get('pname', 'Unknown')
             reset_sequence = processor.get('reset-sequence', 'ResetSystem')
             if apid is not None:
                 _processors[apid] = (pname, reset_sequence)
 
-        for debugport in self.debug_topology.get('debugports', {}):
+        for debugport in self.debug_topology.get('debugports', []):
             dpid = debugport.get('dpid', 0)
             self._valid_dps.append(dpid)
-            for accessport in debugport.get('accessports', {}):
+            for accessport in debugport.get('accessports', []):
                 apid = accessport.get('apid', 0)
 
                 if 'address' in accessport:
@@ -768,7 +980,7 @@ class CbuildRunSequences:
 
     @property
     def sequences(self) -> Set[DebugSequence]:
-        if self._sequences == set():
+        if not self._sequences:
             self._build_sequences()
         return self._sequences
 
@@ -969,9 +1181,9 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
             protocol = 2
         else:
             protocol = 0 # Error
-        if self._device.debug_topology.get('swj', True):
+        if self._device.swj_enable:
             protocol |= 1 << 16
-        if self._device.debug_topology.get('dormant', False):
+        if self._device.dormant:
             protocol |= 1 << 17
         return protocol
 

@@ -25,6 +25,7 @@ from ..core.helpers import ConnectHelper
 from ..core.target import Target
 from ..flash.file_programmer import FileProgrammer
 from ..utility.cmdline import (
+    convert_reset_type,
     convert_session_options,
     int_base_0,
 )
@@ -97,6 +98,7 @@ class LoadSubcommand(SubcommandBase):
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
                             connect_mode=self._args.connect_mode,
+                            command=self._args.cmd,
                             options=convert_session_options(self._args.options),
                             option_defaults=self._modified_option_defaults(),
                             )
@@ -111,28 +113,38 @@ class LoadSubcommand(SubcommandBase):
 
             # Get a list of all secondary cores.
             secondary_cores = [c for c in session.target.cores.values() if c != session.target.primary_core]
-            try:
-                # Set reset catch for all secondary cores.
-                for core in secondary_cores:
-                    core.set_reset_catch()
-                # Reset and halt the primary core.
-                session.target.reset_and_halt()
-            finally:
-                # Clear reset catch for all secondary cores.
-                for core in secondary_cores:
-                    core.clear_reset_catch()
+            pre_reset = session.options.get('load.pre_reset')
+            if pre_reset != "off":
+                try:
+                    reset_type = convert_reset_type(pre_reset) if pre_reset else None
+                except ValueError:
+                    LOG.error("Invalid pre-reset option: %s", pre_reset)
+                    return 1
 
-            if not self._args.file and self._args.cbuild_run:
-                # Populate file list from cbuild-run output if not provided explicitly
+                try:
+                    # Set reset catch for all secondary cores.
+                    for core in secondary_cores:
+                        core.set_reset_catch(reset_type)
+                    # Reset and halt the primary core.
+                    session.target.reset_and_halt(reset_type)
+                finally:
+                    # Clear reset catch for all secondary cores.
+                    for core in secondary_cores:
+                        core.clear_reset_catch(reset_type)
+
+            cbuild_files = {}
+            if self._args.cbuild_run:
                 cbuild_files = session.target.get_output()
-                self._args.file = cbuild_files.keys()
+                # Populate file list from cbuild-run output if not provided explicitly
+                if not self._args.file:
+                    self._args.file = cbuild_files.keys()
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()
 
                 # Get the file format from the command line argument or from the cbuild-run output.
                 file_format = self._args.format
-                if self._args.cbuild_run:
+                if file_format is None and cbuild_files:
                     file_format = cbuild_files[filename][0]
 
                 # Look for a base address suffix. If the supplied argument including an address suffix
@@ -146,7 +158,7 @@ class LoadSubcommand(SubcommandBase):
                         return 1
                 else:
                     base_address = self._args.base_address
-                    if base_address is None and self._args.cbuild_run:
+                    if base_address is None and cbuild_files:
                         base_address = cbuild_files[filename][1]
 
                 # Resolve our path.
@@ -164,7 +176,14 @@ class LoadSubcommand(SubcommandBase):
                                 file_format=file_format)
 
             # Reset the target after programming unless --no-reset was specified.
-            if not self._args.no_reset:
-                session.target.reset(Target.ResetType.NSRST)
+            post_reset = session.options.get('load.post_reset')
+            if not self._args.no_reset and post_reset != 'off':
+                try:
+                    reset_type = convert_reset_type(post_reset) if post_reset else None
+                except ValueError:
+                    LOG.error("Invalid post-reset option: %s", post_reset)
+                    return 1
+
+                session.target.reset(reset_type)
 
         return 0

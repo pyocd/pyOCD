@@ -44,7 +44,7 @@ BUILTIN_OPTIONS = [
         "target memory."),
     OptionInfo('chip_erase', str, "sector",
         "Whether to perform a chip erase or sector erases when programming flash. The value must be"
-        " one of \"auto\", \"sector\", or \"chip\"."),
+        " one of 'auto', 'sector', or 'chip'."),
     OptionInfo('cmsis_dap.prefer_v1', bool, False,
         "If a device provides both CMSIS-DAP v1 and v2 interfaces, use the v1 interface in preference of v2. "
         "Normal behaviour is to prefer the v2 interface. This option is primarily intended for testing."),
@@ -89,6 +89,12 @@ BUILTIN_OPTIONS = [
     OptionInfo('keep_unwritten', bool, False,
         "Whether to preserve existing flash content for ranges of sectors that will be erased but not "
         "written with new data. Default is False."),
+    OptionInfo('load.pre_reset', str, None,
+        "Specify the type of reset to perform before programming. The value must be one of"
+        " 'off', 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'."),
+    OptionInfo('load.post_reset', str, None,
+        "Specify the type of reset to perform after programming. The value must be one of"
+        " 'off', 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'."),
     OptionInfo('logging', (str, dict), None,
         "Logging configuration dictionary, or path to YAML file containing logging configuration."),
     OptionInfo('no_config', bool, False,
@@ -171,7 +177,7 @@ BUILTIN_OPTIONS = [
     OptionInfo('rtos.name', str, None,
         "Name of the RTOS plugin to use. If not set, all RTOS plugins are given a chance to load."),
     OptionInfo('semihost_console_type', str, 'telnet',
-        "If set to \"telnet\" then the semihosting telnet server will be started, otherwise "
+        "If set to 'telnet' then the semihosting telnet server will be started, otherwise "
         "semihosting will print to the console."),
     OptionInfo('semihost_use_syscalls', bool, False,
         "Whether to use GDB syscalls for semihosting file access operations."),
@@ -197,6 +203,18 @@ BUILTIN_OPTIONS = [
         "for presentation in gdb."),
     OptionInfo('soft_bkpt_as_hard', bool, False,
         "Replace software breakpoints with hardware breakpoints."),
+
+    # Internal cbuild-run session options
+    OptionInfo('cbuild_run.gdbserver_ports', tuple, None,
+        "List of TCP ports for the gdbserver."),
+    OptionInfo('cbuild_run.telnet_ports', tuple, None,
+        "List of TCP ports for telnet server."),
+    OptionInfo('cbuild_run.telnet_modes', tuple, None,
+        "List of telnet modes for each core."),
+    OptionInfo('cbuild_run.telnet_files_in', tuple, None,
+        "List of telnet input file paths for each core."),
+    OptionInfo('cbuild_run.telnet_files_out', tuple, None,
+        "List of telnet output file paths for each core."),
     ]
 
 ## @brief The runtime dictionary of options.

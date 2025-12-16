@@ -19,7 +19,6 @@
 import logging
 import threading
 from time import sleep
-import sys
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
 from typing import (Dict, List, Optional, Tuple)
@@ -30,12 +29,11 @@ from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.compatibility import (to_bytes_safe, to_str_safe)
-from ..utility.server import StreamServer
 from ..utility.timeout import Timeout
 from ..trace.swv import SWVReader
 from ..utility.rtt_server import RTTServer
 from ..utility.sockets import ConnectedSocket, ListenerSocket
-from ..utility.sockets import ClientSocket
+from ..utility.stdio import StdioHandler
 from .syscall import GDBSyscallIOHandler
 from ..debug import semihost
 from .context_facade import GDBDebugContextFacade
@@ -291,7 +289,7 @@ class GDBServer(threading.Thread):
     ## Timer delay for sending the notification that the server is listening.
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
 
-    def __init__(self, session, core=None, port=None):
+    def __init__(self, session, core=None):
         super().__init__(daemon=True)
         self.session = session
         self.board = session.board
@@ -303,28 +301,26 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
 
-        if port is None:
+        if session.options.is_set('cbuild_run.gdbserver_ports'):
+            # Per-core gdbserver ports configured.
+            _port = session.options.get('cbuild_run.gdbserver_ports')[self.core]
+            # Check if no port was configured for this core, use 0 in that case.
+            self.port = _port if _port is not None else 0
+        else:
             self.port = session.options.get('gdbserver_port')
             if self.port != 0:
                 self.port += self.core
-        else:
-            self.port = port
 
         self.client_sessions: List[GDBClientSession] = []
         # Lock to protect access to the sessions list
         self.client_sessions_lock = threading.Lock()
         self.client_last_index = 0
 
-        self.telnet_port = session.options.get('telnet_port')
-        if self.telnet_port != 0:
-            self.telnet_port += self.core
-
         self.vector_catch = session.options.get('vector_catch')
         self.target.set_vector_catch(convert_vector_catch(self.vector_catch))
         self.step_into_interrupt = session.options.get('step_into_interrupt')
         self.persist = session.options.get('persist')
         self.enable_semihosting = session.options.get('enable_semihosting')
-        self.semihost_console_type = session.options.get('semihost_console_type') # Not subscribed.
         self.semihost_use_syscalls = session.options.get('semihost_use_syscalls') # Not subscribed.
         self.serve_local_only = session.options.get('serve_local_only') # Not subscribed.
         self.report_core = session.options.get('report_core_number')
@@ -366,23 +362,17 @@ class GDBServer(threading.Thread):
 
         self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
 
-        # Init semihosting and telnet console.
+        # Init semihosting and stdio.
         if self.semihost_use_syscalls:
             semihost_io_handler = GDBSyscallIOHandler(self)
         else:
             # Use internal IO handler.
             semihost_io_handler = semihost.InternalSemihostIOHandler()
 
-        if self.semihost_console_type == 'telnet':
-            self.telnet_server = StreamServer(self.telnet_port, self.serve_local_only, "Semihost",
-                False, extra_info=("core %d" % self.core))
-            console_file = self.telnet_server
-            semihost_console = semihost.ConsoleIOHandler(self.telnet_server)
-        else:
-            LOG.info("Semihosting output to console")
-            console_file = sys.stdout
-            self.telnet_server = None
-            semihost_console = semihost_io_handler
+        # Use stdio handler for semihost console.
+        self.stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=False)
+        console_file = self.stdio_handler
+        semihost_console = semihost.ConsoleIOHandler(self.stdio_handler)
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
         self._semihosting_client = None
 
@@ -490,9 +480,9 @@ class GDBServer(threading.Thread):
         if self.semihost:
             self.semihost.cleanup()
             self.semihost = None
-        if self.telnet_server:
-            self.telnet_server.stop()
-            self.telnet_server = None
+        if self.stdio_handler:
+            self.stdio_handler.shutdown()
+            self.stdio_handler = None
         if self._swv_reader:
             self._swv_reader.stop()
             self._swv_reader = None
@@ -801,7 +791,7 @@ class GDBServer(threading.Thread):
         elif data[0:1] in (b'C', b'S'):
             addr = int(data[1:].split(b';')[1], base=16)
         # else:
-        #     # Address is currently igonored - no need to log error
+        #     # Address is currently ignored - no need to log error
         #     LOG.error("Invalid step address received from gdb")
         return addr
 
