@@ -42,7 +42,7 @@ class RunSubcommand(SubcommandBase):
     """@brief `pyocd run` subcommand."""
 
     NAMES = ['run']
-    HELP = "Load and run the target"
+    HELP = "Load and run the target."
     DEFAULT_LOG_LEVEL = logging.WARNING
 
     @classmethod
@@ -86,7 +86,7 @@ class RunSubcommand(SubcommandBase):
                 option_defaults=self._modified_option_defaults(),
             )
             if session is None:
-                LOG.error("No probe selected.")
+                LOG.error("No probe selected")
                 return 1
 
         except Exception as e:
@@ -125,14 +125,14 @@ class RunSubcommand(SubcommandBase):
                     if timelimit is not None:
                         elapsed = time() - start_time
                         if elapsed >= timelimit:
-                            LOG.info("Time limit of %.1f seconds reached. Shutting down Run-servers", timelimit)
+                            LOG.info("Time limit of %.1f seconds reached; shutting down Run servers", timelimit)
                             timelimit_triggered = True
                             self.ShutDownRunServers()
                             break
                     sleep(0.1)
 
             except KeyboardInterrupt:
-                LOG.info("KeyboardInterrupt received. Shutting down Run-servers")
+                LOG.info("KeyboardInterrupt received; shutting down Run servers")
                 self.ShutDownRunServers()
                 return 0
             except Exception:
@@ -147,7 +147,7 @@ class RunSubcommand(SubcommandBase):
             if any(getattr(server, "error_flag", False) for server in self._run_servers):
                 return 1
 
-        LOG.warning("Run servers exited without EOT, reached timelimit or error. This is unexpected.")
+        LOG.warning("Run servers exited without EOT, reached timelimit or error; this is unexpected")
         return 1
 
     def ShutDownRunServers(self):
@@ -213,7 +213,8 @@ class RunServer(threading.Thread):
 
     def run(self):
         stdio_info = self._stdio_handler.info
-        LOG.info("Run-server started for core %d. STDIO mode = %s", self.core, stdio_info)
+        node_name = self.session.board.target.cores[self.core].node_name
+        LOG.info("Run server started for %s (core %d); STDIO mode: %s", node_name, self.core, stdio_info)
 
         # Timeout used only if the target starts returning faults. The is_running property of this timeout
         # also serves as a flag that a fault occurred and we're attempting to retry.
@@ -222,7 +223,7 @@ class RunServer(threading.Thread):
         while fault_retry_timeout.check():
             if self.shutdown_event.is_set():
                 # Exit the thread
-                LOG.debug("Exit Run-server for core %d", self.core)
+                LOG.debug("Exit Run server for core %d", self.core)
                 break
 
             # Check for EOT (0x04)
@@ -230,7 +231,7 @@ class RunServer(threading.Thread):
                 try:
                     if self._stdio_handler.eot_seen:
                         # EOT received, terminate execution
-                        LOG.info("EOT (0x04) character received for core %d. Shutting down Run-servers", self.core)
+                        LOG.info("EOT (0x04) character received for core %d; shutting down Run servers", self.core)
                         self.eot_flag = True
                         self.shutdown_event.set()
                         continue
@@ -248,7 +249,7 @@ class RunServer(threading.Thread):
                 # If we were able to successfully read the target state after previously receiving a fault,
                 # then clear the timeout.
                 if fault_retry_timeout.is_running:
-                    LOG.debug("Target control re-established.")
+                    LOG.debug("Target control re-established")
                     fault_retry_timeout.clear()
 
                 if state == Target.State.HALTED:
@@ -260,7 +261,7 @@ class RunServer(threading.Thread):
                             continue
 
                     pc = self.target_context.read_core_register('pc')
-                    LOG.error("Target unexpectedly halted at pc=0x%08x. Shutting down Run server for core %d.", pc, self.core)
+                    LOG.error("Target core %d unexpectedly halted at pc=0x%08x; shutting down Run servers", self.core, pc)
                     self.error_flag = True
                     self.shutdown_event.set()
                     break
@@ -274,7 +275,7 @@ class RunServer(threading.Thread):
                             exc_info=self.session.log_tracebacks)
                 fault_retry_timeout.start()
             except exceptions.Error as e:
-                LOG.error("Error while target running: %s. Exit Run server for core %d.", e, self.core, exc_info=self.session.log_tracebacks)
+                LOG.error("Error while target core %d running: %s; shutting down Run servers", self.core, e, exc_info=self.session.log_tracebacks)
                 self.error_flag = True
                 self.shutdown_event.set()
                 break
@@ -284,7 +285,7 @@ class RunServer(threading.Thread):
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
-            LOG.error("Timeout re-establishing target control. Exit Run server for core %d.", self.core)
+            LOG.error("Timeout re-establishing target core %d control; shutting down Run servers", self.core)
             self.error_flag = True
             self.shutdown_event.set()
 
