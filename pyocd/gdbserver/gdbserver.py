@@ -791,7 +791,7 @@ class GDBServer(threading.Thread):
         elif data[0:1] in (b'C', b'S'):
             addr = int(data[1:].split(b';')[1], base=16)
         # else:
-        #     # Address is currently igonored - no need to log error
+        #     # Address is currently ignored - no need to log error
         #     LOG.error("Invalid step address received from gdb")
         return addr
 
