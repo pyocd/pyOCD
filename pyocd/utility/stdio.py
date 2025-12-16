@@ -262,7 +262,11 @@ class StdioHandler(StdioBase):
         self._backend = backend_class(session, self._core)
 
         # EOT signalling
-        self._eot_enabled = eot_enabled
+        if self._mode == "off":
+            # EOT handling makes no sense with no output
+            self._eot_enabled = False
+        else:
+            self._eot_enabled = eot_enabled
         self._eot_event = threading.Event()
         self._eot_seen = False
 
