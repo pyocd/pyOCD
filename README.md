@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.40 release introduces support for multiple concurrent GDB client connections to the same GDB server.
+- The v0.42 release introduces new `run` subcommand, capable of running targets until a time limit or EOT (suited for CI/CD workflows)
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
@@ -36,6 +36,7 @@ The `pyocd` command line tool gives you total control over your device with thes
 - `reset`: Hardware or software reset of a device.
 - `rtt`: Stream Segger RTT IO with _any_ debug probe.
 - `list`: Show connected devices.
+- `run`: Load and run the target.
 
 The API and tools provide these features:
 
