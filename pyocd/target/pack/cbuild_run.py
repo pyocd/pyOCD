@@ -636,14 +636,12 @@ class CbuildRun:
         def _resolve_path(file_path: Optional[str], strict: bool = False) -> Optional[str]:
             if file_path is None:
                 return None
-            try:
-                return str(Path(os.path.expandvars(str(file_path))).expanduser().resolve(strict=strict))
-            except FileNotFoundError:
-                if strict:
-                    LOG.warning("Telnet file '%s' not found, using default value", file_path)
-                return None
-            except OSError:
-                return None
+            resolved_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
+            # In strict mode check if the file exists
+            if strict and not resolved_path.is_file():
+                LOG.warning("Telnet file '%s' not found", resolved_path)
+
+            return str(resolved_path)
 
         in_files = []
         out_files = []
@@ -660,7 +658,11 @@ class CbuildRun:
                     continue
 
                 config = config_by_pname.get(proc_info.name, {})
-                in_files.append(_resolve_path(config.get('file-in'), strict=True))
+                # Check for file-in and file-out, use defaults if not provided
+                in_file = _resolve_path(config.get('file-in'), strict=True)
+                if in_file is None:
+                    in_file = f"{self._cbuild_name}.{proc_info.name}.in"
+                in_files.append(in_file)
                 out_file = _resolve_path(config.get('file-out'))
                 if out_file is None:
                     out_file = f"{self._cbuild_name}.{proc_info.name}.out"
@@ -671,13 +673,17 @@ class CbuildRun:
                 if len(self.sorted_processors) > 1:
                     LOG.warning("Ignoring invalid telnet file configuration for multicore target in cbuild-run")
                     for proc_info, mode in zip(self.sorted_processors, telnet_modes):
-                        in_files.append(None)
                         if mode != 'file':
+                            in_files.append(None)
                             out_files.append(None)
                         else:
+                            in_files.append(f"{self._cbuild_name}.{proc_info.name}.in")
                             out_files.append(f"{self._cbuild_name}.{proc_info.name}.out")
                 else:
-                    in_files.append(_resolve_path(config.get('file-in'), strict=True))
+                    in_file = _resolve_path(config.get('file-in'), strict=True)
+                    if in_file is None:
+                        in_file = f"{self._cbuild_name}.in"
+                    in_files.append(in_file)
                     out_file = _resolve_path(config.get('file-out'))
                     if out_file is None:
                         out_file = f"{self._cbuild_name}.out"
