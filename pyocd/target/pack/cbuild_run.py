@@ -601,7 +601,7 @@ class CbuildRun:
                         'server': 'telnet'
                       }
         # Get telnet configuration from debugger section
-        telnet_config = self.debugger.get('telnet', [])
+        telnet_config = self.debugger.get('telnet') or []
         valid_config = any('mode' in t for t in telnet_config)
         # Determine global mode if specified, default to 'off' otherwise
         global_mode = next((t.get('mode') for t in telnet_config if 'pname' not in t), 'off')
@@ -626,7 +626,7 @@ class CbuildRun:
             The method will not be called frequently, so performance is not critical.
         """
         # Get telnet configuration from debugger section
-        telnet_config = self.debugger.get('telnet', [])
+        telnet_config = self.debugger.get('telnet') or []
         telnet_modes = self.telnet_modes
 
         if not any(mode == 'file' for mode in telnet_modes):
