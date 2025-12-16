@@ -29,7 +29,7 @@ import os
 LOG = logging.getLogger(__name__)
 
 class StdioBase:
-    """Abstract stdio interface."""
+    """Abstract STDIO interface."""
 
     def __init__(self, session: Session = None, core=0) -> None:
         pass
@@ -48,13 +48,13 @@ class StdioBase:
         return ""
 
 class StdioOff(StdioBase):
-    """Stdio backend that discards all input/output."""
+    """STDIO backend that discards all input/output."""
     @property
     def info(self) -> str:
         return "off"
 
 class StdioTelnet(StdioBase):
-    """Stdio backend that uses a telnet server for reading from and writing to stdin/stdout."""
+    """STDIO backend that uses a telnet server for reading from and writing to stdin/stdout."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
         if session.options.is_set('cbuild_run.telnet_ports'):
@@ -72,13 +72,15 @@ class StdioTelnet(StdioBase):
         self._server = StreamServer(
             port=telnet_port,
             serve_local_only=serve_local_only,
-            name="stdio",
+            name="STDIO",
             is_read_only=False,
             extra_info=f"core {core}"
         )
 
         if telnet_port == 0:
             telnet_port = self._server.port
+
+        self._telnet_port = telnet_port
 
         # ToDo: consider waiting for client to connect
         # while self._server._connected_socket is None:
@@ -88,7 +90,7 @@ class StdioTelnet(StdioBase):
         try:
             return self._server.write(data)
         except Exception as e:
-            LOG.debug("Error writing to stdio telnet server: %s", e)
+            LOG.debug("Error writing to STDIO telnet server (port %d): %s", self._telnet_port, e)
             return 0
 
     def read(self, max_bytes: int) -> bytes:
@@ -96,7 +98,7 @@ class StdioTelnet(StdioBase):
         try:
             data = self._server.read(max_bytes)
         except Exception as e:
-            LOG.debug("Error reading from stdio telnet server: %s", e)
+            LOG.debug("Error reading from STDIO telnet server (port %d): %s", self._telnet_port, e)
         if data is None:
             return b""
         return bytes(data)
@@ -105,47 +107,50 @@ class StdioTelnet(StdioBase):
         try:
             self._server.stop()
         except Exception as e:
-            LOG.debug("Error stopping stdio telnet server: %s", e)
+            LOG.debug("Error stopping STDIO telnet server (port %d): %s", self._telnet_port, e)
 
     @property
     def info(self) -> str:
         return f"telnet (port: {self._server.port})"
 
 class StdioFile(StdioBase):
-    """Stdio backend that reads from and writes to files."""
+    """STDIO backend that reads from and writes to files."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
         # Get file paths from session options
         if session.options.is_set('cbuild_run.telnet_files_out'):
-            self._telnet_file_out = session.options.get('cbuild_run.telnet_files_out')[core]
-            if self._telnet_file_out is None:
-                raise ValueError("StdioFile requires a valid out file path")
+            telnet_file_out = session.options.get('cbuild_run.telnet_files_out')[core]
+            if telnet_file_out is None:
+                raise ValueError(f"STDIO file for core {core} requires a valid output file path")
         else:
-            raise ValueError("StdioFile requires a valid out file path")
+            raise ValueError(f"STDIO file for core {core} requires a valid output file path")
 
         if session.options.is_set('cbuild_run.telnet_files_in'):
-            self._telnet_file_in = session.options.get('cbuild_run.telnet_files_in')[core]
+            telnet_file_in = session.options.get('cbuild_run.telnet_files_in')[core]
         else:
-            self._telnet_file_in = None
+            telnet_file_in = None
 
         # Check if the folder exists for input/output files
-        dir_out = os.path.dirname(self._telnet_file_out)
+        dir_out = os.path.dirname(telnet_file_out)
+        self._fname_out =  os.path.basename(telnet_file_out)
         if dir_out and not os.path.exists(dir_out):
-            raise FileNotFoundError(f"Directory does not exist: {dir_out}")
+            raise FileNotFoundError(f"Directory {dir_out} for STDIO file {self._fname_out} does not exist")
 
         # Open files
-        if self._telnet_file_in is not None and os.path.exists(self._telnet_file_in):
-            self._input_file = open(self._telnet_file_in, 'rb')
+        if telnet_file_in is not None and os.path.exists(telnet_file_in):
+            self._input_file = open(telnet_file_in, 'rb')
+            self._fname_in = os.path.basename(telnet_file_in)
         else:
-            LOG.debug("Input file '%s' does not exist. Stdin will be disabled", self._telnet_file_in)
+            LOG.debug("Input file '%s' does not exist; STDIN will be disabled", telnet_file_in)
             self._input_file = None
+            self._fname_in = None
 
         try:
-            self._output_file = open(self._telnet_file_out, 'wb')
+            self._output_file = open(telnet_file_out, 'wb')
         except OSError as e:
             if self._input_file:
                 self._input_file.close()
-            raise IOError(f"Failed to open output file {self._telnet_file_out}: {e}")
+            raise IOError(f"Failed to open STDIO file {telnet_file_out}: {e}")
 
     def write(self, data: bytes) -> int:
         # Output file is valid - else exception raised in constructor
@@ -170,13 +175,13 @@ class StdioFile(StdioBase):
 
     @property
     def info(self) -> str:
-        if self._telnet_file_in is None:
-            return f"file (file-out: {self._telnet_file_out})"
+        if self._input_file is None:
+            return f"file (file-out: {self._fname_out})"
         else:
-            return f"file (file-in: {self._telnet_file_in}, file-out: {self._telnet_file_out})"
+            return f"file (file-out: {self._fname_out}, file-in: {self._fname_in})"
 
 class StdioConsole(StdioBase):
-    """Stdio backend that reads from and writes to the console (stdin/stdout)."""
+    """STDIO backend that reads from and writes to the console (stdin/stdout)."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
         # Prefer binary buffered streams (available in most cases).
@@ -235,7 +240,7 @@ _BACKEND_CLASSES: Dict[str, Type[StdioBase]] = {
 
 class StdioHandler(StdioBase):
     """
-        Per-core stdio handler that builds its backend(s) from session options.
+        Per-core STDIO handler that builds its backend(s) from session options.
     """
 
     def __init__(self, session: Session, core: int = 0, eot_enabled: bool = False) -> None:
@@ -247,10 +252,10 @@ class StdioHandler(StdioBase):
             stdio_mode = session.options.get('semihost_console_type')
 
         if stdio_mode not in _BACKEND_CLASSES:
-            LOG.warning("Invalid stdio mode '%s'. Defaulting to 'off'", stdio_mode)
+            LOG.warning("Invalid STDIO mode '%s'; Defaulting to 'off'", stdio_mode)
             stdio_mode = "off"
         else:
-            LOG.debug("Stdio mode '%s'", stdio_mode)
+            LOG.debug("STDIO mode '%s'", stdio_mode)
 
         self._mode = stdio_mode
         self._core = core
@@ -349,7 +354,7 @@ class StdioHandler(StdioBase):
         """
         if self._eot_seen:
             # EOT already seen - should we even be here?
-            LOG.debug("Data received after EOT on core %d - discarding", self._core)
+            LOG.debug("Data received after EOT on core %d; discarding", self._core)
             return b"", False
 
         # Look for EOT character
