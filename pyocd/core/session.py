@@ -287,19 +287,17 @@ class Session(Notifier):
 
         # Only set gdbserver_port if it wasn't already set in options (command line).
         if not self.options.is_set('gdbserver_port'):
-            gbdserver_ports = self.cbuild_run.gdbserver_port
-            if isinstance(gbdserver_ports, int):
-                debugger_options['gdbserver_port'] = gbdserver_ports
-            else:
-                debugger_options['cbuild_run.gdbserver_ports'] = gbdserver_ports
+            debugger_options['cbuild_run.gdbserver_ports'] = self.cbuild_run.gdbserver_ports
 
         # Only set telnet_port if it wasn't already set in options (command line).
         if not self.options.is_set('telnet_port'):
-            telnet_ports = self.cbuild_run.telnet_port
-            if isinstance(telnet_ports, int):
-                debugger_options['telnet_port'] = telnet_ports
-            else:
-                debugger_options['cbuild_run.telnet_ports'] = telnet_ports
+            debugger_options['cbuild_run.telnet_ports'] = self.cbuild_run.telnet_ports
+
+        if not self.options.is_set('semihost_console_type'):
+            debugger_options['cbuild_run.telnet_modes'] = self.cbuild_run.telnet_modes
+            telnet_files = self.cbuild_run.telnet_files
+            debugger_options['cbuild_run.telnet_files_in'] = telnet_files.get('in')
+            debugger_options['cbuild_run.telnet_files_out'] = telnet_files.get('out')
 
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset

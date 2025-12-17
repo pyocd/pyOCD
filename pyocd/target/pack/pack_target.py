@@ -432,9 +432,9 @@ class _PackTargetMethods:
         proc = _self._pack_device.processors_ap_map.get(cast(CortexM, core).ap.address)
         if proc is not None:
             core.node_name = proc.name
+            CoreSightTarget.add_core(_self, core)
         else:
-            LOG.info("Found core without 'pname' description (core %s)", core.core_number)
-        CoreSightTarget.add_core(_self, core)
+            LOG.info("Skipping core not described in debug topology")
 
     @staticmethod
     def _pack_target_add_target_command_groups(_self, command_set: CommandSet):
