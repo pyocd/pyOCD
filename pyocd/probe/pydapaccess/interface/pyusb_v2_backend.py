@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2021 Arm Limited
+# Copyright (c) 2019-2021,2025 Arm Limited
 # Copyright (c) 2021 mentha
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2025 Lars Häring
@@ -220,17 +220,17 @@ class PyUSBv2(Interface):
 
     def write(self, data):
         """@brief Write data on the OUT endpoint."""
-
-        if self.ep_out:
-            if (len(data) > 0) and (len(data) < self.packet_size) and (len(data) % self.ep_out.wMaxPacketSize == 0):
-                data.append(0)
-
         if TRACE.isEnabledFor(logging.DEBUG):
             TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
 
         self.read_sem.release()
 
         self.ep_out.write(data, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+
+        # Send a zero-length packet (ZLP) to terminate the transfer when data length is less
+        # than DAP packet size but exactly a multiple of USB endpoint maximum packet size.
+        if (len(data) > 0) and (len(data) < self.packet_size) and (len(data) % self.ep_out.wMaxPacketSize == 0):
+            self.ep_out.write(b'', timeout=self.DEFAULT_USB_TIMEOUT_MS)
 
     def read(self):
         """@brief Read data on the IN endpoint."""
