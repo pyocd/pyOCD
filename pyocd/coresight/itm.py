@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -72,13 +72,21 @@ class ITM(CoreSightComponent):
             demcr |= DEMCR_TRCENA
             self.ap.write32(DEMCR, demcr)
 
+        # Always unlock ITM (do not check SLI and SLK bits in LSR register).
+        # Cortex-M7 (AT610) and Cortex-M7 with FPU (AT611) Software Developer Errata Notice:
+        #   513195: Lock Status Indication incorrectly reads as one
+        #     Affects: Cortex-M7, Cortex-M7 with FPU
+        #     Components: FBP, DWT and ITM
+        #     Present in: r0p1, r0p2 and r1p0. Fixed in r1p1.
+        self.ap.write32(self.address + ITM.LAR, ITM.LAR_KEY)
+
         # Unlock if required.
-        val = self.ap.read32(self.address + ITM.LSR)
-        if (val & (ITM.LSR_SLK_MASK | ITM.LSR_SLI_MASK)) == (ITM.LSR_SLK_MASK | ITM.LSR_SLI_MASK):
-            self.ap.write32(self.address + ITM.LAR, ITM.LAR_KEY)
-            val = self.ap.read32(self.address + ITM.LSR)
-            if val & ITM.LSR_SLK_MASK:
-                raise exceptions.DebugError("Failed to unlock ITM")
+        # val = self.ap.read32(self.address + ITM.LSR)
+        # if (val & (ITM.LSR_SLK_MASK | ITM.LSR_SLI_MASK)) == (ITM.LSR_SLK_MASK | ITM.LSR_SLI_MASK):
+        #     self.ap.write32(self.address + ITM.LAR, ITM.LAR_KEY)
+        #     val = self.ap.read32(self.address + ITM.LSR)
+        #     if val & ITM.LSR_SLK_MASK:
+        #         raise exceptions.DebugError("Failed to unlock ITM")
 
         # Disable the ITM until enabled.
         self.disable()
@@ -104,4 +112,3 @@ class ITM(CoreSightComponent):
         self.ap.write32(self.address + ITM.TERn, 0)
         self.ap.write32(self.address + ITM.TCR, 0)
         self._is_enabled = False
-
