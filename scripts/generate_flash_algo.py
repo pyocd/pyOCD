@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # pyOCD debugger
-# Copyright (c) 2011-2021 Arm Limited
+# Copyright (c) 2011-2021,2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -76,7 +76,6 @@ FLASH_ALGO = {
     'static_base' : {{'0x%08x' % entry}} + {{'0x%08x' % header_size}} + {{'0x%08x' % algo.rw_start}},
     'begin_stack' : {{'0x%08x' % stack_pointer}},
     'end_stack' : {{'0x%08x' % stack_base}},
-    'begin_data' : {{'0x%08x' % entry}} + 0x1000,
     'page_size' : {{'0x%x' % algo.page_size}},
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
