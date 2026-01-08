@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -147,10 +147,9 @@ FLASH_ALGO = {
 
     'static_base' : 0x200009c8,
     'begin_stack' : 0x20000000 + 0x00001400,
-    'begin_data' : 0x20000000 + 0x00002000,
     'page_size' : 0x00000200,
     'analyzer_supported' : True,
-    'analyzer_address' : 0x8000000,  # Analyzer 0x8000000..0x80000600
+    'analyzer_address' : 0x8000000,              # Analyzer 0x8000000..0x80000600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
 }
@@ -215,4 +214,3 @@ class K32W042S(Kinetis):
         # Disable ROM vector table remapping.
         self.aps[0].write32(SMC0_MR, SMC_MR_BOOTCFG_MASK)
         self.aps[0].write32(SMC1_MR, SMC_MR_BOOTCFG_MASK)
-

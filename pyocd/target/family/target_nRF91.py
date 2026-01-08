@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2025 Arm Limited
+# Copyright (c) 2006-2013,2025-2026 Arm Limited
 # Copyright (c) 2019 Monadnock Systems Ltd.
 # Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
@@ -357,7 +357,6 @@ FLASH_ALGO_UICR = {
     'static_base' : 0x20000000 + 0x00000004 + 0x00000448,
     'begin_stack' : 0x20003460,
     'end_stack' : 0x20002460,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x1000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Nuvoton
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -105,7 +106,6 @@ def flash_algo(load_address):
 
         'static_base' : load_address + 0x00000020 + 0x00000804,
         'begin_stack' : load_address + 0x00000b00,
-        'begin_data' : load_address + 0x1000,
         'page_size' : 0x800,
         'analyzer_supported' : False,
         'analyzer_address' : 0x00000000,

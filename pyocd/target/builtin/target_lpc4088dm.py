@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2016 Arm Limited
+# Copyright (c) 2006-2016,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +61,7 @@ FLASH_ALGO = {
     'static_base' : 0x10000000 + 0x00000020 + 0x00000400,
     'begin_stack' : 0x10000000 + 0x00000800,
     # Double buffering is not supported since there is not enough ram
-    'begin_data' : 0x10000000 + 0x00000A00,  # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
+    'page_buffers' : [0x10000A00],   # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
     'page_size' : 0x00000200,
     'min_program_length' : 512,
     'analyzer_supported' : True,

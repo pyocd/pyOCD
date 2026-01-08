@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2024 Huada Semiconductor Corporation
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,7 +73,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000003c4,
     'begin_stack' : 0x20000600,
-    'begin_data' : 0x20000000 + 0xA00,
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -105,4 +105,3 @@ class HC32F115x8(CoreSightTarget):
 
     def post_connect_hook(self):
         self.write32(DBGMCU.MCUSTPCTL, DBGMCU.MCUSTPCTL_VALUE)
-

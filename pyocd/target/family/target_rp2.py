@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,7 +68,6 @@ FLASH_ALGO = {
     'static_base' : 0x20000000 + 0x00000004 + 0x000002c4,
     'begin_stack' : 0x200012d0,
     'end_stack' : 0x200002d0,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x0,
     'analyzer_supported' : False,
     'page_buffers' : [0x20001400, 0x20001500],   # Enable double buffering

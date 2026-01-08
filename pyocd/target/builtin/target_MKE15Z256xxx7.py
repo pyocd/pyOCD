@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2026 Arm Limited
 # Copyright (c) 2017 NXP
 # Copyright (c) 2016 Freescale Semiconductor, Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -76,10 +76,9 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x000004ac,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20000000 + 0x00000A00,
     'page_size' : 0x00000800,
     'analyzer_supported' : True,
-    'analyzer_address' : 0x1ffff000,  # Analyzer 0x1ffff000..0x1ffff600
+    'analyzer_address' : 0x1ffff000,             # Analyzer 0x1ffff000..0x1ffff600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
 }
@@ -99,4 +98,3 @@ class KE15Z7(Kinetis):
     def post_connect_hook(self):
         # Disable ROM vector table remapping.
         self.write32(RCM_MR, RCM_MR_BOOTROM_MASK)
-

@@ -1,4 +1,5 @@
 # Copyright (c) 2010 - 2023, Nordic Semiconductor ASA All rights reserved.
+# Copyright (c) 2026 Arm Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +39,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000000a0,
     'begin_stack' : 0x20000300,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x4,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -78,7 +78,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x00000564,
     'begin_stack' : 0x20000800,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -143,4 +142,3 @@ class MuscaA1(CoreSightTarget):
     def __init__(self, session):
         super(MuscaA1, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("Musca.svd")
-

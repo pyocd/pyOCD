@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 NXP
-# Copyright (c) 2018,2025 Arm Limited
+# Copyright (c) 2018,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -397,7 +397,6 @@ FLASH_ALGO_CM4 = {
 
     'static_base' : 0x20200000 + 0x00000020 + 0x00002a88,
     'begin_stack' : 0x20204000,
-    'begin_data' : 0x20240000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -766,7 +765,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x00002ad8,
     'begin_stack' : 0x20004000,
-    'begin_data' : 0x20240000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,

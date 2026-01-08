@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +73,7 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x000004e0,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20000000 + 0x00000A00,
+    'page_buffers' : [0x20000A00],
     'page_size' : 0x00000200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000  # ITCM, Analyzer 0x00000000..0x000000600
@@ -90,4 +90,3 @@ class KW41Z4(Kinetis):
     def __init__(self, session):
         super(KW41Z4, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKW41Z4.svd")
-

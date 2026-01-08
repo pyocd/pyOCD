@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -48,7 +48,6 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'pc_erase_sector': 0x20000075,
     'pc_eraseAll': 0x20000057,
     'begin_stack' : 0x20001000,
-    'begin_data' : 0x20003000,
     'page_buffers' : [0x20003000],
     'static_base' : 0x200001dc,
     'page_size' : 0x00000100,

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 NXP
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +45,6 @@ FLASH_ALGO = {
     'pc_erase_sector': 0x10000291,
     'pc_eraseAll': 0x1000024d,
 
-    'begin_data' : 0x10000380,
     'begin_stack' : 0x10000200,
     'static_base' : 0x10000358,
 

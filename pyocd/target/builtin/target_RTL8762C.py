@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2023 Jon Suphammer
 # Copyright (c) 2023 PyOCD Authors
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -364,7 +365,6 @@ FLASH_ALGO = {
     'static_base' : 0x00200000 + 0x00000004 + 0x000028cc,
     'begin_stack' : 0x00205960,
     'end_stack' : 0x00204960,
-    'begin_data' : 0x00200000 + 0x1000,
     'page_size' : 0x1000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
