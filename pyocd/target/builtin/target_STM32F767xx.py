@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2020 Bartek Wolowiec
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +58,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x00000164,
     'begin_stack' : 0x20000400,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -158,5 +158,3 @@ class STM32F767xx(CoreSightTarget):
             LOG.error('Dual bank configuration detected [FLASH_OPTCR=0x%08x]. '
                       'Currently only single bank configuration is fully supported!', flash_optcr)
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
-
-

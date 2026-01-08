@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -40,8 +40,8 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                'pc_eraseAll' : 0x1000006b,
                'pc_erase_sector' : 0x100000ab,
                'pc_program_page' : 0x100000ed,
-               'begin_data' : 0x100001c4,
                # Double buffering is not supported since there is not enough ram
+               'page_buffers' : [0x100001c4],
                'begin_stack' : 0x10001000,
                'static_base' : 0x1000019c,
                'min_program_length' : 256,

@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2022 Huada Semiconductor Corporation
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,7 +94,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000005d8,
     'begin_stack' : 0x20000800,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -173,7 +173,6 @@ FLASH_ALGO_OTP = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000005d8,
     'begin_stack' : 0x20000800,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x1800,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -239,4 +238,3 @@ class HC32F472xE(CoreSightTarget):
         self.write32(DBGMCU.STPCTL, DBGMCU.STPCTL_VALUE)
         self.write32(DBGMCU.STPCTL1, DBGMCU.STPCTL1_VALUE)
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
-

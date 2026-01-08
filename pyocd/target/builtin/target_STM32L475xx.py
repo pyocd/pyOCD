@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -58,7 +58,6 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
     'static_base' : 0x20000000 + 0x00000020 + 0x00000198,
     'begin_stack' : 0x20000000 + 0x00000400,
-    'begin_data' : 0x20001000,
     'page_buffers' : [0x20001000, 0x20001400],
     'min_program_length' : 8,
     'analyzer_supported' : True,
@@ -122,5 +121,3 @@ class STM32L475xG(STM32L475xx):
     def __init__(self, session):
         super(STM32L475xG, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("STM32L4x5.svd")
-
-

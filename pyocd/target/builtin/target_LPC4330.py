@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2015,2018,2025 Arm Limited
+# Copyright (c) 2006-2015,2018,2025-2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -302,17 +302,16 @@ FLASH_ALGO = { 'load_address' : 0x10000000,
                         0xbef6f7fd, # b 0x10000028
                         0x00000000
                                 ],
-               'pc_init'         : 0x10002234, # Call through thunk added to force r0 to 0x14000000
+               'pc_init'         : 0x10002234,                 # Call through thunk added to force r0 to 0x14000000
                'pc_eraseAll'     : 0x1000007F,
                'pc_erase_sector' : 0x1000009F,
                'pc_program_page' : 0x100000CD,
-               'begin_data'      : 0x10004000,  # Analyzer uses a max of 128 KB data (32,768 pages * 4 bytes / page)
                'page_buffers'    : [0x10004000, 0x10004800],   # Enable double buffering
                'begin_stack'     : 0x10008000,
                'static_base'     : 0x10002240,
                'min_program_length' : 512,
-               'analyzer_supported' : False,    # Analyzer works, but would fail if a full ROM analysis was performed since there is not enough ram
-               'analyzer_address' : 0x10005000  # Analyzer 0x10005000..0x10005600
+               'analyzer_supported' : False,                   # Analyzer works, but would fail if a full ROM analysis was performed since there is not enough ram
+               'analyzer_address' : 0x10005000                 # Analyzer 0x10005000..0x10005600
               }
 
 class LPC4330(CoreSightTarget):

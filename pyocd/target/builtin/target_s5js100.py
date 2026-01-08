@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020,2025 Arm Limited
+# Copyright (c) 2020,2025-2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -106,11 +106,10 @@ flash_algo = {
 
     'static_base': 0x001007d0,
     'begin_stack': 0x00100a00,
-    'begin_data': 0x00100000 + 0x1000,
     'page_size': 0x400,
     'analyzer_supported': False,
     'analyzer_address': 0x00000000,
-    # 'page_buffers': [0x00101000, 0x00101400],  # Enable double buffering
+    'page_buffers': [0x00101000],
     'min_program_length': 0x400
 
 }

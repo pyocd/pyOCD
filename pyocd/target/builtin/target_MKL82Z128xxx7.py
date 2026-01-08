@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,13 +73,12 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x000004f4,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20000000 + 0x00000A00,
     'page_size' : 0x00000200,
 
     # All keys above are auto-generated. The following are added or modified.
     'analyzer_supported' : True,                 # [modified] default is False
     'analyzer_address' : 0x1fffa000,             # [modified] default is zero. Use 8K block before flash algo. Can be any unused SRAM.
-    'page_buffers' : [0x20000a00, 0x20001200],   # [added] Use areas above algo. Note 'begin_data' is unused if double buffering. Can be any unused SRAM.
+    'page_buffers' : [0x20000a00, 0x20001200],   # [added] Use areas above algo.
     'min_program_length' : 4                     # [added] See FSL_FEATURE_FLASH_PFLASH_BLOCK_WRITE_UNIT_SIZE in KSDK features header file
 }
 
@@ -96,7 +95,3 @@ class KL82Z7(Kinetis):
     def __init__(self, session):
         super(KL82Z7, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKL82Z7.svd")
-
-
-
-
