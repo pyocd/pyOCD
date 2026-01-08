@@ -66,8 +66,8 @@ such as the memory map for the target devices described by the DFP.
            |----------------|-------------|------------|-----|-----------------|-----------------|
            |  load_address  | static_base | << (stack) | ... | page_buffers[0] | page_buffers[1] |
            |----------------|-------------|------------|-----|-----------------|-----------------|
-           ^                                           ^     ^
-           RAM start            begin_stack (grows down)     also begin_data
+           ^                                           ^
+           RAM start            begin_stack (grows down)
 
        Each of the addresses in the `page_buffers` list points to a buffer of the maximum page
        size of any flash region. If there is not enough RAM to hold two page buffers, then remove
