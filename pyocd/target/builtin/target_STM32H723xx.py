@@ -86,15 +86,12 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000214,
     'begin_stack' : 0x20001a20,
-    'end_stack' : 0x20000a20,
+    'end_stack' : 0x20000620,
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    # Enable double buffering
-    'page_buffers' : [
-        0x20000220,
-        0x20000620
-    ],
+    # Disable double buffering
+    'page_buffers' : [0x20000220],
     'min_program_length' : 0x400,
 
     # Relative region addresses and sizes
