@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019,2025 Arm Limited
+# Copyright (c) 2017-2019,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -250,7 +250,6 @@ class PackFlashAlgo:
             "pc_erase_sector": _sym("EraseSector"),
             "pc_program_page": _sym("ProgramPage"),
             "page_buffers": page_buffers,
-            "begin_data": page_buffers[0],
             "begin_stack": addr_stack,
             "end_stack": addr_stack - stack_size,
             "static_base": code_start + self.rw_start,

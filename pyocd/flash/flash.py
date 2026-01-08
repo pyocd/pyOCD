@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2020,2025 Arm Limited
+# Copyright (c) 2013-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
@@ -91,19 +91,18 @@ class Flash:
     The `flash_algo` parameter of the constructor is a dictionary that defines all the details
     of the flash algorithm. The keys of this dictionary are as follows.
     - `load_address`: Memory address where the flash algo instructions will be loaded.
-    - `instructions`: List of 32-bit words containing the position-independant code for the algo.
+    - `instructions`: List of 32-bit words containing the position-independent code for the algo.
     - `pc_init`: Address of the `Init()` entry point. Optional.
     - `pc_eraseAll`: Address of the `EraseAll()` entry point. Optional.
     - `pc_erase_sector`: Address of the `EraseSector()` entry point.
     - `pc_program_page`: Address of the `ProgramPage()` entry point.
     - `pc_unInit`: Address of the `UnInit()` entry point. Optional.
-    - `begin_data`: Base address of the page buffer. Used if `page_buffers` is not provided.
-    - `page_buffers`: An optional list of base addresses for page buffers. The buffers must be at
+    - `page_buffers`: A list of base addresses for page buffers. The buffers must be at
         least as large as the region's page_size attribute. If at least 2 buffers are included in
         the list, then double buffered programming will be enabled.
     - `begin_stack`: Initial value of the stack pointer when calling any flash algo API.
     - `static_base`: Initial value of the R9 register for calling flash algo entry points, which
-        determines where the position-independant data resides.
+        determines where the position-independent data resides.
     - `analyzer_supported`: Whether the CRC32-based analyzer is supported.
     - `analyzer_address`: RAM base address where the analyzer code will be placed. There must be at
         least 0x600 free bytes after this address.
@@ -140,8 +139,8 @@ class Flash:
             self.use_analyzer = flash_algo['analyzer_supported']
             self.end_flash_algo = flash_algo['load_address'] + len(flash_algo['instructions']) * 4
             self.begin_stack = flash_algo['begin_stack']
-            self.begin_data = flash_algo['begin_data']
             self.static_base = flash_algo['static_base']
+            self.page_buffers = flash_algo['page_buffers']
             self.min_program_length = flash_algo.get('min_program_length', 0)
             self.end_stack = flash_algo.get('end_stack')
 
@@ -150,11 +149,6 @@ class Flash:
             assert self._is_api_valid('pc_program_page')
 
             # Check for double buffering support.
-            if 'page_buffers' in flash_algo:
-                self.page_buffers = flash_algo['page_buffers']
-            else:
-                self.page_buffers = [self.begin_data]
-
             self.double_buffer_supported = len(self.page_buffers) > 1
 
         else:
@@ -162,7 +156,6 @@ class Flash:
             self.use_analyzer = False
             self.end_flash_algo = None
             self.begin_stack = None
-            self.begin_data = None
             self.static_base = None
             self.min_program_length = 0
             self.page_buffers = []
@@ -210,7 +203,7 @@ class Flash:
         not have an Init() function, this step is skipped. Calling Init() is also skipped if the
         algo was previously inited for the same operation without an intervening uninit. If the
         algo is already inited for a different operation, uninit() is automatically called prior
-        to intiting for the new operation.
+        to initing for the new operation.
 
         @exception FlashFailure
         """
@@ -265,7 +258,7 @@ class Flash:
         self._active_operation = operation
 
     def cleanup(self):
-        """@brief Deinitialize the flash algo and restore the target.
+        """@brief Uninitialize the flash algo and restore the target.
 
         Before further operations are executed, the algo must be reinited. Unlike uninit(), this
         method marks the target and unprepared to execute flash algo functions. So on the next call
@@ -331,15 +324,15 @@ class Flash:
             val = (size_val << 0) | (addr_val << 16)
             data.append(val)
 
-        self.target.write_memory_block32(self.begin_data, data)
+        self.target.write_memory_block32(self.page_buffers[0], data)
 
         # update core register to execute the subroutine
-        TRACE.debug("call compute crc(%x, %x)", self.begin_data, len(data))
-        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.begin_data, len(data),
+        TRACE.debug("call compute crc(%x, %x)", self.page_buffers[0], len(data))
+        self._call_function_and_wait(self.flash_algo['analyzer_address'], self.page_buffers[0], len(data),
                 timeout=self.target.session.options.get('flash.timeout.analyzer'))
 
         # Read back the CRCs for each section
-        data = self.target.read_memory_block32(self.begin_data, len(data))
+        data = self.target.read_memory_block32(self.page_buffers[0], len(data))
         return data
 
     def erase_all(self):
@@ -392,11 +385,11 @@ class Flash:
         bytes = self.override_security_bits(address, bytes)
 
         # first transfer in RAM
-        self.target.write_memory_block8(self.begin_data, bytes)
+        self.target.write_memory_block8(self.page_buffers[0], bytes)
 
         # update core register to execute the program_page subroutine
-        TRACE.debug("call program_page(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data,
+        TRACE.debug("call program_page(addr=%x, len=%x, data=%x)", address, len(bytes), self.page_buffers[0])
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.page_buffers[0],
                 timeout=self.target.session.options.get('flash.timeout.program'))
 
         # check the return code
@@ -456,11 +449,11 @@ class Flash:
         bytes = self.override_security_bits(address, bytes)
 
         # first transfer in RAM
-        self.target.write_memory_block8(self.begin_data, bytes)
+        self.target.write_memory_block8(self.page_buffers[0], bytes)
 
         # update core register to execute the program_page subroutine
-        TRACE.debug("call program_phrase(addr=%x, len=%x, data=%x)", address, len(bytes), self.begin_data)
-        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.begin_data,
+        TRACE.debug("call program_phrase(addr=%x, len=%x, data=%x)", address, len(bytes), self.page_buffers[0])
+        result = self._call_function_and_wait(self.flash_algo['pc_program_page'], address, len(bytes), self.page_buffers[0],
                 timeout=self.target.session.options.get('flash.timeout.program'))
 
         # check the return code
@@ -625,7 +618,7 @@ class Flash:
         #if self.use_analyzer and not _same(expected_analyzer, final_analyzer):
         #    LOG.error("Analyzer overwritten!")
         #    error = True
-        assert error == False
+        assert not error
         self.target.set_vector_catch(self._saved_vector_catch)
 
     def wait_for_completion(self, timeout=None):
