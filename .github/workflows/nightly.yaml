@@ -1,0 +1,73 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # nightly at 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  build_artifacts:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest, ubuntu-24.04-arm]
+        include:
+          - os: windows-latest
+            artifact_name: pyocd-windows
+          - os: ubuntu-latest
+            artifact_name: pyocd-linux
+          - os: macos-latest
+            artifact_name: pyocd-macos
+          - os: ubuntu-24.04-arm
+            artifact_name: pyocd-linux-arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Get version from setuptools_scm
+        shell: bash
+        run: |
+          pip install setuptools-scm
+          version=$(python -c "import setuptools_scm; print(setuptools_scm.get_version())")
+          echo "PYOCD_VERSION=$version" >> $GITHUB_ENV
+          echo "Version: $version"
+
+      - name: Install packages
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ env.PYOCD_VERSION }}
+        run: pip install . pyinstaller
+
+      - name: Setup build environment
+        run: python get_site-packages.py
+
+      - name: Verify environment
+        run: |
+          echo "Site packages: ${{ env.SITE_PACKAGES }}"
+          python -c "import sys; print(sys.version)"
+
+      - name: Build with PyInstaller
+        run: pyinstaller pyocd.spec --log-level=ERROR --clean
+
+      - name: Test binary
+        run: |
+          ./dist/pyocd/pyocd --version
+          ./dist/pyocd/pyocd --help
+
+      - name: Upload PyInstaller artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-${{ env.PYOCD_VERSION }}
+          path: dist/pyocd/*
+          retention-days: 1
