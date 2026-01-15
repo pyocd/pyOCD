@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -198,7 +198,6 @@ class StdioConsole(StdioBase):
         self._buffer_lock = threading.Lock()
         self._stop_reader = threading.Event()
 
-
         # Start the reader thread
         self._reader_thread = threading.Thread(
             target=self._reader_worker,
@@ -231,7 +230,6 @@ class StdioConsole(StdioBase):
             except Exception as e:
                 LOG.debug("Error in StdioConsole reader thread: %s", e)
                 break
-
 
     def write(self, data: bytes) -> int:
         if self._out_bin is not None:
@@ -267,7 +265,6 @@ class StdioConsole(StdioBase):
     def shutdown(self) -> None:
         self._stop_reader.set()
         self._reader_thread.join(timeout=1.0)
-
 
     @property
     def info(self) -> str:
@@ -412,7 +409,6 @@ class StdioHandler(StdioBase):
         LOG.debug("EOT (0x04) detected (core %d)", self._core)
 
         return data_before_eot, True
-
 
     def _set_eot(self) -> None:
         """Mark EOT as seen and set the event.
