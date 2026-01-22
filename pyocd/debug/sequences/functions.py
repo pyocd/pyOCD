@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,14 @@
 from __future__ import annotations
 
 import logging
-from time import sleep
-from typing import (cast, Dict, TYPE_CHECKING)
+import os
+import shlex
+import subprocess
+import threading
+from dataclasses import dataclass
+from pathlib import Path
+from time import sleep, monotonic
+from typing import (cast, Dict, TYPE_CHECKING, Optional, Tuple, Union)
 
 from ...core import exceptions
 from ...coresight.coresight_target import CoreSightTarget
@@ -33,6 +39,43 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
+
+@dataclass
+class _Buffer:
+    """@brief Simple container for sequence-local buffers."""
+
+    data: bytearray
+
+
+class _SequenceBufferManager:
+    """@brief Manages per-sequence buffers stored on the root scope of the running sequence."""
+
+    def __init__(self, get_sequence_scope_callback) -> None:
+        self._get_sequence_scope = get_sequence_scope_callback
+
+    def _store(self) -> Dict[int, _Buffer]:
+        seq_scope = self._get_sequence_scope()
+        buffers = getattr(seq_scope, "_buffers", None)
+        if buffers is None:
+            buffers = {}
+            setattr(seq_scope, "_buffers", buffers)
+        return cast(Dict[int, _Buffer], buffers)
+
+    def get(self, id: int, create: bool = False) -> _Buffer:
+        buffers = self._store()
+        try:
+            return buffers[id]
+        except KeyError:
+            if not create:
+                raise DebugSequenceRuntimeError(f"buffer {id} does not exist")
+            buffers[id] = _Buffer(bytearray())
+            return buffers[id]
+
+    @staticmethod
+    def ensure_capacity(buffer: _Buffer, size: int) -> None:
+        if size > len(buffer.data):
+            buffer.data.extend(b"\x00" * (size - len(buffer.data)))
+
 # Disable warnings for the non-standard methods names we use to match the sequences function
 # names, since introspection is used to look up functions.
 # pylint: disable=invalid_name
@@ -44,12 +87,110 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
     DP_ABORT = 0x00
 
+    _FILLER = 0xFFFFFFFFFFFFFFFF
+
     def __init__(self) -> None:
         self._ap_cache: Dict[APAddressBase, MEM_AP] = {}
+        self._flash_buffer: Optional[bytearray] = None
+        self._flash_filler: int = self._FILLER
+        self._placeholders_cache: Optional[Dict[str, str]] = None
+        self._buffer_manager = _SequenceBufferManager(self._get_sequence_scope)
 
     @property
     def target(self) -> CoreSightTarget:
         return cast(CoreSightTarget, self.context.session.target)
+
+    def set_flash_buffer(self, data: Union[bytes, bytearray], filler: Optional[int] = None) -> None:
+        """@brief Provide flash buffer content for FlashBufferWrite()."""
+
+        self._flash_buffer = bytearray(data)
+        self._flash_filler = self._FILLER if filler is None else (filler & self._FILLER)
+
+    def _get_sequence_scope(self):
+        """@brief Return the scope associated with the currently running sequence."""
+
+        scope = self.context.current_scope
+        root_scope = self.context.delegate.get_root_scope(self.context)
+        while scope.parent is not None and scope.parent is not root_scope:
+            scope = scope.parent
+        return scope
+
+    @staticmethod
+    def _check_alignment(value: int, alignment: int, name: str) -> None:
+        if alignment and (value % alignment):
+            raise DebugSequenceRuntimeError(f"{name} (0x{value:x}) must be {alignment}-byte aligned")
+
+    @staticmethod
+    def _decode_mode(mode: int) -> Tuple[int, bool]:
+        increment = (mode & 1) != 0
+        access_size_bits = mode & 0x1FE
+
+        if access_size_bits not in (8, 16, 32, 64):
+            raise DebugSequenceRuntimeError(f"unsupported access size {access_size_bits}")
+
+        return access_size_bits // 8, increment
+
+    def _read_value(self, ap: MEM_AP, addr: int, size: int) -> int:
+        if size == 1:
+            return ap.read8(addr)
+        if size == 2:
+            return ap.read16(addr)
+        if size == 4:
+            return ap.read32(addr)
+        if size == 8:
+            return ap.read64(addr)
+        raise DebugSequenceRuntimeError(f"unsupported access size {size * 8}")
+
+    def _write_value(self, ap: MEM_AP, addr: int, size: int, value: int) -> None:
+        if size == 1:
+            ap.write8(addr, value)
+        elif size == 2:
+            ap.write16(addr, value)
+        elif size == 4:
+            ap.write32(addr, value)
+        elif size == 8:
+            ap.write64(addr, value)
+        else:
+            raise DebugSequenceRuntimeError(f"unsupported access size {size * 8}")
+
+    @staticmethod
+    def _int_to_bytes(value: int, size: int) -> bytes:
+        return int(value & ((1 << (size * 8)) - 1)).to_bytes(size, "little")
+
+    def _expand_path(self, raw_path: str) -> Path:
+        """@brief Expand a path string from a debug sequence, replacing custom placeholders and environment variables."""
+        # Lazy-initialize and cache placeholders since they don't change during a session
+        if self._placeholders_cache is None:
+            device = self.context.delegate.cmsis_pack_device
+            pname = self.context.pname
+            if hasattr(self.target, 'get_output'):
+                output = self.target.get_output()
+            else:
+                output = {}
+
+            out_file_path = next((f for f, (_, _, p) in output.items() if (pname is None) or (pname == p)), '')
+            out_folder_path = str(Path(out_file_path).parent) if out_file_path else ''
+
+            self._placeholders_cache = {
+                '$P': getattr(device, 'proj_path', ''),
+                '#P': getattr(device, 'proj_path_name', ''),
+                '$L': out_folder_path,
+                '%L': out_file_path,
+                '$S': getattr(device, 'pack_path', ''),
+                '$D': getattr(device, 'part_number', ''),
+            }
+
+        # Unescape double characters
+        path_str = raw_path.replace("$$", "$").replace("##", "#").replace("%%", "%")
+
+        # Replace custom placeholders using cached dictionary
+        for placeholder, value in self._placeholders_cache.items():
+            path_str = path_str.replace(placeholder, str(value))
+
+        # Expand environment variables
+        path_str = path_str.lstrip("\\/")
+        path_str = os.path.expandvars(path_str)
+        return Path(path_str).expanduser()
 
     def _get_ap_addr(self) -> APAddressBase:
         """@brief Return the AP address selected by __ap or __apid variables.
@@ -80,7 +221,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         """@brief Return the current MEM_AP object.
 
         Normally, the AP object created during discovery is returned from the target's dict of APs. However,
-        sequences can be run prior to discovery, and are allowed to perform memory acceses. Therefore we must
+        sequences can be run prior to discovery, and are allowed to perform memory accesses. Therefore we must
         handle the case of there not being a readily available AP object by creating a temporary one here.
 
         A cache dict is used to prevent repeatedly recreating the same AP when multiple memory transfers
@@ -316,8 +457,29 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
             else:
                 raise
 
-    def flashbufferwrite(self, addr: int, offset: int, length: int, mode: int) -> None:
-        raise NotImplementedError()
+    def flashwritebuffer(self, addr: int, offset: int, length: int, mode: int) -> None:
+        if self._flash_buffer is None:
+            raise DebugSequenceRuntimeError("FlashWriteBuffer called without a flash buffer")
+
+        access_size, increment = self._decode_mode(mode)
+        self._check_alignment(addr, access_size, "addr")
+        self._check_alignment(offset, access_size, "offset")
+        self._check_alignment(length, access_size, "length")
+
+        ap = self._get_mem_ap()
+        while length > 0:
+            data_bytes = self._flash_buffer[offset:offset + access_size]
+            if len(data_bytes) < access_size:
+                filler_bytes = self._flash_filler.to_bytes(8, "little")
+                data_bytes = bytes(data_bytes) + filler_bytes[len(data_bytes):access_size]
+            value = int.from_bytes(data_bytes, "little")
+            self._write_value(ap, addr, access_size, value)
+            if increment:
+                addr += access_size
+            offset += access_size
+            length -= access_size
+
+        self.target.flush()
 
     def dap_delay(self, delay: int) -> None:
         # Flush before sleeping, in case there are any outstanding transactions.
@@ -415,5 +577,307 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
     def loaddebuginfo(self, file: str) -> int:
         # Return 1 to indicate failure.
         return 1
+
+    def bufferset(self, id: int, offset: int, count: int, size: int, value: int) -> int:
+        """
+        @brief Fill a buffer with a specific value pattern. A new buffer of required size is created \
+            if it does not exist. An existing buffer is extended if it is too small.
+
+        @param id: Numeric buffer ID. Must be a constant number.
+        @param offset: First byte in the buffer to start writing the specified value pattern. Must be a multiple of size.
+        @param count: Number of size items to write with the specified value pattern.
+        @param size: Size of a single item to set. Must be in the range of 1 - 8.
+        @param value: Value pattern to set. The size least significant bytes of value are used as value pattern for writing the buffer.
+        @return: Number of written bytes (written bytes * access size)
+        """
+        if not 1 <= size <= 8:
+            raise DebugSequenceRuntimeError("BufferSet size must be in range 1..8")
+
+        self._check_alignment(offset, size, "buffOffset")
+
+        buffer = self._buffer_manager.get(id, create=True)
+        written_bytes = count * size
+        end = offset + written_bytes
+        self._buffer_manager.ensure_capacity(buffer, end)
+
+        pattern = self._int_to_bytes(value, size)
+        for i in range(count):
+            start = offset + (i * size)
+            buffer.data[start:start + size] = pattern
+
+        return written_bytes
+
+    def bufferget(self, id: int, offset: int, size: int) -> int:
+        """
+        @brief Get a data item from the buffer.
+
+        @param id: Numeric buffer ID. Must be a constant number. Function fails if buffer does not exist.
+        @param offset: Buffer offset in bytes to get the data item from. Must be a multiple of size.
+        @param size: Size of a single item to get. Must be in the range of 1 - 8.
+        @return: Data value of specified size at buffer offset.
+        """
+        if not 1 <= size <= 8:
+            raise DebugSequenceRuntimeError("BufferGet size must be in range 1..8")
+
+        self._check_alignment(offset, size, "buffOffset")
+
+        buffer = self._buffer_manager.get(id, create=False)
+        if (offset + size) > len(buffer.data):
+            raise DebugSequenceRuntimeError("BufferGet exceeds buffer size")
+
+        return int.from_bytes(buffer.data[offset:offset + size], "little")
+
+    def buffersize(self, id: int) -> int:
+        """
+        @brief Get the current size of a data buffer.
+
+        @param id: Numeric buffer ID. Must be a constant number.
+        @return: Current buffer size in bytes. Return value is 0 if a buffer does not exist.
+        """
+        try:
+            buffer = self._buffer_manager.get(id, create=False)
+        except DebugSequenceRuntimeError:
+            return 0
+
+        return len(buffer.data)
+
+    def bufferread(self, id: int, offset: int, addr: int, length: int, mode: int) -> int:
+        """
+        @brief Read data from target memory into a data buffer.
+
+        @param id: Numeric buffer ID. Must be a constant number.
+        @param offset: First byte in the buffer to store the read data. Must be a multiple of \
+            the number of bytes as specified by access size in mode.
+        @param addr: Target address to start reading from. Must be a multiple of the number of bytes \
+            as specified by access size in mode.
+        @param length: Number of bytes to read from target. Must be a multiple of the number of bytes \
+            as specified by access size in mode.
+        @param mode: The target access mode. \
+            - Bit 0..8: Debug access size. One of 8, 16, 32 and 64. Specified debug access size must be \
+                supported by the target hardware. For example a DP register access must always be 32-Bit.
+            - Bit 0: Additionally set this Bit to 1 to increment the target address after each debug read \
+                access of the specified size.
+        @return: Always 0. Function causes fatal error if not successful.
+        """
+        access_size, increment = self._decode_mode(mode)
+        self._check_alignment(offset, access_size, "buffOffset")
+        self._check_alignment(addr, access_size, "addr")
+        self._check_alignment(length, access_size, "length")
+
+        buffer = self._buffer_manager.get(id, create=True)
+        end = offset + length
+        self._buffer_manager.ensure_capacity(buffer, end)
+
+        ap = self._get_mem_ap()
+        while length > 0:
+            value = self._read_value(ap, addr, access_size)
+            buffer.data[offset:offset + access_size] = self._int_to_bytes(value, access_size)
+            if increment:
+                addr += access_size
+            offset += access_size
+            length -= access_size
+
+        return 0
+
+    def bufferwrite(self, id: int, offset: int, addr: int, length: int, mode: int) -> int:
+        """
+        @brief Write data from buffer into target.
+
+        @param id: Numeric buffer ID. Must be a constant number. Function fails if buffer does not exist.
+        @param offset: First byte in the buffer to transfer into target. Must be a multiple of the number \
+            of bytes as specified by access size in mode.
+        @param addr: Target address to start writing to. Must be a multiple of the number of bytes \
+            as specified by access size in mode.
+        @param length: Number of bytes to write to the target. Must be a multiple of the number of bytes \
+            as specified by access size in mode. If size of valid buffer data is less than (buffOffset + length) \
+                then the function ends early and returns the number of actually written bytes.
+        @param mode: The target access mode. \
+            - Bit 0..8: Debug access size. One of 8, 16, 32 and 64. Specified debug access size must be \
+                supported by the target hardware. For example a DP register access must always be 32-Bit.
+            - Bit 0: Additionally set this Bit to 1 to increment the target address after each debug write \
+                access of the specified size.
+        @return: Number of actually written bytes.
+        """
+        buffer = self._buffer_manager.get(id, create=False)
+
+        access_size, increment = self._decode_mode(mode)
+        self._check_alignment(offset, access_size, "buffOffset")
+        self._check_alignment(addr, access_size, "addr")
+        self._check_alignment(length, access_size, "length")
+
+        available = len(buffer.data) - offset
+        if available <= 0:
+            return 0
+
+        write_len = min(length, available)
+        write_len -= write_len % access_size
+        if write_len <= 0:
+            return 0
+
+        ap = self._get_mem_ap()
+        remaining = write_len
+        while remaining > 0:
+            value = int.from_bytes(buffer.data[offset:offset + access_size], "little")
+            self._write_value(ap, addr, access_size, value)
+            if increment:
+                addr += access_size
+            offset += access_size
+            remaining -= access_size
+
+        self.target.flush()
+        return write_len
+
+    def bufferstreamin(self, id: int, offset: int, length: int, path: str, mode: int, timeout: int) -> int:
+        """
+        @brief Stream data from an external source, e.g. a file, into a buffer. A new buffer of required size \
+            is created if it does not exist. An existing buffer is extended if it is too small.
+
+        @param id: Numeric buffer ID. Must be a constant number.
+        @param offset: First byte in the buffer to store the received data.
+        @param length: Maximum number of bytes to stream in. Use value 0xFFFFFFFFFFFFFFFF to for example read \
+            a complete file of unknown size.
+        @param path: Constant string value representing the source from which to stream data in. Refer to character \
+            sequences for path/file name place holders.
+        @param mode: Specifies how to treat the data source in the specified mode.
+            - Bit 0..3: Format of the data source: 0 - Binary File
+            - Bit 4..7: Communication options for data source.
+        @param timeout: Timeout in microseconds. If 0, then synchronously wait for the operation to finish.
+        @return: Number of bytes streamed into buffer. Can be less than length if the data source signals its end.
+        """
+        fmt = mode & 0xF
+        if fmt not in (0,):
+            raise DebugSequenceRuntimeError("Only binary file streams (mode 0) are supported")
+
+        file_path = self._expand_path(path)
+        read_len = None if length == 0xFFFFFFFFFFFFFFFF else length
+
+        data: Optional[bytes] = None
+        exc: Optional[Exception] = None
+
+        def _do_read() -> None:
+            nonlocal data, exc
+            try:
+                with file_path.open('rb') as f:
+                    data = f.read(read_len)
+            except Exception as e:
+                exc = e
+
+        thread = threading.Thread(target=_do_read, daemon=True)
+        thread.start()
+        timeout_s = None if timeout == 0 else timeout / 1e6
+        thread.join(timeout_s)
+        if thread.is_alive():
+            raise DebugSequenceRuntimeError(f"BufferStreamIn timed out after {timeout_s:.3f}s")
+        if exc is not None:
+            raise exc
+
+        assert data is not None
+        buffer = self._buffer_manager.get(id, create=True)
+        end = offset + len(data)
+        self._buffer_manager.ensure_capacity(buffer, end)
+        buffer.data[offset:end] = data
+
+        return len(data)
+
+    def bufferstreamout(self, id: int, offset: int, length: int, path: str, mode: int, timeout: int) -> int:
+        """
+        @brief Stream data from a buffer to an external data sink, e.g. a file.
+
+        @param id: Numeric buffer ID. Must be a constant number. Function fails if buffer does not exist.
+        @param offset: First byte in the buffer to transfer to the external data sink.
+        @param length: Maximum number of bytes to stream out.
+        @param path: Constant string value representing the destination to which to stream data to. \
+            Refer to character sequences for path/file name place holders.
+        @param mode: Specifies how to treat the data source in the specified mode.
+            - Bit 0..3: Format of the data source: 0 - Binary File
+            - Bit 4..7: Communication options for data sink: 0 - Overwrite 1 - Append
+        @param timeout: Timeout in microseconds. If 0, then synchronously wait for the operation to finish.
+        @return: Number of bytes streamed to data sink.
+        """
+        fmt = mode & 0xF
+        if fmt not in (0,):
+            raise DebugSequenceRuntimeError("Only binary file streams (mode 0) are supported")
+
+        buffer = self._buffer_manager.get(id, create=False)
+        available = len(buffer.data) - offset
+        if available <= 0:
+            return 0
+
+        write_len = min(length, available)
+        data = bytes(buffer.data[offset:offset + write_len])
+
+        file_path = self._expand_path(path)
+        append = (mode & 0x10) != 0
+
+        exc: Optional[Exception] = None
+
+        def _do_write() -> None:
+            nonlocal exc
+            try:
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                with file_path.open('ab' if append else 'wb') as f:
+                    f.write(data)
+            except Exception as e:
+                exc = e
+
+        thread = threading.Thread(target=_do_write, daemon=True)
+        thread.start()
+        timeout_s = None if timeout == 0 else timeout / 1e6
+        thread.join(timeout_s)
+        if thread.is_alive():
+            raise DebugSequenceRuntimeError(f"BufferStreamOut timed out after {timeout_s:.3f}s")
+        if exc is not None:
+            raise exc
+
+        return write_len
+
+    def runapplication(self, path: str, args: str, workdir: str, timeout: int) -> int:
+        """@brief Run an external application.
+
+        @param path: Constant string representing the application path. Refer to character sequences \
+            for path/file name place holders.
+        @param args: Constant string with arguments to pass to the command line. Same placeholder character \
+            sequences apply as for path.
+        @param workdir: A constant string with the work directory for the command line tool. An empty string \
+            means that the work directory is the current project folder. Same placeholder character sequences \
+            apply as for path.
+        @param timeout: Timeout in microseconds.
+        @return: Application specific exit code.
+        """
+        app_path = self._expand_path(path)
+        cwd = None if workdir == "" else str(self._expand_path(workdir))
+        timeout_s = None if timeout == 0 else timeout / 1e6
+
+        split_args = shlex.split(args.replace('\\"', '"'), posix=True) if args else []
+        split_args = [str(self._expand_path(arg)) for arg in split_args]
+        cmd = [str(app_path), *split_args]
+
+        try:
+            result = subprocess.run(cmd, cwd=cwd, timeout=timeout_s, check=False, capture_output=True)
+            LOG.debug("Application stdout:\n%s", result.stdout.decode(errors='replace'))
+            return int(result.returncode)
+        except FileNotFoundError as err:
+            raise DebugSequenceRuntimeError(f"failed to run application '{app_path}': {err}") from err
+        except subprocess.TimeoutExpired as err:
+            raise DebugSequenceRuntimeError(f"application '{app_path}' timed out after {timeout_s}s") from err
+
+    def filepathexists(self, path: str, timeout: int) -> int:
+        """@brief Check for existence of a file path.
+
+        @param path: Constant string with the path to check. Refer to character sequences for path/file \
+            name place holders.
+        @param timeout: Timeout in microseconds: \
+            If 0, then the path is checked and the function immediately returns. If other than 0, \
+            check the path until it is valid or until the function times out. If timeout is hit while \
+            executing a check and that check ends successfully, then the function returns success.
+        @return: 0 - Path exists 1 - Path not found
+        """
+        target = self._expand_path(path)
+        deadline = monotonic() + (timeout / 1e6)
+        while not target.exists():
+            if monotonic() > deadline:
+                return 1
+            sleep(0.05)
+        return 0
 
 # pylint: enable=invalid_name
