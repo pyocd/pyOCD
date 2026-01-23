@@ -179,7 +179,8 @@ class CmsisPack:
     @property
     def filename(self) -> Optional[str]:
         """@brief Accessor for the filename or path of the .pack file."""
-        return self._pack_file.filename
+        if not self._is_dir:
+            return self._pack_file.filename
 
     @property
     def pdsc(self) -> "CmsisPackDescription":
