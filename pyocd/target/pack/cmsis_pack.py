@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # pyOCD debugger
-# Copyright (c) 2019-2020,2025 Arm Limited
+# Copyright (c) 2019-2020,2025-2026 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # Copyright (c) 2021-2023 Chris Reed
@@ -963,6 +963,13 @@ class CmsisPackDevice:
             # The attribute name determines the control node's function.
             if 'if' in elem.attrib:
                 node = IfControl(elem.attrib['if'], info)
+                if 'while' in elem.attrib:
+                    # Add if node to the parent
+                    parent.add_child(node)
+                    # Update parent to the if node
+                    parent = node
+                    # Create while node as child of if node
+                    node = WhileControl(elem.attrib['while'], info, int(elem.attrib.get('timeout', "0")))
             elif 'while' in elem.attrib:
                 node = WhileControl(elem.attrib['while'], info, int(elem.attrib.get('timeout', "0")))
             else:

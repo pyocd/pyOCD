@@ -1043,6 +1043,13 @@ class CbuildRunSequences:
         if any(node in elem for node in self._control_nodes):
             if 'if' in elem:
                 node = IfControl(str(elem['if']), info)
+                if 'while' in elem:
+                    # Add if node to the parent
+                    parent.add_child(node)
+                    # Update parent to the if node
+                    parent = node
+                    # Create while node as child of if node
+                    node = WhileControl(str(elem['while']), info, int(elem.get('timeout', 0)))
             elif 'while' in elem:
                 node = WhileControl(str(elem['while']), info, int(elem.get('timeout', 0)))
 
