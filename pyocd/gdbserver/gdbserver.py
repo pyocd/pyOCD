@@ -221,7 +221,7 @@ class GDBClientSession(threading.Thread):
                         e, exc_info=self._server.session.log_tracebacks)
 
             _client_log_filter.clear_client()
-            LOG.info("Client %d disconnected", self.index)
+            LOG.info("Client %d disconnected from port %d", self.index, self._server.port)
 
     # packet_io wrapper methods
     def send(self, data):
