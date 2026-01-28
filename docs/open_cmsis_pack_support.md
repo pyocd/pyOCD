@@ -138,6 +138,7 @@ Sequence name           | Delegate function   | Description
 `DebugDeviceUnlock`     | `unlock_device`     | Ensure the device is accessible.
 `DebugCoreStart`        | `start_debug_core`  | Initialize core debug.
 `DebugCoreStop`         | `stop_debug_core`   | Uninitialized core debug.
+`DebugCodeMemRemap`     | -                   | Remap memory to execution location. Executed before verifying memory content after flash programming. This is required to replicate a memory remap of a device bootloader (that is not executed during debug connection).
 `ResetSystem`           | `will_reset`        | System-wide reset without debug domain via software mechanisms.
 `ResetProcessor`        | `will_reset`        | Local processor reset without peripherals and debug domains.
 `ResetHardware`         | `will_reset`        | System-wide reset without debug domain via the dedicated debugger reset line, e.g. nRST.
@@ -145,6 +146,11 @@ Sequence name           | Delegate function   | Description
 `ResetHardwareDeassert` | -                   | De-assert a system-wide reset via the dedicated debugger reset line, e.g. nRST.
 `ResetCatchSet`         | `set_reset_catch`   | Configure the vector catch to stop code execution after the reset.
 `ResetCatchClear`       | `clear_reset_catch` | Free hardware resources allocated by `ResetCatchSet`.
+`FlashInit`             | -                   | Executed before starting a flash operation.
+`FlashUninit`           | -                   | Executed after a flash operation finished.
+`FlashEraseSector`      | -                   | Executed to erase a flash memory sector.
+`FlashEraseChip`        | -                   | Executed to erase all on-chip flash memory with target device specific erase technology.
+`FlashProgramPage`      | -                   | Executed to program a single flash page.
 `TraceStart`            | `trace_start`       | Enable target trace capture.
 `TraceStop`             | `trace_stop`        | Disable target trace capture.
 
@@ -152,12 +158,6 @@ Standard debug sequences not currently supported:
 
 Sequence name           | Description
 ------------------------|------------------------------------------------------
-`DebugCodeMemRemap`     | Remap memory to execution location.
-`FlashInit`             | Flash programming
-`FlashUninit`           | Flash programming
-`FlashEraseSector`      | Flash programming
-`FlashEraseChip`        | Flash programming
-`FlashEraseDone`        | Flash programming
 `FlashProgramPage`      | Flash programming
 `FlashProgramDone`      | Flash programming
 `RecoverySupportStart`  | Before step or run command to support recovery from a lost target connection.

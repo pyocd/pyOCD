@@ -760,6 +760,7 @@ class DebugSequencesValue(ValueBase):
         "DebugDeviceUnlock",
         "DebugCoreStart",
         "DebugCoreStop",
+        "DebugCodeMemRemap",
         "ResetSystem",
         "ResetProcessor",
         "ResetHardware",
