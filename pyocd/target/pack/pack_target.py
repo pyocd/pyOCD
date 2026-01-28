@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2020,2025 Arm Limited
+# Copyright (c) 2017-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -33,6 +33,7 @@ from ...coresight.cortex_m import CortexM
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
 from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
+from ...debug.sequences.default_sequences import DefaultDebugSequences
 from ...debug.sequences.scope import Scope
 from ...debug.svd.loader import SVDFile
 from ...core.session import Session
@@ -150,11 +151,33 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         self._debugvars: Optional[Scope] = None
         self._functions = DebugSequenceCommonFunctions()
 
+        self._all_sequences: Optional[Set[DebugSequence]] = None
+
+        self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
+
+        generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
+        if generic_overrides:
+            self._generic_map.update(generic_overrides)
+
+        specific = {}
+        for seq in self._sequences:
+            if seq.pname is None:
+                continue
+            if seq.pname not in specific:
+                specific[seq.pname] = {}
+            specific[seq.pname][seq.name] = seq
+
+        self._specific_map_by_pname = specific
+
         self._session.options.subscribe(self._debugvars_did_change, 'pack.debug_sequences.debugvars')
 
     @property
     def all_sequences(self) -> Set[DebugSequence]:
-        return self._sequences
+        if self._all_sequences is None:
+            self._all_sequences = set(self._generic_map.values())
+            for pname_dict in self._specific_map_by_pname.values():
+                self._all_sequences.update(pname_dict.values())
+        return self._all_sequences
 
     @property
     def cmsis_pack_device(self) -> CmsisPackDevice:
@@ -293,17 +316,38 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         # Return *only* sequences with no Pname when passed pname=None. Otherwise we'd have
         # to mangle the dict keys to include pname since there can be multiple sequences with
         # the same name but different
-        return {
-            seq.name: seq
-            for seq in self._sequences
-            if (seq.pname is None) or (seq.pname == pname)
-        }
+        result = self._generic_map.copy()
+
+        # If pname is specified, override with pname-specific sequences
+        if pname is not None and pname in self._specific_map_by_pname:
+            result.update(self._specific_map_by_pname[pname])
+
+        return result
 
     def has_sequence_with_name(self, name: str, pname: Optional[str] = None) -> bool:
-        return name in self.sequences_for_pname(pname)
+        # Check pname-specific sequences first
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return True
+
+        # Check generic sequences
+        return name in self._generic_map
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
-        return self.sequences_for_pname(pname)[name]
+        # Check pname-specific sequences first (if pname provided)
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return self._specific_map_by_pname[pname][name]
+
+        # Check generic sequences (defaults + cbuild-run generic)
+        if name in self._generic_map:
+            return self._generic_map[name]
+
+        # Sequence not found
+        raise KeyError(
+            f"sequence '{name}' not found"
+            + (f" for pname '{pname}'" if pname else "")
+        )
 
     def default_reset_sequence(self, pname: str) -> str:
         proc_map = self.cmsis_pack_device.processors_map

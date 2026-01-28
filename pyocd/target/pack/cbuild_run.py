@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 import yaml
 import os
-import io
 import platform
 
 from pathlib import Path
@@ -41,14 +40,8 @@ from ...utility.cmdline import convert_reset_type
 from ...debug.sequences.scope import Scope
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
-from ...debug.sequences.sequences import (
-    Block,
-    DebugSequence,
-    DebugSequenceNode,
-    IfControl,
-    WhileControl,
-    DebugSequenceExecutionContext
-)
+from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
+from ...debug.sequences.default_sequences import (DefaultDebugSequences, _YAMLSequenceParser)
 
 if TYPE_CHECKING:
     from ...core.session import Session
@@ -982,8 +975,9 @@ class CbuildRun:
                                                             ap_address=APv1Address(0),
                                                             svd_path=get_svd_path())
 
-class CbuildRunSequences:
+class CbuildRunSequences(_YAMLSequenceParser):
     """@brief Parses debug sequences and debug variable definitions from .cbuild-run.yml."""
+
     def __init__(self, device: CbuildRun) -> None:
         self._cbuild_vars = device.debug_vars
         self._cbuild_debugger = device.debugger
@@ -992,7 +986,6 @@ class CbuildRunSequences:
         self._debugvars: Optional[Block] = None
         self._debugvars_conf: Optional[Block] = None
         self._sequences: Set[DebugSequence] = set()
-        self._control_nodes = {'if', 'while'}
 
     @property
     def variables(self) -> Optional[Block]:
@@ -1003,69 +996,15 @@ class CbuildRunSequences:
     @property
     def dbgconf_variables(self) -> Optional[Block]:
         if self._debugvars_conf is None:
-            self._dbgconf_variables()
+            dbgconf_file = self._cbuild_debugger.get('dbgconf')
+            self._debugvars_conf = self._dbgconf_variables(dbgconf_file)
         return self._debugvars_conf
 
     @property
     def sequences(self) -> Set[DebugSequence]:
         if not self._sequences:
-            self._build_sequences()
+            self._sequences = self._build_sequences(self._cbuild_sequences)
         return self._sequences
-
-    def _dbgconf_variables(self) -> Optional[Block]:
-        dbgconf_file = self._cbuild_debugger.get('dbgconf')
-        if dbgconf_file is not None:
-            try:
-                with open(dbgconf_file) as f:
-                    dbgconf = f.read()
-                    self._debugvars_conf = Block(dbgconf, info='dbgconf')
-            except FileNotFoundError:
-                LOG.warning("dbgconf file '%s' was not found", dbgconf_file)
-
-    def _build_sequences(self) -> None:
-        for elem in self._cbuild_sequences:
-            name = elem.get('name')
-            if name is None:
-                LOG.warning("invalid debug sequence; missing name")
-                continue
-
-            pname = elem.get('pname')
-            info = elem.get('info', '')
-            sequence = DebugSequence(name, True, pname, info)
-
-            if 'blocks' in elem:
-                for child in elem['blocks']:
-                    self._build_sequence_node(sequence, child)
-            self._sequences.add(sequence)
-
-    def _build_sequence_node(self, parent: DebugSequenceNode, elem: dict) -> None:
-        info = elem.get('info', "")
-        if any(node in elem for node in self._control_nodes):
-            if 'if' in elem:
-                node = IfControl(str(elem['if']), info)
-                if 'while' in elem:
-                    # Add if node to the parent
-                    parent.add_child(node)
-                    # Update parent to the if node
-                    parent = node
-                    # Create while node as child of if node
-                    node = WhileControl(str(elem['while']), info, int(elem.get('timeout', 0)))
-            elif 'while' in elem:
-                node = WhileControl(str(elem['while']), info, int(elem.get('timeout', 0)))
-
-            parent.add_child(node)
-
-            if 'blocks' in elem:
-                for child in elem['blocks']:
-                    self._build_sequence_node(node, child)
-            elif 'execute' in elem:
-                child = {k: v for k, v in elem.items() if k not in self._control_nodes}
-                self._build_sequence_node(node, child)
-        else:
-            if 'execute' in elem:
-                is_atomic = True if 'atomic' in elem else False
-                node = Block(elem['execute'], is_atomic, info)
-                parent.add_child(node)
 
 
 class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
@@ -1098,9 +1037,32 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         self._debugvars: Optional[Scope] = None
         self._functions = DebugSequenceCommonFunctions()
 
+        self._all_sequences: Optional[Set[DebugSequence]] = None
+
+        self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
+
+        generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
+        if generic_overrides:
+            self._generic_map.update(generic_overrides)
+
+        specific = {}
+        for seq in self._sequences:
+            if seq.pname is None:
+                continue
+            if seq.pname not in specific:
+                specific[seq.pname] = {}
+            specific[seq.pname][seq.name] = seq
+
+        self._specific_map_by_pname = specific
+
     @property
     def all_sequences(self) -> Set[DebugSequence]:
-        return self._sequences
+        """@brief Returns all available sequences (cbuild-run + defaults)."""
+        if self._all_sequences is None:
+            self._all_sequences = set(self._generic_map.values())
+            for pname_dict in self._specific_map_by_pname.values():
+                self._all_sequences.update(pname_dict.values())
+        return self._all_sequences
 
     @property
     def cmsis_pack_device(self) -> CbuildRun:
@@ -1176,22 +1138,40 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
 
         return executed_scope
 
-
     def sequences_for_pname(self, pname: Optional[str]) -> Dict[str, DebugSequence]:
-        # Return *only* sequences with no Pname when passed pname=None. Otherwise we'd have
-        # to mangle the dict keys to include pname since there can be multiple sequences with
-        # the same name but different
-        return {
-            seq.name: seq
-            for seq in self._sequences
-            if (seq.pname is None) or (seq.pname == pname)
-        }
+        # Start with generic sequences (defaults + cbuild-run generic)
+        result = self._generic_map.copy()
+
+        # If pname is specified, override with pname-specific sequences
+        if pname is not None and pname in self._specific_map_by_pname:
+            result.update(self._specific_map_by_pname[pname])
+
+        return result
 
     def has_sequence_with_name(self, name: str, pname: Optional[str] = None) -> bool:
-        return name in self.sequences_for_pname(pname)
+        # Check pname-specific sequences first
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return True
+
+        # Check generic sequences
+        return name in self._generic_map
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
-        return self.sequences_for_pname(pname)[name]
+        # Check pname-specific sequences first (if pname provided)
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return self._specific_map_by_pname[pname][name]
+
+        # Check generic sequences (defaults + cbuild-run generic)
+        if name in self._generic_map:
+            return self._generic_map[name]
+
+        # Sequence not found
+        raise KeyError(
+            f"sequence '{name}' not found"
+            + (f" for pname '{pname}'" if pname else "")
+        )
 
     def default_reset_sequence(self, pname: str) -> str:
         proc_map = self.cmsis_pack_device.processors_map
