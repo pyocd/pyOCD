@@ -205,15 +205,15 @@ BUILTIN_OPTIONS = [
         "Replace software breakpoints with hardware breakpoints."),
 
     # Internal cbuild-run session options
-    OptionInfo('cbuild_run.gdbserver_ports', tuple, None,
+    OptionInfo('cbuild_run.gdbserver_port', tuple, None,
         "List of TCP ports for the gdbserver."),
-    OptionInfo('cbuild_run.telnet_ports', tuple, None,
+    OptionInfo('cbuild_run.telnet_port', tuple, None,
         "List of TCP ports for telnet server."),
-    OptionInfo('cbuild_run.telnet_modes', tuple, None,
+    OptionInfo('cbuild_run.telnet_mode', tuple, None,
         "List of telnet modes for each core."),
-    OptionInfo('cbuild_run.telnet_files_in', tuple, None,
+    OptionInfo('cbuild_run.telnet_file_in', tuple, None,
         "List of telnet input file paths for each core."),
-    OptionInfo('cbuild_run.telnet_files_out', tuple, None,
+    OptionInfo('cbuild_run.telnet_file_out', tuple, None,
         "List of telnet output file paths for each core."),
     ]
 

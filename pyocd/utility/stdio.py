@@ -58,9 +58,9 @@ class StdioTelnet(StdioBase):
     """STDIO backend that uses a telnet server for reading from and writing to stdin/stdout."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
-        if session.options.is_set('cbuild_run.telnet_ports'):
+        if session.options.is_set('cbuild_run.telnet_port'):
             # Per-core telnet ports configured.
-            telnet_port = session.options.get('cbuild_run.telnet_ports')[core]
+            telnet_port = session.options.get('cbuild_run.telnet_port')[core]
             if telnet_port is None:
                 LOG.info("Telnet port for core %d is not specified and will be auto-assigned", core)
                 telnet_port = 0
@@ -119,15 +119,15 @@ class StdioFile(StdioBase):
 
     def __init__(self, session: Session, core: int = 0) -> None:
         # Get file paths from session options
-        if session.options.is_set('cbuild_run.telnet_files_out'):
-            telnet_file_out = session.options.get('cbuild_run.telnet_files_out')[core]
+        if session.options.is_set('cbuild_run.telnet_file_out'):
+            telnet_file_out = session.options.get('cbuild_run.telnet_file_out')[core]
             if telnet_file_out is None:
                 raise ValueError(f"STDIO file for core {core} requires a valid output file path")
         else:
             raise ValueError(f"STDIO file for core {core} requires a valid output file path")
 
-        if session.options.is_set('cbuild_run.telnet_files_in'):
-            telnet_file_in = session.options.get('cbuild_run.telnet_files_in')[core]
+        if session.options.is_set('cbuild_run.telnet_file_in'):
+            telnet_file_in = session.options.get('cbuild_run.telnet_file_in')[core]
         else:
             telnet_file_in = None
 
@@ -285,9 +285,9 @@ class StdioHandler(StdioBase):
 
     def __init__(self, session: Session, core: int = 0, eot_enabled: bool = False) -> None:
 
-        if session.options.is_set('cbuild_run.telnet_modes'):
+        if session.options.is_set('cbuild_run.telnet_mode'):
             # Per-core telnet modes configured.
-            stdio_mode = session.options.get('cbuild_run.telnet_modes')[core]
+            stdio_mode = session.options.get('cbuild_run.telnet_mode')[core]
         else:
             stdio_mode = session.options.get('semihost_console_type')
 

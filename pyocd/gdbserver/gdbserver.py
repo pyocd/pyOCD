@@ -301,9 +301,9 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
 
-        if session.options.is_set('cbuild_run.gdbserver_ports'):
+        if session.options.is_set('cbuild_run.gdbserver_port'):
             # Per-core gdbserver ports configured.
-            _port = session.options.get('cbuild_run.gdbserver_ports')[self.core]
+            _port = session.options.get('cbuild_run.gdbserver_port')[self.core]
             # Check if no port was configured for this core, use 0 in that case.
             self.port = _port if _port is not None else 0
         else:

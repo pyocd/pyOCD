@@ -577,21 +577,21 @@ class CbuildRun:
         return connect
 
     @property
-    def gdbserver_ports(self) -> Optional[Tuple]:
+    def gdbserver_port(self) -> Optional[Tuple]:
         """@brief GDB server port assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        return self._get_server_ports('gdbserver')
+        return self._get_server_port('gdbserver')
 
     @property
-    def telnet_ports(self) -> Optional[Tuple]:
+    def telnet_port(self) -> Optional[Tuple]:
         """@brief Telnet server port assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        return self._get_server_ports('telnet')
+        return self._get_server_port('telnet')
 
     @property
-    def telnet_modes(self) -> Tuple:
+    def telnet_mode(self) -> Tuple:
         """@brief Telnet server mode assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
@@ -607,7 +607,7 @@ class CbuildRun:
         global_mode = next((t.get('mode') for t in telnet_config if 'pname' not in t), 'off')
         global_mode = MODE_ALIASES.get(global_mode, global_mode)
         # Build list of telnet modes for each core
-        telnet_modes = []
+        telnet_mode = []
         for core in self.sorted_processors:
             mode = next((t.get('mode') for t in telnet_config if t.get('pname') == core.name), global_mode)
             mode = MODE_ALIASES.get(mode, mode)
@@ -616,20 +616,20 @@ class CbuildRun:
                     LOG.warning("Invalid telnet mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
                             mode, core.name, global_mode)
                 mode = global_mode
-            telnet_modes.append(mode)
+            telnet_mode.append(mode)
 
-        return tuple(telnet_modes)
+        return tuple(telnet_mode)
 
     @property
-    def telnet_files(self) -> Dict[str, Optional[Tuple]]:
+    def telnet_file(self) -> Dict[str, Optional[Tuple]]:
         """@brief Telnet file path assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
         # Get telnet configuration from debugger section
         telnet_config = self.debugger.get('telnet') or []
-        telnet_modes = self.telnet_modes
+        telnet_mode = self.telnet_mode
 
-        if not any(mode == 'file' for mode in telnet_modes):
+        if not any(mode == 'file' for mode in telnet_mode):
             # No telnet file paths needed
             return {'in': None, 'out': None}
 
@@ -651,7 +651,7 @@ class CbuildRun:
 
         if config_by_pname:
             # Build config per pname
-            for proc_info, mode in zip(self.sorted_processors, telnet_modes):
+            for proc_info, mode in zip(self.sorted_processors, telnet_mode):
                 if mode != 'file':
                     in_files.append(None)
                     out_files.append(None)
@@ -672,7 +672,7 @@ class CbuildRun:
             if config is not None:
                 if len(self.sorted_processors) > 1:
                     LOG.warning("Ignoring invalid telnet file configuration for multicore target in cbuild-run")
-                    for proc_info, mode in zip(self.sorted_processors, telnet_modes):
+                    for proc_info, mode in zip(self.sorted_processors, telnet_mode):
                         if mode != 'file':
                             in_files.append(None)
                             out_files.append(None)
@@ -716,7 +716,7 @@ class CbuildRun:
         })
         TARGET[target] = tgt
 
-    def _get_server_ports(self, server_type: str) -> Optional[Tuple]:
+    def _get_server_port(self, server_type: str) -> Optional[Tuple]:
         """@brief Generic method to get server port assignments from debugger section."""
         server_config = self.debugger.get(server_type, [])
         if not server_config:
