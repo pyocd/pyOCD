@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -103,13 +103,15 @@ class RunSubcommand(SubcommandBase):
                 core.halt()
 
             try:
-                # Start up the run servers.
+                # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
-                    # Don't create a server for CPU-less memory Access Port.
+                    # Don't create a server for CPU-less memory Access Port
                     if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                         continue
 
-                    run_server = RunServer(session, core=core_number, enable_eot=self._args.eot, shutdown_event=self.shared_shutdown)
+                    run_server = RunServer(session, core=core_number,
+                                           enable_eot=self._args.eot,
+                                           shutdown_event=self.shared_shutdown)
                     self._run_servers.append(run_server)
 
                 # Reset the target and start RunServers
@@ -160,41 +162,42 @@ class RunSubcommand(SubcommandBase):
 
 class RunServer(threading.Thread):
 
-    def __init__(self, session: Session, core=None, enable_eot: bool=False, shutdown_event: threading.Event=None):
+    def __init__(self, session: Session, core: Optional[int] = None, enable_eot: bool = False,
+                 shutdown_event: Optional[threading.Event] = None):
         super().__init__(daemon=True)
-        self.session = session
+        self._session = session
         self.error_flag = False
         self.eot_flag = False
-        self.board = session.board
+        self._board = session.board
         if core is None:
             self.core = 0
-            self.target = self.board.target
+            self._target = self._board.target
         else:
             self.core = core
-            self.target = self.board.target.cores[core]
-        self.target_context = self.target.get_target_context()
+            self._target = self._board.target.cores[core]
+        self._target_context = self._target.get_target_context()
 
-        self.shutdown_event = shutdown_event or threading.Event()
-        self.enable_eot = enable_eot
+        self._shutdown_event = shutdown_event or threading.Event()
+        self._enable_eot = enable_eot
 
         self.name = "run-server-%d" % self.core
 
         # Semihosting always enabled
-        self.enable_semihosting = True
+        self._enable_semihosting = True
 
         # Lock to synchronize SWO with other activity
-        self.lock = threading.RLock()
+        self._lock = threading.RLock()
 
         # Use internal IO handler.
         semihost_io_handler = semihost.InternalSemihostIOHandler()
 
-        self._stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=self.enable_eot)
+        self._stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=self._enable_eot)
         semihost_console = semihost.ConsoleIOHandler(self._stdio_handler)
-        self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
+        self._semihost = semihost.SemihostAgent(self._target_context, io_handler=semihost_io_handler, console=semihost_console)
 
 
         # # Start with RTT disabled
-        # self.rtt_server: Optional[RTTServer] = None
+        # self._rtt_server: Optional[RTTServer] = None
 
         #
         # If SWV is enabled, create a SWVReader thread. Note that we only do
@@ -208,43 +211,43 @@ class RunServer(threading.Thread):
             else:
                 sys_clock = int(session.options.get("swv_system_clock"))
                 swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core, self.lock)
+                self._swv_reader = SWVReader(session, self.core, self._lock)
                 self._swv_reader.init(sys_clock, swo_clock, self._stdio_handler)
 
     def run(self):
         stdio_info = self._stdio_handler.info
-        node_name = self.session.board.target.cores[self.core].node_name
+        node_name = self._session.board.target.cores[self.core].node_name
         LOG.info("Run server started for %s (core %d); STDIO mode: %s", node_name, self.core, stdio_info)
 
         # Timeout used only if the target starts returning faults. The is_running property of this timeout
         # also serves as a flag that a fault occurred and we're attempting to retry.
-        fault_retry_timeout = Timeout(self.session.options.get('debug.status_fault_retry_timeout'))
+        fault_retry_timeout = Timeout(self._session.options.get('debug.status_fault_retry_timeout'))
 
         while fault_retry_timeout.check():
-            if self.shutdown_event.is_set():
+            if self._shutdown_event.is_set():
                 # Exit the thread
                 LOG.debug("Exit Run server for core %d", self.core)
                 break
 
             # Check for EOT (0x04)
-            if self._stdio_handler and self.enable_eot:
+            if self._stdio_handler and self._enable_eot:
                 try:
                     if self._stdio_handler.eot_seen:
                         # EOT received, terminate execution
                         LOG.info("EOT (0x04) character received for core %d; shutting down Run servers", self.core)
                         self.eot_flag = True
-                        self.shutdown_event.set()
+                        self._shutdown_event.set()
                         continue
                 except Exception as e:
                     LOG.debug("Error while waiting for EOT (0x04): %s", e)
 
-            self.lock.acquire()
+            self._lock.acquire()
 
             try:
-                state = self.target.get_state()
+                state = self._target.get_state()
 
-                # if self.rtt_server:
-                #     self.rtt_server.poll()
+                # if self._rtt_server:
+                #     self_rtt_server.poll()
 
                 # If we were able to successfully read the target state after previously receiving a fault,
                 # then clear the timeout.
@@ -254,16 +257,16 @@ class RunServer(threading.Thread):
 
                 if state == Target.State.HALTED:
                     # Handle semihosting
-                    if self.enable_semihosting:
-                        was_semihost = self.semihost.check_and_handle_semihost_request()
+                    if self._enable_semihosting:
+                        was_semihost = self._semihost.check_and_handle_semihost_request()
                         if was_semihost:
-                            self.target.resume()
+                            self._target.resume()
                             continue
 
-                    pc = self.target_context.read_core_register('pc')
+                    pc = self._target_context.read_core_register('pc')
                     LOG.error("Target core %d unexpectedly halted at pc=0x%08x; shutting down Run servers", self.core, pc)
                     self.error_flag = True
-                    self.shutdown_event.set()
+                    self._shutdown_event.set()
                     break
 
             except exceptions.TransferError as e:
@@ -272,22 +275,22 @@ class RunServer(threading.Thread):
                 # that the timeout expires, this loop is exited and an error raised.
                 if not fault_retry_timeout.is_running:
                     LOG.warning("Transfer error while checking target status; retrying: %s", e,
-                            exc_info=self.session.log_tracebacks)
+                            exc_info=self._session.log_tracebacks)
                 fault_retry_timeout.start()
             except exceptions.Error as e:
-                LOG.error("Error while target core %d running: %s; shutting down Run servers", self.core, e, exc_info=self.session.log_tracebacks)
+                LOG.error("Error while target core %d running: %s; shutting down Run servers", self.core, e, exc_info=self._session.log_tracebacks)
                 self.error_flag = True
-                self.shutdown_event.set()
+                self._shutdown_event.set()
                 break
             finally:
-                self.lock.release()
+                self._lock.release()
                 sleep(0.01)
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
             LOG.error("Timeout re-establishing target core %d control; shutting down Run servers", self.core)
             self.error_flag = True
-            self.shutdown_event.set()
+            self._shutdown_event.set()
 
         # Cleanup resources for this RunServer.
         try:
