@@ -5,6 +5,7 @@
 # Copyright (C) 2022 Johan Carlsson <johan.carlsson@teenage.engineering>
 # Copyright (c) 2022 Samuel Dewan
 # Copyright (C) 2023 Tejaswini Dasika <tejaswinidasika@gmail.com>
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -205,7 +206,7 @@ class GenericRTTUpChannel(RTTUpChannel):
 
         if (write_off >= self.size) or (read_off >= self.size):
             raise exceptions.RTTError("Invalid up buffer")
-        elif write_off == self.read_off:
+        elif write_off == read_off:
             return 0
         elif write_off > read_off:
             return write_off - read_off
@@ -313,7 +314,7 @@ class GenericRTTDownChannel(RTTDownChannel):
 
         if (write_off >= self.size) or (read_off >= self.size):
             raise exceptions.RTTError("Invalid down buffer")
-        elif write_off == self.read_off:
+        elif write_off == read_off:
             return self.size
         elif write_off > read_off:
             return (self.size - write_off) + (read_off - 1)
