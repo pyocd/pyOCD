@@ -166,7 +166,6 @@ class RTTChanFileWorker(RTTChanWorker):
         except OSError as e:
             raise OSError(f"Failed to open RTT output file {file_out}: {e}")
 
-        # Open files
         if file_in is not None:
             if os.path.exists(file_in):
                 self._f_in = open(file_in, 'rb')
@@ -195,6 +194,7 @@ class RTTChanSystemViewWorker(RTTChanWorker):
               to a SystemView file and handles START and STOP commands. """
     _START_CMD = b"\x01"
     _STOP_CMD  = b"\x02"
+    _START_SEQ = b"\x00" * 10
 
     def __init__(self, rtt_server: RTTServer, rtt_channel: int, file_out: str, auto_start: bool = True, auto_stop: bool = True):
         self._rtt_server = rtt_server
@@ -203,6 +203,7 @@ class RTTChanSystemViewWorker(RTTChanWorker):
         self._auto_stop = auto_stop
 
         self._started = not auto_start
+        self._up_buffer = b""
         self._f_out = None
         self._f_out_path = None
 
@@ -222,12 +223,30 @@ class RTTChanSystemViewWorker(RTTChanWorker):
     def write_up_data(self, data: bytes):
         if self._f_out is None:
             return 0
-        if  self._started:
-            return self._f_out.write(data)
+
+        # If not started: search for start sequence; drop everything before it.
+        if not self._started:
+            self._up_buffer += data
+            pos = self._up_buffer.find(self._START_SEQ)
+            if pos < 0:
+                # Keep last few bytes in case start sequence is split across writes, but drop the rest
+                seq_len = len(self._START_SEQ)
+                if len(self._up_buffer) > seq_len:
+                    self._up_buffer = self._up_buffer[-seq_len:]
+                return len(data)
+            else:
+                self._started = True
+                to_write = self._up_buffer[pos:]
+                self._up_buffer = b""
+                self._f_out.write(to_write)
+                return len(data)
+
+        # Started (or auto_start disabled): write everything
+        self._f_out.write(data)
         return len(data)
 
     def get_down_data(self):
-        if not self._started and self._auto_start:
+        if not self._started:
             if self._rtt_server.is_channel_configured(self._rtt_channel) == False:
                 # Should not happen
                 LOG.error("SystemView worker for channel %d does not have a configured RTT channel; ignoring start request", self._rtt_channel)
@@ -236,8 +255,7 @@ class RTTChanSystemViewWorker(RTTChanWorker):
             if down_chan.bytes_free == down_chan.size:
                 # Channel is empty, can start
                 LOG.debug("SystemView START command for channel %d sent", self._rtt_channel)
-                if down_chan.write(self._START_CMD) == len(self._START_CMD):
-                    self._started = True
+                down_chan.write(self._START_CMD)
         return b""
 
     def close(self):
