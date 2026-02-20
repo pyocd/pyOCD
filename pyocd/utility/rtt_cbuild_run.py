@@ -81,7 +81,7 @@ class RttCbuildRun():
             # Get the outputs list from cbuild-run
             outputs = self._session.cbuild_run._data.get('output', [])
             # Iterate through all outputs
-            for output in outputs:
+            for output in outputs or []:
                 load_type = output.get('load')
                 pname = output.get('pname')
 
@@ -105,6 +105,14 @@ class RttCbuildRun():
         # Check if RTT configuration exists
         if not self._session.cbuild_run:
             raise RuntimeError("No cbuild-run configuration found; cannot configure RTT server")
+
+
+        # Check if RTT channel configuration exists for this core; if not, skip starting RTT server
+        channel_cfg_list = self._session.options.get('cbuild_run.rtt_channel')
+        channel_cfg = channel_cfg_list[self._core] if (channel_cfg_list and self._core < len(channel_cfg_list)) else None
+        if not channel_cfg:
+            LOG.debug("No RTT channel configuration found for core %d; RTT server will not be started", self._core)
+            return None
 
         # Get RTT control block configuration for this core
         address, size, auto_detect = self._resolve_rtt_control_block()
@@ -137,7 +145,7 @@ class RttCbuildRun():
         """@brief Configure RTT channels based on cbuild-run configuration in the session."""
 
         if self._rtt_server is None:
-           LOG.warning("RTT server not started; cannot configure RTT channels")
+           LOG.warning("RTT server not started; cannot configure RTT channels for core %d", self._core)
            return
 
         if self._session.options.is_set('cbuild_run'):
@@ -161,7 +169,7 @@ class RttCbuildRun():
 
         stdio_enabled = False
 
-        for ch_cfg in channel_cfg:
+        for ch_cfg in channel_cfg or []:
             ch_num = ch_cfg.get('number')
             ch_mode = ch_cfg.get('mode')
             telnet_port = ch_cfg.get('port')

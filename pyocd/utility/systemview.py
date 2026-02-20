@@ -62,8 +62,8 @@ class SystemViewSVDat():
         # and delete any existing files with the same name to ensure clean output for SystemView
         for core in range(len(self._session.target.cores)):
             channel_cfg = channel_cfg_list[core] if (channel_cfg_list and core < len(channel_cfg_list)) else []
-            file_list = []
-            for ch_cfg in channel_cfg:
+            file_list: List[str] = []
+            for ch_cfg in channel_cfg or []:
                 ch_num = ch_cfg.get('number')
                 ch_mode = ch_cfg.get('mode')
                 if ch_mode == 'systemview':
