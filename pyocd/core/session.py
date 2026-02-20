@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020,2025 Arm Limited
+# Copyright (c) 2018-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -287,17 +287,17 @@ class Session(Notifier):
 
         # Only set gdbserver_port if it wasn't already set in options (command line).
         if not self.options.is_set('gdbserver_port'):
-            debugger_options['cbuild_run.gdbserver_ports'] = self.cbuild_run.gdbserver_ports
+            debugger_options['cbuild_run.gdbserver_port'] = self.cbuild_run.gdbserver_port
 
         # Only set telnet_port if it wasn't already set in options (command line).
         if not self.options.is_set('telnet_port'):
-            debugger_options['cbuild_run.telnet_ports'] = self.cbuild_run.telnet_ports
+            debugger_options['cbuild_run.telnet_port'] = self.cbuild_run.telnet_port
 
         if not self.options.is_set('semihost_console_type'):
-            debugger_options['cbuild_run.telnet_modes'] = self.cbuild_run.telnet_modes
-            telnet_files = self.cbuild_run.telnet_files
-            debugger_options['cbuild_run.telnet_files_in'] = telnet_files.get('in')
-            debugger_options['cbuild_run.telnet_files_out'] = telnet_files.get('out')
+            debugger_options['cbuild_run.telnet_mode'] = self.cbuild_run.telnet_mode
+            telnet_file = self.cbuild_run.telnet_file
+            debugger_options['cbuild_run.telnet_file_in'] = telnet_file.get('in')
+            debugger_options['cbuild_run.telnet_file_out'] = telnet_file.get('out')
 
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
