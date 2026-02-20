@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import argparse
-from typing import List
+from typing import List, Optional
 import logging
 import threading
 from time import sleep, time
@@ -26,12 +26,13 @@ from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..core.session import Session
 from ..utility.cmdline import convert_session_options
-from ..probe.shared_probe_proxy import SharedDebugProbeProxy
 from ..coresight.generic_mem_ap import GenericMemAPTarget
 
 from ..core.target import Target
 from ..debug import semihost
 from ..utility.timeout import Timeout
+from ..utility.rtt_cbuild_run import RttCbuildRun
+from ..utility.systemview import SystemViewSVDat
 from ..trace.swv import SWVReader
 
 from ..utility.stdio import StdioHandler
@@ -102,6 +103,7 @@ class RunSubcommand(SubcommandBase):
             for _, core in session.board.target.cores.items():
                 core.halt()
 
+            self._systemview = SystemViewSVDat(session)
             try:
                 # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
@@ -129,17 +131,17 @@ class RunSubcommand(SubcommandBase):
                         if elapsed >= timelimit:
                             LOG.info("Time limit of %.1f seconds reached; shutting down Run servers", timelimit)
                             timelimit_triggered = True
-                            self.ShutDownRunServers()
+                            self.ShutDown()
                             break
                     sleep(0.1)
 
             except KeyboardInterrupt:
                 LOG.info("KeyboardInterrupt received; shutting down Run servers")
-                self.ShutDownRunServers()
+                self.ShutDown()
                 return 0
             except Exception:
                 LOG.exception("Unhandled exception in 'run' subcommand")
-                self.ShutDownRunServers()
+                self.ShutDown()
                 return 1
 
             if timelimit_triggered:
@@ -152,13 +154,17 @@ class RunSubcommand(SubcommandBase):
         LOG.warning("Run servers exited without EOT, reached timelimit or error; this is unexpected")
         return 1
 
-    def ShutDownRunServers(self):
+    def ShutDown(self):
         self.shared_shutdown.set()
         # Wait for servers to finish
         for server in self._run_servers:
-            server.join(timeout=5.0)
+            if server.is_alive():
+                server.join(timeout=5.0)
             if server.is_alive():
                 LOG.warning("Run server for core %d did not terminate cleanly", server.core)
+
+        # Generate SystemView output file
+        self._systemview.assemble_file()
 
 class RunServer(threading.Thread):
 
@@ -195,9 +201,13 @@ class RunServer(threading.Thread):
         semihost_console = semihost.ConsoleIOHandler(self._stdio_handler)
         self._semihost = semihost.SemihostAgent(self._target_context, io_handler=semihost_io_handler, console=semihost_console)
 
-
-        # # Start with RTT disabled
-        # self._rtt_server: Optional[RTTServer] = None
+        # Start RTT server
+        try:
+            rtt_cbuild_run = RttCbuildRun(session=session, core=core)
+            self._rtt_server = rtt_cbuild_run.start_server()
+            rtt_cbuild_run.configure_channels(stdio_handler=self._stdio_handler)
+        except RuntimeError as e:
+            LOG.warning("RTT configuration failed for core %d: %s", self.core, e)
 
         #
         # If SWV is enabled, create a SWVReader thread. Note that we only do
@@ -246,8 +256,8 @@ class RunServer(threading.Thread):
             try:
                 state = self._target.get_state()
 
-                # if self._rtt_server:
-                #     self_rtt_server.poll()
+                if self._rtt_server:
+                    self._rtt_server.poll()
 
                 # If we were able to successfully read the target state after previously receiving a fault,
                 # then clear the timeout.
@@ -298,6 +308,12 @@ class RunServer(threading.Thread):
                 self._swv_reader.stop()
         except Exception as e:
             LOG.debug("Error stopping SWV reader for core %d: %s", self.core, e)
+
+        try:
+            if self._rtt_server is not None:
+                self._rtt_server.stop()
+        except Exception as e:
+            LOG.debug("Error closing RTT server for core %d: %s", self.core, e)
 
         try:
             if self._stdio_handler is not None:
