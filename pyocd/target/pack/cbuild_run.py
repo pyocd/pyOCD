@@ -727,12 +727,12 @@ class CbuildRun:
 
         SUPPORTED_MODES = { 'stdio', 'telnet', 'systemview'}
 
-        rtt_channel_list = self.rtt_config
-        if rtt_channel_list is None:
+        rtt_config_list = self.rtt_config
+        if rtt_config_list is None:
             return None
 
         channel_list = []
-        for idx, config in enumerate(rtt_channel_list):
+        for idx, config in enumerate(rtt_config_list):
             channels = config.get('channel', [])
             valid_channel_list = []
             for ch_cfg in channels:
