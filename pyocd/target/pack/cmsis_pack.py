@@ -5,6 +5,7 @@
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2025 Morten Engelhardt Olsen
+# Copyright (c) 2026 Microchip Technology Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -179,7 +180,8 @@ class CmsisPack:
     @property
     def filename(self) -> Optional[str]:
         """@brief Accessor for the filename or path of the .pack file."""
-        return self._pack_file.filename
+        if not self._is_dir:
+            return self._pack_file.filename
 
     @property
     def pdsc(self) -> "CmsisPackDescription":
