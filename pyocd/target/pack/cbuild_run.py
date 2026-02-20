@@ -735,7 +735,7 @@ class CbuildRun:
         for idx, config in enumerate(rtt_config_list):
             channels = config.get('channel', [])
             valid_channel_list = []
-            for ch_cfg in channels:
+            for ch_cfg in channels or []:
                 ch_num = ch_cfg.get('number', None)
                 if ch_num is None:
                     # Warn about missing channel number
@@ -768,12 +768,6 @@ class CbuildRun:
                 # SystemView mode
                 elif ch_mode == 'systemview':
                     valid_channel_list.append({'number': ch_num, 'mode': ch_mode})
-
-            # If no stdio channel was configured and channel 0 is not already taken,
-            # configure channel 0 as the stdio channel.
-            if not any(ch['mode'] == 'stdio' for ch in valid_channel_list) and \
-               not any(int(ch['number']) == 0 for ch in valid_channel_list):
-                valid_channel_list.append({'number': 0, 'mode': 'stdio'})
 
             valid_channel_list.sort(key=lambda x: int(x['number']))
             channel_list.append(valid_channel_list if valid_channel_list else None)
@@ -834,16 +828,9 @@ class CbuildRun:
         Returns a tuple of RTT configurations, one per core. If no RTT configuration
         exists in the debugger section, returns None.
         """
-        rtt_config_data = self.debugger.get('rtt') or []
-        if not rtt_config_data:
+        rtt_config_list = self.debugger.get('rtt') or []
+        if not rtt_config_list:
             return None
-
-        # Ensure the configuration is a list. If the user provided a single
-        # dictionary, wrap it in a list to handle it uniformly.
-        if isinstance(rtt_config_data, dict):
-            rtt_config_list = [rtt_config_data]
-        else:
-            rtt_config_list = rtt_config_data
 
         # Check for a global configuration (no 'pname')
         global_config = next((c for c in rtt_config_list if 'pname' not in c), None)
