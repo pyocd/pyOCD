@@ -202,6 +202,7 @@ class RunServer(threading.Thread):
         self._semihost = semihost.SemihostAgent(self._target_context, io_handler=semihost_io_handler, console=semihost_console)
 
         # Start RTT server
+        self._rtt_server = None
         try:
             rtt_cbuild_run = RttCbuildRun(session=session, core=core)
             self._rtt_server = rtt_cbuild_run.start_server()
