@@ -1047,9 +1047,12 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         # Unless this is a halting reset, make sure the core is not halted. Some DFP debug sequences
         # (or user scripts) can leave the core halted after a reset.
         if not is_halting:
-            if self.get_state() == Target.State.HALTED:
-                LOG.debug("reset: core was halted after non-halting reset; now resuming")
-                self.resume()
+            try:
+                if self.get_state() == Target.State.HALTED:
+                    LOG.debug("reset: core was halted after non-halting reset; now resuming")
+                    self.resume()
+            except exceptions.Error as e:
+                LOG.warning("Failed to check state or resume core %d after reset: %s", self.core_number, e)
 
         self.call_delegate('did_reset', core=self, reset_type=reset_type)
 
