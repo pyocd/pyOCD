@@ -74,7 +74,7 @@ class RttCbuildRun():
         except exceptions.RTTError as e:
             return None
 
-    def _find_segger_rtt_symbol(self, core) -> Optional[int]:
+    def _find_segger_rtt_symbol(self) -> Optional[int]:
         """@brief Attempt to find the address of the _SEGGER_RTT symbol in the ELF file for the current core."""
 
         try:
@@ -85,14 +85,19 @@ class RttCbuildRun():
                 load_type = output.get('load')
                 pname = output.get('pname')
 
-                # Check if this output is for symbols and matches the current core
-                if load_type and 'symbols' in load_type and pname == self._target.node_name:
-                    elf_file = output.get('file')
-                    if elf_file:
-                        elf = ELFBinaryFile(elf_file)
-                        symbol_info = elf.symbol_decoder.get_symbol_for_name('_SEGGER_RTT')
-                        if symbol_info:
-                            return symbol_info.address
+                # Skip if not symbol output
+                if not load_type or 'symbols' not in load_type:
+                    continue
+                # Skip if pname is specified and does not match the current core's name
+                if pname is not None and pname != self._target.node_name:
+                    continue
+
+                elf_file = output.get('file')
+                if elf_file:
+                    elf = ELFBinaryFile(elf_file)
+                    symbol_info = elf.symbol_decoder.get_symbol_for_name('_SEGGER_RTT')
+                    if symbol_info:
+                        return symbol_info.address
             return None
         except Exception as e:
             LOG.warning("Failed to get RTT symbol address from ELF for core %d: %s", self._core, e)
@@ -132,7 +137,7 @@ class RttCbuildRun():
             return None
         else:
             # Auto-detect via symbol "_SEGGER_RTT" lookup in the ELF file
-            address = self._find_segger_rtt_symbol(self._core)
+            address = self._find_segger_rtt_symbol()
             if address is not None:
                 self._rtt_server = self._start_rtt_server(address, None)
                 if self._rtt_server is not None:
