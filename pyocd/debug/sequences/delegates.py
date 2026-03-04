@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ from .scope import Scope
 LOG = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from .sequences import (DebugSequence, DebugSequenceExecutionContext)
+    from .sequences import (DebugSequence, DebugSequenceExecutionContext, FlashSequenceParams)
     from ...target.pack.cmsis_pack import CmsisPackDevice
 
 class DebugSequenceDelegate:
@@ -49,7 +49,12 @@ class DebugSequenceDelegate:
         """
         raise NotImplementedError()
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Execute the debug sequence with the specified name.
         @exception NameError No sequence with the given name is defined.
         """

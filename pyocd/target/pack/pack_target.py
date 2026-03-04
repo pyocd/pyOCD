@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from ...core.core_target import CoreTarget
     from ...commands.execution_context import CommandSet
     from ...utility.notification import Notification
+    from ...debug.sequences.sequences import FlashSequenceParams
 
 try:
     import cmsis_pack_manager
@@ -248,7 +249,12 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
 
         return False
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Run a top level debug sequence.
 
         @return The scope created while running the sequence is returned. If the sequence wasn't executed
@@ -281,7 +287,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         LOG.debug("Running debug sequence '%s'%s", name, pname_desc)
 
         # Create runtime context and contextified functions instance.
-        context = DebugSequenceExecutionContext(self._session, self, pname)
+        context = DebugSequenceExecutionContext(self._session, self, pname, flash_params=flash_params)
 
         # Map optional pname to AP address. If the pname is not specified, then use the device's
         # first available AP. If no APs are known (eg haven't been discovered yet) then use 0.
@@ -546,7 +552,7 @@ class PackTargets:
         @param dev A CmsisPackDevice object.
         """
         try:
-            # Check if we're even going to populate this target before bothing to build the class.
+            # Check if we're even going to populate this target before booting to build the class.
             part = normalise_target_type_name(dev.part_number)
             if part in TARGET:
                 LOG.debug("did not populate target for DFP part number %s because there is already "

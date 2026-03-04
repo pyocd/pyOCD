@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from ...core.core_target import CoreTarget
     from ...utility.sequencer import CallSequence
     from ...commands.execution_context import CommandSet
+    from ...debug.sequences.sequences import FlashSequenceParams
 
 LOG = logging.getLogger(__name__)
 
@@ -1095,7 +1096,12 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
 
         return self._debugvars
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Executes a debug sequence by name for the specified processor."""
         pname_desc = f" ({pname})" if (pname and LOG.isEnabledFor(logging.DEBUG)) else ""
 
@@ -1109,7 +1115,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         LOG.debug("Running debug sequence '%s'%s", name, pname_desc)
 
         # Create runtime context and contextified functions instance.
-        context = DebugSequenceExecutionContext(self._session, self, pname)
+        context = DebugSequenceExecutionContext(self._session, self, pname, flash_params=flash_params)
 
         # Map optional pname to AP address. If the pname is not specified, then use the device's
         # first available AP. If not APs are known (eg haven't been discovered yet) then use 0.
