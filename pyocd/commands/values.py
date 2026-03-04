@@ -767,6 +767,11 @@ class DebugSequencesValue(ValueBase):
         "ResetHardwareDeassert",
         "ResetCatchSet",
         "ResetCatchClear",
+        "FlashInit",
+        "FlashUninit",
+        "FlashEraseSector",
+        "FlashEraseChip",
+        "FlashProgramPage",
         "TraceStart",
         "TraceStop",
     ]
