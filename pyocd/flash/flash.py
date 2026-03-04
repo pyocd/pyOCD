@@ -18,7 +18,7 @@
 
 from dataclasses import dataclass
 import logging
-from enum import Enum
+from enum import IntEnum
 
 from ..core import exceptions
 from ..core.target import Target
@@ -109,7 +109,7 @@ class Flash:
 
     All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
-    class Operation(Enum):
+    class Operation(IntEnum):
         """@brief Operations passed to init()."""
         ## Erase all or sector erase.
         ERASE = 1
