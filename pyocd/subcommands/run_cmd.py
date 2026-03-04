@@ -31,8 +31,8 @@ from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..core.target import Target
 from ..debug import semihost
 from ..utility.timeout import Timeout
-from ..utility.rtt_manager import RTTManager
-from ..utility.systemview import SystemViewSVDat
+from ..utility.rtt_manager import RTTConfig, RTTManager
+from ..utility.systemview import SystemViewConfig, SystemViewSVDat
 from ..trace.swv import SWVReader
 
 from ..utility.stdio import StdioHandler
@@ -103,7 +103,12 @@ class RunSubcommand(SubcommandBase):
             for _, core in session.board.target.cores.items():
                 core.halt()
 
-            self._systemview = SystemViewSVDat(session)
+            rtt_config_list = {
+                core_number: RTTConfig(_session=session, _target=core_target, _core=core_number)
+                for core_number, core_target in session.board.target.cores.items()
+            }
+            systemview_config = SystemViewConfig(_session=session)
+            self._systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list, systemview_config=systemview_config)
             try:
                 # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
@@ -111,7 +116,10 @@ class RunSubcommand(SubcommandBase):
                     if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                         continue
 
-                    run_server = RunServer(session, core=core_number,
+                    run_server = RunServer(session=session,
+                                           core=core_number,
+                                           rtt_config=rtt_config_list[core_number],
+                                           systemview_config=systemview_config,
                                            enable_eot=self._args.eot,
                                            shutdown_event=self.shared_shutdown)
                     self._run_servers.append(run_server)
@@ -131,17 +139,17 @@ class RunSubcommand(SubcommandBase):
                         if elapsed >= timelimit:
                             LOG.info("Time limit of %.1f seconds reached; shutting down Run servers", timelimit)
                             timelimit_triggered = True
-                            self.ShutDown()
+                            self.shutdown()
                             break
                     sleep(0.1)
 
             except KeyboardInterrupt:
                 LOG.info("KeyboardInterrupt received; shutting down Run servers")
-                self.ShutDown()
+                self.shutdown()
                 return 0
             except Exception:
                 LOG.exception("Unhandled exception in 'run' subcommand")
-                self.ShutDown()
+                self.shutdown()
                 return 1
 
             if timelimit_triggered:
@@ -154,7 +162,7 @@ class RunSubcommand(SubcommandBase):
         LOG.warning("Run servers exited without EOT, reached timelimit or error; this is unexpected")
         return 1
 
-    def ShutDown(self):
+    def shutdown(self):
         self.shared_shutdown.set()
         # Wait for servers to finish
         for server in self._run_servers:
@@ -168,8 +176,8 @@ class RunSubcommand(SubcommandBase):
 
 class RunServer(threading.Thread):
 
-    def __init__(self, session: Session, core: Optional[int] = None, enable_eot: bool = False,
-                 shutdown_event: Optional[threading.Event] = None):
+    def __init__(self, session: Session, core: Optional[int] = None, rtt_config: "RTTConfig" = None,
+                 systemview_config: "SystemViewConfig" = None, enable_eot: bool = False, shutdown_event: Optional[threading.Event] = None):
         super().__init__(daemon=True)
         self._session = session
         self.error_flag = False
@@ -204,7 +212,7 @@ class RunServer(threading.Thread):
         # Start RTT server
         self._rtt_server = None
         try:
-            rtt_manager = RTTManager(session=session, core=core)
+            rtt_manager = RTTManager(session=session, core=core, rtt_config=rtt_config, systemview_config=systemview_config)
             self._rtt_server = rtt_manager.start_server()
             rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
         except RuntimeError as e:

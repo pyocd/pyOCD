@@ -215,11 +215,9 @@ BUILTIN_OPTIONS = [
         "List of telnet input file paths for each core."),
     OptionInfo('cbuild_run.telnet_file_out', tuple, None,
         "List of telnet output file paths for each core."),
-    OptionInfo('cbuild_run.rtt_control_block', tuple, None,
-        "List of RTT control block configurations for each core."),
-    OptionInfo('cbuild_run.rtt_channel', tuple, None,
-        "List of RTT channel configurations for each core."),
-    OptionInfo('cbuild_run.systemview', tuple, None,
+    OptionInfo('rtt', tuple, None,
+        "List of RTT configurations for each core."),
+    OptionInfo('systemview', tuple, None,
         "SystemView configuration."),
     ]
 

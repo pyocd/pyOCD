@@ -25,7 +25,7 @@ import platform
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (cast, Optional, Set, Dict, List, Tuple, Union, IO, Any, TYPE_CHECKING)
+from typing import (cast, Optional, Set, Dict, List, Tuple, Any, TYPE_CHECKING)
 
 from .flash_algo import PackFlashAlgo
 from .. import (normalise_target_type_name, TARGET)
@@ -238,11 +238,11 @@ class CbuildRun:
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
         self._required_packs: Dict[str, Optional[Path]] = {}
-        self._rtt_config_cache: Optional[Tuple] = None
 
         try:
             # Convert to Path object early and resolve to absolute path
             yml_file_path = Path(yml_path).resolve()
+            self._cbuild_run_path = str(yml_file_path)
 
             with yml_file_path.open('r') as yml_file:
                 yml_data = yaml.safe_load(yml_file)
@@ -706,109 +706,20 @@ class CbuildRun:
                 'out': tuple(out_files) if any(out_files) else None}
 
     @property
-    def rtt_config(self) -> Optional[Tuple]:
-        """@brief Cached RTT configurations."""
-        if self._rtt_config_cache is None:
-            self._rtt_config_cache = self._get_rtt_config()
-        return self._rtt_config_cache
+    def rtt(self) -> Optional[Tuple]:
+        rtt = self.debugger.get('rtt') or []
+        return tuple(rtt) if rtt else None
 
     @property
-    def rtt_control_block(self) -> Optional[Tuple]:
-        """@brief RTT control block configurations for each core."""
-        rtt_config_list = self.rtt_config
-        if rtt_config_list is None:
+    def systemview(self) -> Optional[Tuple]:
+        rtt = self.debugger.get('rtt') or []
+        if not rtt:
             return None
-
-        control_block_list = []
-        for config in rtt_config_list:
-            config = config.get('control-block')
-            if config is not None:
-                control_block_list.append({
-                    'address': config.get('address'),
-                    'size': config.get('size'),
-                    'auto-detect': config.get('auto-detect', False)
-                })
-            else:
-                control_block_list.append(None)
-
-        return tuple(control_block_list)
-
-    @property
-    def rtt_channel(self) -> Optional[Tuple]:
-        """@brief RTT channel configurations for each core."""
-
-        SUPPORTED_MODES = { 'stdio', 'telnet', 'systemview'}
-
-        rtt_config_list = self.rtt_config
-        if rtt_config_list is None:
-            return None
-
-        channel_list = []
-        for idx, config in enumerate(rtt_config_list):
-            channels = config.get('channel', [])
-            valid_channel_list = []
-            for ch_cfg in channels or []:
-                ch_num = ch_cfg.get('number', None)
-                if ch_num is None:
-                    # Warn about missing channel number
-                    LOG.warning("RTT channel configuration for core %d is missing channel number; channel disabled", idx)
-                    continue
-                if any(ch['number'] == ch_num for ch in valid_channel_list):
-                    LOG.warning("RTT channel %d for core %d is already configured; skipping duplicate", ch_num, idx)
-                    continue
-                ch_mode = ch_cfg.get('mode', None)
-                if ch_mode is None:
-                    # Warn about missing channel mode
-                    LOG.warning("RTT channel %d configuration for core %d is missing mode; channel disabled", ch_num, idx)
-                    continue
-                if ch_mode not in SUPPORTED_MODES:
-                    # Warn about unsupported channel mode
-                    LOG.warning("RTT channel %d configuration for core %d has unsupported mode '%s'; channel disabled",
-                                ch_num, idx, ch_mode)
-                    continue
-                # STDIO mode
-                if ch_mode == 'stdio':
-                    valid_channel_list.append({'number': ch_num, 'mode': ch_mode})
-                # Telnet mode
-                elif ch_mode == 'telnet':
-                    port = ch_cfg.get('port', None)
-                    if port is None:
-                        LOG.warning("RTT telnet channel %d configuration for core %d is missing port configuration; channel disabled", ch_num, idx)
-                        continue
-                    else:
-                        valid_channel_list.append({'number': ch_num, 'mode': ch_mode, 'port': port})
-                # SystemView mode
-                elif ch_mode == 'systemview':
-                    valid_channel_list.append({'number': ch_num, 'mode': ch_mode})
-
-            valid_channel_list.sort(key=lambda x: int(x['number']))
-            channel_list.append(valid_channel_list if valid_channel_list else None)
-
-        return tuple(channel_list)
-
-    @property
-    def systemview(self) -> Optional[Dict[str, Any]]:
-        """@brief SystemView configurations for each core."""
-        systemview = self.debugger.get('systemview') or []
-
-        # Set default values
-        file = f"{self._cbuild_name}.SVDat"
-        auto_start = True
-        auto_stop = True
-
-        if systemview:
-            _file = systemview.get('file', file)
-            auto_start = systemview.get('auto-start', True)
-            auto_stop = systemview.get('auto-stop', True)
-            if _file is not None:
-                file = str(Path(os.path.expandvars(str(_file))).expanduser().resolve())
-
-        systemview_cfg ={
-            'file': file,
-            'auto-start': auto_start,
-            'auto-stop': auto_stop
-        }
-        return systemview_cfg
+        sv = self.debugger.get('systemview') or {}
+        if sv.get('file') is None:
+            # Set default systemview file name if not provided
+            sv['file'] = self._cbuild_run_path.split('.cbuild-run')[0] + '.SVDat'
+        return sv if sv else None
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
@@ -833,53 +744,6 @@ class CbuildRun:
                     "add_target_command_groups": CbuildRunTargetMethods._cbuild_target_add_target_command_groups,
         })
         TARGET[target] = tgt
-
-    def _get_rtt_config(self) -> Optional[Tuple]:
-        """@brief RTT configuration from debugger section.
-
-        Returns a tuple of RTT configurations, one per core. If no RTT configuration
-        exists in the debugger section, returns None.
-        """
-        rtt_config_list = self.debugger.get('rtt') or []
-        if not rtt_config_list:
-            return None
-
-        # Check for a global configuration (no 'pname')
-        global_config = next((c for c in rtt_config_list if 'pname' not in c), None)
-
-        # Create a map of pname to its specific configuration
-        pname_map = {c['pname']: c for c in rtt_config_list if 'pname' in c}
-
-        sorted_processors = self.sorted_processors
-        is_multicore = len(sorted_processors) > 1
-        primary_core_index = self.primary_core if self.primary_core is not None else 0
-
-        # Warn the user if a global control-block is used on a multicore target
-        if is_multicore and global_config and ('control-block' in global_config):
-            LOG.warning("Global RTT 'control-block' configuration is only applied to the primary core for "
-                        "multicore targets. Other global RTT settings are applied to all cores.")
-
-        rtt_configs = []
-        for i, proc_info in enumerate(sorted_processors):
-            core_config = {}
-
-            # Apply global settings
-            if global_config:
-                # Default global configuration
-                core_config.update(deepcopy(global_config))
-                if is_multicore and i != primary_core_index:
-                    # Remove control-block for non-primary cores in multicore targets
-                    core_config.pop('control-block', None)
-
-            # Override with core-specific settings
-            pname_config = pname_map.get(proc_info.name)
-            if pname_config:
-                core_config.update(deepcopy(pname_config))
-
-            # Add configuration to the list
-            rtt_configs.append(core_config)
-
-        return tuple(rtt_configs)
 
     def _get_server_port(self, server_type: str) -> Optional[Tuple]:
         """@brief Generic method to get server port assignments from debugger section."""
@@ -1117,7 +981,6 @@ class CbuildRun:
             self._processors_map['Unknown'] = ProcessorInfo(name='Unknown',
                                                             ap_address=APv1Address(0),
                                                             svd_path=get_svd_path())
-
 
 class CbuildRunSequences:
     """@brief Parses debug sequences and debug variable definitions from .cbuild-run.yml."""

@@ -299,9 +299,8 @@ class Session(Notifier):
             debugger_options['cbuild_run.telnet_file_in'] = telnet_file.get('in')
             debugger_options['cbuild_run.telnet_file_out'] = telnet_file.get('out')
 
-        debugger_options['cbuild_run.rtt_control_block'] = self.cbuild_run.rtt_control_block
-        debugger_options['cbuild_run.rtt_channel'] = self.cbuild_run.rtt_channel
-        debugger_options['cbuild_run.systemview'] = self.cbuild_run.systemview
+        debugger_options['rtt'] = self.cbuild_run.rtt
+        debugger_options['systemview'] = self.cbuild_run.systemview
 
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
