@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.42 release introduces new `run` subcommand, capable of running targets until a time limit or EOT (suited for CI/CD workflows)
+- The v0.43 release introduces SEGGER RTT and SystemView support with flexible channel configuration in the `run` subcommand
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
