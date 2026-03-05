@@ -61,6 +61,8 @@ class RTTSubcommand(SubcommandBase):
                                  help="Down channel ID.")
         rtt_options.add_argument("-d", "--log-file", type=str, default=None,
                                  help="Log file name. When specified, logging mode is enabled.")
+        rtt_options.add_argument("--echo", action=argparse.BooleanOptionalAction, default=True,
+                                 help="Echo locally typed characters. By default echo is on.")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, rtt_parser]
 
@@ -191,8 +193,9 @@ class RTTSubcommand(SubcommandBase):
 
                 if ord(c) == 27: # process ESC
                     break
-                elif c.isprintable() or c == '\n':
-                    print(c, end="", flush=True)
+                if self._args.echo:
+                    if c.isprintable() or c == '\n':
+                        print(c, end="", flush=True)
 
                 # add char to buffer
                 cmd += c.encode("utf-8")
