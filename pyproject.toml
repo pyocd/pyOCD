@@ -4,10 +4,119 @@
 requires = [
     "setuptools>=51",
     "wheel",
-    "setuptools_scm[toml]>=6.0,<7.0; python_version < \"3.7\"",
-    "setuptools_scm[toml]>=7.0; python_version >= \"3.7\"",
+    "setuptools_scm>=7.0",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyocd"
+description = "Cortex-M debugger for Python"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+maintainers = [
+    { name = "Chris Reed", email = "chris.reed@arm.com" },
+]
+keywords = ["embedded", "debug", "debugger", "arm", "gdb", "gdbserver", "flash", "test"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: POSIX :: BSD",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Utilities",
+]
+dynamic = ["version"]
+dependencies = [
+    "capstone>=5.0,<6.0",
+    "cmsis-pack-manager>=0.5.2,<1.0",
+    "colorama<1.0",
+    "hidapi>=0.10.1,<1.0; platform_system != 'Linux'",
+    "importlib_metadata>=3.6",
+    "importlib_resources",
+    "intelhex>=2.0,<3.0",
+    "intervaltree>=3.0.2,<4.0",
+    "lark>=1.1.5,<2.0",
+    "libusb-package>=1.0,<2.0",
+    "natsort>=8.0.0,<9.0",
+    "prettytable>=2.0,<4.0",
+    "pyelftools<1.0",
+    "pylink-square>=1.0,<2.0",
+    "pyusb>=1.2.1,<2.0",
+    "pyyaml>=6.0,<7.0",
+    "six>=1.15.0,<2.0",
+    "typing-extensions>=4.0,<5.0",
+]
+
+[project.optional-dependencies]
+pemicro = [
+    "pyocd_pemicro>=1.0.6",
+]
+test = [
+    "pytest>=6.2",
+    "pytest-cov",
+    "coverage",
+    "flake8",
+    "pylint",
+    "tox",
+]
+
+[project.scripts]
+pyocd = "pyocd.__main__:main"
+pyocd-gdbserver = "pyocd.tools.gdb_server:main"
+
+[project.entry-points."pyocd.probe"]
+cmsisdap = "pyocd.probe.cmsis_dap_probe:CMSISDAPProbePlugin"
+jlink = "pyocd.probe.jlink_probe:JLinkProbePlugin"
+picoprobe = "pyocd.probe.picoprobe:PicoprobePlugin"
+remote = "pyocd.probe.tcp_client_probe:TCPClientProbePlugin"
+stlink = "pyocd.probe.stlink_probe:StlinkProbePlugin"
+
+[project.entry-points."pyocd.rtos"]
+argon = "pyocd.rtos.argon:ArgonPlugin"
+freertos = "pyocd.rtos.freertos:FreeRTOSPlugin"
+rtx5 = "pyocd.rtos.rtx5:RTX5Plugin"
+threadx = "pyocd.rtos.threadx:ThreadXPlugin"
+zephyr = "pyocd.rtos.zephyr:ZephyrPlugin"
+
+[project.urls]
+Website = "https://pyocd.io/"
+Documentation = "https://pyocd.io//docs"
+Source = "https://github.com/pyocd/pyOCD"
+Issues = "https://github.com/pyocd/pyOCD/issues"
+Discussions = "https://github.com/pyocd/pyOCD/discussions"
+Releases = "https://github.com/pyocd/pyOCD/releases"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["pyocd*"]
+
+[tool.setuptools.package-data]
+pyocd = ["debug/svd/svd_data.zip"]
+
+[tool.setuptools.cmdclass]
+build_py = "pyocd._build.build_py"
+sdist = "pyocd._build.sdist"
 
 [tool.setuptools_scm]
 write_to = "pyocd/_version.py"
@@ -20,19 +129,15 @@ junit_logging = "all"
 log_level = "DEBUG"
 
 [tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py37
+requires = ["tox>=4"]
 
-# Defaults for all test environments.
-[testenv]
-deps =
-    pytest
-changedir = test
-passenv = CI_JOBS
-commands =
-    python automated_test.py -j4 -q
-"""
+[tool.tox.env.py]
+deps = ["pytest"]
+change_dir = "test"
+pass_env = ["CI_JOBS"]
+commands = [
+    ["python", "automated_test.py", "-j4", "-q"],
+]
 
 [tool.mypy]
 files = "pyocd"

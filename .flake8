@@ -1,0 +1,4 @@
+[flake8]
+exclude =
+    test_user_script.py
+    gdb_test_script.py
