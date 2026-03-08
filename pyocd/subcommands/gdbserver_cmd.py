@@ -20,6 +20,7 @@ from typing import (Optional, List)
 import logging
 import sys
 import os
+import signal
 from time import sleep
 
 from .base import SubcommandBase
@@ -134,6 +135,9 @@ class GdbserverSubcommand(SubcommandBase):
     def invoke(self) -> int:
         """@brief Handle 'gdbserver' subcommand."""
         self._process_commands(self._args.commands)
+
+        # redirect SIGTERM issued e.g. by Eclipse debug plugin into a SIGINT
+        signal.signal(signal.SIGTERM, lambda x, y: signal.raise_signal(signal.SIGINT))
 
         probe_server = None
         gdbs = []
