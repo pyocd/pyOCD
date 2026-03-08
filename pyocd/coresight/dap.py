@@ -69,7 +69,6 @@ DPIDR1_ERRMODE_MASK = 0x00000080
 
 BASEPTR0_VALID_MASK = 0x00000001
 BASEPTR0_PTR_MASK = 0xfffff000
-BASEPTR0_PTR_SHIFT = 12
 
 ABORT_DAPABORT = 0x00000001
 ABORT_STKCMPCLR = 0x00000002
@@ -495,7 +494,7 @@ class DebugPort(DelegateHavingMixIn):
             baseptr0 = self.read_reg(DP_BASEPTR0)
             valid = (baseptr0 & BASEPTR0_VALID_MASK) != 0
             if valid:
-                base = (baseptr0 & BASEPTR0_PTR_MASK) >> BASEPTR0_PTR_SHIFT
+                base = baseptr0 & BASEPTR0_PTR_MASK
                 if self._addr_size > 32:
                     baseptr1 = self.read_reg(DP_BASEPTR1)
                     base |= baseptr1 << 32
