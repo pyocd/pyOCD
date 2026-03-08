@@ -516,6 +516,11 @@ title: Built-in targets
     <td>KW36Z4</td>
     </tr>
 
+    <tr><td><code>kw38a4</code></td>
+    <td>NXP</td>
+    <td>KW38A4</td>
+    </tr>
+
     <tr><td><code>kw40z4</code></td>
     <td>NXP</td>
     <td>KW40Z4</td>
