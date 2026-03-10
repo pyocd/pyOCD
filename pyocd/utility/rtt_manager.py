@@ -27,7 +27,7 @@ from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChan
 
 LOG = logging.getLogger(__name__)
 
-class RttCbuildRun():
+class RTTManager:
     """@brief Helper class to configure and start RTT server based on cbuild-run configuration in the session."""
 
     def __init__(self, session: Session, core: Optional[int] = None):

@@ -31,7 +31,7 @@ from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..core.target import Target
 from ..debug import semihost
 from ..utility.timeout import Timeout
-from ..utility.rtt_cbuild_run import RttCbuildRun
+from ..utility.rtt_manager import RTTManager
 from ..utility.systemview import SystemViewSVDat
 from ..trace.swv import SWVReader
 
@@ -204,9 +204,9 @@ class RunServer(threading.Thread):
         # Start RTT server
         self._rtt_server = None
         try:
-            rtt_cbuild_run = RttCbuildRun(session=session, core=core)
-            self._rtt_server = rtt_cbuild_run.start_server()
-            rtt_cbuild_run.configure_channels(stdio_handler=self._stdio_handler)
+            rtt_manager = RTTManager(session=session, core=core)
+            self._rtt_server = rtt_manager.start_server()
+            rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
         except RuntimeError as e:
             LOG.warning("RTT configuration failed for core %d: %s", self.core, e)
 
